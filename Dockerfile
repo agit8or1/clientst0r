@@ -59,6 +59,16 @@ RUN useradd -m -u 1000 clientst0r \
     && mkdir -p /app /app/logs /app/media /app/static_collected /app/backups /var/lib/itdocs/uploads \
     && chown -R clientst0r:clientst0r /app /var/lib/itdocs
 
+# The AI gateway worker's own user (Phase 57.3, OPTIONAL AI; the
+# `ai-gateway` compose profile). Primary group `clientst0r`, so it can read
+# the code (files are 644, nothing in /app is group-writable) and share the
+# gateway key directory with the app, which reads public.key only.
+# private.key is 0600 and owned by this user. The worker never gets .env.
+RUN useradd -M -u 1001 -g clientst0r -s /usr/sbin/nologin clientst0r-ai \
+    && mkdir -p /var/lib/clientst0r/ai-gateway \
+    && chown clientst0r-ai:clientst0r /var/lib/clientst0r/ai-gateway \
+    && chmod 750 /var/lib/clientst0r/ai-gateway
+
 WORKDIR /app
 
 # Copy source. .dockerignore keeps node_modules, venvs, db files,

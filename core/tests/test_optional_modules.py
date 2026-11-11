@@ -30,6 +30,7 @@ EXPECTED_DEFAULTS = {
     'psa_portal_escalation_enabled': False, 'psa_portal_customer_approvals_enabled': False,
     'asset_age_warnings_enabled': False, 'warranty_checks_enabled': False,
     'firmware_checks_enabled': False,
+    'reports_enabled': True, 'secure_notes_enabled': True,
 }
 
 
@@ -61,9 +62,17 @@ class RegistryTests(TestCase):
         self.assertIn('monitoring', modules.MODULES_BY_KEY['status_pages'].requires)
         self.assertTrue(modules.MODULES_BY_KEY['ticket_ai'].optional_ai)
 
-    def test_unenforced_switches_exist(self):
-        for name, _label, _why in modules.UNENFORCED_SWITCHES:
-            SystemSetting._meta.get_field(name)
+    def test_no_saved_but_unused_switch_list_is_left(self):
+        # Every switch the old "saved but not used" list named is now either
+        # enforced (reports, secure notes: listed as modules) or removed.
+        self.assertFalse(hasattr(modules, 'UNENFORCED_SWITCHES'))
+        for removed in ('psa_portal_enabled', 'psa_anonymous_ticket_form_enabled',
+                        'psa_email_to_ticket_enabled', 'psa_sms_notifications_enabled',
+                        'psa_desktop_alerts_enabled', 'psa_external_alert_ingest_enabled'):
+            with self.assertRaises(Exception):
+                SystemSetting._meta.get_field(removed)
+        self.assertEqual(modules.MODULES_BY_KEY['reports'].field, 'reports_enabled')
+        self.assertEqual(modules.MODULES_BY_KEY['secure_notes'].field, 'secure_notes_enabled')
 
     def test_fresh_install_states(self):
         s = SystemSetting.get_settings()
@@ -97,7 +106,7 @@ class ModulesPageTests(TestCase):
         for m in modules.MODULES:
             self.assertIn(f'data-module="{m.key}"', html)
         self.assertIn('OPTIONAL AI', html)
-        self.assertIn('id="unenforced-switches"', html)
+        self.assertNotIn('id="unenforced-switches"', html)
 
     def test_page_is_superuser_only(self):
         self.client.force_login(self.tech)

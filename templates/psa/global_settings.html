@@ -28,50 +28,9 @@
                 <form method="post">
                     {% csrf_token %}
 
-                    <h6 class="text-muted mt-2 mb-3">Per-surface flags <small>— all default OFF; turn on only what you intend to use</small></h6>
+                    <h6 class="text-muted mt-2 mb-3">Ticket close-out</h6>
+                    <p class="small text-muted">The customer portal is turned on per customer under <a href="{% url 'psa:client_settings' %}">Per-customer PSA settings</a>; email-to-ticket follows each mailbox under Email ingestion; SMS to staff follows Settings → SMS and each technician's profile.</p>
 
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="psa_portal_enabled" name="psa_portal_enabled" {% if settings.psa_portal_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="psa_portal_enabled">
-                            <strong>Client portal</strong>
-                            <small class="text-muted d-block">Customers sign in to view their tickets, KB, etc.</small>
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="psa_anonymous_ticket_form_enabled" name="psa_anonymous_ticket_form_enabled" {% if settings.psa_anonymous_ticket_form_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="psa_anonymous_ticket_form_enabled">
-                            <strong>Anonymous ticket form</strong>
-                            <small class="text-muted d-block">Public — no login required (rate-limited).</small>
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="psa_email_to_ticket_enabled" name="psa_email_to_ticket_enabled" {% if settings.psa_email_to_ticket_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="psa_email_to_ticket_enabled">
-                            <strong>Email-to-ticket</strong>
-                            <small class="text-muted d-block">Inbound mailbox parsing creates / appends.</small>
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="psa_sms_notifications_enabled" name="psa_sms_notifications_enabled" {% if settings.psa_sms_notifications_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="psa_sms_notifications_enabled">
-                            <strong>SMS notifications to staff</strong>
-                            <small class="text-muted d-block">Never includes secrets in body.</small>
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="psa_desktop_alerts_enabled" name="psa_desktop_alerts_enabled" {% if settings.psa_desktop_alerts_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="psa_desktop_alerts_enabled">
-                            <strong>Desktop / browser alerts</strong>
-                            <small class="text-muted d-block">Per-user opt-in via Web Notifications API.</small>
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="psa_external_alert_ingest_enabled" name="psa_external_alert_ingest_enabled" {% if settings.psa_external_alert_ingest_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="psa_external_alert_ingest_enabled">
-                            <strong>External alert / RMM ingestion</strong>
-                            <small class="text-muted d-block">Monitoring webhooks → tickets.</small>
-                        </label>
-                    </div>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="psa_closeout_require_time" name="psa_closeout_require_time" {% if settings.psa_closeout_require_time %}checked{% endif %}>
                         <label class="form-check-label" for="psa_closeout_require_time">

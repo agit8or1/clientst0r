@@ -26,6 +26,15 @@ def _always(ctx):
     return True
 
 
+def _ctx_reports(ctx):
+    # Settings -> Features -> Reports & Analytics (missing = on, as before).
+    return ctx.get('reports_enabled', True) is not False
+
+
+def _ctx_psa_reports(ctx):
+    return _ctx_psa(ctx) and _ctx_reports(ctx)
+
+
 # (key, label, icon (FA), url-name, tooltip, gate-callable)
 QUICK_ACTIONS_REGISTRY = [
     {'key': 'new_ticket', 'label': 'New Ticket',
@@ -60,10 +69,10 @@ QUICK_ACTIONS_REGISTRY = [
      'enabled': _always, 'requires_org': True},
     {'key': 'wallboard', 'label': 'Wallboards',
      'icon': 'fa-tv', 'url_name': 'reports:wallboard_list',
-     'tooltip': 'TV-ready dashboards', 'enabled': _always},
+     'tooltip': 'TV-ready dashboards', 'enabled': _ctx_reports},
     {'key': 'agreement_recon', 'label': 'Agreement Recon.',
      'icon': 'fa-balance-scale', 'url_name': 'reports:agreement_reconciliation',
-     'tooltip': 'Agreement Reconciliation report', 'enabled': _ctx_psa},
+     'tooltip': 'Agreement Reconciliation report', 'enabled': _ctx_psa_reports},
     {'key': 'runbook_dashboard', 'label': 'Runbooks',
      'icon': 'fa-tasks', 'url_name': 'processes:runbook_dashboard',
      'tooltip': 'Per-org runbook completion dashboard', 'enabled': _always},

@@ -104,15 +104,6 @@
         {% endfor %}
         {% endfor %}
 
-        <div class="card mt-3" id="unenforced-switches">
-            <div class="card-header"><h2 class="h6 mb-0">{% trans "Switches that are saved but not used yet" %}</h2></div>
-            <div class="card-body small">
-                <p class="text-muted mb-2">{% trans "These switches exist on other settings pages and are saved, but no page, job or menu reads them in this version. Turning them on or off changes nothing yet." %}</p>
-                <ul class="mb-0">
-                    {% for field, label, why in unenforced %}<li data-field="{{ field }}">{{ label }}{% if why %} — {{ why }}{% endif %}</li>{% endfor %}
-                </ul>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}

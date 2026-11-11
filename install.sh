@@ -326,6 +326,11 @@ SVCEOF
             sleep 2
             if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
                 print_status "Upgrade complete! Service is running."
+                if [ ! -f /etc/systemd/system/clientst0r-ai-gateway.service ] \
+                        || ! grep -q '^User=clientst0r-ai$' /etc/systemd/system/clientst0r-ai-gateway.service; then
+                    print_info "Optional: run the Ticket AI gateway worker as its own user (can't read .env):"
+                    echo "  bash $INSTALL_DIR/deploy/setup-ai-gateway-user.sh"
+                fi
                 SERVER_IP=$(hostname -I | awk '{print $1}')
                 echo ""
                 echo "Access at: http://${SERVER_IP}:8000"
@@ -968,6 +973,9 @@ install_timer_units() {
         base="$(basename "$unit")"
         # gunicorn is written separately above, with its own placeholders.
         [ "$base" = "clientst0r-gunicorn.service" ] && continue
+        # The AI gateway worker runs as its own user and is installed by
+        # deploy/setup-ai-gateway-user.sh (install_ai_gateway_worker below).
+        [ "$base" = "clientst0r-ai-gateway.service" ] && continue
 
         sudo cp "$unit" "/etc/systemd/system/$base"
         # Order matters: rewrite the paths first, then the bare User=/Group=
@@ -1012,6 +1020,42 @@ install_timer_units() {
 }
 
 install_timer_units
+
+# ---------------------------------------------------------------------------
+# AI gateway worker as its own OS user (Phase 57.3, OPTIONAL AI)
+#
+# Ticket AI provider keys are sealed to the gateway key pair. With
+# AI_GATEWAY_MODE=worker only the restricted worker opens them; running that
+# worker as `clientst0r-ai`, a user that cannot read .env, means the process
+# that talks to the model can never hold APP_MASTER_KEY. The script creates
+# the user, the root-only worker environment (DB_* only), the key pair in
+# /etc/clientst0r/ai-gateway, sets AI_GATEWAY_MODE=worker in .env, and starts
+# clientst0r-ai-gateway.service. If anything is not as it needs to be (for
+# example the worker could read .env) it stops before changing .env, and the
+# install continues in the default in-process mode.
+# Existing installs: bash deploy/setup-ai-gateway-user.sh
+# Skip on a fresh install with CLIENTST0R_AI_GATEWAY_USER=n.
+# ---------------------------------------------------------------------------
+install_ai_gateway_worker() {
+    if [ "${CLIENTST0R_AI_GATEWAY_USER:-y}" = "n" ]; then
+        print_info "AI gateway worker user skipped (CLIENTST0R_AI_GATEWAY_USER=n)."
+        return 0
+    fi
+    print_info "Setting up the AI gateway worker as its own user (clientst0r-ai)..."
+    if bash "$INSTALL_DIR/deploy/setup-ai-gateway-user.sh" "$INSTALL_DIR"; then
+        sudo systemctl restart clientst0r-gunicorn.service
+        for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/health/ >/dev/null 2>&1 && break
+            sleep 2
+        done
+        print_status "AI gateway worker running as clientst0r-ai (AI_GATEWAY_MODE=worker)"
+    else
+        print_warning "AI gateway worker not set up as its own user; Ticket AI stays in the default"
+        print_warning "in-process mode. Fix the reason above and run: bash deploy/setup-ai-gateway-user.sh"
+    fi
+}
+
+install_ai_gateway_worker
 
 # Get server IP address
 SERVER_IP=$(hostname -I | awk '{print $1}')

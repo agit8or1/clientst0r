@@ -9,6 +9,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -855,26 +856,14 @@ def psa_global_settings_view(request):
                 messages.success(request, f'Removed opt-out for {org_repr}.')
             return redirect('psa:settings')
 
-        # Default: save global per-surface flags + AI behavior knobs
+        # Default: save the close-out rule + AI behavior knobs
         previous = {
-            'psa_portal_enabled': settings.psa_portal_enabled,
-            'psa_anonymous_ticket_form_enabled': settings.psa_anonymous_ticket_form_enabled,
-            'psa_email_to_ticket_enabled': settings.psa_email_to_ticket_enabled,
-            'psa_sms_notifications_enabled': settings.psa_sms_notifications_enabled,
-            'psa_desktop_alerts_enabled': settings.psa_desktop_alerts_enabled,
-            'psa_external_alert_ingest_enabled': settings.psa_external_alert_ingest_enabled,
             'psa_closeout_require_time': settings.psa_closeout_require_time,
             'psa_ai_enabled': settings.psa_ai_enabled,
             'psa_ai_voice': settings.psa_ai_voice,
             'psa_ai_min_confidence': str(settings.psa_ai_min_confidence),
             'psa_ai_blocked_subject_keywords': settings.psa_ai_blocked_subject_keywords,
         }
-        settings.psa_portal_enabled = request.POST.get('psa_portal_enabled') == 'on'
-        settings.psa_anonymous_ticket_form_enabled = request.POST.get('psa_anonymous_ticket_form_enabled') == 'on'
-        settings.psa_email_to_ticket_enabled = request.POST.get('psa_email_to_ticket_enabled') == 'on'
-        settings.psa_sms_notifications_enabled = request.POST.get('psa_sms_notifications_enabled') == 'on'
-        settings.psa_desktop_alerts_enabled = request.POST.get('psa_desktop_alerts_enabled') == 'on'
-        settings.psa_external_alert_ingest_enabled = request.POST.get('psa_external_alert_ingest_enabled') == 'on'
         settings.psa_closeout_require_time = request.POST.get('psa_closeout_require_time') == 'on'
 
         settings.psa_ai_enabled = request.POST.get('psa_ai_enabled') == 'on'
@@ -4915,6 +4904,26 @@ def invoice_list(request):
     })
 
 
+def _invoices_for_customer(request, qs):
+    """Customer users reach only invoices billed to their own customers,
+    whatever customer (or Global View) the session is on. MSP staff are
+    unaffected."""
+    if _is_msp_staff(request):
+        return qs
+    return qs.filter(client_org_id__in=_member_org_ids(request))
+
+
+def _require_invoice_view(request, invoice):
+    """403 unless the user holds `billing_view_invoices` for the customer
+    billed (or the customer the invoice is booked under). Superusers, and
+    MSP staff without a global role, keep the access they always had
+    (accounts.permission_utils.orgs_with_perm)."""
+    from accounts.permission_utils import has_perm_for_org
+    if not (has_perm_for_org(request.user, invoice.client_org_id, 'billing_view_invoices')
+            or has_perm_for_org(request.user, invoice.organization_id, 'billing_view_invoices')):
+        raise PermissionDenied("You don't have the 'billing_view_invoices' permission for this customer.")
+
+
 @login_required
 @require_psa_enabled
 def invoice_detail(request, pk):
@@ -4923,7 +4932,8 @@ def invoice_detail(request, pk):
     qs = Invoice.objects.select_related('client_org', 'source_quote', 'source_ticket', 'source_contract')
     if org is not None:
         qs = qs.filter(organization=org)
-    item = get_object_or_404(qs, pk=pk)
+    item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    _require_invoice_view(request, item)
     return render(request, 'psa/invoice_detail.html', {
         'item': item,
         'line_items': item.line_items.all(),
@@ -5671,12 +5681,17 @@ def quote_pdf(request, pk):
 @require_psa_enabled
 def invoice_pdf(request, pk):
     from django.http import HttpResponse
+    # `Invoice` is not in the module-level imports; without this the PDF
+    # view raised NameError on every call.
+    from .models import Invoice
     from .pdf import render_invoice_pdf
     org = get_request_organization(request)
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs.select_related('client_org', 'organization'), pk=pk)
+    invoice = get_object_or_404(_invoices_for_customer(request, qs.select_related('client_org', 'organization')),
+                                pk=pk)
+    _require_invoice_view(request, invoice)
     pdf_bytes = render_invoice_pdf(invoice)
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     disposition = 'attachment' if request.GET.get('download') else 'inline'
@@ -5858,6 +5873,9 @@ def client_account(request, org_id):
     from .models import Charge, Invoice, Payment, get_psa_balance
     from core.models import Organization
     client = get_object_or_404(_customer_orgs(request), pk=org_id)
+    from accounts.permission_utils import has_perm_for_org
+    if not has_perm_for_org(request.user, client, 'billing_view_invoices'):
+        raise PermissionDenied("You don't have the 'billing_view_invoices' permission for this customer.")
 
     org = get_request_organization(request)
     summary = get_psa_balance(client, msp_org=org)

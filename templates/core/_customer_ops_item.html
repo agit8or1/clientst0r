@@ -10,7 +10,13 @@
     {% if item.actions %}
     <div class="d-flex flex-wrap gap-1">
         {% for action in item.actions %}{% if action.url %}
+        {% if action.method == 'post' %}
+        <form method="post" action="{{ action.url }}" class="d-inline">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-primary" data-action="{{ action.label|slugify }}">{% if action.icon %}<i class="fas {{ action.icon }}" aria-hidden="true"></i> {% endif %}{{ action.label }}</button>
+        </form>
+        {% else %}
         <a class="btn btn-sm btn-outline-primary" href="{{ action.url }}">{% if action.icon %}<i class="fas {{ action.icon }}" aria-hidden="true"></i> {% endif %}{{ action.label }}</a>
+        {% endif %}
         {% endif %}{% endfor %}
     </div>
     {% endif %}

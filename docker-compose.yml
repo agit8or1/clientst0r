@@ -10,6 +10,10 @@
 #
 # Optional services (enable with --profile):
 #   docker compose --profile proxy up -d   # adds Nginx reverse proxy
+#   docker compose --profile ai-gateway up -d
+#                                          # Ticket AI gateway worker as its
+#                                          # own user, without .env (see the
+#                                          # ai-gateway service below)
 #   docker compose --profile cache up -d   # adds Redis (only if you've
 #                                          # switched the Django cache
 #                                          # backend off the default
@@ -101,6 +105,10 @@ services:
       - uploads:/var/lib/itdocs/uploads
       - backups:/app/backups
       - ./logs:/app/logs
+      # AI gateway public key (read-only). Used when .env sets
+      # AI_GATEWAY_MODE=worker and AI_GATEWAY_KEY_DIR=/var/lib/clientst0r/ai-gateway
+      # and the ai-gateway profile runs; ignored otherwise.
+      - ai_gateway_keys:/var/lib/clientst0r/ai-gateway:ro
     ports:
       - "${WEB_PORT:-8000}:8000"
     networks:
@@ -161,6 +169,54 @@ services:
       python manage.py run_scheduler || echo "run_scheduler exited with an error";
       sleep 60;
       done'
+    healthcheck:
+      disable: true
+
+  # ────────────────────────────────────────────────────────────────────
+  # AI gateway worker — optional (OPTIONAL AI). Enable with
+  # --profile ai-gateway. Opens Ticket AI provider keys and calls the
+  # model as uid 1001 (`clientst0r-ai`), with NO env_file: it never sees
+  # APP_MASTER_KEY, SECRET_KEY or any other secret in .env, only the
+  # database settings below. It owns the gateway private key in the
+  # `ai_gateway_keys` volume; the app mounts that volume read-only and can
+  # read public.key, not private.key.
+  #
+  # One-time setup:
+  #   1. in .env: AI_GATEWAY_MODE=worker
+  #               AI_GATEWAY_KEY_DIR=/var/lib/clientst0r/ai-gateway
+  #   2. docker compose --profile ai-gateway run --rm ai-gateway \
+  #        python manage.py ai_gateway_keygen --group-readable
+  #   3. docker compose --profile ai-gateway up -d   (recreates app too)
+  # Provider keys saved before step 1 were sealed to another key pair and
+  # must be entered again (Settings → AI).
+  # ────────────────────────────────────────────────────────────────────
+  ai-gateway:
+    image: ${CLIENTST0R_IMAGE:-ghcr.io/agit8or1/clientst0r:latest}
+    container_name: clientst0r-ai-gateway
+    restart: unless-stopped
+    profiles: ["ai-gateway"]
+    user: "1001:1000"
+    # Deliberately no env_file: .env holds APP_MASTER_KEY.
+    environment:
+      CLIENTST0R_PROCESS_ROLE: ai_gateway
+      DJANGO_SETTINGS_MODULE: config.settings_ai_gateway
+      AI_GATEWAY_MODE: worker
+      AI_GATEWAY_KEY_DIR: /var/lib/clientst0r/ai-gateway
+      CLIENTST0R_SKIP_SETUP: "1"
+      DB_ENGINE: mysql
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-clientst0r}
+      DB_USER: ${DB_USER:-clientst0r}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ai_gateway_keys:/var/lib/clientst0r/ai-gateway
+    networks:
+      - clientst0r-net
+    depends_on:
+      app:
+        condition: service_healthy
+    command: ["python", "manage.py", "ai_gateway_worker"]
     healthcheck:
       disable: true
 
@@ -234,6 +290,8 @@ volumes:
     name: clientst0r-uploads
   backups:
     name: clientst0r-backups
+  ai_gateway_keys:
+    name: clientst0r-ai-gateway-keys
 
 networks:
   clientst0r-net:

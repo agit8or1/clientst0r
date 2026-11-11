@@ -56,6 +56,5 @@ def settings_modules(request):
 
     return render(request, 'core/settings_modules.html', {
         'groups': modules.describe(settings),
-        'unenforced': modules.UNENFORCED_SWITCHES,
         'current_tab': 'modules',
     })

@@ -5,8 +5,14 @@ Five sections, each built from data that already exists elsewhere:
   sla       open PSA tickets whose SLA is breached or close to it
             (psa.sla.status_chip, the same rule as the ticket badge)
   uptime    website monitors that are down or warning, monitors with
-            outages in the last 7 days (MonitorCheck history), and
-            status-page incidents that are ongoing or recent
+            outages in the last 7 days (MonitorCheck history), WAN
+            connections that are down or failed checks in that window
+            (WANCheck history), active RMM alerts on the customer's
+            devices (users holding integrations_view for the customer),
+            SSL certificates and domains that have expired or fall inside
+            their warning window (website monitors and manual SSL / domain
+            expirations), and status-page incidents that are ongoing or
+            recent
   renewals  PSA contracts ending within RENEWAL_WINDOW_DAYS, or already
             ended / expired and not renewed (no successor contract)
   invoices  PSA invoices past their due date with a balance left
@@ -29,7 +35,11 @@ Access is decided per section, per customer, before anything is counted:
     enabled status pages, and no links into staff-only pages (contracts,
     invoice management, status page admin).
 
-Nothing here writes. Every action is a link to an existing page.
+Nothing here writes. Every action is a link to an existing page, except
+"Send reminder" on an overdue invoice: a POST (core.customer_ops_views.
+invoice_reminder) that needs `billing_send_invoices` for the customer, emails
+the existing invoice PDF (psa.pdf.email_invoice) to the customer's contact
+address and is audit-logged.
 """
 from __future__ import annotations
 
@@ -55,7 +65,7 @@ GATES = {
 
 TITLES = {
     'sla': 'SLA risks',
-    'uptime': 'Uptime incidents',
+    'uptime': 'Uptime and expirations',
     'renewals': 'Contract renewals',
     'invoices': 'Overdue invoices',
     'assets': 'Aging assets',
@@ -74,6 +84,12 @@ RECENTLY_ENDED_DAYS = 90
 WARRANTY_WINDOW_DAYS = 90
 EOL_WINDOW_DAYS = 180
 INCIDENT_LOOKBACK_DAYS = 7
+# An SSL certificate or domain this close to expiry is "act now".
+EXPIRY_DANGER_DAYS = 7
+# A second reminder for the same invoice inside this window is refused.
+REMINDER_COOLDOWN_MINUTES = 10
+
+_RMM_SEVERITY = {'critical': 'danger', 'error': 'danger', 'warning': 'warning', 'info': 'info'}
 
 # Rows read per section. The summary shows SUMMARY_LIMIT of them; the
 # section page shows them all. A section that hit the cap says so.
@@ -89,6 +105,7 @@ class Action:
     label: str
     url: str
     icon: str = ''
+    method: str = 'get'            # 'post' renders a one-button form
 
 
 @dataclass
@@ -292,6 +309,11 @@ def uptime_section(request, org, now=None):
                             'fa-globe')],
         ))
 
+    _wan_items(section, user, org, staff, since)
+    if staff or _has(user, org, 'integrations_view'):
+        _rmm_alert_items(section, user, org, staff)
+    _expiry_items(section, org, staff, now)
+
     incidents = (StatusPageIncident.objects
                  .filter(page__organization=org)
                  .filter(Q(resolved_at__isnull=True) | Q(started_at__gte=since))
@@ -317,6 +339,119 @@ def uptime_section(request, org, now=None):
         ))
     section.items = _sorted(section.items)
     return section
+
+
+def _wan_items(section, user, org, staff, since):
+    """WAN connections down now (status or the check's alert state), and
+    monitored ones that answered again after failed checks in the window."""
+    from locations.models import WAN, WANCheck
+
+    down = list(WAN.objects
+                .filter(organization=org)
+                .filter(Q(status='down') | Q(monitoring_enabled=True, alert_state='down'))
+                .select_related('location')
+                .order_by('name')[:SCAN_LIMIT])
+    down_ids = {w.pk for w in down}
+    for w in down:
+        actions = [Action('Open WAN', _url('locations:wan_detail', w.location_id, w.pk), 'fa-network-wired')]
+        ticket_url = _ticket_create_url(user, org, subject=f'WAN down: {w.name}'[:200])
+        if ticket_url:
+            actions.append(Action('Open ticket', ticket_url, 'fa-plus'))
+        bits = ['Down now', w.isp_name, getattr(w.location, 'name', '')]
+        section.items.append(Item(
+            title=f'WAN {w.name}',
+            detail=' · '.join(b for b in bits if b),
+            severity='danger', when=w.last_down_at or w.last_checked_at, actions=actions))
+
+    recent = (WANCheck.objects
+              .filter(wan__organization=org, wan__monitoring_enabled=True,
+                      result='down', checked_at__gte=since)
+              .exclude(wan_id__in=down_ids)
+              .values('wan_id', 'wan__name', 'wan__location_id')
+              .annotate(n=Count('id'), last=Max('checked_at'))
+              .order_by('-last')[:SCAN_LIMIT])
+    for row in recent:
+        section.items.append(Item(
+            title=f"WAN {row['wan__name']}",
+            detail=f"Recovered · {row['n']} failed check(s) in the last {INCIDENT_LOOKBACK_DAYS} days",
+            severity='info', when=row['last'],
+            actions=[Action('Open WAN', _url('locations:wan_detail', row['wan__location_id'], row['wan_id']),
+                            'fa-network-wired')]))
+
+
+def _rmm_alert_items(section, user, org, staff):
+    """Active RMM alerts on this customer's devices. Scoped the way the RMM
+    alerts page scopes them: by the device's customer, resolved devices
+    only (an unowned device's alerts belong to no one)."""
+    from integrations.models import RMMAlert, RMMDevice
+
+    alerts = (RMMAlert.objects
+              .filter(device__organization=org, device__ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+                      status='active')
+              .select_related('device')
+              .order_by('-triggered_at')[:SCAN_LIMIT])
+    for a in alerts:
+        actions = []
+        if staff:
+            actions.append(Action('RMM alerts', _url('integrations:rmm_alerts'), 'fa-bell'))
+        ticket_url = _ticket_create_url(user, org, subject=f'RMM alert: {a.device.device_name} {a.alert_type}'[:200])
+        if ticket_url:
+            actions.append(Action('Open ticket', ticket_url, 'fa-plus'))
+        message = (a.message or '').strip().splitlines()[0][:160] if a.message else ''
+        section.items.append(Item(
+            title=f'{a.device.device_name}: {a.alert_type}'[:200],
+            detail=' · '.join(b for b in (f'RMM {a.get_severity_display()}', message) if b),
+            severity=_RMM_SEVERITY.get(a.severity, 'info'), when=a.triggered_at, actions=actions))
+
+
+def _expiry_severity(days):
+    return 'danger' if days < 0 or days <= EXPIRY_DANGER_DAYS else 'warning'
+
+
+def _expiry_detail(label, when, days):
+    if days < 0:
+        return f'{label} expired {when:%Y-%m-%d}'
+    return f'{label} expires in {days} day(s) ({when:%Y-%m-%d})'
+
+
+def _expiry_items(section, org, staff, now):
+    """SSL certificates and domains past expiry or inside their warning
+    window: from website monitors (checked automatically) and from manual
+    SSL / domain expirations (Monitoring → Expirations)."""
+    from monitoring.models import Expiration, WebsiteMonitor
+
+    monitors = (WebsiteMonitor.objects
+                .filter(organization=org, is_enabled=True)
+                .filter(Q(ssl_expires_at__isnull=False) | Q(domain_expires_at__isnull=False))
+                .order_by('name')[:SCAN_LIMIT])
+    for m in monitors:
+        for label, when, warn in (('SSL certificate', m.ssl_expires_at, m.ssl_warning_days),
+                                  ('Domain', m.domain_expires_at, m.domain_warning_days)):
+            if when is None or when > now + timedelta(days=warn or 0):
+                continue
+            days = (when - now).days
+            section.items.append(Item(
+                title=m.name, detail=f'{_expiry_detail(label, when, days)} · {m.url}',
+                severity=_expiry_severity(days), when=when,
+                actions=[Action('Open monitor', _url('monitoring:website_monitor_detail', m.pk), 'fa-globe')]))
+
+    labels = dict(Expiration.EXPIRATION_TYPES)
+    for e in (Expiration.objects
+              .filter(organization=org, expiration_type__in=('ssl_cert', 'domain'))
+              .order_by('expires_at')[:SCAN_LIMIT]):
+        if e.expires_at > now + timedelta(days=e.warning_days or 0):
+            continue
+        days = (e.expires_at - now).days
+        detail = _expiry_detail(labels.get(e.expiration_type, 'Item'), e.expires_at, days)
+        if e.auto_renew:
+            detail += ' · auto-renews'
+        actions = []
+        if staff:
+            actions.append(Action('Edit expiration', _url('monitoring:expiration_edit', e.pk), 'fa-calendar'))
+        section.items.append(Item(
+            title=e.name, detail=detail,
+            severity='info' if (e.auto_renew and days >= 0) else _expiry_severity(days),
+            when=e.expires_at, actions=actions))
 
 
 def renewals_section(request, org, today=None):
@@ -359,18 +494,27 @@ def renewals_section(request, org, today=None):
     return section
 
 
-def invoices_section(request, org, today=None):
+def overdue_invoices(org, today=None):
+    """This customer's invoices that are past due (or marked overdue) and
+    not draft, paid or void. A balance check is left to the caller."""
     from psa.models import Invoice
+    today = today or timezone.localdate()
+    return (Invoice.objects
+            .filter(client_org=org)
+            .exclude(status__in=('draft', 'paid', 'void'))
+            .filter(Q(status='overdue') | Q(due_date__lt=today)))
 
+
+def can_send_reminders(user, org):
+    return is_msp_staff(user) and _has(user, org, 'billing_send_invoices')
+
+
+def invoices_section(request, org, today=None):
     today = today or timezone.localdate()
     user = request.user
     staff = is_msp_staff(user)
-    can_send = staff and _has(user, org, 'billing_send_invoices')
-    qs = (Invoice.objects
-          .filter(client_org=org)
-          .exclude(status__in=('draft', 'paid', 'void'))
-          .filter(Q(status='overdue') | Q(due_date__lt=today))
-          .order_by('due_date', 'pk'))
+    can_send = can_send_reminders(user, org)
+    qs = overdue_invoices(org, today).order_by('due_date', 'pk')
     rows = list(qs[:SCAN_LIMIT + 1])
     section = Section('invoices', TITLES['invoices'], ICONS['invoices'],
                       truncated=len(rows) > SCAN_LIMIT,
@@ -388,8 +532,8 @@ def invoices_section(request, org, today=None):
         if staff:
             actions.append(Action('Open invoice', _url('psa:invoice_detail', inv.pk), 'fa-file-invoice'))
             if can_send:
-                actions.append(Action('Send reminder', _url('psa:invoice_detail', inv.pk) + '#send-reminder',
-                                      'fa-envelope'))
+                actions.append(Action('Send reminder', _url('core:customer_ops_invoice_reminder', org.pk, inv.pk),
+                                      'fa-envelope', method='post'))
         section.items.append(Item(
             title=f'{inv.invoice_number} {inv.title}',
             detail=f'{overdue} · balance {inv.currency} {balance:,.2f}',
