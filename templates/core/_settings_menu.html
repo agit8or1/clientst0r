@@ -163,6 +163,9 @@ navbar's Admin menu lands on each group's first visible entry from there.
                 <a href="{% url 'integrations:integration_list' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'integrations' %}active{% endif %}"{% if active_page == 'integrations' %} aria-current="page"{% endif %}>
                     <i class="fas fa-plug fa-fw" aria-hidden="true"></i> {% trans "Integrations" %}
                 </a>
+                <a href="{% url 'integrations:rem0te_setup' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'rmm_rem0te' %}active{% endif %}"{% if active_page == 'rmm_rem0te' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-desktop fa-fw" aria-hidden="true"></i> {% trans "RMM · Rem0te" %}
+                </a>
                 <a href="{% url 'core:settings_ai' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'ai' %}active{% endif %}"{% if active_page == 'ai' %} aria-current="page"{% endif %}>
                     <i class="fas fa-robot fa-fw" aria-hidden="true"></i> {% trans "AI & LLM" %}
                 </a>

@@ -57,6 +57,7 @@ SETTINGS_GROUPS = {
     'integrations': (
         ('webhooks', 'core:webhook_list', 'login'),
         ('integrations', 'integrations:integration_list', 'superuser'),
+        ('rmm_rem0te', 'integrations:rem0te_setup', 'superuser'),
         ('ai', 'core:settings_ai', 'superuser'),
         ('ticket_ai', 'psa_ai:profiles', 'superuser'),
         ('sms', 'core:settings_sms', 'superuser'),

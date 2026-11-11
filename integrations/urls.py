@@ -2,7 +2,7 @@
 Integrations URL configuration
 """
 from django.urls import path
-from . import views
+from . import rem0te_views, views
 
 app_name = 'integrations'
 
@@ -29,6 +29,9 @@ urlpatterns = [
 
     # RMM Views
     path('rmm/create/', views.rmm_create, name='rmm_create'),
+    path('rmm/rem0te/setup/', rem0te_views.rem0te_setup, name='rem0te_setup'),
+    path('rmm/rem0te/setup/identity/', rem0te_views.rem0te_setup_identity, name='rem0te_setup_identity'),
+    path('rmm/rem0te/setup/<int:pk>/test/', rem0te_views.rem0te_setup_test, name='rem0te_setup_test'),
     path('rmm/<int:pk>/', views.rmm_detail, name='rmm_detail'),
     path('rmm/<int:pk>/edit/', views.rmm_edit, name='rmm_edit'),
     path('rmm/<int:pk>/delete/', views.rmm_delete, name='rmm_delete'),

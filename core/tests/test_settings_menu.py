@@ -96,7 +96,7 @@ class SettingsMenuStructureTests(TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertEqual(
             {k: len(v) for k, v in settings_groups.SETTINGS_GROUPS.items()},
-            {'system': 12, 'security': 6, 'access': 3, 'integrations': 5, 'mobile': 2},
+            {'system': 12, 'security': 6, 'access': 3, 'integrations': 6, 'mobile': 2},
         )
 
     def test_priority_entries_head_their_group(self):
