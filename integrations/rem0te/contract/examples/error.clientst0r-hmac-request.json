@@ -1,0 +1,28 @@
+{
+  "name": "error.clientst0r-hmac-request",
+  "description": "ClientSt0r → rem0te, signed the way ClientSt0r signs today (HMAC-SHA256, X-Integration-* headers). Refused: ticket-rmm-v1 is Ed25519 with rem0te-* headers. See CLIENTST0R.md.",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "GET",
+    "path": "/api/integration/v1/capabilities",
+    "headers": {
+      "X-Integration-Key-Id": "clientst0r-example",
+      "X-Integration-Timestamp": "1794344287",
+      "X-Integration-Nonce": "01348b7d82dc917403d174860df7dd0d",
+      "X-Integration-Signature": "<hmac-sha256 hex, secret not published>"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 401,
+    "headers": {},
+    "body": {
+      "error": {
+        "code": "UNAUTHENTICATED",
+        "message": "Missing or malformed signature headers"
+      }
+    }
+  },
+  "request_schema": null,
+  "response_schema": "error"
+}

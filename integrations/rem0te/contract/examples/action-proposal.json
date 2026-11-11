@@ -1,0 +1,71 @@
+{
+  "name": "action-proposal",
+  "description": "ClientSt0r → rem0te: propose a catalog action from an AI suggestion on a ticket. It becomes a plan awaiting independent approval on rem0te's approval signer; nothing runs until approvers sign it there.",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "POST",
+    "path": "/api/integration/v1/action-proposals",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-timestamp": "1794344288",
+      "rem0te-nonce": "3xSb08vsBT6oiGtZbj8Aw_eS",
+      "rem0te-signature": "hL7z3-qMf-L-2mce9s0OW7QFgOIwOE_DCDpWd2KHM2awuGIr_IrcXRxkPtlC-CnwTseRE4qnhbQR33n2u1hODg",
+      "rem0te-delegation": "eyJhbGciOiJFZERTQSIsImtpZCI6ImRlbC0xIiwidHlwIjoicmVtMHRlLWRlbGVnYXRpb24rand0In0.eyJpc3MiOiJjbGllbnRzdDByLWV4YW1wbGUiLCJhdWQiOiJyZW0wdGU6ZXhhbXBsZSIsInN1YiI6ImNzLXRpbmEiLCJvcmciOiJvcmctYWNtZS04ZWUyZmEiLCJzY29wZSI6ImFjdGlvbnM6cHJvcG9zZSIsImlhdCI6MTc5NDM0NDI4OCwiZXhwIjoxNzk0MzQ0NDA4LCJqdGkiOiJkMGMyMmViMzcxNDc2MGQ3MjZlMTEyODE0YjY3NDYwZSIsInJlcV9zaGEyNTYiOiJjODlmZDk0MDdjNjRiZjAyNjdkM2MwOTZjY2MzOGJmOTU0Y2RjNzQ5NzMzZGY4M2Q0ZjI4MDZkZWVkYTkwN2UzIn0.VJ1aksTjlLjrmOCSzWt3ssmLoeEBfifAU0RDZ4khH-jo41Wde35ych_B-6oNW3Gm1KNpgxeLFYYeSHPkdLnwDg"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "idempotency_key": "cs-prop-360f5a04c6",
+      "organization_id": "org-acme-8ee2fa",
+      "technician_id": "cs-tina",
+      "rem0te_endpoint_id": "cmwb69a26000rx4amwdqpfgpi",
+      "action": {
+        "id": "windows.service.start",
+        "version": 1
+      },
+      "params": {
+        "service": "Spooler"
+      },
+      "reason": "Ticket T-8ee2fa-42: AI triage suggests the spooler is stopped",
+      "origin": "ai_suggestion",
+      "ticket_ref": "T-8ee2fa-42",
+      "starts_in_minutes": 0,
+      "window_hours": 4
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "idempotency_key": "cs-prop-360f5a04c6",
+      "job_id": "fc8739088f4c46b19bb5247ab35097b4",
+      "status": "awaiting_approval",
+      "status_reason": null,
+      "rem0te_endpoint_id": "cmwb69a26000rx4amwdqpfgpi",
+      "action": {
+        "id": "windows.service.start",
+        "version": 1
+      },
+      "origin": "ai_suggestion",
+      "ticket_ref": "T-8ee2fa-42",
+      "risk": "low",
+      "approvals_required": 1,
+      "customer_signoff": false,
+      "approval_url": "http://127.0.0.1:3133/approve/fc8739088f4c46b19bb5247ab35097b4",
+      "plan_digest": "e2d816c9789cf34112611bb1d1c656a5a8f50af802c1e0c09f71742019454c75",
+      "window": {
+        "not_before": "2026-11-10T20:58:08.858Z",
+        "not_after": "2026-11-11T00:58:08.858Z"
+      },
+      "outcome": null,
+      "observed": null,
+      "created_at": "2026-11-10T20:58:08.895Z",
+      "updated_at": "2026-11-10T20:58:08.895Z"
+    }
+  },
+  "request_schema": "action-proposal-request",
+  "response_schema": "action-proposal"
+}

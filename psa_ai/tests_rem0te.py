@@ -278,11 +278,14 @@ class AlertTicketTests(Rem0teBase):
         rt.signed_post(self.rc, EVENTS, self.fake.alert_event(self.org(self.conn_a), 1))
         self.assertEqual(Rem0teAlertTicket.objects.get().link_status, 'conflict')
 
-    def test_fixture_alert_for_another_peer_is_not_applied(self):
-        signed = json.loads((schema.FIXTURE_DIR / 'signed-alert-event.raised.json').read_text())
+    def test_example_alert_for_another_peer_is_not_applied(self):
+        # Rem0te's recorded revision-2 exchange, signed by its TEST-ONLY key
+        # for peer clientst0r-example.
+        ex = json.loads((schema.EXAMPLE_DIR / 'alert-event.raised-with-patch-summary.json').read_text())
+        signed = ex['request']['body']
         self.conn_a.field_mappings = dict(self.conn_a.field_mappings, **{pairing.SIGNING_KEYS: [
-            {'kid': 'fixture-alert-signing-key',
-             'public_key_pem': (schema.FIXTURE_DIR / 'fixture-alert-signing-key.pub.pem').read_text()}]})
+            {'kid': 'rem0te-example-1',
+             'public_key_pem': (schema.EXAMPLE_DIR / 'keys' / 'rem0te-self.pub.pem').read_text()}]})
         self.conn_a.save()
         status, outcome = alerts.apply_signed_alert_event(self.conn_a, signed)
         self.assertEqual(status, 404)  # signature good, peer/organization not ours

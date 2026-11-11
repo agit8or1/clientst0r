@@ -27,6 +27,14 @@ import logging
 logger = logging.getLogger('integrations')
 
 
+def _rem0te_summary(conn):
+    """The Rem0te pairing status for a Rem0te RMM connection, else None."""
+    if not isinstance(conn, RMMConnection) or conn.provider_type != 'rem0te':
+        return None
+    from .rem0te import health as rem0te_health
+    return rem0te_health.summary(conn)
+
+
 @login_required
 def integration_list(request):
     """
@@ -44,7 +52,8 @@ def integration_list(request):
     from .models import IntegrationSyncHealth
     health_rows = {}
     try:
-        health_qs = IntegrationSyncHealth.objects.all()
+        from .health import SUBSYSTEM_KINDS
+        health_qs = IntegrationSyncHealth.objects.exclude(kind__in=SUBSYSTEM_KINDS)
         if org is not None:
             health_qs = health_qs.filter(organization=org)
         for h in health_qs:
@@ -95,6 +104,7 @@ def integration_list(request):
                 'detail_url': detail_url,
                 'status': connection_status(conn, h_row),
                 'health': health_for(conn, h_row) if h_row is not None else health_for(conn, False),
+                'rem0te': _rem0te_summary(conn),
             })
 
     _add(PSAConnection.objects.for_organization(org),

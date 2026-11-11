@@ -182,19 +182,39 @@ def submit(job) -> str:
             return 'retrying'
         _set(job, processor_job_id=data['job_id'], processor_error_code='', error='',
              status='submitted' if job.status == 'created' else job.status)
+        from . import health
+        health.clear(job.connection, 'jobs')
         if data['status'] in ('succeeded', 'partial', 'failed', 'expired'):
             poll(job, force=True)  # an idempotent replay of a finished job: fetch its signed events
         return 'submitted'
-    retryable = r.transport in ('unreachable', 'timeout', 'read') or r.status >= 500 or r.status == 429 \
-        or r.code == 'CONTAINED'
+    from . import health
+    if r.code == 'CONTAINED' or r.status == 423:
+        # A containment pause in Rem0te: an administrator decision, not an
+        # outage. The job ends now with the reason (Rem0te's free-text pause
+        # reason is not kept: /capabilities deliberately never discloses it).
+        why = ('Rem0te has paused ClientSt0r jobs for this business (containment). Nothing was queued; run the '
+               'analysis again once a Rem0te administrator lifts the pause.')
+        _set(job, status='failed', processor_error_code='CONTAINED', error=why)
+        _refuse_pending(job, 'Rem0te has paused this business.')
+        health.note(job.connection, 'jobs', why, code='CONTAINED',
+                    action='A Rem0te administrator lifts the pause once the review is done.')
+        return 'failed'
+    retryable = r.transport in ('unreachable', 'timeout', 'read') or r.status >= 500 or r.status == 429
     if retryable:
-        why = {'CONTAINED': f'Rem0te has paused this kind of work for the business ({r.message})'}.get(r.code, r.message)
         _set(job, processor_error_code=r.code[:64],
-             error=f'{why} ClientSt0r keeps retrying (same request, nothing duplicated) until the job expires.'[:1000])
+             error=f'{r.message} ClientSt0r keeps retrying (same request, nothing duplicated) until the job '
+                   'expires.'[:1000])
+        health.note(job.connection, 'jobs', f'Analysis jobs are waiting to be sent to Rem0te: {r.message}',
+                    code=r.code, action='ClientSt0r retries every minute with the same request.')
         return 'retrying'
     reason = describe_refusal(r)
     _set(job, status='failed', processor_error_code=r.code[:64], error=reason[:1000])
     _refuse_pending(job, 'Rem0te refused the job.')
+    if r.code == 'FORBIDDEN':
+        health.note(job.connection, 'technician', f'Rem0te refused {req["technician_id"]}: {r.message}',
+                    code='FORBIDDEN', action='Map the technician in Rem0te and grant integration:ticket_analysis.')
+    else:
+        health.note(job.connection, 'jobs', reason, code=r.code)
     return 'failed'
 
 
@@ -262,6 +282,10 @@ def apply_signed_event(connection, signed: dict, via='push') -> Tuple[int, str]:
     problem = protocol.verify_event_signature(event, signature, pairing.keyring(connection))
     if problem:
         logger.warning('Rem0te job event refused for connection %s: %s', connection.pk, problem)
+        from . import health
+        health.note(connection, 'inbound_auth', f'A job event did not verify with Rem0te\'s signing key ({problem}).',
+                    code='EVENT_SIGNATURE', action="Compare Rem0te's signing key on this connection with its "
+                                                   'capabilities (Test connection).')
         return 401, problem
     from . import identity
     ident = identity.get(create=False)

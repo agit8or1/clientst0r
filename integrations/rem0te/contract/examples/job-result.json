@@ -1,0 +1,179 @@
+{
+  "name": "job-result",
+  "description": "ClientSt0r → rem0te: poll the job. `result` is staff-facing analysis; every next step is `executable: false`.",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "GET",
+    "path": "/api/integration/v1/jobs/721fb13e-a5e6-48fd-a3a8-21ddea8fcd5a",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-timestamp": "1794344288",
+      "rem0te-nonce": "JeY6E5qFQXtCEASeSiSmgOIs",
+      "rem0te-signature": "cIPkeh8HCLMIEIeSui4t26Zcp_bLSSg0QhzMkl9Dg8r18vWOafF9A_Dw14PJyC0K9pMqjZ_RUnHRG2K_fJ6qCw",
+      "rem0te-delegation": "eyJhbGciOiJFZERTQSIsImtpZCI6ImRlbC0xIiwidHlwIjoicmVtMHRlLWRlbGVnYXRpb24rand0In0.eyJpc3MiOiJjbGllbnRzdDByLWV4YW1wbGUiLCJhdWQiOiJyZW0wdGU6ZXhhbXBsZSIsInN1YiI6ImNzLXRpbmEiLCJvcmciOiJvcmctYWNtZS04ZWUyZmEiLCJzY29wZSI6InRpY2tldF9hbmFseXNpczpyZWFkIiwiaWF0IjoxNzk0MzQ0Mjg4LCJleHAiOjE3OTQzNDQ0MDgsImp0aSI6Ijg2MjY0MmI1NWUyZTg3NDg3OTZhZTE3NTBkNTA0MWQ5In0.2ft_exfNpKOnlrLjHBNeaeR54FWEN5dFeNbbK8_hdrvxs8zvGZ9rBHBeJDc3PzV1qUwT6G1p5cVxUxPAUVoYAQ"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "job_id": "721fb13e-a5e6-48fd-a3a8-21ddea8fcd5a",
+      "status": "succeeded",
+      "organization_id": "org-acme-8ee2fa",
+      "technician_id": "cs-tina",
+      "ticket": {
+        "id": "T-8ee2fa-42",
+        "revision": 1
+      },
+      "endpoint_id": "cmwb69a26000rx4amwdqpfgpi",
+      "model_profiles": [
+        "triage-fast"
+      ],
+      "correlation_id": "cs-corr-08cc3fde",
+      "idempotency_key": "cs-ticket-42-8ee2fa",
+      "payload_sha256": "7d0d7b0b2d17fd78157218f7670d45b29a498528169df7b5238f52a8411635f9",
+      "created_at": "2026-11-10T20:58:07.602Z",
+      "updated_at": "2026-11-10T20:58:07.919Z",
+      "expires_at": "2026-11-10T21:58:07.521Z",
+      "completed_at": "2026-11-10T20:58:07.915Z",
+      "last_event_sequence": 3,
+      "runs": [
+        {
+          "model_profile": "triage-fast",
+          "status": "succeeded",
+          "error_code": null
+        }
+      ],
+      "error": null,
+      "result": {
+        "facts": [
+          {
+            "source": "rem0te_observed",
+            "statement": "Online; last heartbeat 0 min ago; agent unknown",
+            "evidence_refs": [
+              "endpoint:cmwb69a26000rx4amwdqpfgpi#heartbeat@2026-11-10T20:58:07.106Z"
+            ],
+            "model_profiles": []
+          },
+          {
+            "source": "rem0te_observed",
+            "statement": "Inventory never collected; 1 pending updates; reboot required: false",
+            "evidence_refs": [
+              "endpoint:cmwb69a26000rx4amwdqpfgpi#inventory@never"
+            ],
+            "model_profiles": []
+          },
+          {
+            "source": "model_cited",
+            "statement": "The customer reports that nothing has printed since this morning.",
+            "evidence_refs": [
+              "ticket:T-8ee2fa-42@1#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ]
+          }
+        ],
+        "evidence": [
+          {
+            "ref": "ticket:T-8ee2fa-42@1#subject",
+            "kind": "ticket_subject",
+            "summary": "ticket_subject, 23 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "ticket:T-8ee2fa-42@1#body",
+            "kind": "ticket_body",
+            "summary": "ticket_body, 62 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "ticket:T-8ee2fa-42@1#comment:c1",
+            "kind": "ticket_comment",
+            "summary": "ticket_comment (customer), 14 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "endpoint:cmwb69a26000rx4amwdqpfgpi#heartbeat@2026-11-10T20:58:07.106Z",
+            "kind": "endpoint_heartbeat",
+            "summary": "Online; last heartbeat 0 min ago; agent unknown",
+            "observed_at": "2026-11-10T20:58:07.106Z"
+          },
+          {
+            "ref": "endpoint:cmwb69a26000rx4amwdqpfgpi#inventory@never",
+            "kind": "endpoint_inventory",
+            "summary": "Inventory never collected; 1 pending updates; reboot required: false",
+            "observed_at": null
+          }
+        ],
+        "per_model": [
+          {
+            "usage": {
+              "input_tokens": 812,
+              "output_tokens": 214
+            },
+            "status": "succeeded",
+            "summary": "Nothing prints from the front desk; the Print Spooler has probably stopped.",
+            "category": "printing",
+            "model_profile": "triage-fast",
+            "resolved_model": "reference-model-1",
+            "dropped_unknown_fields": 2
+          }
+        ],
+        "hypotheses": [
+          {
+            "statement": "The Print Spooler service has stopped on the workstation",
+            "confidence": "medium",
+            "evidence_refs": [
+              "ticket:T-8ee2fa-42@1#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ]
+          }
+        ],
+        "next_steps": [
+          {
+            "text": "Restart the Print Spooler service",
+            "executable": false,
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "blocked_category": null,
+            "requires_human_approval": true
+          },
+          {
+            "text": "Run net stop spooler && net start spooler as administrator",
+            "executable": false,
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "blocked_category": null,
+            "requires_human_approval": true
+          }
+        ],
+        "visibility": "staff_only",
+        "disagreements": [],
+        "draft_replies": [
+          {
+            "text": "Thanks — we are looking at the print queue on your front desk PC now.",
+            "link_hosts": [],
+            "visibility": "staff_only",
+            "model_profile": "triage-fast",
+            "requires_human_review": true
+          }
+        ],
+        "partial_failures": [],
+        "unsupported_claims": [],
+        "untrusted_input_flags": []
+      }
+    }
+  },
+  "request_schema": null,
+  "response_schema": "job"
+}

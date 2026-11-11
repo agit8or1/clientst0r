@@ -22,6 +22,9 @@ from integrations.rem0te import client, identity, inbound, pairing, protocol, sc
 from psa.tests._base import TEST_MIDDLEWARE
 
 FIX = schema.FIXTURE_DIR
+# Rem0te 0.30.0 removed the revision-1 alert fixtures; they are kept under
+# contract/rev1/ because revision-1 peers are still supported.
+REV1_FIX = schema.REV1_DIR / 'fixtures'
 
 
 def fixture(name):
@@ -29,7 +32,7 @@ def fixture(name):
 
 
 def pem(name):
-    return (FIX / name).read_text()
+    return ((FIX if (FIX / name).exists() else REV1_FIX) / name).read_text()
 
 
 class FixtureVectorTests(SimpleTestCase):
@@ -47,7 +50,7 @@ class FixtureVectorTests(SimpleTestCase):
         self.assertNotEqual(protocol.verify_event_signature(signed['event'], signed['signature'], other), '')
 
     def test_alert_event_fixture_verifies_with_its_key_only(self):
-        signed = fixture('signed-alert-event.raised.json')
+        signed = json.loads((REV1_FIX / 'signed-alert-event.raised.json').read_text())
         keys = protocol.keyring([{'kid': 'fixture-alert-signing-key',
                                   'public_key_pem': pem('fixture-alert-signing-key.pub.pem')}])
         ev, sig = signed['alert_event'], signed['signature']
@@ -113,7 +116,9 @@ class FixtureVectorTests(SimpleTestCase):
     def test_pin_records_the_tested_rem0te(self):
         pin = pairing.pin()
         self.assertEqual(pin['contract'], 'ticket-rmm-v1')
-        self.assertEqual(pin['rem0te_sha'], '1bff01a4a3b52fd745e001352e0c417909199aeb')
+        self.assertEqual(pin['rem0te_sha'], '4b2b9f5cbe093b99563b9332ba3bdf9dded88720')
+        self.assertEqual(pin['contract_revision'], 2)
+        self.assertEqual(pin['previous']['rem0te_sha'], '1bff01a4a3b52fd745e001352e0c417909199aeb')
 
 
 class SigningKeyParsingTests(SimpleTestCase):
@@ -252,7 +257,7 @@ class CheckPairingTests(TestCase):
         doc = self.check()
         self.assertEqual(doc['code'], 'SIGNING_KEY_MISMATCH')
         self.assertFalse(pairing.is_processor(self.conn))
-        self.fake.caps = rt.capabilities(version='0.30.1')
+        self.fake.caps = rt.capabilities(version='0.31.0')
         doc = self.check()
         self.assertTrue(doc['compatible'])
         self.assertTrue(any('different release' in w for w in doc['warnings']))

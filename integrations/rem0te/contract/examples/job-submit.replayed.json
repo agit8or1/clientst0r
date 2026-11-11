@@ -1,0 +1,210 @@
+{
+  "name": "job-submit.replayed",
+  "description": "ClientSt0r → rem0te: the same idempotency key and body again (here after a restart). 200 with idempotent-replayed: true and the same job — never a second job.",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "POST",
+    "path": "/api/integration/v1/jobs",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-timestamp": "1794344303",
+      "rem0te-nonce": "j1Ka2Oy8n9rFwLwg6-LPb8b7",
+      "rem0te-signature": "SpxeVZirWSfCrgoSBDfbZYpmgCZOx0tnX3lhZxeeCL7ysrduFz0EaUotrUS2bBvjAGdYVV9zV9Rz-nVPzYeaCA",
+      "rem0te-delegation": "eyJhbGciOiJFZERTQSIsImtpZCI6ImRlbC0xIiwidHlwIjoicmVtMHRlLWRlbGVnYXRpb24rand0In0.eyJpc3MiOiJjbGllbnRzdDByLWV4YW1wbGUiLCJhdWQiOiJyZW0wdGU6ZXhhbXBsZSIsInN1YiI6ImNzLXRpbmEiLCJvcmciOiJvcmctYWNtZS04ZWUyZmEiLCJzY29wZSI6InRpY2tldF9hbmFseXNpczpzdWJtaXQiLCJpYXQiOjE3OTQzNDQzMDMsImV4cCI6MTc5NDM0NDQyMywianRpIjoiNjhjMGFhMzM4ZThmZGQ4MmY5ZTE3NzE2MzM0NzA3OTciLCJyZXFfc2hhMjU2IjoiZWMwYzE0NGM2MDQ1NjBjMjU1ZDA0N2VlNzhhY2VjNjQ1MzQ2Mjk4N2QxY2FhODI2MDhkMDliODgxOGY0ZDZiNiJ9.daBeu3GPdacWhGlk3eGi8aK7kkEpo-osbGDAmRFEOaNqmhzy1yzb2xlNutPYRnMHSoFCUOHuZJ3HiwrElsIdCw"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "idempotency_key": "cs-ticket-77-8ee2fa",
+      "correlation_id": "cs-corr-8d8c7e2f",
+      "organization_id": "org-acme-8ee2fa",
+      "technician_id": "cs-tina",
+      "ticket": {
+        "id": "T-8ee2fa-42",
+        "revision": 1,
+        "subject": "Front desk cannot print",
+        "body": "Nothing has printed from the front desk PC since this morning.",
+        "comments": [
+          {
+            "id": "c1",
+            "author_role": "customer",
+            "created_at": "2026-11-10T20:58:19.017Z",
+            "body": "Still nothing."
+          }
+        ]
+      },
+      "endpoint": {
+        "rem0te_endpoint_id": "cmwb69a26000rx4amwdqpfgpi"
+      },
+      "model_profiles": [
+        "triage-fast"
+      ],
+      "evidence": {
+        "include_endpoint_inventory": true
+      },
+      "expires_at": "2026-11-10T21:58:19.017Z"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "idempotent-replayed": "true"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "job_id": "e5f09b3f-62ad-4fae-b190-897ee01af06d",
+      "status": "succeeded",
+      "organization_id": "org-acme-8ee2fa",
+      "technician_id": "cs-tina",
+      "ticket": {
+        "id": "T-8ee2fa-42",
+        "revision": 1
+      },
+      "endpoint_id": "cmwb69a26000rx4amwdqpfgpi",
+      "model_profiles": [
+        "triage-fast"
+      ],
+      "correlation_id": "cs-corr-8d8c7e2f",
+      "idempotency_key": "cs-ticket-77-8ee2fa",
+      "payload_sha256": "ec0c144c604560c255d047ee78acec6453462987d1caa82608d09b8818f4d6b6",
+      "created_at": "2026-11-10T20:58:19.188Z",
+      "updated_at": "2026-11-10T20:58:21.203Z",
+      "expires_at": "2026-11-10T21:58:19.017Z",
+      "completed_at": "2026-11-10T20:58:21.192Z",
+      "last_event_sequence": 3,
+      "runs": [
+        {
+          "model_profile": "triage-fast",
+          "status": "succeeded",
+          "error_code": null
+        }
+      ],
+      "error": null,
+      "result": {
+        "facts": [
+          {
+            "source": "rem0te_observed",
+            "statement": "Online; last heartbeat 0 min ago; agent unknown",
+            "evidence_refs": [
+              "endpoint:cmwb69a26000rx4amwdqpfgpi#heartbeat@2026-11-10T20:58:17.089Z"
+            ],
+            "model_profiles": []
+          },
+          {
+            "source": "rem0te_observed",
+            "statement": "Inventory never collected; 0 pending updates; reboot required: false",
+            "evidence_refs": [
+              "endpoint:cmwb69a26000rx4amwdqpfgpi#inventory@never"
+            ],
+            "model_profiles": []
+          },
+          {
+            "source": "model_cited",
+            "statement": "The customer reports that nothing has printed since this morning.",
+            "evidence_refs": [
+              "ticket:T-8ee2fa-42@1#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ]
+          }
+        ],
+        "evidence": [
+          {
+            "ref": "ticket:T-8ee2fa-42@1#subject",
+            "kind": "ticket_subject",
+            "summary": "ticket_subject, 23 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "ticket:T-8ee2fa-42@1#body",
+            "kind": "ticket_body",
+            "summary": "ticket_body, 62 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "ticket:T-8ee2fa-42@1#comment:c1",
+            "kind": "ticket_comment",
+            "summary": "ticket_comment (customer), 14 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "endpoint:cmwb69a26000rx4amwdqpfgpi#heartbeat@2026-11-10T20:58:17.089Z",
+            "kind": "endpoint_heartbeat",
+            "summary": "Online; last heartbeat 0 min ago; agent unknown",
+            "observed_at": "2026-11-10T20:58:17.089Z"
+          },
+          {
+            "ref": "endpoint:cmwb69a26000rx4amwdqpfgpi#inventory@never",
+            "kind": "endpoint_inventory",
+            "summary": "Inventory never collected; 0 pending updates; reboot required: false",
+            "observed_at": null
+          }
+        ],
+        "per_model": [
+          {
+            "usage": {
+              "input_tokens": 812,
+              "output_tokens": 214
+            },
+            "status": "succeeded",
+            "summary": "Nothing prints from the front desk; the Print Spooler has probably stopped.",
+            "category": "printing",
+            "model_profile": "triage-fast",
+            "resolved_model": "reference-model-1",
+            "dropped_unknown_fields": 2
+          }
+        ],
+        "hypotheses": [
+          {
+            "statement": "The Print Spooler service has stopped on the workstation",
+            "confidence": "medium",
+            "evidence_refs": [
+              "ticket:T-8ee2fa-42@1#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ]
+          }
+        ],
+        "next_steps": [
+          {
+            "text": "Restart the Print Spooler service",
+            "executable": false,
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "blocked_category": null,
+            "requires_human_approval": true
+          },
+          {
+            "text": "Run net stop spooler && net start spooler as administrator",
+            "executable": false,
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "blocked_category": null,
+            "requires_human_approval": true
+          }
+        ],
+        "visibility": "staff_only",
+        "disagreements": [],
+        "draft_replies": [
+          {
+            "text": "Thanks — we are looking at the print queue on your front desk PC now.",
+            "link_hosts": [],
+            "visibility": "staff_only",
+            "model_profile": "triage-fast",
+            "requires_human_review": true
+          }
+        ],
+        "partial_failures": [],
+        "unsupported_claims": [],
+        "untrusted_input_flags": []
+      }
+    }
+  },
+  "request_schema": "job-request",
+  "response_schema": "job"
+}

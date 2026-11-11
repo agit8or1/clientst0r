@@ -1469,7 +1469,10 @@ class IntegrationSyncHealth(models.Model):
 
     class Meta:
         db_table = 'integration_sync_health'
-        unique_together = [['content_type', 'object_id']]
+        # One row per (connection, kind): a connection's sync and its RMM
+        # contract pairing (kind 'rem0te', integrations.rem0te.health) each
+        # keep their own outcome.
+        unique_together = [['content_type', 'object_id', 'kind']]
 
     def __str__(self):
         return f"{self.kind}#{self.object_id}: {self.status}"
@@ -1536,6 +1539,14 @@ class Rem0teIdentity(models.Model):
     request_private_key = EncryptedTextField(blank=True, default='')
     delegation_kid = models.CharField(max_length=64, blank=True, default='')
     delegation_private_key = EncryptedTextField(blank=True, default='')
+    # Overlapping rotation: the next key pair is staged here, listed in the
+    # peers-file entry next to the current one, and only signs once an
+    # administrator confirms Rem0te was restarted with it (promote).
+    next_request_kid = models.CharField(max_length=64, blank=True, default='')
+    next_request_private_key = EncryptedTextField(blank=True, default='')
+    next_delegation_kid = models.CharField(max_length=64, blank=True, default='')
+    next_delegation_private_key = EncryptedTextField(blank=True, default='')
+    next_staged_at = models.DateTimeField(null=True, blank=True)
     rotated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

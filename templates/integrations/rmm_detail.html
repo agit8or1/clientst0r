@@ -124,7 +124,8 @@
         <div class="card" id="ticket-rmm-pairing-status">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Ticket integration pairing</h5>
-                {% if pairing.state == 'ok' %}<span class="badge bg-success">{{ pairing.label }}</span>
+                {% if pairing.health %}<span class="badge bg-{{ pairing.health.badge }}" data-rem0te-state="{{ pairing.health.state }}">{{ pairing.health.label }}</span>{% if pairing.label and pairing.label != pairing.health.label %}<span class="small text-muted ms-2">{{ pairing.label }}</span>{% endif %}
+                {% elif pairing.state == 'ok' %}<span class="badge bg-success">{{ pairing.label }}</span>
                 {% elif pairing.state == 'off' %}<span class="badge bg-secondary">{{ pairing.label }}</span>
                 {% elif pairing.state == 'warning' or pairing.state == 'pending' or pairing.state == 'checking' %}<span class="badge bg-warning text-dark">{{ pairing.label }}</span>
                 {% else %}<span class="badge bg-danger">{{ pairing.label }}</span>{% endif %}

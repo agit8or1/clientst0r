@@ -10,6 +10,18 @@ resolution (the generated schemas inline everything).
 
 String lengths are counted in UTF-16 code units, as zod counts them.
 
+Revisions. contract/schemas is revision 2 (Rem0te 0.30). contract/rev1/
+holds the revision-1 copies of the schemas revision 2 changed, so a Rem0te
+0.26–0.29 peer is validated against exactly what it sends
+(`errors(..., revision=1)`). Rem0te's schemas are `additionalProperties:
+false`, although the contract says revisions only add fields; until Rem0te
+says how a peer should treat fields from a newer revision (request R2), a
+document *from* a Rem0te that reports a revision newer than ClientSt0r
+implements is validated with unknown fields tolerated (`lenient=True`) —
+every field ClientSt0r knows is still checked strictly, and the unknown
+field paths (never their values) are returned in `unknown` and logged by
+the caller. Documents ClientSt0r sends are always validated strictly.
+
 Rem0te also applies rules zod expresses as refinements and the JSON Schema
 cannot (`refinements()` below): control characters in ticket text, https-only
 ticket links, duplicate model profiles, at most 8 action parameters. Both
@@ -21,12 +33,15 @@ import json
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional, Tuple
 from urllib.parse import urlsplit
 
 CONTRACT_DIR = Path(__file__).resolve().parent / 'contract'
 SCHEMA_DIR = CONTRACT_DIR / 'schemas'
 FIXTURE_DIR = CONTRACT_DIR / 'fixtures'
+EXAMPLE_DIR = CONTRACT_DIR / 'examples'
+REV1_DIR = CONTRACT_DIR / 'rev1'
+IMPLEMENTED_REVISION = 2
 
 _UUID = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
 _DATETIME = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$')
@@ -40,10 +55,17 @@ class SchemaError(ValueError):
 
 
 @lru_cache(maxsize=None)
-def load(name: str) -> dict:
-    """A vendored schema by its file stem, e.g. 'job-request'."""
+def load(name: str, revision: int = IMPLEMENTED_REVISION) -> dict:
+    """A vendored schema by its file stem, e.g. 'job-request'. Revision 1
+    uses rev1/schemas for the schemas revision 2 changed."""
     if not re.match(r'^[a-z-]+$', name):
         raise KeyError(name)
+    if revision == 1:
+        old = REV1_DIR / 'schemas' / f'{name}.schema.json'
+        if old.exists():
+            return json.loads(old.read_text())
+        if name == 'patch-summary':
+            raise KeyError(name)  # revision 2 only
     return json.loads((SCHEMA_DIR / f'{name}.schema.json').read_text())
 
 
@@ -70,7 +92,7 @@ def _type_ok(value, t) -> bool:
     return False
 
 
-def _errors(value: Any, schema: dict, path: str, out: List[str]):
+def _errors(value: Any, schema: dict, path: str, out: List[str], unknown: Optional[List[str]] = None):
     if schema is True or schema == {}:
         return
     if schema is False:
@@ -79,7 +101,7 @@ def _errors(value: Any, schema: dict, path: str, out: List[str]):
     if 'anyOf' in schema:
         for sub in schema['anyOf']:
             trial: List[str] = []
-            _errors(value, sub, path, trial)
+            _errors(value, sub, path, trial, unknown)
             if not trial:
                 break
         else:
@@ -124,7 +146,7 @@ def _errors(value: Any, schema: dict, path: str, out: List[str]):
             out.append(f'{path or "(root)"}: too many items')
         if isinstance(schema.get('items'), dict):
             for i, item in enumerate(value):
-                _errors(item, schema['items'], f'{path}[{i}]', out)
+                _errors(item, schema['items'], f'{path}[{i}]', out, unknown)
     if isinstance(value, dict):
         props = schema.get('properties') or {}
         for req in schema.get('required') or []:
@@ -133,22 +155,55 @@ def _errors(value: Any, schema: dict, path: str, out: List[str]):
         for k, v in value.items():
             p = f'{path + "." if path else ""}{k}'
             if 'propertyNames' in schema:
-                _errors(k, schema['propertyNames'], f'{p} (name)', out)
+                _errors(k, schema['propertyNames'], f'{p} (name)', out, unknown)
             if k in props:
-                _errors(v, props[k], p, out)
+                _errors(v, props[k], p, out, unknown)
             else:
                 extra = schema.get('additionalProperties', True)
                 if extra is False:
-                    out.append(f'{p}: unknown field')
+                    if unknown is not None:
+                        unknown.append(re.sub(r'\[\d+\]', '[]', p)[:120])
+                    else:
+                        out.append(f'{p}: unknown field')
                 elif isinstance(extra, dict):
-                    _errors(v, extra, p, out)
+                    _errors(v, extra, p, out, unknown)
 
 
-def errors(name: str, value: Any) -> List[str]:
+def errors(name: str, value: Any, revision: int = IMPLEMENTED_REVISION, unknown: Optional[List[str]] = None
+           ) -> List[str]:
+    """Schema errors (empty = valid). Pass a list as `unknown` to tolerate
+    fields the schema does not know (collected there instead)."""
     out: List[str] = []
-    _errors(value, load(name), '', out)
+    _errors(value, load(name, revision), '', out, unknown)
     out.extend(refinements(name, value))
     return out
+
+
+def peer_revision(doc_or_revision) -> int:
+    v = doc_or_revision.get('contract_revision') if isinstance(doc_or_revision, dict) else doc_or_revision
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 1 else 1
+
+
+def errors_from_peer(name: str, value: Any, peer_rev: int) -> Tuple[List[str], List[str], int]:
+    """Validate a document Rem0te sent. (errors, unknown field paths, the
+    revision it validated against.) Tried against every revision ClientSt0r
+    implements, newest first, so a Rem0te upgraded (or downgraded) since the
+    last check is still understood. Unknown fields are tolerated only when
+    the last check said Rem0te speaks a revision newer than
+    IMPLEMENTED_REVISION ("revisions only add fields")."""
+    top = IMPLEMENTED_REVISION
+    first = None
+    for rev in range(top, 0, -1):
+        errs = errors(name, value, rev)
+        if not errs:
+            return [], [], rev
+        first = first if first is not None else errs
+    if peer_rev > IMPLEMENTED_REVISION:
+        unknown: List[str] = []
+        errs = errors(name, value, IMPLEMENTED_REVISION, unknown)
+        if not errs:
+            return [], sorted(set(unknown)), IMPLEMENTED_REVISION
+    return first or [], [], top
 
 
 def validate(name: str, value: Any):

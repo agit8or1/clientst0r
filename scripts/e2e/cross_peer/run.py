@@ -390,12 +390,12 @@ class Harness:
     def llm_calls(self):
         return http_json('GET', f'{self.llm_url}/calls')[1]['calls']
 
-    def heartbeat(self, ext, free_mb, total_mb=100_000):
+    def heartbeat(self, ext, free_mb, total_mb=100_000, **extra):
         ep = self.fx['endpoints'][ext]
         return http_json('POST', f'{self.r_url}/api/v1/enrollment/heartbeat', {
             'rustdeskId': ep['rid'], 'agentSecret': ep['secret'], 'hostname': ep['hostname'], 'platform': 'Windows',
             'systemDiskTotalMb': total_mb, 'systemDiskFreeMb': free_mb, 'cpuLoadPercent': 10,
-            'memoryTotalMb': 8192, 'memoryFreeMb': 4096}, headers={'X-Forwarded-For': '10.1.2.3'})
+            'memoryTotalMb': 8192, 'memoryFreeMb': 4096, **extra}, headers={'X-Forwarded-For': '10.1.2.3'})
 
     def ticket_for(self, org, asset, user, subject):
         from tech_access.testing import make_ticket
@@ -452,7 +452,7 @@ class Harness:
         scenarios = [('s1', self.s1_pairing), ('s2', self.s2_analysis), ('s3', self.s3_private),
                      ('s4', self.s4_alert_ticket), ('s5', self.s5_restart_retry), ('s6', self.s6_same_pc_name),
                      ('s7', self.s7_revoked), ('s8', self.s8_unavailable), ('s9', self.s9_l1),
-                     ('s10', self.s10_failure_reasons)]
+                     ('s10', self.s10_failure_reasons), ('s11', self.s11_revision2)]
         for key, fn in scenarios:
             if only and key not in only and key not in ('s1', 's2'):
                 continue
@@ -463,7 +463,7 @@ class Harness:
 
     def s1_pairing(self):
         from integrations.models import RMMDevice
-        from integrations.rem0te import pairing
+        from integrations.rem0te import health, pairing
         from integrations.sync import RMMSync
         from assets.models import Asset
         section('s1', 'Pairing: Check pairing against the real Rem0te, then device sync')
@@ -476,6 +476,22 @@ class Harness:
                   pairing.advertised(conn))
             check(doc.get('rem0te_version'), f'Rem0te reports version {doc.get("rem0te_version")}')
             check(not self.no_secrets(json.dumps(doc)), 'the stored check holds no secrets', self.no_secrets(json.dumps(doc)))
+            # Contract revision 2: the organization → business binding, stated by Rem0te.
+            check(doc.get('contract_revision') == 2, f'{ext}: Rem0te speaks contract revision 2',
+                  doc.get('contract_revision'))
+            own = doc.get('organization') or {}
+            check(own.get('organization_id') == ext and own.get('business_id') == self.fx['businesses'][ext],
+                  f'{ext}: Rem0te binds it to its own business by id', own)
+            check((doc.get('business_binding') or {}).get('status') == 'match',
+                  f'{ext}: the binding matches the business pinned for this connection', doc.get('business_binding'))
+            other = [o for o in self.fx['businesses'] if o != ext][0]
+            stored = json.dumps(conn.field_mappings)
+            check(self.fx['businesses'][other] not in stored and other not in stored
+                  and doc.get('organizations_count') == 2,
+                  f'{ext}: nothing about the other customer\'s business is stored on this connection',
+                  doc.get('organizations_count'))
+            st = health.evaluate(conn)
+            check(st['state'] == health.CONNECTED, f'{ext}: status Connected', st)
         self.assets = {}
         for ext, conn in self.conns.items():
             ep = self.fx['endpoints'][ext]
@@ -668,6 +684,12 @@ class Harness:
         check(doc['code'] == 'UNREACHABLE' and f'127.0.0.1:{self.a.rem0te_port}' in doc['error'],
               'Check pairing names the unreachable address', doc.get('error'))
         check(doc.get('compatible'), 'and keeps the last good capabilities while Rem0te is down')
+        from integrations.rem0te import health, reconcile
+        st = health.evaluate(self.conns[self.oa])
+        check(st['state'] == health.DISCONNECTED and st['reasons'][0]['action'],
+              'status Disconnected, with what to do', st)
+        check(reconcile.next_check_at(doc) is not None and doc.get('failures') == 1,
+              'the next check backs off (1 min after the first failure)', doc.get('failures'))
         t = self.ticket_for(self.org_a, self.assets[self.oa], self.tech_a, 'While Rem0te is down')
         job = self.start_job(self.c_a, t)
         job.refresh_from_db()
@@ -679,6 +701,13 @@ class Harness:
         check(done and done.status == 'completed', 'once Rem0te is back the same job is sent and completes',
               f'{job.status} {job.error}')
         check(pairing.check(self.conns[self.oa]).get('ok'), 'Check pairing is green again')
+        self.conns[self.oa].refresh_from_db()
+        out = reconcile.reconcile(self.conns[self.oa], force_check=True)
+        self.conns[self.oa].refresh_from_db()
+        st = health.evaluate(self.conns[self.oa])
+        check(not out['error'] and st['state'] not in (health.DISCONNECTED, health.AUTH, health.CONFIG)
+              and pairing.last_check(self.conns[self.oa]).get('failures') == 0,
+              'reconciliation after the outage: no longer Disconnected, failures reset', (out, st))
 
     def s9_l1(self):
         from psa.models import TicketComment
@@ -766,6 +795,100 @@ class Harness:
         st = pairing.status(conn)
         text = json.dumps({k: v for k, v in st.items() if k != 'peer_entry'}, default=str)
         check(not self.no_secrets(text) and 'PRIVATE' not in st['peer_entry'], 'the connection page data has no secrets')
+
+    def s11_revision2(self):
+        from integrations.rem0te import alerts, health, pairing, reconcile, schema, setup
+        from psa_ai.models import AnalysisJob, Rem0teAlertTicket
+        from tech_access.testing import make_tech
+        section('s11', 'Revision 2: technician probe, containment pause, patch summary, one status')
+        conn = self.conns[self.oa]
+        conn.refresh_from_db()
+        # Test connection = signed capabilities check + technician probe (delegated GET /jobs/{nil}).
+        out = setup.test_connection(conn, self.tech_a)
+        conn.refresh_from_db()
+        check(out['check'].get('ok') and (out['technician'] or {}).get('status') == setup.OK,
+              'Test connection: paired, and the technician is mapped in Rem0te', out)
+        stranger = make_tech(f'nomap-{self.sfx}')
+        probe = setup.technician_probe(conn, stranger)
+        conn.refresh_from_db()
+        st = health.evaluate(conn)
+        check(probe['status'] == setup.FAIL and st['state'] == health.DEGRADED
+              and any(r['code'] == 'TECHNICIAN_NOT_MAPPED' for r in st['reasons']),
+              'an unmapped technician: Rem0te refuses (403), shown as Degraded with what to do', (probe, st['reasons']))
+        setup.technician_probe(conn, self.tech_a)
+        conn.refresh_from_db()
+        check(health.evaluate(conn)['state'] == health.CONNECTED, 'a mapped technician\'s probe clears it',
+              health.evaluate(conn)['reasons'])
+
+        # Containment pause: reported in /capabilities, refused with 423, the reason never disclosed.
+        reason = f'E2E suspected compromise {self.sfx}'
+        p = self.node('pause', {'customerId': self.fx['businesses'][self.oa], 'kinds': ['integration', 'actions'],
+                                'reason': reason})
+        try:
+            doc = pairing.check(conn)
+            conn.refresh_from_db()
+            paused = (doc.get('organization') or {}).get('paused') or []
+            check(doc.get('ok') and set(paused) == {'integration', 'actions'},
+                  'Rem0te reports the pause (integration, actions) for this business only', doc.get('organization'))
+            check(not (pairing.last_check(self.conns[self.ob]).get('organization') or {}).get('paused'),
+                  'the other customer is not paused', pairing.last_check(self.conns[self.ob]).get('organization'))
+            st = health.evaluate(conn)
+            check(st['state'] == health.DEGRADED and any(r['code'] == 'CONTAINED' for r in st['reasons']),
+                  'status Degraded (containment), not Disconnected or rejected', st['reasons'])
+            t = self.ticket_for(self.org_a, self.assets[self.oa], self.tech_a, 'While paused')
+            job = self.start_job(self.c_a, t)
+            job.refresh_from_db()
+            check(job.status == 'failed' and job.processor_error_code == 'CONTAINED',
+                  'a job for the paused business ends at once (423 CONTAINED), not retried until it expires',
+                  f'{job.status} {job.processor_error_code} {job.error}')
+            reconcile.reconcile(conn)
+            job.refresh_from_db()
+            check(job.status == 'failed' and AnalysisJob.objects.filter(ticket=t).count() == 1,
+                  'reconciliation does not resend it')
+            conn.refresh_from_db()
+            text = json.dumps(conn.field_mappings) + job.error + json.dumps(health.evaluate(conn), default=str)
+            check(reason not in text and 'suspected compromise' not in text,
+                  'Rem0te\'s pause reason is stored nowhere in ClientSt0r')
+        finally:
+            self.node('unpause', {'id': p['id']})
+        doc = pairing.check(conn)
+        conn.refresh_from_db()
+        st = health.evaluate(conn)
+        check(not (doc.get('organization') or {}).get('paused') and st['state'] == health.CONNECTED,
+              'pause lifted: the next check reports Connected again', st['reasons'])
+
+        # Patch summary on a REBOOT_PENDING alert (revision 2).
+        ep = self.fx['endpoints'][self.oa]
+        self.node('rebootRule', {'customerId': self.fx['businesses'][self.oa]})
+        posture = {'schema': 'rem0te-patch-posture/1', 'scannedAt': time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime()),
+                   'updates': [], 'history': [], 'reboot': {'pending': True, 'sources': ['windows_update']},
+                   'managers': [], 'autoUpdate': 'enabled'}
+        st_hb, body = self.heartbeat(self.oa, 60_000, updateChannel='signed', patchPosture=posture)
+        check(st_hb in (200, 201), 'heartbeat with a pending restart accepted by Rem0te', f'{st_hb} {body}')
+        moved = wait_for(lambda: self.node('rebootSince', {'endpointId': ep['id'], 'minutes': 90})['updated'], 20, 1)
+        check(moved, 'Rem0te tracks the pending restart (monitor state backdated 90 min)')
+        self.heartbeat(self.oa, 60_000, updateChannel='signed', patchPosture=posture)
+        row = wait_for(lambda: Rem0teAlertTicket.objects.filter(connection=conn, kind='REBOOT_PENDING').first(), 60, 1)
+        check(row is not None, 'Rem0te pushed a REBOOT_PENDING alert and ClientSt0r opened a ticket',
+              self.node('alert', {'endpointId': ep['id']}))
+        if row is not None:
+            ps = row.patch_summary or {}
+            check(ps and schema.errors('patch-summary', ps) == [] and ps.get('reboot_required') is True,
+                  'its patch summary was stored, valid against the pinned schema, restart pending', ps)
+            check('Patch status (from Rem0te)' in row.ticket.description,
+                  'the ticket shows the patch status', row.ticket.description[-600:])
+            check(row.ticket.related_asset_id == self.assets[self.oa].pk,
+                  'the ticket\'s asset is Acme\'s FRONTDESK-01 (by Rem0te id)')
+        alerts.poll(conn)
+        check(Rem0teAlertTicket.objects.filter(connection=conn, kind='REBOOT_PENDING').count() <= 1,
+              'polling opens nothing new')
+
+        # One status, from reconciliation.
+        n = reconcile.reconcile_all()
+        states = {ext: health.evaluate(RMMConn.objects.get(pk=c.pk))['state'] for ext, c in self.conns.items()
+                  for RMMConn in [type(c)]}
+        check(n == 2 and all(s in health.LABELS for s in states.values()),
+              f'reconciliation ran for both connections: {states}', states)
 
 
 if __name__ == '__main__':

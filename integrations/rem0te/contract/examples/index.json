@@ -1,0 +1,86 @@
+{
+  "contract": "ticket-rmm-v1",
+  "contract_revision": 2,
+  "generated_by": "apps/api/scripts/e2e-ticket-workflow.mjs --write-examples",
+  "generated_at": "2026-11-10T20:58:25.494Z",
+  "rem0te_version": "0.29.1",
+  "peer": {
+    "id": "clientst0r-example",
+    "audience": "rem0te:example",
+    "peer_audience": "clientst0r:example",
+    "request_key_id": "clientst0r-example/req-1",
+    "delegation_key_id": "del-1"
+  },
+  "rem0te": {
+    "key_id": "rem0te/rem0te-example-1"
+  },
+  "keys": "keys/*.pub.pem verify these examples. keys/*.TEST-ONLY.pem are their private halves, published on purpose so the signatures can be reproduced: they protect nothing and must never be configured on a server.",
+  "examples": [
+    {
+      "name": "capabilities",
+      "file": "capabilities.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: discovery. `organizations` is the explicit binding (contract revision 2): one organization per business, each request names its organization, and `paused` lists the containment kinds in force."
+    },
+    {
+      "name": "error.clientst0r-hmac-request",
+      "file": "error.clientst0r-hmac-request.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te, signed the way ClientSt0r signs today (HMAC-SHA256, X-Integration-* headers). Refused: ticket-rmm-v1 is Ed25519 with rem0te-* headers. See CLIENTST0R.md."
+    },
+    {
+      "name": "job-submit",
+      "file": "job-submit.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: analyse one ticket, with rem0te's evidence about the bound computer. Signed request plus a delegation token bound to the body hash (req_sha256)."
+    },
+    {
+      "name": "inference",
+      "file": "inference.json",
+      "direction": "rem0te_to_clientst0r",
+      "description": "rem0te → ClientSt0r: one model run for a job. ClientSt0r holds the provider key and calls the model; rem0te never does. The response is signed over the request nonce and the body hash."
+    },
+    {
+      "name": "job-result",
+      "file": "job-result.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: poll the job. `result` is staff-facing analysis; every next step is `executable: false`."
+    },
+    {
+      "name": "event.job-succeeded",
+      "file": "event.job-succeeded.json",
+      "direction": "rem0te_to_clientst0r",
+      "description": "rem0te → ClientSt0r: a signed job event, pushed to the events URL. Verify `signature` over \"rem0te-event-v1\\n\" + canonical JSON of `event`."
+    },
+    {
+      "name": "error.paused-business",
+      "file": "error.paused-business.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: a job for a business under a containment pause. 423 CONTAINED; nothing is queued."
+    },
+    {
+      "name": "action-proposal",
+      "file": "action-proposal.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: propose a catalog action from an AI suggestion on a ticket. It becomes a plan awaiting independent approval on rem0te's approval signer; nothing runs until approvers sign it there."
+    },
+    {
+      "name": "alert-event.raised-with-patch-summary",
+      "file": "alert-event.raised-with-patch-summary.json",
+      "direction": "rem0te_to_clientst0r",
+      "description": "rem0te → ClientSt0r: a signed alert event for a REBOOT_PENDING alert, carrying the redacted patch summary (revision 2). Verify over \"rem0te-alert-event-v1\\n\" + canonical JSON of `alert_event`."
+    },
+    {
+      "name": "alert-ticket-link",
+      "file": "alert-ticket-link.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: link the ticket it opened. Idempotent for the same ticket; another ticket is 409."
+    },
+    {
+      "name": "job-submit.replayed",
+      "file": "job-submit.replayed.json",
+      "direction": "clientst0r_to_rem0te",
+      "description": "ClientSt0r → rem0te: the same idempotency key and body again (here after a restart). 200 with idempotent-replayed: true and the same job — never a second job."
+    }
+  ]
+}

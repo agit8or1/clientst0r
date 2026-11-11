@@ -1,0 +1,66 @@
+{
+  "name": "alert-ticket-link",
+  "description": "ClientSt0r → rem0te: link the ticket it opened. Idempotent for the same ticket; another ticket is 409.",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "POST",
+    "path": "/api/integration/v1/alerts/cmwb69h7c002614o15h82xlih/ticket",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-timestamp": "1794344293",
+      "rem0te-nonce": "CNWqux3xvq9VTUwBU60bLGrn",
+      "rem0te-signature": "ExPcicbABN0GTHQKRKNCMm7iu8egr1DBGqjEEL3F3ENCG1m_d6qt43a2YZvFOEAQ6sVmBSNZLwJ_Fq4-5LEEAA"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "organization_id": "org-acme-8ee2fa",
+      "ticket_id": "CS-8ee2fa-1",
+      "ticket_url": "https://clientst0r.example/tickets/CS-8ee2fa-1"
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "alert_id": "cmwb69h7c002614o15h82xlih",
+      "monitor": "reboot-pending",
+      "kind": "REBOOT_PENDING",
+      "severity": "warning",
+      "state": "open",
+      "title": "FRONTDESK has needed a restart for 1 h",
+      "rem0te_endpoint_id": "cmwb69a26000rx4amwdqpfgpi",
+      "computer_name": "FRONTDESK",
+      "site_name": null,
+      "first_seen_at": "2026-11-10T20:58:12.682Z",
+      "last_seen_at": "2026-11-10T20:58:12.682Z",
+      "occurrences": 1,
+      "resolved_at": null,
+      "outage_alert_id": null,
+      "ticket": {
+        "id": "CS-8ee2fa-1",
+        "url": "https://clientst0r.example/tickets/CS-8ee2fa-1"
+      },
+      "patch_summary": {
+        "evidence_source": "signed_agent_scan",
+        "evidence_at": "2026-11-10T20:58:09.298Z",
+        "evidence_age_hours": 0,
+        "freshness": "fresh",
+        "last_boot_at": null,
+        "managed_by": "rem0te_or_windows_update",
+        "managers": [],
+        "reboot_required": true,
+        "pending_count": 0,
+        "pending_kbs": [],
+        "confirmed_kbs": [],
+        "failed_kbs": [],
+        "awaiting_confirmation_kbs": [],
+        "deploy_available": true
+      }
+    }
+  },
+  "request_schema": "alert-ticket-link",
+  "response_schema": "alert"
+}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% comment %}
+Settings → RMM → Rem0te setup wizard. Public keys, key ids, fingerprints and
+the peers-file entry only: no private key is ever rendered. Everything from
+Rem0te is autoescaped text.
+{% endcomment %}
+{% block title %}Rem0te setup - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+        <li class="breadcrumb-item active">RMM · Rem0te</li>
+    </ol>
+</nav>
+<div class="row">
+    <div class="col-md-3">
+        {% include "core/_settings_menu.html" with active_page="rmm_rem0te" %}
+    </div>
+    <div class="col-md-9" data-rem0te-setup>
+        <h1 class="h3"><i class="fas fa-desktop"></i> Rem0te setup</h1>
+        <p class="text-muted">Contract <code>{{ pin.contract }}</code>, revision {{ implemented_revision }} (tested against Rem0te {{ pin.rem0te_version }} <code title="{{ pin.rem0te_sha }}">{{ pin.rem0te_sha|slice:":12" }}</code>). A Rem0te at revision 1 still works; features it lacks are shown as not supported by the connected Rem0te.</p>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>1. ClientSt0r's identity</strong> <span class="text-muted">(one peer for every organization)</span></div>
+            <div class="card-body">
+                {% if identity and identity.has_keys %}
+                <table class="table table-sm">
+                    <tr><th width="35%">Peer id</th><td><code>{{ identity.peer_id }}</code></td></tr>
+                    <tr><th>Audience (peerAudience)</th><td><code>{{ identity.audience|default:"—" }}</code></td></tr>
+                    <tr><th>Public address</th><td><code>{{ identity.public_base_url|default:"—" }}</code></td></tr>
+                    <tr><th>Request key</th><td><code>{{ identity.request.kid }}</code> <span class="text-muted">SHA-256 {{ identity.request.fingerprint }}</span></td></tr>
+                    <tr><th>Delegation key</th><td><code>{{ identity.delegation.kid }}</code> <span class="text-muted">SHA-256 {{ identity.delegation.fingerprint }}</span></td></tr>
+                    {% if identity.next %}<tr><th>Staged next keys</th><td><code>{{ identity.next.request.kid }}</code>, <code>{{ identity.next.delegation.kid }}</code> — in the entry below; switch once Rem0te has restarted with them.</td></tr>{% endif %}
+                </table>
+                {% if identity.missing %}<div class="alert alert-warning py-1">{{ identity.missing }}</div>{% endif %}
+                <div class="mb-1">Entry for Rem0te's peers file (<code>peers[]</code> in <code>INTEGRATION_PEERS_FILE</code>; set <code>audience</code> to Rem0te's own):</div>
+                <pre class="small bg-light border rounded p-2" style="max-height: 18rem; overflow: auto; white-space: pre-wrap;" data-rem0te-peer-entry>{{ peer_entry }}</pre>
+                {% else %}
+                <p>ClientSt0r has no Rem0te keys yet.</p>
+                {% endif %}
+                <form method="post" action="{% url 'integrations:rem0te_setup_identity' %}" class="mb-2">
+                    {% csrf_token %}<input type="hidden" name="op" value="update">
+                    <div class="row g-1">
+                        <div class="col-md-4"><input name="peer_id" class="form-control form-control-sm" aria-label="Peer id" value="{{ identity.peer_id|default:'clientst0r' }}"></div>
+                        <div class="col-md-4"><input name="audience" class="form-control form-control-sm" aria-label="ClientSt0r's audience" placeholder="clientst0r:host" value="{{ identity.audience|default:'' }}"></div>
+                        <div class="col-md-4"><input name="public_base_url" class="form-control form-control-sm" aria-label="Public address" placeholder="https://clientst0r.example.com" value="{{ identity.public_base_url|default:'' }}"></div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary mt-1">Save identity</button>
+                </form>
+                <form method="post" action="{% url 'integrations:rem0te_setup_identity' %}" class="d-inline">
+                    {% csrf_token %}
+                    {% if not identity or not identity.has_keys %}
+                    <input type="hidden" name="op" value="generate"><button class="btn btn-sm btn-primary">Generate keys</button>
+                    {% elif not identity.next %}
+                    <input type="hidden" name="op" value="stage"><button class="btn btn-sm btn-outline-primary">Stage new keys (rotation without an outage)</button>
+                    {% else %}
+                    <input type="hidden" name="op" value="promote"><button class="btn btn-sm btn-primary" data-confirm="Rem0te must already list the new public keys (restarted). Switch now?">Switch to the next keys</button>
+                    {% endif %}
+                </form>
+                {% if identity.next %}
+                <form method="post" action="{% url 'integrations:rem0te_setup_identity' %}" class="d-inline">
+                    {% csrf_token %}<input type="hidden" name="op" value="discard"><button class="btn btn-sm btn-outline-danger">Discard staged keys</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <h2 class="h5">2. Connections</h2>
+        {% for r in rows %}
+        <div class="card mb-3" data-rem0te-connection="{{ r.connection.pk }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><strong>{{ r.connection.name }}</strong> <span class="text-muted">{{ r.connection.organization.name }} · <code>{{ r.organization_id }}</code></span></span>
+                <span class="badge bg-{{ r.status.badge }}" data-rem0te-state="{{ r.status.state }}">{{ r.status.label }}</span>
+            </div>
+            <div class="card-body">
+                {% for reason in r.status.reasons|slice:":4" %}
+                <div class="mb-1"><strong>{{ reason.message }}</strong>{% if reason.action %} <span class="text-muted">— {{ reason.action }}</span>{% endif %}</div>
+                {% endfor %}
+                <table class="table table-sm mt-2 mb-2">
+                    {% for i in r.checklist %}
+                    <tr data-check="{{ i.key }}" data-check-status="{{ i.status }}">
+                        <td width="1%">{% if i.status == 'ok' %}<i class="fas fa-check text-success" aria-label="ok"></i>{% elif i.status == 'fail' %}<i class="fas fa-times text-danger" aria-label="missing"></i>{% elif i.status == 'warn' %}<i class="fas fa-exclamation-triangle text-warning" aria-label="warning"></i>{% else %}<i class="fas fa-minus text-muted" aria-label="{{ i.status }}"></i>{% endif %}</td>
+                        <td>{{ i.label }}{% if i.detail %}<div class="small text-muted">{{ i.detail }}</div>{% endif %}{% if i.action and i.status != 'ok' %}<div class="small">{{ i.action }}</div>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                <form method="post" action="{% url 'integrations:rem0te_setup_test' r.connection.pk %}" class="d-inline">
+                    {% csrf_token %}<button class="btn btn-sm btn-primary"><i class="fas fa-plug-circle-check me-1"></i>Test connection</button>
+                </form>
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'integrations:rmm_detail' r.connection.pk %}">Connection page</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'integrations:rmm_edit' r.connection.pk %}">Edit</a>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No Rem0te connections in this organization. <a href="{% url 'integrations:rmm_create' %}">Add one</a> (provider Rem0te), then come back to test it.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
