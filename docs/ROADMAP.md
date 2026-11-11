@@ -1976,6 +1976,40 @@ v3.17.658; the RMM side waits on rem0te.
   release is out, from the scheduled update check, linking to Settings →
   Updates; it disappears once that version is running.
 
+## Phase 62 — Pluggable document editors **(L · documents)** [planned]
+
+Edit Word, Excel and PowerPoint files attached to documentation, KB articles
+and assets in the browser, through an editor the MSP chooses. Today documents
+use the built-in editor only, and the Microsoft 365 connection reads tenant
+data without editing files.
+
+- **62.1 Editor framework** *(planned)* — one interface for opening, saving
+  and locking a file through an external editor. Each file keeps its version
+  history, and every save is audited. Off until an editor is configured;
+  switched on per installation, with per-customer opt-out.
+- **62.2 ONLYOFFICE Docs (self-hosted)** *(planned)* — first editor. Uses the
+  Document Server's signed (JWT) editor config and save callbacks. The
+  Document Server fetches files through short-lived, single-file download
+  links. Real-time co-editing when the server allows it.
+- **62.3 Collabora Online (self-hosted)** *(planned)* — WOPI host endpoints
+  (CheckFileInfo, GetFile, PutFile, locks) with per-file, per-user access
+  tokens that expire.
+- **62.4 Microsoft 365 for the web** *(planned)* — optional connector. Files
+  are opened in Word, Excel or PowerPoint Online through the customer's or the
+  MSP's tenant; needs consent to write files, separate from the read-only
+  Microsoft 365 connection.
+- **62.5 Google Docs** *(planned)* — optional connector. Open a copy in
+  Google Drive, then import the edited file back as a new version; files are
+  never left shared in Drive.
+- **62.6 Permissions and customer boundaries** *(planned)* — opening a file
+  in an editor follows the same view and edit permissions as the document it
+  belongs to. Editor tokens are limited to one file and one user. Customer
+  portal users can edit only files shared to the portal, and only when the
+  MSP allows it.
+
+**Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
+Microsoft 365 and Google Docs 1–2 weeks each.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2035,6 +2069,7 @@ v3.17.658; the RMM side waits on rem0te.
 | 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
 | 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; remote grants with Phase 56.5 | none |
 | 58 — Condensed navigation | M | shipped v3.17.647 | none |
+| 62 — Pluggable document editors | L | planned | documents and file attachments; optional Microsoft 365 / Google connectors |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
