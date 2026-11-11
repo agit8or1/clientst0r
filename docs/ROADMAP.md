@@ -538,7 +538,7 @@ Planned capabilities:
 - Auto-reminder cron at end of payroll period for un-submitted timesheets
 - Bulk-approve UI for managers *(shipped v3.17.249 — `/psa/timesheet-approvals/bulk/` endpoint + sticky bulk-action bar on the queue page)*
 - Export approved timesheets to payroll (CSV / QuickBooks Time / Gusto) *(shipped v3.17.249 — `/psa/timesheet-approvals/payroll-export/` returns per-(tech, week) CSV ready for QBT/Gusto import)*
-- Audit trail per entry: who approved, when, with what note *(partial — `decided_by` / `decided_at` / `decision_notes` per submission shipped v3.17.242)*
+- Audit trail per entry: who approved, when, with what note *(partial — `decided_by` / `decided_at` / `decision_notes` per submission shipped v3.17.242)*. Per-entry trail *(in progress — on the development branch, not yet released)* — `psa.TimeEntryAuditEvent` records submitted / approved / rejected for each entry (actor, time, note; kept after a rejection detaches the entry), every change to an approved entry with a field-by-field diff, edits the approval lock refused, and deletes after approval. Shown at `/psa/time-entries/<id>/history/` (linked from the timesheet and approval screens) and inline on the approval queue; superusers can change an approved entry there with a required reason. Per-entry rejection is still planned
 
 Dependencies: extends Phase 2 (BillableTarget + utilization) + the existing approval queue pattern.
 

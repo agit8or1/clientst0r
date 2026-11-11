@@ -8866,6 +8866,9 @@ def my_timesheet(request, year=None, week=None):
                 status='pending', submitter_notes=notes,
             )
         entries.update(submission=submission)
+        from .models import TimeEntryAuditEvent
+        TimeEntryAuditEvent.record_for_entries(
+            entries, action='submitted', actor=request.user, submission=submission, note=notes)
         messages.success(request,
             f'Submitted {len(entries)} entries for the week of {period_start}.')
         return redirect('psa:my_timesheet_iso',
@@ -8895,10 +8898,12 @@ def timesheet_approval_queue(request):
         messages.error(request, 'Only staff/superuser can review timesheets.')
         return redirect('core:dashboard')
     pending = (TimesheetSubmission.objects.filter(status='pending')
-               .select_related('user').order_by('-submitted_at'))
+               .select_related('user').order_by('-submitted_at')
+               .prefetch_related('entries__ticket', 'entries__audit_events__actor'))
     decided = (TimesheetSubmission.objects
                .exclude(status__in=['pending', 'draft'])
-               .select_related('user', 'decided_by').order_by('-decided_at')[:50])
+               .select_related('user', 'decided_by').prefetch_related('entry_events')
+               .order_by('-decided_at')[:50])
     return render(request, 'psa/timesheet_approval_queue.html', {
         'pending': pending,
         'decided': decided,
@@ -8966,6 +8971,74 @@ def timesheet_bulk_decide(request):
     else:
         messages.info(request, 'No pending submissions matched.')
     return redirect('psa:timesheet_approval_queue')
+
+
+def _can_see_time_entry_history(user, entry, request):
+    is_staff = getattr(request, 'is_staff_user', False)
+    return user.is_superuser or is_staff or entry.user_id == user.pk
+
+
+@login_required
+@require_psa_enabled
+def time_entry_history(request, pk):
+    """Phase 25: one time entry's approval trail — submitted, approved or
+    rejected (by whom, when, with what note) and any change after approval.
+    Staff, superusers and the entry's own technician."""
+    from .models import TicketTimeEntry, TimeEntryAuditEvent
+    entry = TicketTimeEntry.objects.select_related('ticket', 'user', 'submission').filter(pk=pk).first()
+    events = TimeEntryAuditEvent.objects.filter(entry_ref=pk).select_related('actor', 'submission')
+    if entry is None:
+        # Deleted: the trail remains, for staff only.
+        if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)) or not events.exists():
+            raise Http404
+    elif not _can_see_time_entry_history(request.user, entry, request):
+        raise Http404
+    locked = bool(entry and entry.submission_id and entry.submission.status == 'approved')
+    return render(request, 'psa/time_entry_history.html', {
+        'entry': entry, 'entry_ref': pk, 'events': events, 'locked': locked,
+        'can_correct': locked and request.user.is_superuser,
+    })
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def time_entry_correct(request, pk):
+    """Phase 25: a superuser changes an entry after its timesheet was
+    approved. A reason is required and the change is recorded field by
+    field on the entry's trail (and in the audit log)."""
+    from .models import TicketTimeEntry
+    if not request.user.is_superuser:
+        raise Http404
+    entry = get_object_or_404(TicketTimeEntry.objects.select_related('submission', 'ticket'), pk=pk)
+    back = redirect('psa:time_entry_history', pk=pk)
+    if not (entry.submission_id and entry.submission.status == 'approved'):
+        messages.info(request, 'This entry is not locked by an approved timesheet.')
+        return back
+    reason = (request.POST.get('reason') or '').strip()
+    if not reason:
+        messages.error(request, 'Give a reason for changing an approved entry.')
+        return back
+    try:
+        minutes = int(request.POST.get('duration_minutes') or entry.duration_minutes)
+        if minutes < 0:
+            raise ValueError
+    except ValueError:
+        messages.error(request, 'Minutes must be a whole number, zero or more.')
+        return back
+    entry.duration_minutes = minutes
+    entry.is_billable = (request.POST.get('is_billable') or '') in ('1', 'on', 'true')
+    entry.notes = (request.POST.get('notes') if 'notes' in request.POST else entry.notes) or ''
+    entry.save(_force_unlock=True, _audit_user=request.user, _audit_note=reason)
+    AuditLog.log(
+        user=request.user, action='update', organization=entry.ticket.organization,
+        object_type='psa.TicketTimeEntry', object_id=entry.pk,
+        object_repr=f'time entry {entry.pk} on {entry.ticket.ticket_number}',
+        description=f'Changed approved time entry {entry.pk}: {reason[:200]}',
+        ip_address=_client_ip(request), path=request.path,
+    )
+    messages.success(request, 'Entry changed; the change is on its approval trail.')
+    return back
 
 
 @login_required

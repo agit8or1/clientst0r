@@ -465,3 +465,26 @@ def _recompute_contract_hours_on_time_entry_delete(sender, instance, **kwargs):
     except Exception:
         logger.exception('contract hour recompute failed after deleting '
                          'time entry %s', instance.pk)
+
+
+@receiver(post_delete, sender=TicketTimeEntry)
+def _audit_delete_of_approved_time_entry(sender, instance, **kwargs):
+    """Phase 25 audit trail: deleting an entry whose timesheet was approved
+    is recorded against the entry id (the row itself is gone)."""
+    from .models import TimeEntryAuditEvent, TimesheetSubmission
+    try:
+        if not instance.submission_id:
+            return
+        sub = TimesheetSubmission.objects.filter(pk=instance.submission_id).first()
+        if sub is None or sub.status != 'approved':
+            return
+        TimeEntryAuditEvent.objects.create(
+            entry=None, entry_ref=instance.pk, submission=sub,
+            action='deleted_after_approval',
+            actor=getattr(instance, '_audit_user', None),
+            note=(getattr(instance, '_audit_note', '') or '')[:5000],
+            changes={'duration_minutes': [instance.duration_minutes, None],
+                     'started_at': [instance.started_at.isoformat() if instance.started_at else None,
+                                    None]})
+    except Exception:
+        logger.exception('time entry audit failed after deleting entry %s', instance.pk)

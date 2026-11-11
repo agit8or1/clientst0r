@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Time Entry History{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:timesheet_approval_queue' %}">Timesheet Approvals</a></li>
+        <li class="breadcrumb-item active">Time entry #{{ entry_ref }}</li>
+    </ol>
+</nav>
+
+<h2 class="mb-3"><i class="fas fa-clock-rotate-left me-2"></i>Time entry #{{ entry_ref }}</h2>
+
+{% if entry %}
+<div class="card mb-3">
+    <div class="card-body small">
+        <div><strong>{{ entry.user.username|default:'—' }}</strong> on
+            <a href="{% url 'psa:ticket_detail' entry.ticket.ticket_number %}">{{ entry.ticket.ticket_number }}</a>,
+            started {{ entry.started_at|date:'Y-m-d H:i' }}</div>
+        <div>{{ entry.duration_minutes }} min · {% if entry.is_billable %}billable{% else %}not billable{% endif %}{% if entry.role_code %} · {{ entry.role_code }}{% endif %}</div>
+        {% if entry.notes %}<div class="text-muted mt-1" style="white-space: pre-wrap;">{{ entry.notes }}</div>{% endif %}
+        <div class="mt-2">
+            {% if locked %}<span class="badge bg-success">Locked — timesheet approved</span>
+            {% elif entry.submission_id %}<span class="badge bg-info">{{ entry.submission.get_status_display }}</span>
+            {% else %}<span class="badge bg-secondary">Not submitted</span>{% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning small">This entry has been deleted. Its approval trail is kept.</div>
+{% endif %}
+
+<h5>Approval trail</h5>
+<div class="card mb-3">
+    <table class="table table-sm small mb-0">
+        <thead class="table-light"><tr><th>When</th><th>Event</th><th>By</th><th>Week</th><th>Note</th><th>Changes</th></tr></thead>
+        <tbody>
+        {% for ev in events %}
+            <tr>
+                <td>{{ ev.created_at|date:'Y-m-d H:i' }}</td>
+                <td>{{ ev.get_action_display }}</td>
+                <td>{{ ev.actor.username|default:'—' }}</td>
+                <td>{% if ev.submission %}{{ ev.submission.period_start }}{% else %}—{% endif %}</td>
+                <td style="white-space: pre-wrap;">{{ ev.note|default:'—' }}</td>
+                <td>{% for field, pair in ev.changes.items %}<div><code>{{ field }}</code>: {{ pair.0|default_if_none:'—' }} → {{ pair.1|default_if_none:'—' }}</div>{% empty %}—{% endfor %}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">No approval events yet. Events are recorded from this release on.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if can_correct %}
+<h5>Change this approved entry</h5>
+<form method="post" action="{% url 'psa:time_entry_correct' entry.pk %}" class="card card-body small" style="max-width: 560px;">
+    {% csrf_token %}
+    <label class="form-label">Minutes
+        <input type="number" min="0" name="duration_minutes" value="{{ entry.duration_minutes }}" class="form-control form-control-sm">
+    </label>
+    <div class="form-check mb-2">
+        <input type="checkbox" name="is_billable" value="1" id="te-billable" class="form-check-input" {% if entry.is_billable %}checked{% endif %}>
+        <label for="te-billable" class="form-check-label">Billable</label>
+    </div>
+    <label class="form-label">Notes
+        <textarea name="notes" rows="2" class="form-control form-control-sm">{{ entry.notes }}</textarea>
+    </label>
+    <label class="form-label">Reason (required, recorded on the trail)
+        <input type="text" name="reason" required maxlength="500" class="form-control form-control-sm">
+    </label>
+    <div><button type="submit" class="btn btn-sm btn-warning">Change approved entry</button></div>
+</form>
+{% endif %}
+{% endblock %}

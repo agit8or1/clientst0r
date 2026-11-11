@@ -857,11 +857,14 @@ class TicketTimeEntry(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         prior_scope = None
+        # Phase 25 audit trail: who is saving, and why, when the entry is
+        # already approved. Both optional; popped so Model.save() never sees them.
+        audit_user = kwargs.pop('_audit_user', None)
+        audit_note = kwargs.pop('_audit_note', '')
+        force_unlock = kwargs.pop('_force_unlock', False)
+        approved_prior = None
         if not is_new:
-            prior = TicketTimeEntry.objects.filter(pk=self.pk).only(
-                'duration_minutes', 'ended_at', 'submission_id',
-                'ticket_id', 'started_at',
-            ).first()
+            prior = TicketTimeEntry.objects.filter(pk=self.pk).first()
             if prior:
                 # Where the entry counted before this save, so an edit that
                 # moves it (other ticket/client, other date) also corrects
@@ -870,22 +873,33 @@ class TicketTimeEntry(models.Model):
                 # Phase 25 v2 (v3.17.249): lock entries attached to an
                 # approved TimesheetSubmission. Caller can pass
                 # `_force_unlock=True` for admin overrides; otherwise the
-                # save is silently a no-op via early return.
-                if (prior.submission_id
-                        and not kwargs.pop('_force_unlock', False)):
-                    try:
-                        sub = TimesheetSubmission.objects.only('status').get(
-                            pk=prior.submission_id,
-                        )
-                        if sub.status == 'approved':
+                # save is a no-op via early return (now recorded).
+                if prior.submission_id:
+                    sub = TimesheetSubmission.objects.filter(
+                        pk=prior.submission_id).only('status').first()
+                    if sub is not None and sub.status == 'approved':
+                        changes = TimeEntryAuditEvent.diff(prior, self)
+                        if not force_unlock:
+                            if changes:
+                                TimeEntryAuditEvent.objects.create(
+                                    entry_id=self.pk, entry_ref=self.pk, submission=sub,
+                                    action='edit_refused', actor=audit_user,
+                                    note=(audit_note or '')[:5000], changes=changes)
                             return
-                    except Exception:
-                        pass
+                        approved_prior = (sub, changes)
 
         if self.ended_at and self.started_at and not self.duration_minutes:
             delta = self.ended_at - self.started_at
             self.duration_minutes = max(0, int(delta.total_seconds() // 60))
         super().save(*args, **kwargs)
+
+        if approved_prior is not None:
+            sub, changes = approved_prior
+            if changes:
+                TimeEntryAuditEvent.objects.create(
+                    entry_id=self.pk, entry_ref=self.pk, submission=sub,
+                    action='changed_after_approval', actor=audit_user,
+                    note=(audit_note or '')[:5000], changes=changes)
 
         # Contract hour accounting (v3.17.600). This used to add
         # `duration_minutes` to the active contract's `hours_used_minutes` on
@@ -3173,6 +3187,9 @@ class TimesheetSubmission(models.Model):
         self.decided_at = timezone.now()
         self.decision_notes = (notes or '')[:5000]
         self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
+        TimeEntryAuditEvent.record_for_entries(
+            self.entries.all(), action='approved', actor=user, submission=self,
+            note=self.decision_notes)
 
     def reject(self, *, user, notes=''):
         self.status = 'rejected'
@@ -3180,8 +3197,87 @@ class TimesheetSubmission(models.Model):
         self.decided_at = timezone.now()
         self.decision_notes = (notes or '')[:5000]
         self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
+        # Recorded per entry before they are detached, so each entry keeps
+        # who rejected it, when and why after it leaves the submission.
+        TimeEntryAuditEvent.record_for_entries(
+            self.entries.all(), action='rejected', actor=user, submission=self,
+            note=self.decision_notes)
         # Detach entries so the tech can re-submit after fixes.
         self.entries.update(submission=None)
+
+
+class TimeEntryAuditEvent(models.Model):
+    """Phase 25: the approval history of one time entry.
+
+    One row per entry per event — submitted, approved, rejected, and any
+    change or delete made after approval (which the lock in
+    `TicketTimeEntry.save()` otherwise only allows through `_force_unlock`).
+    An edit the lock refused is recorded too, so a change that silently did
+    not happen is visible. Rows outlive the entry: `entry_ref` keeps its id.
+    """
+    ACTION_CHOICES = [
+        ('submitted', 'Submitted for approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('changed_after_approval', 'Changed after approval'),
+        ('edit_refused', 'Edit refused (entry locked by approval)'),
+        ('deleted_after_approval', 'Deleted after approval'),
+    ]
+    # Fields whose change after approval is worth recording.
+    TRACKED_FIELDS = ('ticket_id', 'started_at', 'ended_at', 'duration_minutes',
+                      'is_billable', 'role_code', 'notes')
+
+    entry = models.ForeignKey(
+        'psa.TicketTimeEntry', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='audit_events')
+    entry_ref = models.PositiveIntegerField(
+        db_index=True, help_text='Time entry id, kept after the entry is deleted.')
+    submission = models.ForeignKey(
+        TimesheetSubmission, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='entry_events')
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    actor = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+')
+    note = models.TextField(blank=True)
+    changes = models.JSONField(
+        default=dict, blank=True,
+        help_text='{field: [before, after]} for changes after approval.')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_time_entry_audit_events'
+        ordering = ['created_at', 'pk']
+        indexes = [models.Index(fields=['entry_ref', 'created_at'])]
+
+    def __str__(self):
+        return f'entry {self.entry_ref}: {self.action}'
+
+    @classmethod
+    def record_for_entries(cls, entries, *, action, actor=None, submission=None, note=''):
+        rows = [cls(entry_id=e.pk, entry_ref=e.pk, submission=submission, action=action,
+                    actor=actor, note=(note or '')[:5000]) for e in entries]
+        if rows:
+            cls.objects.bulk_create(rows)
+        return len(rows)
+
+    @classmethod
+    def diff(cls, before, after):
+        """{field: [before, after]} over TRACKED_FIELDS, JSON-safe."""
+        out = {}
+        for f in cls.TRACKED_FIELDS:
+            a, b = getattr(before, f, None), getattr(after, f, None)
+            if a != b:
+                out[f] = [_audit_value(a), _audit_value(b)]
+        return out
+
+
+def _audit_value(v):
+    if v is None or isinstance(v, (bool, int, str)):
+        return v
+    if hasattr(v, 'isoformat'):
+        return v.isoformat()
+    return str(v)
 
 
 class TicketCSATSurvey(models.Model):

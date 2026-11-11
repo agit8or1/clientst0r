@@ -166,6 +166,8 @@ urlpatterns = [
     # Phase 25 v2 (v3.17.249) — bulk decide + payroll CSV export.
     path('timesheet-approvals/bulk/', views.timesheet_bulk_decide, name='timesheet_bulk_decide'),
     path('timesheet-approvals/payroll-export/', views.timesheet_payroll_export, name='timesheet_payroll_export'),
+    path('time-entries/<int:pk>/history/', views.time_entry_history, name='time_entry_history'),
+    path('time-entries/<int:pk>/correct/', views.time_entry_correct, name='time_entry_correct'),
 
     # Procurement (Phase 4.1) — Purchase Requisitions
     path('requisitions/', views.requisition_list, name='requisition_list'),

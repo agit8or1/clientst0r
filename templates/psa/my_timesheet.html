@@ -83,6 +83,7 @@
                         {% else %}
                             <span class="text-muted">—</span>
                         {% endif %}
+                        <a href="{% url 'psa:time_entry_history' e.pk %}" class="ms-1 small" title="Approval history">History</a>
                     </td>
                 </tr>
             {% empty %}
