@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ org.name }} - RMM Permissions{% endblock %}
+
+{% block content %}
+{% include "rmm_permissions/_frame_start.html" with crumb=org.name %}
+<div class="row">
+    <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="rmm_permissions" %}</div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><strong>RMM permissions at {{ org.name }}</strong></div>
+            <div class="card-body small">
+                <p class="mb-0">Technicians with a live technician access assignment here. Hover a cell for the reason;
+                    open a technician for the full chain. Approval levels: peer, l3, platform_admin.</p>
+            </div>
+            <div class="table-responsive">
+            <table class="table table-sm small mb-0">
+                <thead><tr><th>Technician</th><th>Tier</th>{% for k, label in columns %}<th title="{{ k }}">{{ label }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                {% for row in matrix %}
+                <tr><td><a href="{% url 'rmm_permissions:technician' row.tech.pk %}?organization={{ org.pk }}">{{ row.tech.username }}</a></td><td>{{ row.tier }}</td>
+                    {% for d in row.cells %}<td>{% include "rmm_permissions/_badge.html" %}</td>{% endfor %}</tr>
+                {% empty %}
+                <tr><td colspan="99" class="text-muted">No technician is assigned to this customer.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><strong>Overrides that apply here</strong></div>
+            <div class="card-body small">
+                {% for o in overrides %}<div class="border-bottom py-1">#{{ o.pk }} {{ o }} — {{ o.get_status_display }}{% if o.approval_level %} (approval: {{ o.approval_level }}){% endif %}</div>
+                {% empty %}<p class="text-muted mb-0">None.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

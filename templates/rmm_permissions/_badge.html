@@ -1,0 +1,1 @@
+<span class="badge {% if not d.allowed %}bg-secondary{% elif d.needs_approval %}bg-warning text-dark{% elif d.grant == 'request' %}bg-info text-dark{% else %}bg-success{% endif %}" title="{{ d.reason }}">{{ d.label }}{% if d.allowed and d.needs_approval %} ({{ d.approval_level }}){% endif %}</span>

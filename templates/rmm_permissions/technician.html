@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tech.username }} - RMM Permissions{% endblock %}
+
+{% block content %}
+{% include "rmm_permissions/_frame_start.html" with crumb=tech.username %}
+<div class="row">
+    <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="rmm_permissions" %}</div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Effective RMM permissions: {{ tech.username }}</strong></div>
+            <div class="card-body small">
+                <p class="mb-1">Role tier (global role): <strong>{{ tier_label }}</strong>.
+                    Assigned customers: {% for c in customers %}<a href="?organization={{ c.pk }}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}.</p>
+                <form method="get" class="d-flex gap-2">
+                    <select name="organization" class="form-select form-select-sm w-auto" aria-label="Customer">{% for o in organizations %}<option value="{{ o.pk }}" {% if org and org.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select>
+                    <button class="btn btn-sm btn-primary">Show</button>
+                </form>
+            </div>
+        </div>
+        {% if org %}
+        <div class="card mb-3">
+            <div class="card-header">At <strong>{{ org.name }}</strong> · <a href="{% url 'rmm_permissions:customer' org.pk %}">every technician here</a></div>
+            <div class="table-responsive">
+            <table class="table table-sm small mb-0">
+                <thead><tr><th>Action</th><th>Decision</th><th>Why</th></tr></thead>
+                <tbody>
+                {% for r in rows %}
+                <tr id="action-{{ r.d.action }}">
+                    <td><span class="text-muted">{{ r.group }}</span><br>{{ r.label }}<br><code>{{ r.d.action }}</code></td>
+                    <td>{% if r.locked %}<span class="badge bg-dark">Locked</span>{% else %}{% include "rmm_permissions/_badge.html" with d=r.d %}{% endif %}
+                        {% if r.d.rem0te_scope %}<div class="text-muted">Rem0te: {{ r.d.rem0te_scope }}</div>{% endif %}</td>
+                    <td>{{ r.d.reason }}
+                        <details><summary>Chain</summary><ul class="mb-0">
+                        {% for s in r.d.steps %}<li>{% if s.decisive %}<strong>{% endif %}{{ s.layer }} · {{ s.effect }}: {{ s.detail }}{% if s.decisive %}</strong>{% endif %}</li>{% endfor %}
+                        </ul>
+                        {% if r.tech_capability %}<a href="{% url 'tech_access:why' %}?user={{ tech.pk }}&organization={{ org.pk }}&capability={{ r.tech_capability }}">Technician access: why</a>{% endif %}
+                        </details></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
