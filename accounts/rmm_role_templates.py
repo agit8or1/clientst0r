@@ -44,8 +44,7 @@ _L2_FLAGS = dict(
 )
 _L3_FLAGS = dict(
     _L2_FLAGS, assets_create=True, monitoring_create=True, monitoring_edit=True, kb_move_articles=True,
-    change_implement=True, problem_assign=True, problem_resolve=True, integrations_view=True,
-    integrations_sync=True, tickets_assign=True,
+    change_implement=True, problem_assign=True, problem_resolve=True, tickets_assign=True,
 )
 _PLATFORM_FLAGS = dict(
     vault_view=True, assets_view=True, docs_view=True, files_view=True, monitoring_view=True,
