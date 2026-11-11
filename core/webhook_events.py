@@ -50,6 +50,9 @@ SUPPORTED_EVENTS = frozenset({
     'wan.up', 'wan.down', 'wan.check_failed',
     'workflow.started', 'workflow.completed', 'workflow.failed',
     'integration.synced', 'integration.failed',
+    'ticket.created', 'ticket.updated', 'ticket.status_changed',
+    'contact.created', 'contact.updated',
+    'invoice.created', 'invoice.updated', 'invoice.status_changed',
 })
 
 
@@ -232,6 +235,71 @@ def integration_data(conn, kind, status, stats=None):
         'provider_type': getattr(conn, 'provider_type', ''),
         'status': status,
         'stats': _numeric_stats(stats or {}),
+    }
+
+
+def _iso(value):
+    return value.isoformat() if value else None
+
+
+def _money(value):
+    return None if value is None else str(value)
+
+
+def ticket_data(ticket):
+    """Ticket metadata as a customer sees it in the portal. No description,
+    comments (public or internal), time entries, assignee, internal notes,
+    tags or custom fields."""
+    status = ticket.status
+    return {
+        'ticket_id': ticket.pk,
+        'ticket_number': ticket.ticket_number,
+        'subject': ticket.subject,
+        'status': status.slug,
+        'status_name': status.name,
+        'is_closed': bool(status.is_terminal),
+        'priority': ticket.priority.name,
+        'ticket_type': ticket.ticket_type.name,
+        'source': ticket.source,
+        'contact_id': ticket.contact_id,
+        'created_at': _iso(ticket.created_at),
+        'updated_at': _iso(ticket.updated_at),
+        'resolved_at': _iso(ticket.resolved_at),
+        'closed_at': _iso(ticket.closed_at),
+    }
+
+
+def contact_data(contact):
+    """Contact details. `notes` is staff free text and is not included."""
+    return {
+        'contact_id': contact.pk,
+        'first_name': contact.first_name,
+        'last_name': contact.last_name,
+        'email': contact.email or '',
+        'phone': contact.phone or '',
+        'title': contact.title or '',
+    }
+
+
+def invoice_data(invoice):
+    """Invoice header figures. No description, line items, approval notes,
+    accounting-system ids or push errors."""
+    total = invoice.total or 0
+    paid = invoice.amount_paid or 0
+    return {
+        'invoice_id': invoice.pk,
+        'invoice_number': invoice.invoice_number,
+        'title': invoice.title,
+        'status': invoice.status,
+        'invoice_date': _iso(invoice.invoice_date),
+        'due_date': _iso(invoice.due_date),
+        'sent_at': _iso(invoice.sent_at),
+        'currency': invoice.currency,
+        'subtotal': _money(invoice.subtotal),
+        'tax_amount': _money(invoice.tax_amount),
+        'total': _money(invoice.total),
+        'amount_paid': _money(invoice.amount_paid),
+        'balance_due': _money(total - paid),
     }
 
 
