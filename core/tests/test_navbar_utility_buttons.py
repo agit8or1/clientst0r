@@ -134,10 +134,11 @@ class UtilityControlsAreVisibleTests(TestCase):
         cluster = html.split('nav-util', 1)[1][:2000]
         self.assertIn('aria-hidden="true"', cluster)
 
-    # -- the main navigation is untouched -------------------------------------
+    # -- the main navigation is a separate control ----------------------------
 
-    def test_the_main_navigation_modules_menu_is_still_a_dropdown(self):
-        """A different control entirely (the old "More", now "Modules")."""
+    def test_the_main_navigation_is_the_sidebar_not_this_cluster(self):
+        """Primary navigation moved to the sidebar (core/_primary_nav.html);
+        none of it is in the utility cluster."""
         html = self._html()
-        self.assertIn('id="modulesDropdown"', html)
-        self.assertIn('id="adminDropdown"', html)
+        self.assertIn('id="appNav"', html)
+        self.assertNotIn('app-nav__', self._utility_cluster(html))

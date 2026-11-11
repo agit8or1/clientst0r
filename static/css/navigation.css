@@ -62,3 +62,198 @@
 .navbar .dropdown-item[aria-current="page"] {
     font-weight: 600;
 }
+
+/* ==========================================================================
+   Primary sidebar (templates/core/_primary_nav.html, static/js/app_nav.js)
+
+   Desktop (>= 992px): a sticky column beside the content; `[` or the
+   chevron button shrinks it to an icon rail (body.appnav-rail).
+   Phone / tablet (< 992px): an off-canvas drawer opened from the bar's menu
+   button (body.appnav-open), with a backdrop.
+   Colours come from Bootstrap's variables so every theme carries them.
+   ========================================================================== */
+.app-layout { display: block; }
+.app-main { min-width: 0; }
+/* With the sidebar taking room, Bootstrap's viewport-based container widths
+   would overflow; cap at the usual 1320px of whatever space is left. */
+.app-layout.has-app-nav .app-main .container { max-width: 1320px; width: 100%; }
+
+.app-nav {
+    background: var(--bs-body-bg);
+    border-right: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-direction: column;
+    font-size: .92rem;
+    z-index: 1040;
+}
+.app-nav__head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 10px 6px;
+}
+.app-nav__filter { position: relative; flex: 1 1 auto; min-width: 0; }
+.app-nav__filter-icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    font-size: .7rem; color: var(--bs-secondary-color); pointer-events: none;
+}
+.app-nav__filter input { padding-left: 26px; }
+.app-nav__collapse, .app-nav__close {
+    color: var(--bs-secondary-color) !important;
+    border: 1px solid transparent;
+    flex: 0 0 auto;
+}
+.app-nav__collapse:hover, .app-nav__close:hover { background: var(--bs-tertiary-bg); }
+.app-nav__close { display: none; }
+.app-nav__body { flex: 1 1 auto; overflow-y: auto; padding: 4px 6px 8px; }
+.app-nav__groups { list-style: none; margin: 0; padding: 0; }
+.app-nav__groups--settings {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--bs-border-color);
+}
+.app-nav__group-head { display: flex; align-items: center; }
+.app-nav a.app-nav__group-link,
+.app-nav a.app-nav__link,
+.app-nav a.app-nav__sublink {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--bs-body-color) !important;
+    text-decoration: none;
+    border-radius: var(--bs-border-radius);
+    min-height: 34px;
+    padding: 4px 8px;
+    min-width: 0;
+}
+.app-nav a.app-nav__group-link { flex: 1 1 auto; font-weight: 600; }
+.app-nav__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-nav a.app-nav__link { padding-left: 14px; }
+.app-nav a.app-nav__sublink { padding-left: 40px; min-height: 30px; font-size: .86rem; }
+.app-nav__entries, .app-nav__sub { list-style: none; margin: 0; padding: 0; }
+.app-nav a.app-nav__group-link:hover,
+.app-nav a.app-nav__link:hover,
+.app-nav a.app-nav__sublink:hover { background: var(--bs-tertiary-bg); }
+.app-nav a.app-nav__group-link.active { color: var(--bs-emphasis-color) !important; }
+.app-nav a.app-nav__link.active,
+.app-nav a.app-nav__sublink.active,
+.app-nav a[aria-current="page"] {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-emphasis-color) !important;
+    font-weight: 600;
+}
+.app-nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--bs-primary); }
+.app-nav__toggle {
+    background: none; border: 0; color: var(--bs-secondary-color);
+    width: 32px; height: 32px; border-radius: var(--bs-border-radius); flex: 0 0 auto;
+}
+.app-nav__toggle:hover { background: var(--bs-tertiary-bg); }
+.app-nav__toggle i { transition: transform .15s ease; }
+.app-nav__toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+.app-nav.is-filtering .app-nav__toggle { visibility: hidden; }
+.app-nav__foot { padding: 6px 14px 10px; border-top: 1px solid var(--bs-border-color); }
+.app-nav__foot .btn-link { color: var(--bs-secondary-color) !important; text-decoration: none; }
+.app-nav kbd { font-size: .7rem; padding: 1px 4px; }
+
+/* Keyboard focus is always visible in the sidebar and the bars around it. */
+.app-nav a:focus-visible, .app-nav button:focus-visible, .app-nav input:focus-visible,
+.app-nav-open:focus-visible, .saved-views a:focus-visible, .saved-views button:focus-visible,
+.app-trail a:focus-visible, .work-trail button:focus-visible {
+    outline: 2px solid var(--bs-link-color);
+    outline-offset: 1px;
+    box-shadow: none;
+}
+
+.app-nav-open { display: none; color: var(--sidebar-text, #fff) !important; font-size: 1.15rem; padding: .25rem .6rem; }
+.app-nav-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 1039; }
+
+@media (min-width: 992px) {
+    .app-layout.has-app-nav { display: flex; align-items: stretch; }
+    .app-layout.has-app-nav .app-main { flex: 1 1 auto; }
+    .app-nav {
+        flex: 0 0 15.5rem;
+        width: 15.5rem;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        align-self: flex-start;
+    }
+    .app-nav-backdrop { display: none; }
+    /* Icon rail */
+    body.appnav-rail .app-nav { flex-basis: 3.6rem; width: 3.6rem; }
+    body.appnav-rail .app-nav__filter,
+    body.appnav-rail .app-nav__text,
+    body.appnav-rail .app-nav__toggle,
+    body.appnav-rail .app-nav__entries { display: none !important; }
+    body.appnav-rail .app-nav__head { flex-direction: column; padding: 8px 4px; }
+    body.appnav-rail .app-nav__collapse i { transform: rotate(180deg); }
+    body.appnav-rail .app-nav a.app-nav__group-link { justify-content: center; padding: 6px 0; }
+    body.appnav-rail .app-nav__foot { text-align: center; padding: 6px 0; }
+}
+@media (max-width: 991.98px) {
+    .app-nav-open { display: inline-flex; align-items: center; }
+    .app-nav {
+        position: fixed;
+        top: 0; bottom: 0; left: 0;
+        width: min(20rem, 86vw);
+        transform: translateX(-105%);
+        transition: transform .2s ease;
+        box-shadow: 0 0 24px rgba(0, 0, 0, .25);
+        visibility: hidden;
+    }
+    body.appnav-open .app-nav { transform: none; visibility: visible; }
+    body.appnav-open { overflow: hidden; }
+    .app-nav__close { display: inline-block; }
+    .app-nav__collapse { display: none; }
+    /* Touch targets */
+    .app-nav a.app-nav__group-link, .app-nav a.app-nav__link { min-height: 42px; }
+    .app-nav a.app-nav__sublink { min-height: 38px; }
+    .app-nav__toggle { width: 42px; height: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .app-nav, .app-nav__toggle i { transition: none; }
+}
+
+/* Where-you-are trail. A page that draws its own breadcrumb keeps it, and
+   this one steps aside so there is never two. */
+.app-trail .breadcrumb { font-size: .85rem; background: none; padding: 0; }
+main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
+
+/* Saved views bar */
+.saved-views .btn-group .dropdown-menu form { margin: 0; }
+.saved-views__save input[type="text"] { width: 12rem; max-width: 50vw; }
+@media (max-width: 575.98px) {
+    .saved-views__save { width: 100%; margin-left: 0 !important; flex-wrap: wrap; }
+    .saved-views__save input[type="text"] { flex: 1 1 8rem; width: auto; }
+}
+
+/* Keyboard shortcut help */
+.shortcut-list { display: grid; gap: 6px; margin-bottom: 1rem; }
+.shortcut-list > div { display: flex; gap: 12px; align-items: baseline; }
+.shortcut-list dt { flex: 0 0 5.5rem; font-weight: normal; }
+.shortcut-list dd { margin: 0; }
+
+/* Toasts (window.appToast) */
+.app-toast-region {
+    position: fixed; right: 16px; bottom: 16px; z-index: 1090;
+    display: flex; flex-direction: column; gap: 8px; max-width: min(26rem, calc(100vw - 32px));
+}
+.app-toast {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-radius: var(--bs-border-radius);
+    color: #fff; background: #1f2933; box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+    transition: opacity .5s ease;
+}
+.app-toast--error { background: #b42318; }
+.app-toast--success { background: #146c43; }
+.app-toast.is-leaving { opacity: 0; }
+
+/* Busy buttons (app_nav.js marks the submitter of a POST form). */
+.btn.is-busy { cursor: progress; }
+
+/* My Work */
+.mw-panel .list-group-item { padding-top: .45rem; padding-bottom: .45rem; }
+.mw-panel .mw-meta { font-size: .78rem; color: var(--bs-secondary-color); }
+.mw-sev-critical, .mw-sev-high, .mw-sev-error { color: var(--bs-danger-text-emphasis); }
+.mw-sev-warning, .mw-sev-medium { color: var(--bs-warning-text-emphasis); }
+@media (max-width: 575.98px) {
+    .mw-panel .list-group-item { flex-wrap: wrap; }
+}

@@ -82,16 +82,19 @@ class EveryTabOpensTests(NavbarTestBase):
         # Most pages render directly for a superuser with a client selected.
         self.assertGreater(checked, 50)
 
-    def test_navbar_marks_the_current_menu_and_entry(self):
+    def test_sidebar_marks_the_current_group_entry_and_page(self):
         html = self.client.get(reverse('psa:recurring_list')).content.decode()
-        self.assertIn('class="nav-link dropdown-toggle active" href="#" id="psaDropdown"', html)
-        self.assertRegex(html, r'class="dropdown-item active" href="%s" aria-current="page"'
-                         % re.escape(reverse('psa:ticket_list')))
-        self.assertIn('class="nav-link dropdown-toggle" href="#" id="opsDropdown"', html)
+        self.assertIn('<li class="app-nav__group is-active" data-group="tickets"', html)
+        self.assertIn('<li class="app-nav__group" data-group="tools"', html)
+        self.assertIn('class="app-nav__link active" href="%s"' % reverse('psa:ticket_list'), html)
+        self.assertRegex(html, r'class="app-nav__sublink active" href="%s" aria-current="page"'
+                         % re.escape(reverse('psa:recurring_list')))
+        # The breadcrumb trail names the same place.
+        self.assertIn('class="breadcrumb app-trail__list', html)
 
-    def test_detail_pages_light_their_menu_without_a_strip(self):
+    def test_detail_pages_light_their_group_without_a_strip(self):
         html = self.client.get(reverse('psa:ticket_create')).content.decode()
-        self.assertIn('class="nav-link dropdown-toggle active" href="#" id="psaDropdown"', html)
+        self.assertIn('<li class="app-nav__group is-active" data-group="tickets"', html)
         self.assertIsNone(strip(html))
 
     def test_help_tabs_open_the_same_modals_the_menu_did(self):

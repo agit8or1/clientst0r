@@ -1,0 +1,56 @@
+{% load i18n %}{% comment %}
+Primary navigation sidebar. Built by core.navigation.primary_nav() — every
+group, entry and nested page here already passed the same gates the server
+applies, so nothing is drawn that would answer 403.
+
+Behaviour lives in static/js/app_nav.js:
+  * the filter box narrows the list as you type (labels + keywords); Enter
+    opens the first match, or runs a global search when nothing matches;
+  * group chevrons expand / collapse a group (remembered per browser);
+  * the collapse button shrinks the sidebar to an icon rail (remembered);
+  * below 992px the sidebar is a drawer opened from the bar's menu button.
+{% endcomment %}
+<aside class="app-nav" id="appNav" aria-label="{% trans 'Primary' %}" data-search-url="{% url 'core:search' %}">
+    <div class="app-nav__head">
+        <div class="app-nav__filter">
+            <label class="visually-hidden" for="appNavFilter">{% trans "Filter navigation" %}</label>
+            <i class="fas fa-filter app-nav__filter-icon" aria-hidden="true"></i>
+            <input type="search" class="form-control form-control-sm" id="appNavFilter"
+                   placeholder="{% trans 'Jump to…' %}" autocomplete="off" spellcheck="false"
+                   maxlength="60" aria-controls="appNavList" aria-describedby="appNavFilterStatus"
+                   aria-keyshortcuts="j">
+        </div>
+        <button type="button" class="app-nav__collapse btn btn-sm" id="appNavCollapse"
+                aria-pressed="false" aria-controls="appNav"
+                aria-label="{% trans 'Collapse navigation' %}" title="{% trans 'Collapse navigation ( [ )' %}"
+                data-label-collapse="{% trans 'Collapse navigation' %}" data-label-expand="{% trans 'Expand navigation' %}">
+            <i class="fas fa-angles-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="app-nav__close btn btn-sm" id="appNavClose" aria-label="{% trans 'Close navigation' %}">
+            <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
+    </div>
+    <div id="appNavFilterStatus" class="visually-hidden" role="status" aria-live="polite"
+         data-i18n-count="{% trans '__N__ matching pages' %}" data-i18n-none="{% trans 'No pages match. Press Enter to search everything.' %}"></div>
+
+    <nav id="appNavList" class="app-nav__body" aria-label="{% trans 'Main menu' %}">
+        <ul class="app-nav__groups">
+            {% for g in pnav.groups %}{% include "core/_primary_nav_group.html" with g=g %}{% endfor %}
+        </ul>
+        <p class="app-nav__empty small text-muted px-3" hidden>
+            {% trans "No pages match." %}<br>
+            <button type="button" class="btn btn-link btn-sm p-0" data-app-nav-search>{% trans "Search records instead" %}</button>
+        </p>
+        {% if pnav.settings %}
+        <ul class="app-nav__groups app-nav__groups--settings">
+            {% include "core/_primary_nav_group.html" with g=pnav.settings %}
+        </ul>
+        {% endif %}
+    </nav>
+    <div class="app-nav__foot small">
+        <button type="button" class="btn btn-link btn-sm p-0 app-nav__help" data-shortcut-help aria-keyshortcuts="Shift+?">
+            <i class="fas fa-keyboard" aria-hidden="true"></i><span class="app-nav__text"> {% trans "Keyboard shortcuts" %} <kbd>?</kbd></span>
+        </button>
+    </div>
+</aside>
+<div class="app-nav-backdrop" id="appNavBackdrop" hidden></div>
