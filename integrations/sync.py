@@ -15,6 +15,7 @@ from .models import (
 )
 from .providers import get_provider
 from .providers.rmm import get_rmm_provider
+from . import rmm_snapshots
 from .rmm_association import (
     apply_customer_decision, associate, clean_external_id, customer_identity, resolve_customer, set_device_organization,
 )
@@ -532,6 +533,9 @@ class RMMSync:
             'software': {'created': 0, 'updated': 0, 'deleted': 0, 'errors': 0},
             'organizations': {'created': 0, 'updated': 0, 'errors': 0},
         }
+        if rmm_snapshots.collecting(connection, provider=self.provider):
+            self.stats['services'] = {'collected': 0, 'errors': 0}
+        self._services_done = set()
 
     def sync_all(self):
         """
@@ -564,6 +568,13 @@ class RMMSync:
             # Sync software
             if self.connection.sync_software and self.provider.supports_software:
                 self.sync_software()
+
+            # Opt-in service lists, from the provider's existing device
+            # route; lists past retention (or of a connection that stopped
+            # collecting) are deleted either way.
+            if 'services' in self.stats:
+                self.sync_services()
+            rmm_snapshots.purge(self.connection)
 
             # Update connection status — see `apply_sync_outcome`: 'partial'
             # when records were dropped, which also makes the next run a full
@@ -695,11 +706,17 @@ class RMMSync:
                     # (UUID) so the provider can also try UUID-based paths.
                     numeric_id = raw.get('id')
                     # Only use as numeric if it's actually an integer (not a UUID string)
-                    if numeric_id and not str(numeric_id).replace('-', '').isalpha():
-                        rmm_id = str(numeric_id)
+                    if self.connection.provider_type != 'tactical_rmm':
+                        # Only Tactical RMM's software route takes the numeric
+                        # key; every other client takes the device's own ID
+                        # (and has no `uuid` argument).
+                        software_data = self.provider.list_software(device.external_id)
                     else:
-                        rmm_id = device.external_id
-                    software_data = self.provider.list_software(rmm_id, uuid=device.external_id)
+                        if numeric_id and not str(numeric_id).replace('-', '').isalpha():
+                            rmm_id = str(numeric_id)
+                        else:
+                            rmm_id = device.external_id
+                        software_data = self.provider.list_software(rmm_id, uuid=device.external_id)
                     
                     # Track existing software IDs
                     existing_software_ids = set()
@@ -730,11 +747,32 @@ class RMMSync:
             logger.error(f"Error in software sync: {e}")
             raise
 
+    def sync_services(self):
+        """Keep each settled device's service list (opt-in), for the
+        devices whose list didn't already come with the device payload."""
+        devices = RMMDevice.objects.filter(connection=self.connection, organization__isnull=False,
+                                           ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
+        for device in devices.exclude(pk__in=self._services_done):
+            try:
+                services = self.provider.list_services(device.external_id)
+            except Exception as e:
+                logger.error(f"Error collecting services for device {device.external_id}: {e}")
+                self.stats['services']['errors'] += 1
+                continue
+            if services is not None:
+                rmm_snapshots.store(device, 'services', services)
+                self.stats['services']['collected'] += 1
+
     def _enrich_raw_data(self, device_data: dict) -> dict:
         """Merge provider-normalized hardware values into raw_data so the
         asset update can find them even when the original API response uses
-        different/absent field names."""
+        different/absent field names. Lists kept as snapshots (services)
+        never stay in raw_data."""
         raw = dict(device_data.get('raw_data') or {})
+        if getattr(self.provider, 'supports_services', False):
+            services = rmm_snapshots.take_from_raw(raw, 'services')
+            if services is not None:
+                device_data['_services'] = rmm_snapshots.normalize_services(services)
         if device_data.get('ram_gb') is not None:
             raw['_norm_ram_gb'] = device_data['ram_gb']
         if device_data.get('storage'):
@@ -790,6 +828,11 @@ class RMMSync:
 
         if not created and device.organization_id != previous_org:
             set_device_organization(device, device.organization)
+        if (device_data.get('_services') is not None and device.is_exposed
+                and rmm_snapshots.collecting(self.connection, provider=self.provider)):
+            rmm_snapshots.store(device, 'services', device_data['_services'])
+            self._services_done.add(device.pk)
+            self.stats['services']['collected'] += 1
         if created:
             self.stats['devices']['created'] += 1
         else:
