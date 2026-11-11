@@ -715,8 +715,13 @@ class SafetyTests(TestCase):
                    for line in p.read_text().splitlines()
                    if line.strip().startswith(('import ', 'from '))]
         self.assertTrue(imports)
+        # The one exception: the RMM permission *decision* (rmm_permissions
+        # .can), which reads permission rows and never calls an RMM. The
+        # alert policy asks it before assigning an alert ticket to someone.
+        allowed = {'from rmm_permissions import can'}
+        self.assertTrue({i for i in imports if 'rmm_permissions' in i} <= allowed)
         for needle in ('psa_ai', 'integrations', 'rmm', 'remote', 'handoff', 'endpoint'):
-            self.assertFalse([i for i in imports if needle in i], needle)
+            self.assertFalse([i for i in imports if needle in i and i not in allowed], needle)
 
 
 def _file_db():

@@ -218,7 +218,17 @@ def _patch_summary(raw):
     return out
 
 
-def from_rem0te(connection, alert: dict, sequence: int = 0, device=None) -> AlertFacts:
+TICKET_LINES_MAX = 40
+
+
+def _ticket_lines(lines):
+    """Plain text the intake adds to the ticket description (Rem0te's
+    patch summary lines), bounded. Kept on the link's evidence so a ticket
+    opened later — a hold released, an outage — carries them too."""
+    return [_text(x, 300) for x in (lines or ())[:TICKET_LINES_MAX] if isinstance(x, str)]
+
+
+def from_rem0te(connection, alert: dict, sequence: int = 0, device=None, description_lines=()) -> AlertFacts:
     """A Rem0te alert (contract ticket-rmm-v1). The customer is the
     connection's own; `device` is the one the Rem0te intake matched by
     Rem0te's computer id (never by name), and is dropped unless it is this
@@ -243,6 +253,9 @@ def from_rem0te(connection, alert: dict, sequence: int = 0, device=None) -> Aler
     patch = _patch_summary(alert.get('patch_summary'))
     if patch is not None:
         evidence['patch_summary'] = patch
+    lines = _ticket_lines(description_lines)
+    if lines:
+        evidence['ticket_lines'] = lines
     return AlertFacts(
         source=AlertTicketLink.SOURCE_REM0TE, connection=connection, external_id=_text(alert.get('alert_id'), 64),
         organization=org, device=device, asset=_device_asset(device), endpoint_id=endpoint,
@@ -359,14 +372,31 @@ def in_business_hours(now, organization) -> bool:
     return engine.in_business_hours(now, RoutingSettings.load(), organization)
 
 
-def _authorized(user, organization) -> str:
-    """'' when `user` may be given this customer's tickets, else why not."""
+def _authorized(user, organization, asset=None) -> str:
+    """'' when `user` may be given this customer's alert tickets, else why not.
+
+    Ticket routing's rules (active MSP technician, ticket access at the
+    customer, the customer's authorized list), then the RMM permission
+    model for the alert itself (rmm_permissions, action `alert.view`): a
+    block there — a deny override, a technician-access deny, containment,
+    an asset of another customer — keeps the alert's ticket off this
+    technician. The device is named by its asset (always the customer's
+    own record), not the RMM device, whose connection may sit at a parent
+    customer. Technicians nothing in rmm_permissions grants alert.view to
+    are still assigned, as before Phase 8."""
     from . import engine
     cust = engine.customer_settings(organization)
     ids = set()
     if cust is not None and cust.restrict_technicians:
         ids = set(cust.authorized_technicians.values_list('pk', flat=True))
-    return engine._authorization_problem(user, organization, cust, ids) or ''
+    problem = engine._authorization_problem(user, organization, cust, ids)
+    if problem:
+        return problem
+    from rmm_permissions import can
+    d = can(user, organization, 'alert.view', device=asset)
+    if d.blocked:
+        return f'RMM permissions: {d.reason.rstrip(".")}'
+    return ''
 
 
 def _assignee(f: AlertFacts, rule, now):
@@ -377,7 +407,7 @@ def _assignee(f: AlertFacts, rule, now):
     if rule.after_hours == AFTER_HOURS_ON_CALL and not in_business_hours(now, f.organization):
         mode = ASSIGN_ON_CALL
     if mode == ASSIGN_TECHNICIAN and rule.assign_user_id:
-        problem = _authorized(rule.assign_user, f.organization)
+        problem = _authorized(rule.assign_user, f.organization, f.asset)
         if problem:
             return None, f'Not assigned to {rule.assign_user.get_username()}: {problem}.'
         return rule.assign_user, f'Assigned to {rule.assign_user.get_username()} by the alert rule.'
@@ -385,7 +415,7 @@ def _assignee(f: AlertFacts, rule, now):
         from .models import OnCallShift
         for shift in (OnCallShift.objects.filter(starts_at__lte=now, ends_at__gt=now)
                       .select_related('user').order_by('starts_at', 'pk')):
-            if not _authorized(shift.user, f.organization):
+            if not _authorized(shift.user, f.organization, f.asset):
                 return shift.user, f'Assigned to {shift.user.get_username()} (on call now).'
         return None, 'Nobody authorized for this customer is on call; left for the queue.'
     return None, ''
@@ -437,6 +467,7 @@ def _describe(f: AlertFacts, why_lines=()):
         f'First seen: {f.first_seen_at.isoformat() if f.first_seen_at else "—"}   Occurrences: {f.occurrences}',
         f'Source: {f.source} ({f.connection.name})   Alert id: {f.external_id}',
     ]
+    lines += _ticket_lines((f.evidence or {}).get('ticket_lines'))
     lines += [w for w in why_lines if w]
     lines += ['', 'Nothing in ClientSt0r acts on the computer. Diagnostics and fixes go through the '
                   'RMM, with its approval.']
@@ -892,11 +923,13 @@ def tick(now=None, limit=500) -> dict:
 # Entry points for the intake paths
 # ---------------------------------------------------------------------------
 
-def rem0te_event(connection, event: dict, device=None):
+def rem0te_event(connection, event: dict, device=None, description_lines=()):
     """Called by integrations/rem0te/alerts.py inside its dedup transaction
-    when the policy is on, with the device it matched. Returns the ticket for
-    the alert (or None: held, suppressed, ignored)."""
-    f = from_rem0te(connection, event['alert'], event.get('sequence') or 0, device=device)
+    when the policy is on, with the device it matched and the text it adds
+    to a ticket (Rem0te's patch summary lines). Returns the ticket for the
+    alert (or None: held, suppressed, ignored)."""
+    f = from_rem0te(connection, event['alert'], event.get('sequence') or 0, device=device,
+                    description_lines=description_lines)
     if not f.external_id:
         return None
     link = process(f)
