@@ -687,7 +687,11 @@ class HuduTests(RehearsalTestBase):
         for kind in ('password', 'document', 'website', 'network', 'ip_address', 'relation', 'attachment'):
             self.assertEqual(rows[kind]['create'], 1, kind)
         gaps = {e['source_type']: e for e in plan.unavailable}
-        self.assertEqual(gaps['procedure']['kind'], 'not_supported')
+        # 61.6: procedures are planned as runbooks; the fixture has no task
+        # endpoint, which is reported as a gap instead of failing the plan.
+        self.assertNotIn('procedure', gaps)
+        self.assertEqual(rows['process']['create'], 1)
+        self.assertEqual(gaps['procedure_task']['kind'], 'api_gap')
         self.assertEqual(gaps['vlan']['kind'], 'api_gap')
         # Other companies' records never reach the staging.
         self.assertFalse(plan.staged.filter(source_id__in=['999', '2', '1002']).exists())

@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from .redact import CONFIDENTIAL_FIELD_TYPES
 
 KINDS = ('location', 'contact', 'network', 'asset', 'ip_address', 'password',
-         'document', 'website', 'relation', 'attachment')
+         'document', 'process', 'website', 'relation', 'attachment')
 
 # Order in which kinds are applied: what others link to goes first.
 APPLY_ORDER = {k: i for i, k in enumerate(KINDS)}
@@ -121,7 +121,13 @@ def itglue_resource_type(value):
     return ITGLUE_RESOURCE_TYPES.get(_s(value).lower())
 
 
+FLEXIBLE_KINDS = ('network', 'document', 'asset', 'skip')
+
+
 def itglue_flexible_kind(type_name, overrides):
+    """network / document / asset / skip. Network-looking types default to
+    network; every other type is skipped until the operator maps it (Type
+    mapping on the plan) to a document or an asset with custom fields."""
     choice = (overrides.get('itglue_flexible_types') or {}).get(type_name)
     if choice:
         return choice
@@ -129,6 +135,42 @@ def itglue_flexible_kind(type_name, overrides):
     if any(w in lowered for w in ('network', 'subnet', 'lan', 'vlan')):
         return 'network'
     return 'skip'
+
+
+PROCEDURE_KINDS = ('process', 'document', 'skip')
+ALL_PROCEDURES = 'all procedures'
+
+
+def hudu_procedure_kind(overrides):
+    """Hudu procedures become runbooks (processes with one stage per task)
+    by default; the operator can choose documents or skip instead."""
+    return (overrides.get('hudu_procedures') or {}).get(ALL_PROCEDURES) or 'process'
+
+
+def trait_text(value):
+    """An IT Glue trait value as display text (tag lists -> names)."""
+    if isinstance(value, dict):
+        if isinstance(value.get('values'), list):
+            return ', '.join(trait_text(v) for v in value['values'])
+        return _s(value.get('name') or value.get('value') or value.get('id') or '')
+    if isinstance(value, list):
+        return ', '.join(trait_text(v) for v in value)
+    if isinstance(value, bool):
+        return 'Yes' if value else 'No'
+    return _s(value)
+
+
+def _traits_table(traits):
+    from django.utils.html import escape
+    rows = ''.join(f'<tr><th>{escape(str(k))}</th><td>{escape(trait_text(v))}</td></tr>'
+                   for k, v in traits.items())
+    return f'<table class="table table-sm">{rows}</table>' if rows else ''
+
+
+def _custom_key(label):
+    import re
+    key = re.sub(r'[^a-z0-9]+', '_', _s(label).lower()).strip('_')
+    return key[:60] or 'field'
 
 
 def _first(d, *keys):
@@ -237,15 +279,56 @@ def itglue_canonical(source_type, raw, secrets, overrides):
             'body': a.get('body') or a.get('content') or '',
             'content_type': 'html' if '<' in str(a.get('body') or '') else 'markdown',
         })
+    if source_type == 'domain':
+        domain = _s(a.get('name')).strip().rstrip('.').lower()
+        expires = _s(a.get('expires-on') or a.get('expires_on'))[:10]
+        c = Canonical('website', domain or f'Domain {sid}', fields={
+            'name': domain, 'url': f'https://{domain}' if domain else '',
+            'domain_registrar': _s(a.get('registrar-name') or a.get('registrar')),
+        })
+        if expires:
+            import datetime as _dt
+            try:
+                _dt.date.fromisoformat(expires)
+                c.fields['domain_expires_at'] = f'{expires}T00:00:00+00:00'
+            except ValueError:
+                c.skipped_fields.append('expires-on (not a date)')
+        if not domain or '.' not in domain or ' ' in domain:
+            c.unavailable, c.unavailable_kind = 'not a valid domain name', 'invalid'
+        return c
     if source_type == 'flexible_asset':
         type_name = _s(a.get('flexible-asset-type-name')) or _s(raw.get('_type_name'))
         kind = itglue_flexible_kind(type_name, overrides)
         name = _s(a.get('name')) or f'Flexible asset {sid}'
-        if kind != 'network':
-            return Canonical('asset', name, unavailable=(
-                f'flexible asset type "{type_name}" has no ClientSt0r mapping'),
-                unavailable_kind='not_supported')
         traits = a.get('traits') or {}
+        if kind == 'skip':
+            return Canonical('asset', name, unavailable=(
+                f'flexible asset type "{type_name}" is not mapped (choose document or asset '
+                f'under Type mapping to import it)'), unavailable_kind='not_supported')
+        if kind in ('document', 'asset'):
+            from .redact import REDACTED
+            shown = {k: v for k, v in traits.items() if v != REDACTED}
+            hidden = [f'{k} (secret trait)' for k, v in traits.items() if v == REDACTED]
+            if kind == 'document':
+                return Canonical('document', f'{type_name}: {name}' if type_name else name, fields={
+                    'title': (f'{type_name}: {name}' if type_name else name)[:255],
+                    'body': _traits_table(shown), 'content_type': 'html',
+                }, skipped_fields=hidden)
+            lowered = {str(k).lower(): v for k, v in shown.items()}
+            custom = {'imported_from': 'itglue', 'itglue_id': str(sid), 'flexible_asset_type': type_name}
+            for k, v in shown.items():
+                key = _custom_key(k)
+                if key not in custom:
+                    custom[key] = trait_text(v)
+            return Canonical('asset', name, fields={
+                'name': name,
+                'asset_type': asset_type_for(type_name),
+                'serial_number': trait_text(_first(lowered, 'serial-number', 'serial', 'serial number') or ''),
+                'manufacturer': trait_text(_first(lowered, 'manufacturer', 'vendor') or ''),
+                'model': trait_text(_first(lowered, 'model') or ''),
+                'notes': trait_text(_first(lowered, 'notes', 'description') or ''),
+                'custom_fields': custom,
+            }, skipped_fields=hidden)
         lowered = {str(k).lower(): v for k, v in traits.items()}
         cidr = clean_network(_first(lowered, 'network', 'subnet', 'network-address', 'cidr',
                                     'ip-range', 'address'))
@@ -498,8 +581,53 @@ def hudu_canonical(source_type, raw, secrets, overrides):
         return c
     if source_type == 'upload':
         return _attachment_canonical(raw)
+    if source_type == 'procedure':
+        return _hudu_procedure(raw, overrides)
     return Canonical('asset', f'{source_type} {sid}', unavailable=f'"{source_type}" is not supported',
                      unavailable_kind='not_supported')
+
+
+def _procedure_tasks(raw):
+    tasks = raw.get('_tasks')
+    if tasks is None:
+        for key in ('procedure_tasks', 'procedure_tasks_attributes', 'tasks'):
+            if isinstance(raw.get(key), list):
+                tasks = raw[key]
+                break
+    out = [t for t in (tasks or []) if isinstance(t, dict)]
+
+    def pos(t):
+        try:
+            return (0, int(t.get('position')))
+        except (TypeError, ValueError):
+            return (1, 0)
+    return sorted(out, key=lambda t: (pos(t), str(t.get('id'))))
+
+
+def _hudu_procedure(raw, overrides):
+    from django.utils.html import escape, strip_tags
+    sid = raw.get('id')
+    name = _s(raw.get('name')) or f'Procedure {sid}'
+    kind = hudu_procedure_kind(overrides)
+    if kind == 'skip':
+        return Canonical('process', name, unavailable='procedures are set to skip under Type mapping',
+                         unavailable_kind='not_supported')
+    tasks = _procedure_tasks(raw)
+    steps = [{'title': (_s(t.get('name')) or f'Step {n}')[:255],
+              'description': strip_tags(_s(t.get('description'))).strip()}
+             for n, t in enumerate(tasks, 1)]
+    description = strip_tags(_s(raw.get('description'))).strip()
+    if kind == 'document':
+        items = ''.join(f'<li><strong>{escape(st["title"])}</strong>'
+                        + (f'<br>{escape(st["description"])}' if st['description'] else '') + '</li>'
+                        for st in steps)
+        body = (f'<p>{escape(description)}</p>' if description else '') + (f'<ol>{items}</ol>' if items else '')
+        return Canonical('document', name, fields={'title': name[:255], 'body': body, 'content_type': 'html'})
+    c = Canonical('process', name, fields={
+        'title': name[:255], 'description': description, 'category': 'other', '_steps': steps})
+    if raw.get('_tasks_unavailable'):
+        c.skipped_fields.append(f'steps ({raw["_tasks_unavailable"]})')
+    return c
 
 
 def canonical_for(source_system, source_type, raw, secrets, overrides=None):

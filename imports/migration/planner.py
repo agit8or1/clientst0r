@@ -381,8 +381,10 @@ def _unfreeze(plan):
 def set_type_override(plan, group, source_value, target_kind):
     """Type-level mapping change (Hudu layout / IT Glue flexible asset type).
     Takes effect when the plan is rebuilt."""
+    from .normalize import FLEXIBLE_KINDS, PROCEDURE_KINDS
     allowed = {'hudu_layouts': ('asset', 'contact', 'location', 'skip'),
-               'itglue_flexible_types': ('network', 'skip')}
+               'itglue_flexible_types': FLEXIBLE_KINDS,
+               'hudu_procedures': PROCEDURE_KINDS}
     if group not in allowed or target_kind not in allowed[group]:
         raise PlanError('unsupported type mapping')
     if plan.status not in plan.EDITABLE_STATUSES:

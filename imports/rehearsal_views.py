@@ -125,7 +125,8 @@ def rehearsal_create(request):
 def _type_choices(plan):
     """Source layouts / flexible asset types seen in the staging, for the
     type-mapping corrections."""
-    from .migration.normalize import hudu_layout_kind, itglue_flexible_kind
+    from .migration.normalize import (ALL_PROCEDURES, FLEXIBLE_KINDS, PROCEDURE_KINDS, hudu_layout_kind,
+                                      hudu_procedure_kind, itglue_flexible_kind)
     out = []
     overrides = plan.type_overrides or {}
     if plan.source_system == 'hudu':
@@ -134,11 +135,14 @@ def _type_choices(plan):
         for name in seen:
             out.append({'group': 'hudu_layouts', 'name': name, 'kind': hudu_layout_kind(name, overrides),
                         'choices': ['asset', 'contact', 'location', 'skip']})
+        if plan.staged.filter(source_type='procedure').exists():
+            out.append({'group': 'hudu_procedures', 'name': ALL_PROCEDURES,
+                        'kind': hudu_procedure_kind(overrides), 'choices': list(PROCEDURE_KINDS)})
     else:
         seen = sorted({r.raw.get('_type_name') or '' for r in plan.staged.filter(source_type='flexible_asset')})
         for name in seen:
             out.append({'group': 'itglue_flexible_types', 'name': name,
-                        'kind': itglue_flexible_kind(name, overrides), 'choices': ['network', 'skip']})
+                        'kind': itglue_flexible_kind(name, overrides), 'choices': list(FLEXIBLE_KINDS)})
     return out
 
 

@@ -2171,8 +2171,13 @@ a time.
   reconciliation report (JSON/CSV) with source vs destination counts per
   customer, and a permission-checked per-customer inventory export
   (metadata only, audit-logged).
-- **61.6 Remaining source types** *(planned)*: Hudu procedures, IT Glue
-  domains and non-network flexible assets.
+- **61.6 Remaining source types** *(in progress — on the development branch, not yet released)*: Hudu procedures, IT Glue
+  domains and non-network flexible assets. Procedures become runbooks with one
+  stage per task (or documents, or skipped, per the plan's type mapping);
+  domains become disabled website monitors carrying registrar and expiry;
+  non-network flexible asset types stay skipped until the operator maps them
+  to documents or to assets with custom fields. All through the same plan,
+  review, apply, rollback and report.
 
 ## Sizing
 

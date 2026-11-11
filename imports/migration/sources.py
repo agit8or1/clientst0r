@@ -240,6 +240,11 @@ class ITGlueStager(Stager):
 
         self.fetch_flexible_assets()
 
+        # Domains (-> the website / domain expiry tracking model).
+        domains = self.collect('domain', lambda: self.collection('domain', '/domains')) or []
+        for item in domains:
+            self.put('domain', item, name=(item.get('attributes') or {}).get('name'))
+
         # Related items of configurations (asset relationships).
         for (stype, sid) in [k for k in self.records if k[0] == 'configuration']:
             rel = self.collect('related_item', lambda sid=sid: list(
@@ -305,7 +310,7 @@ class ITGlueStager(Stager):
             for item in items or []:
                 item = dict(item)
                 item['_type_name'] = tname
-                if itglue_flexible_kind(tname, self.plan.type_overrides or {}) != 'network':
+                if itglue_flexible_kind(tname, self.plan.type_overrides or {}) == 'skip':
                     item['_skip_attachments'] = True
                 self.put('flexible_asset', item, name=(item.get('attributes') or {}).get('name'))
 
@@ -381,10 +386,22 @@ class HuduStager(Stager):
             self.put('asset_password', item, secrets, name=item.get('name'))
 
         procedures = self.collect('procedure', lambda: self.company_collection(
-            '/api/v1/procedures', 'procedures'))
-        if procedures:
-            self.gap('procedure', 'not_supported',
-                     'Hudu procedures have no ClientSt0r mapping in this release', count=len(procedures))
+            '/api/v1/procedures', 'procedures')) or []
+        tasks_gap = False
+        for proc in procedures:
+            proc = dict(proc)
+            if not any(isinstance(proc.get(k), list) for k in
+                       ('procedure_tasks', 'procedure_tasks_attributes', 'tasks')) and not tasks_gap:
+                found = self.collect('procedure_task', lambda pid=proc.get('id'): [
+                    t for t in self.paged('/api/v1/procedure_tasks', 'procedure_tasks', {'procedure_id': pid})
+                    if str(t.get('procedure_id', pid)) == str(pid)])
+                if found is None:
+                    tasks_gap = True  # one gap entry is enough
+                else:
+                    proc['_tasks'] = found
+            if tasks_gap and '_tasks' not in proc:
+                proc['_tasks_unavailable'] = 'the source did not return the procedure tasks'
+            self.put('procedure', proc, name=proc.get('name'))
 
         # Relations and uploads are account-wide lists: keep only those that
         # touch this company's staged records.

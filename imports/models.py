@@ -315,6 +315,8 @@ IMPORT_TARGET_MODELS = {
     'Relationship': ('assets', 'Relationship'),
     'PasswordRelation': ('vault', 'PasswordRelation'),
     'Attachment': ('files', 'Attachment'),
+    'Process': ('processes', 'Process'),
+    'ProcessStage': ('processes', 'ProcessStage'),
 }
 
 
