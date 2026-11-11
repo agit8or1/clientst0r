@@ -100,6 +100,18 @@ class Decision:
     rem0te_scope: Optional[str] = None
     approval_id: Optional[int] = None
     steps: List[Step] = field(default_factory=list)
+    # Denied only because nothing grants it (no tier, preset, flag or allow
+    # override; or a workstation-only grant on another device class), as
+    # opposed to a block: locked, not a technician, containment, tenant, a
+    # deny override, a technician-access deny or restriction, no Rem0te route.
+    ungranted: bool = False
+
+    @property
+    def blocked(self) -> bool:
+        """Denied by a block (see `ungranted`). For paths that never needed
+        a grant before Phase 8 — they keep working for technicians nothing
+        grants, but a deny or a containment still stops them."""
+        return not self.allowed and not self.ungranted
 
     @property
     def permitted_now(self) -> bool:
@@ -221,16 +233,12 @@ def _perm(user, organization, flag) -> bool:
 
 
 def _vault_reveal(user, organization) -> bool:
-    """The vault reveal permission at this customer: the usual org check,
-    or (for staff whose global role lacks it) a membership covering it."""
-    if _perm(user, organization, 'vault_view_password'):
-        return True
-    from core.utils import descendant_org_ids
-    for m in user.memberships.filter(is_active=True, organization__is_active=True).select_related('role_template'):
-        if organization.pk in descendant_org_ids(m.organization_id) and \
-                getattr(m.get_permissions(), 'vault_view_password', False):
-            return True
-    return False
+    """The vault's own reveal rule at this customer (vault.permissions
+    .can_access_password → accounts.permission_utils.user_has_org_perm):
+    MSP staff with a global role get exactly what that role says, and a
+    customer membership never widens it; staff without a global role and
+    everyone else go by their memberships there."""
+    return _perm(user, organization, 'vault_view_password')
 
 
 def _legacy(user, organization, action, now, tier=''):
@@ -277,10 +285,10 @@ def can(user, organization, action, device=None, ticket=None, now=None) -> Decis
     scope = catalog.rem0te_scope(action)
     steps: List[Step] = []
 
-    def no(reason, layer, ref=''):
+    def no(reason, layer, ref='', ungranted=False):
         steps.append(Step(layer, BLOCKS, reason, True, ref))
         return Decision(False, reason=reason, action=action, organization_id=org_id, device_key=dkey,
-                        source=layer, rem0te_scope=scope, steps=steps)
+                        source=layer, rem0te_scope=scope, steps=steps, ungranted=ungranted)
 
     if action in catalog.LOCKED:
         return no(catalog.LOCKED[action], 'safeguard')
@@ -322,7 +330,8 @@ def can(user, organization, action, device=None, ticket=None, now=None) -> Decis
     td = None
     if spec.tech_capability:
         from tech_access.resolver import UNAVAILABLE, decide
-        td = decide(user, organization, spec.tech_capability, ticket=ticket, asset=_asset_of(device), now=now)
+        td = decide(user, organization, spec.tech_capability, ticket=ticket, asset=_asset_of(device), now=now,
+                    integration=action not in catalog.CAPABILITY_WITHOUT_INTEGRATION)
         if td.state == UNAVAILABLE or td.source in _TA_BLOCK_SOURCES:
             return no(td.reason, 'tech_access', f'capability:{spec.tech_capability}')
     elif organization is not None:
@@ -387,10 +396,10 @@ def can(user, organization, action, device=None, ticket=None, now=None) -> Decis
     if not grants:
         if td is not None and e is None:
             # Same words technician access always gave for this capability.
-            return no(td.reason, 'tech_access', f'capability:{spec.tech_capability}')
+            return no(td.reason, 'tech_access', f'capability:{spec.tech_capability}', ungranted=True)
         where = f' at {organization.name}' if organization is not None else ''
         return no(f'Nothing grants this{where}: no role tier, technician access, permission or approved '
-                  'override covers it.', 'grants')
+                  'override covers it.', 'grants', ungranted=True)
 
     dtype = _device_type(device)
     usable = []
@@ -401,7 +410,8 @@ def can(user, organization, action, device=None, ticket=None, now=None) -> Decis
         else:
             usable.append(g)
     if not usable:
-        return no('Only standard workstations are covered; this device needs a higher tier.', 'constraint')
+        return no('Only standard workstations are covered; this device needs a higher tier.', 'constraint',
+                  ungranted=True)
 
     best = min(usable, key=lambda g: (0 if g.state == catalog.ALLOWED else 1,
                                       catalog.APPROVAL_RANK.get(g.approval, 0)))

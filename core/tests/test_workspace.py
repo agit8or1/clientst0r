@@ -313,3 +313,179 @@ class SearchAndContextTests(_Fixture):
         _login(self.client, self.customer)
         self.client.get(reverse('psa:my_work'))
         self.assertEqual(self.client.session['current_organization_id'], self.a.pk)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class DeviceWorkspaceLinkTests(_Fixture):
+    """The Device Workspace is reachable from the sidebar (Devices), My Work's
+    recent devices, the asset page and the ticket's asset."""
+
+    def setUp(self):
+        from assets.models import Asset
+        from integrations.models import RMMDevice
+        self.asset = Asset.objects.create(organization=self.a, name='WS Alpha PC', asset_type='desktop')
+        RMMDevice.objects.filter(pk=self.dev_a.pk).update(linked_asset=self.asset)
+        self.dev_a.refresh_from_db()
+
+    def test_opening_a_workspace_records_the_asset_and_my_work_links_back(self):
+        _login(self.client, self.tech, self.a)
+        ws = reverse('assets:device_workspace', args=[self.asset.pk])
+        self.assertEqual(self.client.get(ws).status_code, 200)
+        self.assertTrue(RecentDevice.objects.filter(user=self.tech, kind='asset', object_id=self.asset.pk).exists())
+        html = self.client.get(reverse('psa:my_work')).content.decode()
+        self.assertIn('data-mw-workspace-link', html)
+        self.assertIn(reverse('core:open_device', args=['asset', self.asset.pk]) + '?to=workspace', html)
+
+    def test_open_device_to_workspace(self):
+        _login(self.client, self.tech, self.a)
+        r = self.client.get(reverse('core:open_device', args=['asset', self.asset.pk]), {'to': 'workspace'})
+        self.assertEqual(r['Location'], reverse('assets:device_workspace', args=[self.asset.pk]))
+        r = self.client.get(reverse('core:open_device', args=['rmm_device', self.dev_a.pk]), {'to': 'workspace'})
+        self.assertEqual(r['Location'],
+                         reverse('assets:device_workspace', args=[self.asset.pk]) + f'?device={self.dev_a.pk}')
+        # An RMM device without an asset has no workspace: its detail page.
+        r = self.client.get(reverse('core:open_device', args=['rmm_device', self.dev_b.pk]), {'to': 'workspace'})
+        self.assertEqual(r['Location'], reverse('integrations:rmm_device_detail', args=[self.dev_b.pk]))
+
+    def test_customer_users_get_no_workspace_links(self):
+        from types import SimpleNamespace
+        from core.workspace import recent_devices
+        RecentDevice.objects.create(user=self.customer, kind='asset', object_id=self.asset.pk,
+                                    organization=self.a, opened_at=timezone.now())
+        req = SimpleNamespace(user=self.customer, is_staff_user=False, current_organization=self.a)
+        self.assertTrue(all(not d['workspace_url'] for d in recent_devices(req)))
+        _login(self.client, self.customer, self.a)
+        r = self.client.get(reverse('core:open_device', args=['asset', self.asset.pk]), {'to': 'workspace'})
+        self.assertNotIn('/workspace/', r.get('Location', ''))
+        self.assertEqual(self.client.get(reverse('assets:device_workspace_home')).status_code, 404)
+
+    def test_sidebar_entry_page_lists_recent_workspaces(self):
+        _login(self.client, self.tech, self.a)
+        self.client.get(reverse('assets:device_workspace', args=[self.asset.pk]))
+        home = reverse('assets:device_workspace_home')
+        html = self.client.get(home).content.decode()
+        self.assertIn('data-ws-home-recent', html)
+        self.assertIn('WS Alpha PC', html)
+        self.assertIn(f'href="{home}"', html)  # the sidebar's Devices group links it
+
+    def test_asset_page_and_ticket_asset_open_the_workspace(self):
+        from psa.models import Ticket
+        _login(self.client, self.tech, self.a)
+        html = self.client.get(reverse('assets:asset_detail', args=[self.asset.pk])).content.decode()
+        self.assertIn(reverse('assets:device_workspace', args=[self.asset.pk]), html)
+        Ticket.objects.filter(pk=self.t_a.pk).update(related_asset=self.asset)
+        self.t_a.refresh_from_db()
+        html = self.client.get(reverse('psa:ticket_detail', args=[self.t_a.ticket_number])).content.decode()
+        self.assertIn(reverse('assets:device_workspace', args=[self.asset.pk])
+                      + f'?ticket={self.t_a.ticket_number}', html)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class RemoteSourceTests(_Fixture):
+    """psa_ai.workspace_sources: My Work's remote-session launches and the
+    remote jobs that join "Needs your review". Customer-scoped, and never a
+    claim that a session started."""
+
+    def _launch(self, user, device, success=True, minutes_ago=5):
+        from audit.models import AuditLog
+        log = AuditLog.log(user=user, action='api_call', organization=device.organization,
+                           object_type='psa_ai.RemoteLaunch', object_repr='Remote view',
+                           description='Remote view session launched', success=success,
+                           extra_data={'launch': 'x', 'mode': 'view', 'device': device.pk})
+        AuditLog.objects.filter(pk=log.pk).update(timestamp=timezone.now() - timedelta(minutes=minutes_ago))
+
+    def _remote(self, caps=('remote_view',)):
+        from unittest import mock
+        return mock.patch('integrations.ticket_rmm.advertised', return_value=set(caps))
+
+    def test_both_sources_are_registered(self):
+        from core.workspace import _SOURCES
+        self.assertIn('remote_sessions', _SOURCES)
+        self.assertIn('jobs', _SOURCES)
+
+    def test_no_remote_panel_until_a_pairing_offers_remote_sessions(self):
+        self._launch(self.tech, self.dev_a)
+        _login(self.client, self.tech, self.a)
+        with self._remote(caps=('rmm_handoff',)):
+            r = self.client.get(reverse('psa:my_work'))
+        self.assertNotContains(r, 'id="mw-remote"')
+        self.assertContains(r, 'Remote sessions appear here once remote access is connected')
+
+    def test_launches_are_listed_as_unconfirmed_and_customer_scoped(self):
+        self._launch(self.tech, self.dev_a)
+        self._launch(self.tech, self.dev_b)                      # Bravo: not a customer of mine
+        self._launch(self.tech, self.dev_a, success=False)       # refused launches are not listed
+        self._launch(self.tech2, self.dev_a)                     # another technician's launch
+        self._launch(self.tech, self.dev_a, minutes_ago=180)     # too old
+        _login(self.client, self.tech, self.a)
+        with self._remote():
+            html = self.client.get(reverse('psa:my_work')).content.decode()
+        panel = html.split('id="mw-remote"', 1)[1].split('class="card mb-3', 1)[0].split('<script', 1)[0]
+        self.assertIn('Remote session launches', panel)
+        self.assertIn('WS-ALPHA-SRV', panel)
+        self.assertNotIn('WS-BRAVO-SRV', panel)
+        self.assertEqual(panel.count('session not confirmed'), 1)
+        self.assertNotIn('Active remote sessions', panel)
+        self.assertNotIn('running', panel.lower().replace('no remote sessions are running', ''))
+        self.assertIn('data-mw-remote-note', panel)
+        self.assertIn('?to=workspace', panel)
+
+    def test_every_item_says_unconfirmed(self):
+        from types import SimpleNamespace
+        from psa_ai.workspace_sources import remote_sessions
+        self._launch(self.tech, self.dev_a)
+        self._launch(self.tech, self.dev_b)
+        req = SimpleNamespace(user=self.tech, is_staff_user=True, current_organization=self.a)
+        with self._remote():
+            data = remote_sessions(req, None)
+        self.assertEqual(data['count'], 2)
+        for item in data['items']:
+            self.assertFalse(item['session_confirmed'])
+            self.assertIn('session not confirmed', item['state'])
+
+    def _rem0te_conn(self):
+        from integrations.models import RMMConnection
+        return RMMConnection.objects.create(organization=self.msp, provider_type='rem0te',
+                                            name='WS Rem0te', base_url='https://rem0te.ws.test')
+
+    def test_jobs_feed_the_review_panel_scoped_to_my_customers(self):
+        from psa.support_workflows.models import WorkflowRun
+        from psa_ai.models import RMMRequest
+        conn = self._rem0te_conn()
+        for i, t in enumerate((self.t_a, self.t_b)):
+            RMMRequest.objects.create(organization=t.organization, ticket=t, connection=conn,
+                                      device_external_id='d', device_name=f'WS-PROP-{i}', tenant_id='t',
+                                      actor=self.tech, kind=RMMRequest.KIND_FIX, fix_title=f'WS restart spooler {i}',
+                                      payload={}, payload_digest='d', idempotency_key=f'ws-prop-{i}',
+                                      status='pending')
+            WorkflowRun.objects.create(organization=t.organization, ticket=t, workflow_slug='printer',
+                                       workflow_name=f'WS printer workflow {i}', actor=self.tech, status='ready')
+        WorkflowRun.objects.create(organization=self.a, ticket=self.t_a, workflow_slug='printer',
+                                   workflow_name='WS finished workflow', actor=self.tech, status='verified')
+        _login(self.client, self.tech, self.a)
+        html = self.client.get(reverse('psa:my_work')).content.decode()
+        panel = html.split('id="mw-review"', 1)[1]
+        self.assertIn('WS restart spooler 0', panel)
+        self.assertIn('Waiting for approval in Rem0te', panel)
+        self.assertIn('WS printer workflow 0', panel)
+        self.assertNotIn('WS restart spooler 1', panel)
+        self.assertNotIn('WS printer workflow 1', panel)
+        self.assertNotIn('WS finished workflow', panel)
+
+    def test_ai_jobs_only_while_ai_is_on(self):
+        from types import SimpleNamespace
+        from psa_ai.models import AnalysisJob
+        from psa_ai.workspace_sources import jobs
+        AnalysisJob.objects.create(
+            organization=self.a, ticket=self.t_a, ticket_revision='r', actor=self.tech, kind='analyze',
+            connection=self._rem0te_conn(), business_id='b', evidence={}, evidence_digest='e',
+            payload_digest='p', idempotency_key='ws-job-1', expires_at=timezone.now() + timedelta(hours=1),
+            status='completed')
+        req = SimpleNamespace(user=self.tech, is_staff_user=True, current_organization=self.a)
+        self.assertFalse(any(i['title'].startswith('AI analysis') for i in jobs(req, {self.a.pk})['items']))
+        s = SystemSetting.get_settings()
+        s.psa_ai_enabled = True
+        s.save()
+        items = jobs(req, {self.a.pk})['items']
+        self.assertTrue(any(i['title'].startswith('AI analysis') for i in items))
+        self.assertFalse(any(i['title'].startswith('AI analysis') for i in jobs(req, {self.b.pk})['items']))

@@ -258,7 +258,8 @@ def _apply(connection, event):
             if policy is not None:
                 # Optional alert policy (psa/routing/alert_policy.py): recovery
                 # notes, and resolving a ticket only this alert opened.
-                policy.rem0te_event(connection, event, device=_policy_device(connection, alert))
+                policy.rem0te_event(connection, event, device=_policy_device(connection, alert),
+                                    description_lines=patch_summary_lines(patch_summary(alert)))
         return 'applied', None, False
     row, created = Rem0teAlertTicket.objects.get_or_create(
         connection=connection, alert_id=alert['alert_id'],
@@ -267,7 +268,8 @@ def _apply(connection, event):
         # The policy decides: open, join an existing ticket, hold (offline /
         # site outage / after hours), suppress (maintenance) or record only.
         try:
-            ticket = policy.rem0te_event(connection, event, device=_policy_device(connection, alert))
+            ticket = policy.rem0te_event(connection, event, device=_policy_device(connection, alert),
+                                         description_lines=patch_summary_lines(patch_summary(alert)))
         except policy.NotReady as e:
             raise NotReady(str(e))
         if created or (row.ticket_id is None and ticket is not None):

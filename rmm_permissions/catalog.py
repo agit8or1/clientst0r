@@ -54,6 +54,9 @@ ACTIONS = {
                          "See this customer's RMM alerts."),
     'diagnostics.view': Action('View approved diagnostics', 'Diagnostics', 'device', None, None,
                                'See the approved diagnostics for a device and their results.'),
+    'alert.read_live': Action("Read an alert's current state", 'Devices', 'device', 'diagnostics_readonly', None,
+                              "Ask the paired RMM for an alert's current state (a read of monitoring data that "
+                              'changes nothing). Uses the read-only diagnostics grant.'),
     # --- requests -------------------------------------------------------------
     'remote.request_support': Action('Request remote support', 'Remote access', 'device', 'remote_view', None,
                                      'Ask the paired RMM for an attended, view-only session.'),
@@ -109,6 +112,10 @@ LOCKED = {
 }
 
 HIGH_IMPACT = {k for k, a in ACTIONS.items() if a.default_approval}
+# Actions whose technician-access capability is consulted for the grant,
+# denies and restrictions only: the operation is not the capability the
+# paired RMM advertises, so its advertisement doesn't decide availability.
+CAPABILITY_WITHOUT_INTEGRATION = {'alert.read_live'}
 STANDARD_WORKSTATION_TYPES = {'workstation', 'laptop', 'desktop', 'thin_client'}
 
 
@@ -117,7 +124,7 @@ def _e(state=ALLOWED, approval=None, workstation_only=False):
 
 
 L1_MATRIX = {
-    'device.view': _e(), 'alert.view': _e(), 'diagnostics.view': _e(),
+    'device.view': _e(), 'alert.view': _e(), 'diagnostics.view': _e(), 'alert.read_live': _e(),
     'remote.request_support': _e(REQUEST), 'remediation.request_low': _e(),
 }
 L2_MATRIX = dict(
@@ -139,6 +146,7 @@ MATRIX = {'l1': L1_MATRIX, 'l2': L2_MATRIX, 'l3': L3_MATRIX, 'platform_admin': P
 REM0TE = {
     'device.view': '',
     'alert.view': '',
+    'alert.read_live': '',  # GET /alerts/{id}: service-level read, no delegation
     'remediation.request_low': 'actions:propose',
     'remediation.request_high': 'actions:propose',
     'remediation.refer': 'actions:propose',

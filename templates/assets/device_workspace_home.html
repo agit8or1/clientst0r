@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% comment %}
+Device Workspace entry point (assets/workspace_views.device_workspace_home).
+MSP technicians only. Lists recently opened devices; each link opens the
+device's workspace in its customer's context (core:open_device).
+{% endcomment %}
+{% block title %}Device workspace{% endblock %}
+
+{% block content %}
+<div id="device-workspace-home">
+    <h1 class="h3 mb-1"><i class="fas fa-laptop-medical me-2" aria-hidden="true"></i>Device workspace</h1>
+    <p class="text-muted small mb-3">One page per device: what its RMMs report, its tickets, documents and credentials, and what you can do next. Open one from a recent device below, from a ticket's asset, or from a device list.</p>
+
+    <div class="card mb-3">
+        <div class="card-header py-2"><h2 class="h6 mb-0"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Recent devices</h2></div>
+        {% if recent %}
+        <div class="list-group list-group-flush" data-ws-home-recent>
+            {% for d in recent %}
+            <a href="{{ d.workspace_url }}" class="list-group-item list-group-item-action py-2">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="ui-wrap"><span class="small fw-semibold">{{ d.title }}</span><div class="small text-muted">{{ d.kind_label }} · {{ d.customer }}</div></div>
+                    <small class="text-muted text-nowrap">{{ d.opened_at|timesince }} ago</small>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card-body text-muted small">Devices you open appear here, so you can get back to their workspace in one click, even from another customer.</div>
+        {% endif %}
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'assets:asset_list' %}"><i class="fas fa-box me-1" aria-hidden="true"></i>All assets</a>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'integrations:rmm_devices' %}"><i class="fas fa-desktop me-1" aria-hidden="true"></i>RMM devices</a>
+    </div>
+</div>
+{% endblock %}

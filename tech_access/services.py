@@ -710,3 +710,145 @@ def _apply_superuser_grant(change, reviewer):
 
 def _name(user):
     return user.get_username() if user is not None else ''
+
+
+# --- RMM tiers ---------------------------------------------------------------
+#
+# A technician's RMM tier comes from their global role template's rmm_tier
+# (rmm_permissions.decision.tier_of). Giving or taking one — moving a
+# technician's global role to or from a tiered template, or changing a
+# template's tier — takes two administrators. The user edit / create pages
+# go through propose_global_role; changes made elsewhere (shell, scripts)
+# are not blocked but are audited (tech_access.signals).
+
+RMM_TIERS = ('l1', 'l2', 'l3', 'platform_admin')
+
+
+def template_tier(template) -> str:
+    return (getattr(template, 'rmm_tier', '') or '') if template is not None else ''
+
+
+def global_role_change_is_protected(old, new) -> bool:
+    """A change of global role template that gives, takes or swaps a tier."""
+    if getattr(old, 'pk', None) == getattr(new, 'pk', None):
+        return False
+    return bool(template_tier(old) or template_tier(new))
+
+
+def _role_label(template):
+    if template is None:
+        return 'no global role'
+    t = template_tier(template)
+    return f'{template.name} (RMM {t})' if t else template.name
+
+
+def pending_global_role(user):
+    from .models import ProtectedChange
+    return (ProtectedChange.objects.filter(kind='global_role', target_user=user, status=ProtectedChange.PENDING,
+                                           expires_at__gt=timezone.now()).order_by('-requested_at').first())
+
+
+def propose_global_role(user, template, by, request=None):
+    """Record a pending change of `user`'s global role template to `template`
+    (None = no global role). Asking again for the same role returns the open
+    request; a different role while one is open is refused."""
+    from accounts.models import UserProfile
+    from .protected import can_widen_at_all, is_approver
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    old = profile.global_role_template
+    if not global_role_change_is_protected(old, template):
+        raise ValueError('This role change does not involve an RMM tier.')
+    if not is_approver(by):
+        raise ValueError('Only an approver for protected changes can change an RMM-tier role.')
+    want = template.pk if template is not None else None
+    existing = pending_global_role(user)
+    if existing is not None:
+        if existing.payload.get('role_template') == want:
+            return existing
+        raise ValueError(f'A global-role change for {user.get_username()} is already waiting for approval '
+                         '(Settings → Security → Technician Access). Cancel it first.')
+    if not can_widen_at_all(by):
+        raise ValueError('Changing an RMM-tier role needs a second administrator to approve it, and no other '
+                         'eligible administrator exists.')
+    summary = f'Change the global role of {user.get_username()} from {_role_label(old)} to {_role_label(template)}'
+    widening = [f'RMM tier {template_tier(template)}'] if template_tier(template) else \
+        [f'RMM tier {template_tier(old)} removed; the role flags of {_role_label(template)} apply']
+    change = propose('global_role', summary,
+                     {'user': user.pk, 'role_template': want, 'from': old.pk if old is not None else None},
+                     widening, by, target_user=user, affected=[user.pk], request=request)
+    _audit(by, 'update', 'user_profile', profile.pk, f'RMM-tier role change requested for {user.get_username()}',
+           extra={'event': 'rmm_tier_role_requested', 'change': change.pk, 'requested_by': by.get_username(),
+                  'target': user.get_username(), 'from': _role_label(old), 'to': _role_label(template)})
+    return change
+
+
+@applier('global_role')
+def _apply_global_role(change, reviewer):
+    from accounts.models import RoleTemplate, UserProfile
+    from .protected import ProtectedChangeError
+    profile = UserProfile.objects.filter(user_id=change.payload.get('user')).select_related('user').first()
+    if profile is None:
+        raise ProtectedChangeError('That account no longer exists.')
+    if profile.global_role_template_id != change.payload.get('from'):
+        raise ProtectedChangeError('Their global role changed since this was requested. Propose it again.')
+    want = change.payload.get('role_template')
+    template = RoleTemplate.objects.filter(pk=want).first() if want else None
+    if want and template is None:
+        raise ProtectedChangeError('That role template no longer exists.')
+    profile.global_role_template = template
+    profile._approved_rmm_tier_change = change.pk  # read by tech_access.signals
+    profile.save(update_fields=['global_role_template'])
+    _audit(change.requested_by, 'update', 'user_profile', profile.pk, f'Approved: {change.summary}',
+           extra={'event': 'rmm_tier_role_approved', 'change': change.pk,
+                  'requested_by': _name(change.requested_by), 'approved_by': _name(reviewer),
+                  'target': profile.user.get_username(), 'outcome': 'applied'})
+
+
+def propose_rmm_tier(template, new_tier, by, request=None):
+    """Record a pending change of `template`'s rmm_tier. Technicians who hold
+    the template as their global role are affected and cannot approve it."""
+    from accounts.models import UserProfile
+    from .models import ProtectedChange
+    from .protected import can_widen_at_all, is_approver
+    new_tier = (new_tier or '').strip()
+    if new_tier and new_tier not in RMM_TIERS:
+        raise ValueError(f'Unknown RMM tier {new_tier!r}.')
+    old_tier = template_tier(template)
+    if new_tier == old_tier:
+        raise ValueError(f'{template.name} already has that tier.')
+    if not is_approver(by):
+        raise ValueError('Only an approver for protected changes can change a role template\'s RMM tier.')
+    existing = (ProtectedChange.objects.filter(kind='rmm_tier', status=ProtectedChange.PENDING,
+                                               expires_at__gt=timezone.now(), payload__template=template.pk)
+                .first())
+    if existing is not None:
+        if existing.payload.get('to') == new_tier:
+            return existing
+        raise ValueError(f'A tier change for {template.name} is already waiting for approval.')
+    if not can_widen_at_all(by):
+        raise ValueError('Changing an RMM tier needs a second administrator to approve it, and no other eligible '
+                         'administrator exists.')
+    holders = list(UserProfile.objects.filter(global_role_template=template).values_list('user_id', flat=True))
+    summary = f'Change the RMM tier of role template {template.name} from {old_tier or "none"} to {new_tier or "none"}'
+    widening = [f'RMM tier {new_tier} for {len(holders)} technician(s)'] if new_tier else \
+        [f'RMM tier {old_tier} removed from {len(holders)} technician(s)']
+    return propose('rmm_tier', summary, {'template': template.pk, 'from': old_tier, 'to': new_tier},
+                   widening, by, affected=holders, request=request)
+
+
+@applier('rmm_tier')
+def _apply_rmm_tier(change, reviewer):
+    from accounts.models import RoleTemplate
+    from .protected import ProtectedChangeError
+    template = RoleTemplate.objects.filter(pk=change.payload.get('template')).first()
+    if template is None:
+        raise ProtectedChangeError('That role template no longer exists.')
+    if template_tier(template) != (change.payload.get('from') or ''):
+        raise ProtectedChangeError('Its tier changed since this was requested. Propose it again.')
+    template.rmm_tier = change.payload.get('to') or ''
+    template._approved_rmm_tier_change = change.pk  # read by tech_access.signals
+    template.save(update_fields=['rmm_tier'])
+    _audit(change.requested_by, 'update', 'role_template', template.pk, f'Approved: {change.summary}',
+           extra={'event': 'rmm_tier_template_approved', 'change': change.pk,
+                  'requested_by': _name(change.requested_by), 'approved_by': _name(reviewer),
+                  'template': template.name, 'outcome': 'applied'})

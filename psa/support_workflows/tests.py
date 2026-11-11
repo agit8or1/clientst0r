@@ -244,6 +244,41 @@ class AccessAndDefinitionTests(WorkflowBase):
         self.assertFalse(any(c[1] == '/alerts/cmdisk01' for c in self.fake.calls))
         self.assertIn('disk', ev)  # what ClientSt0r already holds is still shown
 
+    def _deny(self, action):
+        from rmm_permissions import overrides
+        from rmm_permissions.models import RMMPermissionOverride as O
+        return overrides.create(make_tech('rp-admin', superuser=True), action=action, effect=O.DENY,
+                                organization=self.org, user=self.tech, reason='paused')
+
+    def test_live_read_is_an_audited_rmm_permissions_decision(self):
+        from audit.models import AuditLog
+        self.raise_alert('cmdisk01')
+        run = engine.start(self.tech, self.link('cmdisk01').ticket, 'disk-nearly-full')
+        ev = {i['key']: i for i in run.evidence}
+        self.assertEqual(ev['alert_now']['value'].get('state'), 'open')
+        self.assertTrue(AuditLog.objects.filter(object_type='rmm_permission',
+                                                object_repr='alert.read_live allowed').exists())
+
+    def test_deny_override_blocks_the_live_read(self):
+        self._deny('alert.read_live')
+        self.raise_alert('cmdisk01')
+        run = engine.start(self.tech, self.link('cmdisk01').ticket, 'disk-nearly-full')
+        ev = {i['key']: i for i in run.evidence}
+        self.assertIn('Not read: Denied by override', ev['alert_now']['value']['note'])
+        self.assertFalse(any(c[1] == '/alerts/cmdisk01' for c in self.fake.calls))
+
+    def test_deny_override_blocks_offering_and_proposing_the_action(self):
+        self.raise_alert('cmsvc01', kind='SERVICE_STOPPED', title='SRV-01: service Spooler is Stopped')
+        t = self.link('cmsvc01').ticket
+        type(self.asset).objects.filter(pk=self.asset.pk).update(asset_type='desktop')
+        self._deny('remediation.request_low')
+        run = engine.start(self.tech, t, 'service-stopped')
+        self.assertFalse(run.remediations[0]['offered'])
+        self.assertIn('Denied by override', run.remediations[0]['why_not'])
+        with self.assertRaises(engine.WorkflowRefused):
+            engine.propose(self.tech, run, 'windows.service.start@1', 'k-deny')
+        self.assertEqual(self.fake.proposals, {})
+
     def test_customer_user_gets_404(self):
         self.raise_alert('cmdisk01')
         t = self.link('cmdisk01').ticket

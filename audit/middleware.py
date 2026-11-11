@@ -202,17 +202,14 @@ class AuditLoggingMiddleware(MiddlewareMixin):
                     object_type = parts[0]
 
             # Get object ID from URL kwargs
+            # object_id is a signed 64-bit column: only an int in range is
+            # kept. A UUID route's kwarg (int(UUID) is 128 bits), a string or
+            # an out-of-range number leaves it unset rather than failing the
+            # audit write.
             kwargs = request.resolver_match.kwargs
-            if 'pk' in kwargs:
-                try:
-                    object_id = int(kwargs['pk'])
-                except (ValueError, TypeError):
-                    pass
-            elif 'id' in kwargs:
-                try:
-                    object_id = int(kwargs['id'])
-                except (ValueError, TypeError):
-                    pass
+            raw = kwargs['pk'] if 'pk' in kwargs else kwargs.get('id')
+            if type(raw) is int and -(2 ** 63) <= raw <= 2 ** 63 - 1:
+                object_id = raw
 
         # Try to get object representation from context
         if object_id and object_type:

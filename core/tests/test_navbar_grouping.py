@@ -40,7 +40,7 @@ TICKETS = ['psa:ticket_list', 'psa:dispatch_board', 'psa:project_list', 'psa:ser
 CLIENTS = ['accounts:organization_list', 'core:customer_ops_current', 'docs:document_list',
            'docs:diagram_list', 'docs:document_drafts_list', 'readiness:overview',
            'vault:password_list', 'vault:access_rule_list', 'psa:contract_list', 'crm:home']
-DEVICES = ['assets:asset_list', 'integrations:rmm_devices', 'hardware:device_list',
+DEVICES = ['assets:asset_list', 'integrations:rmm_devices', 'assets:device_workspace_home', 'hardware:device_list',
            'monitoring:rack_list']
 ALERTS = ['integrations:rmm_alerts', 'security_alerts:alert_list', 'monitoring:website_monitor_list']
 TOOLS = ['processes:process_list', 'scheduling:task_list', 'inventory:inventory_dashboard',
@@ -56,7 +56,8 @@ STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
               'assets:vendor_list', 'core:settings_general', 'core:security_dashboard',
               'integrations:integration_list', 'core:mobile_apps_admin',
               'core:snyk_scans', 'accounts:access_management', 'core:webhook_list',
-              'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts']
+              'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts',
+              'assets:device_workspace_home']
 
 
 def urls(names):

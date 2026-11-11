@@ -156,7 +156,8 @@ class UpgradeTests(Base):
 class MatrixTests(Base):
     def test_l1(self):
         u = self.tech('l1', 'l1', [self.a])
-        ok = {'device.view', 'alert.view', 'diagnostics.view', 'remote.request_support', 'remediation.request_low'}
+        ok = {'device.view', 'alert.view', 'diagnostics.view', 'alert.read_live', 'remote.request_support',
+              'remediation.request_low'}
         for key in catalog.ACTIONS:
             self.assertEqual(can(u, self.a, key).allowed, key in ok, key)
         self.assertEqual(can(u, self.a, 'remote.request_support').grant, catalog.REQUEST)
@@ -166,10 +167,68 @@ class MatrixTests(Base):
     def test_l1_credential_reveal_needs_the_vault_permission(self):
         u = self.tech('l1', 'l1', [self.a, self.b])
         self.assertFalse(can(u, self.a, 'credential.reveal').allowed)
+
+    def test_credential_reveal_follows_the_vault_rule(self):
+        """vault.permissions.can_access_password: staff with a global role get
+        what that role says; a membership never widens it."""
+        from accounts.permission_utils import user_has_org_perm
         vault = RoleTemplate.objects.create(name='Vault reveal', organization=self.a, vault_view_password=True)
+        # A tier technician (global role without reveal) with a membership that has it.
+        u = self.tech('l1', 'l1', [self.a, self.b])
         Membership.objects.create(user=u, organization=self.a, role=Role.EDITOR, role_template=vault)
-        self.assertTrue(can(u, self.a, 'credential.reveal').allowed)
-        self.assertFalse(can(u, self.b, 'credential.reveal').allowed)
+        self.assertFalse(user_has_org_perm(u, self.a, 'vault_view_password'))  # the vault says no
+        self.assertFalse(can(u, self.a, 'credential.reveal').allowed)
+        # Same for a non-tier global role without reveal.
+        plain = RoleTemplate.objects.create(name='Global no reveal', vault_view=True)
+        v = self.tech('v')
+        v.profile.global_role_template = plain
+        v.profile.save()
+        grant(v, self.a, 'l1')
+        Membership.objects.create(user=v, organization=self.a, role=Role.EDITOR, role_template=vault)
+        self.assertFalse(can(v, self.a, 'credential.reveal').allowed)
+        # A global role that holds it: allowed, as in the vault.
+        reveal = RoleTemplate.objects.create(name='Global reveal', vault_view=True, vault_view_password=True)
+        v.profile.global_role_template = reveal
+        v.profile.save()
+        self.assertTrue(user_has_org_perm(v, self.a, 'vault_view_password'))
+        self.assertTrue(can(v, self.a, 'credential.reveal').allowed)
+        # Staff without a global role: memberships decide, there only.
+        w = self.tech('w', orgs=[self.a, self.b])
+        self.assertIsNone(w.profile.global_role_template)
+        Membership.objects.create(user=w, organization=self.a, role=Role.EDITOR, role_template=vault)
+        self.assertTrue(can(w, self.a, 'credential.reveal').allowed)
+        self.assertFalse(can(w, self.b, 'credential.reveal').allowed)
+
+    def test_blocked_versus_ungranted(self):
+        u = self.tech('nothing')  # no tier, no assignment, no flags
+        d = can(u, self.a, 'alert.view')
+        self.assertFalse(d.allowed)
+        self.assertTrue(d.ungranted)
+        self.assertFalse(d.blocked)
+        admin = self.tech('blocker', superuser=True)
+        overrides.create(admin, action='alert.view', effect=O.DENY, organization=self.a, user=u)
+        d = can(u, self.a, 'alert.view')
+        self.assertTrue(d.blocked)
+        self.assertIn('override', d.reason.lower())
+
+    def test_alert_read_live_borrows_read_only_diagnostics_without_the_advertisement(self):
+        """GET /alerts/{id} is not an endpoint diagnostic: the paired RMM not
+        advertising diagnostics doesn't decide it; the grant, its workstation
+        limit and denies do."""
+        AVAILABLE.stop()
+        self.addCleanup(AVAILABLE.start)
+        u = self.tech('l2p', orgs=[self.a], preset='l2')
+        from assets.models import Asset
+        ws = Asset.objects.create(organization=self.a, name='PC', asset_type='desktop')
+        srv = Asset.objects.create(organization=self.a, name='DC', asset_type='server')
+        self.assertFalse(can(u, self.a, 'diagnostics.run', device=ws).allowed)  # not advertised
+        self.assertTrue(can(u, self.a, 'alert.read_live', device=ws).allowed)
+        self.assertFalse(can(u, self.a, 'alert.read_live', device=srv).allowed)
+        ExplicitDeny.objects.create(user=u, organization=self.a, capability='diagnostics_readonly')
+        d = can(u, self.a, 'alert.read_live', device=ws)
+        self.assertTrue(d.blocked)
+        l1 = self.tech('l1p', orgs=[self.a], preset='l1')
+        self.assertFalse(can(l1, self.a, 'alert.read_live', device=ws).allowed)
 
     def test_l2(self):
         u = self.tech('l2', 'l2', [self.a])
@@ -542,3 +601,68 @@ class PageTests(Base):
         a.refresh_from_db()
         self.assertEqual(a.status, RMMApproval.APPROVED)
         self.assertEqual(a.decided_by, self.senior)
+
+
+class ApprovalNotificationTests(Base):
+    """Requesting an RMM approval tells the people who could approve it, by
+    email and on My Work, that an approval is waiting: never the digest or
+    the operation's summary."""
+
+    def setUp(self):
+        super().setUp()
+        self.req = self.tech('nreq', 'l2', [self.a])
+        self.peer = self.tech('npeer', 'l2', [self.a])
+        self.senior = self.tech('nsenior', 'l3', [self.a])
+        self.far = self.tech('nfar', 'l3', [self.b])
+        self.ws = self.device(self.a)
+
+    def _request(self):
+        from django.core import mail
+        mail.outbox = []
+        return approvals.request_approval(self.req, self.a, 'patch.deploy', device=self.ws,
+                                          digest='SECRET-DIGEST-kb5031', summary='SECRET-SUMMARY run fix.ps1')
+
+    def test_qualified_approvers_are_emailed_and_nobody_else(self):
+        from django.core import mail
+        a = self._request()
+        to = sorted(addr for m in mail.outbox for addr in m.to)
+        self.assertEqual(to, ['nsenior@msp.test'])          # not the requester, the L2 peer or the L3 elsewhere
+        body = mail.outbox[0].subject + mail.outbox[0].body
+        self.assertIn('approval', body.lower())
+        self.assertIn(self.a.name, body)
+        for secret in ('SECRET-DIGEST', 'SECRET-SUMMARY', 'fix.ps1', a.digest):
+            self.assertNotIn(secret, body)
+        self.assertEqual(approvals.approvers_for(a), [self.senior])
+
+    def test_repeat_request_does_not_notify_again(self):
+        from django.core import mail
+        self._request()
+        mail.outbox = []
+        approvals.request_approval(self.req, self.a, 'patch.deploy', device=self.ws, digest='SECRET-DIGEST-kb5031')
+        self.assertEqual(mail.outbox, [])
+
+    def test_a_mail_failure_does_not_stop_the_request(self):
+        with mock.patch('psa.notifications.send_mail', side_effect=OSError('smtp down')):
+            a = self._request()
+        self.assertEqual(a.status, RMMApproval.PENDING)
+
+    @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+    def test_my_work_lists_the_waiting_approval_for_approvers_only(self):
+        from django.urls import reverse
+        from psa.tests._base import _enable_psa_global
+        _enable_psa_global()
+        self._request()
+
+        def page(user):
+            c = Client()
+            c.force_login(user)
+            s = c.session
+            s['2fa_prompted'] = True
+            s['current_organization_id'] = self.a.pk
+            s.save()
+            return c.get(reverse('psa:my_work')).content.decode()
+        html = page(self.senior)
+        self.assertIn('data-approvals-queue="rmm"', html)
+        self.assertIn(reverse('rmm_permissions:approvals'), html)
+        self.assertNotIn('SECRET-SUMMARY', html)
+        self.assertNotIn('data-approvals-queue="rmm"', page(self.peer))

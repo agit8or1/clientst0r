@@ -139,3 +139,78 @@ def _record_roles(sender, instance, created, raw=False, **kwargs):
 for _model in ROLE_FIELDS:
     pre_save.connect(_remember_roles, sender=_model, dispatch_uid=f'tech_access_roles_before_{_model.__name__}')
     post_save.connect(_record_roles, sender=_model, dispatch_uid=f'tech_access_roles_after_{_model.__name__}')
+
+
+# --- RMM tiers given or taken outside the approval ---------------------------
+#
+# The user edit / create pages turn an RMM-tier role change into a protected
+# change (tech_access.services.propose_global_role / propose_rmm_tier). A
+# change made any other way — shell, script, a fixture — is not blocked, but
+# is audited here with event rmm_tier_changed_outside_approval.
+
+from accounts.models import RoleTemplate  # noqa: E402
+
+
+def _tier_outside_approval(text, extra):
+    try:
+        from audit.models import AuditLog
+        from .actor import current
+        user, ip, path = current()
+        AuditLog.log(user=user, action='update', object_type=extra.pop('_type'), object_id=extra.pop('_id'),
+                     object_repr=text[:255], description=text, ip_address=ip, path=path,
+                     extra_data=dict(extra, event='rmm_tier_changed_outside_approval', outcome='applied'))
+    except Exception:  # the change itself must not fail because the record did
+        logger.exception('could not record an RMM tier change')
+
+
+def _remember_profile_tier(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
+    instance._tier_role_before = (sender.objects.filter(pk=instance.pk).values_list(
+        'global_role_template_id', flat=True).first() if instance.pk else None)
+
+
+def _record_profile_tier(sender, instance, created, raw=False, **kwargs):
+    if raw or getattr(instance, '_approved_rmm_tier_change', None):
+        return
+    before_id = getattr(instance, '_tier_role_before', None)
+    if before_id == instance.global_role_template_id:
+        return
+    from .services import _role_label, global_role_change_is_protected
+    before = RoleTemplate.objects.filter(pk=before_id).first() if before_id else None
+    after = instance.global_role_template
+    if not global_role_change_is_protected(before, after):
+        return
+    instance._tier_role_before = instance.global_role_template_id
+    name = instance.user.get_username()
+    _tier_outside_approval(
+        f'Global role of {name} changed from {_role_label(before)} to {_role_label(after)} outside the approval',
+        {'_type': 'user_profile', '_id': instance.pk, 'target': name,
+         'from': _role_label(before), 'to': _role_label(after)})
+
+
+def _remember_template_tier(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
+    instance._tier_before = (sender.objects.filter(pk=instance.pk).values_list('rmm_tier', flat=True).first()
+                             if instance.pk else None)
+
+
+def _record_template_tier(sender, instance, created, raw=False, **kwargs):
+    if raw or created or getattr(instance, '_approved_rmm_tier_change', None):
+        return
+    before = getattr(instance, '_tier_before', None) or ''
+    after = instance.rmm_tier or ''
+    if before == after:
+        return
+    instance._tier_before = after
+    _tier_outside_approval(
+        f'RMM tier of role template {instance.name} changed from {before or "none"} to {after or "none"} '
+        'outside the approval',
+        {'_type': 'role_template', '_id': instance.pk, 'template': instance.name, 'from': before, 'to': after})
+
+
+pre_save.connect(_remember_profile_tier, sender=UserProfile, dispatch_uid='tech_access_tier_profile_before')
+post_save.connect(_record_profile_tier, sender=UserProfile, dispatch_uid='tech_access_tier_profile_after')
+pre_save.connect(_remember_template_tier, sender=RoleTemplate, dispatch_uid='tech_access_tier_template_before')
+post_save.connect(_record_template_tier, sender=RoleTemplate, dispatch_uid='tech_access_tier_template_after')

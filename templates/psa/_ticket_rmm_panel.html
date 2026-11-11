@@ -36,6 +36,9 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
     </form>
     {% endif %}
 
+    {# OPTIONAL AI Troubleshoot: renders nothing when AI is off or for anyone without access. #}
+    {% load ai_troubleshoot %}{% ai_troubleshoot_panel ticket=ticket %}
+
     <div class="fw-semibold mb-1"><i class="fas fa-satellite-dish me-1" aria-hidden="true"></i>Paired RMM</div>
     {% if not p.targets %}
     <p class="text-muted mb-2">{{ p.no_target_reason }}</p>

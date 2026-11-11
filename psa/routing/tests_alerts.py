@@ -196,6 +196,94 @@ class LegacyAndDedupTests(AlertBase):
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class AssignmentPermissionTests(AlertBase):
+    """The named-technician (and on-call) check also asks rmm_permissions:
+    a block there keeps the alert ticket off the technician; no grant at all
+    still assigns, as before."""
+
+    def deny(self, user, action='alert.view'):
+        from rmm_permissions import overrides
+        from rmm_permissions.models import RMMPermissionOverride as O
+        from tech_access.testing import make_tech
+        return overrides.create(make_tech('ap-admin', superuser=True), action=action, effect=O.DENY,
+                                organization=self.org, user=user, reason='on leave')
+
+    def rule(self):
+        return AlertPolicyRule.objects.create(name='To Lee', organization=self.org, conditions={},
+                                              assign_mode='technician', assign_user=self.tech)
+
+    def test_no_grant_and_no_override_still_assigns(self):
+        policy_on()
+        self.rule()
+        self.raise_alert('cmalert0001')
+        self.assertEqual(self.link('cmalert0001').ticket.assigned_to, self.tech)
+
+    def test_deny_override_keeps_the_ticket_off_the_technician(self):
+        policy_on()
+        self.rule()
+        self.deny(self.tech)
+        self.raise_alert('cmalert0001')
+        link = self.link('cmalert0001')
+        self.assertIsNone(link.ticket.assigned_to)
+        self.assertIn('RMM permissions: Denied by override', link.reason)
+
+    def test_everything_deny_override_blocks_too(self):
+        policy_on()
+        self.rule()
+        self.deny(self.tech, action='*')
+        self.raise_alert('cmalert0001')
+        self.assertIsNone(self.link('cmalert0001').ticket.assigned_to)
+
+    def test_on_call_skips_a_denied_technician(self):
+        from .models import OnCallShift
+        from tech_access.testing import make_tech
+        policy_on()
+        other = make_tech('ona')
+        now = timezone.now()
+        OnCallShift.objects.create(user=self.tech, starts_at=now - timedelta(hours=1), ends_at=now + timedelta(hours=1))
+        OnCallShift.objects.create(user=other, starts_at=now - timedelta(minutes=30),
+                                   ends_at=now + timedelta(hours=1))
+        AlertPolicyRule.objects.create(name='On call', organization=self.org, conditions={}, assign_mode='on_call')
+        self.deny(self.tech)
+        self.raise_alert('cmalert0001')
+        self.assertEqual(self.link('cmalert0001').ticket.assigned_to, other)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PatchSummaryLinesTests(AlertBase):
+    """Alert-policy tickets carry Rem0te's patch summary lines, as legacy
+    tickets do."""
+
+    def patch_event(self, alert_id, **ps):
+        signed = self.fake.alert_event(self.org_ref, next(_seq), alert_id=alert_id, endpoint='cmendpointsrv01',
+                                       computer='SRV01', severity='warning', kind='REBOOT_PENDING',
+                                       patch=rt.patch_summary(**ps))
+        signed['alert_event']['alert'].update(title='SRV-01: restart pending', site_name='HQ')
+        signed['signature'] = rt.sign_event(signed['alert_event'], alert=True)
+        return signed
+
+    def test_policy_ticket_has_the_patch_lines(self):
+        policy_on()
+        self.deliver(self.patch_event('cmalertpatch1', failed_kbs=['KB5043080']))
+        t = self.link('cmalertpatch1').ticket
+        for text in ('Opened by the alert policy', 'Patch status (from Rem0te)', 'Failed: KB5043080',
+                     'Restart pending: yes'):
+            self.assertIn(text, t.description)
+
+    def test_lines_kept_in_evidence_for_later_tickets(self):
+        policy_on()
+        link_f = alert_policy.from_rem0te(self.conn, self.patch_event('cmalertpatch2')['alert_event']['alert'],
+                                          description_lines=['', 'Patch status (from Rem0te):', 'Pending: 1'])
+        self.assertEqual(link_f.evidence['ticket_lines'][1], 'Patch status (from Rem0te):')
+        self.assertIn('Patch status (from Rem0te):', alert_policy._describe(link_f))
+
+    def test_no_patch_summary_no_lines(self):
+        policy_on()
+        self.raise_alert('cmalert0001')
+        self.assertNotIn('Patch status', self.link('cmalert0001').ticket.description)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class OutageHoldMaintenanceTests(AlertBase):
 
     def test_site_outage_of_50_computers_is_one_ticket(self):

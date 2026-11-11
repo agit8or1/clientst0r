@@ -4932,6 +4932,16 @@ def _require_invoice_view(request, invoice):
         raise PermissionDenied("You don't have the 'billing_view_invoices' permission for this customer.")
 
 
+def _require_invoice_flag(request, invoice, flag):
+    """403 unless the user holds `flag` for the customer billed (or the
+    customer the invoice is booked under); `_require_invoice_view`'s rule
+    for the other billing flags."""
+    from accounts.permission_utils import has_perm_for_org
+    if not (has_perm_for_org(request.user, invoice.client_org_id, flag)
+            or has_perm_for_org(request.user, invoice.organization_id, flag)):
+        raise PermissionDenied(f"You don't have the '{flag}' permission for this customer.")
+
+
 @login_required
 @require_psa_enabled
 def invoice_detail(request, pk):
@@ -5124,14 +5134,25 @@ def invoice_form(request, pk=None):
     from .models import Invoice, InvoiceLineItem
     from core.models import Organization, SystemSetting
     from datetime import date as _date
+    # Creating or editing an invoice needs `billing_send_invoices` (there is
+    # no separate invoice-edit flag) for its customer; customer users reach
+    # only their own customers' invoices.
+    from accounts.permission_utils import has_perm_for_org, orgs_with_perm
+    may_bill = orgs_with_perm(request.user, 'billing_send_invoices')
     if pk:
-        item = get_object_or_404(_for_customer(request, Invoice.objects.all()), pk=pk)
+        item = get_object_or_404(
+            _invoices_for_customer(request, _for_customer(request, Invoice.objects.all())), pk=pk)
+        _require_invoice_flag(request, item, 'billing_send_invoices')
         org = item.organization
     else:
+        if may_bill is not None and not may_bill:
+            raise PermissionDenied("You don't have the 'billing_send_invoices' permission.")
         item = None
         org = get_request_organization(request)
 
     client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
+    if may_bill is not None:
+        client_orgs = client_orgs.filter(pk__in=may_bill)
 
     # An invoice that has gone to the customer (or been voided) is a record,
     # not a draft: its amounts and details change only through a credit memo
@@ -5185,6 +5206,9 @@ def invoice_form(request, pk=None):
         except (Organization.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
+        if not (has_perm_for_org(request.user, client_org, 'billing_send_invoices')
+                or has_perm_for_org(request.user, item_org, 'billing_send_invoices')):
+            raise PermissionDenied("You don't have the 'billing_send_invoices' permission for this customer.")
 
         if item is None:
             item = Invoice(organization=item_org, client_org=client_org, title=title,
@@ -5346,14 +5370,17 @@ def invoice_from_ticket(request, ticket_number):
 @require_write
 @require_psa_enabled
 @require_http_methods(['POST'])
-def payment_add(request, invoice_pk):
+def payment_add(request, pk):
+    """Record a payment. Needs `billing_record_payments` for the invoice's
+    customer; customer users reach only their own customers' invoices."""
     from .models import Invoice, Payment
     from datetime import date as _date
     org = get_request_organization(request)
-    qs = Invoice.objects.all()
+    qs = _invoices_for_customer(request, _for_customer(request, Invoice.objects.all()))
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs, pk=invoice_pk)
+    invoice = get_object_or_404(qs, pk=pk)
+    _require_invoice_flag(request, invoice, 'billing_record_payments')
     try:
         amount = float(request.POST.get('amount') or 0)
     except (TypeError, ValueError):
@@ -10231,6 +10258,31 @@ def _my_work_approvals(request):
                 'url': reverse('psa:invoice_detail', args=[i.pk]),
             } for i in invoices[:5]],
         })
+
+    # RMM approvals (rmm_permissions.approvals): other technicians' requests
+    # this user qualifies to approve now. Only the customer, the kind of
+    # action and the requester are shown; the details stay on the page.
+    try:
+        from rmm_permissions import approvals as rmm_approvals
+        from rmm_permissions import catalog as rmm_catalog
+        from rmm_permissions.decision import is_technician
+        if request.user.is_superuser or is_technician(request.user):
+            waiting = [a for a in rmm_approvals.open_for(request.user).exclude(requester=request.user)[:50]
+                       if not rmm_approvals.refusal(a, request.user)]
+            if waiting:
+                rmm_url = reverse('rmm_permissions:approvals')
+                queues.append({
+                    'key': 'rmm', 'label': 'RMM approvals', 'icon': 'fa-user-shield',
+                    'count': len(waiting), 'url': rmm_url,
+                    'items': [{
+                        'title': (rmm_catalog.ACTIONS[a.action].label if a.action in rmm_catalog.ACTIONS
+                                  else a.action),
+                        'context': f'{a.organization.name} · asked by {a.requester.get_username()}',
+                        'when': a.created_at, 'url': rmm_url,
+                    } for a in waiting[:5]],
+                })
+    except Exception:  # noqa: BLE001 — a broken queue must not take My Work down
+        logger.debug('My Work: RMM approvals unavailable', exc_info=True)
     return queues
 
 

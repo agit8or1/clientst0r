@@ -138,7 +138,11 @@ def _evaluate(assignment, user, capability, ticket, asset) -> Decision:
     return Decision(state, f'Granted by {where}.', where, capability)
 
 
-def decide(user, organization, capability, ticket=None, asset=None, now=None) -> Decision:
+def decide(user, organization, capability, ticket=None, asset=None, now=None, integration=True) -> Decision:
+    """`integration=False` skips the "does a paired RMM advertise this"
+    check, for callers whose operation is not the advertised capability
+    itself (rmm_permissions' alert.read_live: a service-level read of
+    monitoring state that only borrows the read-only diagnostics grant)."""
     now = now or timezone.now()
     if capability in catalog.LOCKED:
         return Decision(LOCKED, catalog.LOCKED[capability][1], 'Mandatory safeguard', capability)
@@ -164,7 +168,7 @@ def decide(user, organization, capability, ticket=None, asset=None, now=None) ->
     if _restricted(organization, capability):
         return Decision(catalog.OFF, f'{organization.name} has switched this off for all technicians.',
                         'Customer restriction', capability)
-    missing = unavailable_reason(capability, organization)
+    missing = unavailable_reason(capability, organization) if integration else ''
     if missing:
         return Decision(UNAVAILABLE, missing, 'Integration', capability)
 
