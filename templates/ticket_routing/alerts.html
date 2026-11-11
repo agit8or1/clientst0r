@@ -4,6 +4,19 @@
 {% include "ticket_routing/_nav.html" with tab="alerts" crumb="Alert policy" %}
 <h4 class="mb-1">Alert policy</h4>
 <p class="small text-muted">Decides what a monitoring alert does: open a ticket, join one, wait, or only be recorded. Legacy (the default) keeps today's behaviour: one ticket per Rem0te alert, none for synced RMM alerts. The policy never starts a remote session and never asks for an endpoint action. Not AI.</p>
+{% if settings.mode == 'legacy' %}
+<div class="alert alert-info small d-flex gap-2" role="status" id="alertPolicyOff">
+    <i class="fas fa-circle-info mt-1" aria-hidden="true"></i>
+    <div>
+        <strong>The alert policy is off.</strong> Alerts follow the legacy behaviour until you switch it on. To set it up:
+        <ol class="mb-0 mt-1 ps-3">
+            <li>set <em>Mode</em> to <em>Alert policy</em> and pick what happens when no rule matches;</li>
+            <li>tick <em>Also synced RMM alerts</em> if alerts from your RMM sync should open or join tickets too;</li>
+            <li>add rules for the alerts that need something other than the default, then <em>Save</em>. Rules can be written while the policy is off; they take effect once it is on.</li>
+        </ol>
+    </div>
+</div>
+{% endif %}
 <form method="post" class="card mb-3">{% csrf_token %}
 <div class="card-body row g-2 small">
     <div class="col-md-4"><label class="form-label">Mode</label><select name="mode" class="form-select form-select-sm">{% for k, v in mode_choices %}<option value="{{ k }}" {% if settings.mode == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>

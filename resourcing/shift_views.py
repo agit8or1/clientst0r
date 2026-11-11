@@ -104,6 +104,7 @@ def schedule(request):
         'assignments': (ShiftAssignment.objects.select_related('template', 'user', 'team')
                         .order_by('template__start_time', 'pk') if manage else []),
         'conflict_count': sum(r['conflicts'] for r in rows),
+        'has_shifts': ShiftAssignment.objects.exists(),
         'today': timezone.localdate(),
     })
 

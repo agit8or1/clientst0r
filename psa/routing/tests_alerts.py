@@ -455,11 +455,14 @@ class PagesTests(AlertBase):
             from django.urls import reverse
             r = c.get(reverse(f'ticket_routing:{name}'))
             self.assertEqual(r.status_code, 200, name)
+        # Legacy mode: the page says the policy is off and how to set it up.
+        self.assertContains(c.get(reverse('ticket_routing:alerts')), 'The alert policy is off')
         r = c.post(reverse('ticket_routing:alerts'), {'mode': 'policy', 'default_action': 'create',
                                                       'offline_hold_minutes': '3', 'site_outage_threshold': '4',
                                                       'site_outage_window_minutes': '10'})
         self.assertEqual(r.status_code, 302)
         self.assertEqual(AlertPolicySettings.load().mode, 'policy')
+        self.assertNotContains(c.get(reverse('ticket_routing:alerts')), 'The alert policy is off')
         r = c.post(reverse('ticket_routing:alert_rule_new'), {'name': 'Disks', 'categories': ['disk'],
                                                               'action': 'create', 'assign_mode': 'routing',
                                                               'after_hours': 'create', 'on_recovery': 'note',

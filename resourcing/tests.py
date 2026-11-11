@@ -587,6 +587,23 @@ class ShiftViewTests(TestCase):
         late.refresh_from_db()
         self.assertFalse(late.is_active)
 
+    def test_empty_schedule_explains_how_to_start(self):
+        page = self._login(self.admin).get(reverse('resourcing:shift_schedule'))
+        self.assertContains(page, 'id="shiftSetup"')
+        self.assertContains(page, 'No shifts scheduled yet')
+        self.assertNotContains(page, 'Create a shift template')  # a template exists: assign it
+        ShiftTemplate.objects.all().delete()
+        page = self._login(self.admin).get(reverse('resourcing:shift_schedule'))
+        self.assertContains(page, 'Create a shift template')
+        page = self._login(self.tech).get(reverse('resourcing:shift_schedule'))
+        self.assertContains(page, 'Your dispatcher has not scheduled any shifts')
+        self.assertNotContains(page, 'Create a shift template')
+        ShiftAssignment.objects.create(template=ShiftTemplate.objects.create(
+            name='Day', start_time=time(8), end_time=time(16)), user=self.tech, weekdays=[0],
+            effective_from=timezone.localdate())
+        self.assertNotContains(self._login(self.tech).get(reverse('resourcing:shift_schedule')),
+                               'id="shiftSetup"')
+
     def test_invalid_assignment_is_refused(self):
         c = self._login(self.admin)
         c.post(reverse('resourcing:shift_assign'), {'template': self.tpl.pk, 'weekdays': ['0']})

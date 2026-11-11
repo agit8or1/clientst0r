@@ -31,6 +31,23 @@
     {% endif %}
 </div>
 
+{% if not has_shifts %}
+<div class="card mb-3" id="shiftSetup">
+    <div class="card-body">
+    {% if can_manage %}
+        {% url 'resourcing:shift_templates' as templates_url %}
+        {% if templates %}
+        {% include "core/_empty_state.html" with compact=True title="No shifts scheduled yet" text="Use “Add to the weekly schedule” below to give technicians or teams a shift on chosen weekdays. Until then dispatch, on-call and ticket routing use each technician's working hours." %}
+        {% else %}
+        {% include "core/_empty_state.html" with compact=True title="No shifts scheduled yet" text="Start with a shift template (for example Day 08:00–17:00, or an on-call shift), then add it to the weekly schedule for technicians or teams. Until then dispatch, on-call and ticket routing use each technician's working hours." action_url=templates_url action_label="Create a shift template" %}
+        {% endif %}
+    {% else %}
+        {% include "core/_empty_state.html" with compact=True title="No shifts scheduled yet" text="Your dispatcher has not scheduled any shifts. Until they do, dispatch and ticket routing use your working hours from your profile." %}
+    {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if conflict_count %}
 <div class="alert alert-warning py-2 small" id="shift-pto-conflicts"><i class="fas fa-exclamation-triangle me-1"></i>{{ conflict_count }} scheduled shift{{ conflict_count|pluralize }} this week clash{{ conflict_count|pluralize:"es," }} with leave or a holiday. Marked in red below.</div>
 {% endif %}
@@ -115,7 +132,7 @@
                     <span>{% if a.user %}{{ a.user.get_full_name|default:a.user.username }}{% else %}Team {{ a.team.name }}{% endif %} — {{ a.template }} on {{ a.weekday_labels }}
                         <span class="text-muted">from {{ a.effective_from|date:"Y-m-d" }}{% if a.effective_until %} until {{ a.effective_until|date:"Y-m-d" }}{% endif %}</span>
                         {% if not a.template.is_active %}<span class="badge text-bg-secondary">template off</span>{% endif %}</span>
-                    <form method="post" action="{% url 'resourcing:shift_assignment_delete' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-danger" title="Remove">&times;</button></form>
+                    <form method="post" action="{% url 'resourcing:shift_assignment_delete' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove {% if a.user %}{{ a.user.get_full_name|default:a.user.username }}{% else %}team {{ a.team.name }}{% endif %}'s {{ a.template }} shift"><span aria-hidden="true">&times;</span></button></form>
                 </li>
                 {% empty %}
                 <li class="list-group-item text-muted">No shifts scheduled yet.</li>
