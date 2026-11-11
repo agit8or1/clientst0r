@@ -30,11 +30,13 @@ class WorkspaceBase(RMMActionBase):
         super().setUp()
         RMMDevice.objects.filter(pk=self.device.pk).update(
             is_online=True, last_seen=timezone.now(),
-            raw_data={'logged_username': 'pat.frontdesk', 'agent_version': '2.7.0', 'total_ram': 16,
+            # Tactical RMM's own field names (GET /agents/).
+            raw_data={'logged_username': 'pat.frontdesk', 'version': '2.7.0', 'total_ram': 16,
                       'cpu_model': ['Intel i5-12500'], 'needs_reboot': True,
                       'boot_time': (timezone.now() - timedelta(days=2, hours=3)).timestamp(),
-                      'disks': [{'device': 'C:', 'total_gb': 238, 'percent': 71}],
-                      'local_ips': ['10.0.0.21']})
+                      'disks': [{'device': 'C:', 'fstype': 'NTFS', 'total': '237.5 GB', 'free': '69.3 GB',
+                                 'percent': 71}],
+                      'local_ips': '10.0.0.21'})
         self.device.refresh_from_db()
 
     def ws(self, asset=None, client=None, **params):
@@ -197,3 +199,101 @@ class Rem0teWorkspaceTests(WorkspaceBase):
         self.device.refresh_from_db()
         view = ws.device_view(self.device, show_user=True)
         self.assertEqual([s.name for s in view['recent_software']], ['7-Zip'])
+
+
+class WorkspaceRefreshTests(WorkspaceBase):
+    """POST /assets/<pk>/workspace/refresh/ (assets/workspace_refresh.py)."""
+
+    def answer(self, **raw):
+        data = {'agent_id': 'c-1', 'hostname': 'FRONTDESK-01', 'client': 'Alpha Dental', 'plat': 'windows',
+                'operating_system': 'Windows 11 Pro', 'version': '2.9.1', 'logged_in_username': 'None',
+                'last_logged_in_user': 'pat.frontdesk', 'needs_reboot': False, 'status': 'online',
+                'services': [{'name': 'Spooler', 'display_name': 'Print Spooler', 'status': 'running',
+                              'start_type': 'Automatic', 'binpath': 'C:\\Windows\\spoolsv.exe'}]}
+        data.update(raw)
+        from integrations.providers.rmm.tactical_rmm import TacticalRMMProvider
+        return TacticalRMMProvider(self.conn_a).normalize_device(data)
+
+    def refresh(self, client=None, asset=None, **data):
+        data.setdefault('device', self.device.pk)
+        return (client or self.c).post(f'/assets/{(asset or self.asset).pk}/workspace/refresh/', data)
+
+    def patched(self, **kw):
+        from unittest import mock
+        from integrations.providers.rmm.tactical_rmm import TacticalRMMProvider
+        kw.setdefault('return_value', self.answer())
+        return mock.patch.object(TacticalRMMProvider, 'get_device', **kw)
+
+    def audits(self):
+        from audit.models import AuditLog
+        return list(AuditLog.objects.filter(object_type='rmm_device_refresh').order_by('pk'))
+
+    def test_refresh_runs_the_providers_single_device_read_and_is_audited(self):
+        self.conn_a.sync_services = True
+        self.conn_a.save()
+        with self.patched() as get:
+            r = self.refresh()
+        self.assertEqual(r.status_code, 302)
+        get.assert_called_once_with('c-1')
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.raw_data['version'], '2.9.1')
+        [row] = self.audits()
+        self.assertTrue(row.success)
+        self.assertEqual(row.organization, self.a)
+        self.assertEqual(row.extra_data['outcome'], 'ok')
+        html = self.ws().content.decode()
+        self.assertIn('Refreshed from Tactical RMM', html)
+        self.assertIn('Version 2.9.1', html)
+        self.assertIn('data-ws-services', html)
+        self.assertIn('Print Spooler — running, Automatic', html)
+        self.assertNotIn('spoolsv.exe', html)
+
+    def test_rate_limited_per_device(self):
+        with self.patched() as get:
+            self.refresh()
+            r = self.refresh()
+        self.assertEqual(get.call_count, 1)
+        self.assertEqual([a.extra_data['outcome'] for a in self.audits()], ['ok', 'rate_limited'])
+        self.assertIn('Try again in', self.c.get(r.url).content.decode())
+
+    def test_post_only_and_page_render_never_calls_the_provider(self):
+        with self.patched(side_effect=AssertionError('provider called during render')):
+            self.assertEqual(self.c.get(f'/assets/{self.asset.pk}/workspace/refresh/').status_code, 405)
+            html = self.ws().content.decode()
+        self.assertIn('data-ws-refresh', html)
+        self.assertEqual(self.audits(), [])
+
+    def test_refused_without_device_view_permission(self):
+        from rmm_permissions import overrides
+        from rmm_permissions.models import RMMPermissionOverride
+        admin = make_tech('secadmin', superuser=True)
+        overrides.create(admin, action='device.view', effect=RMMPermissionOverride.DENY, organization=self.a,
+                         user=self.tech)
+        with self.patched() as get:
+            r = self.refresh()
+        self.assertEqual(r.status_code, 302)
+        get.assert_not_called()
+        [row] = self.audits()
+        self.assertFalse(row.success)
+        self.assertEqual(row.extra_data['outcome'], 'refused')
+
+    def test_other_customers_device_and_customer_users(self):
+        asset_b = Asset.objects.create(organization=self.b, name='Front desk PC', hostname='FRONTDESK-01')
+        dev_b = RMMDevice.objects.create(organization=self.b, connection=self.conn_b, external_id='c-1',
+                                         device_name='FRONTDESK-01', linked_asset=asset_b,
+                                         data_refreshed_at=timezone.now())
+        portal = User.objects.create_user('client', password='pw')
+        Membership.objects.create(user=portal, organization=self.a, role=Role.OWNER)
+        with self.patched() as get:
+            # Beta's device on Alpha's asset, and Beta's asset while Alpha is selected.
+            self.assertEqual(self.refresh(device=dev_b.pk).status_code, 404)
+            self.assertEqual(self.refresh(asset=asset_b, device=dev_b.pk).status_code, 404)
+            self.assertEqual(self.refresh(client=sign_in(portal, self.a)).status_code, 404)
+        get.assert_not_called()
+
+    def test_not_available_is_explained(self):
+        self.conn_a.sync_enabled = False
+        self.conn_a.save()
+        html = self.ws().content.decode()
+        self.assertIn('data-ws-refresh-unavailable', html)
+        self.assertIn('switched off', html)

@@ -329,6 +329,11 @@ class RMMConnection(BaseModel):
     sync_devices = models.BooleanField(default=True)
     sync_alerts = models.BooleanField(default=True)
     sync_software = models.BooleanField(default=False)
+    # Opt-in: keep the latest service list per device where the provider's
+    # client already returns one (integrations/rmm_snapshots.py).
+    sync_services = models.BooleanField(default=False, help_text=(
+        "Keep each device's Windows service list where the RMM's device record carries it "
+        "(Tactical RMM). Kept for 14 days, latest only."))
     sync_network_config = models.BooleanField(default=False)
     sync_interval_minutes = models.PositiveIntegerField(default=60)
 
@@ -580,6 +585,8 @@ class RMMDevice(BaseModel):
     last_synced_at = models.DateTimeField(auto_now=True)
     # When the RMM last returned this device's data (not just a local save).
     data_refreshed_at = models.DateTimeField(null=True, blank=True)
+    # Last "Refresh from RMM" from the Device Workspace (rate limit).
+    manual_refresh_at = models.DateTimeField(null=True, blank=True)
 
     objects = OrganizationManager()
 
@@ -688,6 +695,36 @@ class RMMSoftware(BaseModel):
         vendor_str = f" by {self.vendor}" if self.vendor else ""
         version_str = f" {self.version}" if self.version else ""
         return f"{self.name}{version_str}{vendor_str}"
+
+
+class RMMDeviceSnapshot(BaseModel):
+    """The latest list of one kind (services today) an RMM reported for a
+    device, with when it was collected. One row per device and kind: each
+    collection replaces the last, and rows older than the retention window
+    are deleted (integrations/rmm_snapshots.py). Follows the device's
+    customer; deleted when the device changes customer."""
+    KIND_SERVICES = 'services'
+    KIND_CHOICES = [(KIND_SERVICES, 'Services')]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_snapshots',
+                                     null=True, blank=True)
+    connection = models.ForeignKey(RMMConnection, on_delete=models.CASCADE, related_name='snapshots')
+    device = models.ForeignKey(RMMDevice, on_delete=models.CASCADE, related_name='snapshots')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    items = models.JSONField(default=list, blank=True)
+    item_count = models.PositiveIntegerField(default=0)
+    truncated = models.BooleanField(default=False)
+    collected_at = models.DateTimeField()
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'rmm_device_snapshots'
+        unique_together = [['device', 'kind']]
+        indexes = [models.Index(fields=['collected_at'])]
+
+    def __str__(self):
+        return f"{self.kind} of {self.device_id} at {self.collected_at:%Y-%m-%d %H:%M}"
 
 
 # ============================================================================

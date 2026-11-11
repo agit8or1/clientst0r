@@ -260,10 +260,13 @@ def apply_customer_decision(device, decision, identity):
 
 
 def set_device_organization(device, org):
-    """Move a device's cached alerts and software with it."""
+    """Move a device's cached alerts and software with it; drop its kept lists."""
     from .models import RMMAlert, RMMSoftware
     RMMAlert.objects.filter(device=device).exclude(organization=org).update(organization=org)
     RMMSoftware.objects.filter(device=device).exclude(organization=org).update(organization=org)
+    # Kept lists (services) were collected under the old customer: dropped.
+    from .rmm_snapshots import forget_device
+    forget_device(device, org)
 
 
 # ---------------------------------------------------------------------------

@@ -9269,23 +9269,31 @@ def my_timesheet(request, year=None, week=None):
                .filter(user=request.user,
                        started_at__date__gte=period_start,
                        started_at__date__lte=period_end)
-               .select_related('ticket', 'ticket__priority', 'submission')
+               .select_related('ticket', 'ticket__priority', 'submission', 'rejected_by')
                .order_by('started_at'))
 
+    # The week's latest revision. Revision 2+ exists only when entries were
+    # returned from an approved week and then resubmitted.
     submission = (TimesheetSubmission.objects
                   .filter(user=request.user,
                           period_start=period_start, period_end=period_end)
-                  .first())
+                  .order_by('-revision').first())
 
     total_min = sum((e.duration_minutes or 0) for e in entries)
     billable_min = sum((e.duration_minutes or 0) for e in entries if e.is_billable)
+    unsubmitted = [e for e in entries if not e.submission_id]
+    returned = [e for e in unsubmitted if e.rejection_reason or e.rejected_at]
 
     if request.method == 'POST':
-        if submission and submission.status in ('approved', 'pending'):
-            messages.warning(request, f'Already submitted ({submission.status}).')
+        if submission and submission.status == 'pending':
+            messages.warning(request, 'Already submitted (pending).')
             return redirect('psa:my_timesheet_iso', year=period_start.isocalendar()[0],
                             week=period_start.isocalendar()[1])
-        if not entries:
+        if submission and submission.status == 'approved' and not unsubmitted:
+            messages.warning(request, 'Already submitted (approved).')
+            return redirect('psa:my_timesheet_iso', year=period_start.isocalendar()[0],
+                            week=period_start.isocalendar()[1])
+        if not unsubmitted:
             messages.error(request, 'Nothing to submit — log some time first.')
             return redirect('psa:my_timesheet_iso', year=period_start.isocalendar()[0],
                             week=period_start.isocalendar()[1])
@@ -9297,18 +9305,30 @@ def my_timesheet(request, year=None, week=None):
             submission.decided_at = None
             submission.decision_notes = ''
             submission.save()
+        elif submission and submission.status == 'approved':
+            # Returned (or newly logged) entries in an approved week go up as
+            # a new revision; the approved one stays approved and locked.
+            submission = TimesheetSubmission.objects.create(
+                user=request.user,
+                period_start=period_start, period_end=period_end,
+                status='pending', submitter_notes=notes,
+                revision=submission.revision + 1,
+            )
         else:
             submission = TimesheetSubmission.objects.create(
                 user=request.user,
                 period_start=period_start, period_end=period_end,
                 status='pending', submitter_notes=notes,
             )
-        entries.update(submission=submission)
+        TicketTimeEntry.objects.filter(pk__in=[e.pk for e in unsubmitted]).update(
+            submission=submission, rejection_reason='', rejected_at=None,
+            rejected_by=None)
         from .models import TimeEntryAuditEvent
         TimeEntryAuditEvent.record_for_entries(
-            entries, action='submitted', actor=request.user, submission=submission, note=notes)
+            unsubmitted, action='submitted', actor=request.user, submission=submission,
+            note=notes)
         messages.success(request,
-            f'Submitted {len(entries)} entries for the week of {period_start}.')
+            f'Submitted {len(unsubmitted)} entries for the week of {period_start}.')
         return redirect('psa:my_timesheet_iso',
                         year=period_start.isocalendar()[0],
                         week=period_start.isocalendar()[1])
@@ -9323,6 +9343,8 @@ def my_timesheet(request, year=None, week=None):
         'total_minutes': total_min,
         'billable_minutes': billable_min,
         'submission': submission,
+        'unsubmitted_count': len(unsubmitted),
+        'returned_entries': returned,
     })
 
 
@@ -9381,7 +9403,33 @@ def timesheet_decide(request, pk):
     submission = get_object_or_404(TimesheetSubmission, pk=pk, status='pending')
     decision = request.POST.get('decision') or ''
     notes = (request.POST.get('notes') or '').strip()[:5000]
-    if decision == 'approve':
+    # Per-entry returns: `return_entry_ids` (multi) with `return_reason_<id>`
+    # each; the decision notes stand in for a blank reason.
+    returns = {}
+    entry_ids = set(submission.entries.values_list('pk', flat=True))
+    for raw in request.POST.getlist('return_entry_ids'):
+        try:
+            entry_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if entry_id in entry_ids:
+            returns[entry_id] = ((request.POST.get(f'return_reason_{entry_id}') or '').strip()
+                                 or notes)[:5000]
+    if returns and decision == 'approve':
+        if not all(returns.values()):
+            messages.error(request, 'Give a reason for each entry you send back.')
+            return redirect('psa:timesheet_approval_queue')
+        outcome = submission.decide_with_returns(returns, user=request.user, notes=notes)
+        if outcome == 'approved':
+            messages.success(request,
+                f'Approved {submission.user.username}\'s week of {submission.period_start}; '
+                f'{len(returns)} entr{"y" if len(returns) == 1 else "ies"} sent back to fix '
+                f'and resubmit.')
+        else:
+            messages.success(request,
+                f'Every entry was sent back, so {submission.user.username}\'s week of '
+                f'{submission.period_start} is rejected.')
+    elif decision == 'approve':
         submission.approve(user=request.user, notes=notes)
         messages.success(request,
             f'Approved {submission.user.username}\'s week of {submission.period_start}.')

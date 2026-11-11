@@ -71,6 +71,20 @@
                 <p class="text-muted mb-0">Nothing unresolved, so no digest would be sent this week.</p>
                 {% endif %}
             </div>
+            <div class="card-footer small d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <span>
+                    <strong>All-clear e-mails:</strong>
+                    {% if all_clear %}<span class="badge bg-success">On</span> opted-in contacts get a short weekly "no unresolved alerts" note when there is nothing to report.
+                    {% else %}<span class="badge bg-secondary">Off</span> weeks with nothing unresolved send no e-mail.{% endif %}
+                </span>
+                {% if can_manage %}
+                <form method="post" class="d-inline">{% csrf_token %}
+                    <input type="hidden" name="org" value="{{ org.pk }}">
+                    {% if all_clear %}<button name="action" value="all_clear_off" class="btn btn-sm btn-outline-secondary">Turn off</button>
+                    {% else %}<button name="action" value="all_clear_on" class="btn btn-sm btn-outline-success">Turn on</button>{% endif %}
+                </form>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

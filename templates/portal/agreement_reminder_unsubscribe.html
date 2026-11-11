@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Unsubscribe{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                {% if invalid %}
+                <h4>This link is not valid</h4>
+                <p class="text-muted">Use the link from your most recent reminder, or turn off e-mail notifications in your profile.</p>
+                {% elif done %}
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4>Reminders stopped</h4>
+                <p class="text-muted">{{ email }} will no longer get reminder e-mails about "{{ agreement.title }}". It still shows as waiting in the customer portal.</p>
+                {% else %}
+                <h4>Stop reminders about "{{ agreement.title }}"?</h4>
+                <p class="text-muted">For {{ email }}. Other e-mail notifications are not affected.</p>
+                <form method="post">{% csrf_token %}
+                    <button type="submit" class="btn btn-primary">Stop these reminders</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
