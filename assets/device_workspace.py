@@ -25,7 +25,7 @@ Rules this module keeps:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone as dt_timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from django.urls import reverse
 from django.utils import timezone
@@ -33,31 +33,15 @@ from django.utils.dateparse import parse_datetime
 
 SUPPORTED, UNSUPPORTED, NOT_SYNCED, NO_DATA = 'supported', 'unsupported', 'not_synced', 'no_data'
 
-# Raw keys each provider uses for the same fact (first present wins).
-LOGGED_IN_KEYS = ('logged_username', 'logged_in_username', 'lastLoggedInUser', 'last_logged_in_user',
-                  'LastLoginUser', 'LastUserName', 'lastLoggedOnUser', 'currentUser')
-AGENT_VERSION_KEYS = ('agent_version', 'agentVersion', 'AgentVersion')
-BOOT_KEYS = ('boot_time', 'lastBootTime', 'last_boot_time', 'LastBootTime', 'LastRebootTime', 'lastReboot',
-             'lastBootAt')
-REBOOT_KEYS = ('needs_reboot', 'rebootRequired', 'reboot_required', 'RebootRequired', 'pendingReboot')
-LAST_PATCHED_KEYS = ('last_patched', 'lastPatchedAt', 'LastPatchDate')
-SERVICE_KEYS = ('services', 'winsvcs', 'service_list')
-EVENT_KEYS = ('event_log', 'eventlog', 'windows_events', 'events')
-PROCESS_KEYS = ('processes', 'process_list')
+# Raw field names are read per provider (integrations/rmm_fields.py), never
+# guessed across providers; services come from the opt-in kept lists
+# (integrations/rmm_snapshots.py).
 
 MAX_ROWS = 200
 RECENT_CHANGE_DAYS = 14
 
 
 # --- small helpers -------------------------------------------------------------
-
-def _first(raw: dict, keys) -> Any:
-    for k in keys:
-        v = raw.get(k)
-        if v not in (None, '', [], {}):
-            return v
-    return None
-
 
 def _as_dt(value) -> Optional[datetime]:
     """A timestamp from raw RMM data: ISO text or Unix seconds/milliseconds."""
@@ -73,18 +57,6 @@ def _as_dt(value) -> Optional[datetime]:
     if dt is not None and timezone.is_naive(dt):
         dt = timezone.make_aware(dt, dt_timezone.utc)
     return dt
-
-
-def _as_bool(value) -> Optional[bool]:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    if isinstance(value, str) and value.strip().lower() in ('true', 'yes', '1', 'required', 'pending'):
-        return True
-    if isinstance(value, str) and value.strip().lower() in ('false', 'no', '0', 'none', 'not required'):
-        return False
-    return None
 
 
 def _text(value, limit=200) -> str:
@@ -109,10 +81,10 @@ def support(device) -> Dict[str, Dict[str, str]]:
     `not_synced` — it could, but the connection doesn't sync it.
     `unsupported` — this integration doesn't give it to ClientSt0r.
     """
+    from integrations import rmm_fields
     p = provider_of(device)
     conn = device.connection
     label = provider_label(device)
-    raw = device.raw_data or {}
     out = {}
 
     def put(kind, state, detail=''):
@@ -142,25 +114,33 @@ def support(device) -> Dict[str, Dict[str, str]]:
     else:
         put('alerts', UNSUPPORTED, f"{label}'s integration doesn't supply alerts.")
 
-    # Services, processes, Windows events: no ClientSt0r RMM sync collects
-    # them today. Shown only if a provider's payload happens to carry them.
-    for kind, keys, what in (('services', SERVICE_KEYS, 'services'), ('processes', PROCESS_KEYS, 'processes'),
-                             ('events', EVENT_KEYS, 'Windows events')):
-        if isinstance(_first(raw, keys), list):
-            put(kind, SUPPORTED)
+    # Services: kept (opt-in) only where the provider's client already
+    # returns them. Processes and Windows events: no provider's client
+    # returns them; each says what it would take.
+    if p is not None and getattr(p, 'supports_services', False):
+        if getattr(conn, 'sync_services', False):
+            put('services', SUPPORTED, f'Kept from {label} at each sync (latest list only, for '
+                                       f'{_retention_days()} days).')
         else:
-            put(kind, UNSUPPORTED, f"{label}'s integration doesn't give ClientSt0r {what}"
-                                   + (' (Rem0te reads them on its own monitoring pages).'
-                                      if conn.provider_type == 'rem0te' else '.'))
+            put('services', NOT_SYNCED, f'Switch on Collect services on the {conn.name} connection to keep them.')
+    else:
+        put('services', UNSUPPORTED, rmm_fields.list_gap(conn.provider_type, 'services', f"{label}'s"))
+    for kind in ('processes', 'events'):
+        put(kind, UNSUPPORTED, rmm_fields.list_gap(conn.provider_type, kind, f"{label}'s"))
 
     # Patches.
     if conn.provider_type == 'rem0te':
         put('patches', SUPPORTED, 'From the patch summary on Rem0te restart-pending alerts (contract revision 2).')
-    elif _first(raw, REBOOT_KEYS + LAST_PATCHED_KEYS) is not None or isinstance(raw.get('patchManagement'), dict):
-        put('patches', SUPPORTED)
+    elif conn.provider_type in rmm_fields.PATCH_SOURCE:
+        put('patches', SUPPORTED, f'From {rmm_fields.PATCH_SOURCE[conn.provider_type]}.')
     else:
         put('patches', UNSUPPORTED, f"{label}'s integration doesn't report patch status to ClientSt0r.")
     return out
+
+
+def _retention_days():
+    from integrations.rmm_snapshots import RETENTION_DAYS
+    return RETENTION_DAYS
 
 
 # --- per-device facts --------------------------------------------------------------
@@ -203,12 +183,11 @@ def rem0te_patch_summary(device) -> Optional[dict]:
     return None
 
 
-def patch_status(device, sup) -> dict:
+def patch_status(device, sup, facts=None) -> dict:
     """Restart pending and patch posture. `reboot` is True / False / None
     (unknown) — never False just because nothing was reported."""
     if sup['patches']['state'] != SUPPORTED:
         return {'state': UNSUPPORTED, 'detail': sup['patches']['detail'], 'reboot': None}
-    raw = device.raw_data or {}
     if device.connection.provider_type == 'rem0te':
         ps = rem0te_patch_summary(device)
         if ps is None:
@@ -217,51 +196,43 @@ def patch_status(device, sup) -> dict:
                               "its Patches tab has the computer's full patch status."}
         return {'state': SUPPORTED, 'reboot': ps['reboot_required'], 'summary': ps, 'source': 'Rem0te patch summary',
                 'as_of': ps['evidence_at'] or ps['received_at']}
+    from integrations import rmm_fields
+    f = facts if facts is not None else rmm_fields.facts(device)
     fields = []
-    lp = _first(raw, LAST_PATCHED_KEYS)
-    if lp is not None:
-        fields.append(('Last patched', _text(lp, 40)))
-    pm = raw.get('patchManagement')
-    if isinstance(pm, dict):
-        for k, v in list(pm.items())[:8]:
-            if isinstance(v, (str, int, float, bool)):
-                fields.append((_text(k, 40), _text(v, 60)))
-    return {'state': SUPPORTED, 'reboot': _as_bool(_first(raw, REBOOT_KEYS)), 'fields': fields,
+    if f.get('last_patched') is not None:
+        fields.append(('Last patched', f['last_patched'].strftime('%Y-%m-%d %H:%M')))
+    fields.extend((_text(k, 40), _text(v, 60)) for k, v in (f.get('patch_fields') or [])[:8])
+    return {'state': SUPPORTED, 'reboot': f.get('reboot'), 'fields': fields,
+            'reboot_detail': f['unsupported'].get('reboot', ''),
             'source': provider_label(device), 'as_of': device.data_refreshed_at}
 
 
-def _disks(raw) -> List[dict]:
-    out = []
-    for d in (raw.get('disks') or [])[:20]:
-        if not isinstance(d, dict):
-            continue
-        out.append({'name': _text(d.get('device') or d.get('dev') or d.get('name') or '?', 60),
-                    'total': _text(d.get('total_gb') or d.get('total') or d.get('size') or '', 30),
-                    'free': _text(d.get('free_gb') or d.get('free') or '', 30),
-                    'percent': d.get('percent') if isinstance(d.get('percent'), (int, float)) else None,
-                    'fstype': _text(d.get('fstype') or '', 20)})
-    return out
-
-
-def _nics(device, raw):
-    out = []
-    for n in (raw.get('nics') or raw.get('interfaces') or [])[:20]:
-        if isinstance(n, dict):
-            ips = n.get('ips') or n.get('ip_addresses') or n.get('addresses') or n.get('ip') or ''
-            if isinstance(ips, list):
-                ips = ', '.join(_text(i, 50) for i in ips[:6])
-            out.append({'name': _text(n.get('name') or n.get('description') or n.get('adapter') or 'NIC', 80),
-                        'mac': _text(n.get('mac') or n.get('mac_address') or n.get('MACAddress') or '', 30),
-                        'ips': _text(ips, 200)})
-        elif isinstance(n, str):
-            out.append({'name': _text(n, 120), 'mac': '', 'ips': ''})
-    ips = []
-    for v in (raw.get('local_ips') or [])[:10]:
-        if isinstance(v, str):
-            ips.append(v[:50])
+def _ips(device, facts) -> List[str]:
+    ips = list(facts.get('ips') or [])[:10]
     if device.ip_address and str(device.ip_address) not in ips:
         ips.insert(0, str(device.ip_address))
-    return out, ips, _text(raw.get('public_ip') or '', 50)
+    return ips
+
+
+def _services(device, sup, now) -> dict:
+    """The kept service list (opt-in), as text rows with when it was
+    collected; nothing unless services are supported here."""
+    empty = {'rows': [], 'as_of': None, 'truncated': False, 'total': 0}
+    if sup['services']['state'] != SUPPORTED:
+        return empty
+    from integrations.rmm_snapshots import latest
+    snap = latest(device, 'services', now=now)
+    if snap is None:
+        return empty
+    rows = []
+    for s in (snap.items or [])[:MAX_ROWS]:
+        if not isinstance(s, dict):
+            continue
+        name = _text(s.get('display_name') or s.get('name'), 120)
+        extra = ', '.join(x for x in (_text(s.get('status'), 20), _text(s.get('start_type'), 20)) if x)
+        rows.append(name + (f' — {extra}' if extra else ''))
+    return {'rows': rows, 'as_of': snap.collected_at, 'total': snap.item_count,
+            'truncated': snap.truncated or snap.item_count > len(rows)}
 
 
 def _uptime(boot: Optional[datetime], status_state: str, now) -> str:
@@ -278,19 +249,18 @@ def _uptime(boot: Optional[datetime], status_state: str, now) -> str:
 
 def device_view(device, *, show_user: bool, now=None) -> dict:
     """Everything the workspace shows about one linked RMM device."""
+    from integrations import rmm_fields
     from integrations.rmm_association import console_label, console_link, device_hardware, device_status, \
         stale_after
     now = now or timezone.now()
-    raw = device.raw_data or {}
     status = device_status(device, now)
     sup = support(device)
     hw = device_hardware(device)
-    boot = _as_dt(_first(raw, BOOT_KEYS))
-    nics, ips, public_ip = _nics(device, raw)
-    agent_version = _first(raw, AGENT_VERSION_KEYS)
-    if agent_version is None and device.connection.provider_type == 'tactical_rmm':
-        agent_version = raw.get('version')
-    logged_in = _first(raw, LOGGED_IN_KEYS)
+    facts = rmm_fields.facts(device)
+    boot = facts['last_boot']
+    agent_version = facts['agent_version']
+    logged_in = facts['logged_in']
+    services = _services(device, sup, now)
     software = []
     if sup['software']['state'] == SUPPORTED:
         software = list(device.software.filter(organization_id=device.organization_id)
@@ -316,28 +286,36 @@ def device_view(device, *, show_user: bool, now=None) -> dict:
         'hardware': hw,
         'last_boot': boot,
         'uptime': _uptime(boot, status['state'], now),
-        'disks': _disks(raw),
-        'nics': nics, 'ips': ips, 'public_ip': public_ip,
+        'disks': facts['disks'],
+        'nics': facts['nics'], 'ips': _ips(device, facts), 'public_ip': facts['public_ip'] or '',
+        'gaps': facts['unsupported'],  # fact -> why this provider doesn't supply it
         'support': sup,
         'software': software,
         'software_total': device.software.filter(organization_id=device.organization_id).count()
         if sup['software']['state'] == SUPPORTED else 0,
         'recent_software': recent_software,
-        'services': [_text(s if isinstance(s, str) else (s.get('display_name') or s.get('name')), 120) + (
-            f" — {_text(s.get('status'), 20)}" if isinstance(s, dict) and s.get('status') else '')
-            for s in (_first(raw, SERVICE_KEYS) or [])[:MAX_ROWS] if isinstance(s, (str, dict))]
-        if sup['services']['state'] == SUPPORTED else [],
-        'events': [_text(e if isinstance(e, str) else (e.get('message') or e.get('Message') or e), 300)
-                   for e in (_first(raw, EVENT_KEYS) or [])[:50]]
-        if sup['events']['state'] == SUPPORTED else [],
-        'patches': patch_status(device, sup),
+        'services': services['rows'],
+        'services_as_of': services['as_of'],
+        'services_total': services['total'],
+        'services_truncated': services['truncated'],
+        'events': [],  # no provider's client returns them (support() says why)
+        'patches': patch_status(device, sup, facts),
         'alerts': alerts,
         'rem0te_alerts': rem0te_alerts,
         'alert_count': len(alerts) + len([r for r in rem0te_alerts if r.state != 'resolved']),
         'console_url': console_link(device),
         'console_label': console_label(device),
+        'refresh': _refresh_state(device),
         'external_id': device.external_id,
     }
+
+
+def _refresh_state(device) -> dict:
+    """Whether "Refresh from RMM" can run for this device, decided from
+    stored data only (the POST route checks permission and runs it)."""
+    from integrations.rmm_refresh import availability
+    ok, reason = availability(device)
+    return {'available': ok, 'reason': reason}
 
 
 def _rem0te_alerts(device) -> list:

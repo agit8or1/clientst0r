@@ -9,6 +9,7 @@ from . import port_config_views
 from . import port_views
 from . import views_custom
 from . import workspace_views
+from . import workspace_refresh
 
 app_name = 'assets'
 
@@ -19,6 +20,7 @@ urlpatterns = [
     path('quick/server/', quick_views.quick_server_add, name='quick_server_add'),
     path('<int:pk>/', views.asset_detail, name='asset_detail'),
     path('<int:pk>/workspace/', workspace_views.device_workspace, name='device_workspace'),
+    path('<int:pk>/workspace/refresh/', workspace_refresh.refresh_from_rmm, name='device_workspace_refresh'),
     path('<int:pk>/edit/', views.asset_edit, name='asset_edit'),
     path('<int:pk>/delete/', views.asset_delete, name='asset_delete'),
     path('<int:pk>/generate-profile/', views.asset_generate_profile, name='asset_generate_profile'),

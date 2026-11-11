@@ -553,7 +553,7 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
     class Meta:
         model = RMMConnection
         fields = ['provider_type', 'name', 'base_url', 'console_base_url', 'customer_scope', 'sync_enabled',
-                  'sync_devices', 'sync_alerts', 'sync_software', 'map_to_assets', 'sync_interval_minutes',
+                  'sync_devices', 'sync_alerts', 'sync_software', 'sync_services', 'map_to_assets', 'sync_interval_minutes',
                   'import_organizations', 'org_import_as_active', 'org_name_prefix']
         widgets = {
             'provider_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_rmm_provider_type'}),
@@ -565,6 +565,7 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
             'sync_devices': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_alerts': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_software': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'sync_services': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'map_to_assets': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_interval_minutes': forms.NumberInput(attrs={'class': 'form-control'}),
             'import_organizations': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

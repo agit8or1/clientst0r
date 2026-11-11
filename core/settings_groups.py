@@ -44,6 +44,7 @@ SETTINGS_GROUPS = {
     'security': (
         ('security', 'core:settings_security', 'superuser'),
         ('technician_access', 'tech_access:index', 'superuser'),
+        ('rmm_permissions', 'rmm_permissions:index', 'superuser'),
         ('security_dashboard', 'core:security_dashboard', 'superuser'),
         ('firewall', 'core:firewall_settings', 'superuser'),
         ('fail2ban', 'core:fail2ban_status', 'superuser'),

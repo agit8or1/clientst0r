@@ -22,11 +22,11 @@
                 <p class="mb-0">
                     <a href="{% url 'rmm_permissions:approvals' %}">Pending approvals ({{ open_approvals }})</a> ·
                     Effective permissions:
-                    <select class="form-select form-select-sm d-inline-block w-auto" aria-label="Technician" onchange="if(this.value)location=this.value">
+                    <select class="form-select form-select-sm d-inline-block w-auto" aria-label="Technician" data-navigate>
                         <option value="">technician…</option>
                         {% for t in technicians %}<option value="{% url 'rmm_permissions:technician' t.pk %}">{{ t.username }}</option>{% endfor %}
                     </select>
-                    <select class="form-select form-select-sm d-inline-block w-auto" aria-label="Customer" onchange="if(this.value)location=this.value">
+                    <select class="form-select form-select-sm d-inline-block w-auto" aria-label="Customer" data-navigate>
                         <option value="">customer…</option>
                         {% for o in organizations %}<option value="{% url 'rmm_permissions:customer' o.pk %}">{{ o.name }}</option>{% endfor %}
                     </select>
