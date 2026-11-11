@@ -44,7 +44,7 @@ def ticket_workflows(request, ticket_number):
         except engine.WorkflowRefused as e:
             messages.error(request, e.message)
             return redirect('support_workflows:ticket', ticket_number=ticket.ticket_number)
-        return redirect('support_workflows:run', pk=run.pk)
+        return redirect('support_workflows:run', run_id=run.pk)
     from psa.routing.alert_policy import links_for_ticket
     return render(request, 'support_workflows/ticket.html', {
         'ticket': ticket, 'options': engine.for_ticket(ticket), 'links': links_for_ticket(ticket),
@@ -56,9 +56,9 @@ def ticket_workflows(request, ticket_number):
 @login_required
 @require_psa_enabled
 @require_http_methods(['GET', 'POST'])
-def run_detail(request, pk):
+def run_detail(request, run_id):
     run = get_object_or_404(WorkflowRun.objects.select_related('ticket', 'ticket__organization', 'actor',
-                                                               'alert_link', 'device', 'rmm_request'), pk=pk)
+                                                               'alert_link', 'device', 'rmm_request'), pk=run_id)
     if not engine.can_view(request.user, run.ticket):
         raise Http404
     if request.method == 'POST':
@@ -83,7 +83,7 @@ def run_detail(request, pk):
                 engine.cancel(request.user, run)
         except engine.WorkflowRefused as e:
             messages.error(request, e.message)
-        return redirect('support_workflows:run', pk=run.pk)
+        return redirect('support_workflows:run', run_id=run.pk)
     from psa_ai.models import RMMRequest
     run.refresh_from_db()
     can = engine.can_run(request.user, run.ticket)

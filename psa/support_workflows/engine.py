@@ -180,10 +180,32 @@ def can_run(user, ticket) -> bool:
     return can_view(user, ticket) and has_perm_for_org(user, ticket.organization, 'tickets_edit')
 
 
-def _may_read_device(user, ticket) -> bool:
-    from tech_access.resolver import decide
-    return decide(user, ticket.organization, 'diagnostics_readonly', ticket=ticket,
-                  asset=ticket.related_asset).allowed
+def _may_read_device(user, ticket):
+    """(allowed, why not) for reading the alert's live state in Rem0te.
+
+    Uses the technician's "read-only diagnostics" grant for the customer and
+    the ticket's device (deny, customer restriction, containment and the
+    standard-workstation limit all apply). Rem0te does not advertise the
+    endpoint-diagnostics capability — this read is GET /alerts/{id}, a
+    service-level read of monitoring state, not a diagnostic on the
+    computer — so when the only thing missing is the integration
+    advertisement, the technician's own grant decides."""
+    from tech_access import resolver
+    from tech_access.catalog import RANK
+    d = resolver.decide(user, ticket.organization, 'diagnostics_readonly', ticket=ticket,
+                        asset=ticket.related_asset)
+    if d.allowed:
+        return True, ''
+    if d.state != resolver.UNAVAILABLE:
+        return False, d.reason
+    best = None
+    for a in resolver.live_assignments(user, ticket.organization):
+        e = resolver._evaluate(a, user, 'diagnostics_readonly', ticket, ticket.related_asset)
+        if best is None or RANK[e.state] > RANK[best.state]:
+            best = e
+    if best is not None and best.allowed:
+        return True, ''
+    return False, best.reason if best is not None else d.reason
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +315,8 @@ def gather(run, user, ticket, link, now=None):
                     pass
                 items.append(_item('patch', EVIDENCE['patch'], patch, when, now, fresh, 'Rem0te (with the alert)'))
         if 'alert_now' in wanted and link.source == AlertTicketLink.SOURCE_REM0TE:
-            if _may_read_device(user, ticket):
+            may_read, read_refused = _may_read_device(user, ticket)
+            if may_read:
                 data, why = _rem0te_alert_now(link)
                 if data is not None:
                     from psa.routing.alert_policy import _dt
@@ -310,7 +333,7 @@ def gather(run, user, ticket, link, now=None):
                                   'source': 'Rem0te', 'observed_at': '', 'age_minutes': None, 'fresh': False})
             else:
                 items.append({'key': 'alert_now', 'label': EVIDENCE['alert_now'],
-                              'value': {'note': 'Not read: you do not hold read-only diagnostics for this customer.'},
+                              'value': {'note': f'Not read: {read_refused}'},
                               'source': 'Rem0te', 'observed_at': '', 'age_minutes': None, 'fresh': False})
         if 'site_peers' in wanted and link.site_key:
             since = now - timedelta(hours=2)
