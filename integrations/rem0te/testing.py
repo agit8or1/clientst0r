@@ -75,7 +75,9 @@ def signed_post(client, path, body, key=None, kid=KID, audience=CS_AUDIENCE, ts=
                        **{'HTTP_' + k.upper().replace('-', '_'): v for k, v in h.items()})
 
 
-def capabilities(version='0.29.0', **over):
+def capabilities(version='0.29.0', revision=None, organizations=None, **over):
+    """A capabilities document. `revision` None = revision 1 (no
+    contract_revision, no organizations), as Rem0te 0.25–0.29 sends it."""
     doc = {
         'contract': protocol.CONTRACT, 'rem0te_version': version, 'audience': REM0TE_AUDIENCE, 'peer_id': PEER_ID,
         'features': {'ticket_analysis': True, 'model_comparison': True, 'endpoint_evidence': ['inventory', 'heartbeat'],
@@ -85,6 +87,22 @@ def capabilities(version='0.29.0', **over):
                    'max_request_bytes': 524288},
         'signing_keys': [{'kid': KID, 'alg': 'Ed25519', 'public_key_pem': rem0te_public_pem()}],
     }
+    if revision is not None:
+        doc['contract_revision'] = revision
+        doc['organizations'] = list(organizations or [])
+    doc.update(over)
+    return doc
+
+
+def organization(org_id, business_id='cmbiz000000000000000000001', name='Acme Dental', paused=()):
+    return {'organization_id': org_id, 'business_id': business_id, 'business_name': name, 'paused': list(paused)}
+
+
+def patch_summary(**over):
+    doc = {'evidence_source': 'signed_agent_scan', 'evidence_at': _iso_now(), 'evidence_age_hours': 0.5,
+           'freshness': 'fresh', 'last_boot_at': _iso_now(), 'managed_by': 'rem0te_or_windows_update', 'managers': [],
+           'reboot_required': True, 'pending_count': 1, 'pending_kbs': ['KB5044284'], 'confirmed_kbs': [],
+           'failed_kbs': [], 'awaiting_confirmation_kbs': [], 'deploy_available': True}
     doc.update(over)
     return doc
 
@@ -107,6 +125,8 @@ class FakeRem0te:
         self.alert_events = []
         self.fail = None
         self.mapped_orgs = None  # None = every organization is mapped
+        self.mapped_techs = None  # None = every technician is mapped (and allowed)
+        self.paused = {}  # organization id -> containment kinds in force
 
     @contextmanager
     def running(self):
@@ -172,6 +192,12 @@ class FakeRem0te:
         org = (body or {}).get('organization_id') or q.get('organization_id')
         if org and self.mapped_orgs is not None and org not in self.mapped_orgs:
             return self._err(403, 'FORBIDDEN', 'Organization not mapped')
+        if claims is not None and self.mapped_techs is not None and claims['sub'] not in self.mapped_techs:
+            return self._err(403, 'FORBIDDEN', 'Technician is not mapped')
+        kind = {'/jobs': 'integration', '/action-proposals': 'actions'}.get(route) if method == 'POST' else None
+        if kind and kind in self.paused.get(org, ()):
+            return self._err(423, 'CONTAINED', 'This business is suspended: ClientSt0r jobs are stopped. '
+                                               'Reason: under review (test)')
         return self._route(method, route, body, q, claims)
 
     def _route(self, method, route, body, q, claims):
@@ -181,7 +207,8 @@ class FakeRem0te:
             after = int(q.get('after', 0))
             evs = [e for e in self.alert_events if e['alert_event']['organization_id'] == q['organization_id']
                    and e['alert_event']['sequence'] > after][:100]
-            last = max([e['alert_event']['sequence'] for e in self.alert_events] or [0])
+            last = max([e['alert_event']['sequence'] for e in self.alert_events
+                        if e['alert_event']['organization_id'] == q['organization_id']] or [0])
             return self._respond(200, {'organization_id': q['organization_id'], 'last_sequence': last,
                                        'events': evs})
         if method == 'POST' and route == '/jobs':
@@ -209,6 +236,13 @@ class FakeRem0te:
                             for p in body['model_profiles']], 'error': None, 'result': None}
             self.jobs[body['idempotency_key']] = job
             return self._respond(202, job)
+        if method == 'GET' and route.startswith('/jobs/') and route.count('/') == 2:
+            if claims is None or claims['scope'] != 'ticket_analysis:read':
+                return self._err(401, 'DELEGATION_INVALID', 'scope')
+            for job in self.jobs.values():
+                if job['job_id'] == route.split('/')[2]:
+                    return self._respond(200, job)
+            return self._err(404, 'NOT_FOUND', 'Not found')
         if method == 'GET' and route.startswith('/jobs/') and route.endswith('/events'):
             return self._respond(200, {'job_id': route.split('/')[2], 'last_event_sequence': 0, 'events': []})
         if method == 'POST' and route.startswith('/alerts/') and route.endswith('/ticket'):
@@ -263,14 +297,16 @@ class FakeRem0te:
 
     def alert_event(self, org_id, seq, etype='alert.raised', alert_id='cmalert0000000000000000001',
                     endpoint='cmendpoint00000000000000001', computer='FRONTDESK-01', severity='critical',
-                    state='open'):
-        alert = {'alert_id': alert_id, 'monitor': 'spooler', 'kind': 'SERVICE_STOPPED', 'severity': severity,
+                    state='open', patch=False, kind='SERVICE_STOPPED'):
+        alert = {'alert_id': alert_id, 'monitor': 'spooler', 'kind': kind, 'severity': severity,
                  'state': 'resolved' if etype == 'alert.resolved' else state,
                  'title': f'{computer}: service Spooler is Stopped', 'rem0te_endpoint_id': endpoint,
                  'computer_name': computer, 'site_name': None, 'first_seen_at': _iso_now(),
                  'last_seen_at': _iso_now(), 'occurrences': seq,
                  'resolved_at': _iso_now() if etype == 'alert.resolved' else None, 'outage_alert_id': None,
                  'ticket': None}
+        if patch is not False:
+            alert['patch_summary'] = patch  # revision 2: a dict on REBOOT_PENDING alerts, else None
         event = {'contract': protocol.CONTRACT, 'event_id': str(uuid.uuid4()), 'sequence': seq, 'type': etype,
                  'occurred_at': _iso_now(), 'peer_id': PEER_ID, 'organization_id': org_id, 'alert': alert}
         signed = {'alert_event': event, 'signature': sign_event(event, alert=True)}
