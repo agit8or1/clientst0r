@@ -80,7 +80,7 @@ mobile app and the browser extension. **View files** (attachments and their down
 **View monitors** (everything under Monitoring: website and WAN monitors, expirations,
 racks, IPAM, VLANs, closets, patch panels) and **View integrations** (every connection
 page, RMM devices, alerts and software, synced PSA companies and contacts) are enforced
-the same way on the development branch. On upgrade, every existing role gets View
+the same way since v3.17.664. On upgrade, every existing role gets View
 monitors and View integrations switched on, because before they were enforced every role
 could open those pages; untick them afterwards to restrict a role.
 
