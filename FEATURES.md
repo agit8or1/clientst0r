@@ -610,6 +610,20 @@ Connect a third-party PSA to mirror its data. Separate from the built-in service
 | Device map | Limited | Only Tactical RMM supplies coordinates. | Dashboard |
 | Organization auto-import | Available | | `/integrations/rmm/<id>/map-organizations/` |
 
+### RMM technician workspace (development branch, not yet released)
+
+| Capability | Status | Notes | Where |
+|---|---|---|---|
+| Rem0te contract revision 2 (Ed25519 pairing) | In progress (development branch) | Tested against a real Rem0te 0.30.1 (99/102 checks; job-across-restart case pending). Released versions pair Rem0te over HMAC. | `/integrations/rmm/rem0te/setup/` |
+| Device Workspace | In progress (development branch) | Stored RMM data with source and age per fact; unsupported fields shown as such; Refresh from RMM once per device every 5 minutes. | `/assets/workspace/` |
+| Service lists | In progress (development branch) | Tactical RMM only, opt-in per connection, kept 14 days. | RMM connection → Edit |
+| Ticket RMM panel | In progress (development branch) | Affected devices, health, read-only diagnostics, verify-then-close. | Ticket page |
+| L1 / L2 / L3 RMM permission levels | In progress (development branch) | One server-side check for every RMM action; second-person approvals; level changes need two administrators. | `/settings/security/rmm-permissions/` |
+| Alert-to-ticket policy | In progress (development branch) | Off (one ticket per Rem0te alert) until switched on. | `/psa/routing/alerts/` |
+| One-click support workflows | In progress (development branch) | Twelve built-ins; RMM remediation only where the RMM advertises it, with approval. | `/psa/workflows/` |
+| AI Troubleshoot (**OPTIONAL AI**) | In progress (development branch) | Needs `psa_ai_enabled` and the customer's AI policy; suggestions are text only. | Ticket page, Device Workspace |
+| Software sync for NinjaOne, Datto RMM, Atera, ConnectWise Automate | Limited | Released versions fail to sync software for these four (an argument error); fixed on the development branch. | — |
+
 ---
 
 ## Notifications
