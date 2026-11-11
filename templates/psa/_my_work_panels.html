@@ -129,12 +129,15 @@ nothing in it collapses to a single line rather than a tile.
     {% if panels.recent_devices %}
     <div class="list-group list-group-flush">
         {% for d in panels.recent_devices %}
-        <a href="{{ d.url }}" class="list-group-item list-group-item-action py-2">
-            <div class="d-flex justify-content-between align-items-start">
-                <div class="me-2 ui-wrap"><span class="small">{{ d.title }}</span><div class="mw-meta">{{ d.kind_label }} · {{ d.customer }}</div></div>
-                <small class="text-muted text-nowrap">{{ d.opened_at|timesince }} ago</small>
+        <div class="list-group-item py-2">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <a href="{{ d.url }}" class="me-2 ui-wrap text-decoration-none"><span class="small">{{ d.title }}</span><div class="mw-meta">{{ d.kind_label }} · {{ d.customer }}</div></a>
+                <div class="text-end text-nowrap">
+                    <small class="text-muted d-block">{{ d.opened_at|timesince }} ago</small>
+                    {% if d.workspace_url %}<a href="{{ d.workspace_url }}" class="small" data-mw-workspace-link><i class="fas fa-laptop-medical" aria-hidden="true"></i> Workspace</a>{% endif %}
+                </div>
             </div>
-        </a>
+        </div>
         {% endfor %}
     </div>
     {% else %}

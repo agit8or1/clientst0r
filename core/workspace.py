@@ -174,6 +174,8 @@ DEVICE_KINDS = {
                  lambda o: str(o), None),
 }
 DEVICE_VIEWS = {spec[1]: kind for kind, spec in DEVICE_KINDS.items()}
+# Opening an asset's Device Workspace counts as opening the asset.
+DEVICE_VIEWS['assets:device_workspace'] = 'asset'
 
 
 def _device_qs(kind):
@@ -184,11 +186,30 @@ def _device_qs(kind):
     return qs
 
 
-def device_open_url(kind, pk, next_url=''):
+def device_open_url(kind, pk, next_url='', workspace=False):
+    """`workspace`: open the asset's Device Workspace (MSP staff; an RMM
+    device opens its linked asset's workspace) instead of the detail page."""
     url = reverse('core:open_device', args=[kind, pk])
+    q = {}
+    if workspace and kind in ('asset', 'rmm_device'):
+        q['to'] = 'workspace'
     if next_url:
-        url += '?' + urlencode({'next': next_url})
+        q['next'] = next_url
+    if q:
+        url += '?' + urlencode(q)
     return url
+
+
+def workspace_path(kind, obj):
+    """The Device Workspace for `obj` (an asset, or an RMM device linked to
+    an asset of the same customer), or ''."""
+    if kind == 'asset':
+        return reverse('assets:device_workspace', args=[obj.pk])
+    if kind == 'rmm_device' and obj.linked_asset_id:
+        asset = obj.linked_asset
+        if asset is not None and asset.organization_id == obj.organization_id:
+            return reverse('assets:device_workspace', args=[asset.pk]) + '?' + urlencode({'device': obj.pk})
+    return ''
 
 
 def _visible_device_ids(request, kind, ids):
@@ -219,6 +240,7 @@ def recent_devices(request, limit=RECENT_DEVICE_LIMIT, next_url=''):
     """The user's recently opened devices they can still open, newest first."""
     from core.models import RecentDevice
     rows = list(RecentDevice.objects.filter(user=request.user).order_by('-opened_at')[:RECENT_DEVICE_KEEP])
+    staff = _is_staff(request.user)
     by_kind = {}
     for r in rows:
         by_kind.setdefault(r.kind, []).append(r.object_id)
@@ -241,6 +263,8 @@ def recent_devices(request, limit=RECENT_DEVICE_LIMIT, next_url=''):
             'customer': getattr(obj.organization, 'name', ''),
             'opened_at': r.opened_at,
             'url': device_open_url(r.kind, obj.pk, next_url),
+            'workspace_url': (device_open_url(r.kind, obj.pk, next_url, workspace=True)
+                              if staff and workspace_path(r.kind, obj) else ''),
         })
         if len(out) >= limit:
             break
@@ -290,6 +314,8 @@ def open_device(request, kind, pk):
         raise Http404
     target = obj.organization
     detail = reverse(url_name, args=[obj.pk])
+    if request.GET.get('to') == 'workspace' and _is_staff(request.user):
+        detail = workspace_path(kind, obj) or detail
     current = getattr(request, 'current_organization', None)
 
     from core.utils import descendant_org_ids
@@ -301,7 +327,7 @@ def open_device(request, kind, pk):
     if not authorized_organizations(request).filter(pk=target.pk).exists():
         raise Http404
     original_path = request.path
-    request.path = detail  # the section gate is keyed by path
+    request.path = detail.split('?', 1)[0]  # the section gate is keyed by path
     try:
         _check_section_perm(request, target)
     finally:

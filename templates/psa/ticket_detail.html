@@ -616,7 +616,7 @@
                     <dt class="col-5">Assignee</dt><dd class="col-7">{{ ticket.assigned_to.username|default:"—" }}</dd>
                     <dt class="col-5">Contact</dt><dd class="col-7">{{ ticket.contact|default:"—" }}</dd>
                     <dt class="col-5">Site</dt><dd class="col-7">{% if ticket_site %}{{ ticket_site.name }}{% if is_msp_staff and ticket_site_source %} <span class="text-muted small">({{ ticket_site_source }})</span>{% endif %}{% else %}—{% endif %}</dd>
-                    <dt class="col-5">Asset</dt><dd class="col-7">{% if ticket_asset %}{% if is_msp_staff %}<a href="{% url 'assets:asset_detail' ticket_asset.pk %}">{{ ticket_asset.name }}</a>{% else %}{{ ticket_asset.name }}{% endif %}{% else %}—{% endif %}</dd>
+                    <dt class="col-5">Asset</dt><dd class="col-7">{% if ticket_asset %}{% if is_msp_staff %}<a href="{% url 'assets:device_workspace' ticket_asset.pk %}?ticket={{ ticket.ticket_number|urlencode }}" data-ticket-asset-workspace>{{ ticket_asset.name }}</a>{% else %}{{ ticket_asset.name }}{% endif %}{% else %}—{% endif %}</dd>
                     <dt class="col-5">Doc</dt><dd class="col-7">{{ ticket.related_documentation|default:"—" }}</dd>
                     <dt class="col-5">KB</dt><dd class="col-7">{{ ticket.related_kb_article|default:"—" }}</dd>
                     <dt class="col-5">Calendar</dt><dd class="col-7">{{ ticket.related_calendar_event|default:"—" }}</dd>

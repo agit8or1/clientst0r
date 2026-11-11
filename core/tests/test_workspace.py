@@ -313,3 +313,68 @@ class SearchAndContextTests(_Fixture):
         _login(self.client, self.customer)
         self.client.get(reverse('psa:my_work'))
         self.assertEqual(self.client.session['current_organization_id'], self.a.pk)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class DeviceWorkspaceLinkTests(_Fixture):
+    """The Device Workspace is reachable from the sidebar (Devices), My Work's
+    recent devices, the asset page and the ticket's asset."""
+
+    def setUp(self):
+        from assets.models import Asset
+        from integrations.models import RMMDevice
+        self.asset = Asset.objects.create(organization=self.a, name='WS Alpha PC', asset_type='desktop')
+        RMMDevice.objects.filter(pk=self.dev_a.pk).update(linked_asset=self.asset)
+        self.dev_a.refresh_from_db()
+
+    def test_opening_a_workspace_records_the_asset_and_my_work_links_back(self):
+        _login(self.client, self.tech, self.a)
+        ws = reverse('assets:device_workspace', args=[self.asset.pk])
+        self.assertEqual(self.client.get(ws).status_code, 200)
+        self.assertTrue(RecentDevice.objects.filter(user=self.tech, kind='asset', object_id=self.asset.pk).exists())
+        html = self.client.get(reverse('psa:my_work')).content.decode()
+        self.assertIn('data-mw-workspace-link', html)
+        self.assertIn(reverse('core:open_device', args=['asset', self.asset.pk]) + '?to=workspace', html)
+
+    def test_open_device_to_workspace(self):
+        _login(self.client, self.tech, self.a)
+        r = self.client.get(reverse('core:open_device', args=['asset', self.asset.pk]), {'to': 'workspace'})
+        self.assertEqual(r['Location'], reverse('assets:device_workspace', args=[self.asset.pk]))
+        r = self.client.get(reverse('core:open_device', args=['rmm_device', self.dev_a.pk]), {'to': 'workspace'})
+        self.assertEqual(r['Location'],
+                         reverse('assets:device_workspace', args=[self.asset.pk]) + f'?device={self.dev_a.pk}')
+        # An RMM device without an asset has no workspace: its detail page.
+        r = self.client.get(reverse('core:open_device', args=['rmm_device', self.dev_b.pk]), {'to': 'workspace'})
+        self.assertEqual(r['Location'], reverse('integrations:rmm_device_detail', args=[self.dev_b.pk]))
+
+    def test_customer_users_get_no_workspace_links(self):
+        from types import SimpleNamespace
+        from core.workspace import recent_devices
+        RecentDevice.objects.create(user=self.customer, kind='asset', object_id=self.asset.pk,
+                                    organization=self.a, opened_at=timezone.now())
+        req = SimpleNamespace(user=self.customer, is_staff_user=False, current_organization=self.a)
+        self.assertTrue(all(not d['workspace_url'] for d in recent_devices(req)))
+        _login(self.client, self.customer, self.a)
+        r = self.client.get(reverse('core:open_device', args=['asset', self.asset.pk]), {'to': 'workspace'})
+        self.assertNotIn('/workspace/', r.get('Location', ''))
+        self.assertEqual(self.client.get(reverse('assets:device_workspace_home')).status_code, 404)
+
+    def test_sidebar_entry_page_lists_recent_workspaces(self):
+        _login(self.client, self.tech, self.a)
+        self.client.get(reverse('assets:device_workspace', args=[self.asset.pk]))
+        home = reverse('assets:device_workspace_home')
+        html = self.client.get(home).content.decode()
+        self.assertIn('data-ws-home-recent', html)
+        self.assertIn('WS Alpha PC', html)
+        self.assertIn(f'href="{home}"', html)  # the sidebar's Devices group links it
+
+    def test_asset_page_and_ticket_asset_open_the_workspace(self):
+        from psa.models import Ticket
+        _login(self.client, self.tech, self.a)
+        html = self.client.get(reverse('assets:asset_detail', args=[self.asset.pk])).content.decode()
+        self.assertIn(reverse('assets:device_workspace', args=[self.asset.pk]), html)
+        Ticket.objects.filter(pk=self.t_a.pk).update(related_asset=self.asset)
+        self.t_a.refresh_from_db()
+        html = self.client.get(reverse('psa:ticket_detail', args=[self.t_a.ticket_number])).content.decode()
+        self.assertIn(reverse('assets:device_workspace', args=[self.asset.pk])
+                      + f'?ticket={self.t_a.ticket_number}', html)

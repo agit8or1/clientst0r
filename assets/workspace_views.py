@@ -2,6 +2,8 @@
 Device Workspace page (ClientSt0r ↔ RMM Phase 3).
 
     GET /assets/<pk>/workspace/[?device=<rmm device pk>][&ticket=<ticket number>]
+    GET /assets/workspace/   the sidebar's entry point: recently opened
+                             devices, each opening its workspace
 
 MSP technicians only; everyone else gets 404, as for an asset that doesn't
 exist. The asset is found the same way as on the asset page (the selected
@@ -20,6 +22,7 @@ from __future__ import annotations
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 
 from core.middleware import get_request_organization
@@ -107,3 +110,17 @@ def device_workspace(request, pk):
         'history': ws.remediation_history(devices),
         'launches': ws.launch_history(devices),
     })
+
+
+@login_required
+def device_workspace_home(request):
+    """Devices → Device Workspace in the sidebar: the technician's recently
+    opened devices (core.workspace.recent_devices, re-scoped on every read)
+    that have a workspace, each opened in its customer's context."""
+    from core.workspace import recent_devices
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        raise Http404()
+    here = reverse('assets:device_workspace_home')
+    recent = [d for d in recent_devices(request, limit=20, next_url=here) if d.get('workspace_url')]
+    return render(request, 'assets/device_workspace_home.html', {'recent': recent[:12]})

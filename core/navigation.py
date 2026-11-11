@@ -520,6 +520,8 @@ PRIMARY = (
         Entry(_('All Assets'), section='assets_all', icon='fa-box', keywords='devices inventory'),
         Entry(_('RMM Devices'), url_name='integrations:rmm_devices', icon='fa-desktop',
               gate=_msp_staff, keywords='agents endpoints online offline'),
+        Entry(_('Device Workspace'), url_name='assets:device_workspace_home', icon='fa-laptop-medical',
+              gate=_msp_staff, keywords='workspace connect diagnose patches recent devices'),
         Entry(_('Hardware & Ports'), section='assets_hardware', icon='fa-network-wired',
               keywords='cables vlans labels'),
         Entry(_('Infrastructure'), section='assets_infra', icon='fa-server',
