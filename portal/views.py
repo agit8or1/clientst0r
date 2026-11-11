@@ -852,12 +852,50 @@ def preferences(request):
             'phone',
             'updated_at',
         ])
+        # Phase 9.4: this customer's weekly security alert digest (opt-in).
+        if request.user.email:
+            _set_security_digest(request, request.POST.get('security_digest') == 'on')
         messages.success(request, 'Preferences saved.')
         return redirect('portal:preferences')
+    digest_sub = _security_digest_sub(request)
     return render(request, 'portal/preferences.html', {
         'profile': profile,
         'organization': request.portal_membership.organization,
+        'security_digest_on': bool(digest_sub and digest_sub.is_subscribed),
     })
+
+
+def _security_digest_sub(request):
+    from security_alerts.models import SecurityDigestSubscription
+    email = (request.user.email or '').strip().lower()
+    if not email:
+        return None
+    return SecurityDigestSubscription.objects.filter(
+        organization=request.portal_membership.organization, email=email).first()
+
+
+def _set_security_digest(request, on):
+    """Opt this portal user in or out for the current customer. A row is
+    only created when opting in."""
+    from security_alerts.models import SecurityDigestSubscription
+    sub = _security_digest_sub(request)
+    if sub is None:
+        if not on:
+            return
+        sub = SecurityDigestSubscription(organization=request.portal_membership.organization,
+                                         email=request.user.email.strip().lower())
+    if sub.user_id is None:
+        sub.user = request.user
+    if sub.pk is None or sub.is_subscribed != on:
+        sub.set_subscribed(on, via='portal', by=request.user)
+        AuditLog.log(
+            user=request.user, action='update', organization=sub.organization,
+            object_type='security_alerts.SecurityDigestSubscription', object_id=sub.pk,
+            object_repr=sub.email,
+            description=f'{sub.email} turned the security digest {"on" if on else "off"} in the portal',
+            path=request.path,
+            extra_data={'event': 'security_digest_subscription', 'action': 'on' if on else 'off'},
+        )
 
 
 SERVICE_REQUEST_APPROVAL_TYPE = 'psa.ServiceCatalogItem'

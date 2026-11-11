@@ -256,6 +256,8 @@ class SectionPermissionMiddleware:
         '/crm/api/leads/capture/',
         '/security/webhook/',
         '/security/siem/webhook/',
+        # Signed, no-login unsubscribe link in customer security digests.
+        '/security/digest/unsubscribe/',
     )
 
     def __call__(self, request):

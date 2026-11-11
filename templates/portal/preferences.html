@@ -32,6 +32,14 @@
                 <span class="text-muted small d-block">Email me a "how did we do?" 1-5 star rating link when a ticket is resolved.</span>
             </label>
         </div>
+        <div class="form-check form-switch mb-3">
+            <input type="checkbox" class="form-check-input" id="security_digest" name="security_digest"
+                   {% if security_digest_on %}checked{% endif %} {% if not user.email %}disabled{% endif %}>
+            <label class="form-check-label" for="security_digest">
+                <strong>Weekly security alert digest</strong>
+                <span class="text-muted small d-block">Once a week, email me the security alerts for {{ organization.name }} that are still open (severity, title, device, first seen). Nothing is sent in a week with none open.{% if not user.email %} Add an e-mail address to your account to turn this on.{% endif %}</span>
+            </label>
+        </div>
         <hr>
         <h6 class="text-muted small text-uppercase">SMS notifications</h6>
         <div class="mb-3">

@@ -164,7 +164,7 @@ MSPs run a stack of security tools that all alert independently — SentinelOne,
 
 - "Mean time to acknowledge" metric per client / per vendor
 - Suppression rules (don't auto-ticket from this vendor between 22:00–06:00 etc.)
-- Weekly digest email to client of unresolved alerts (opt-in) *(deferred — pending email subscription mgmt; framework + MTTA shipped)*
+- Weekly digest email to client of unresolved alerts (opt-in) *(in progress — on the development branch, not yet released)* — `security_alerts.SecurityDigestSubscription` holds a per-contact opt-in per customer (off by default). Portal users switch it on or off in portal preferences; staff add customer contacts and switch them at `/security/digest/`, with a preview of this week's digest. `send_security_digests` runs weekly from the in-app scheduler, mails only customers with unresolved (new / acknowledged) alerts, and lists severity, title, device, first-seen date and open / being-investigated only — no description, vendor payload, connection, rule, ticket or acknowledger. Each digest carries a signed unsubscribe link (GET confirms, POST unsubscribes, RFC 8058 one-click supported) that works without signing in; a contact mailed in the last six days is skipped
 
 **Sizing:** **M** — 9.1+9.2 = 2 weeks (one reference adapter + the framework), 9.3 = 2 weeks, 9.4 = 1 week. Each new vendor adapter beyond the first is ~2-4 days. Ship the framework + 1-2 reference adapters first, then add vendors as customer demand arrives.
 

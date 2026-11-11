@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Unsubscribe{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                {% if invalid %}
+                <h4>This link is not valid</h4>
+                <p class="text-muted">Use the link from your most recent digest, or change your e-mail preferences in the customer portal.</p>
+                {% elif done or not sub.is_subscribed %}
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4>You are unsubscribed</h4>
+                <p class="text-muted">{{ sub.email }} will no longer get the weekly security alert digest for {{ sub.organization.name }}.</p>
+                {% else %}
+                <h4>Stop the weekly security alert digest?</h4>
+                <p class="text-muted">For {{ sub.email }} at {{ sub.organization.name }}.</p>
+                <form method="post">{% csrf_token %}
+                    <button type="submit" class="btn btn-primary">Unsubscribe</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
