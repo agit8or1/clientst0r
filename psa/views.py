@@ -9765,8 +9765,14 @@ def my_work(request):
 
     approvals = _my_work_approvals(request) if staff else []
     appointments = _my_work_appointments(request.user)
+    # SLA risk, alerts, device health, maintenance, recent devices, remote
+    # sessions, jobs to review and (OPTIONAL AI) suggestions — MSP staff
+    # only, scoped to the technician's customers (core/workspace.py).
+    from core.workspace import my_work_panels
+    panels = my_work_panels(request, base, scope_all=scope_all)
 
     return render(request, 'psa/my_work.html', {
+        'panels': panels,
         'is_staff_view': staff,
         'scope_all': scope_all,
         'tab': tab,
