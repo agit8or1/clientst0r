@@ -77,6 +77,12 @@ class CustomerBoundaryTests(TestCase):
     def test_customer_can_still_edit_own_records(self):
         c = self._login(self.customer_user, self.cust_a)
         self.assertEqual(c.get(f'/psa/contracts/{self.contract_a.pk}/edit/').status_code, 200)
+        # The account summary needs billing_view_invoices, which an editor
+        # lacks; an owner of the same customer holds it.
+        self.assertEqual(c.get(f'/psa/clients/{self.cust_a.pk}/account/').status_code, 403)
+        owner = User.objects.create_user('cb_owner', 'o@a.test', 'pw-cb-123')
+        Membership.objects.create(user=owner, organization=self.cust_a, role=Role.OWNER, is_active=True)
+        c = self._login(owner, self.cust_a)
         self.assertEqual(c.get(f'/psa/clients/{self.cust_a.pk}/account/').status_code, 200)
 
     def test_customer_cannot_add_charge_to_another_customer(self):
