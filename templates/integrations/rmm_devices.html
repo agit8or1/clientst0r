@@ -15,18 +15,47 @@
     <h1><i class="fas fa-desktop"></i> RMM Devices</h1>
 </div>
 
-<!-- Filters (future enhancement) -->
-<div class="card mb-4">
+<!-- Filters -->
+<form method="get" class="card mb-4" role="search" aria-label="Filter devices">
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-12">
-                <p class="text-muted mb-0">
-                    Showing {{ devices|length }} devices from all RMM integrations
-                </p>
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-1" for="rmmQ">Name, host, serial or IP</label>
+                <input type="search" class="form-control form-control-sm" id="rmmQ" name="q" value="{{ filters.q }}" maxlength="100">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1" for="rmmStatus">Status</label>
+                <select class="form-select form-select-sm" id="rmmStatus" name="status" data-autosubmit>
+                    <option value="">Any</option>
+                    <option value="online"{% if filters.status == 'online' %} selected{% endif %}>Online</option>
+                    <option value="offline"{% if filters.status == 'offline' %} selected{% endif %}>Offline</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1" for="rmmType">Type</label>
+                <select class="form-select form-select-sm" id="rmmType" name="type" data-autosubmit>
+                    <option value="">Any</option>
+                    {% for value, label in device_types %}<option value="{{ value }}"{% if filters.type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1" for="rmmLink">Asset link</label>
+                <select class="form-select form-select-sm" id="rmmLink" name="link" data-autosubmit>
+                    <option value="">Any</option>
+                    <option value="linked"{% if filters.link == 'linked' %} selected{% endif %}>Linked</option>
+                    <option value="unlinked"{% if filters.link == 'unlinked' %} selected{% endif %}>Not linked</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary flex-fill"><i class="fas fa-filter" aria-hidden="true"></i> Filter</button>
+                {% if has_filters %}<a href="?view=all" class="btn btn-sm btn-outline-secondary" title="Clear filters">Clear</a>{% endif %}
             </div>
         </div>
+        <p class="text-muted small mb-0 mt-2" role="status">
+            {% if has_filters %}{{ shown }} of {{ total }} devices match{% else %}{{ total }} device{{ total|pluralize }} from all RMM integrations{% endif %}{% if capped %} — showing the first {{ cap }}; narrow the filters to see the rest{% endif %}.
+        </p>
     </div>
-</div>
+</form>
 
 <!-- Devices Table -->
 <div class="card">
@@ -111,9 +140,15 @@
         </div>
         {% else %}
         <div class="text-center text-muted py-5">
-            <i class="fas fa-desktop fa-3x mb-3"></i>
-            <p>No devices found</p>
-            <p class="small">Devices will appear here after RMM integrations are configured and synced</p>
+            <i class="fas fa-desktop fa-3x mb-3" aria-hidden="true"></i>
+            {% if has_filters %}
+            <p>No devices match these filters.</p>
+            <a href="?view=all" class="btn btn-sm btn-outline-secondary">Clear filters</a>
+            {% else %}
+            <p>No devices yet</p>
+            <p class="small">Devices appear here once an RMM integration is connected and has synced, and its customers are mapped.</p>
+            {% if user.is_superuser %}<a href="{% url 'integrations:integration_list' %}" class="btn btn-sm btn-primary"><i class="fas fa-plug" aria-hidden="true"></i> Connect an RMM</a>{% endif %}
+            {% endif %}
         </div>
         {% endif %}
     </div>

@@ -703,9 +703,9 @@ class FeatureToggleTests(TestCase):
         _bypass_2fa(c)
         r = c.get('/core/dashboard/', follow=True)
         self.assertEqual(r.status_code, 200)
-        # CRM is an entry of the Modules menu (formerly More); see the sibling test.
+        # CRM is an entry of the sidebar's Clients group (core/navigation.py).
         self.assertIn(b'href="/crm/"', r.content)
-        self.assertIn(b'modulesDropdown', r.content)
+        self.assertIn(b'data-group="clients"', r.content)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)

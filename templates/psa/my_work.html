@@ -20,6 +20,19 @@ list's ?queue= filter, so every count below equals the list its link opens.
         <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
     </div>
 </div>
+{% if panels %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3 small" id="mw-scope">
+    <span class="text-muted">
+        <i class="fas fa-building" aria-hidden="true"></i>
+        {% if scope_all or panels.customer_count is None %}Showing waiting tickets, devices and alerts for every customer you can reach.
+        {% else %}Showing your waiting tickets, and devices and alerts at the {{ panels.customer_count }} customer{{ panels.customer_count|pluralize }} you work for (your tickets, technician access, memberships and the selected client).{% endif %}
+    </span>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Scope">
+        <a href="?tab={{ tab }}" class="btn {% if not scope_all %}btn-primary{% else %}btn-outline-primary{% endif %}"{% if not scope_all %} aria-current="true"{% endif %}>Mine</a>
+        <a href="?tab={{ tab }}&amp;scope=all" class="btn {% if scope_all %}btn-primary{% else %}btn-outline-primary{% endif %}"{% if scope_all %} aria-current="true"{% endif %}>All customers</a>
+    </div>
+</div>
+{% endif %}
 
 {% if timers %}
 <div class="card mb-3 border-warning" id="mw-timers">
@@ -49,6 +62,34 @@ list's ?queue= filter, so every count below equals the list its link opens.
 
 <div class="row g-3">
     <div class="col-lg-8">
+
+        {# 0. Near SLA breach: mine, plus unassigned at my customers (staff) #}
+        {% if panels.sla %}
+        <div class="card mb-3 mw-panel{% if panels.sla.count %} border-danger{% endif %}" id="mw-sla">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0"><i class="fas fa-stopwatch"></i> Near SLA breach <span class="badge {% if panels.sla.count %}bg-danger{% else %}bg-secondary{% endif %}">{{ panels.sla.count }}</span></h2>
+                <span class="small text-muted">due within 2 hours or breached</span>
+            </div>
+            {% if panels.sla.items %}
+            <div class="list-group list-group-flush">
+                {% for i in panels.sla.items %}
+                <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                    <div class="ui-wrap me-2">
+                        <a class="ui-primary-cell" href="{{ i.url }}">{{ i.ticket.subject }}</a>
+                        <div class="mw-meta">{{ i.ticket.ticket_number }} · {{ i.ticket.organization.name }} · {% if i.ticket.assigned_to_id %}{{ i.ticket.assigned_to.get_full_name|default:i.ticket.assigned_to.username }}{% else %}Unassigned{% endif %}</div>
+                    </div>
+                    <div class="text-end text-nowrap">
+                        <time datetime="{{ i.ticket.sla_due_at|date:'c' }}" class="small d-block {% if i.breached %}text-danger fw-semibold{% endif %}">{% if i.breached %}Breached {{ i.ticket.sla_due_at|timesince }} ago{% else %}Due in {{ i.ticket.sla_due_at|timeuntil }}{% endif %}</time>
+                        <a href="{{ i.url }}" class="btn btn-sm btn-outline-danger mt-1">Work it</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-2 small">Nothing is close to breaching its SLA.</div>
+            {% endif %}
+        </div>
+        {% endif %}
 
         {# 1. My open tickets, soonest SLA first #}
         <div class="card mb-3" id="mw-open">
@@ -82,12 +123,12 @@ list's ?queue= filter, so every count below equals the list its link opens.
                                 Waiting on customer <span class="badge bg-secondary">{{ waiting_customer.count }}</span></a>
                         </li>
                     </ul>
-                    {% if is_staff_view %}
+                    {% if is_staff_view and not panels %}
                     <div class="btn-group btn-group-sm" role="group" aria-label="Scope">
                         <a href="?tab={{ tab }}" class="btn {% if not scope_all %}btn-primary{% else %}btn-outline-primary{% endif %}">My tickets</a>
                         <a href="?tab={{ tab }}&scope=all" class="btn {% if scope_all %}btn-primary{% else %}btn-outline-primary{% endif %}">All tickets</a>
                     </div>
-                    {% endif %}
+                    {% elif scope_all %}<span class="small text-muted">All tickets</span>{% endif %}
                 </div>
             </div>
             {% if tab == 'waiting_customer' %}
@@ -101,6 +142,8 @@ list's ?queue= filter, so every count below equals the list its link opens.
     </div>
 
     <div class="col-lg-4">
+        {% if panels %}{% include "psa/_my_work_panels.html" with part="top" %}{% endif %}
+
         {# 6. Appointments #}
         <div class="card mb-3" id="mw-appointments">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">
@@ -151,6 +194,8 @@ list's ?queue= filter, so every count below equals the list its link opens.
             </div>
         </div>
         {% endif %}
+
+        {% if panels %}{% include "psa/_my_work_panels.html" with part="bottom" %}{% endif %}
     </div>
 </div>
 

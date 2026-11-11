@@ -1,0 +1,181 @@
+{% comment %}
+My Work side panels for MSP staff (core.workspace.my_work_panels).
+`part` is "top" (things to act on now: alerts, devices, review queue, OPTIONAL
+AI suggestions) or "bottom" (context: maintenance, recent devices, remote
+sessions, what is not set up yet). Every row has one action; a panel with
+nothing in it collapses to a single line rather than a tile.
+{% endcomment %}
+{% if part == "top" %}
+
+{% if panels.alerts %}
+<div class="card mb-3 mw-panel" id="mw-alerts">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0"><i class="fas fa-bell"></i> Unacknowledged alerts <span class="badge {% if panels.alerts.count %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ panels.alerts.count }}</span></h2>
+        <span class="small d-flex gap-2">
+            <a href="{% url 'integrations:rmm_alerts' %}" class="text-decoration-none">RMM</a>
+            <a href="{% url 'security_alerts:alert_list' %}?status=new" class="text-decoration-none">Security</a>
+        </span>
+    </div>
+    {% if panels.alerts.items %}
+    <div class="list-group list-group-flush">
+        {% for a in panels.alerts.items %}
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div class="ui-wrap me-1">
+                <span class="small fw-semibold mw-sev-{{ a.severity }}">{{ a.title }}</span>
+                <div class="mw-meta">{{ a.source }} · {{ a.severity|capfirst }} · {{ a.context }}{% if a.when %} · {{ a.when|timesince }} ago{% endif %}</div>
+            </div>
+            <a href="{{ a.url }}" class="btn btn-sm btn-outline-primary text-nowrap">{{ a.action }}</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-2 small">No unacknowledged alerts at your customers.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if panels.devices %}
+<div class="card mb-3 mw-panel" id="mw-devices">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0"><i class="fas fa-desktop"></i> Devices needing attention <span class="badge {% if panels.devices.count %}bg-danger{% else %}bg-secondary{% endif %}">{{ panels.devices.count }}</span></h2>
+        <a href="{{ panels.devices.list_url }}" class="small text-decoration-none">View offline</a>
+    </div>
+    {% if panels.devices.items %}
+    <div class="list-group list-group-flush">
+        {% for d in panels.devices.items %}
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div class="ui-wrap me-1">
+                <span class="small fw-semibold">{{ d.title }}</span>
+                <div class="mw-meta">{{ d.state }} · {{ d.context }}{% if d.when %} · seen {{ d.when|timesince }} ago{% endif %}</div>
+            </div>
+            <a href="{{ d.url }}" class="btn btn-sm btn-outline-primary text-nowrap">Open device</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-2 small">Every device at your customers is online and quiet.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if panels.review and panels.review.items %}
+<div class="card mb-3 mw-panel" id="mw-review">
+    <div class="card-header py-2">
+        <h2 class="h6 mb-0"><i class="fas fa-clipboard-check"></i> Needs your review <span class="badge bg-secondary">{{ panels.review.count }}</span></h2>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for j in panels.review.items %}
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div class="ui-wrap me-1">
+                <span class="small fw-semibold">{{ j.title }}</span>
+                <div class="mw-meta"><span class="{% if j.bad %}text-danger{% endif %}">{{ j.state }}</span> · {{ j.context }}</div>
+            </div>
+            <a href="{{ j.url }}" class="btn btn-sm btn-outline-primary text-nowrap">{{ j.action }}</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if panels.ai %}
+{# OPTIONAL AI — only drawn while psa_ai_enabled is on #}
+<div class="card mb-3 mw-panel" id="mw-ai">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0"><i class="fas fa-wand-magic-sparkles"></i> AI suggestions to review <span class="badge bg-secondary">{{ panels.ai.count }}{% if panels.ai.capped %}+{% endif %}</span></h2>
+        <a href="{{ panels.ai.url }}" class="small text-decoration-none">AI Inbox</a>
+    </div>
+    {% if panels.ai.items %}
+    <div class="list-group list-group-flush">
+        {% for s in panels.ai.items %}
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div class="ui-wrap me-1">
+                <span class="small fw-semibold">{{ s.title }}</span>
+                <div class="mw-meta">{{ s.context }}</div>
+            </div>
+            <a href="{{ s.url }}" class="btn btn-sm btn-outline-primary text-nowrap">{{ s.action }}</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-2 small">No AI suggestions are waiting for review.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}{# bottom #}
+
+{% if panels.maintenance and panels.maintenance.items %}
+<div class="card mb-3 mw-panel" id="mw-maintenance">
+    <div class="card-header py-2">
+        <h2 class="h6 mb-0"><i class="fas fa-screwdriver-wrench"></i> Scheduled maintenance <span class="badge bg-info text-dark">{{ panels.maintenance.count }}</span></h2>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for w in panels.maintenance.items %}
+        <a href="{{ w.url }}" class="list-group-item list-group-item-action py-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="me-2 ui-wrap"><span class="small">{{ w.title }}</span><div class="mw-meta">{{ w.context }}</div></div>
+                <small class="text-nowrap {% if w.ongoing %}text-warning fw-semibold{% else %}text-muted{% endif %}">{% if w.ongoing %}Now, until {{ w.ends_at|date:"H:i" }}{% else %}{{ w.starts_at|date:"D j M H:i" }}{% endif %}</small>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3 mw-panel" id="mw-recent-devices">
+    <div class="card-header py-2">
+        <h2 class="h6 mb-0"><i class="fas fa-clock-rotate-left"></i> Recent devices</h2>
+    </div>
+    {% if panels.recent_devices %}
+    <div class="list-group list-group-flush">
+        {% for d in panels.recent_devices %}
+        <a href="{{ d.url }}" class="list-group-item list-group-item-action py-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="me-2 ui-wrap"><span class="small">{{ d.title }}</span><div class="mw-meta">{{ d.kind_label }} · {{ d.customer }}</div></div>
+                <small class="text-muted text-nowrap">{{ d.opened_at|timesince }} ago</small>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted py-2 px-3 small">Devices you open appear here, so you can get back to them in one click — even from another customer.</div>
+    {% endif %}
+</div>
+
+{% if panels.remote_sessions %}
+<div class="card mb-3 mw-panel" id="mw-remote">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0"><i class="fas fa-display"></i> Active remote sessions <span class="badge bg-secondary">{{ panels.remote_sessions.count }}</span></h2>
+        {% if panels.remote_sessions.url %}<a href="{{ panels.remote_sessions.url }}" class="small text-decoration-none">View all</a>{% endif %}
+    </div>
+    {% if panels.remote_sessions.items %}
+    <div class="list-group list-group-flush">
+        {% for r in panels.remote_sessions.items %}
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div class="ui-wrap me-1"><span class="small fw-semibold">{{ r.title }}</span><div class="mw-meta">{{ r.context }}</div></div>
+            <a href="{{ r.url }}" class="btn btn-sm btn-outline-primary text-nowrap">{{ r.action|default:"Open" }}</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-2 small">No remote sessions are running.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if panels.setup %}
+<div class="card mb-3 border-dashed" id="mw-setup">
+    <div class="card-header py-2"><h2 class="h6 mb-0"><i class="fas fa-plug"></i> Set up more of My Work</h2></div>
+    <ul class="list-group list-group-flush small">
+        {% for s in panels.setup %}
+        <li class="list-group-item">
+            <div class="fw-semibold">{{ s.title }}</div>
+            <div class="text-muted">{{ s.text }}</div>
+            {% if s.url %}<a href="{{ s.url }}" class="btn btn-sm btn-outline-secondary mt-1">{{ s.action }}</a>{% elif s.action %}<div class="text-muted fst-italic">Ask an administrator to set this up.</div>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% endif %}

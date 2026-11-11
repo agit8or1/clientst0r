@@ -73,6 +73,10 @@
         }, window);
         if (typeof fn !== 'function') {
             console.error('csp-events: no function "' + name + '" for', el);
+            // A control that does nothing looks broken; say so instead.
+            if (typeof window.appToast === 'function') {
+                window.appToast('That action is not available on this page. Reload and try again.', 'error');
+            }
             return;
         }
         var result = fn.apply(el, resolveArgs(el, ev));

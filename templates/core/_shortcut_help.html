@@ -1,0 +1,41 @@
+{% load i18n %}{% comment %}
+Keyboard shortcut help (opened with ?, or the sidebar's "Keyboard shortcuts").
+The handlers are in static/js/app_nav.js; "g" shortcuts are only listed for
+groups this user's sidebar actually has. Shortcuts never fire while typing in
+a field, and modifier-key combinations are left to the browser.
+{% endcomment %}
+<div class="modal fade" id="shortcutHelp" tabindex="-1" aria-labelledby="shortcutHelpTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="shortcutHelpTitle"><i class="fas fa-keyboard" aria-hidden="true"></i> {% trans "Keyboard shortcuts" %}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
+            </div>
+            <div class="modal-body">
+                <h3 class="h6 text-muted">{% trans "Anywhere" %}</h3>
+                <dl class="shortcut-list">
+                    <div><dt><kbd>/</kbd></dt><dd>{% trans "Search tickets, devices, clients and documents" %}</dd></div>
+                    <div><dt><kbd>j</kbd></dt><dd>{% trans "Jump to a page (filter the menu)" %}</dd></div>
+                    <div><dt><kbd>[</kbd></dt><dd>{% trans "Collapse or expand the menu" %}</dd></div>
+                    <div><dt><kbd>?</kbd></dt><dd>{% trans "Show this help" %}</dd></div>
+                    <div><dt><kbd>Esc</kbd></dt><dd>{% trans "Close a menu or dialog, clear the filter" %}</dd></div>
+                </dl>
+                {% if pnav.groups %}
+                <h3 class="h6 text-muted">{% trans "Go to — press g, then" %}</h3>
+                <dl class="shortcut-list">
+                    {% for g in pnav.groups %}{% if g.shortcut %}
+                    <div><dt><kbd>g</kbd> <kbd>{{ g.shortcut }}</kbd></dt><dd>{{ g.label }}</dd></div>
+                    {% endif %}{% endfor %}
+                    {% if pnav.settings %}<div><dt><kbd>g</kbd> <kbd>{{ pnav.settings.shortcut }}</kbd></dt><dd>{{ pnav.settings.label }}</dd></div>{% endif %}
+                </dl>
+                {% endif %}
+                <h3 class="h6 text-muted">{% trans "In the menu filter" %}</h3>
+                <dl class="shortcut-list mb-0">
+                    <div><dt><kbd>Enter</kbd></dt><dd>{% trans "Open the first match (or search everything when nothing matches)" %}</dd></div>
+                    <div><dt><kbd>↓</kbd> <kbd>↑</kbd></dt><dd>{% trans "Move through the matches" %}</dd></div>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="app-toast-region" id="appToasts" aria-live="assertive" aria-atomic="false"></div>

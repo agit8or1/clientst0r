@@ -65,8 +65,11 @@ class ImportJobForm(forms.ModelForm):
                 # Staff can see all organizations
                 pass
             else:
-                # Regular users only see their organizations
-                self.fields['target_organization'].queryset = user.organizations.all()
+                # Regular users only see their organizations. (User has no
+                # `organizations` relation; this raised and 500'd the page.)
+                from core.models import Organization
+                self.fields['target_organization'].queryset = Organization.objects.filter(
+                    memberships__user=user, memberships__is_active=True).distinct()
 
         # Filter locations by organization
         from locations.models import Location

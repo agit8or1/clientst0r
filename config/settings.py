@@ -159,6 +159,7 @@ MIDDLEWARE = [
     'core.ai_abuse_control.AIAbuseControlMiddleware',  # AI endpoint protection
     'audit.middleware.AuditLoggingMiddleware',
     'tech_access.middleware.ReadTrackingMiddleware',  # theft detection + containment
+    'core.workspace.WorkspaceMiddleware',  # default saved list views + recent devices
 ]
 
 # Optional middleware - only add if dependencies are installed

@@ -1,5 +1,67 @@
 # Navigation map: before → after
 
+## Primary sidebar (technician workspace)
+
+The dropdown menus in the top bar were replaced by a sidebar of seven
+technician groups — **My Work, Tickets, Clients, Devices, Alerts, Tools,
+Reports** — with **Settings** at its foot for administrative and advanced
+configuration. The registry is `core/navigation.py` (`PRIMARY`, `SETTINGS`);
+the markup is `templates/core/_primary_nav.html`; behaviour (filter as you
+type, collapse to an icon rail, phone/tablet drawer, `g`-shortcuts) is
+`static/js/app_nav.js`. The top bar keeps the brand, search, client switcher,
+utility buttons and the account menu. **No URL changed**; every section keeps
+its tabs above the content, and every tab is also nested under its entry in
+the sidebar so the filter finds it by name.
+
+Gating is the old gate for each entry plus the server's own URL rules
+(`SectionPermissionMiddleware`: MSP-staff-only `/reports/ /crm/ /security/`,
+and `vault_view` / `docs_view` / `assets_view` for the current customer). A
+link the server would answer with 403 is not drawn.
+
+| Before (top bar) | After (sidebar) | Gate |
+|---|---|---|
+| Dashboard (direct link) | My Work → Dashboard | auth |
+| PSA → My Work | My Work → My Work | psa |
+| PSA → Tickets | Tickets → Tickets (tabs nested) | psa |
+| PSA → Dispatch Board | Tickets → Dispatch Board | psa |
+| PSA → Projects | Tickets → Projects | psa |
+| PSA → Service Management | Tickets → Service Management | psa |
+| PSA → Billing | Clients → Billing | psa |
+| PSA → Procurement | Tools → Procurement | psa |
+| Operations → Workflows | Tools → Workflows | workflows |
+| Operations → Inventory | Tools → Inventory | inventory |
+| Operations → Scheduling | Tools → Scheduling | scheduling |
+| Operations → Monitoring | Alerts → Monitoring | monitoring |
+| Operations → Vehicles | Tools → Vehicles | vehicles |
+| Modules → Security | Alerts → Security Alerts | staff + psa |
+| Modules → CRM | Clients → CRM | staff + crm |
+| Modules → Reports | Reports → Reports | staff |
+| Assets → All Assets | Devices → All Assets | auth + assets_view |
+| Assets → Hardware & Ports | Devices → Hardware & Ports | auth + assets_view |
+| Assets → Infrastructure | Devices → Infrastructure | auth |
+| Assets → Asset Setup | Settings → Asset Setup | staff + assets_view |
+| Docs → Documents / Diagrams / Review & Publishing / Documentation Readiness | Clients → same four entries | auth + docs_view |
+| Vault → Passwords | Clients → Passwords | auth + vault_view |
+| Vault → Access Rules | Clients → Vault Access Rules | auth + vault_view |
+| Vault → My Vault | My Work → My Vault | auth |
+| Vault → Secure Notes | My Work → Secure Notes | auth |
+| Admin → System / Security / Integrations / Mobile | Settings → System / Security / Integrations / Mobile | su |
+| Admin → Organizations & Access | Clients → All Clients (Organizations); Settings → Access Management | auth / su |
+| Favorites star (bar) | unchanged in the bar; also My Work → Favorites | auth |
+| Global KB link (bar, PSA off) | Tools → Global KB | global_kb, not psa, staff/su |
+| *(new)* | Clients → Customer Operations (`core:customer_ops_current`) | auth |
+| *(new)* | Devices → RMM Devices (`integrations:rmm_devices`) | staff |
+| *(new)* | Alerts → RMM Alerts (`integrations:rmm_alerts`) | staff |
+| Account menu (My Profile, My Work Details, Help, Apps & Downloads, Sign Out) | unchanged, top bar | auth |
+
+Keyboard: `?` help, `/` search, `j` jump-to (sidebar filter), `[` collapse,
+`g` then `w t c d a o r s` for the groups.
+
+The sections below describe the earlier condensed dropdowns; their **tabs**
+are unchanged and still apply.
+
+## Condensed dropdowns (superseded by the sidebar)
+
 The global menu was condensed so each dropdown holds 3–7 entries. Every
 destination the old menus carried is still reachable by ordinary clicks: either
 as a menu entry, or as a **tab** on that entry's landing page. Tabs are drawn

@@ -1,14 +1,16 @@
-"""The condensed global menu: what each dropdown holds, for whom.
+"""The primary sidebar: which groups and entries, for whom.
 
-Every dropdown carries three to seven entries, one per section; the pages that
-used to sit beside them in the menu are tabs on the section's landing page
-(core/navigation.py, tested in test_navbar_sections.py). The before → after map
-is docs/navigation-map.md.
+Seven technician groups (My Work, Tickets, Clients, Devices, Alerts, Tools,
+Reports) and Settings at the foot, built from core.navigation.PRIMARY /
+SETTINGS. Each entry lands on its section's first tab, and a section's tabs
+are nested under it (core/navigation.py, tested in test_navbar_sections.py).
+The before → after map is docs/navigation-map.md.
 
 The risk in a regrouping is a destination quietly disappearing or a staff
 destination leaking to customer users, so these tests assert on the rendered
-navbar, menu by menu, for a superuser, a technician and a customer user, with
-modules switched on and off.
+sidebar, group by group, for a superuser, a technician and a customer user,
+with modules switched on and off — and that nothing is drawn which the server
+would answer with 403.
 """
 import re
 
@@ -29,32 +31,48 @@ TEST_MIDDLEWARE = [
 ALL_FLAGS = ('psa_enabled', 'crm_enabled', 'workflows_enabled', 'inventory_enabled',
              'scheduling_enabled', 'monitoring_enabled', 'vehicles_enabled')
 
-PSA = ['psa:my_work', 'psa:ticket_list', 'psa:dispatch_board', 'psa:project_list',
-       'psa:service_catalog', 'psa:contract_list', 'psa:requisition_list']
-OPS = ['processes:process_list', 'inventory:inventory_dashboard', 'scheduling:task_list',
-       'monitoring:website_monitor_list', 'vehicles:vehicle_list']
-MODULES = ['security_alerts:alert_list', 'crm:home', 'reports:home']
-ASSETS = ['assets:asset_list', 'hardware:device_list', 'monitoring:rack_list',
-          'assets:vendor_list']
-DOCS = ['docs:document_list', 'docs:diagram_list', 'docs:document_drafts_list',
-        'readiness:overview']
-VAULT = ['vault:password_list', 'vault:personal_vault_list', 'core:secure_note_inbox',
-         'vault:access_rule_list']
-ADMIN = ['core:settings_general', 'core:security_dashboard', 'accounts:organization_list',
-         'integrations:integration_list', 'core:mobile_apps_admin']
+GROUP_ORDER = ['my_work', 'tickets', 'clients', 'devices', 'alerts', 'tools', 'reports']
+
+# Entry landing pages per group, for a superuser with every module on.
+MY_WORK = ['psa:my_work', 'core:dashboard', 'core:favorite_list', 'vault:personal_vault_list',
+           'core:secure_note_inbox']
+TICKETS = ['psa:ticket_list', 'psa:dispatch_board', 'psa:project_list', 'psa:service_catalog']
+CLIENTS = ['accounts:organization_list', 'core:customer_ops_current', 'docs:document_list',
+           'docs:diagram_list', 'docs:document_drafts_list', 'readiness:overview',
+           'vault:password_list', 'vault:access_rule_list', 'psa:contract_list', 'crm:home']
+DEVICES = ['assets:asset_list', 'integrations:rmm_devices', 'hardware:device_list',
+           'monitoring:rack_list']
+ALERTS = ['integrations:rmm_alerts', 'security_alerts:alert_list', 'monitoring:website_monitor_list']
+TOOLS = ['processes:process_list', 'scheduling:task_list', 'inventory:inventory_dashboard',
+         'psa:requisition_list', 'vehicles:vehicle_list']
+REPORTS = ['reports:home']
+SETTINGS = ['core:settings_general', 'core:security_dashboard', 'accounts:access_management',
+            'integrations:integration_list', 'assets:vendor_list', 'core:mobile_apps_admin']
 ACCOUNT = ['accounts:profile', 'resourcing:my_resourcing', 'core:help_index',
            'core:install_app']
 
-# Destinations only MSP staff (or superusers) may see in the navbar.
+# Destinations only MSP staff (or superusers) may see.
 STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
               'assets:vendor_list', 'core:settings_general', 'core:security_dashboard',
               'integrations:integration_list', 'core:mobile_apps_admin',
               'core:snyk_scans', 'accounts:access_management', 'core:webhook_list',
-              'core:beta_test_admin']
+              'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts']
 
 
 def urls(names):
     return [reverse(n) for n in names]
+
+
+def sidebar(html):
+    """{group key: [entry hrefs]} of the rendered sidebar, in order."""
+    if 'id="appNav"' not in html:
+        return {}
+    aside = html.split('id="appNav"', 1)[1].split('</aside>', 1)[0]
+    out = {}
+    parts = re.split(r'<li class="app-nav__group[^"]*" data-group="(\w+)"', aside)
+    for key, body in zip(parts[1::2], parts[2::2]):
+        out[key] = re.findall(r'<a class="app-nav__link[^"]*" href="([^"]+)"', body)
+    return out
 
 
 def menu(html, dropdown_id):
@@ -66,11 +84,6 @@ def menu(html, dropdown_id):
     body = m.group(1)
     hrefs = re.findall(r'<a class="dropdown-item[^"]*" href="([^"]+)"', body)
     return hrefs, 'Sign Out' in body
-
-
-def top_level(html):
-    bar = html.split('id="primaryNav"', 1)[1].split('</ul>\n                <ul class="navbar-nav">', 1)[0]
-    return re.findall(r'id="(\w+Dropdown)"', bar)
 
 
 class NavbarTestBase(TestCase):
@@ -94,10 +107,10 @@ class NavbarTestBase(TestCase):
         from psa.tests._base import _make_msp_tech
         return _make_msp_tech(get_user_model().objects.create_user('nav_tech', 't@x.com', 'pw'))
 
-    def make_customer(self):
+    def make_customer(self, role='owner', username='nav_cust'):
         from accounts.models import Membership
-        u = get_user_model().objects.create_user('nav_cust', 'c@x.com', 'pw')
-        Membership.objects.create(user=u, organization=self.org, role='owner')
+        u = get_user_model().objects.create_user(username, f'{username}@x.com', 'pw')
+        Membership.objects.create(user=u, organization=self.org, role=role)
         return u
 
     def page(self, user, name='core:dashboard'):
@@ -111,134 +124,149 @@ class NavbarTestBase(TestCase):
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class SuperuserMenuTests(NavbarTestBase):
+class SuperuserSidebarTests(NavbarTestBase):
 
     def setUp(self):
         super().setUp()
         self.html = self.page(self.make_superuser())
+        self.nav = sidebar(self.html)
 
-    def test_top_level_order(self):
-        self.assertEqual(top_level(self.html), [
-            'psaDropdown', 'opsDropdown', 'modulesDropdown', 'assetsDropdown',
-            'docsDropdown', 'vaultDropdown', 'adminDropdown'])
+    def test_group_order(self):
+        self.assertEqual(list(self.nav), GROUP_ORDER + ['settings'])
 
-    def test_dashboard_stays_a_direct_link(self):
-        bar = self.html.split('id="primaryNav"', 1)[1]
-        self.assertIn(f'href="{reverse("core:dashboard")}"', bar[:600])
+    def test_each_group_holds_exactly_its_entries(self):
+        for key, expected in (('my_work', MY_WORK), ('tickets', TICKETS), ('clients', CLIENTS),
+                              ('devices', DEVICES), ('alerts', ALERTS), ('tools', TOOLS),
+                              ('reports', REPORTS), ('settings', SETTINGS)):
+            with self.subTest(group=key):
+                self.assertEqual(self.nav[key], urls(expected))
 
-    def test_each_dropdown_holds_exactly_its_sections(self):
-        for dropdown, expected in (
-                ('psaDropdown', PSA), ('opsDropdown', OPS), ('modulesDropdown', MODULES),
-                ('assetsDropdown', ASSETS), ('docsDropdown', DOCS),
-                ('vaultDropdown', VAULT), ('adminDropdown', ADMIN),
-                ('userDropdown', ACCOUNT)):
-            with self.subTest(dropdown=dropdown):
-                hrefs, _ = menu(self.html, dropdown)
-                self.assertEqual(hrefs, urls(expected))
-
-    def test_counts_stay_within_budget(self):
-        budget = {'psaDropdown': 7, 'opsDropdown': 5, 'modulesDropdown': 3,
-                  'assetsDropdown': 4, 'docsDropdown': 4, 'vaultDropdown': 4,
-                  'adminDropdown': 5}
-        for dropdown, limit in budget.items():
-            hrefs, _ = menu(self.html, dropdown)
-            self.assertLessEqual(len(hrefs), limit, dropdown)
-            self.assertGreaterEqual(len(hrefs), 3, dropdown)
+    def test_old_dropdowns_are_gone_but_the_account_menu_stays(self):
+        for old in ('psaDropdown', 'opsDropdown', 'modulesDropdown', 'assetsDropdown',
+                    'docsDropdown', 'vaultDropdown', 'adminDropdown', 'moreNavDropdown'):
+            self.assertNotIn(f'id="{old}"', self.html)
         hrefs, sign_out = menu(self.html, 'userDropdown')
-        self.assertEqual(len(hrefs) + int(sign_out), 5)
+        self.assertEqual(hrefs, urls(ACCOUNT))
+        self.assertTrue(sign_out)
 
-    def test_no_nested_flyouts_or_section_headers(self):
-        for dropdown in ('psaDropdown', 'opsDropdown', 'modulesDropdown', 'assetsDropdown',
-                         'docsDropdown', 'vaultDropdown', 'adminDropdown', 'userDropdown'):
-            body = self.html.split(f'aria-labelledby="{dropdown}"', 1)[1].split('</ul>', 1)[0]
-            self.assertNotIn('dropdown-header', body, dropdown)
-            self.assertNotIn('dropdown-submenu', body, dropdown)
+    def test_sidebar_is_searchable_collapsible_and_labelled(self):
+        self.assertIn('id="appNavFilter"', self.html)
+        self.assertIn('id="appNavCollapse"', self.html)
+        self.assertIn('id="appNavOpen"', self.html)          # phone drawer button
+        self.assertIn('aria-label="Primary"', self.html)
+        self.assertIn('id="shortcutHelp"', self.html)        # ? overlay
+        self.assertIn('js/app_nav.js', self.html)
+        # Every entry carries filter text, nested tabs included.
+        self.assertIn('data-filter="Canned Replies Tickets Tickets"', self.html)
 
-    def test_the_old_more_menu_is_gone(self):
-        self.assertNotIn('moreNavDropdown', self.html)
-
-    def test_new_ticket_left_the_menu_but_is_on_the_ticket_list(self):
-        hrefs, _ = menu(self.html, 'psaDropdown')
-        self.assertNotIn(reverse('psa:ticket_create'), hrefs)
-        tickets = self.page(self.make_technician(), 'psa:ticket_list')
-        self.assertIn(reverse('psa:ticket_create'), tickets)
+    def test_every_old_menu_landing_page_is_still_one_click_away(self):
+        """Each pre-sidebar navbar entry is an entry (or nested tab) here."""
+        old = ['core:dashboard', 'psa:my_work', 'psa:ticket_list', 'psa:dispatch_board',
+               'psa:project_list', 'psa:service_catalog', 'psa:contract_list',
+               'psa:requisition_list', 'processes:process_list', 'inventory:inventory_dashboard',
+               'scheduling:task_list', 'monitoring:website_monitor_list', 'vehicles:vehicle_list',
+               'security_alerts:alert_list', 'crm:home', 'reports:home', 'assets:asset_list',
+               'hardware:device_list', 'monitoring:rack_list', 'assets:vendor_list',
+               'docs:document_list', 'docs:diagram_list', 'docs:document_drafts_list',
+               'readiness:overview', 'vault:password_list', 'vault:personal_vault_list',
+               'core:secure_note_inbox', 'vault:access_rule_list', 'core:settings_general',
+               'core:security_dashboard', 'accounts:organization_list',
+               'integrations:integration_list', 'core:mobile_apps_admin']
+        aside = self.html.split('id="appNav"', 1)[1].split('</aside>', 1)[0]
+        for name in old:
+            self.assertIn(f'href="{reverse(name)}"', aside, name)
 
     def test_sign_out_is_still_a_post_form(self):
         body = self.html.split('aria-labelledby="userDropdown"', 1)[1].split('</ul>', 1)[0]
         self.assertIn(f'<form method="post" action="{reverse("logout")}"', body)
         self.assertIn('csrfmiddlewaretoken', body)
-        self.assertIn('type="submit"', body)
-
-    def test_visible_utility_controls_survive(self):
-        cluster = self.html.split('</ul>\n                <ul class="navbar-nav">', 1)[1]
-        self.assertIn(reverse('core:beta_test_signup'), cluster)
-        self.assertIn(reverse('core:install_app'), cluster)
-        self.assertIn('data-bs-target="#supportProjectModal"', cluster)
-        # Both Help modals are still on every page.
-        self.assertIn('id="reportBugModal"', self.html)
-        self.assertIn('id="supportProjectModal"', self.html)
 
     def test_client_switcher_and_its_integration_points(self):
         self.assertIn('id="orgDropdown"', self.html)
         self.assertIn('Global View', self.html)
-        # The PSA menu's old "Clients" entry lives at the foot of the switcher.
         self.assertIn('data-nav="all-clients"', self.html)
 
-    def test_navbar_entries_match_the_section_registry(self):
-        """Each navbar entry is its section's landing page (first tab)."""
-        landing = {reverse(s.tabs[0].url_name, args=s.tabs[0].args) for s in navigation.SECTIONS}
-        for dropdown in ('psaDropdown', 'opsDropdown', 'modulesDropdown', 'assetsDropdown',
-                         'docsDropdown', 'vaultDropdown', 'adminDropdown', 'userDropdown'):
-            hrefs, _ = menu(self.html, dropdown)
-            for href in hrefs:
-                self.assertIn(href, landing, f'{dropdown}: {href} has no section')
+    def test_sidebar_follows_the_navbar_in_the_document(self):
+        """Skip link → bar → sidebar → main; the star stays the first
+        favorites link (test_navbar_utility_buttons relies on it)."""
+        self.assertLess(self.html.index('class="navbar'), self.html.index('id="appNav"'))
+        self.assertLess(self.html.index('id="appNav"'), self.html.index('id="main-content"'))
+        self.assertLess(self.html.index('nav-util'), self.html.index('id="appNav"'))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class TechnicianMenuTests(NavbarTestBase):
+class TechnicianSidebarTests(NavbarTestBase):
 
     def setUp(self):
         super().setUp()
         self.html = self.page(self.make_technician())
+        self.nav = sidebar(self.html)
 
-    def test_no_admin_menu(self):
-        self.assertNotIn('adminDropdown', self.html)
+    def test_groups(self):
+        self.assertEqual(list(self.nav), GROUP_ORDER + ['settings'])
+        self.assertEqual(self.nav['devices'], urls(DEVICES))
+        self.assertEqual(self.nav['alerts'], urls(ALERTS))
+        self.assertEqual(self.nav['reports'], urls(REPORTS))
+
+    def test_settings_holds_only_what_a_technician_may_open(self):
+        self.assertEqual(self.nav['settings'], urls(['assets:vendor_list']))
         for name in ('core:settings_general', 'core:security_dashboard', 'core:snyk_scans',
                      'core:mobile_apps_admin', 'accounts:access_management'):
             self.assertNotIn(f'href="{reverse(name)}"', self.html, name)
 
-    def test_menus(self):
-        self.assertEqual(top_level(self.html), [
-            'psaDropdown', 'opsDropdown', 'modulesDropdown', 'assetsDropdown',
-            'docsDropdown', 'vaultDropdown'])
-        self.assertEqual(menu(self.html, 'psaDropdown')[0], urls(PSA))
-        self.assertEqual(menu(self.html, 'modulesDropdown')[0], urls(MODULES))
-        self.assertEqual(menu(self.html, 'assetsDropdown')[0], urls(ASSETS))
-        self.assertEqual(menu(self.html, 'userDropdown')[0], urls(ACCOUNT))
-
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class CustomerMenuTests(NavbarTestBase):
+class CustomerSidebarTests(NavbarTestBase):
 
     def setUp(self):
         super().setUp()
         self.html = self.page(self.make_customer())
+        self.nav = sidebar(self.html)
 
     def test_no_staff_destinations(self):
-        self.assertNotIn('modulesDropdown', self.html)
-        self.assertNotIn('adminDropdown', self.html)
+        # RMM and security alerts are staff-only; website monitoring was in
+        # the customer's Operations menu before and stays.
+        self.assertEqual(self.nav['alerts'], urls(['monitoring:website_monitor_list']))
+        self.assertNotIn('reports', self.nav)
+        self.assertNotIn('settings', self.nav)
         for name in STAFF_ONLY:
             self.assertNotIn(f'href="{reverse(name)}"', self.html, name)
         self.assertNotIn(f'href="{reverse("assets:custom_field_list")}"', self.html)
 
-    def test_menus_match_what_customers_saw_before(self):
-        # PSA, Assets (minus Setup), Docs, Vault and Account were never
-        # staff-gated in the navbar; the condensed menu keeps that.
-        self.assertEqual(menu(self.html, 'psaDropdown')[0], urls(PSA))
-        self.assertEqual(menu(self.html, 'assetsDropdown')[0], urls(ASSETS[:3]))
-        self.assertEqual(menu(self.html, 'docsDropdown')[0], urls(DOCS))
-        self.assertEqual(menu(self.html, 'vaultDropdown')[0], urls(VAULT))
-        self.assertEqual(menu(self.html, 'userDropdown')[0], urls(ACCOUNT))
+    def test_customer_keeps_what_they_saw_before(self):
+        self.assertEqual(self.nav['tickets'], urls(TICKETS))
+        self.assertEqual(self.nav['devices'], urls(['assets:asset_list', 'hardware:device_list',
+                                                    'monitoring:rack_list']))
+        for name in ('docs:document_list', 'vault:password_list', 'psa:contract_list'):
+            self.assertIn(reverse(name), self.nav['clients'])
+
+    def test_nothing_drawn_that_the_server_would_refuse(self):
+        """Every sidebar link a customer sees answers something other than 403."""
+        aside = self.html.split('id="appNav"', 1)[1].split('</aside>', 1)[0]
+        for href in sorted(set(re.findall(r'href="(/[^"#?]*)"', aside))):
+            with self.subTest(href=href):
+                self.assertNotEqual(self.client.get(href).status_code, 403, href)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class RoleFlagProbeTests(NavbarTestBase):
+    """A customer role without vault_view / docs_view gets no link the
+    SectionPermissionMiddleware would answer 403."""
+
+    def test_role_without_vault_and_docs(self):
+        from accounts.models import Membership, RoleTemplate
+        user = get_user_model().objects.create_user('nav_novault', 'nv@x.com', 'pw')
+        rt = RoleTemplate.objects.create(name='No vault or docs', organization=self.org,
+                                         vault_view=False, docs_view=False, assets_view=True)
+        Membership.objects.create(user=user, organization=self.org, role='readonly', role_template=rt)
+        html = self.page(user)
+        aside = html.split('id="appNav"', 1)[1].split('</aside>', 1)[0]
+        self.assertNotIn(f'href="{reverse("vault:password_list")}"', aside)
+        self.assertNotIn(f'href="{reverse("docs:document_list")}"', aside)
+        self.assertIn(f'href="{reverse("assets:asset_list")}"', aside)
+        # The personal vault is exempt from the vault gate and stays.
+        self.assertIn(f'href="{reverse("vault:personal_vault_list")}"', aside)
+        self.assertEqual(self.client.get(reverse('vault:password_list')).status_code, 403)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -246,33 +274,61 @@ class ModuleToggleTests(NavbarTestBase):
 
     def test_everything_off(self):
         self.flags(**{f: False for f in ALL_FLAGS})
-        html = self.page(self.make_superuser())
-        self.assertEqual(top_level(html), [
-            'modulesDropdown', 'assetsDropdown', 'docsDropdown', 'vaultDropdown',
-            'adminDropdown'])
-        # Reports is ungated, so Modules survives with one entry.
-        self.assertEqual(menu(html, 'modulesDropdown')[0], urls(['reports:home']))
+        nav = sidebar(self.page(self.make_superuser()))
+        self.assertNotIn('tickets', nav)
+        # With PSA off the global knowledge base is the only tool left.
+        self.assertEqual(nav['tools'], urls(['docs:global_kb_list']))
+        self.assertEqual(nav['alerts'], urls(['integrations:rmm_alerts']))
+        self.assertEqual(nav['reports'], urls(REPORTS))   # Reports is ungated
+        self.assertNotIn(reverse('psa:my_work'), nav['my_work'])
 
-    def test_psa_off_drops_psa_and_security(self):
+    def test_psa_off_drops_tickets_billing_procurement_and_security(self):
         self.flags(psa_enabled=False)
         html = self.page(self.make_superuser())
-        self.assertNotIn('psaDropdown', html)
-        self.assertEqual(menu(html, 'modulesDropdown')[0], urls(['crm:home', 'reports:home']))
+        nav = sidebar(html)
+        self.assertNotIn('tickets', nav)
+        self.assertNotIn(reverse('psa:contract_list'), nav['clients'])
+        self.assertNotIn(reverse('psa:requisition_list'), nav['tools'])
+        self.assertNotIn(reverse('security_alerts:alert_list'), nav['alerts'])
 
     def test_crm_off(self):
         self.flags(crm_enabled=False)
         html = self.page(self.make_superuser())
-        self.assertEqual(menu(html, 'modulesDropdown')[0],
-                         urls(['security_alerts:alert_list', 'reports:home']))
+        self.assertNotIn(reverse('crm:home'), sidebar(html)['clients'])
         self.assertNotIn(reverse('crm:pipeline'), html)
 
-    def test_operations_follow_their_flags(self):
+    def test_tools_follow_their_flags(self):
         self.flags(workflows_enabled=False, vehicles_enabled=False)
-        html = self.page(self.make_technician())
-        self.assertEqual(menu(html, 'opsDropdown')[0], urls(OPS[1:4]))
+        nav = sidebar(self.page(self.make_technician()))
+        self.assertEqual(nav['tools'], urls(['scheduling:task_list', 'inventory:inventory_dashboard',
+                                             'psa:requisition_list']))
 
-    def test_operations_menu_disappears_when_all_off(self):
-        self.flags(workflows_enabled=False, inventory_enabled=False,
-                   scheduling_enabled=False, monitoring_enabled=False,
-                   vehicles_enabled=False)
-        self.assertNotIn('opsDropdown', self.page(self.make_technician()))
+    def test_global_kb_moves_into_tools_when_psa_is_off(self):
+        self.flags(psa_enabled=False, global_kb_enabled=True)
+        nav = sidebar(self.page(self.make_superuser()))
+        self.assertIn(reverse('docs:global_kb_list'), nav['tools'])
+
+
+class RegistryTests(TestCase):
+
+    def test_every_section_with_a_sidebar_home_is_reachable(self):
+        """Every SECTION is an entry of some group, except the account-menu ones."""
+        placed = {e.section for g in navigation.ALL_GROUPS for e in g.entries if e.section}
+        account = {s.key for s in navigation.SECTIONS if s.menu == 'account'}
+        missing = {s.key for s in navigation.SECTIONS} - placed - account
+        self.assertEqual(missing, set())
+
+    def test_group_for(self):
+        self.assertEqual(navigation.group_for('psa:ticket_detail'), 'tickets')
+        self.assertEqual(navigation.group_for('psa:recurring_list'), 'tickets')
+        self.assertEqual(navigation.group_for('monitoring:rack_detail'), 'devices')
+        self.assertEqual(navigation.group_for('monitoring:website_monitor_detail'), 'alerts')
+        self.assertEqual(navigation.group_for('integrations:rmm_device_detail'), 'devices')
+        self.assertEqual(navigation.group_for('integrations:rmm_detail'), 'settings')
+        self.assertEqual(navigation.group_for('core:settings_smtp'), 'settings')
+        self.assertEqual(navigation.group_for('assets:custom_field_list'), 'settings')
+        self.assertEqual(navigation.group_for('accounts:profile'), '')
+
+    def test_group_count_and_order(self):
+        self.assertEqual([g.key for g in navigation.PRIMARY], GROUP_ORDER)
+        self.assertEqual(navigation.SETTINGS.key, 'settings')

@@ -2563,3 +2563,77 @@ class RecentClient(models.Model):
 
     def __str__(self):
         return f"{self.user_id} -> {self.organization_id} @ {self.switched_at}"
+
+
+class RecentDevice(models.Model):
+    """
+    A device page a user opened, for "Recent devices" on My Work and in the
+    global search box.
+
+    One row per (user, kind, object); opening it again bumps `opened_at`.
+    Written by core.workspace.RecentDeviceMiddleware only after the device's
+    own view answered 200, so a row never records something the user could
+    not open. Rows are still never trusted for access: core.workspace
+    re-reads each device through the same customer and role scoping on every
+    render, so a revoked membership or a device moved to another customer
+    drops out of the list without touching this table.
+    """
+    from django.contrib.auth.models import User
+
+    KIND_ASSET = 'asset'
+    KIND_RMM = 'rmm_device'
+    KIND_HARDWARE = 'hardware'
+    KIND_CHOICES = [
+        (KIND_ASSET, 'Asset'),
+        (KIND_RMM, 'RMM device'),
+        (KIND_HARDWARE, 'Hardware device'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_devices')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    object_id = models.PositiveIntegerField()
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='+')
+    opened_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = 'core_recent_devices'
+        unique_together = [['user', 'kind', 'object_id']]
+        ordering = ['-opened_at']
+        indexes = [models.Index(fields=['user', '-opened_at'])]
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.kind}:{self.object_id} @ {self.opened_at}"
+
+
+class SavedView(models.Model):
+    """
+    A technician's named filter set for a dense list (tickets, devices).
+
+    `list_key` names a list in core.workspace.SAVED_VIEW_LISTS; `query` is the
+    list's own query string, re-validated against that list's allowed
+    parameters when saved and again when applied. A saved view is only ever a
+    URL the user could type themselves: it carries no access of its own, and
+    the list view scopes the rows exactly as it would for that URL.
+
+    `is_default` (at most one per user and list) opens the list with that
+    view when the user arrives with no filters of their own.
+    """
+    from django.contrib.auth.models import User
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_views')
+    list_key = models.CharField(max_length=40)
+    name = models.CharField(max_length=60)
+    query = models.CharField(max_length=1000, blank=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'core_saved_views'
+        ordering = ['list_key', 'name']
+        unique_together = [['user', 'list_key', 'name']]
+        indexes = [models.Index(fields=['user', 'list_key'])]
+
+    def __str__(self):
+        return f"{self.user_id} {self.list_key}: {self.name}"

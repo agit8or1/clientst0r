@@ -1,0 +1,85 @@
+{% load i18n workspace_tags %}{% comment %}
+Above every page's content (base.html), in this order:
+  1. where you are — Group › Section › Page from the sidebar registry. Hidden
+     by CSS on pages that draw their own .breadcrumb (navigation.css), so a
+     page never shows two;
+  2. the open-in-context trail — "Switched to <customer> to open <device>"
+     with a way back to the page and customer you came from
+     (core.workspace.open_device / context_return);
+  3. the saved-views bar on registered dense lists (core.workspace
+     SAVED_VIEW_LISTS).
+{% endcomment %}
+{% if pnav.breadcrumbs %}
+<nav class="app-trail" aria-label="{% trans 'Breadcrumb' %}">
+    <ol class="breadcrumb app-trail__list mb-2">
+        {% for c in pnav.breadcrumbs %}
+        <li class="breadcrumb-item{% if not c.href %} active{% endif %}"{% if not c.href %} aria-current="page"{% endif %}>{% if c.href %}<a href="{{ c.href }}">{{ c.label }}</a>{% else %}{{ c.label }}{% endif %}</li>
+        {% endfor %}
+    </ol>
+</nav>
+{% endif %}
+
+{% work_context_trail as trail %}
+{% if trail %}
+<div class="work-trail alert alert-light border d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 mb-3" role="status" id="workTrail">
+    <span class="small">
+        <i class="fas fa-building text-warning" aria-hidden="true"></i>
+        {% blocktrans with customer=current_organization.name record=trail.record %}Switched to <strong>{{ customer }}</strong> to open {{ record }}.{% endblocktrans %}
+    </span>
+    <form method="post" action="{% url 'core:context_return' %}" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-secondary" data-no-busy>
+            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            {% if trail.from_org_name %}{% blocktrans with name=trail.from_org_name %}Back to {{ name }}{% endblocktrans %}{% elif trail.from_org_id is None %}{% trans "Back to Global View" %}{% else %}{% trans "Back" %}{% endif %}
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{% saved_view_bar as svb %}
+{% if svb %}
+<div class="saved-views card mb-3" id="savedViews" data-list="{{ svb.list_key }}">
+    <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+        <span class="small text-muted me-1"><i class="fas fa-bookmark" aria-hidden="true"></i> {% trans "Views" %}</span>
+        <a class="btn btn-sm {% if not svb.current_query %}btn-secondary{% else %}btn-outline-secondary{% endif %}" href="{{ svb.all_url }}"{% if not svb.current_query %} aria-current="true"{% endif %}>{% blocktrans with what=svb.label %}All {{ what }}{% endblocktrans %}</a>
+        {% for v in svb.views %}
+        <span class="btn-group btn-group-sm saved-views__item" role="group">
+            <a class="btn {% if v.active %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{{ v.url }}"{% if v.active %} aria-current="true"{% endif %}>
+                {% if v.is_default %}<i class="fas fa-star" aria-hidden="true" title="{% trans 'Opens by default' %}"></i><span class="visually-hidden">{% trans "(default)" %}</span> {% endif %}{{ v.name }}
+            </a>
+            <button type="button" class="btn {% if v.active %}btn-primary{% else %}btn-outline-primary{% endif %} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% blocktrans with name=v.name %}Options for {{ name }}{% endblocktrans %}"></button>
+            <ul class="dropdown-menu">
+                <li>
+                    <form method="post" action="{% url 'core:saved_view_default' v.id %}" class="m-0">{% csrf_token %}<input type="hidden" name="next" value="{{ svb.next }}">
+                        <button type="submit" class="dropdown-item">{% if v.is_default %}{% trans "Stop opening by default" %}{% else %}{% trans "Open by default" %}{% endif %}</button>
+                    </form>
+                </li>
+                <li>
+                    <form method="post" action="{% url 'core:saved_view_delete' v.id %}" class="m-0" data-confirm="{% blocktrans with name=v.name %}Delete the saved view “{{ name }}”? The tickets or devices themselves are not affected.{% endblocktrans %}">{% csrf_token %}<input type="hidden" name="next" value="{{ svb.all_url }}">
+                        <button type="submit" class="dropdown-item text-danger">{% trans "Delete view" %}</button>
+                    </form>
+                </li>
+            </ul>
+        </span>
+        {% endfor %}
+        {% for p in svb.presets %}
+        <a class="btn btn-sm {% if p.active %}btn-info{% else %}btn-outline-info{% endif %}" href="{{ p.url }}"{% if p.active %} aria-current="true"{% endif %}>{{ p.name }}</a>
+        {% endfor %}
+        {% if svb.can_save %}
+        <form method="post" action="{% url 'core:saved_view_save' %}" class="saved-views__save d-flex align-items-center gap-1 ms-auto">
+            {% csrf_token %}
+            <input type="hidden" name="list_key" value="{{ svb.list_key }}">
+            <input type="hidden" name="query" value="{{ svb.current_query }}">
+            <input type="hidden" name="next" value="{{ svb.next }}">
+            <label class="visually-hidden" for="savedViewName">{% trans "Name for this view" %}</label>
+            <input type="text" class="form-control form-control-sm" id="savedViewName" name="name" maxlength="60" required placeholder="{% trans 'Name these filters…' %}">
+            <div class="form-check form-check-inline small mb-0 ms-1">
+                <input class="form-check-input" type="checkbox" name="is_default" value="1" id="savedViewDefault">
+                <label class="form-check-label" for="savedViewDefault">{% trans "Default" %}</label>
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-floppy-disk" aria-hidden="true"></i> {% trans "Save view" %}</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
