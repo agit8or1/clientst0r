@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}LDAP Group Mappings - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_directory' %}">Directory Services</a></li>
+        <li class="breadcrumb-item active">Group mappings</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        {% include "core/_settings_menu.html" with active_page="directory" %}
+    </div>
+
+    <div class="col-md-9">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-project-diagram"></i> LDAP group mappings</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Map a directory group to a customer and a role. At every LDAP sign-in, members of a mapped
+                    group get an active membership in that customer with that role; when they leave every mapped
+                    group for the customer, the membership the mapping created is deactivated.
+                    Memberships created by hand are never changed by a mapping. Every change is audit-logged.
+                    Group names are matched without regard to case; nested groups count when the group type is
+                    Active Directory.
+                </p>
+
+                <form method="post" class="row g-2 align-items-end mb-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add">
+                    <div class="col-md-5">
+                        <label for="group_dn" class="form-label">Group DN</label>
+                        <input type="text" class="form-control" id="group_dn" name="group_dn" maxlength="500" required
+                               placeholder="CN=Acme Users,OU=Groups,DC=example,DC=com">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="organization" class="form-label">Customer</label>
+                        <select class="form-select" id="organization" name="organization" required>
+                            <option value="">Choose...</option>
+                            {% for org in organizations %}<option value="{{ org.pk }}">{{ org.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="role_template" class="form-label">Role</label>
+                        <select class="form-select" id="role_template" name="role_template" required>
+                            <option value="">Choose...</option>
+                            {% for role in roles %}
+                            <option value="{{ role.pk }}">{{ role.name }}{% if role.organization %} ({{ role.organization.name }} only){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100">Add</button>
+                    </div>
+                    <div class="col-12 form-text">A customer-specific role can only be used for that customer.</div>
+                </form>
+
+                {% if mappings %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Group DN</th><th>Customer</th><th>Role / status</th><th></th></tr></thead>
+                        <tbody>
+                        {% for m in mappings %}
+                        <tr>
+                            <td><code>{{ m.group_dn }}</code></td>
+                            <td>{{ m.organization.name }}</td>
+                            <td>
+                                <form method="post" class="d-flex gap-2 align-items-center">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update">
+                                    <input type="hidden" name="pk" value="{{ m.pk }}">
+                                    <select class="form-select form-select-sm" name="role_template" aria-label="Role">
+                                        {% for role in roles %}
+                                        {% if not role.organization or role.organization_id == m.organization_id %}
+                                        <option value="{{ role.pk }}" {% if role.pk == m.role_template_id %}selected{% endif %}>{{ role.name }}</option>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="is_active" id="active-{{ m.pk }}" {% if m.is_active %}checked{% endif %}>
+                                        <label class="form-check-label" for="active-{{ m.pk }}">Active</label>
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'accounts:ldap_group_mapping_delete' m.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove the mapping and deactivate the memberships it created">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No group mappings yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
