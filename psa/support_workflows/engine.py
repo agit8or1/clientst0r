@@ -261,7 +261,10 @@ def _rem0te_alert_now(link):
         return None, f'Not read: {e.message}'
     if not r.ok or not isinstance(r.data, dict):
         return None, f'Rem0te did not return the alert ({r.code or r.status}).'
-    if schema.errors('alert', r.data) or r.data.get('alert_id') != link.external_id:
+    # Same revision rule as alert events: any revision ClientSt0r implements.
+    peer_rev = pairing.last_check(conn).get('contract_revision') or 1
+    errs, _unknown, _rev = schema.errors_from_peer('alert', r.data, peer_rev)
+    if errs or r.data.get('alert_id') != link.external_id:
         return None, 'Rem0te answered with something that is not this alert; ignored.'
     return r.data, ''
 

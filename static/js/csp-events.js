@@ -7,6 +7,8 @@
  *   data-confirm="Message"       click on a link/button, or submit of a <form>:
  *                                ask first; cancelling stops the action.
  *   data-autosubmit              change on a field submits its form.
+ *   data-navigate                change on a <select> opens the chosen
+ *                                option's value, if it is a local path.
  *   data-click="#id"             click forwards a click to that element.
  *   data-copy-from="#id"         click copies that field's value; with
  *                                data-copied-text="Copied!" the button's
@@ -165,6 +167,10 @@
         if (!el || el.nodeType !== 1) return;
         if (el.hasAttribute('data-autosubmit') && el.form) {
             el.form.submit();
+        }
+        if (el.hasAttribute('data-navigate')) {
+            var to = el.value || '';
+            if (to.charAt(0) === '/' && to.charAt(1) !== '/') window.location.assign(to);
         }
         if (el.hasAttribute('data-on-change')) {
             callNamed(el, 'data-on-change', ev);
