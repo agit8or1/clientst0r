@@ -48,6 +48,17 @@ TOOLS = ['processes:process_list', 'scheduling:task_list', 'inventory:inventory_
 REPORTS = ['reports:home']
 SETTINGS = ['core:settings_general', 'core:security_dashboard', 'accounts:access_management',
             'integrations:integration_list', 'assets:vendor_list', 'core:mobile_apps_admin']
+
+# What a superuser sees on top of that: the pages added on the dev branch,
+# each behind its page's own check (docs/navigation-map.md).
+TICKETS_SU = ['psa:ticket_list', 'psa:dispatch_board', 'resourcing:shift_schedule',
+              'psa:project_list', 'psa:service_catalog']
+ALERTS_SU = ALERTS + ['ticket_routing:alerts']
+TOOLS_SU = ['processes:process_list', 'support_workflows:admin', 'scheduling:task_list',
+            'inventory:inventory_dashboard', 'psa:requisition_list', 'vehicles:vehicle_list']
+SETTINGS_SU = ['core:settings_general', 'core:security_dashboard', 'accounts:access_management',
+               'accounts:ldap_group_mappings', 'rmm_permissions:index',
+               'integrations:integration_list', 'assets:vendor_list', 'core:mobile_apps_admin']
 ACCOUNT = ['accounts:profile', 'resourcing:my_resourcing', 'core:help_index',
            'core:install_app']
 
@@ -135,9 +146,9 @@ class SuperuserSidebarTests(NavbarTestBase):
         self.assertEqual(list(self.nav), GROUP_ORDER + ['settings'])
 
     def test_each_group_holds_exactly_its_entries(self):
-        for key, expected in (('my_work', MY_WORK), ('tickets', TICKETS), ('clients', CLIENTS),
-                              ('devices', DEVICES), ('alerts', ALERTS), ('tools', TOOLS),
-                              ('reports', REPORTS), ('settings', SETTINGS)):
+        for key, expected in (('my_work', MY_WORK), ('tickets', TICKETS_SU), ('clients', CLIENTS),
+                              ('devices', DEVICES), ('alerts', ALERTS_SU), ('tools', TOOLS_SU),
+                              ('reports', REPORTS), ('settings', SETTINGS_SU)):
             with self.subTest(group=key):
                 self.assertEqual(self.nav[key], urls(expected))
 
@@ -332,3 +343,76 @@ class RegistryTests(TestCase):
     def test_group_count_and_order(self):
         self.assertEqual([g.key for g in navigation.PRIMARY], GROUP_ORDER)
         self.assertEqual(navigation.SETTINGS.key, 'settings')
+
+
+ADDED_PAGES = ['resourcing:shift_schedule', 'resourcing:shift_templates', 'field_ops:dispatch_sharing',
+               'field_ops:dispatch_geo_settings', 'psa:billing_review', 'assets:serial_search',
+               'psa:workflow_rule_map', 'support_workflows:admin', 'ticket_routing:alerts',
+               'rmm_permissions:index', 'docs:kb_analytics', 'security_alerts:digest_subscriptions',
+               'accounts:ldap_group_mappings', 'integrations:rem0te_setup']
+# Pages a technician without any role flag may still open.
+TECH_ADDED = ['resourcing:shift_schedule', 'field_ops:dispatch_sharing', 'assets:serial_search',
+              'docs:kb_analytics']
+# Superuser- or role-only pages a plain technician must not be offered.
+TECH_HIDDEN = ['field_ops:dispatch_geo_settings', 'accounts:ldap_group_mappings',
+               'integrations:rem0te_setup']
+
+
+def aside_of(html):
+    return html.split('id="appNav"', 1)[1].split('</aside>', 1)[0]
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class AddedPagesInSidebarTests(NavbarTestBase):
+    """Pages that were only linked from inside their apps now have a sidebar
+    link, behind the same check the page applies."""
+
+    def test_superuser_reaches_every_added_page(self):
+        aside = aside_of(self.page(self.make_superuser()))
+        for name in ADDED_PAGES:
+            with self.subTest(page=name):
+                self.assertIn(f'href="{reverse(name)}"', aside)
+
+    def test_every_added_link_opens_for_the_superuser(self):
+        self.page(self.make_superuser())
+        for name in ADDED_PAGES:
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(reverse(name)).status_code, 200, name)
+
+    def test_technician_gets_only_what_their_checks_allow(self):
+        html = self.page(self.make_technician())
+        aside = aside_of(html)
+        for name in TECH_ADDED:
+            with self.subTest(page=name):
+                self.assertIn(f'href="{reverse(name)}"', aside)
+        for name in TECH_HIDDEN:
+            with self.subTest(page=name):
+                self.assertNotIn(f'href="{reverse(name)}"', aside)
+        for href in sorted(set(re.findall(r'href="(/[^"#?]*)"', aside))):
+            with self.subTest(href=href):
+                self.assertNotIn(self.client.get(href).status_code, (403, 404), href)
+
+    def test_customer_gets_none_of_the_staff_pages(self):
+        aside = aside_of(self.page(self.make_customer()))
+        for name in ADDED_PAGES:
+            if name == 'assets:serial_search':
+                continue  # scoped to the customer's own assets, like All Assets
+            with self.subTest(page=name):
+                self.assertNotIn(f'href="{reverse(name)}"', aside)
+
+    def test_active_group_of_the_added_pages(self):
+        for name, group in (('resourcing:shift_schedule', 'tickets'),
+                            ('field_ops:dispatch_geo_settings', 'tickets'),
+                            ('psa:billing_review', 'clients'),
+                            ('assets:serial_search', 'devices'),
+                            ('ticket_routing:alerts', 'alerts'),
+                            ('ticket_routing:alert_maintenance', 'alerts'),
+                            ('support_workflows:admin', 'tools'),
+                            ('support_workflows:admin_new', 'tools'),
+                            ('rmm_permissions:index', 'settings'),
+                            ('rmm_permissions:approvals', 'settings'),
+                            ('accounts:ldap_group_mappings', 'settings'),
+                            ('integrations:rem0te_setup', 'settings'),
+                            ('security_alerts:digest_subscriptions', 'alerts')):
+            with self.subTest(page=name):
+                self.assertEqual(navigation.group_for(name), group)
