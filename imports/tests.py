@@ -389,3 +389,46 @@ class CSVImportPreviewTests(TestCase):
         buf.read()  # caller already consumed the buffer
         headers, _rows = read_csv_preview(buf, max_rows=1)
         self.assertEqual(headers, ['name'])
+
+
+# ---------------------------------------------------------------------------
+# Who may open the legacy import screens
+# ---------------------------------------------------------------------------
+
+from django.conf import settings as _django_settings  # noqa: E402
+from django.test import override_settings  # noqa: E402
+
+_TEST_MIDDLEWARE = [m for m in _django_settings.MIDDLEWARE
+                    if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m]
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ImportScreensAreSuperuserOnlyTests(TestCase):
+    """The rule is superuser-only. The old check also looked at
+    `user.is_staff_user`, which no User has, so it never let anyone else in;
+    these tests pin that, so widening it is a visible decision."""
+
+    def test_check_is_superuser_only(self):
+        from types import SimpleNamespace
+        from imports.views import is_import_admin
+        su = User.objects.create_superuser('imp_su', 's@x.test', 'pw')
+        plain = User.objects.create_user('imp_plain', 'p@x.test', 'pw')
+        self.assertTrue(is_import_admin(su))
+        self.assertFalse(is_import_admin(plain))
+        # Even an object that does carry is_staff_user is not let in.
+        self.assertFalse(is_import_admin(SimpleNamespace(is_authenticated=True, is_superuser=False,
+                                                         is_staff_user=True)))
+
+    def test_msp_staff_and_django_staff_are_redirected_superuser_gets_page(self):
+        from django.urls import reverse
+        from accounts.models import UserProfile, UserType
+        tech = User.objects.create_user('imp_tech', 't@x.test', 'pw', is_staff=True)
+        profile, _ = UserProfile.objects.get_or_create(user=tech)
+        profile.user_type = UserType.STAFF
+        profile.save()
+        su = User.objects.create_superuser('imp_su2', 's2@x.test', 'pw')
+        url = reverse('imports:import_list')
+        self.client.force_login(tech)
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(su)
+        self.assertEqual(self.client.get(url).status_code, 200)
