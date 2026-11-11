@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Unaccepted Office saves{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb="Unaccepted saves" %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+    <h1 class="h5">Unaccepted saves</h1>
+    <p class="text-muted small">Kept for {{ retention_days }} days, then removed by the scheduled task. People who can edit the file can also restore these from its version history.</p>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+      <thead><tr><th scope="col">Received</th><th scope="col">Organization</th><th scope="col">File</th><th scope="col">User</th><th scope="col">Why</th><th scope="col">Size</th><th scope="col">Kept until</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>{% for q in items %}
+      <tr>
+        <td>{{ q.received_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ q.organization.name|default:"—" }}</td>
+        <td class="text-break">{{ q.original_name }}</td>
+        <td>{{ q.user.username|default:"—" }}</td>
+        <td>{{ q.get_reason_display }}{% if q.detail %}<div class="small text-muted">{{ q.detail }}</div>{% endif %}</td>
+        <td>{{ q.size|filesizeformat }}</td>
+        <td>{{ q.expires_at|date:"Y-m-d" }}</td>
+        <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'office:quarantine_admin_download' q.pk %}">Download</a></td>
+      </tr>{% empty %}<tr><td colspan="8" class="text-muted">None.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</div>
+{% endblock %}

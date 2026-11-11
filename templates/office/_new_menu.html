@@ -1,0 +1,21 @@
+{% if show %}
+<div class="dropdown d-inline-block">
+  <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <i class="fas fa-plus" aria-hidden="true"></i> New Office file
+  </button>
+  <div class="dropdown-menu dropdown-menu-end p-3 office-new-menu">
+    {% for fmt, label in formats %}
+    <form method="post" action="{% if entity_type %}{% url 'office:new_attachment' fmt %}{% else %}{% url 'office:new_document' fmt %}{% endif %}" class="mb-2">
+      {% csrf_token %}
+      {% if entity_type %}<input type="hidden" name="entity_type" value="{{ entity_type }}"><input type="hidden" name="entity_id" value="{{ entity_id }}"><input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <label class="form-label small mb-1" for="office-new-{{ fmt }}{{ entity_id }}">{{ label }}</label>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control" id="office-new-{{ fmt }}{{ entity_id }}" name="title" placeholder="Name" maxlength="200" required>
+        <button type="submit" class="btn btn-primary">Create .{{ fmt }}</button>
+      </div>
+    </form>
+    {% endfor %}
+    {% if not entity_type %}<a class="dropdown-item px-0 small" href="{% url 'office:new_from_template' %}"><i class="fas fa-file-import" aria-hidden="true"></i> From a template…</a>{% endif %}
+  </div>
+</div>
+{% endif %}

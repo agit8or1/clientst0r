@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Office templates{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Office templates</li>
+</ol></nav>
+<h1 class="h3">Office templates</h1>
+<p class="text-muted">Word, Excel and PowerPoint files people can start new documents from. Uploads are checked to be valid Office Open XML without macros. Templates are versioned like any Office file.</p>
+<div class="card mb-4"><div class="card-body">
+  <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+    {% csrf_token %}
+    <div class="col-md-4"><label class="form-label small" for="{{ form.file.id_for_label }}">File</label>{{ form.file }}</div>
+    <div class="col-md-4"><label class="form-label small" for="{{ form.description.id_for_label }}">Description</label>{{ form.description }}</div>
+    <div class="col-md-2"><label class="form-label small" for="{{ form.scope.id_for_label }}">For</label>{{ form.scope }}</div>
+    <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Upload</button></div>
+    {% if form.errors %}<div class="col-12 text-danger small">{{ form.errors }}</div>{% endif %}
+  </form>
+</div></div>
+<div class="table-responsive"><table class="table table-sm align-middle">
+  <thead><tr><th scope="col">Name</th><th scope="col">For</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+  <tbody>{% for t in templates %}
+  <tr>
+    <td class="text-break">{{ t.name }}{% if t.description %}<div class="small text-muted">{{ t.description }}</div>{% endif %}</td>
+    <td>{{ t.organization.name|default:"All organizations" }}</td>
+    <td>{% if t.is_active %}<span class="badge text-bg-success">active</span>{% else %}<span class="badge text-bg-secondary">retired</span>{% endif %}</td>
+    <td class="text-end text-nowrap">
+      <a href="{% url 'office:target_detail' 'ofi' t.pk %}" class="btn btn-sm btn-outline-secondary">Details &amp; versions</a>
+      {% if t.is_active %}<form method="post" action="{% url 'office:template_delete' t.pk %}" class="d-inline" data-confirm="Retire {{ t.name }}? Documents already created from it are not affected.">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Retire</button></form>{% endif %}
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="4" class="text-muted">No templates yet.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

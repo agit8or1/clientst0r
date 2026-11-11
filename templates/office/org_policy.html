@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Office documents · {{ org.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Office documents</li>
+</ol></nav>
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page=active_page %}</div>
+  <div class="col-md-9">
+    <div class="card"><div class="card-header"><h1 class="h5 mb-0"><i class="fas fa-file-word" aria-hidden="true"></i> Office documents for {{ org.name }}</h1></div>
+    <div class="card-body">
+      <p class="text-muted">Editor services are set up by platform administrators. Here you decide whether people in {{ org.name }} can open Word, Excel and PowerPoint files in the browser editor{% if allow_override %}, and which approved editor they use{% endif %}.</p>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-check mb-3">
+          {{ form.office_enabled }}
+          <label class="form-check-label" for="{{ form.office_enabled.id_for_label }}">Allow Office editing for this organization</label>
+          <div class="form-text">Off ends any open editing sessions. Files stay available to download and preview.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.preferred_instance.id_for_label }}">Editor</label>
+          {{ form.preferred_instance }}
+          {% if not allow_override %}<div class="form-text">The platform administrator has not allowed organizations to choose an editor.</div>{% endif %}
+          {% if form.preferred_instance.errors %}<div class="text-danger small">{{ form.preferred_instance.errors }}</div>{% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+      <hr>
+      <h2 class="h6">Available editors</h2>
+      {% if available %}<ul class="list-unstyled mb-2">{% for name, provider, healthy in available %}
+        <li>{{ name }} <span class="text-muted small">({{ provider }})</span> {% if healthy %}<span class="badge text-bg-success">healthy</span>{% else %}<span class="badge text-bg-warning">not healthy</span>{% endif %}</li>
+      {% endfor %}</ul>{% else %}<p class="text-muted">None is configured for this organization yet.</p>{% endif %}
+      <p class="small mb-0">In use now: <strong>{{ effective.name|default:"none" }}</strong></p>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load asset_tags %}
+{% load office_tags %}
 
 {% block title %}{{ asset.name }}{% endblock %}
 
@@ -642,6 +643,22 @@
                             </button>{% endif %}
                         </div>
                         {% endif %}
+
+                        {% office_attachments 'asset' asset.pk asset.organization_id as office_files %}
+                        <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                            <h6 class="mb-0">Office documents ({{ office_files|length }})</h6>
+                            {% office_new_attachment_menu 'asset' asset.pk %}
+                        </div>
+                        {% if office_files %}
+                        <ul class="list-group mb-2">
+                            {% for f in office_files %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <span class="text-break"><i class="fas fa-file-lines text-muted" aria-hidden="true"></i> {{ f.original_filename }} <small class="text-muted">{{ f.file_size|filesizeformat }}</small></span>
+                                {% office_attachment_menu f %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}<p class="text-muted small">No Word, Excel or PowerPoint files on this asset.</p>{% endif %}
                     </div>
                 </div>
             </div>

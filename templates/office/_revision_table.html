@@ -1,0 +1,26 @@
+{% if revisions %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr><th scope="col">#</th><th scope="col">Saved</th><th scope="col">By</th><th scope="col">How</th><th scope="col">Size</th><th scope="col" class="d-none d-md-table-cell">SHA-256</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+  <tbody>
+  {% for r in revisions %}
+  <tr>
+    <td>{{ r.revision_number }}{% if forloop.first %} <span class="badge text-bg-success">current</span>{% endif %}</td>
+    <td><span class="local-time" data-utc="{{ r.created_at|date:'c' }}">{{ r.created_at|date:"Y-m-d H:i" }}</span></td>
+    <td>{{ r.created_by.username|default:"System" }}</td>
+    <td>{{ r.get_source_display }}{% if r.restored_from %} (from #{{ r.restored_from.revision_number }}){% endif %}</td>
+    <td>{{ r.size|filesizeformat }}</td>
+    <td class="d-none d-md-table-cell font-monospace small" title="{{ r.sha256 }}">{{ r.sha256|truncatechars:13 }}</td>
+    <td class="text-end text-nowrap">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:download_revision' target.code target.pk r.revision_number %}"><i class="fas fa-download" aria-hidden="true"></i><span class="visually-hidden">Download revision {{ r.revision_number }}</span></a>
+      {% if can_edit_file and not forloop.first %}
+      <form method="post" action="{% url 'office:restore' target.code target.pk r.revision_number %}" class="d-inline" data-confirm="Restore revision {{ r.revision_number }}? It becomes a new revision; nothing is deleted.">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-primary">Restore</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="text-muted">No revisions recorded yet.</p>{% endif %}

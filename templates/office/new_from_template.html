@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}New document from a template{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+  <li class="breadcrumb-item active" aria-current="page">New from template</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 class="h3 mb-0">New document from a template</h1>
+  {% if can_manage %}<a href="{% url 'office:template_list' %}" class="btn btn-outline-secondary btn-sm">Manage templates</a>{% endif %}
+</div>
+<p class="text-muted">The new document is created in <strong>{{ org.name }}</strong> with this organization's permissions, as a copy of the template. The template itself is not changed.</p>
+{% if templates %}
+<div class="row g-3">
+{% for t in templates %}
+  <div class="col-md-6 col-lg-4">
+    <form method="post" class="card h-100">
+      {% csrf_token %}
+      <input type="hidden" name="template" value="{{ t.pk }}">
+      <div class="card-body">
+        <h2 class="h6 text-break">{{ t.name }}</h2>
+        <p class="small text-muted mb-2">{% if t.organization_id %}{{ org.name }} template{% else %}Global template{% endif %}{% if t.description %} · {{ t.description }}{% endif %}</p>
+        <label class="form-label small" for="tpl-title-{{ t.pk }}">Name of the new document</label>
+        <input type="text" class="form-control form-control-sm" id="tpl-title-{{ t.pk }}" name="title" maxlength="200" placeholder="Untitled">
+      </div>
+      <div class="card-footer bg-transparent"><button type="submit" class="btn btn-primary btn-sm">Create</button></div>
+    </form>
+  </div>
+{% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">No templates yet.{% if can_manage %} <a href="{% url 'office:template_list' %}">Upload one</a>.{% endif %}</div>
+{% endif %}
+{% endblock %}

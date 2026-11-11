@@ -1,0 +1,12 @@
+<ul class="list-group mb-3">
+{% for c in checks %}
+  <li class="list-group-item">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+      <strong>{{ c.label }}</strong>
+      <span class="badge {% if c.status == 'pass' %}text-bg-success{% elif c.status == 'fail' %}text-bg-danger{% elif c.status == 'warn' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{% if c.status == 'pass' %}pass{% elif c.status == 'fail' %}fail{% elif c.status == 'warn' %}warning{% else %}not run{% endif %}</span>
+    </div>
+    {% if c.detail %}<div class="small">{{ c.detail }}</div>{% endif %}
+    {% if c.remedy %}<div class="small text-muted"><i class="fas fa-wrench" aria-hidden="true"></i> {{ c.remedy }}</div>{% endif %}
+  </li>
+{% endfor %}
+</ul>

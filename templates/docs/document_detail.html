@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load office_tags %}
 
 {% block title %}{{ document.title }}{% endblock %}
 
@@ -68,6 +69,7 @@
 <div class="card">
     <div class="card-body">
         {% if document.content_type == 'file' and document.file %}
+            {% office_file_actions document %}
             <!-- File upload display -->
             <div class="text-center py-5">
                 {% if document.file_type %}

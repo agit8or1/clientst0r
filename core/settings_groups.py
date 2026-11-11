@@ -54,6 +54,7 @@ SETTINGS_GROUPS = {
         ('access_management', 'accounts:access_management', 'login'),
         ('organizations', 'accounts:organization_list', 'login'),
         ('directory', 'core:settings_directory', 'superuser'),
+        ('office_org_policy', 'office:org_policy', 'login'),
     ),
     'integrations': (
         ('webhooks', 'core:webhook_list', 'login'),
@@ -62,6 +63,7 @@ SETTINGS_GROUPS = {
         ('ai', 'core:settings_ai', 'superuser'),
         ('ticket_ai', 'psa_ai:profiles', 'superuser'),
         ('sms', 'core:settings_sms', 'superuser'),
+        ('office_documents', 'office:settings', 'superuser'),
     ),
     'mobile': (
         ('mobile_apps', 'core:mobile_apps_admin', 'staff'),

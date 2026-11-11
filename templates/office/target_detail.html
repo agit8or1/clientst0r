@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load office_tags %}
+{% block title %}{{ target.filename }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{{ back_url }}">Back</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ target.filename }}</li>
+</ol></nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1 text-break">{{ target.filename }}</h1>
+    <div class="text-muted small">
+      {% if target.organization %}{{ target.organization.name }} · {% endif %}
+      {% if revision %}Revision {{ revision.revision_number }} · {{ revision.size|filesizeformat }} · saved <span class="local-time" data-utc="{{ revision.created_at|date:'c' }}">{{ revision.created_at|date:"Y-m-d H:i" }}</span>{% if revision.created_by %} by {{ revision.created_by.username }}{% endif %}
+      {% else %}{{ target.size|filesizeformat }}{% endif %}
+    </div>
+  </div>
+  <a href="{{ back_url }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</a>
+</div>
+
+{% if file_error %}<div class="alert alert-warning">{{ file_error }} You can still download it.</div>{% endif %}
+
+{% office_file_actions target.obj %}
+
+{% if can_edit_file %}
+<form method="post" action="{% url 'office:rename' target.code target.pk %}" class="row g-2 align-items-end mb-4" aria-label="Rename">
+  {% csrf_token %}
+  <div class="col-sm-8 col-md-6">
+    <label for="office-rename" class="form-label small mb-1">Rename</label>
+    <input type="text" class="form-control" id="office-rename" name="name" value="{{ target.filename }}" maxlength="255" required>
+    <div class="form-text">The extension (.{{ target.extension }}) is kept.</div>
+  </div>
+  <div class="col-auto"><button type="submit" class="btn btn-outline-primary">Rename</button></div>
+</form>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header"><strong>Preview</strong></div>
+  <div class="card-body">
+    {% if file_preview %}{% include "docs/_file_preview.html" %}
+    {% else %}<p class="text-muted mb-0">No inline preview for this file type. Download it, or open it read-only in the editor when one is available.</p>{% endif %}
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="h5 mb-0">Recent revisions</h2>
+  <a href="{% url 'office:target_versions' target.code target.pk %}" class="btn btn-sm btn-outline-secondary">All revisions</a>
+</div>
+{% include "office/_revision_table.html" with revisions=revisions %}
+{% endblock %}

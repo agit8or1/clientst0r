@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Remove {{ instance.name }}{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb="Remove instance" %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9"><div class="card border-danger"><div class="card-body">
+    <h1 class="h5">Remove {{ instance.name }}?</h1>
+    <p>Documents and all their revisions stay in clientst0r. {% if live_sessions %}<strong>{{ live_sessions }} open editing session{{ live_sessions|pluralize }}</strong> will be ended; saves arriving afterwards are kept as unaccepted saves for recovery.{% else %}No one is editing through it right now.{% endif %}</p>
+    <p class="small text-muted">This does not uninstall the editor service; do that on its server.</p>
+    <form method="post">{% csrf_token %}<button type="submit" class="btn btn-danger">Remove</button> <a href="{% url 'office:settings' %}" class="btn btn-outline-secondary">Cancel</a></form>
+  </div></div></div>
+</div>
+{% endblock %}

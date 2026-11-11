@@ -58,6 +58,7 @@ urlpatterns = [
     path('readiness/', include('readiness.urls')),
     path('processes/', include('processes.urls')),
     path('files/', include('files.urls')),
+    path('office/', include('office.urls')),
     path('integrations/', include('integrations.urls')),
     path('audit/', include('audit.urls')),
     path('compliance/', include('compliance.urls')),

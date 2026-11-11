@@ -1,0 +1,26 @@
+/* Full-screen Office editor page (templates/office/editor.html). */
+html, body.office-editor-body { height: 100%; margin: 0; }
+body.office-editor-body { display: flex; flex-direction: column; background: var(--bs-body-bg); }
+.office-editor-bar {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    padding: .4rem .75rem; min-height: 52px; background: var(--bs-tertiary-bg);
+}
+.office-editor-title { flex: 1 1 12rem; min-width: 0; }
+.office-collaborators { gap: .25rem; align-items: center; }
+.office-collaborators .badge { font-weight: 500; }
+.office-save-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .875rem; white-space: nowrap; }
+.office-save-icon::before { font-family: "Font Awesome 6 Free"; font-weight: 900; }
+.office-save-status[data-state="clean"] .office-save-icon::before,
+.office-save-status[data-state="saved"] .office-save-icon::before { content: "\f00c"; color: var(--bs-success); }
+.office-save-status[data-state="dirty"] .office-save-icon::before { content: "\f303"; color: var(--bs-warning); }
+.office-save-status[data-state="saving"] .office-save-icon::before { content: "\f110"; color: var(--bs-info); }
+.office-save-status[data-state="failed"] .office-save-icon::before { content: "\f071"; color: var(--bs-danger); }
+.office-save-status[data-state="failed"] { color: var(--bs-danger); font-weight: 600; white-space: normal; }
+.office-save-status[data-state="readonly"] .office-save-icon::before { content: "\f06e"; }
+.office-editor-main { flex: 1 1 auto; position: relative; min-height: 0; overflow: auto; }
+.office-editor-main > .office-editor-frame, .office-editor-main iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+@media (max-width: 575.98px) { .office-save-status { white-space: normal; } }
+@media (prefers-reduced-motion: no-preference) {
+    .office-save-status[data-state="saving"] .office-save-icon::before { display: inline-block; animation: office-spin 1s linear infinite; }
+}
+@keyframes office-spin { to { transform: rotate(360deg); } }

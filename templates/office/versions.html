@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Version history · {{ target.filename }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{{ back_url }}">Back</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'office:target_detail' target.code target.pk %}">{{ target.filename }}</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Version history</li>
+</ol></nav>
+<h1 class="h3">Version history</h1>
+<p class="text-muted">Every save is kept as its own revision. Restoring an old revision adds a new one; history is never rewritten.</p>
+{% include "office/_revision_table.html" with revisions=revisions can_edit_file=can_edit_file %}
+
+{% if can_edit_file and quarantined %}
+<h2 class="h5 mt-4">Saves that were not accepted</h2>
+<p class="text-muted small">These came from the editor but could not become a revision (for example they were based on an older revision, or the session had ended). They are kept until the retention period ends.</p>
+<div class="table-responsive"><table class="table table-sm align-middle">
+  <thead><tr><th scope="col">Received</th><th scope="col">By</th><th scope="col">Why</th><th scope="col">Size</th><th scope="col">Kept until</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+  <tbody>{% for q in quarantined %}
+  <tr>
+    <td><span class="local-time" data-utc="{{ q.received_at|date:'c' }}">{{ q.received_at|date:"Y-m-d H:i" }}</span></td>
+    <td>{{ q.user.username|default:"—" }}</td>
+    <td>{{ q.get_reason_display }}{% if q.recovered_revision_id %} <span class="badge text-bg-success">restored</span>{% endif %}</td>
+    <td>{{ q.size|filesizeformat }}</td>
+    <td>{{ q.expires_at|date:"Y-m-d" }}</td>
+    <td class="text-end text-nowrap">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:quarantine_download' target.code target.pk q.pk %}">Download</a>
+      <form method="post" action="{% url 'office:quarantine_restore' target.code target.pk q.pk %}" class="d-inline" data-confirm="Save this content as a new revision?">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-primary">Save as new revision</button></form>
+    </td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+{% endblock %}

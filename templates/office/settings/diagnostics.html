@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Diagnostics · {{ instance.name }}{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb=instance.name %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h1 class="h5 mb-0">{{ instance.name }} <span class="text-muted small">{{ instance.get_provider_display }} · {{ instance.get_mode_display }}</span></h1>
+        <div class="d-flex gap-2"><a class="btn btn-sm btn-outline-secondary" href="{% url 'office:instance_edit' instance.pk %}">Edit</a><a class="btn btn-sm btn-outline-secondary" href="{% url 'office:install' %}?instance={{ instance.pk }}">Install guidance</a></div>
+      </div>
+      <div class="card-body">
+        <dl class="row small mb-0">
+          <dt class="col-sm-4">Health</dt><dd class="col-sm-8">{{ instance.get_health_status_display }}{% if instance.last_check_at %} ({{ instance.last_check_at|date:"Y-m-d H:i" }}){% endif %}{% if instance.health_detail %}<div class="text-muted">{{ instance.health_detail }}</div>{% endif %}</dd>
+          <dt class="col-sm-4">Detected version / edition</dt><dd class="col-sm-8">{{ instance.detected_version|default:"—" }} / {{ instance.detected_edition|default:"—" }}</dd>
+          <dt class="col-sm-4">Can edit</dt><dd class="col-sm-8">{{ caps.edit_formats|join:", "|default:"—" }}</dd>
+          <dt class="col-sm-4">Can view</dt><dd class="col-sm-8">{{ caps.view_formats|join:", "|default:"—" }}</dd>
+          <dt class="col-sm-4">PDF export / conversion</dt><dd class="col-sm-8">{% if caps_export_pdf %}yes{% else %}no{% endif %} / {% if caps.convert %}{{ caps.convert|length }} conversion(s){% else %}none{% endif %}</dd>
+          <dt class="col-sm-4">Co-authoring / comments / review</dt><dd class="col-sm-8">{{ caps.coauthoring|yesno:"yes,no" }} / {{ caps.comments|yesno:"yes,no" }} / {{ caps.review|yesno:"yes,no" }}</dd>
+        </dl>
+        <p class="small text-muted mt-2 mb-0">Capabilities come from the editor's own health check, never from defaults.</p>
+      </div>
+      <div class="card-footer d-flex flex-wrap gap-2">
+        <form method="post" action="{% url 'office:instance_health' instance.pk %}">{% csrf_token %}<button class="btn btn-outline-primary" type="submit">Run health check</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="diagnostics"><button class="btn btn-outline-primary" type="submit">Run diagnostics</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="round_trip"><button class="btn btn-outline-primary" type="submit" title="Creates a disposable document visible to platform administrators only, opens it, and reports each step">Run round-trip test</button></form>
+      </div>
+    </div>
+    {% if checks %}
+    <h2 class="h6">Diagnostics</h2>
+    {% include "office/settings/_check_list.html" with checks=checks %}
+    {% endif %}
+    {% if round_trip %}
+    <h2 class="h6">Round-trip test {% if round_trip.passed %}<span class="badge text-bg-success">passed</span>{% else %}<span class="badge text-bg-warning">not passed</span>{% endif %}</h2>
+    <p class="small text-muted">The disposable document lives in a system scope no organization can see and is removed by the scheduled purge after a day.</p>
+    {% include "office/settings/_check_list.html" with checks=round_trip.steps %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

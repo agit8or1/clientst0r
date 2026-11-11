@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Office install guidance{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb="Install guidance" %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+    <div class="card mb-4"><div class="card-body">
+      <h1 class="h5">Install guidance</h1>
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-sm-4"><label class="form-label small" for="ig-provider">Editor</label>
+          <select class="form-select" id="ig-provider" name="provider">{% for k, v in providers.items %}<option value="{{ k }}"{% if k == guidance.provider %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-sm-4"><label class="form-label small" for="ig-mode">Where</label>
+          <select class="form-select" id="ig-mode" name="mode">{% for k, v in modes.items %}<option value="{{ k }}"{% if k == guidance.mode %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-sm-4"><label class="form-label small" for="ig-host">Editor host name</label>
+          <input class="form-control" id="ig-host" name="editor_host" value="{{ guidance.editor_host }}" placeholder="docs.example.com"></div>
+        {% if instance %}<input type="hidden" name="instance" value="{{ instance.pk }}">{% endif %}
+        <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Show</button></div>
+      </form>
+    </div></div>
+
+    <h2 class="h6">{{ guidance.provider_label }} — {{ guidance.mode_label }}</h2>
+    <div class="card mb-3"><div class="card-body">
+      <h3 class="h6">Connections</h3>
+      <ul class="small mb-0">{% for title, text in guidance.flows %}<li><strong>{{ title }}:</strong> {{ text }}</li>{% endfor %}</ul>
+    </div></div>
+    {% for title, items in guidance.checklist %}
+    <div class="card mb-3"><div class="card-body">
+      <h3 class="h6">{{ title }}</h3>
+      <ol class="small mb-0">{% for item in items %}<li>{{ item }}</li>{% endfor %}</ol>
+    </div></div>
+    {% endfor %}
+    {% if guidance.commands %}
+    <div class="card mb-3"><div class="card-body">
+      <h3 class="h6">Commands to run yourself</h3>
+      <p class="small text-muted">clientst0r never runs these. Copy them to a terminal on the machine named. No secret is part of any command: it goes in a root-only file.</p>
+      {% for title, cmd in guidance.commands %}
+      <label class="form-label small mb-1" for="ig-cmd-{{ forloop.counter }}">{{ title }}</label>
+      <div class="input-group mb-2">
+        <input type="text" readonly class="form-control font-monospace small" id="ig-cmd-{{ forloop.counter }}" value="{{ cmd }}" data-select-on-click>
+        <button class="btn btn-outline-secondary" type="button" data-copy-from="#ig-cmd-{{ forloop.counter }}" data-copied-text="Copied">Copy</button>
+      </div>
+      {% endfor %}
+    </div></div>
+    {% endif %}
+    {% for n in guidance.notes %}<div class="alert alert-info small">{{ n }}</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}

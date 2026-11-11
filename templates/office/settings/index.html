@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Office Documents settings{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h1 class="h5 mb-0"><i class="fas fa-file-word" aria-hidden="true"></i> Editor instances</h1>
+        <div class="d-flex gap-2">
+          <a href="{% url 'office:install' %}" class="btn btn-sm btn-outline-secondary">Install guidance</a>
+          <a href="{% url 'office:instance_new' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus" aria-hidden="true"></i> Add instance</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">clientst0r stores every Office file and its revisions itself; an editor only edits a working copy and sends saves back. Only platform administrators can see or change endpoints, secrets, CA certificates and installation.</p>
+        {% if instances %}
+        <div class="table-responsive"><table class="table table-sm align-middle">
+          <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Mode</th><th scope="col">Health</th><th scope="col">Version</th><th scope="col">Scope</th><th scope="col">Open sessions</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>{% for i in instances %}
+          <tr>
+            <td>{{ i.name }} {% if not i.enabled %}<span class="badge text-bg-secondary">disabled</span>{% endif %}</td>
+            <td>{{ i.get_provider_display }}</td>
+            <td class="small">{{ i.get_mode_display }}</td>
+            <td><span class="badge {% if i.health_status == 'ok' %}text-bg-success{% elif i.health_status == 'unknown' %}text-bg-secondary{% else %}text-bg-danger{% endif %}">{{ i.get_health_status_display }}</span>{% if i.last_check_at %}<div class="small text-muted">{{ i.last_check_at|date:"Y-m-d H:i" }}</div>{% endif %}</td>
+            <td class="small">{{ i.detected_version|default:"—" }}{% if i.detected_edition %} · {{ i.detected_edition }}{% endif %}</td>
+            <td class="small">{% if i.shared %}All organizations{% else %}Dedicated{% endif %}</td>
+            <td>{{ i.live_sessions }}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:instance_diagnostics' i.pk %}">Diagnostics</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:instance_edit' i.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'office:instance_delete' i.pk %}">Remove</a>
+            </td>
+          </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="mb-0">No editor is connected yet. Start with <a href="{% url 'office:install' %}">Install guidance</a>, then <a href="{% url 'office:instance_new' %}">add the instance</a>.</p>{% endif %}
+        <p class="small text-muted mb-0">Connectors installed in this version:
+          {% for key, p in providers.items %}{{ p.label }}{% if not forloop.last %}, {% endif %}{% endfor %}. A connector that is not complete yet reports "not installed" in its health check and its Edit buttons stay disabled.</p>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="h5 mb-0">Policy</h2></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <fieldset class="mb-3"><legend class="form-label fs-6">Enabled editor types</legend>{{ form.enabled_providers }}</fieldset>
+          <div class="mb-3"><label class="form-label" for="{{ form.default_instance.id_for_label }}">Default instance</label>{{ form.default_instance }}</div>
+          <div class="form-check mb-3">{{ form.allow_org_override }} <label class="form-check-label" for="{{ form.allow_org_override.id_for_label }}">Let organization admins choose among the instances available to them</label></div>
+          <div class="row g-3">
+            <div class="col-sm-6 col-lg-3"><label class="form-label small" for="{{ form.quarantine_retention_days.id_for_label }}">Keep unaccepted saves (days)</label>{{ form.quarantine_retention_days }}</div>
+            <div class="col-sm-6 col-lg-3"><label class="form-label small" for="{{ form.session_ttl_minutes.id_for_label }}">Session idle expiry (min)</label>{{ form.session_ttl_minutes }}</div>
+            <div class="col-sm-6 col-lg-3"><label class="form-label small" for="{{ form.session_max_hours.id_for_label }}">Session maximum (hours)</label>{{ form.session_max_hours }}</div>
+            <div class="col-sm-6 col-lg-3"><label class="form-label small" for="{{ form.token_ttl_minutes.id_for_label }}">Access token lifetime (min)</label>{{ form.token_ttl_minutes }}</div>
+          </div>
+          {% if form.errors %}<div class="text-danger small mt-2">{{ form.errors }}</div>{% endif %}
+          <button type="submit" class="btn btn-primary mt-3">Save policy</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div><strong>Unaccepted saves</strong> <span class="text-muted">({{ quarantine_count }})</span><div class="small text-muted">Editor saves that could not become a revision are kept for recovery, then removed by the scheduled task "Purge Office Quarantine".</div></div>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:quarantine_list' %}">View</a>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

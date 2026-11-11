@@ -1,0 +1,62 @@
+{% if show %}{% with t=target %}
+{% if compact %}
+<div class="dropdown d-inline-block office-actions">
+  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Office actions for {{ t.filename }}">
+    <i class="fas fa-file-word" aria-hidden="true"></i> Office
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><a class="dropdown-item" href="{% url 'office:target_detail' t.code t.pk %}"><i class="fas fa-eye fa-fw" aria-hidden="true"></i> Preview &amp; details</a></li>
+    <li>
+      {% if av.can_edit %}
+      <form method="post" action="{% url 'office:open' t.code t.pk %}">{% csrf_token %}<input type="hidden" name="mode" value="edit"><input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="dropdown-item"><i class="fas fa-pen fa-fw" aria-hidden="true"></i> Edit</button></form>
+      {% elif av.can_view_in_editor %}
+      <form method="post" action="{% url 'office:open' t.code t.pk %}">{% csrf_token %}<input type="hidden" name="mode" value="view"><input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="dropdown-item"><i class="fas fa-book-open fa-fw" aria-hidden="true"></i> Open read-only</button></form>
+      <span class="dropdown-item-text small text-muted">{{ av.reason }}</span>
+      {% else %}
+      <span class="dropdown-item disabled" aria-disabled="true" title="{{ av.reason }}"><i class="fas fa-pen fa-fw" aria-hidden="true"></i> Edit — unavailable</span>
+      <span class="dropdown-item-text small text-muted">{{ av.reason }}</span>
+      {% endif %}
+    </li>
+    <li><a class="dropdown-item" href="{% url 'office:download' t.code t.pk %}"><i class="fas fa-download fa-fw" aria-hidden="true"></i> Download</a></li>
+    <li><a class="dropdown-item" href="{% url 'office:target_versions' t.code t.pk %}"><i class="fas fa-clock-rotate-left fa-fw" aria-hidden="true"></i> Version history</a></li>
+    {% if can_copy %}<li><form method="post" action="{% url 'office:copy' t.code t.pk %}">{% csrf_token %}<button type="submit" class="dropdown-item"><i class="fas fa-copy fa-fw" aria-hidden="true"></i> Save a copy</button></form></li>{% endif %}
+    {% if av.can_export_pdf %}<li><form method="post" action="{% url 'office:export_pdf' t.code t.pk %}">{% csrf_token %}<button type="submit" class="dropdown-item"><i class="fas fa-file-pdf fa-fw" aria-hidden="true"></i> Export PDF</button></form></li>{% endif %}
+    {% if av.can_convert %}<li><form method="post" action="{% url 'office:convert' t.code t.pk %}">{% csrf_token %}<button type="submit" class="dropdown-item"><i class="fas fa-right-left fa-fw" aria-hidden="true"></i> Convert to a new copy</button></form></li>{% endif %}
+  </ul>
+</div>
+{% else %}
+<div class="d-flex flex-wrap gap-2 align-items-center office-actions mb-3" role="toolbar" aria-label="Office file actions">
+  {% if av.can_edit %}
+  <form method="post" action="{% url 'office:open' t.code t.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="mode" value="edit"><input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-pen" aria-hidden="true"></i> Edit in {{ av.instance.get_provider_display }}</button></form>
+  {% else %}
+  <span class="d-inline-block" tabindex="0" title="{{ av.reason }}">
+    <button type="button" class="btn btn-primary" disabled aria-disabled="true"><i class="fas fa-pen" aria-hidden="true"></i> Edit</button>
+  </span>
+  {% if av.can_view_in_editor %}
+  <form method="post" action="{% url 'office:open' t.code t.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="mode" value="view"><input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn btn-outline-primary"><i class="fas fa-book-open" aria-hidden="true"></i> Open read-only</button></form>
+  {% endif %}
+  {% endif %}
+  <a class="btn btn-outline-secondary" href="{% url 'office:target_detail' t.code t.pk %}"><i class="fas fa-eye" aria-hidden="true"></i> Preview</a>
+  <a class="btn btn-outline-secondary" href="{% url 'office:download' t.code t.pk %}"><i class="fas fa-download" aria-hidden="true"></i> Download</a>
+  <a class="btn btn-outline-secondary" href="{% url 'office:target_versions' t.code t.pk %}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Version history</a>
+  {% if can_copy %}
+  <form method="post" action="{% url 'office:copy' t.code t.pk %}" class="d-inline">{% csrf_token %}
+    <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-copy" aria-hidden="true"></i> Save a copy</button></form>
+  {% endif %}
+  {% if av.can_export_pdf %}
+  <form method="post" action="{% url 'office:export_pdf' t.code t.pk %}" class="d-inline">{% csrf_token %}
+    <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-file-pdf" aria-hidden="true"></i> Export PDF</button></form>
+  {% endif %}
+  {% if av.can_convert %}
+  <form method="post" action="{% url 'office:convert' t.code t.pk %}" class="d-inline">{% csrf_token %}
+    <button type="submit" class="btn btn-outline-warning"><i class="fas fa-right-left" aria-hidden="true"></i> Convert to a new copy</button></form>
+  {% endif %}
+</div>
+{% if not av.can_edit and av.reason %}<p class="small text-muted mb-3"><i class="fas fa-circle-info" aria-hidden="true"></i> {{ av.reason }}</p>{% endif %}
+{% if av.read_only_format %}<p class="small text-muted mb-3">This is a legacy or macro-enabled file. The original is kept unchanged; macros are never run by clientst0r.</p>{% endif %}
+{% endif %}
+{% endwith %}{% endif %}
