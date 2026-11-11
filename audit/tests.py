@@ -316,3 +316,64 @@ class MiddlewareFailureIsolationTests(TestCase):
             # code shape, just that the request didn't crash.
             self.assertIsNotNone(resp)
             self.assertNotEqual(resp.status_code, 500)
+
+
+def _uuid_detail(request, pk):  # pragma: no cover - only resolved, never called
+    from django.http import HttpResponse
+    return HttpResponse('ok')
+
+
+# A UUID-keyed route (no app routes one as <uuid:pk> today; this is the shape).
+from django.urls import path as _path  # noqa: E402
+uuid_urlpatterns = [_path('things/<uuid:pk>/', _uuid_detail, name='thing_detail')]
+_UUID_URLCONF = type('UUIDURLConf', (), {'urlpatterns': uuid_urlpatterns})
+
+
+class MiddlewareObjectIdTests(TestCase):
+    """object_id is a signed 64-bit integer column. The pk/id URL kwarg is
+    used only when it is an int within that range: a UUID route's kwarg
+    (int(UUID) is a 128-bit number) or an out-of-range number leaves
+    object_id unset instead of failing the audit write."""
+
+    def setUp(self):
+        self.mw = AuditLoggingMiddleware(get_response=lambda r: None)
+        self.rf = RequestFactory()
+
+    def _object_id(self, kwargs):
+        req = self.rf.get('/vault/')
+        req.resolver_match = resolve('/vault/')
+        req.resolver_match.kwargs.clear()
+        req.resolver_match.kwargs.update(kwargs)
+        return self.mw._extract_object_info(req, None)[1]
+
+    def test_uuid_route_leaves_object_id_unset_and_the_row_is_written(self):
+        import uuid
+        from django.http import HttpResponse
+        user = User.objects.create_user('audit_uuid', 'au@x.test', 'pw-audit-123')
+        pk = uuid.UUID('f' * 32)
+        url = f'/things/{pk}/'
+        req = self.rf.post(url, {'name': 'x'})  # a POST to a detail route is audited as an update
+        req.user = user
+        req.session = {}
+
+        def view(r):
+            r.resolver_match = resolve(url, urlconf=_UUID_URLCONF)
+            return HttpResponse('ok')
+        AuditLoggingMiddleware(get_response=view)(req)
+        self.assertEqual(req.resolver_match.kwargs['pk'], pk)
+        row = AuditLog.objects.get(path=url)
+        self.assertIsNone(row.object_id)
+
+    def test_uuid_kwargs_leave_it_unset(self):
+        import uuid
+        self.assertIsNone(self._object_id({'pk': uuid.UUID('f' * 32)}))
+        self.assertIsNone(self._object_id({'id': uuid.uuid4()}))
+
+    def test_out_of_range_and_non_int_values_leave_it_unset(self):
+        for bad in (2 ** 63, -(2 ** 63) - 1, str(2 ** 64), True, 1.5, 'abc', '12', None):
+            self.assertIsNone(self._object_id({'pk': bad}), bad)
+
+    def test_in_range_ints_are_kept(self):
+        self.assertEqual(self._object_id({'pk': 42}), 42)
+        self.assertEqual(self._object_id({'id': 2 ** 63 - 1}), 2 ** 63 - 1)
+        self.assertEqual(self._object_id({'pk': -(2 ** 63)}), -(2 ** 63))
