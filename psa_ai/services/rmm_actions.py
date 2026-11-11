@@ -130,25 +130,30 @@ class Target:
 # --- targets -----------------------------------------------------------------
 
 def targets(ticket) -> List[Target]:
-    """Devices this ticket may reach: verified, same-customer, same-tenant."""
+    """Devices this ticket may reach: verified, same-customer, same-tenant.
+
+    Every device of every asset the ticket is about (psa.affected
+    .ticket_assets: the primary asset, then the affected devices a
+    technician added), each through its own verified RMM link."""
     from integrations.models import RMMDevice
     from integrations.rmm_association import exposed_devices
     from integrations.ticket_rmm import is_processor, settings
-    asset = ticket.related_asset
-    if asset is None or asset.organization_id != ticket.organization_id:
-        return []
+    from psa.affected import ticket_assets
     out = []
-    for d in exposed_devices(asset).order_by('pk'):
-        conn = d.connection
-        if (d.organization_id != ticket.organization_id or conn.organization_id != ticket.organization_id
-                or d.linked_asset_id != asset.pk or not conn.is_active or not is_processor(conn)):
+    for asset in ticket_assets(ticket):
+        if asset.organization_id != ticket.organization_id:
             continue
-        if d.link_status in (RMMDevice.LINK_REVIEW, RMMDevice.LINK_UNLINKED) or not d.external_id:
-            continue
-        # rem0te reports each computer's business; it must be the pinned tenant.
-        if conn.provider_type == 'rem0te' and d.client_id and d.client_id != settings(conn)['tenant_id']:
-            continue
-        out.append(Target(d, conn))
+        for d in exposed_devices(asset).order_by('pk'):
+            conn = d.connection
+            if (d.organization_id != ticket.organization_id or conn.organization_id != ticket.organization_id
+                    or d.linked_asset_id != asset.pk or not conn.is_active or not is_processor(conn)):
+                continue
+            if d.link_status in (RMMDevice.LINK_REVIEW, RMMDevice.LINK_UNLINKED) or not d.external_id:
+                continue
+            # rem0te reports each computer's business; it must be the pinned tenant.
+            if conn.provider_type == 'rem0te' and d.client_id and d.client_id != settings(conn)['tenant_id']:
+                continue
+            out.append(Target(d, conn))
     return out
 
 
@@ -190,7 +195,9 @@ def authorize(user, ticket, target: Target, action, request=None, digest=''):
 
 
 def action_state(user, ticket, target: Target, action) -> Tuple[bool, str, str]:
-    """(usable, reason when not, grant 'allowed'|'request')."""
+    """(usable, reason when not, grant 'allowed'|'request'). The access
+    decision is about the target's own asset (its device class decides
+    whether read-only diagnostics cover it), not the ticket's primary one."""
     from integrations.ticket_rmm import advertised
     d = _decision(user, ticket, action, target)
     remote = action in ('remote_view', 'remote_control')
@@ -200,6 +207,10 @@ def action_state(user, ticket, target: Target, action) -> Tuple[bool, str, str]:
         return False, f"{target.connection.name} doesn't offer this.", ''
     if action == 'diagnostic' and not diagnostics_for(target):
         return False, f'{target.connection.name} lists no read-only diagnostics for this device.', ''
+    if action in NEEDS_AGENT:
+        offline = agent_offline_reason(target.device)
+        if offline:
+            return False, offline, ''
     return True, '', ('request' if d.grant == 'request' else 'allowed')
 
 
@@ -211,6 +222,23 @@ def _usable_or_refuse(user, ticket, target: Target, action, request=None) -> str
         audit_denial(user, ticket.organization, RMM_ACTION[action], reason, device=target.device, request=request)
         raise ActionRefused(reason)
     return grant
+
+
+# Actions that need the device's agent to answer now. A fix referral waits
+# for approval in the RMM and is not refused here for an offline agent: the
+# RMM decides (Rem0te answers ENDPOINT_NOT_READY when it can't run it).
+NEEDS_AGENT = {'diagnostic', 'remote_view', 'remote_control'}
+
+
+def agent_offline_reason(device) -> str:
+    """Why the agent can't be reached, from fresh synced data only. Stale or
+    unknown status is not treated as offline: the RMM answers for itself."""
+    from integrations.rmm_association import device_status
+    st = device_status(device)
+    if st['state'] != 'offline':
+        return ''
+    when = timezone.localtime(device.last_seen).strftime('%Y-%m-%d %H:%M') if device.last_seen else 'unknown'
+    return f'The agent is offline (last check-in {when}).'
 
 
 def diagnostics_for(target: Target) -> List[dict]:
@@ -237,20 +265,24 @@ def panel(user, ticket) -> dict:
         rows.append({'device': t.device, 'connection': t.connection, 'actions': actions,
                      'diagnostics': diagnostics_for(t) if actions['diagnostic']['ok'] else [],
                      'catalog': _catalog(t)})
-    asset = ticket.related_asset
+    from psa.affected import ticket_assets
+    assets = ticket_assets(ticket)
     no_target_reason = ''
     if not rows:
-        if asset is None:
+        if not assets:
             no_target_reason = 'Set the asset this ticket is about to reach its device through a paired RMM.'
         else:
-            no_target_reason = ('No paired RMM manages this asset for this customer, so handoffs, diagnostics, '
-                                'remote sessions and fix referrals are not available.')
+            no_target_reason = ('No paired RMM manages the devices on this ticket for this customer, so handoffs, '
+                                'diagnostics, remote sessions and fix referrals are not available.')
     requests = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')[:20])
     _refresh_rem0te(requests)
     suggestions = analysis_suggestions(ticket) if any(r['actions']['fix_low']['ok'] or r['actions']['fix_high']['ok']
                                                       for r in rows) else []
-    return {'targets': rows, 'requests': requests, 'no_target_reason': no_target_reason,
+    data = {'targets': rows, 'requests': requests, 'no_target_reason': no_target_reason,
             'suggestions': suggestions}
+    from . import device_panel
+    device_panel.enrich(data, user, ticket, assets)
+    return data
 
 
 def _catalog(target: Target) -> List[dict]:

@@ -1,0 +1,24 @@
+{# Device workspace: tickets, docs, runbooks and credentials (titles only). #}
+<div class="row small">
+    <div class="col-md-6">
+        <h6 class="text-uppercase text-muted small">Tickets</h6>
+        {% if not psa_on %}<p class="text-muted">The service desk is not switched on for this customer.</p>{% endif %}
+        <ul class="list-unstyled" data-ws-tickets>
+            {% for t in tickets %}<li><a href="{% url 'psa:ticket_detail' t.ticket_number %}">{{ t.ticket_number }}</a> {{ t.subject|truncatechars:70 }} <span class="text-muted">· {{ t.status.name }}</span>{% if ticket and t.pk == ticket.pk %} <span class="badge bg-info text-dark">this ticket</span>{% endif %}</li>
+            {% empty %}{% if psa_on %}<li class="text-muted">No tickets for this device.</li>{% endif %}{% endfor %}
+        </ul>
+        <h6 class="text-uppercase text-muted small">Docs</h6>
+        <ul class="list-unstyled">{% for d in docs %}<li><a href="{% url 'docs:document_detail' d.slug %}">{{ d.title }}</a></li>{% empty %}<li class="text-muted">No linked documents.</li>{% endfor %}</ul>
+        <h6 class="text-uppercase text-muted small">Runbooks</h6>
+        <ul class="list-unstyled">{% for p in runbooks %}<li><a href="{% url 'processes:process_detail' p.slug %}">{{ p.title }}</a></li>{% empty %}<li class="text-muted">No runbook steps reference this asset.</li>{% endfor %}</ul>
+    </div>
+    <div class="col-md-6">
+        <h6 class="text-uppercase text-muted small">Credentials</h6>
+        {% if credentials.allowed %}
+        <ul class="list-unstyled" data-ws-credentials>{% for c in credentials.entries %}<li><a href="{% url 'vault:password_detail' c.pk %}">{{ c.title }}</a>{% if c.username %} <span class="text-muted">({{ c.username }})</span>{% endif %}</li>{% empty %}<li class="text-muted">No vault entries linked to this asset.</li>{% endfor %}</ul>
+        <p class="text-muted">Revealing a secret goes through the vault entry's own page and its reveal and approval rules.</p>
+        {% else %}
+        <p class="text-muted" data-ws-credentials-hidden>{{ credentials.count }} linked vault entr{{ credentials.count|pluralize:"y,ies" }}. You need vault access at {{ asset.organization.name }} to see them.</p>
+        {% endif %}
+    </div>
+</div>

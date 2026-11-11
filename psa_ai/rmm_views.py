@@ -25,6 +25,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path, reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
+from core.decorators import require_write
 from psa.feature_flags import is_psa_enabled_for_client, require_psa_enabled
 from psa.views import _scoped_ticket_qs
 
@@ -153,8 +154,129 @@ def fix(request, ticket_number):
     return _back(ticket)
 
 
+# --- Phase 4: affected devices, notes, verify-then-close ----------------------
+
+def _staff_ticket(request, ticket_number):
+    """A ticket an MSP technician may change (same rule as Set asset): the
+    ticket page's scoped queryset, PSA on for the customer. 404 otherwise."""
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        raise Http404()
+    ticket = get_object_or_404(_scoped_ticket_qs(request).select_related('related_asset'),
+                               ticket_number=ticket_number)
+    if not is_psa_enabled_for_client(ticket.organization):
+        raise Http404()
+    return ticket
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_POST
+def affected(request, ticket_number):
+    """Add or remove an affected device (same customer only)."""
+    from psa.affected import AffectedRefused, add, remove
+    ticket = _staff_ticket(request, ticket_number)
+    try:
+        if request.POST.get('op') == 'remove':
+            asset = remove(ticket, request.POST.get('asset'), request.user, request)
+            messages.success(request, f'{asset.name} is no longer listed on this ticket.')
+        else:
+            asset, created = add(ticket, request.POST.get('asset'), request.user, request)
+            messages.success(request, f'{asset.name} added to this ticket.' if created
+                             else f'{asset.name} is already on this ticket.')
+    except AffectedRefused as e:
+        messages.error(request, str(e))
+    return _back(ticket)
+
+
+@login_required
+@require_psa_enabled
+@require_POST
+def note(request, ticket_number):
+    """Attach one request's outcome to the ticket as an internal note."""
+    from .services.device_panel import NoteRefused, attach_note
+    ticket = _ticket(request, ticket_number)
+    try:
+        attach_note(request.user, ticket, request.POST.get('request', ''), request)
+    except NoteRefused as e:
+        messages.error(request, str(e))
+        return _back(ticket)
+    messages.success(request, 'Result added as an internal note.')
+    return _back(ticket)
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['GET'])
+def verify(request, ticket_number):
+    from psa.models import Ticket, TicketStatus
+    from .services.device_panel import verification
+    ticket = _staff_ticket(request, ticket_number)
+    return render(request, 'psa/ticket_verify_close.html', {
+        'ticket': ticket, 'v': verification(ticket),
+        'statuses': TicketStatus.objects.filter(is_terminal=True).order_by('sort_order'),
+        'categories': Ticket.CLOSURE_CATEGORIES,
+    })
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_POST
+def verify_close(request, ticket_number):
+    """Close after verification. The checks are re-run here, not trusted from
+    the form; failing or unknown checks need `acknowledge`. The Close
+    button's own closeout rules (summary, category, sign-off, checklist)
+    still apply through the same function."""
+    from audit.models import AuditLog
+    from django.core.exceptions import ValidationError
+    from psa.models import TicketComment, TicketStatus
+    from psa.views import _closeout_transition
+    from .services.device_panel import verification, verification_text
+    ticket = _staff_ticket(request, ticket_number)
+    v = verification(ticket)
+    verify_url = reverse('ticket_rmm:verify', args=[ticket.ticket_number])
+    if not v['all_ok'] and request.POST.get('acknowledge') != '1':
+        messages.error(request, 'Some checks failed or could not be verified. Tick “Close anyway” to confirm you '
+                                'verified the fix another way.')
+        return redirect(verify_url)
+    status_id = (request.POST.get('status') or '').strip()
+    target = (TicketStatus.objects.filter(pk=status_id, is_terminal=True).first() if status_id.isdigit() else
+              (TicketStatus.objects.filter(slug='closed').first()
+               or TicketStatus.objects.filter(is_terminal=True).order_by('sort_order').first()))
+    if target is None:
+        messages.error(request, 'Pick a resolved/closed status.')
+        return redirect(verify_url)
+    try:
+        result = _closeout_transition(request, ticket, target, mark_closed=True)
+    except ValidationError as exc:
+        for msg in exc.messages:
+            messages.error(request, msg)
+        result = None
+    if result is None:
+        return redirect(verify_url)
+    description, extra = result
+    text = verification_text(v)
+    if not v['all_ok']:
+        text += '\nClosed anyway: the technician confirmed the fix another way.'
+    TicketComment.objects.create(ticket=ticket, author=request.user, body=text, is_internal=True, source='rmm')
+    AuditLog.log(user=request.user, action='update', organization=ticket.organization, object_type='psa.Ticket',
+                 object_id=ticket.pk, object_repr=ticket.ticket_number,
+                 description=(description + (' after verification' if v['all_ok'] else
+                                             ' with unverified checks acknowledged'))[:1000],
+                 path=request.path, extra_data=dict(extra, verified=v['all_ok'], failed=v['failed'],
+                                                    unknown=v['unknown']))
+    messages.success(request, description)
+    return redirect(reverse('psa:ticket_detail', args=[ticket.ticket_number]))
+
+
 app_name = 'ticket_rmm'
 urlpatterns = [
+    path('<str:ticket_number>/affected/', affected, name='affected'),
+    path('<str:ticket_number>/note/', note, name='note'),
+    path('<str:ticket_number>/verify/', verify, name='verify'),
+    path('<str:ticket_number>/verify/close/', verify_close, name='verify_close'),
     path('<str:ticket_number>/handoff/', handoff, name='handoff'),
     path('<str:ticket_number>/diagnostic/', diagnostic, name='diagnostic'),
     path('<str:ticket_number>/launch/', launch, name='launch'),
