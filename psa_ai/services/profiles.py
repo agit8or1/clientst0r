@@ -22,6 +22,7 @@ from typing import List, Optional, Tuple
 from django.utils import timezone
 
 CHARS_PER_TOKEN = 4
+EXCLUDED_MESSAGE = 'This customer is excluded from AI features.'
 PROMPT_OVERHEAD_TOKENS = 900  # system prompt + schema
 
 
@@ -55,6 +56,8 @@ def profile_refusal(profile, organization, actor, policy=None, processor=None) -
         return f"{profile.name} uses another technician's key."
     if policy is None:
         return f"{profile.name} is not allowed by this customer's AI policy."
+    if policy.ai_excluded:
+        return EXCLUDED_MESSAGE
     if own_key:
         # A technician's own key is allowed wherever the customer allows
         # technicians' keys; it doesn't need listing profile by profile.
@@ -91,7 +94,7 @@ def profile_refusal(profile, organization, actor, policy=None, processor=None) -
 def usable_profiles(organization, actor) -> List:
     from psa_ai.models import AIModelProfile
     policy = policy_for(organization)
-    if policy is None:
+    if policy is None or policy.ai_excluded:
         return []
     processor = processor_for(organization)
     return [p for p in AIModelProfile.objects.filter(enabled=True).order_by('name')
@@ -127,7 +130,9 @@ def availability(ticket, actor, mode: str) -> Tuple[bool, List[str]]:
         reasons.append("Your role doesn't include this." if mode == 'analyze'
                        else "Your role doesn't include comparing models.")
     policy = policy_for(org)
-    if policy is None or not policy.analysis_enabled:
+    if policy is not None and policy.ai_excluded:
+        reasons.append(EXCLUDED_MESSAGE)
+    elif policy is None or not policy.analysis_enabled:
         reasons.append("This customer's AI policy doesn't allow ticket analysis.")
     elif mode == 'compare' and not policy.compare_enabled:
         reasons.append("This customer's AI policy doesn't allow model comparison.")

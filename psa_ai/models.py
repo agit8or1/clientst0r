@@ -286,6 +286,54 @@ class AIBusinessPolicy(models.Model):
         help_text='Days to keep this customer\'s ticket AI and automation history (AI drafts, analysis jobs, '
                   'RMM requests and the decisions on them). Blank = the installation default '
                   '(PSA_AI_HISTORY_RETENTION_DAYS, 365). 0 = keep until deleted by hand.')
+
+    # --- tenant exclusion (every AI feature, enforced in profiles.profile_refusal
+    # and therefore inside the gateway too) ---------------------------------------
+    ai_excluded = models.BooleanField(
+        default=False, help_text='Exclude this customer from every AI feature, whatever else is set here.')
+
+    # --- AI Troubleshoot (OPTIONAL AI; services/troubleshoot.py) -----------------
+    ROUTE_PRIMARY, ROUTE_FALLBACK, ROUTE_LOCAL_FIRST, ROUTE_CHEAPEST = 'primary', 'fallback', 'local_first', 'cheapest'
+    ROUTING_CHOICES = [
+        (ROUTE_PRIMARY, 'Primary model only'),
+        (ROUTE_FALLBACK, 'Primary, then the secondary model if the primary is unusable or fails'),
+        (ROUTE_LOCAL_FIRST, 'Prefer an approved on-premises model of the two'),
+        (ROUTE_CHEAPEST, 'Prefer the cheaper of the two'),
+    ]
+    troubleshoot_enabled = models.BooleanField(
+        default=False, help_text='Allow AI Troubleshoot on this customer\'s tickets and devices.')
+    primary_profile = models.ForeignKey(
+        AIModelProfile, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+        help_text='Troubleshoot: primary model. Blank = the policy default / economical model.')
+    secondary_profile = models.ForeignKey(
+        AIModelProfile, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+        help_text='Troubleshoot: secondary model (fallback, or the second opinion in multi-model analysis).')
+    multi_model_enabled = models.BooleanField(
+        default=False, help_text='Troubleshoot: allow running primary and secondary side by side and comparing.')
+    model_routing = models.CharField(max_length=12, choices=ROUTING_CHOICES, default=ROUTE_PRIMARY)
+    monthly_budget_cents = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Spend ceiling per calendar month across all AI runs, in cents. Blank = no monthly ceiling '
+                  '(the daily ceiling still applies).')
+    troubleshoot_daily_runs = models.PositiveIntegerField(
+        default=50, help_text='Troubleshoot runs per day for this customer, all technicians together. 0 = none.')
+    troubleshoot_technician_daily_runs = models.PositiveIntegerField(
+        default=20, help_text='Troubleshoot runs per day per technician at this customer. 0 = none.')
+
+    # --- information-sharing rules: what may leave for a model -------------------
+    # Enforced in services/troubleshoot.build_observations before any prompt
+    # text exists; what was withheld is listed on the preview and the session.
+    share_ticket_text = models.BooleanField(
+        default=True, help_text='Ticket subject, description and public conversation.')
+    share_device_data = models.BooleanField(
+        default=True, help_text='Device name, OS, RMM status, alerts and read-only diagnostic output.')
+    share_network_identifiers = models.BooleanField(
+        default=False, help_text='Hostnames, IP and MAC addresses. Off = replaced with placeholders.')
+    share_contact_data = models.BooleanField(
+        default=False, help_text='Contact and requester names. Off = replaced with [contact].')
+    share_kb_titles = models.BooleanField(
+        default=True, help_text='Titles of this customer\'s and global KB articles and runbooks, so the model '
+                                'can point at relevant ones.')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -686,3 +734,120 @@ class AIHistoryPurgeState(models.Model):
 
     class Meta:
         db_table = 'psa_ai_history_purge_state'
+
+
+class AIBudgetMonth(models.Model):
+    """Per-organization spend for one calendar month, in 1/100 cent. Kept by
+    services/budget.py next to AIBudgetDay with the same conditional UPDATE,
+    so AIBusinessPolicy.monthly_budget_cents can't be overshot either."""
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    month = models.DateField(help_text='First day of the month.')
+    reserved = models.PositiveBigIntegerField(default=0)
+    spent = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        db_table = 'psa_ai_budget_months'
+        unique_together = [('organization', 'month')]
+
+
+# ===========================================================================
+# AI Troubleshoot (OPTIONAL AI, gated by psa_ai_enabled; services/troubleshoot.py).
+#
+# Four layers, never mixed, in storage as in the UI:
+#   Observation        TroubleshootSession.observations — data with its source
+#                      and freshness, filtered by the sharing rules
+#   AI inference       TroubleshootRun.result — labelled with model + prompt version
+#   Technician action  TroubleshootActionLink → the RMMRequest the technician
+#                      created through the normal request/approval flow
+#   Verified result    that RMMRequest's signed outcome from the RMM
+# The AI never executes anything and never calls an RMM.
+# ===========================================================================
+
+class TroubleshootSession(models.Model):
+    STATUS_CHOICES = [
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('partial', 'Completed with some models failing'),
+        ('failed', 'Failed'),
+    ]
+    TERMINAL = {'completed', 'partial', 'failed'}
+    MODE_SINGLE, MODE_MULTI = 'single', 'multi'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    ticket = models.ForeignKey('psa.Ticket', null=True, blank=True, on_delete=models.CASCADE,
+                               related_name='ai_troubleshoot_sessions')
+    device = models.ForeignKey('integrations.RMMDevice', null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='+')
+    actor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
+    mode = models.CharField(max_length=8, choices=[(MODE_SINGLE, 'One model'), (MODE_MULTI, 'Multi-model')])
+    routing = models.CharField(max_length=12, blank=True, default='')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='running')
+    observations = models.JSONField(default=dict, help_text='Redacted observations exactly as sent.')
+    observations_digest = models.CharField(max_length=64)
+    sharing = models.JSONField(default=dict, blank=True,
+                               help_text='The sharing rules applied, and what was withheld.')
+    comparison = models.JSONField(default=dict, blank=True)
+    idempotency_key = models.CharField(max_length=64)
+    error = models.CharField(max_length=500, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_troubleshoot_sessions'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['actor', 'idempotency_key'], name='psa_ai_troubleshoot_idempotency'),
+        ]
+        indexes = [models.Index(fields=['ticket', '-created_at']), models.Index(fields=['device', '-created_at']),
+                   models.Index(fields=['organization', 'created_at'])]
+
+    def __str__(self):
+        return f'TroubleshootSession {self.id} ({self.status})'
+
+    @property
+    def is_terminal(self):
+        return self.status in self.TERMINAL
+
+
+class TroubleshootRun(models.Model):
+    """One model's inference inside a session. `result` is the validated
+    structure from services/troubleshoot_result.py, never raw model text."""
+    ROLE_CHOICES = [('primary', 'Primary'), ('secondary', 'Secondary'), ('fallback', 'Fallback')]
+    session = models.ForeignKey(TroubleshootSession, on_delete=models.CASCADE, related_name='runs')
+    profile = models.ForeignKey(AIModelProfile, on_delete=models.PROTECT, related_name='+')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='primary')
+    status = models.CharField(max_length=10, choices=AnalysisRun.STATUS_CHOICES, default='pending')
+    reserved_cost = models.PositiveIntegerField(default=0, help_text='1/100 cent')
+    actual_cost = models.PositiveIntegerField(default=0)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.CharField(max_length=500, blank=True, default='')
+    resolved_model = models.CharField(max_length=150, blank=True, default='')
+    prompt_version = models.CharField(max_length=80, blank=True, default='')
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'psa_ai_troubleshoot_runs'
+        unique_together = [('session', 'profile')]
+        ordering = ['pk']
+
+
+class TroubleshootActionLink(models.Model):
+    """A suggested action a technician chose to request, and the RMMRequest
+    it created through the normal request/approval flow. The AI suggestion
+    authorises nothing; this row only records that a person asked."""
+    session = models.ForeignKey(TroubleshootSession, on_delete=models.CASCADE, related_name='action_links')
+    action_ref = models.CharField(max_length=20, help_text='The action ID in the session observations (X1, X2…).')
+    action_key = models.CharField(max_length=100)
+    rmm_request = models.ForeignKey(RMMRequest, null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name='troubleshoot_links')
+    requested_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, null=True, blank=True,
+                                     on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_ai_troubleshoot_action_links'
+        ordering = ['created_at', 'pk']

@@ -430,7 +430,8 @@ class RetentionTests(HistoryBase):
         self.assertNotIn('routing', kinds)
         self.assertNotIn('rmm_request', kinds)
         counts = history.purge_expired()
-        self.assertEqual(counts, {'suggestions': 1, 'analysis_jobs': 1, 'rmm_requests': 1, 'draft_decisions': 1})
+        self.assertEqual(counts, {'suggestions': 1, 'analysis_jobs': 1, 'rmm_requests': 1, 'draft_decisions': 1,
+                                  'troubleshoot_sessions': 0})
         self.assertEqual(set(AISuggestion.objects.values_list('pk', flat=True)), {pending.pk, recent.pk})
         self.assertEqual(list(AnalysisJob.objects.values_list('pk', flat=True)), [open_job.pk])
         self.assertFalse(AnalysisRun.objects.filter(job_id=job.pk).exists())

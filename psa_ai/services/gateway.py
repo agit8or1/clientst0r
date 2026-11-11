@@ -363,4 +363,6 @@ def run_worker_once(limit=10) -> int:
         if claim_for_execution(run):
             execute(run)
             done += 1
+    from . import troubleshoot
+    done += troubleshoot.run_worker_once(limit)
     return done

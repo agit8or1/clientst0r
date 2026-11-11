@@ -1,9 +1,10 @@
 """
 Generate a client-facing reply suggestion for a PSA ticket.
 
-Calls the Anthropic SDK with prompt caching on the system prompt + most
-of the context payload (the static parts), so repeat invocations on
-the same ticket within ~5 minutes are dramatically cheaper.
+The model, its key, the budget and the sharing rules all come from the
+customer's AI policy (services/policy_call.py, security finding S2); the
+call goes through the AI gateway like every other ticket AI feature. The
+install-wide ANTHROPIC_API_KEY is not used.
 
 Returns either a populated AISuggestion(saved=True) OR a SafetyFailure
 exception with the reason. Never raises bare exceptions to the caller —
@@ -25,6 +26,7 @@ from .guardrails import (
     subject_is_blocked, user_rate_exceeded,
 )
 from .context_builder import build_ticket_context
+from . import policy_call
 
 try:
     from anthropic import Anthropic
@@ -61,12 +63,27 @@ def _system_setting():
 
 
 def _resolve_api_key():
-    """Anthropic key lives in .env (managed at Settings → AI & LLM)."""
+    """Deprecated: ticket AI no longer uses the install-wide key (security
+    finding S2). Kept so older imports keep working; nothing here calls it."""
     return os.getenv('ANTHROPIC_API_KEY', '').strip()
 
 
 def _resolve_model():
     return os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-6').strip()
+
+
+def prepare_policy_call(ticket, user):
+    """(policy, profile) under the customer's AI policy, or SafetyFailure."""
+    try:
+        return policy_call.prepare(ticket, user)
+    except policy_call.PolicyRefused as exc:
+        raise SafetyFailure(str(exc))
+
+
+def split_system_prompt(text: str) -> str:
+    """The prompt files end with a {{context}} slot; the context now goes in
+    the user message (wrapped as untrusted), so the slot is pointed there."""
+    return text.replace('{{context}}', '(The ticket context is in the user message.)').strip()
 
 
 def generate_reply_for_ticket(ticket, *, user, request_path: str = '') -> 'AISuggestion':
@@ -103,49 +120,24 @@ def generate_reply_for_ticket(ticket, *, user, request_path: str = '') -> 'AISug
     if over:
         raise SafetyFailure(reason)
 
-    # 4. Build context (sanitises every user-supplied string).
-    ctx = build_ticket_context(ticket)
+    # 4. The customer's AI policy picks the model and its key (never an
+    # install-wide key) and its sharing rules shape the context.
+    policy, profile = prepare_policy_call(ticket, user)
+    ctx = build_ticket_context(ticket, policy=policy)
 
-    # 5. Resolve API key.
-    api_key = _resolve_api_key()
-    if not api_key:
-        raise SafetyFailure('Anthropic API key not configured (Settings → AI & LLM).')
-
-    # 6. Call Anthropic.
-    system_prompt = _load_system_prompt(
+    # 5. Call the model through the AI gateway, against the customer's budget.
+    system_prompt = split_system_prompt(_load_system_prompt(
         voice=ss.psa_ai_voice or '',
         brand=ss.custom_company_name or ss.site_name or 'our team',
-    )
-    user_message = system_prompt.replace('{{context}}', ctx['prompt_text'])
-    model = _resolve_model()
-    max_output = int(ss.psa_ai_max_output_tokens or 2000)
-
-    if Anthropic is None:
-        return _persist_failed(ticket, user, 'anthropic SDK not installed', model)
+    ))
+    model = policy_call.model_label(profile)
     try:
-        client = Anthropic(api_key=api_key)
-        # Cache the system prompt + context payload for 5-minute TTL.
-        message = client.messages.create(
-            model=model,
-            max_tokens=max_output,
-            system=[
-                {
-                    'type': 'text',
-                    'text': system_prompt,
-                    'cache_control': {'type': 'ephemeral'},
-                },
-            ],
-            messages=[{'role': 'user', 'content': user_message}],
-        )
-        content_text = ''
-        for block in message.content:
-            if getattr(block, 'type', None) == 'text':
-                content_text += block.text or ''
-        usage = getattr(message, 'usage', None)
-        input_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
-        output_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
-    except Exception as exc:
-        logger.exception('Anthropic call failed for ticket %s', getattr(ticket, 'ticket_number', ticket.pk))
+        content_text, input_tokens, output_tokens = policy_call.complete(
+            ticket, policy, profile, system_prompt, ctx['prompt_text'])
+    except policy_call.PolicyRefused as exc:
+        raise SafetyFailure(str(exc))
+    except policy_call.ProviderFailed as exc:
+        logger.warning('AI reply call failed for ticket %s: %s', getattr(ticket, 'ticket_number', ticket.pk), exc)
         return _persist_failed(ticket, user, str(exc)[:500], model)
 
     # 7. Parse JSON reply. Be defensive — model occasionally wraps in code fences.

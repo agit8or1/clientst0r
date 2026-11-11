@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Request suggested action{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 720px">
+    <h4>Request a suggested action <span class="badge bg-warning text-dark">Optional AI</span></h4>
+    <dl class="row small">
+        <dt class="col-sm-3">Action</dt><dd class="col-sm-9">{{ action.label }}{% if action.kind == 'diagnostic' %} (read-only diagnostic){% endif %}</dd>
+        <dt class="col-sm-3">Device</dt><dd class="col-sm-9">{{ action.device }}</dd>
+        <dt class="col-sm-3">Risk</dt><dd class="col-sm-9">{{ action.risk }}</dd>
+        <dt class="col-sm-3">Ticket</dt><dd class="col-sm-9"><a href="{% url 'psa:ticket_detail' session.ticket.ticket_number %}">{{ session.ticket.ticket_number }}</a></dd>
+        {% if why %}<dt class="col-sm-3">AI's reason</dt><dd class="col-sm-9"><span class="badge bg-info text-dark">AI inference</span> {{ why }}</dd>{% endif %}
+    </dl>
+    <div class="alert alert-light border small">
+        This sends a request to the device's paired RMM — the same request the ticket's RMM panel makes. ClientSt0r
+        does not run it and does not approve it: the RMM's approvers decide on its own approval page. Nothing the RMM
+        reports closes the ticket or replies to the customer.
+    </div>
+    {% if ok %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="idempotency_key" value="{{ key }}">
+        {% if action.kind != 'diagnostic' %}
+        <label class="form-label small" for="ts-desc">Reason sent with the request</label>
+        <textarea id="ts-desc" name="description" rows="3" maxlength="2000" class="form-control form-control-sm mb-2">{{ action.label }} — suggested by AI Troubleshoot, requested by a technician.</textarea>
+        {% endif %}
+        <button class="btn btn-primary btn-sm">Send request</button>
+        <a class="btn btn-link btn-sm" href="{{ back }}">Cancel</a>
+    </form>
+    {% else %}
+    <p class="text-muted">{{ reason }}</p>
+    <a class="btn btn-link btn-sm" href="{{ back }}">Back</a>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% comment %}
+AI Troubleshoot entry point (OPTIONAL AI). Embed with:
+  {% load ai_troubleshoot %}{% ai_troubleshoot_panel ticket=ticket %}
+  {% load ai_troubleshoot %}{% ai_troubleshoot_panel device=device %}
+Renders nothing when AI is off or for anyone without access. Self-contained:
+a plain POST form (CSRF), no JavaScript, Bootstrap classes only.
+{% endcomment %}
+{% if show %}
+<div class="card mb-3" id="ai-troubleshoot-panel" data-ai-troubleshoot-panel>
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center mb-1">
+            <span class="fw-semibold"><i class="fas fa-stethoscope me-1" aria-hidden="true"></i>AI Troubleshoot</span>
+            <span class="badge bg-warning text-dark ms-2">Optional AI</span>
+        </div>
+        {% if ok or multi_ok %}
+        <form method="post" action="{{ start_url }}" class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="idempotency_key" value="{{ key }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            {% if ok %}
+            <button class="btn btn-sm btn-outline-primary" data-ai-troubleshoot-start>
+                <i class="fas fa-magnifying-glass-chart me-1" aria-hidden="true"></i>Troubleshoot with AI</button>
+            {% endif %}
+            {% if multi_ok %}
+            <button class="btn btn-sm btn-outline-secondary" name="multi" value="1" data-ai-troubleshoot-multi
+                    title="Runs {{ multi_models|join:' and ' }} and shows where they agree and disagree.">
+                Compare {{ multi_models|length }} models</button>
+            {% endif %}
+        </form>
+        <p class="small text-muted mb-1">
+            {% if models %}Model: {{ models|join:", " }}. {% endif %}Sends only what you can see and this customer's
+            sharing rules allow; shown first on the result page. Advisory only: nothing is run, and suggested actions
+            open the normal request flow.
+        </p>
+        {% else %}
+        <p class="small text-muted mb-1" data-ai-troubleshoot-unavailable>{{ reasons|join:" " }}</p>
+        {% endif %}
+        {% if recent %}
+        <ul class="list-unstyled small mb-0">
+            {% for s in recent %}
+            <li><a href="{% url 'psa_ai:troubleshoot_session' s.id %}">{{ s.created_at|date:"Y-m-d H:i" }}</a>
+                — {{ s.get_mode_display }}, {{ s.get_status_display }}{% if s.actor %}, {{ s.actor.get_full_name|default:s.actor.username }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

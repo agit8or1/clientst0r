@@ -197,9 +197,21 @@ class QuotaTests(TestCase):
         self.assertEqual(user_b.input_tokens, 100)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+_GW_KEY_DIR = __import__('tempfile').mkdtemp(prefix='aigw-legacy-')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, AI_GATEWAY_KEY_DIR=_GW_KEY_DIR,
+                   AI_GATEWAY_MODE='in_process')
 class GenerateReplyEndpointTests(TestCase):
     """End-to-end: POST /psa/ai/generate-reply/<num>/ with the model mocked."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from pathlib import Path
+        from psa_ai.services import gateway_keys
+        if not (Path(_GW_KEY_DIR) / 'private.key').exists():
+            gateway_keys.generate(Path(_GW_KEY_DIR))
 
     def setUp(self):
         _seed()
@@ -219,6 +231,18 @@ class GenerateReplyEndpointTests(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
         s = self.client.session; s['current_organization_id'] = self.org.id; s.save()
+        # The customer's AI policy and an allowed model profile (S2).
+        from psa_ai.models import AIBusinessPolicy, AIModelProfile
+        profile = AIModelProfile.objects.create(name='Economy', provider='anthropic', model='test-model',
+                                                enabled=True, economical=True,
+                                                credential_owner=AIModelProfile.OWNER_MSP,
+                                                input_price_per_1k=10, output_price_per_1k=50)
+        profile.set_api_key('sk-ant-' + 'k' * 30)
+        profile.save()
+        profile.assigned_organizations.add(self.org)
+        policy = AIBusinessPolicy.objects.create(organization=self.org, analysis_enabled=True,
+                                                 daily_budget_cents=500)
+        policy.allowed_profiles.set([profile])
 
         self.ticket = Ticket.objects.create(
             organization=self.org, subject='Printer offline',
@@ -249,16 +273,14 @@ class GenerateReplyEndpointTests(TestCase):
         return _Msg(body, conf, risk, input_tokens, output_tokens)
 
     def _patch_anthropic(self, body='Test reply.', conf=0.9, risk='low'):
-        msg = self._mock_anthropic_message(body, conf, risk)
-
-        class _FakeMessages:
-            def create(self_, **kwargs): return msg
-
-        class _FakeClient:
-            def __init__(self_, **kwargs): self_.messages = _FakeMessages()
-
-        return patch('psa_ai.services.reply_generator.Anthropic', _FakeClient), \
-               patch('psa_ai.services.reply_generator._resolve_api_key', lambda: 'sk-ant-test-fixture-key')
+        """The model call now goes through the customer's policy profile and
+        the AI gateway (security finding S2): mock the gateway's provider
+        call, and make sure the old install-wide SDK path is never used."""
+        import json as _json
+        text = _json.dumps({'body': body, 'confidence': conf, 'risk_level': risk})
+        return patch('psa_ai.services.gateway.call_provider', return_value=(text, 200, 80)), \
+               patch('psa_ai.services.reply_generator.Anthropic',
+                     side_effect=AssertionError('install-wide key path used'))
 
     def _url(self):
         return f'/psa/ai/generate-reply/{self.ticket.ticket_number}/'
@@ -298,17 +320,21 @@ class GenerateReplyEndpointTests(TestCase):
         self.assertEqual(s.suggested_body, '')
 
     def test_failure_persists_failed_state(self):
-        # Anthropic class raises — we should still create a row + audit
-        with patch('psa_ai.services.reply_generator.Anthropic', side_effect=RuntimeError('boom')), \
-             patch('psa_ai.services.reply_generator._resolve_api_key', lambda: 'sk-ant-test'):
+        # The provider call raises — we should still create a row + audit
+        with patch('psa_ai.services.gateway.call_provider', side_effect=RuntimeError('boom')):
             resp = self.client.post(self._url())
         self.assertEqual(resp.status_code, 302)
         s = AISuggestion.objects.filter(native_ticket=self.ticket).first()
         self.assertEqual(s.review_state, 'failed')
 
-    def test_no_api_key_warns(self):
-        with patch('psa_ai.services.reply_generator._resolve_api_key', lambda: ''):
+    def test_no_customer_policy_warns(self):
+        # Without a customer AI policy there is no model to use (the
+        # install-wide key is never a fallback).
+        from psa_ai.models import AIBusinessPolicy
+        AIBusinessPolicy.objects.filter(organization=self.org).delete()
+        with patch('psa_ai.services.gateway.call_provider') as call:
             resp = self.client.post(self._url())
+            call.assert_not_called()
         self.assertEqual(resp.status_code, 302)
         # SafetyFailure path → no AISuggestion is created
         self.assertFalse(AISuggestion.objects.filter(native_ticket=self.ticket).exists())
