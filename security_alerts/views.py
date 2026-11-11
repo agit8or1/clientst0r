@@ -851,6 +851,16 @@ def digest_subscriptions(request):
                 sub.contact = contact
             sub.set_subscribed(True, via='staff', by=request.user)
             messages.success(request, f'{email} will receive the weekly digest for {org.name}.')
+        elif action in ('all_clear_on', 'all_clear_off'):
+            from .models import SecurityDigestCustomerSetting
+            setting, _ = SecurityDigestCustomerSetting.objects.get_or_create(organization=org)
+            setting.send_all_clear = action == 'all_clear_on'
+            setting.updated_by = request.user
+            setting.save()
+            email = '(all-clear e-mails)'
+            messages.success(
+                request,
+                f'Weekly all-clear e-mails {"on" if setting.send_all_clear else "off"} for {org.name}.')
         elif action in ('on', 'off'):
             sub = get_object_or_404(SecurityDigestSubscription, pk=request.POST.get('sub'), organization=org)
             sub.set_subscribed(action == 'on', via='staff', by=request.user)
@@ -868,7 +878,10 @@ def digest_subscriptions(request):
         return back
 
     subs, rows, preview, contacts = [], [], None, []
+    all_clear = False
     if org is not None:
+        from .models import SecurityDigestCustomerSetting
+        all_clear = SecurityDigestCustomerSetting.all_clear_enabled(org)
         subs = list(SecurityDigestSubscription.objects.filter(organization=org).select_related('user', 'contact'))
         rows = digest_rows(org)
         if rows:
@@ -876,11 +889,18 @@ def digest_subscriptions(request):
             from core.mailer import brand_name
             preview = render_digest(org, rows, brand=brand_name(SystemSetting.get_settings()),
                                     unsubscribe='(each contact\'s personal unsubscribe link)')
+        elif all_clear:
+            from core.models import SystemSetting
+            from core.mailer import brand_name
+            from .digest import render_all_clear
+            preview = render_all_clear(org, brand=brand_name(SystemSetting.get_settings()),
+                                       unsubscribe='(each contact\'s personal unsubscribe link)')
         have = {s.email for s in subs}
         contacts = [c for c in Contact.objects.filter(organization=org).exclude(email='')
                     if c.email.lower() not in have]
     return render(request, 'security_alerts/digest_subscriptions.html', {
         'orgs': orgs, 'org': org, 'subs': subs, 'rows': rows, 'preview': preview, 'contacts': contacts,
+        'all_clear': all_clear,
         'can_manage': bool(org) and has_perm_for_org(request.user, org.pk, 'security_alerts_manage_connections'),
     })
 
