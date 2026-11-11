@@ -634,8 +634,46 @@ def triage(request):
     allowed = orgs_with_perm(request.user, 'tickets_view')
     if allowed is not None:
         qs = qs.filter(organization_id__in=allowed)
-    return render(request, 'ticket_routing/triage.html', {'tickets': qs[:500],
-                                                          'can_override': can_override(request.user)})
+
+    # Narrowing filters (saved views: core.workspace SAVED_VIEW_LISTS['routing_triage']).
+    # Every choice comes from the scoped queryset, so a filter only hides rows.
+    from core.models import Organization
+    from psa.models import TicketPriority
+    in_scope = qs
+    customer_ids = set(in_scope.values_list('organization_id', flat=True).distinct())
+    priority_ids = set(in_scope.values_list('priority_id', flat=True).distinct()) - {None}
+    client = request.GET.get('client') or ''
+    if client.isdigit() and int(client) in customer_ids:
+        qs = qs.filter(organization_id=int(client))
+    else:
+        client = ''
+    routing = request.GET.get('routing') or ''
+    if routing == 'suggested':
+        qs = qs.filter(routing_status=STATUS_SUGGESTED)
+    elif routing == 'fallback':
+        qs = qs.filter(routing_status=STATUS_FALLBACK)
+    else:
+        routing = ''
+    priority = request.GET.get('priority') or ''
+    if priority.isdigit() and int(priority) in priority_ids:
+        qs = qs.filter(priority_id=int(priority))
+    else:
+        priority = ''
+    q = (request.GET.get('q') or '').strip()[:100]
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(Q(ticket_number__icontains=q) | Q(subject__icontains=q))
+    total_waiting = in_scope.count()
+    return render(request, 'ticket_routing/triage.html', {
+        'tickets': qs[:500],
+        'can_override': can_override(request.user),
+        'customers': Organization.objects.filter(pk__in=customer_ids).order_by('name').values('pk', 'name')
+                     if len(customer_ids) > 1 else [],
+        'priorities': TicketPriority.objects.filter(pk__in=priority_ids).order_by('sort_order'),
+        'filters': {'client': client, 'routing': routing, 'priority': priority, 'q': q},
+        'has_filters': bool(client or routing or priority or q),
+        'total_waiting': total_waiting,
+    })
 
 
 @login_required

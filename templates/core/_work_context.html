@@ -55,7 +55,7 @@ Above every page's content (base.html), in this order:
                     </form>
                 </li>
                 <li>
-                    <form method="post" action="{% url 'core:saved_view_delete' v.id %}" class="m-0" data-confirm="{% blocktrans with name=v.name %}Delete the saved view “{{ name }}”? The tickets or devices themselves are not affected.{% endblocktrans %}">{% csrf_token %}<input type="hidden" name="next" value="{{ svb.all_url }}">
+                    <form method="post" action="{% url 'core:saved_view_delete' v.id %}" class="m-0" data-confirm="{% blocktrans with name=v.name what=svb.label %}Delete the saved view “{{ name }}”? The {{ what }} themselves are not affected.{% endblocktrans %}">{% csrf_token %}<input type="hidden" name="next" value="{{ svb.all_url }}">
                         <button type="submit" class="dropdown-item text-danger">{% trans "Delete view" %}</button>
                     </form>
                 </li>
@@ -65,6 +65,9 @@ Above every page's content (base.html), in this order:
         {% for p in svb.presets %}
         <a class="btn btn-sm {% if p.active %}btn-info{% else %}btn-outline-info{% endif %}" href="{{ p.url }}"{% if p.active %} aria-current="true"{% endif %}>{{ p.name }}</a>
         {% endfor %}
+        {% if svb.empty_hint and not svb.current_query %}
+        <span class="saved-views__hint small text-body-secondary ms-auto">{% trans "No saved views yet: set the filters you use most, then save them here to reach them in one click." %}</span>
+        {% endif %}
         {% if svb.can_save %}
         <form method="post" action="{% url 'core:saved_view_save' %}" class="saved-views__save d-flex align-items-center gap-1 ms-auto">
             {% csrf_token %}

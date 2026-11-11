@@ -16,6 +16,28 @@
 </div>
 <p class="text-muted small">Pending weekly timesheet submissions from techs. Approving rolls the entries forward into invoicing and locks them against further edits.</p>
 
+{% if technicians %}
+<form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-2" id="timesheetFilters">
+    <div>
+        <label class="form-label small mb-1" for="tsTech">Technician</label>
+        <select class="form-select form-select-sm" id="tsTech" name="tech">
+            <option value="">Everyone</option>
+            {% for t in technicians %}<option value="{{ t.pk }}" {% if tech_filter == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.get_full_name|default:t.username }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label small mb-1" for="tsDecision">Recent decisions</label>
+        <select class="form-select form-select-sm" id="tsDecision" name="decision">
+            <option value="">Approved and rejected</option>
+            <option value="approved" {% if decision_filter == 'approved' %}selected{% endif %}>Approved</option>
+            <option value="rejected" {% if decision_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+    {% if has_filters %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:timesheet_approval_queue' %}?view=all">Clear</a>{% endif %}
+</form>
+{% endif %}
+
 <h5 class="mt-4">Pending</h5>
 {% if pending %}
 <form method="post" action="{% url 'psa:timesheet_bulk_decide' %}">

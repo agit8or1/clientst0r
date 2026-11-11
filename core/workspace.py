@@ -386,8 +386,53 @@ SAVED_VIEW_LISTS = {
     },
     'assets': {
         'view': 'assets:asset_list', 'label': 'assets',
-        'params': ('type', 'manufacturer', 'status', 'location', 'needs_reorder', 'q', 'search'),
-        'presets': (),
+        'params': ('client', 'type', 'manufacturer', 'status', 'location', 'needs_reorder',
+                   'rmm', 'alerts', 'q', 'search', 'sort', 'per_page'),
+        'gate': None,  # the page itself is gated (assets_view, SectionPermissionMiddleware)
+        'presets': (
+            ('Needs reorder', 'needs_reorder=true'),
+        ),
+        # The RMM filters only apply for MSP staff (assets/list_filters.py).
+        'staff_presets': (
+            ('RMM offline', 'rmm=offline'),
+            ('RMM alerts', 'alerts=active'),
+            ('RMM data stale', 'rmm=stale'),
+            ('No RMM device', 'rmm=unlinked'),
+        ),
+    },
+    'rmm_alerts': {
+        'view': 'integrations:rmm_alerts', 'label': 'alerts',
+        'params': ('status', 'severity', 'client', 'q'),
+        'presets': (
+            ('Critical', 'severity=critical'),
+            ('Errors', 'severity=error'),
+            ('Resolved', 'status=resolved'),
+        ),
+    },
+    'routing_triage': {
+        'view': 'ticket_routing:triage', 'label': 'tickets',
+        'params': ('client', 'routing', 'priority', 'q'),
+        'presets': (
+            ('Suggestions waiting', 'routing=suggested'),
+            ('Fallbacks', 'routing=fallback'),
+        ),
+    },
+    'invoices': {
+        'view': 'psa:invoice_list', 'label': 'invoices',
+        'params': ('status', 'client', 'q'),
+        'gate': 'invoices',
+        'presets': (
+            ('Overdue', 'status=overdue'),
+            ('Drafts', 'status=draft'),
+            ('Sent, unpaid', 'status=sent'),
+        ),
+    },
+    'timesheets': {
+        'view': 'psa:timesheet_approval_queue', 'label': 'timesheets',
+        'params': ('tech', 'decision'),
+        'presets': (
+            ('Rejected', 'decision=rejected'),
+        ),
     },
 }
 SAVED_VIEW_BY_VIEW = {spec['view']: key for key, spec in SAVED_VIEW_LISTS.items()}
@@ -408,25 +453,47 @@ def clean_query(list_key, raw):
     return urlencode(pairs)[:1000]
 
 
+def _may_use_list(request, spec):
+    """Whether the saved-views bar is drawn for this list and user.
+
+    `gate` is 'staff' (the default: MSP technicians' work lists), None (the
+    page gates itself, e.g. assets) or 'invoices' (MSP staff, or a role that
+    may view invoices). The bar is only links to the user's own filter URLs,
+    but it should not appear on a page the user works in as a customer."""
+    gate = spec.get('gate', 'staff')
+    if gate is None:
+        return True
+    if _is_staff(request.user):
+        return True
+    if gate == 'invoices':
+        from accounts.permission_utils import user_has_perm
+        return bool(user_has_perm(request.user, 'billing_view_invoices'))
+    return False
+
+
 def saved_view_bar(request):
     """Context for the saved-views bar on a registered list, or None."""
     match = getattr(request, 'resolver_match', None)
     key = SAVED_VIEW_BY_VIEW.get(getattr(match, 'view_name', '') or '')
     if key is None or not request.user.is_authenticated:
         return None
-    if key in ('tickets', 'rmm_devices') and not _is_staff(request.user):
+    spec = SAVED_VIEW_LISTS[key]
+    if not _may_use_list(request, spec):
         return None
     from core.models import SavedView
-    spec = SAVED_VIEW_LISTS[key]
     current = clean_query(key, request.META.get('QUERY_STRING', ''))
     base = request.path
     views = []
     for v in SavedView.objects.filter(user=request.user, list_key=key):
         views.append({'id': v.pk, 'name': v.name, 'url': f'{base}?{v.query}' if v.query else f'{base}?{NO_DEFAULT_PARAM}=all',
                       'active': v.query == current, 'is_default': v.is_default})
-    presets = [{'name': n, 'url': f'{base}?{q}', 'active': q == current} for n, q in spec['presets']
+    preset_specs = tuple(spec['presets'])
+    if spec.get('staff_presets') and _is_staff(request.user):
+        preset_specs += tuple(spec['staff_presets'])
+    presets = [{'name': n, 'url': f'{base}?{q}', 'active': q == current} for n, q in preset_specs
                if not any(v['name'] == n for v in views)]
     return {
+        'empty_hint': not views,
         'list_key': key,
         'label': spec['label'],
         'views': views,

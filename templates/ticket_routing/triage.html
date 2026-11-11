@@ -4,8 +4,46 @@
 {% include "ticket_routing/_nav.html" with tab="triage" crumb="Triage" %}
 <h4 class="mb-1">Triage</h4>
 <p class="small text-muted">Open, unassigned tickets where routing fell back (nobody qualified, or the customer could not be verified) or a suggestion is waiting for a dispatcher.</p>
+{% if total_waiting %}
+<form method="get" class="row g-2 align-items-end mb-3" id="triageFilters">
+    <div class="col-12 col-md-4">
+        <label class="form-label small mb-1" for="triageQ">Search</label>
+        <input type="search" class="form-control form-control-sm" id="triageQ" name="q" value="{{ filters.q }}" maxlength="100" placeholder="Ticket number or subject">
+    </div>
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1" for="triageRouting">Routing</label>
+        <select class="form-select form-select-sm" id="triageRouting" name="routing">
+            <option value="">Any</option>
+            <option value="suggested" {% if filters.routing == 'suggested' %}selected{% endif %}>Suggestion waiting</option>
+            <option value="fallback" {% if filters.routing == 'fallback' %}selected{% endif %}>Fallback</option>
+        </select>
+    </div>
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1" for="triagePriority">Priority</label>
+        <select class="form-select form-select-sm" id="triagePriority" name="priority">
+            <option value="">Any</option>
+            {% for p in priorities %}<option value="{{ p.pk }}" {% if filters.priority == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.code }} {{ p.name }}</option>{% endfor %}
+        </select>
+    </div>
+    {% if customers %}
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1" for="triageClient">Customer</label>
+        <select class="form-select form-select-sm" id="triageClient" name="client">
+            <option value="">All customers</option>
+            {% for c in customers %}<option value="{{ c.pk }}" {% if filters.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    <div class="col-6 col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+        {% if has_filters %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'ticket_routing:triage' %}?view=all">Clear</a>{% endif %}
+    </div>
+</form>
+{% endif %}
+<div class="table-responsive">
 <table class="table table-sm small align-middle">
-    <thead><tr><th>Ticket</th><th>Customer</th><th>Priority</th><th>Queue</th><th>Routing</th></tr></thead>
+    <caption class="visually-hidden">Tickets waiting for routing triage</caption>
+    <thead><tr><th scope="col">Ticket</th><th scope="col">Customer</th><th scope="col">Priority</th><th scope="col">Queue</th><th scope="col">Routing</th></tr></thead>
     <tbody>
     {% for t in tickets %}
     <tr>
@@ -14,7 +52,8 @@
         <td>{% if t.routing_status == 'suggested' %}<span class="badge text-bg-info">Suggestion waiting</span>{% else %}<span class="badge text-bg-warning">Fallback</span>{% endif %}
             <div class="text-muted">{{ t.routing_reason|truncatechars:200 }}</div></td>
     </tr>
-    {% empty %}<tr><td colspan="5" class="text-muted">Nothing waiting.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="5" class="text-muted">{% if has_filters %}No waiting tickets match these filters. <a href="{% url 'ticket_routing:triage' %}?view=all">Clear filters</a>.{% else %}Nothing waiting: every open ticket was routed to someone. Tickets land here when no technician qualified, the customer could not be verified, or a routing rule only suggests an assignee.{% endif %}</td></tr>{% endfor %}
     </tbody>
 </table>
+</div>
 {% endblock %}
