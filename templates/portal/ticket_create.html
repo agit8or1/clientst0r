@@ -23,6 +23,17 @@
             <textarea name="description" rows="6" class="form-control" maxlength="50000"
                       placeholder="When did it start? What have you tried? Any error messages?"></textarea>
         </div>
+        {% if sites %}
+        <div class="mb-3">
+            <label class="form-label" for="ticket-site">Site</label>
+            <select name="site" id="ticket-site" class="form-select">
+                <option value="">Not sure / not site-specific</option>
+                {% for loc in sites %}
+                <option value="{{ loc.pk }}" {% if loc.pk == default_site_id %}selected{% endif %}>{{ loc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <p class="text-muted small mb-0">A support engineer will follow up. You'll get an email when the ticket is updated.</p>
     </div>
     <div class="card-footer">

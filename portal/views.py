@@ -445,6 +445,8 @@ def post_reply(request, ticket_number):
 def ticket_create(request):
     """Client-side ticket submission."""
     m = request.portal_membership
+    from psa.ticket_site import SOURCE_PORTAL, portal_default_site, portal_sites_for
+    sites = list(portal_sites_for(m.organization)[:200])
 
     if request.method == 'POST':
         subject = (request.POST.get('subject') or '').strip()[:300]
@@ -452,6 +454,15 @@ def ticket_create(request):
         if not subject:
             messages.error(request, 'Subject is required.')
             return redirect(request.path)
+        # Site: one of this customer's own active sites, or none (then the
+        # usual intake rules in psa.ticket_site fill it when they can).
+        raw_site = (request.POST.get('site') or '').strip()
+        site = None
+        if raw_site:
+            site = next((loc for loc in sites if str(loc.pk) == raw_site), None)
+            if site is None:
+                messages.error(request, 'Pick one of your organization\'s sites.')
+                return redirect(request.path)
 
         # Use the client's default queue/priority/type — fall back to any.
         queue = Queue.objects.filter(is_active=True).first()
@@ -471,6 +482,7 @@ def ticket_create(request):
             requester_name=request.user.get_full_name() or request.user.username,
             requester_email=request.user.email or '',
             created_by=request.user,
+            site=site, site_source=SOURCE_PORTAL if site else '',
         )
         AuditLog.log(
             user=request.user, action='create',
@@ -483,8 +495,11 @@ def ticket_create(request):
         messages.success(request, f'Ticket {ticket.ticket_number} created.')
         return redirect('portal:ticket_detail', ticket_number=ticket.ticket_number)
 
+    default_site = portal_default_site(m.organization, request.user) if sites else None
     return render(request, 'portal/ticket_create.html', {
         'organization': m.organization,
+        'sites': sites,
+        'default_site_id': default_site.pk if default_site else None,
     })
 
 

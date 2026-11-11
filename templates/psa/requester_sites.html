@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}PSA — Requester Default Sites{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item active">Requester default sites</li>
+    </ol>
+</nav>
+
+<h2 class="mb-1"><i class="fas fa-map-marker-alt me-2"></i>Default ticket sites — {{ organization.name }}</h2>
+<p class="text-muted">A requester's default site is filled in on their new tickets when the ticket's asset doesn't name a site, and is preselected on the portal's new-ticket form.</p>
+
+{% if not sites %}
+<div class="alert alert-secondary">This customer has no active sites. Add one under Locations first.</div>
+{% else %}
+<div class="card mb-3">
+    <div class="card-header"><strong>Contacts</strong></div>
+    <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Contact</th><th>Email</th><th style="min-width: 260px;">Default site</th></tr></thead>
+        <tbody>
+        {% for contact, current in contact_rows %}
+        <tr>
+            <td>{{ contact }}</td>
+            <td class="text-muted small">{{ contact.email|default:"—" }}</td>
+            <td>
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="kind" value="contact">
+                    <input type="hidden" name="target" value="{{ contact.pk }}">
+                    <select name="site" class="form-select form-select-sm" aria-label="Default site for {{ contact }}">
+                        <option value="">None</option>
+                        {% for loc in sites %}<option value="{{ loc.pk }}" {% if current and current.pk == loc.pk %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-muted">No contacts.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><strong>Portal users</strong></div>
+    <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>User</th><th>Email</th><th style="min-width: 260px;">Default site</th></tr></thead>
+        <tbody>
+        {% for member, current in user_rows %}
+        <tr>
+            <td>{{ member.get_full_name|default:member.username }}</td>
+            <td class="text-muted small">{{ member.email|default:"—" }}</td>
+            <td>
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="kind" value="user">
+                    <input type="hidden" name="target" value="{{ member.pk }}">
+                    <select name="site" class="form-select form-select-sm" aria-label="Default site for {{ member.username }}">
+                        <option value="">None</option>
+                        {% for loc in sites %}<option value="{{ loc.pk }}" {% if current and current.pk == loc.pk %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-muted">No portal users.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
