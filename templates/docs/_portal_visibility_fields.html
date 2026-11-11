@@ -1,0 +1,14 @@
+{% if form.is_client_visible %}
+<input type="hidden" name="kb_visibility_shown" value="1">
+<div class="form-check">
+    {{ form.is_client_visible }}
+    <label class="form-check-label" for="{{ form.is_client_visible.id_for_label }}" title="{{ form.is_client_visible.help_text }}">{{ form.is_client_visible.label }}</label>
+</div>
+<div class="form-check">
+    {{ form.is_featured_in_portal }}
+    <label class="form-check-label" for="{{ form.is_featured_in_portal.id_for_label }}" title="{{ form.is_featured_in_portal.help_text }}">{{ form.is_featured_in_portal.label }}</label>
+</div>
+<div class="form-text small">Unticked = internal only. In a customer-visible article, wrap technician-only notes in
+    <code>&lt;div class="kb-internal"&gt;…&lt;/div&gt;</code> (Markdown: <code>:::internal</code> … <code>:::</code>);
+    customers never see them.</div>
+{% endif %}

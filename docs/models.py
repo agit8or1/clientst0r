@@ -223,9 +223,11 @@ class Document(BaseModel):
         Render content based on content_type.
         """
         if self.content_type == 'markdown':
-            # Render markdown to HTML
+            # Render markdown to HTML. `:::internal` fences become internal-only
+            # blocks (docs/kb_visibility.py).
+            from .kb_visibility import preprocess_markdown
             html = markdown.markdown(
-                self.body,
+                preprocess_markdown(self.body),
                 extensions=['extra', 'codehilite', 'toc']
             )
         else:
@@ -295,6 +297,12 @@ class Document(BaseModel):
                 allowed_css_properties=['width', 'height', 'max-width', 'aspect-ratio'],
             )
         return bleach.clean(html, **clean_kwargs)
+
+    def render_for_client(self):
+        """What a customer may see: the rendered body without internal-only
+        blocks. Use for every customer-facing surface."""
+        from .kb_visibility import strip_internal
+        return strip_internal(self.render_content())
 
     # Backward compatibility
     def render_markdown(self):

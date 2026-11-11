@@ -366,8 +366,18 @@ def export_filename(document, fmt: str) -> str:
     return f'{stem}.{ext}'
 
 
+def customer_copy(document):
+    """Mark `document` (this instance only) so every writer exports what a
+    customer may see: internal-only blocks removed. Returns the document."""
+    document._kb_customer_copy = True
+    return document
+
+
 def _document_html(document) -> str:
-    """Rendered + sanitised body HTML for a document."""
+    """Rendered + sanitised body HTML for a document (without internal-only
+    blocks when the instance was marked with `customer_copy`)."""
+    if getattr(document, '_kb_customer_copy', False) and callable(getattr(document, 'render_for_client', None)):
+        return document.render_for_client()
     render = getattr(document, 'render_content', None)
     return render() if callable(render) else (document.body or '')
 
@@ -476,7 +486,8 @@ def export_markdown(document) -> bytes:
     header.append('  \n'.join(detail))
     header.extend(['', '---', '', ''])
 
-    if getattr(document, 'content_type', '') == 'markdown' and (document.body or '').strip():
+    if getattr(document, 'content_type', '') == 'markdown' and (document.body or '').strip() \
+            and not getattr(document, '_kb_customer_copy', False):
         body = document.body.strip() + '\n'
     else:
         body = blocks_to_markdown(parse_blocks(_document_html(document)))
@@ -1088,8 +1099,9 @@ def export_document(document, fmt: str) -> tuple[bytes, str, str]:
     return _WRITERS[fmt](document), export_filename(document, fmt), mime
 
 
-def export_archive(documents, fmt: str, *, archive_title: str = 'Documentation') -> bytes:
-    """Bundle many documents into one ZIP, with an index.
+def export_archive(documents, fmt: str, *, archive_title: str = 'Documentation', customer: bool = False) -> bytes:
+    """Bundle many documents into one ZIP, with an index. `customer=True`
+    writes customer copies (internal-only blocks removed).
 
     Built for the departing-client handover in issue #144: one archive holding
     every document the client should walk away with, plus an `index` listing so
@@ -1115,6 +1127,8 @@ def export_archive(documents, fmt: str, *, archive_title: str = 'Documentation')
                 name = f'{stem}-{counter}.{suffix}'
                 counter += 1
             used.add(name.lower())
+            if customer:
+                customer_copy(doc)
             try:
                 payload = writer(doc)
             except Exception as e:  # noqa: BLE001 — one bad doc shouldn't kill the archive

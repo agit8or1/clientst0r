@@ -2549,6 +2549,7 @@ def document_export(request, slug, fmt):
     if document.content_type == 'file' and document.file:
         return redirect(document.file.url)
 
+    _customer_copy_or_404(request, document)
     try:
         payload, filename, content_type = export_document(document, fmt)
     except ValueError:
@@ -2566,6 +2567,7 @@ def global_kb_export(request, slug, fmt):
     from .services.document_export import export_document
 
     document = get_object_or_404(Document, slug=slug, is_global=True)
+    _customer_copy_or_404(request, document)
     try:
         payload, filename, content_type = export_document(document, fmt)
     except ValueError:
@@ -2573,6 +2575,22 @@ def global_kb_export(request, slug, fmt):
 
     inline = fmt == 'html' and request.GET.get('inline') == '1'
     return _export_response(payload, filename, content_type, inline=inline)
+
+
+def _wants_customer_copy(request) -> bool:
+    return request.GET.get('audience') == 'customer'
+
+
+def _customer_copy_or_404(request, document):
+    """`?audience=customer`: export what the customer sees — only for
+    articles visible in the portal, with internal-only blocks removed."""
+    from django.http import Http404
+    from .services.document_export import customer_copy
+    if not _wants_customer_copy(request):
+        return document
+    if not document.is_client_visible:
+        raise Http404('This article is internal; it has no customer copy.')
+    return customer_copy(document)
 
 
 @login_required
@@ -2601,6 +2619,10 @@ def document_export_bulk(request, fmt):
     documents = Document.objects.published().filter(
         is_global=False, is_template=False,
     )
+    customer = _wants_customer_copy(request)
+    if customer:
+        # Customer copies: only portal-visible articles, internal blocks removed.
+        documents = documents.filter(is_client_visible=True)
     if not in_global_view:
         # Same scope as `document_list`, whose filters this endpoint honours.
         # A departing parent company's archive silently omitted every
@@ -2639,7 +2661,7 @@ def document_export_bulk(request, fmt):
         return redirect('docs:document_list')
 
     archive_title = f'{org.name} documentation' if org else 'Knowledge Base documentation'
-    payload = export_archive(documents, fmt, archive_title=archive_title)
+    payload = export_archive(documents, fmt, archive_title=archive_title, customer=customer)
     stem = _slugify(archive_title) or 'documentation'
     filename = f'{stem}-{fmt}.zip'
     return _export_response(payload, filename, 'application/zip')

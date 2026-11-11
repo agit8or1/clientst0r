@@ -576,7 +576,8 @@ def kb_list(request):
     q = (request.GET.get('q') or '').strip()
     qs = portal_kb_queryset(m.organization)
     if q:
-        qs = qs.filter(Q(title__icontains=q) | Q(body__icontains=q))
+        from docs.kb_visibility import client_body_matches
+        qs = qs.filter(Q(title__icontains=q) | Q(pk__in=client_body_matches(qs, [q])))
         if not qs.exists():
             from docs.models import SearchQueryLog
             SearchQueryLog.record(q, result_count=0, source='portal_kb',
@@ -611,6 +612,7 @@ def kb_detail(request, slug):
     )
     return render(request, 'portal/kb_detail.html', {
         'article': article,
+        'article_html': article.render_for_client(),
         'organization': m.organization,
     })
 
