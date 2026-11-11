@@ -285,7 +285,24 @@ class ProcessExecution(BaseModel):
         help_text='Make PSA ticket note internal/private (not visible to customer)'
     )
 
+    # Phase 38: who an offboarding run is about, for access removal
+    # verification (processes.access_verification).
+    subject_email = models.CharField(
+        max_length=254, blank=True,
+        help_text="Departing person's email / sign-in name (UPN) - used to verify their access was removed",
+    )
+    subject_user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='offboarding_executions',
+        help_text="The departing person's ClientSt0r account, if they have one",
+    )
+
     objects = OrganizationManager()
+
+    OFFBOARDING_CATEGORIES = ('offboarding', 'client_offboarding', 'client_termination')
+
+    @property
+    def is_offboarding(self):
+        return self.process.category in self.OFFBOARDING_CATEGORIES
 
     class Meta:
         db_table = 'process_executions'
@@ -380,6 +397,7 @@ class ProcessExecutionAuditLog(BaseModel):
         ('stage_notes_added', 'Stage Notes Added'),
         ('notes_updated', 'Execution Notes Updated'),
         ('due_date_changed', 'Due Date Changed'),
+        ('access_verified', 'Access Removal Verified'),
     ]
 
     # Link to execution
@@ -494,3 +512,42 @@ class ProcessExecutionAuditLog(BaseModel):
         )
 
         return audit_log
+
+
+class AccessRemovalCheck(BaseModel):
+    """Phase 38: one read-only verification that a departing person's
+    access to one system is gone, run from an offboarding execution.
+
+    ``findings`` is a list of {"item", "state", "detail"} with state
+    "active" (access still there: orphaned), "removed" or "info".
+    Each run adds new rows; the latest per system is the current answer.
+    """
+    SYSTEM_CHOICES = [
+        ('clientst0r', 'ClientSt0r'),
+        ('m365', 'Microsoft 365'),
+        ('rmm', 'RMM'),
+    ]
+    STATUS_CHOICES = [
+        ('removed', 'Removed'),
+        ('orphaned', 'Access remains'),
+        ('not_verifiable', 'Not verifiable here'),
+        ('error', 'Check failed'),
+    ]
+
+    execution = models.ForeignKey(ProcessExecution, on_delete=models.CASCADE, related_name='access_checks')
+    system = models.CharField(max_length=20, choices=SYSTEM_CHOICES)
+    target = models.CharField(max_length=255, blank=True,
+                              help_text='Which connection / account was checked')
+    subject = models.CharField(max_length=254, blank=True, help_text='Who was checked')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    summary = models.CharField(max_length=500, blank=True)
+    findings = models.JSONField(default=list, blank=True)
+    checked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    class Meta:
+        db_table = 'process_access_removal_checks'
+        ordering = ['-created_at', '-id']
+        indexes = [models.Index(fields=['execution', 'system', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.get_system_display()} for {self.subject}: {self.get_status_display()}'

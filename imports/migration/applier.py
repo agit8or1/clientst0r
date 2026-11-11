@@ -118,6 +118,20 @@ def _side_links(plan, item, obj, links, user):
                                       target_id=row.pk, after={})
 
 
+def _create_steps(plan, item, process, steps):
+    """One ProcessStage per source procedure task, each recorded as its own
+    change so rollback removes the steps the import wrote (and keeps the
+    runbook if a technician edited or added a step)."""
+    from imports.models import PlanChange
+    from processes.models import ProcessStage
+    for n, step in enumerate(steps, 1):
+        stage = ProcessStage.objects.create(process=process, order=n, title=step['title'][:255],
+                                            description=step.get('description') or '')
+        PlanChange.objects.create(plan=plan, item=item, op='create', target_model='ProcessStage',
+                                  target_id=stage.pk,
+                                  after={k: current(stage, k) for k in ('order', 'title', 'description')})
+
+
 def _apply_item(plan, item, user):
     from imports.models import ImportMapping, PlanChange
     spec = SPECS[item.target_kind]
@@ -167,6 +181,8 @@ def _apply_item(plan, item, user):
             after[SECRET_COLUMNS[name][0]] = current(obj, SECRET_COLUMNS[name][0])
         PlanChange.objects.create(plan=plan, item=item, op='create', target_model=spec.model_name,
                                   target_id=obj.pk, after=after, mapping_before=mapping_before)
+        if item.target_kind == 'process':
+            _create_steps(plan, item, obj, canon.fields.get('_steps') or [])
         written = dict(after, __fp__=fps)
         ImportMapping.objects.get_or_create(
             import_job=plan.import_job, source_type=item.source_type, source_id=item.source_id,

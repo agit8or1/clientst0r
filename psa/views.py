@@ -4326,36 +4326,33 @@ def workflow_suggestion_decide(request, pk):
 def workflow_rule_form(request, pk=None):
     """Create/edit an MSP-level workflow rule. The rule's organization is
     optional — leave blank to apply to every client's tickets, or pick a
-    specific client to scope it. No 'pick a client first' requirement."""
-    from django.contrib.auth.models import Group
+    specific client to scope it. No 'pick a client first' requirement.
+
+    Phase 14: the builder edits both branches (then / otherwise), chained
+    rules (fire_rule) and the once-per-ticket guard. The definition is
+    validated (action types, required settings, fire_rule targets, loops)
+    before it is saved; on an error the form comes back with what was
+    entered."""
     from .models import WorkflowRule
     from core.models import Organization
+    from . import workflow_graph
     import json as _json
     item = get_object_or_404(WorkflowRule, pk=pk) if pk else None
 
     if request.method == 'POST':
+        errors = []
         name = (request.POST.get('name') or '').strip()
         trigger = request.POST.get('trigger') or ''
         if not name or trigger not in {c[0] for c in WorkflowRule.TRIGGER_CHOICES}:
-            messages.error(request, 'Name and a valid trigger are required.')
-            return redirect(request.path)
-        try:
-            conditions = _json.loads(request.POST.get('conditions') or '{}')
-        except _json.JSONDecodeError:
-            messages.error(request, 'Conditions must be valid JSON.')
-            return redirect(request.path)
-        try:
-            actions = _json.loads(request.POST.get('actions') or '[]')
-        except _json.JSONDecodeError:
-            messages.error(request, 'Actions must be valid JSON.')
-            return redirect(request.path)
-        if not isinstance(conditions, dict):
-            messages.error(request, 'Conditions must be a JSON object.')
-            return redirect(request.path)
-        if not isinstance(actions, list):
-            messages.error(request, 'Actions must be a JSON list.')
-            return redirect(request.path)
-
+            errors.append('Name and a valid trigger are required.')
+        parsed = {}
+        for field, default, label in (('conditions', '{}', 'Conditions'), ('actions', '[]', 'Actions'),
+                                      ('else_actions', '[]', 'Otherwise actions')):
+            try:
+                parsed[field] = _json.loads(request.POST.get(field) or default)
+            except _json.JSONDecodeError:
+                errors.append(f'{label} must be valid JSON.')
+                parsed[field] = None
         # Optional client scope
         scoped_org = None
         org_id = (request.POST.get('organization') or '').strip()
@@ -4364,6 +4361,22 @@ def workflow_rule_form(request, pk=None):
                 scoped_org = Organization.objects.get(pk=int(org_id))
             except (Organization.DoesNotExist, ValueError):
                 scoped_org = None
+        if not errors:
+            errors = workflow_graph.validate(name, parsed['conditions'], parsed['actions'],
+                                             parsed['else_actions'], rule=item, organization=scoped_org)
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return _workflow_rule_form_render(request, item, posted={
+                'name': name, 'trigger': trigger, 'description': request.POST.get('description') or '',
+                'organization_id': scoped_org.pk if scoped_org else None,
+                'is_active': request.POST.get('is_active') == 'on',
+                'fire_once_per_ticket': request.POST.get('fire_once_per_ticket') == 'on',
+                'sort_order': request.POST.get('sort_order') or 0,
+                'conditions': request.POST.get('conditions') or '{}',
+                'actions': request.POST.get('actions') or '[]',
+                'else_actions': request.POST.get('else_actions') or '[]',
+            })
 
         if item is None:
             item = WorkflowRule(name=name, trigger=trigger, created_by=request.user,
@@ -4373,9 +4386,11 @@ def workflow_rule_form(request, pk=None):
             item.trigger = trigger
             item.organization = scoped_org
         item.description = (request.POST.get('description') or '').strip()
-        item.conditions = conditions
-        item.actions = actions
+        item.conditions = parsed['conditions']
+        item.actions = parsed['actions']
+        item.else_actions = parsed['else_actions']
         item.is_active = request.POST.get('is_active') == 'on'
+        item.fire_once_per_ticket = request.POST.get('fire_once_per_ticket') == 'on'
         try:
             item.sort_order = max(0, int(request.POST.get('sort_order') or 0))
         except ValueError:
@@ -4384,19 +4399,78 @@ def workflow_rule_form(request, pk=None):
         messages.success(request, f'Saved rule "{item.name}".')
         return redirect('psa:workflow_rule_list')
 
+    return _workflow_rule_form_render(request, item)
+
+
+def _workflow_rule_form_render(request, item, posted=None):
+    from django.contrib.auth.models import Group
+    from .models import WorkflowRule
+    from core.models import Organization
+    from . import workflow_graph
+    import json as _json
+
+    def pretty(raw, fallback):
+        try:
+            return _json.dumps(_json.loads(raw), indent=2)
+        except (TypeError, ValueError):
+            return raw if isinstance(raw, str) else _json.dumps(fallback)
+
+    if posted is not None:
+        state = dict(posted)
+        conditions_pretty = pretty(posted['conditions'], {})
+        actions_pretty = pretty(posted['actions'], [])
+        else_pretty = pretty(posted['else_actions'], [])
+    else:
+        state = {
+            'name': item.name if item else '', 'trigger': item.trigger if item else '',
+            'description': item.description if item else '',
+            'organization_id': item.organization_id if item else None,
+            'is_active': item.is_active if item else True,
+            'fire_once_per_ticket': item.fire_once_per_ticket if item else False,
+            'sort_order': item.sort_order if item else 0,
+        }
+        conditions_pretty = _json.dumps(item.conditions if item else {}, indent=2)
+        actions_pretty = _json.dumps(item.actions if item else [], indent=2)
+        else_pretty = _json.dumps(item.else_actions if item else [], indent=2)
     return render(request, 'psa/workflow_rule_form.html', {
         'item': item,
+        'state': state,
         'trigger_choices': WorkflowRule.TRIGGER_CHOICES,
-        'conditions_pretty': _json.dumps(item.conditions if item else {}, indent=2),
-        'actions_pretty': _json.dumps(item.actions if item else [], indent=2),
-        'conditions_json': _json.dumps(item.conditions if item else {}),
-        'actions_json': _json.dumps(item.actions if item else []),
+        'conditions_pretty': conditions_pretty,
+        'actions_pretty': actions_pretty,
+        'else_actions_pretty': else_pretty,
         'client_orgs': Organization.objects.filter(is_active=True).order_by('name'),
         'priorities': TicketPriority.objects.all().order_by('sort_order'),
         'queues': Queue.objects.filter(is_active=True).order_by('name'),
         'statuses': TicketStatus.objects.all().order_by('sort_order'),
         # Group names offered to the round-robin / skill / least-loaded actions.
         'groups': list(Group.objects.order_by('name').values_list('name', flat=True)),
+        # Rules a "Run another rule" step can chain to.
+        'rule_names': list(workflow_graph.rule_choices(exclude_pk=item.pk if item else None)),
+    }, status=400 if posted is not None else 200)
+
+
+@login_required
+@require_admin
+@require_psa_enabled
+def workflow_rule_flow(request, pk=None):
+    """Phase 14: the visual flow of one rule (pk) or of every rule, with
+    the rules each one chains to drawn inline and problems (missing
+    targets, loops) flagged."""
+    from .models import WorkflowRule
+    from . import workflow_graph
+    if pk:
+        rules = [get_object_or_404(WorkflowRule, pk=pk)]
+    else:
+        rules = list(WorkflowRule.objects.select_related('organization').order_by('trigger', 'sort_order', 'name'))
+    chained = workflow_graph.chained_into(rules) if not pk else set()
+    flows = []
+    for rule in rules:
+        flow = workflow_graph.build_flow(rule)
+        flows.append({'flow': flow, 'problems': workflow_graph.problems(flow),
+                      'only_chained': rule.name in chained})
+    return render(request, 'psa/workflow_rule_flow.html', {
+        'flows': flows, 'single': bool(pk), 'trigger_labels': dict(WorkflowRule.TRIGGER_CHOICES),
     })
 
 
@@ -6624,14 +6698,17 @@ def _maybe_create_assets_from_serials(line, serials, receipt, user):
         return
     org = line.po.client_org or line.po.organization
     for sn in serials:
-        # Skip duplicates
-        if Asset.objects.filter(serial_number=sn).exists():
+        # Skip a serial this customer already has an asset for. Scoped to the
+        # customer: another customer's asset with the same serial is not a
+        # duplicate here (and must not be revealed by skipping).
+        if Asset.objects.filter(organization=org, serial_number=sn).exists():
             continue
         try:
             Asset.objects.create(
                 organization=org,
                 name=f'{line.description} ({sn})'[:200],
                 serial_number=sn,
+                created_by=user if getattr(user, 'is_authenticated', False) else None,
                 notes=f'Auto-created from PO {line.po.po_number} receipt #{receipt.pk}',
                 # status default; let model defaults handle the rest
             )
@@ -6700,10 +6777,18 @@ def po_receive(request, pk):
                 serials_raw = (request.POST.get(f'serials_line_{line.pk}') or '').strip()
                 serials = [s.strip() for s in serials_raw.replace('\n', ',').split(',') if s.strip()]
 
-                POReceiptLine.objects.create(
+                receipt_line = POReceiptLine.objects.create(
                     receipt=receipt, po_line=line,
                     quantity_received=qty, serial_numbers=serials,
                 )
+                # Phase 13: serial lifecycle — the first event of each unit.
+                if serials:
+                    from assets import serial_lifecycle
+                    for sn in serials:
+                        serial_lifecycle.record(
+                            po.client_org or po.organization, sn, 'received',
+                            purchase_order=po, receipt_line=receipt_line, actor=request.user,
+                            notes=f'{po.po_number}: {line.description}'[:500])
                 # Roll up cumulative
                 line.received_quantity = (line.received_quantity or Decimal('0')) + qty
                 line.save(update_fields=['received_quantity'])

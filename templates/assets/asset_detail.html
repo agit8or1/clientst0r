@@ -124,6 +124,11 @@
                     </li>
                     {% endif %}
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="serial-history-tab" data-bs-toggle="tab" data-bs-target="#serial-history" type="button" role="tab">
+                            <i class="fas fa-barcode"></i> Serial history <span class="badge bg-secondary">{{ serial_history|length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="images-tab" data-bs-toggle="tab" data-bs-target="#images" type="button" role="tab">
                             <i class="fas fa-images"></i> Images <span class="badge bg-secondary">{{ asset_images.count }}</span>
                         </button>
@@ -583,6 +588,11 @@
                         {% endfor %}
                     </div>
                     {% endif %}
+
+                    <!-- Serial history Tab (Phase 13) -->
+                    <div class="tab-pane fade" id="serial-history" role="tabpanel">
+                        {% include "assets/_serial_history.html" %}
+                    </div>
 
                     <!-- Images Tab -->
                     <div class="tab-pane fade" id="images" role="tabpanel">

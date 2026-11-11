@@ -298,7 +298,7 @@ Planned capabilities:
 **Roadmap item:** Advanced Procurement & Asset Lifecycle Management. Extends Phase 4 (Procurement) + the asset lifespan tracking already shipped.
 
 Planned capabilities:
-- Serial lifecycle tracking *(partial — serial capture shipped v3.17.149)*
+- Serial lifecycle tracking *(partial — serial capture shipped v3.17.149)* *(in progress — on the development branch, not yet released: per-serial history kept per customer — received on a PO, assigned to / removed from an asset, moved between customers, RMA opened / sent / replaced / refunded / closed, replacement received, and returned / retired / disposed / notes recorded by a technician; shown on the asset's Serial history tab and searchable by serial at `/assets/serials/`; `assets_backfill_serial_history` seeds history for receipts, assets and RMAs recorded earlier)*
 - Warranty expiration tracking *(shipped v3.17.254 — `assets_warranty_alerts` management command emails per-org digests with 7-day per-asset cooldown; configurable warning window via `--days N`)*
 - Vendor inventory checks (live stock from distributor APIs) *(shipped v3.17.272 — `/integrations/distributors/stock-check/` fans out `?sku=` to every active DistributorConnection's `check_stock()` + `get_pricing()` so a buyer can compare live qty + unit price across Ingram / Pax8 / SYNNEX in one shot)*
 - Procurement approval workflows *(shipped — Phase 4.1 PR/PO)*
@@ -319,7 +319,7 @@ Planned capabilities:
 **Roadmap item:** Visual Workflow & Operational Automation Engine. Extends the workflow rules engine (v3.17.111) + visual rule builder (v3.17.112).
 
 Planned capabilities:
-- Visual workflow builder *(partial — visual rule builder shipped v3.17.112)*
+- Visual workflow builder *(partial — visual rule builder shipped v3.17.112)* *(in progress — on the development branch, not yet released: the builder edits both branches of a rule (then / otherwise), chains rules with "Run another rule" steps and sets the once-per-ticket guard; a flow view per rule and a flow map of every rule draw trigger → condition → branches with chained rules inline; definitions are checked before saving (action types, required settings, missing chained rules, loops) and the engine refuses chain loops at run time; raw JSON editing stays available and the stored shape is unchanged)*
 - Conditional workflow routing (branching based on ticket fields) *(shipped v3.17.285 — `WorkflowRule.else_actions` JSONField runs when `conditions` evaluate false; engine picks branch and counts both as fires)*
 - SLA-driven automation *(shipped v3.17.286 — `sla_threshold_crossed` trigger + `sla_pct_at_least` condition + `WorkflowRule.fire_once_per_ticket` guard via `WorkflowRuleFiring` join table; `psa_sla_workflow_tick` cron evaluates open tickets every 5 min)*
 - Ticket orchestration (multi-step automated sequences) *(shipped v3.17.285 — new `fire_rule` action type chains by name within the same org / MSP-wide scope; sub-rule's else_actions also honored)*
@@ -866,7 +866,7 @@ Planned capabilities:
 - **Repeatable onboarding templates** — clone an `is_template=True` Process per new client; copies all stages with linked entities preserved *(shipped v3.17.223)*
 - **Employee onboarding / offboarding workflows** *(category support shipped — `onboarding` / `offboarding` already existed; `client_*` companions added v3.17.223)*
 - **Client termination checklist** — `client_termination` category added so the existing Process model carries the termination flow *(category shipped v3.17.223)*
-- **Access removal verification** — for offboarding, mechanically verify that the user is actually removed from each documented system (poll vault, M365, RMM, etc.) and surface any orphaned access *(deferred — requires M365 / RMM / vendor-API integrations beyond the runbook engine itself; the manual checklist pattern via runbook stages is fully supported today, an MSP can build a "verify M365 license removed" stage and tick it off after manual confirmation)*
+- **Access removal verification** — for offboarding, mechanically verify that the user is actually removed from each documented system (poll vault, M365, RMM, etc.) and surface any orphaned access *(in progress — on the development branch, not yet released: an offboarding run names the departing person and a read-only, audited check reports what remains — ClientSt0r memberships / portal sign-in, vault items shared to them, user vault rules, API keys and extension tokens for the customer; Microsoft 365 sign-in and licenses through the customer's M365 connection; RMM connections are listed as not verifiable because no RMM contract offers an account read yet. Orphaned access is shown on the run and linked from the ticket; everything else stays on the runbook's manual stages)*
 - **Documentation completion scoring** — per-execution `ProcessExecution.completion_percentage` already shipped; per-org dashboard with rollup across all in-flight runbooks at `/processes/dashboard/` *(shipped v3.17.227)*
 - **Runbook-to-ticket conversion** — any runbook step can spawn a Ticket; created ticket is recorded on `ProcessStageCompletion.spawned_ticket` *(shipped v3.17.223)*
 
@@ -2171,8 +2171,13 @@ a time.
   reconciliation report (JSON/CSV) with source vs destination counts per
   customer, and a permission-checked per-customer inventory export
   (metadata only, audit-logged).
-- **61.6 Remaining source types** *(planned)*: Hudu procedures, IT Glue
-  domains and non-network flexible assets.
+- **61.6 Remaining source types** *(in progress — on the development branch, not yet released)*: Hudu procedures, IT Glue
+  domains and non-network flexible assets. Procedures become runbooks with one
+  stage per task (or documents, or skipped, per the plan's type mapping);
+  domains become disabled website monitors carrying registrar and expiry;
+  non-network flexible asset types stay skipped until the operator maps them
+  to documents or to assets with custom fields. All through the same plan,
+  review, apply, rollback and report.
 
 ## Sizing
 

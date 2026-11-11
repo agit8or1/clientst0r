@@ -1,0 +1,25 @@
+{# One rule as a flow: condition, then the two branches. Recursive for fire_rule steps. Context: node #}
+<div class="wf-node">
+    <div class="wf-box wf-cond">
+        <i class="fas fa-code-branch me-1"></i><strong>If</strong>
+        {% for c in node.conditions %}<span class="wf-chip">{{ c }}</span>{% if not forloop.last %} <span class="text-muted small">and</span> {% endif %}{% endfor %}
+    </div>
+    <div class="wf-branches">
+        <div class="wf-branch">
+            <div class="wf-branch-label text-success"><i class="fas fa-check me-1"></i>Then</div>
+            {% for step in node.then %}
+                {% include "psa/_workflow_flow_step.html" %}
+            {% empty %}
+                <div class="wf-box wf-empty">Nothing</div>
+            {% endfor %}
+        </div>
+        <div class="wf-branch">
+            <div class="wf-branch-label text-secondary"><i class="fas fa-times me-1"></i>Otherwise</div>
+            {% for step in node.else %}
+                {% include "psa/_workflow_flow_step.html" %}
+            {% empty %}
+                <div class="wf-box wf-empty">Nothing (the rule does not fire)</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

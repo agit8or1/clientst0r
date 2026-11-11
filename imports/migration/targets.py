@@ -268,17 +268,49 @@ class DocumentSpec(Spec):
 
 
 class WebsiteSpec(Spec):
+    """Hudu websites and IT Glue domains. WebsiteMonitor is also the domain
+    expiry tracking model (domain_registrar / domain_expires_at)."""
     kind, app_label, model_name = 'website', 'monitoring', 'WebsiteMonitor'
-    fields = ('name', 'url')
-    editable = ('name',)
+    fields = ('name', 'url', 'domain_registrar', 'domain_expires_at')
+    editable = ('name', 'domain_registrar')
 
     def matches(self, org, p):
-        return list(self.scoped(org).filter(url=p.get('url', ''))[:5])
+        url = p.get('url', '')
+        variants = {url}
+        if url:
+            bare = url.split('://', 1)[-1].rstrip('/')
+            variants |= {f'{scheme}://{bare}{slash}' for scheme in ('http', 'https') for slash in ('', '/')}
+        return list(self.scoped(org).filter(url__in=variants)[:5])
 
     def new(self, org, user):
         # Imported monitors start disabled: the operator decides when
         # ClientSt0r starts polling a customer's site.
         return self.model(organization=org, is_enabled=False)
+
+
+class ProcessSpec(Spec):
+    """Hudu procedures -> runbooks. The steps (``_steps`` on the canonical
+    record) are written as ProcessStage rows when the process is created;
+    the applier records each one so rollback can remove them."""
+    kind, app_label, model_name = 'process', 'processes', 'Process'
+    fields = ('title', 'description', 'category')
+    editable = ('title', 'description')
+
+    def matches(self, org, p):
+        return list(self.scoped(org).filter(title__iexact=p.get('title', ''), is_global=False)[:5])
+
+    def new(self, org, user):
+        return self.model(organization=org, created_by=user, last_modified_by=user, is_published=True)
+
+    def save_new(self, obj, staged, user):
+        from django.utils.text import slugify
+        base = (slugify(obj.title) or 'imported-procedure')[:240]
+        slug, n = base, 2
+        while self.model._base_manager.filter(organization=obj.organization, slug=slug).exists():
+            slug = f'{base}-{n}'
+            n += 1
+        obj.slug = slug
+        obj.save()
 
 
 class RelationSpec(Spec):
@@ -318,6 +350,6 @@ class AttachmentSpec(Spec):
 
 
 SPECS = {s.kind: s for s in (LocationSpec(), ContactSpec(), AssetSpec(), NetworkSpec(), IPAddressSpec(),
-                             PasswordSpec(), DocumentSpec(), WebsiteSpec(), RelationSpec(),
+                             PasswordSpec(), DocumentSpec(), ProcessSpec(), WebsiteSpec(), RelationSpec(),
                              AttachmentSpec())}
 MODEL_TO_KIND = {s.model_name: s.kind for s in SPECS.values()}

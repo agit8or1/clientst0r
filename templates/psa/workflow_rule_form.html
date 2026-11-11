@@ -9,7 +9,10 @@
     </ol>
 </nav>
 
-<h4 class="mb-3"><i class="fas fa-bolt me-2"></i>{% if item %}Edit Rule{% else %}New Rule{% endif %}</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-bolt me-2"></i>{% if item %}Edit Rule{% else %}New Rule{% endif %}</h4>
+    {% if item %}<a href="{% url 'psa:workflow_rule_flow' item.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-project-diagram"></i> Show saved flow</a>{% endif %}
+</div>
 
 <form method="post" class="card" id="rule-form">
     {% csrf_token %}
@@ -17,39 +20,45 @@
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label">Name</label>
-                <input type="text" name="name" class="form-control" required value="{{ item.name|default:'' }}"
+                <input type="text" name="name" class="form-control" required value="{{ state.name|default:'' }}"
                        placeholder="e.g. Outage keyword auto-escalate">
             </div>
             <div class="col-md-3">
                 <label class="form-label">Trigger</label>
                 <select name="trigger" class="form-select" required>
                     {% for code, label in trigger_choices %}
-                    <option value="{{ code }}" {% if item.trigger == code %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ code }}" {% if state.trigger == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Order</label>
-                <input type="number" min="0" name="sort_order" class="form-control" value="{{ item.sort_order|default:0 }}">
+                <input type="number" min="0" name="sort_order" class="form-control" value="{{ state.sort_order|default:0 }}">
             </div>
             <div class="col-md-1 form-check ms-3 mt-4">
                 <input type="checkbox" id="is_active" name="is_active" class="form-check-input"
-                       {% if not item or item.is_active %}checked{% endif %}>
+                       {% if state.is_active %}checked{% endif %}>
                 <label class="form-check-label" for="is_active">Active</label>
             </div>
             <div class="col-12">
                 <label class="form-label">Description</label>
-                <input type="text" name="description" class="form-control" value="{{ item.description|default:'' }}">
+                <input type="text" name="description" class="form-control" value="{{ state.description|default:'' }}">
             </div>
             <div class="col-md-6">
                 <label class="form-label">Applies to</label>
                 <select name="organization" class="form-select">
-                    <option value="" {% if not item.organization_id %}selected{% endif %}>All clients (every ticket)</option>
+                    <option value="" {% if not state.organization_id %}selected{% endif %}>All clients (every ticket)</option>
                     {% for o in client_orgs %}
-                    <option value="{{ o.pk }}" {% if item.organization_id == o.pk %}selected{% endif %}>{{ o.name }}</option>
+                    <option value="{{ o.pk }}" {% if state.organization_id == o.pk %}selected{% endif %}>{{ o.name }}</option>
                     {% endfor %}
                 </select>
                 <small class="text-muted d-block">Leave on "All clients" for an MSP-wide rule.</small>
+            </div>
+            <div class="col-md-6 form-check mt-4 ps-5">
+                <input type="checkbox" id="fire_once_per_ticket" name="fire_once_per_ticket" class="form-check-input"
+                       {% if state.fire_once_per_ticket %}checked{% endif %}>
+                <label class="form-check-label" for="fire_once_per_ticket">Fire at most once per ticket</label>
+                <small class="text-muted d-block">Use for SLA-threshold rules so each tick doesn't repeat them.</small>
             </div>
         </div>
 
@@ -64,24 +73,50 @@
             </div>
             <div id="conditions-rows" class="d-flex flex-column gap-2"></div>
 
-            <div class="d-flex justify-content-between align-items-baseline mt-3 mb-2">
-                <h6 class="mb-0"><i class="fas fa-bolt me-1"></i>Then run these actions in order</h6>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="add-action">
-                    <i class="fas fa-plus"></i> Add action
-                </button>
+            <div class="row g-3 mt-1 wf-builder-branches">
+                <div class="col-lg-6">
+                    <div class="wf-branch-card border rounded p-2 h-100">
+                        <div class="d-flex justify-content-between align-items-baseline mb-2">
+                            <h6 class="mb-0 text-success"><i class="fas fa-check me-1"></i>Then run these steps in order</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="add-action">
+                                <i class="fas fa-plus"></i> Add step
+                            </button>
+                        </div>
+                        <div id="actions-rows" class="d-flex flex-column gap-2"></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="wf-branch-card border rounded p-2 h-100">
+                        <div class="d-flex justify-content-between align-items-baseline mb-2">
+                            <h6 class="mb-0 text-secondary"><i class="fas fa-times me-1"></i>Otherwise run these steps</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="add-else-action">
+                                <i class="fas fa-plus"></i> Add step
+                            </button>
+                        </div>
+                        <div id="else-rows" class="d-flex flex-column gap-2"></div>
+                        <small class="text-muted d-block mt-1">Leave empty and the rule simply doesn't fire when the conditions are false.</small>
+                    </div>
+                </div>
             </div>
-            <div id="actions-rows" class="d-flex flex-column gap-2"></div>
+            <small class="text-muted d-block mt-2">
+                <i class="fas fa-share me-1"></i>"Run another rule" chains a second rule into this one: its own
+                conditions pick which of its branches runs. Loops and missing rules are refused when you save.
+            </small>
 
             <details class="mt-3">
                 <summary class="text-muted small">Advanced — edit raw JSON instead</summary>
                 <div class="row g-2 mt-1">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label small">Conditions JSON</label>
                         <textarea name="conditions" id="json-conditions" rows="6" class="form-control font-monospace small">{{ conditions_pretty }}</textarea>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label small">Actions JSON</label>
+                    <div class="col-md-4">
+                        <label class="form-label small">Then actions JSON</label>
                         <textarea name="actions" id="json-actions" rows="6" class="form-control font-monospace small">{{ actions_pretty }}</textarea>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Otherwise actions JSON</label>
+                        <textarea name="else_actions" id="json-else-actions" rows="6" class="form-control font-monospace small">{{ else_actions_pretty }}</textarea>
                     </div>
                 </div>
                 <small class="text-muted d-block mt-1">
@@ -133,6 +168,7 @@
                 <option value="assign_round_robin">Assign round-robin</option>
                 <option value="assign_skill_match">Assign by skill group</option>
                 <option value="assign_load_balanced">Assign least-loaded</option>
+                <option value="fire_rule">Run another rule</option>
             </select>
             <span class="text-muted">→</span>
             <span class="action-value-wrap"><input type="text" class="action-value form-control form-control-sm" style="width:280px;"></span>
@@ -150,13 +186,17 @@
     const PRIORITIES = [{% for p in priorities %}{value:'{{ p.code|escapejs }}', label:'{{ p.code|escapejs }} — {{ p.name|escapejs }}'},{% endfor %}];
     const QUEUES     = [{% for q in queues %}{value:'{{ q.name|escapejs }}', label:'{{ q.name|escapejs }}'},{% endfor %}];
     const STATUSES   = [{% for s in statuses %}{value:'{{ s.slug|escapejs }}', label:'{{ s.name|escapejs }}'},{% endfor %}];
+    const RULES      = [{% for n in rule_names %}{value:'{{ n|escapejs }}', label:'{{ n|escapejs }}'},{% endfor %}];
 
     const condRows = document.getElementById('conditions-rows');
     const actionRows = document.getElementById('actions-rows');
+    const elseRows = document.getElementById('else-rows');
     const condTpl = document.getElementById('cond-row-template');
     const actionTpl = document.getElementById('action-row-template');
     const condJSON = document.getElementById('json-conditions');
     const actionJSON = document.getElementById('json-actions');
+    const elseJSON = document.getElementById('json-else-actions');
+    const builder = document.querySelector('#visual-builder');
 
     function fillSelect(sel, options) {
         sel.innerHTML = '';
@@ -205,6 +245,15 @@
         } else if (type === 'set_queue') {
             el = document.createElement('select'); el.className = 'action-value form-select form-select-sm'; el.style.width = '240px';
             fillSelect(el, QUEUES); el.value = currentVal || '';
+        } else if (type === 'fire_rule') {
+            // Chain another rule (engine action fire_rule, by name).
+            el = document.createElement('select'); el.className = 'action-value form-select form-select-sm'; el.style.width = '260px';
+            const opts = RULES.slice();
+            if (currentVal && !opts.some(o => o.value === currentVal)) {
+                opts.unshift({value: currentVal, label: currentVal + ' (not found)'});
+            }
+            if (!opts.length) opts.push({value: '', label: '(no other active rules)'});
+            fillSelect(el, opts); el.value = currentVal || opts[0].value;
         } else if (type === 'assign_round_robin' || type === 'assign_load_balanced' || type === 'assign_skill_match') {
             // Existing engine actions (Phase 14 v8): optional "group" for
             // round-robin / least-loaded, required "skill_group" for skill match.
@@ -218,7 +267,7 @@
         } else if (type === 'add_internal_note') {
             el = document.createElement('textarea');
             el.className = 'action-value form-control form-control-sm';
-            el.rows = 2; el.style.width = '420px';
+            el.rows = 2; el.style.width = '360px';
             el.placeholder = 'Note text…'; el.value = currentVal || '';
         } else {
             el = document.createElement('input'); el.type = 'text';
@@ -240,22 +289,23 @@
         renderCondValue(row, value);
     }
 
-    function addActionRow(type, value) {
+    function addActionRow(container, type, value) {
         const frag = actionTpl.content.cloneNode(true);
         const row = frag.querySelector('.rule-row');
         const sel = row.querySelector('.action-type');
         if (type) sel.value = type;
         sel.addEventListener('change', () => renderActionValue(row, ''));
         row.querySelector('.action-remove').addEventListener('click', () => row.remove());
-        actionRows.appendChild(frag);
+        container.appendChild(frag);
         renderActionValue(row, value);
     }
 
     document.getElementById('add-condition').addEventListener('click', () => addConditionRow('priority', ''));
-    document.getElementById('add-action').addEventListener('click', () => addActionRow('set_priority', ''));
+    document.getElementById('add-action').addEventListener('click', () => addActionRow(actionRows, 'set_priority', ''));
+    document.getElementById('add-else-action').addEventListener('click', () => addActionRow(elseRows, 'set_priority', ''));
 
     function isSimpleConditions(conds) {
-        if (typeof conds !== 'object' || conds === null) return false;
+        if (typeof conds !== 'object' || conds === null || Array.isArray(conds)) return false;
         const keys = Object.keys(conds);
         if (keys.includes('any') || keys.includes('all')) return false;
         if (keys.some(k => k.endsWith('__in') || k.endsWith('__not'))) return false;
@@ -263,49 +313,69 @@
         return keys.every(k => allowed.has(k));
     }
 
+    // Actions the builder can show without losing anything; any other
+    // shape (charges, extra keys) keeps the raw JSON.
+    const ACTION_KEYS = {
+        set_priority: ['code'], set_queue: ['name'], assign_to: ['username'],
+        add_watcher: ['username'], add_internal_note: ['body'], add_tag: ['tag'],
+        assign_round_robin: ['group'], assign_load_balanced: ['group'],
+        assign_skill_match: ['skill_group'], fire_rule: ['name'],
+    };
+    const VALUE_KEY = {
+        set_priority: 'code', set_queue: 'name', assign_to: 'username', add_watcher: 'username',
+        add_internal_note: 'body', add_tag: 'tag', assign_round_robin: 'group',
+        assign_load_balanced: 'group', assign_skill_match: 'skill_group', fire_rule: 'name',
+    };
+    function representable(acts) {
+        return Array.isArray(acts) && acts.every(a =>
+            a && ACTION_KEYS[a.type] &&
+            Object.keys(a).every(k => k === 'type' || ACTION_KEYS[a.type].includes(k)));
+    }
+
+    function lock() {
+        builder.classList.add('builder-locked');
+        const adv = builder.querySelector('details');
+        if (adv) adv.open = true;
+    }
+
     function hydrate() {
         try {
             const conds = JSON.parse(condJSON.value || '{}');
             const acts = JSON.parse(actionJSON.value || '[]');
-            if (isSimpleConditions(conds)) {
-                Object.entries(conds).forEach(([k, v]) => addConditionRow(k, v));
-            } else if (Object.keys(conds).length) {
-                document.querySelector('#visual-builder').classList.add('builder-locked');
+            const elseActs = JSON.parse(elseJSON.value || '[]');
+            if (!(isSimpleConditions(conds) || !Object.keys(conds || {}).length)
+                    || !representable(acts) || !representable(elseActs)) {
+                lock();
+                return;
             }
-            // Actions the builder can show without losing anything; any other
-            // shape (charges, rule chaining, extra keys) keeps the raw JSON.
-            const ACTION_KEYS = {
-                set_priority: ['code'], set_queue: ['name'], assign_to: ['username'],
-                add_watcher: ['username'], add_internal_note: ['body'], add_tag: ['tag'],
-                assign_round_robin: ['group'], assign_load_balanced: ['group'],
-                assign_skill_match: ['skill_group'],
-            };
-            const representable = Array.isArray(acts) && acts.every(a =>
-                a && ACTION_KEYS[a.type] &&
-                Object.keys(a).every(k => k === 'type' || ACTION_KEYS[a.type].includes(k)));
-            if (!representable) {
-                document.querySelector('#visual-builder').classList.add('builder-locked');
-            }
-            if (Array.isArray(acts) && representable) {
-                acts.forEach(a => {
-                    const t = a.type;
-                    let v = '';
-                    if (t === 'set_priority') v = a.code;
-                    else if (t === 'set_queue') v = a.name;
-                    else if (t === 'assign_to' || t === 'add_watcher') v = a.username;
-                    else if (t === 'add_internal_note') v = a.body;
-                    else if (t === 'add_tag') v = a.tag;
-                    else if (t === 'assign_round_robin' || t === 'assign_load_balanced') v = a.group || '';
-                    else if (t === 'assign_skill_match') v = a.skill_group || '';
-                    addActionRow(t, v);
-                });
-            }
-        } catch (e) { /* keep raw JSON visible */ }
+            Object.entries(conds).forEach(([k, v]) => addConditionRow(k, v));
+            acts.forEach(a => addActionRow(actionRows, a.type, a[VALUE_KEY[a.type]] || ''));
+            elseActs.forEach(a => addActionRow(elseRows, a.type, a[VALUE_KEY[a.type]] || ''));
+        } catch (e) {
+            lock();  // keep raw JSON authoritative
+        }
     }
     hydrate();
 
+    function collect(container) {
+        const acts = [];
+        container.querySelectorAll('.rule-row').forEach(r => {
+            const type = r.querySelector('.action-type').value;
+            const valEl = r.querySelector('.action-value');
+            const v = valEl ? valEl.value.trim() : '';
+            const obj = {type};
+            if ((type === 'assign_round_robin' || type === 'assign_load_balanced') && !v) {
+                acts.push(obj);
+                return;
+            }
+            obj[VALUE_KEY[type]] = v;
+            acts.push(obj);
+        });
+        return acts;
+    }
+
     document.getElementById('rule-form').addEventListener('submit', () => {
-        if (document.querySelector('#visual-builder').classList.contains('builder-locked')) return;
+        if (builder.classList.contains('builder-locked')) return;
         const conds = {};
         condRows.querySelectorAll('.rule-row').forEach(r => {
             const field = r.querySelector('.cond-field').value;
@@ -318,23 +388,8 @@
             }
         });
         condJSON.value = JSON.stringify(conds, null, 2);
-
-        const acts = [];
-        actionRows.querySelectorAll('.rule-row').forEach(r => {
-            const type = r.querySelector('.action-type').value;
-            const valEl = r.querySelector('.action-value');
-            const v = valEl ? valEl.value.trim() : '';
-            const obj = {type};
-            if (type === 'set_priority') obj.code = v;
-            else if (type === 'set_queue') obj.name = v;
-            else if (type === 'assign_to' || type === 'add_watcher') obj.username = v;
-            else if (type === 'add_internal_note') obj.body = v;
-            else if (type === 'add_tag') obj.tag = v;
-            else if ((type === 'assign_round_robin' || type === 'assign_load_balanced') && v) obj.group = v;
-            else if (type === 'assign_skill_match') obj.skill_group = v;
-            acts.push(obj);
-        });
-        actionJSON.value = JSON.stringify(acts, null, 2);
+        actionJSON.value = JSON.stringify(collect(actionRows), null, 2);
+        elseJSON.value = JSON.stringify(collect(elseRows), null, 2);
     });
 })();
 </script>
@@ -342,8 +397,11 @@
 <style>
 .rule-row .form-select-sm, .rule-row .form-control-sm { font-size: .85rem; }
 .rule-builder.builder-locked #conditions-rows,
-.rule-builder.builder-locked #actions-rows,
-.rule-builder.builder-locked #add-condition,
-.rule-builder.builder-locked #add-action { display: none; }
+.rule-builder.builder-locked .wf-builder-branches,
+.rule-builder.builder-locked #add-condition { display: none; }
+.rule-builder.builder-locked::before {
+    content: 'This rule uses JSON the builder cannot show (combinators, operators or extra settings): edit it under Advanced below.';
+    display: block; font-size: .85rem; color: var(--bs-secondary-color); margin-bottom: .5rem;
+}
 </style>
 {% endblock %}

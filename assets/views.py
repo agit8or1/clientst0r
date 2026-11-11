@@ -199,7 +199,11 @@ def asset_detail(request, pk):
         logging.getLogger(__name__).exception('Asset illustration failed for asset %s', asset.pk)
 
     from assets.custom_types import display_rows
+    from assets.models import SerialEvent
+    from assets.serial_lifecycle import history_for_asset
     return render(request, 'assets/asset_detail.html', {
+        'serial_history': list(history_for_asset(asset)),
+        'serial_manual_events': [c for c in SerialEvent.EVENT_CHOICES if c[0] in SerialEvent.MANUAL_EVENTS],
         'art': art,
         'device_url': device_url,
         'search_q': f'{asset.manufacturer} {asset.model}'.strip(),
@@ -299,6 +303,7 @@ def asset_edit(request, pk):
             new_port_count = form.cleaned_data.get('port_count')
 
             asset = form.save(commit=False)
+            asset._serial_actor = request.user  # serial history (assets.serial_lifecycle)
 
             # Re-initialize ports if count changed
             if new_port_count and asset.has_ports() and new_port_count != old_port_count:
@@ -1709,7 +1714,9 @@ def rma_create(request):
         if asset_id:
             rma.asset = Asset.objects.filter(organization=org, pk=asset_id).first()
         if po_id:
-            rma.purchase_order = PurchaseOrder.objects.filter(pk=po_id).first()
+            # Only this customer's purchase orders (the form offers no others).
+            rma.purchase_order = PurchaseOrder.objects.filter(organization=org, pk=po_id).first()
+        rma._serial_actor = request.user  # serial history (assets.serial_lifecycle)
         rma.save()
         messages.success(request, f'Opened RMA {rma.rma_number or rma.pk}.')
         return redirect('assets:rma_detail', pk=rma.pk)
@@ -1755,6 +1762,118 @@ def rma_transition(request, pk):
             rma.refund_amount = request.POST.get('refund_amount') or None
         except (TypeError, ValueError):
             rma.refund_amount = None
+    rma._serial_actor = request.user  # serial history (assets.serial_lifecycle)
     rma.save()
     messages.success(request, f'RMA marked {rma.get_status_display()}.')
     return redirect('assets:rma_detail', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# Phase 13 — serial lifecycle: search by serial, record a lifecycle event
+# ---------------------------------------------------------------------------
+
+@login_required
+def serial_search(request):
+    """Serial history search. Scoped to the active customer (and its
+    sites); staff in global view search every customer."""
+    from .models import SerialEvent, RMAReturn
+    from . import serial_lifecycle
+    org = get_request_organization(request)
+    is_staff = getattr(request, 'is_staff_user', False)
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+    if in_global_view:
+        events, assets, rmas = SerialEvent.objects.all(), Asset.objects.all(), RMAReturn.objects.all()
+    else:
+        events = SerialEvent.objects.for_organization(org)
+        assets = Asset.objects.for_organization(org)
+        rmas = RMAReturn.objects.for_organization(org)
+
+    q = (request.GET.get('q') or '').strip()
+    key = serial_lifecycle.normalize(q)
+    groups = []
+    if key:
+        found = (serial_lifecycle.search(events, q)
+                 .select_related('organization', 'asset', 'rma', 'purchase_order', 'actor')
+                 .order_by('serial_key', 'organization__name', 'occurred_at', 'id')[:500])
+        by_serial = {}
+        for ev in found:
+            by_serial.setdefault((ev.serial_key, ev.organization_id), {'events': [], 'assets': [], 'rmas': [],
+                                                                        'organization': ev.organization,
+                                                                        'serial': ev.serial_number})
+            by_serial[(ev.serial_key, ev.organization_id)]['events'].append(ev)
+        # Assets and RMAs whose serial matches, including units recorded
+        # before serial tracking existed (they have no events yet).
+        for a in assets.filter(serial_number__icontains=key).select_related('organization')[:500]:
+            k = serial_lifecycle.normalize(a.serial_number)
+            if key in k:
+                g = by_serial.setdefault((k, a.organization_id), {
+                    'events': [], 'assets': [], 'rmas': [], 'organization': a.organization,
+                    'serial': a.serial_number})
+                g['assets'].append(a)
+        for r in rmas.filter(serial_number__icontains=key).select_related('vendor')[:500]:
+            k = serial_lifecycle.normalize(r.serial_number)
+            if (k, r.organization_id) in by_serial:
+                by_serial[(k, r.organization_id)]['rmas'].append(r)
+        groups = sorted(by_serial.values(), key=lambda g: (g['serial'].upper(), str(g['organization'])))
+        for g in groups:
+            g['last'] = g['events'][-1] if g['events'] else None
+    return render(request, 'assets/serial_search.html', {
+        'q': q, 'groups': groups[:200], 'in_global_view': in_global_view,
+    })
+
+
+@login_required
+@require_write
+def asset_serial_event_add(request, pk):
+    """POST: record a manual lifecycle event (returned / retired / disposed /
+    note) for the asset's current serial."""
+    import datetime as _dt
+    from django.utils import timezone as _tz
+    from django.utils.dateparse import parse_date
+    from .models import SerialEvent
+    from . import serial_lifecycle
+    if request.method != 'POST':
+        return redirect('assets:asset_detail', pk=pk)
+    org = get_request_organization(request)
+    if org is None and (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+        asset = get_object_or_404(Asset, pk=pk)
+    else:
+        asset = get_org_object_or_404(Asset, org, pk=pk)
+    back = reverse('assets:asset_detail', args=[asset.pk]) + '#serial-history'
+    event_type = (request.POST.get('event_type') or '').strip()
+    if event_type not in SerialEvent.MANUAL_EVENTS:
+        messages.error(request, 'Pick returned, retired, disposed or note.')
+        return redirect(back)
+    if not serial_lifecycle.normalize(asset.serial_number):
+        messages.error(request, 'This asset has no serial number to record history for.')
+        return redirect(back)
+    notes = (request.POST.get('notes') or '').strip()[:2000]
+    if event_type == 'note' and not notes:
+        messages.error(request, 'A note needs some text.')
+        return redirect(back)
+    when = None
+    raw_day = (request.POST.get('occurred_on') or '').strip()
+    if raw_day:
+        try:
+            day = parse_date(raw_day)
+        except ValueError:
+            day = None
+        if day is None:
+            messages.error(request, 'The date is not valid.')
+            return redirect(back)
+        if day > _tz.localdate():
+            messages.error(request, 'The date cannot be in the future.')
+            return redirect(back)
+        when = _tz.make_aware(_dt.datetime.combine(day, _dt.time(12, 0)))
+    ev = serial_lifecycle.record(asset.organization, asset.serial_number, event_type, asset=asset,
+                                 actor=request.user, notes=notes, when=when)
+    try:
+        from audit.models import AuditLog
+        AuditLog.log(user=request.user, action='update', organization=asset.organization,
+                     object_type='asset', object_id=asset.pk, object_repr=asset.name,
+                     description=f'Serial {asset.serial_number}: {ev.get_event_type_display()}',
+                     path=request.path)
+    except Exception:  # noqa: BLE001 - the audit row must not block the record
+        pass
+    messages.success(request, f'Recorded "{ev.get_event_type_display()}" for serial {asset.serial_number}.')
+    return redirect(back)

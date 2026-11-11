@@ -2018,3 +2018,74 @@ class RMAReturn(BaseModel):
         elif new_status in self.TERMINAL_STATUSES:
             self.closed_at = ts
         self.status = new_status
+
+
+# ---------------------------------------------------------------------------
+# Phase 13 — serial lifecycle tracking
+# ---------------------------------------------------------------------------
+
+class SerialEvent(BaseModel):
+    """One step in the life of a serial-numbered unit: received on a PO,
+    assigned to an asset, moved to another customer, sent back under an RMA,
+    replaced, returned, retired or disposed.
+
+    Events are written by assets.serial_lifecycle (PO receiving, asset and
+    RMA saves) and by technicians from the asset page. They are kept per
+    customer: a unit that moves between customers leaves an event in both.
+    ``serial_key`` is the normalized serial used for lookups (case and
+    whitespace insensitive); ``serial_number`` keeps what was typed.
+    """
+    EVENT_CHOICES = [
+        ('received', 'Received on purchase order'),
+        ('assigned', 'Assigned to asset'),
+        ('unassigned', 'Removed from asset'),
+        ('moved_in', 'Moved in from another customer'),
+        ('moved_out', 'Moved to another customer'),
+        ('rma_opened', 'RMA opened'),
+        ('rma_sent', 'Sent to vendor (RMA)'),
+        ('rma_received_by_vendor', 'Received by vendor (RMA)'),
+        ('rma_replaced', 'Replaced under RMA'),
+        ('rma_refunded', 'Refunded under RMA'),
+        ('rma_closed', 'RMA closed'),
+        ('rma_cancelled', 'RMA cancelled'),
+        ('replacement_received', 'Received as an RMA replacement'),
+        ('returned', 'Returned'),
+        ('retired', 'Retired'),
+        ('disposed', 'Disposed'),
+        ('note', 'Note'),
+    ]
+    # Events a technician records by hand from the asset page.
+    MANUAL_EVENTS = ('returned', 'retired', 'disposed', 'note')
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     related_name='serial_events')
+    serial_number = models.CharField(max_length=255)
+    serial_key = models.CharField(max_length=255, db_index=True)
+    event_type = models.CharField(max_length=30, choices=EVENT_CHOICES)
+    occurred_at = models.DateTimeField(db_index=True)
+    asset = models.ForeignKey(Asset, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='serial_events')
+    # Snapshot, so the history still reads after the asset is deleted.
+    asset_name = models.CharField(max_length=255, blank=True)
+    rma = models.ForeignKey(RMAReturn, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='serial_events')
+    purchase_order = models.ForeignKey('psa.PurchaseOrder', on_delete=models.SET_NULL, null=True,
+                                       blank=True, related_name='serial_events')
+    receipt_line = models.ForeignKey('psa.POReceiptLine', on_delete=models.SET_NULL, null=True,
+                                     blank=True, related_name='serial_events')
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='+')
+    notes = models.TextField(blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'asset_serial_events'
+        ordering = ['occurred_at', 'id']
+        indexes = [
+            models.Index(fields=['organization', 'serial_key']),
+            models.Index(fields=['asset', 'occurred_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.serial_number}: {self.get_event_type_display()}'

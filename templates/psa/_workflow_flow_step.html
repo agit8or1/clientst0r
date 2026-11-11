@@ -1,0 +1,13 @@
+{# One action step. Context: step #}
+<div class="wf-box wf-step{% if step.problem %} wf-problem{% endif %}">
+    <i class="fas {% if step.type == 'fire_rule' %}fa-share{% else %}fa-bolt{% endif %} me-1"></i>{{ step.label }}
+    {% if step.note %}<div class="small text-muted">{{ step.note }}</div>{% endif %}
+    {% if step.problem %}<div class="small text-danger"><i class="fas fa-exclamation-triangle me-1"></i>{{ step.problem }}</div>{% endif %}
+</div>
+{% if step.sub %}
+<div class="wf-sub">
+    <div class="small text-muted mb-1"><i class="fas fa-level-down-alt me-1"></i>Runs rule
+        <a href="{% url 'psa:workflow_rule_edit' step.sub.rule.pk %}">{{ step.sub.rule.name }}</a>{% if step.sub.rule.organization %} ({{ step.sub.rule.organization.name }}){% endif %}</div>
+    {% include "psa/_workflow_flow_node.html" with node=step.sub %}
+</div>
+{% endif %}

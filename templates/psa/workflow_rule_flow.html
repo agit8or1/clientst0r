@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Workflow Flow — PSA{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:workflow_rule_list' %}">Workflow Rules</a></li>
+        <li class="breadcrumb-item active">{% if single %}{{ flows.0.flow.rule.name }}{% else %}Flow map{% endif %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="fas fa-project-diagram me-2"></i>{% if single %}Flow: {{ flows.0.flow.rule.name }}{% else %}Workflow flow map{% endif %}</h4>
+        <small class="text-muted">Trigger → condition → then / otherwise. A "Run another rule" step shows the rule it runs, with that rule's own branches.</small>
+    </div>
+    {% if single %}<a href="{% url 'psa:workflow_rule_edit' flows.0.flow.rule.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit in builder</a>{% endif %}
+</div>
+
+{% for f in flows %}
+<div class="card mb-3{% if not f.flow.rule.is_active %} opacity-75{% endif %}">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <span class="badge text-bg-info me-1">{{ f.flow.rule.get_trigger_display }}</span>
+            <strong>{{ f.flow.rule.name }}</strong>
+            {% if f.flow.rule.organization %}<span class="badge text-bg-secondary ms-1">{{ f.flow.rule.organization.name }}</span>{% else %}<span class="badge text-bg-success ms-1">All clients</span>{% endif %}
+            {% if not f.flow.rule.is_active %}<span class="badge text-bg-secondary ms-1">Inactive</span>{% endif %}
+            {% if f.flow.rule.fire_once_per_ticket %}<span class="badge text-bg-light ms-1">Once per ticket</span>{% endif %}
+            {% if f.only_chained %}<span class="badge text-bg-light ms-1">Also run by other rules</span>{% endif %}
+        </div>
+        {% if not single %}<a href="{% url 'psa:workflow_rule_edit' f.flow.rule.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
+    </div>
+    <div class="card-body">
+        {% if f.problems %}
+        <div class="alert alert-warning py-2 small">
+            {% for p in f.problems %}<div><i class="fas fa-exclamation-triangle me-1"></i>{{ p }}</div>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="wf-box wf-trigger"><i class="fas fa-play me-1"></i>When: {{ f.flow.rule.get_trigger_display }}</div>
+        {% include "psa/_workflow_flow_node.html" with node=f.flow %}
+    </div>
+</div>
+{% empty %}
+<p class="text-muted">No workflow rules yet.</p>
+{% endfor %}
+
+{% include "psa/_workflow_flow_styles.html" %}
+{% endblock %}

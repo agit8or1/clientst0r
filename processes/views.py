@@ -1300,3 +1300,61 @@ def runbook_dashboard(request, org_id=None):
         'total_stages': total_stages,
         'completed_stages': completed_stages,
     })
+
+
+# ---------------------------------------------------------------------------
+# Phase 38: access removal verification for offboarding runs
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def execution_access_verification(request, pk):
+    """Who is leaving, and is their access really gone? GET shows the
+    latest read-only checks; POST action=subject saves who the run is
+    about, action=verify runs the checks (processes.access_verification).
+    MSP technicians only."""
+    from django.http import Http404
+    from psa.visibility import is_msp_staff
+    from . import access_verification
+    from .models import AccessRemovalCheck
+    if not is_msp_staff(request.user):
+        raise Http404()
+    org = get_request_organization(request)
+    qs = ProcessExecution.objects.select_related('process', 'subject_user', 'organization')
+    if org:
+        execution = get_object_or_404(qs, pk=pk, organization=org)
+    elif request.user.is_superuser or getattr(request, 'is_staff_user', False):
+        execution = get_object_or_404(qs, pk=pk)
+    else:
+        raise Http404()
+
+    if request.method == 'POST':
+        action = request.POST.get('action') or ''
+        if action == 'subject':
+            old = execution.subject_email
+            execution.subject_email = (request.POST.get('subject_email') or '').strip()[:254]
+            execution.save(update_fields=['subject_email', 'updated_at'])
+            if old != execution.subject_email:
+                ProcessExecutionAuditLog.log_action(
+                    execution=execution, action_type='notes_updated', user=request.user,
+                    description=f'Departing person set to "{execution.subject_email}"',
+                    old_value={'subject_email': old}, new_value={'subject_email': execution.subject_email},
+                    request=request)
+            messages.success(request, 'Saved who this run is about.')
+        elif action == 'verify':
+            rows = access_verification.verify(execution, request.user, request=request)
+            orphaned = sum(1 for r in rows if r.status == 'orphaned')
+            if orphaned:
+                messages.warning(request, f'Access remains in {orphaned} place(s). See below.')
+            else:
+                messages.success(request, 'Checked. No remaining access found where it could be read.')
+        return redirect('processes:execution_access_verification', pk=execution.pk)
+
+    checks = access_verification.latest(execution)
+    return render(request, 'processes/execution_access_verification.html', {
+        'execution': execution,
+        'checks': checks,
+        'orphaned': [c for c in checks if c.status == 'orphaned'],
+        'last_run': max((c.created_at for c in checks), default=None),
+        'current_organization': org,
+    })

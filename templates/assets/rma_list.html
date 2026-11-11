@@ -6,9 +6,14 @@
         <h1 class="mb-0">RMA Returns</h1>
         <p class="text-muted mb-0">{{ open_count }} open · showing latest 200</p>
     </div>
-    <a href="{% url 'assets:rma_create' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Open RMA
-    </a>
+    <div>
+        <a href="{% url 'assets:serial_search' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-barcode"></i> Serial history
+        </a>
+        <a href="{% url 'assets:rma_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Open RMA
+        </a>
+    </div>
 </div>
 
 <form method="get" class="row g-2 mb-3">

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Serial History{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-0">Serial History</h1>
+        <p class="text-muted mb-0">Search a serial number to see where the unit came from and what happened to it{% if in_global_view %} (all customers){% endif %}.</p>
+    </div>
+    <a href="{% url 'assets:rma_list' %}" class="btn btn-outline-secondary"><i class="fas fa-undo"></i> RMA returns</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Serial number (or part of one)" autofocus>
+    </div>
+    <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-search"></i> Search</button></div>
+</form>
+
+{% if q and not groups %}
+<p class="text-muted">No serial matching <code>{{ q }}</code>.</p>
+{% endif %}
+
+{% for g in groups %}
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <code class="fs-6">{{ g.serial }}</code>
+            {% if in_global_view and g.organization %}<span class="text-muted ms-2">{{ g.organization.name }}</span>{% endif %}
+            {% if g.last %}<span class="badge bg-secondary ms-2">Latest: {{ g.last.get_event_type_display }}</span>{% endif %}
+        </div>
+        <div class="small">
+            {% for a in g.assets %}<a href="{% url 'assets:asset_detail' a.pk %}" class="me-2"><i class="fas fa-server"></i> {{ a.name }}</a>{% endfor %}
+            {% for r in g.rmas %}<a href="{% url 'assets:rma_detail' r.pk %}" class="me-2"><i class="fas fa-undo"></i> RMA {{ r.rma_number|default:r.pk }} ({{ r.get_status_display }})</a>{% endfor %}
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if g.events %}
+        <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead><tr><th>When</th><th>Event</th><th>Details</th><th>By</th></tr></thead>
+            <tbody>
+            {% for ev in g.events %}
+            <tr>
+                <td class="text-nowrap small">{{ ev.occurred_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ ev.get_event_type_display }}</td>
+                <td class="small">
+                    {% if ev.purchase_order %}PO {{ ev.purchase_order.po_number }}{% endif %}
+                    {% if ev.asset %}<a href="{% url 'assets:asset_detail' ev.asset.pk %}">{{ ev.asset.name }}</a>{% elif ev.asset_name %}{{ ev.asset_name }} (deleted){% endif %}
+                    {% if ev.notes %}<span class="text-muted">— {{ ev.notes }}</span>{% endif %}
+                </td>
+                <td class="small">{% if ev.actor %}{{ ev.actor.get_full_name|default:ev.actor.username }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="text-muted p-3 mb-0">No lifecycle events yet (recorded before serial tracking). Lifecycle events start with the next change.</p>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

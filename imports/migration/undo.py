@@ -28,8 +28,10 @@ from .targets import MODEL_TO_KIND, RELATIONSHIP_TYPES, SPECS, _field, current
 logger = logging.getLogger('imports')
 
 ROLLBACK_STATUSES = ('applied', 'partially_applied', 'applying', 'partially_rolled_back')
+# Serial lifecycle events are history: they keep the asset's name when the
+# asset goes, so they never hold an imported asset back.
 IGNORED_DEPENDENTS = {('audit', 'auditlog'), ('imports', 'importmapping'), ('imports', 'sourcemapping'),
-                      ('imports', 'planchange')}
+                      ('imports', 'planchange'), ('assets', 'serialevent')}
 
 
 def _label(model):

@@ -17,6 +17,22 @@ from django.utils import timezone
 
 logger = logging.getLogger('psa.workflow_engine')
 
+# fire_rule chains: the rules currently running on this thread, outermost
+# first. A rule that is already in the chain is refused (a loop), and so is
+# a chain deeper than MAX_CHAIN_DEPTH. psa.workflow_graph validates the same
+# at save time; this is the run-time backstop for rules saved before that.
+import threading as _threading
+
+_chain_state = _threading.local()
+MAX_CHAIN_DEPTH = 8
+
+
+def _chain():
+    stack = getattr(_chain_state, 'stack', None)
+    if stack is None:
+        stack = _chain_state.stack = []
+    return stack
+
 
 # ---- Condition evaluator --------------------------------------------------
 
@@ -279,7 +295,7 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
     elif atype == 'fire_rule':
         # Phase 14 v4 (v3.17.285): multi-step orchestration. Chain
         # to another WorkflowRule by name within the same org.
-        # Cycle protection lives in `fire()` via _firing_chain.
+        # Loop / depth protection: the per-thread chain (_chain) below.
         from .models import WorkflowRule
         from django.db.models import Q
         name = (action.get('name') or '').strip()
@@ -291,15 +307,24 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
         ).first()
         if nxt is None:
             raise ValueError(f'fire_rule: no active rule named {name!r}')
+        chain = _chain()
+        if nxt.pk in chain:
+            raise ValueError(f'fire_rule: {name!r} is already running in this chain (loop)')
+        if len(chain) >= MAX_CHAIN_DEPTH:
+            raise ValueError(f'fire_rule: chain deeper than {MAX_CHAIN_DEPTH} rules')
         # Run nested rule's actions inline (skip the cron-like trigger
         # filter — chained execution intentionally bypasses trigger
         # matching since the parent already fired).
-        if matches(ticket, nxt.conditions or {}):
-            for sub in (nxt.actions or []):
-                run_action(ticket, sub)
-        else:
-            for sub in (nxt.else_actions or []):
-                run_action(ticket, sub)
+        chain.append(nxt.pk)
+        try:
+            if matches(ticket, nxt.conditions or {}):
+                for sub in (nxt.actions or []):
+                    run_action(ticket, sub)
+            else:
+                for sub in (nxt.else_actions or []):
+                    run_action(ticket, sub)
+        finally:
+            chain.pop()
 
     else:
         raise ValueError(f'Unknown action type: {atype!r}')
@@ -341,18 +366,23 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
                 continue
 
             if matches(ticket, rule.conditions or {}):
-                for action in (rule.actions or []):
-                    run_action(ticket, action)
+                branch = rule.actions or []
             elif rule.else_actions:
                 # Phase 14 v2 (v3.17.285): conditional routing — when
                 # the main condition fails AND else_actions are
                 # configured, run them instead. This still counts as
                 # a "fire" so the cooldown / fire_count tracks both
                 # branches.
-                for action in rule.else_actions:
-                    run_action(ticket, action)
+                branch = rule.else_actions
             else:
                 continue
+            chain = _chain()
+            chain.append(rule.pk)
+            try:
+                for action in branch:
+                    run_action(ticket, action)
+            finally:
+                chain.pop()
             rule.last_fired_at = timezone.now()
             rule.fire_count = (rule.fire_count or 0) + 1
             rule.last_error = ''
