@@ -5,6 +5,33 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.661] - 2026-11-11
+
+### Security
+- **RMM pages are for MSP technicians only.**
+  - Customer users could open their organization's RMM device list, device details, installed software, alerts and device map.
+  - Where an RMM connection belonged to a customer organization, that customer's owners and admins could also edit, delete, map or import it, and any member could start a sync. All `/integrations/rmm/` pages now return 403 to anyone who isn't MSP staff.
+  - Read-only technicians can no longer start an RMM sync.
+- **Deleting an RMM device is scoped and audited.**
+  - With no customer selected, any signed-in user could delete any customer's RMM device.
+  - Deleting now needs an admin MSP technician and only finds devices in the selected customer and its child customers. Anything else returns 404. Each delete is written to the audit log.
+- **Invoices follow the invoice permissions.**
+  - With no customer selected, any user could open any invoice.
+  - The invoice page, the invoice PDF and the client account page now need `billing_view_invoices` for the billed customer, and customer users only see invoices billed to their own customers.
+  - The invoice list applies the same rule.
+  - Emailing an invoice needs `billing_send_invoices`.
+
+### Fixed
+- The invoice PDF failed with an error on every request.
+
+### Upgrade notes
+- No migrations.
+- What admins may notice:
+  - Customer users no longer see RMM pages.
+  - Read-only technicians can't start RMM syncs.
+  - Roles without `billing_view_invoices` no longer see invoices.
+  - Emailing an invoice needs `billing_send_invoices`.
+
 ## [3.17.660] - 2026-11-10
 
 ### Security
