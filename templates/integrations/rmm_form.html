@@ -342,6 +342,15 @@
                                 </label>
                             </div>
                         </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.sync_services }}
+                                <label class="form-check-label" for="{{ form.sync_services.id_for_label }}">
+                                    Collect services
+                                </label>
+                                <div class="form-text">{{ form.sync_services.help_text }}</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row mb-3">

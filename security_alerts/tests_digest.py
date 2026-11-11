@@ -165,3 +165,76 @@ class DigestTests(TestCase):
         ScheduledTask.get_or_create_defaults()
         task = ScheduledTask.objects.get(task_type='send_security_digests')
         self.assertEqual(task.interval_minutes, 10080)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+                   EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class DigestAllClearTests(TestCase):
+    """Per-customer option (off by default): a short weekly "no unresolved
+    alerts" e-mail to opted-in contacts instead of silence."""
+
+    def setUp(self):
+        s = SystemSetting.get_settings()
+        s.site_url = 'https://msp.example.com'
+        s.save()
+        self.acme = Organization.objects.create(name='Quiet Dental', slug='quiet-digest')
+        self.sub = SecurityDigestSubscription.objects.create(organization=self.acme, email='office@quiet.example')
+        self.sub.set_subscribed(True, via='staff')
+        self.off = SecurityDigestSubscription.objects.create(organization=self.acme, email='off@quiet.example')
+
+    def _send(self, **kw):
+        with mock.patch('security_alerts.digest.get_smtp_connection', side_effect=_locmem):
+            return digest.send_digests(**kw)
+
+    def _enable(self, on=True):
+        from security_alerts.models import SecurityDigestCustomerSetting
+        SecurityDigestCustomerSetting.objects.update_or_create(
+            organization=self.acme, defaults={'send_all_clear': on})
+
+    def test_default_off_sends_nothing(self):
+        out = self._send()
+        self.assertEqual((out['sent'], out['all_clear'], out['empty']), (0, 0, 1))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_on_sends_a_short_all_clear_to_opted_in_contacts_only(self):
+        self._enable()
+        out = self._send()
+        self.assertEqual((out['sent'], out['all_clear']), (1, 1))
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertEqual(msg.to, ['office@quiet.example'])
+        self.assertIn('all clear', msg.subject)
+        self.assertIn('no unresolved security alerts for Quiet Dental', msg.body)
+        self.assertIn(digest.unsubscribe_url(self.sub, 'https://msp.example.com'), msg.body)
+        self.assertIn('List-Unsubscribe', msg.extra_headers)
+
+    def test_all_clear_respects_the_weekly_guard(self):
+        self._enable()
+        self._send()
+        self.assertEqual(self._send()['skipped_recent'], 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_open_alerts_still_get_the_normal_digest(self):
+        self._enable()
+        conn = SecurityVendorConnection.objects.create(
+            organization=self.acme, name='EDR', provider='huntress', category='edr')
+        SecurityAlert.objects.create(connection=conn, organization=self.acme, external_id='q1',
+                                     severity='high', title='Beacon detected')
+        out = self._send()
+        self.assertEqual((out['sent'], out['all_clear']), (1, 0))
+        self.assertIn('Beacon detected', mail.outbox[0].body)
+        self.assertIn('1 unresolved', mail.outbox[0].subject)
+
+    def test_staff_toggle_and_preview(self):
+        staff = _make_msp_tech(User.objects.create_user('allclear-staff', password='pw', is_superuser=True))
+        c = Client()
+        c.force_login(staff)
+        r = c.get(f'/security/digest/?org={self.acme.pk}')
+        self.assertContains(r, 'value="all_clear_on"')
+        c.post('/security/digest/', {'org': self.acme.pk, 'action': 'all_clear_on'})
+        from security_alerts.models import SecurityDigestCustomerSetting
+        self.assertTrue(SecurityDigestCustomerSetting.all_clear_enabled(self.acme))
+        r = c.get(f'/security/digest/?org={self.acme.pk}')
+        self.assertContains(r, 'no unresolved security alerts for Quiet Dental')
+        c.post('/security/digest/', {'org': self.acme.pk, 'action': 'all_clear_off'})
+        self.assertFalse(SecurityDigestCustomerSetting.all_clear_enabled(self.acme))

@@ -112,3 +112,42 @@ class InvoiceViewPermissionTests(TestCase):
             r = self._client(self.owner_a, self.a).get(f'/psa/invoices/{self.inv_a.pk}/pdf/')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_list_shows_only_invoices_the_user_may_view(self):
+        # The list showed numbers, titles and totals to users the invoice page
+        # itself refuses.
+        for user in (self.editor_a, self.readonly_a, self.tech_no_billing):
+            with self.subTest(user=user.username):
+                page = self._client(user, self.a).get('/psa/invoices/').content.decode()
+                self.assertNotIn('A invoice', page)
+        page = self._client(self.owner_a, self.a).get('/psa/invoices/').content.decode()
+        self.assertIn('A invoice', page)
+        self.assertNotIn('B invoice', page)
+        for user in (self.tech_billing, self.tech_plain, self.su):
+            with self.subTest(user=user.username):
+                self.assertIn('A invoice', self._client(user, self.a).get('/psa/invoices/').content.decode())
+
+    def test_email_needs_the_send_flag(self):
+        from unittest import mock
+        with mock.patch('psa.pdf.email_invoice') as send:
+            r = self._client(self.editor_a, self.a).post(f'/psa/invoices/{self.inv_a.pk}/email/',
+                                                         {'recipient': 'x@a.test'})
+            self.assertEqual(r.status_code, 403)
+            # A technician whose global role leaves billing out; with a
+            # membership that allows writing, the flag is what refuses them.
+            Membership.objects.create(user=self.tech_no_billing, organization=self.a, role=Role.EDITOR,
+                                      is_active=True)
+            r = self._client(self.tech_no_billing, self.a).post(f'/psa/invoices/{self.inv_a.pk}/email/',
+                                                                {'recipient': 'x@a.test'})
+            self.assertEqual(r.status_code, 403)
+            send.assert_not_called()
+
+    def test_email_is_bounded_to_the_customer_users_own_customers(self):
+        # A customer user who is also a member of B, with A selected, can't
+        # reach B's invoice through A's session, and vice versa.
+        from unittest import mock
+        with mock.patch('psa.pdf.email_invoice') as send:
+            r = self._client(self.owner_a, self.a).post(f'/psa/invoices/{self.inv_b.pk}/email/',
+                                                        {'recipient': 'x@a.test'})
+            self.assertEqual(r.status_code, 404)
+            send.assert_not_called()

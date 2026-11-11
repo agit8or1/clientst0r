@@ -947,6 +947,16 @@ class TicketTimeEntry(models.Model):
         null=True, blank=True, related_name='entries',
         help_text='Weekly batch this entry belongs to. Null = unsubmitted.',
     )
+    # Phase 25: an approver can send one entry back while approving the rest
+    # of the week. The entry leaves the submission (so it is not locked and
+    # not counted as approved) and carries the reason until it is resubmitted.
+    rejection_reason = models.TextField(
+        blank=True, default='',
+        help_text='Why an approver returned this entry. Cleared on resubmit.')
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -3358,11 +3368,16 @@ class TimesheetSubmission(models.Model):
         blank=True,
         help_text='Optional comment from the tech when submitting.',
     )
+    # 1 for the week's first submission. When entries are returned from an
+    # approved week, fixing and resubmitting them opens revision 2 (and so on)
+    # for the same week: the approved revision and its locked entries stay
+    # exactly as they were approved.
+    revision = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         db_table = 'psa_timesheet_submissions'
         ordering = ['-period_start', '-submitted_at']
-        unique_together = [['user', 'period_start', 'period_end']]
+        unique_together = [['user', 'period_start', 'period_end', 'revision']]
         indexes = [
             models.Index(fields=['user', '-period_start']),
             models.Index(fields=['status', '-submitted_at']),
@@ -3403,6 +3418,42 @@ class TimesheetSubmission(models.Model):
             note=self.decision_notes)
         # Detach entries so the tech can re-submit after fixes.
         self.entries.update(submission=None)
+
+    def return_entries(self, reasons, *, user):
+        """Send individual entries back to the technician with a reason each.
+
+        `reasons` maps entry id -> reason. Only entries in this (pending)
+        submission are touched. Each returned entry gets a 'rejected' event on
+        its trail, is detached from the submission and carries the reason for
+        the technician; the remaining entries are left for approve().
+        Returns the number of entries returned.
+        """
+        now = timezone.now()
+        returned = 0
+        for entry in self.entries.filter(pk__in=list(reasons)):
+            reason = (reasons.get(entry.pk) or '').strip()[:5000]
+            TimeEntryAuditEvent.objects.create(
+                entry_id=entry.pk, entry_ref=entry.pk, submission=self,
+                action='rejected', actor=user, note=reason)
+            TicketTimeEntry.objects.filter(pk=entry.pk).update(
+                submission=None, rejection_reason=reason,
+                rejected_at=now, rejected_by=user)
+            returned += 1
+        return returned
+
+    def decide_with_returns(self, reasons, *, user, notes=''):
+        """Return the entries in `reasons` and approve everything else.
+
+        If nothing would be left to approve the submission is rejected
+        instead (the per-entry reasons are already on each entry).
+        Returns 'approved' or 'rejected'.
+        """
+        self.return_entries(reasons, user=user)
+        if self.entries.exists():
+            self.approve(user=user, notes=notes)
+            return 'approved'
+        self.reject(user=user, notes=notes)
+        return 'rejected'
 
 
 class TimeEntryAuditEvent(models.Model):

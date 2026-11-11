@@ -25,6 +25,12 @@ class TacticalRMMProvider(BaseRMMProvider):
 
     provider_name = 'Tactical RMM'
     supports_software = True
+    # The agent detail route (GET /agents/{agent_id}/, AgentSerializer)
+    # carries the agent's stored Windows service list in `services`.
+    supports_services = True
+    # Kept from the stored record on a single-device refresh: the detail
+    # route leaves out the numeric `id` the software route needs.
+    refresh_keep_raw_keys = ('id',)
 
     # Agent type to device type mapping
     AGENT_TYPE_MAP = {
@@ -196,11 +202,27 @@ class TacticalRMMProvider(BaseRMMProvider):
             Normalized device dictionary
         """
         try:
+            if not hasattr(self, '_client_ids'):
+                # The detail route names the client only; resolve its ID as
+                # list_devices does, so a refresh keeps the same identity.
+                self._client_ids, self._site_ids = self._client_site_ids()
             response = self._make_request('GET', f'/agents/{device_id}/')
-            return self.normalize_device(self._safe_json(response))
+            data = self._safe_json(response)
+            if isinstance(data, dict) and not data.get('client_name') and data.get('client'):
+                data = dict(data, client_name=data['client'])
+            return self.normalize_device(data)
         except Exception as e:
             logger.error(f"Error getting Tactical RMM agent {device_id}: {e}")
             raise ProviderError(f"Failed to get device: {e}")
+
+    def list_services(self, device_id: str):
+        """The agent's Windows services as Tactical RMM last stored them
+        (the `services` field of GET /agents/{agent_id}/). None when the
+        agent has no list (Linux and macOS agents)."""
+        from integrations.rmm_snapshots import normalize_services
+        data = self._safe_json(self._make_request('GET', f'/agents/{device_id}/'))
+        services = data.get('services') if isinstance(data, dict) else None
+        return normalize_services(services) if isinstance(services, list) else None
 
     def list_alerts(
         self,

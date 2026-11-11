@@ -45,6 +45,10 @@ class SyncResult:
     # human, never silently reconciled in either direction.
     drifted_invoices: list = field(default_factory=list)
     errors: list = field(default_factory=list)
+    # Things an operator has to do (reconnect, grant a scope) that will not fix
+    # themselves by retrying. Kept apart from `errors` so a known, parked
+    # condition reads as "needs attention" rather than failing every run.
+    attention: list = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -54,7 +58,8 @@ class SyncResult:
         return (f'created={self.payments_created} updated={self.payments_updated} '
                 f'voided={self.payments_voided} invoices={self.invoices_touched} '
                 f'drifted={len(self.drifted_invoices)} '
-                f'unmatched={len(self.unmatched_payments)} errors={len(self.errors)}')
+                f'unmatched={len(self.unmatched_payments)} errors={len(self.errors)}'
+                + (f' attention={len(self.attention)}' if self.attention else ''))
 
 
 def _parse_optional_date(value):
@@ -92,6 +97,9 @@ def sync_payments(connection, provider, *, since=None, limit=500,
 
     result = SyncResult()
     fetched = provider.fetch_payments(since=since, limit=limit)
+    if not fetched.get('success') and fetched.get('needs_attention') is True:
+        result.attention.append(fetched.get('error') or 'payment import paused')
+        return result
     if not fetched.get('success'):
         result.errors.append(fetched.get('error') or 'fetch_payments failed')
         return result

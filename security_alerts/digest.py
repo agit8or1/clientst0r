@@ -104,17 +104,33 @@ def render_digest(org, rows, *, brand, unsubscribe):
     return subject, '\n'.join(lines)
 
 
+def render_all_clear(org, *, brand, unsubscribe):
+    """The short weekly note for a customer that opted in to all-clear mails."""
+    lines = [
+        f'There are no unresolved security alerts for {org.name} this week.',
+        '',
+        f'Your {brand} team checks these continuously; this note confirms the '
+        'weekly digest ran and found nothing open.',
+        '',
+        'You receive this because you opted in to the weekly security alert digest.',
+        f'Stop these e-mails: {unsubscribe}',
+    ]
+    subject = f'[{brand}] Weekly security alert digest \u2014 {org.name}: all clear'
+    return subject, '\n'.join(lines)
+
+
 def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=None, stdout=None):
     """Send each opted-in contact their customer's digest. Returns a dict of counts.
 
     Customers with nothing unresolved get no e-mail. Without a usable SMTP
     configuration nothing is sent and the run says so."""
     from core.models import SystemSetting
-    from .models import SecurityDigestSubscription
+    from .models import SecurityDigestCustomerSetting, SecurityDigestSubscription
 
     now = now or timezone.now()
     ss = SystemSetting.get_settings()
-    out = {'customers': 0, 'sent': 0, 'skipped_recent': 0, 'empty': 0, 'failed': 0, 'no_smtp': False}
+    out = {'customers': 0, 'sent': 0, 'all_clear': 0, 'skipped_recent': 0, 'empty': 0, 'failed': 0,
+           'no_smtp': False}
     subs = (SecurityDigestSubscription.objects
             .filter(is_subscribed=True, organization__is_active=True)
             .select_related('organization').order_by('organization_id', 'email'))
@@ -133,6 +149,10 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
     base = site_url(ss)
     from_email = default_from_email(ss)
 
+    all_clear_orgs = set(SecurityDigestCustomerSetting.objects.filter(
+        send_all_clear=True, organization_id__in={s.organization_id for s in subs},
+    ).values_list('organization_id', flat=True))
+
     by_org = {}
     for s in subs:
         by_org.setdefault(s.organization_id, []).append(s)
@@ -142,15 +162,21 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
         out['customers'] += 1
         if not rows:
             out['empty'] += 1
-            continue
+            if customer.pk not in all_clear_orgs:
+                continue
         for sub in org_subs:
             if not force and sub.last_sent_at and now - sub.last_sent_at < MIN_INTERVAL:
                 out['skipped_recent'] += 1
                 continue
             unsub = unsubscribe_url(sub, base)
-            subject, body = render_digest(customer, rows, brand=brand, unsubscribe=unsub)
+            if rows:
+                subject, body = render_digest(customer, rows, brand=brand, unsubscribe=unsub)
+            else:
+                subject, body = render_all_clear(customer, brand=brand, unsubscribe=unsub)
             if dry_run:
                 out['sent'] += 1
+                if not rows:
+                    out['all_clear'] += 1
                 if stdout:
                     stdout.write(f'[dry-run] {sub.email}: {subject}')
                 continue
@@ -167,4 +193,6 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
             sub.last_sent_at = now
             sub.save(update_fields=['last_sent_at'])
             out['sent'] += 1
+            if not rows:
+                out['all_clear'] += 1
     return out

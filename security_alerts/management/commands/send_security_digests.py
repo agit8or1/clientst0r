@@ -30,7 +30,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('SMTP is not configured; no digests were sent.'))
             return
         self.stdout.write(
-            f'Customers: {out["customers"]}, sent: {out["sent"]}, nothing unresolved: {out["empty"]}, '
+            f'Customers: {out["customers"]}, sent: {out["sent"]} (all clear: {out.get("all_clear", 0)}), '
+            f'nothing unresolved: {out["empty"]}, '
             f'skipped (sent this week): {out["skipped_recent"]}, failed: {out["failed"]}.')
         if out['failed']:
             raise CommandError(f'{out["failed"]} digest e-mail(s) failed; see the log.')

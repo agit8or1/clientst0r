@@ -54,6 +54,9 @@ urlpatterns = [
     path('agreements/<int:pk>/', _agreement_views.agreement_detail, name='agreement_detail'),
     path('agreements/evidence/<int:pk>/', _agreement_views.agreement_evidence, name='agreement_evidence'),
     path('agreements/revisions/<int:pk>/file/', _agreement_views.agreement_file, name='agreement_file'),
+    # Signed, no-login link in reminder e-mails: stop reminders for one agreement.
+    path('agreements/reminders/unsubscribe/<str:token>/', _agreement_views.agreement_reminder_unsubscribe,
+         name='agreement_reminder_unsubscribe'),
     # Customer switcher for users who belong to several customers.
     path('switch/', views.switch_customer, name='switch_customer'),
 ]
