@@ -925,7 +925,7 @@ def client_settings_view(request):
     (`is_psa_enabled_for_client` and the portal's membership query). The
     five other per-customer switches this page used to show (anonymous
     form, email-to-ticket, SMS, desktop alerts, external ingest) were never
-    read and were removed in psa 0082, as the global ones were in core 0087.
+    read and were removed in psa 0083, as the global ones were in core 0087.
     Superuser-only, like the global PSA settings page. Audited.
     """
     if not request.user.is_superuser:

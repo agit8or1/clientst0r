@@ -42,7 +42,7 @@ class ClientPSASettings(models.Model):
     # The customer portal is off until switched on for this customer.
     # (Five other per-customer switches — anonymous form, email-to-ticket,
     # SMS, desktop alerts, external ingest — were saved but never read and
-    # were removed in psa 0082: email-to-ticket follows each mailbox, SMS
+    # were removed in psa 0083: email-to-ticket follows each mailbox, SMS
     # follows Settings -> SMS and each technician, and there is no anonymous
     # form, desktop channel or ingest gate.)
     portal_enabled = models.BooleanField(default=False, help_text='Allow this client to use the customer portal')

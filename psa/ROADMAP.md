@@ -219,7 +219,7 @@ plugs into existing models so we don't duplicate.
   invite) must be on. Default OFF. There is no global portal switch: the
   unused `SystemSetting.psa_portal_enabled` was removed in core 0087.
 - There is no anonymous ticket form. Its global and per-client switches
-  were never read and were removed (core 0087, psa 0082); a public form
+  were never read and were removed (core 0087, psa 0083); a public form
   would need its own design, with rate-limiting via `django-ratelimit`.
 
 ### Routes (planned)

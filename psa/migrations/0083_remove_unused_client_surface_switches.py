@@ -15,7 +15,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('psa', '0081_ticket_affected_assets'),
+        ('psa', '0082_time_entry_rejection'),
     ]
 
     operations = [
