@@ -10,4 +10,7 @@
     <li class="nav-item"><a class="nav-link {% if tab == 'oncall' %}active{% endif %}" href="{% url 'ticket_routing:on_call' %}">On call</a></li>
     <li class="nav-item"><a class="nav-link {% if tab == 'test' %}active{% endif %}" href="{% url 'ticket_routing:test' %}">Test routing</a></li>
     <li class="nav-item"><a class="nav-link {% if tab == 'triage' %}active{% endif %}" href="{% url 'ticket_routing:triage' %}">Triage</a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'alerts' %}active{% endif %}" href="{% url 'ticket_routing:alerts' %}">Alert policy</a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'maintenance' %}active{% endif %}" href="{% url 'ticket_routing:alert_maintenance' %}">Maintenance</a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'workflows' %}active{% endif %}" href="{% url 'support_workflows:admin' %}">Support workflows</a></li>
 </ul>

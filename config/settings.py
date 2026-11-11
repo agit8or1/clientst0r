@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     'scheduling.apps.SchedulingConfig',
     'psa.apps.PsaConfig',
     'psa.routing.apps.TicketRoutingConfig',
+    'psa.support_workflows.apps.SupportWorkflowsConfig',
     'psa_ai.apps.PsaAiConfig',
     'tech_access.apps.TechAccessConfig',
     'rmm_permissions.apps.RmmPermissionsConfig',

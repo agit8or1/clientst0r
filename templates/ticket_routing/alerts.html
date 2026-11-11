@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Alert policy — Ticket Routing{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="alerts" crumb="Alert policy" %}
+<h4 class="mb-1">Alert policy</h4>
+<p class="small text-muted">Decides what a monitoring alert does: open a ticket, join one, wait, or only be recorded. Legacy (the default) keeps today's behaviour: one ticket per Rem0te alert, none for synced RMM alerts. The policy never starts a remote session and never asks for an endpoint action. Not AI.</p>
+<form method="post" class="card mb-3">{% csrf_token %}
+<div class="card-body row g-2 small">
+    <div class="col-md-4"><label class="form-label">Mode</label><select name="mode" class="form-select form-select-sm">{% for k, v in mode_choices %}<option value="{{ k }}" {% if settings.mode == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label">When no rule matches</label><select name="default_action" class="form-select form-select-sm">{% for k, v in action_choices %}<option value="{{ k }}" {% if settings.default_action == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label">Default queue</label><select name="default_queue" class="form-select form-select-sm"><option value="">Monitoring (or the first queue)</option>{% for q in queues %}<option value="{{ q.pk }}" {% if settings.default_queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label">Hold "offline" alerts (min)</label><input type="number" min="0" max="120" name="offline_hold_minutes" value="{{ settings.offline_hold_minutes }}" class="form-control form-control-sm"></div>
+    <div class="col-md-3"><label class="form-label">Site outage: computers</label><input type="number" min="0" max="1000" name="site_outage_threshold" value="{{ settings.site_outage_threshold }}" class="form-control form-control-sm"><div class="form-text">0 = off</div></div>
+    <div class="col-md-3"><label class="form-label">…within (min)</label><input type="number" min="1" max="240" name="site_outage_window_minutes" value="{{ settings.site_outage_window_minutes }}" class="form-control form-control-sm"></div>
+    <div class="col-md-3 d-flex flex-column justify-content-end">
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="include_rmm_sync" id="rmmsync" {% if settings.include_rmm_sync %}checked{% endif %}><label class="form-check-label" for="rmmsync">Also synced RMM alerts</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="post_recovery_notes" id="recnotes" {% if settings.post_recovery_notes %}checked{% endif %}><label class="form-check-label" for="recnotes">Staff note on recovery</label></div>
+    </div>
+    <div class="col-12"><button class="btn btn-sm btn-primary">Save</button></div>
+</div></form>
+
+<div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Rules</h5><a class="btn btn-sm btn-outline-primary" href="{% url 'ticket_routing:alert_rule_new' %}">New rule</a></div>
+<p class="small text-muted">Customer rules first, then rules for every customer, each by priority. Repeats of the same issue on the same computer always join the open ticket.</p>
+<table class="table table-sm small">
+<thead><tr><th>#</th><th>Rule</th><th>Customer</th><th>Matches</th><th>Does</th><th>Recovery</th></tr></thead><tbody>
+{% for r in rules %}<tr {% if not r.is_active %}class="text-muted"{% endif %}>
+    <td>{{ r.priority }}</td><td><a href="{% url 'ticket_routing:alert_rule_edit' r.pk %}">{{ r.name }}</a>{% if not r.is_active %} (off){% endif %}</td>
+    <td>{{ r.organization.name|default:"Every customer" }}</td>
+    <td>{% for k, v in r.conditions.items %}{% if v %}<div><span class="text-muted">{{ k }}</span> {{ v|join:", " }}</div>{% endif %}{% empty %}anything{% endfor %}</td>
+    <td>{{ r.get_action_display }}{% if r.queue %} · {{ r.queue.name }}{% endif %}{% if r.ticket_priority %} · {{ r.ticket_priority.code }}{% endif %} · {{ r.get_assign_mode_display }}{% if r.assign_user %} ({{ r.assign_user.username }}){% endif %}{% if r.escalate_after_minutes %} · escalate after {{ r.escalate_after_minutes }} min{% endif %}</td>
+    <td>{{ r.get_on_recovery_display }}</td>
+</tr>{% empty %}<tr><td colspan="6" class="text-muted">No rules: alerts use the default above.</td></tr>{% endfor %}
+</tbody></table>
+
+<h5>Recent alerts</h5>
+<table class="table table-sm small">
+<thead><tr><th>When</th><th>Customer</th><th>Alert</th><th>Category</th><th>Outcome</th><th>Ticket</th></tr></thead><tbody>
+{% for l in recent %}<tr>
+    <td class="text-nowrap">{{ l.created_at|date:"Y-m-d H:i" }}</td><td>{{ l.organization.name|default:"—" }}</td>
+    <td>{{ l.title|truncatechars:80 }}<div class="text-muted">{{ l.connection.name }} · {{ l.state }}</div></td>
+    <td>{{ l.get_category_display }}</td>
+    <td>{{ l.get_disposition_display }}<div class="text-muted">{{ l.reason|truncatechars:140 }}</div></td>
+    <td>{% if l.ticket %}<a href="{% url 'psa:ticket_detail' l.ticket.ticket_number %}">{{ l.ticket.ticket_number }}</a>{% else %}—{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="6" class="text-muted">No alerts handled by the policy yet.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

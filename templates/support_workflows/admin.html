@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Support workflows — Ticket Routing{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="workflows" crumb="Support workflows" %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0">Support workflows</h4>
+    <a class="btn btn-sm btn-primary" href="{% url 'support_workflows:admin_new' %}">New workflow</a>
+</div>
+<p class="small text-muted">Workflows are data: evidence to gather, rule-based likely causes, manual steps, and the Rem0te catalog actions they may offer. An action is offered only when the paired Rem0te advertises it, and it runs only after Rem0te's approvers approve it. Editing a built-in stores your copy; Reset brings back the built-in. Runs keep the version they started with.</p>
+<table class="table table-sm small">
+<thead><tr><th>Workflow</th><th>Alert categories</th><th>Actions it may offer</th><th></th></tr></thead>
+<tbody>
+{% for d in definitions %}
+<tr {% if not d.is_active %}class="text-muted"{% endif %}>
+    <td><strong>{{ d.name }}</strong>{% if d.builtin and not d.customised %} <span class="badge bg-secondary">built-in</span>{% elif d.builtin %} <span class="badge bg-info text-dark">customised</span>{% endif %}{% if not d.is_active %} <span class="badge bg-light text-dark">off</span>{% endif %}<div>{{ d.description }}</div></td>
+    <td>{{ d.categories|join:", " }}</td>
+    <td>{% for r in d.remediations %}<code>{{ r.action }}</code> {% empty %}manual steps only{% endfor %}</td>
+    <td class="text-nowrap">
+        <a href="{% url 'support_workflows:admin_edit' d.slug %}">Edit</a>
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="slug" value="{{ d.slug }}"><input type="hidden" name="op" value="toggle"><button class="btn btn-link btn-sm p-0 ms-2">{% if d.is_active %}Turn off{% else %}Turn on{% endif %}</button></form>
+        {% if d.customised %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="slug" value="{{ d.slug }}"><input type="hidden" name="op" value="reset"><button class="btn btn-link btn-sm p-0 ms-2 text-danger">{% if d.builtin %}Reset{% else %}Delete{% endif %}</button></form>{% endif %}
+    </td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

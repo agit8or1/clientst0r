@@ -74,6 +74,26 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(
                     f'{ticket.ticket_number}: routing: {exc}'))
 
+        # Optional alert policy: release held alerts that are due, apply the
+        # policy when maintenance windows end, escalate unanswered alerts;
+        # then track support-workflow approvals and outcomes. Both no-ops
+        # while switched off.
+        if not dry:
+            try:
+                from psa.routing.alert_policy import tick as alert_tick
+                stats = alert_tick()
+                if any(stats.values()):
+                    self.stdout.write(f'Alert policy: {stats}')
+            except Exception as exc:  # pragma: no cover
+                self.stdout.write(self.style.ERROR(f'alert policy: {exc}'))
+            try:
+                from psa.support_workflows.engine import tick as workflow_tick
+                n = workflow_tick()
+                if n:
+                    self.stdout.write(f'Support workflows updated: {n}')
+            except Exception as exc:  # pragma: no cover
+                self.stdout.write(self.style.ERROR(f'support workflows: {exc}'))
+
         self.stdout.write(self.style.SUCCESS(
             f'{"[dry] " if dry else ""}Evaluated {evaluated} ticket(s); '
             f'{fired_total} rule(s) fired; {flagged} breach flag(s) updated.'

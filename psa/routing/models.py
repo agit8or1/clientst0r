@@ -315,3 +315,311 @@ class OnCallShift(models.Model):
         from django.core.exceptions import ValidationError
         if self.ends_at and self.starts_at and self.ends_at <= self.starts_at:
             raise ValidationError({'ends_at': 'The shift must end after it starts.'})
+
+
+# ===========================================================================
+# Alert → ticket policy (Phase 6). Optional, off by default ("legacy": Rem0te
+# alerts open one ticket each exactly as before; synced RMM alerts open
+# none). Decides whether a monitoring alert opens a ticket, joins an
+# existing one, is held, suppressed or ignored. Never starts a remote session
+# and never asks for an endpoint action. Works with AI switched off.
+# alert_policy.py has the rules.
+# ===========================================================================
+
+ALERT_MODE_LEGACY = 'legacy'
+ALERT_MODE_POLICY = 'policy'
+ALERT_MODE_CHOICES = [
+    (ALERT_MODE_LEGACY, 'Legacy (one ticket per Rem0te alert, no policy)'),
+    (ALERT_MODE_POLICY, 'Alert policy'),
+]
+
+ALERT_CREATE = 'create'
+ALERT_ATTACH = 'attach'
+ALERT_IGNORE = 'ignore'
+ALERT_ACTION_CHOICES = [
+    (ALERT_CREATE, 'Open a ticket (repeats join it)'),
+    (ALERT_ATTACH, "Join the device's open ticket, else open one"),
+    (ALERT_IGNORE, 'Record only, no ticket'),
+]
+
+ALERT_CATEGORY_CHOICES = [
+    ('offline', 'Computer offline'),
+    ('disk', 'Disk nearly full'),
+    ('service', 'Service stopped'),
+    ('windows_update', 'Windows Update failure'),
+    ('cpu', 'High CPU'),
+    ('memory', 'High memory'),
+    ('reboot_pending', 'Pending reboot'),
+    ('application', 'Application failure'),
+    ('network', 'Network connectivity'),
+    ('unresponsive_app', 'Unresponsive application'),
+    ('security', 'Endpoint security alert'),
+    ('backup', 'Backup failure'),
+    ('site_outage', 'Site outage'),
+    ('other', 'Other'),
+]
+ALERT_SEVERITY_CHOICES = [('info', 'Info'), ('warning', 'Warning'), ('error', 'Error'),
+                          ('critical', 'Critical')]
+
+ASSIGN_ROUTING = 'routing'
+ASSIGN_TECHNICIAN = 'technician'
+ASSIGN_ON_CALL = 'on_call'
+ASSIGN_CHOICES = [
+    (ASSIGN_ROUTING, 'Leave to ticket routing (or the queue)'),
+    (ASSIGN_TECHNICIAN, 'Named technician'),
+    (ASSIGN_ON_CALL, 'Whoever is on call now'),
+]
+AFTER_HOURS_CREATE = 'create'
+AFTER_HOURS_HOLD = 'hold'
+AFTER_HOURS_ON_CALL = 'on_call'
+AFTER_HOURS_CHOICES = [
+    (AFTER_HOURS_CREATE, 'Same as business hours'),
+    (AFTER_HOURS_HOLD, 'Hold until business hours (critical alerts are never held)'),
+    (AFTER_HOURS_ON_CALL, 'Open it for whoever is on call'),
+]
+RECOVERY_NOTE = 'note'
+RECOVERY_CLOSE_IF_SOLE = 'close_if_sole'
+RECOVERY_CHOICES = [
+    (RECOVERY_NOTE, 'Add a staff note; people close the ticket'),
+    (RECOVERY_CLOSE_IF_SOLE, 'Resolve the ticket only if this alert alone opened it and nobody has worked on it'),
+]
+
+
+class AlertPolicySettings(models.Model):
+    """MSP-wide alert policy settings. One row (pk=1); reading never creates it."""
+    mode = models.CharField(max_length=10, choices=ALERT_MODE_CHOICES, default=ALERT_MODE_LEGACY)
+    include_rmm_sync = models.BooleanField(
+        default=False, help_text='Also apply the policy to alerts synced from other RMM providers.')
+    default_action = models.CharField(max_length=10, choices=ALERT_ACTION_CHOICES, default=ALERT_CREATE,
+                                      help_text='When no alert rule matches.')
+    default_queue = models.ForeignKey('psa.Queue', on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='+')
+    offline_hold_minutes = models.PositiveSmallIntegerField(
+        default=5, help_text='Hold "computer offline" alerts this long before opening a ticket, so a site '
+                             'outage becomes one incident and a quick reboot opens nothing. 0 = no hold.')
+    site_outage_threshold = models.PositiveSmallIntegerField(
+        default=5, help_text='Computers offline at one site within the window that make a site outage '
+                             '(one parent ticket). 0 = off.')
+    site_outage_window_minutes = models.PositiveSmallIntegerField(default=15)
+    post_recovery_notes = models.BooleanField(
+        default=True, help_text='Add a staff-only note to the ticket when its alert recovers.')
+    updated_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ticket_alert_policy_settings'
+        verbose_name = 'Alert policy settings'
+        verbose_name_plural = 'Alert policy settings'
+
+    def __str__(self):
+        return f'Alert policy ({self.get_mode_display()})'
+
+    @classmethod
+    def load(cls):
+        return cls.objects.filter(pk=1).first() or cls(pk=1)
+
+
+class AlertPolicyRule(models.Model):
+    """One alert rule. Customer rules are evaluated before all-customer rules,
+    each by priority. The rule as it stood is snapshotted onto every alert it
+    decided, so editing it later does not rewrite history.
+
+    conditions: {sources: ['rem0te','rmm'], categories: [...], severities: [...],
+                 sites: [site names], device_types: [...]}  (empty = any)
+    """
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='alert_policy_rules',
+                                     help_text='Blank = every customer.')
+    name = models.CharField(max_length=200)
+    priority = models.PositiveIntegerField(default=100, help_text='Lower is evaluated first.')
+    is_active = models.BooleanField(default=True)
+    conditions = models.JSONField(default=dict, blank=True)
+    action = models.CharField(max_length=10, choices=ALERT_ACTION_CHOICES, default=ALERT_CREATE)
+    queue = models.ForeignKey('psa.Queue', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    ticket_priority = models.ForeignKey('psa.TicketPriority', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='+', help_text='Blank = from the alert severity.')
+    ticket_type = models.ForeignKey('psa.TicketType', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+')
+    assign_mode = models.CharField(max_length=12, choices=ASSIGN_CHOICES, default=ASSIGN_ROUTING)
+    assign_user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                    blank=True, related_name='+')
+    after_hours = models.CharField(max_length=10, choices=AFTER_HOURS_CHOICES, default=AFTER_HOURS_CREATE)
+    escalate_after_minutes = models.PositiveIntegerField(
+        null=True, blank=True, help_text='Escalate when nobody has responded and the alert is still open.')
+    escalation_priority = models.ForeignKey('psa.TicketPriority', on_delete=models.SET_NULL, null=True,
+                                            blank=True, related_name='+')
+    escalation_queue = models.ForeignKey('psa.Queue', on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name='+')
+    on_recovery = models.CharField(max_length=15, choices=RECOVERY_CHOICES, default=RECOVERY_NOTE)
+    created_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ticket_alert_policy_rules'
+        ordering = ['organization__name', 'priority', 'pk']
+        indexes = [models.Index(fields=['is_active', 'organization', 'priority'])]
+
+    def __str__(self):
+        return self.name
+
+    def snapshot(self):
+        return {'id': self.pk, 'name': self.name, 'organization_id': self.organization_id,
+                'priority': self.priority, 'conditions': self.conditions, 'action': self.action,
+                'queue_id': self.queue_id, 'ticket_priority_id': self.ticket_priority_id,
+                'ticket_type_id': self.ticket_type_id, 'assign_mode': self.assign_mode,
+                'assign_user_id': self.assign_user_id, 'after_hours': self.after_hours,
+                'escalate_after_minutes': self.escalate_after_minutes,
+                'escalation_priority_id': self.escalation_priority_id,
+                'escalation_queue_id': self.escalation_queue_id, 'on_recovery': self.on_recovery,
+                'updated_at': self.updated_at.isoformat() if self.updated_at else None}
+
+
+MAINT_TICKET_IF_OPEN = 'ticket_if_open'
+MAINT_DROP = 'drop'
+MAINT_AFTER_CHOICES = [
+    (MAINT_TICKET_IF_OPEN, 'Apply the policy when the window ends if the alert is still open'),
+    (MAINT_DROP, 'Never open a ticket for it'),
+]
+
+
+class AlertMaintenanceWindow(models.Model):
+    """Planned work: alerts that match are suppressed while the window is open."""
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                     related_name='alert_maintenance_windows')
+    site_name = models.CharField(max_length=255, blank=True, help_text='Blank = every site.')
+    device = models.ForeignKey('integrations.RMMDevice', on_delete=models.CASCADE, null=True, blank=True,
+                               related_name='+', help_text='Blank = every device.')
+    categories = models.JSONField(default=list, blank=True, help_text='Empty = every alert category.')
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    reason = models.CharField(max_length=300, blank=True)
+    after_window = models.CharField(max_length=15, choices=MAINT_AFTER_CHOICES, default=MAINT_TICKET_IF_OPEN)
+    is_cancelled = models.BooleanField(default=False)
+    created_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ticket_alert_maintenance_windows'
+        ordering = ['-starts_at']
+        indexes = [models.Index(fields=['organization', 'starts_at', 'ends_at'])]
+
+    def __str__(self):
+        return f'{self.organization} maintenance {self.starts_at:%Y-%m-%d %H:%M} – {self.ends_at:%Y-%m-%d %H:%M}'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.ends_at and self.starts_at and self.ends_at <= self.starts_at:
+            raise ValidationError({'ends_at': 'The window must end after it starts.'})
+
+
+class AlertIncident(models.Model):
+    """A site outage: several computers at one site offline together. One
+    parent ticket; the member alerts are recorded against it instead of each
+    opening a ticket."""
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    site_key = models.CharField(max_length=300)
+    site_name = models.CharField(max_length=255, blank=True)
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='alert_incidents')
+    source_alert_key = models.CharField(max_length=300, blank=True,
+                                        help_text="The RMM's own site-outage alert, when it sent one.")
+    status = models.CharField(max_length=10, default='open',
+                              choices=[('open', 'Open'), ('resolved', 'Resolved')])
+    member_count = models.PositiveIntegerField(default=0)
+    opened_at = models.DateTimeField(default=timezone.now)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'ticket_alert_incidents'
+        ordering = ['-opened_at']
+        indexes = [models.Index(fields=['organization', 'site_key', 'status'])]
+
+    def __str__(self):
+        return f'Site outage {self.site_name or self.site_key} ({self.status})'
+
+
+DISP_CREATED = 'created'
+DISP_ATTACHED = 'attached'
+DISP_OUTAGE = 'outage_member'
+DISP_HELD = 'held'
+DISP_SUPPRESSED = 'suppressed'
+DISP_IGNORED = 'ignored'
+DISP_UNMATCHED = 'unmatched'
+DISPOSITION_CHOICES = [
+    (DISP_CREATED, 'Opened a ticket'),
+    (DISP_ATTACHED, 'Joined an existing ticket'),
+    (DISP_OUTAGE, 'Part of a site outage'),
+    (DISP_HELD, 'Held'),
+    (DISP_SUPPRESSED, 'Suppressed by maintenance'),
+    (DISP_IGNORED, 'Ignored by policy'),
+    (DISP_UNMATCHED, 'Customer or device not matched'),
+]
+
+
+class AlertTicketLink(models.Model):
+    """What the alert policy did with one alert. `(connection, external_id)` is
+    unique: a pushed, polled, retried or re-synced alert finds its row and
+    nothing happens twice."""
+    SOURCE_REM0TE = 'rem0te'
+    SOURCE_RMM = 'rmm'
+    source = models.CharField(max_length=10, choices=[(SOURCE_REM0TE, 'Rem0te'), (SOURCE_RMM, 'RMM sync')])
+    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.CASCADE, related_name='+')
+    external_id = models.CharField(max_length=255)
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='+')
+    device = models.ForeignKey('integrations.RMMDevice', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='+')
+    endpoint_id = models.CharField(max_length=255, blank=True)
+    device_name = models.CharField(max_length=255, blank=True)
+    site_key = models.CharField(max_length=300, blank=True)
+    site_name = models.CharField(max_length=255, blank=True)
+    category = models.CharField(max_length=20, choices=ALERT_CATEGORY_CHOICES, default='other')
+    severity = models.CharField(max_length=10, choices=ALERT_SEVERITY_CHOICES, default='warning')
+    state = models.CharField(max_length=15, default='open')
+    title = models.CharField(max_length=300, blank=True)
+    issue_key = models.CharField(max_length=300, blank=True)
+    disposition = models.CharField(max_length=15, choices=DISPOSITION_CHOICES)
+    hold_reason = models.CharField(max_length=20, blank=True)
+    hold_until = models.DateTimeField(null=True, blank=True)
+    maintenance = models.ForeignKey(AlertMaintenanceWindow, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+')
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='alert_links')
+    incident = models.ForeignKey(AlertIncident, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='members')
+    rule = models.ForeignKey(AlertPolicyRule, on_delete=models.SET_NULL, null=True, blank=True,
+                             related_name='+')
+    rule_snapshot = models.JSONField(default=dict, blank=True)
+    reason = models.TextField(blank=True)
+    evidence = models.JSONField(default=dict, blank=True,
+                                help_text='Sanitised alert facts as received (staff only).')
+    first_seen_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    occurrences = models.PositiveIntegerField(default=1)
+    last_sequence = models.PositiveIntegerField(default=0)
+    recovered_at = models.DateTimeField(null=True, blank=True)
+    recovery_handled = models.BooleanField(default=False)
+    escalated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ticket_alert_links'
+        ordering = ['-created_at', '-pk']
+        constraints = [models.UniqueConstraint(fields=['connection', 'external_id'],
+                                               name='uniq_ticket_alert_link')]
+        indexes = [models.Index(fields=['organization', 'issue_key', 'state']),
+                   models.Index(fields=['organization', 'site_key', 'category', 'state']),
+                   models.Index(fields=['disposition', 'hold_until']),
+                   models.Index(fields=['ticket', 'state'])]
+
+    def __str__(self):
+        return f'{self.get_source_display()} alert {self.external_id} ({self.get_disposition_display()})'
+
+    @property
+    def is_open(self):
+        return self.state != 'resolved'

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Support workflows — {{ ticket.ticket_number }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+    <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
+    <li class="breadcrumb-item active">Support workflows</li>
+</ol></nav>
+<h4 class="mb-1">Support workflows</h4>
+<p class="small text-muted mb-3">Staff only. A workflow gathers read-only evidence, explains likely causes and offers only actions the paired RMM advertises. Any action is approved in the RMM, not here. Not AI.</p>
+
+{% if links %}
+<div class="card mb-3"><div class="card-header"><strong>Alerts on this ticket</strong></div>
+<table class="table table-sm small mb-0"><thead><tr><th>Alert</th><th>Category</th><th>Severity</th><th>State</th><th>Policy</th><th>Seen</th></tr></thead><tbody>
+{% for l in links %}<tr>
+    <td>{{ l.title }}<div class="text-muted">{{ l.device_name|default:"—" }}{% if l.site_name %} · {{ l.site_name }}{% endif %}</div></td>
+    <td>{{ l.get_category_display }}</td><td>{{ l.get_severity_display }}</td>
+    <td>{% if l.state == 'resolved' %}<span class="badge bg-success">recovered</span>{% else %}<span class="badge bg-warning text-dark">{{ l.state }}</span>{% endif %}</td>
+    <td>{{ l.get_disposition_display }}<div class="text-muted">{{ l.reason|truncatechars:160 }}</div></td>
+    <td>{{ l.last_seen_at|date:"Y-m-d H:i" }}</td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header"><strong>Start a workflow</strong></div>
+<ul class="list-group list-group-flush small">
+{% for d, link, available, why in options %}
+<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><strong>{{ d.name }}</strong>{% if link %} <span class="badge bg-info text-dark">matches alert</span>{% endif %}
+        <div class="text-muted">{{ d.description }}{% if not available %} — {{ why }}{% endif %}</div></div>
+    {% if can_run and available %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="workflow" value="{{ d.slug }}">
+        {% if link %}<input type="hidden" name="link" value="{{ link.pk }}">{% endif %}
+        <button class="btn btn-sm btn-primary">Start</button></form>
+    {% endif %}
+</li>
+{% endfor %}
+</ul></div>
+
+{% if runs %}
+<div class="card"><div class="card-header"><strong>Runs</strong></div>
+<ul class="list-group list-group-flush small">
+{% for r in runs %}<li class="list-group-item"><a href="{% url 'support_workflows:run' r.pk %}">{{ r.workflow_name }}</a> · {{ r.get_status_display }} · {{ r.actor.username }} · {{ r.created_at|date:"Y-m-d H:i" }}</li>{% endfor %}
+</ul></div>
+{% endif %}
+{% endblock %}

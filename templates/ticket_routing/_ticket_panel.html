@@ -1,4 +1,23 @@
-{% if show %}
+{% if show and alert_links %}
+<div class="card mt-3" id="alert-policy">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="fas fa-bell me-1"></i>Monitoring alerts</strong>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'support_workflows:ticket' ticket.ticket_number %}">Support workflows</a>
+    </div>
+    <ul class="list-group list-group-flush small">
+        {% for l in alert_links %}
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between flex-wrap gap-1">
+                <span>{{ l.title|truncatechars:90 }}</span>
+                <span>{% if l.state == 'resolved' %}<span class="badge bg-success">recovered</span>{% else %}<span class="badge bg-warning text-dark">{{ l.state }}</span>{% endif %} {{ l.get_severity_display }}</span>
+            </div>
+            <div class="text-muted">{{ l.get_disposition_display }} · {{ l.get_category_display }} · last seen {{ l.last_seen_at|date:"Y-m-d H:i" }}</div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if show and decisions %}
 <div class="card mt-3" id="routing-history">
     <div class="card-header d-flex justify-content-between align-items-center">
         <strong><i class="fas fa-route me-1"></i>Routing</strong>

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Edit support workflow — Ticket Routing{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="workflows" crumb="Edit support workflow" %}
+<h4 class="mb-2">{% if slug %}Edit {{ slug }}{% if is_builtin %} <small class="text-muted">(saving stores your copy of the built-in)</small>{% endif %}{% else %}New support workflow{% endif %}</h4>
+{% if errors %}<div class="alert alert-danger small"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+<div class="row g-3">
+<div class="col-lg-8">
+<form method="post">{% csrf_token %}
+    {% if not slug %}<div class="mb-2"><label class="form-label small">Slug</label><input name="slug" class="form-control form-control-sm" maxlength="64" required></div>{% endif %}
+    <textarea name="definition" rows="32" class="form-control form-control-sm font-monospace">{{ text }}</textarea>
+    <button class="btn btn-sm btn-primary mt-2">Save</button>
+    <a class="btn btn-sm btn-link mt-2" href="{% url 'support_workflows:admin' %}">Back</a>
+</form>
+</div>
+<div class="col-lg-4 small">
+    <h6>Evidence</h6><ul>{% for k, v in evidence_keys.items %}<li><code>{{ k }}</code> — {{ v }}</li>{% endfor %}</ul>
+    <h6>Categories</h6><p>{% for c in categories %}<code>{{ c }}</code> {% endfor %}</p>
+    <h6>Conditions</h6><p><code>{"fact": f, "op": op, "value": v}</code>, <code>{"all": [...]}</code>, <code>{"any": [...]}</code>, or <code>{}</code> (always).</p>
+    <p>Facts: {% for f in facts %}<code>{{ f }}</code> {% endfor %}</p>
+    <p>Ops: {% for o in ops %}<code>{{ o }}</code> {% endfor %}</p>
+    <h6>Actions</h6>
+    <p>Only Rem0te catalog actions ClientSt0r knows; offered only when the paired Rem0te advertises them:</p>
+    <ul>{% for k, a in known_actions.items %}<li><code>{{ k }}</code> — {{ a.label }} ({{ a.risk }} risk)</li>{% endfor %}</ul>
+    <p class="text-muted">There is no field for a command, script, path or URL.</p>
+</div>
+</div>
+{% endblock %}
