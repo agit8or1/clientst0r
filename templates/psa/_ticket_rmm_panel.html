@@ -7,6 +7,35 @@ Everything from the RMM (device names, status notes, diagnostic output) is
 autoescaped text; diagnostic output is shown in <pre>, never as HTML.
 {% endcomment %}
 <div id="ticket-rmm-panel" class="mt-3 border-top pt-2" data-ticket-rmm-panel>
+    {# Devices on this ticket: the primary asset (Set, below) and the affected devices added here. #}
+    <div class="fw-semibold mb-1"><i class="fas fa-laptop-medical me-1" aria-hidden="true"></i>Devices on this ticket</div>
+    <ul class="list-unstyled mb-1" data-ticket-devices>
+        {% for a in p.assets %}
+        <li class="d-flex flex-wrap align-items-center gap-1 mb-1" data-ticket-device="{{ a.asset.pk }}">
+            <a href="{% url 'assets:device_workspace' a.asset.pk %}?ticket={{ ticket.ticket_number|urlencode }}" data-workspace-link>{{ a.asset.name }}</a>
+            {% if a.primary %}<span class="badge bg-secondary">primary</span>{% endif %}
+            {% if not a.reachable %}<span class="text-muted">— no paired RMM reaches it{% for s in a.unpaired %}; {{ s.provider }}: {{ s.status.label }}{% endfor %}</span>{% endif %}
+            {% if not a.primary %}
+            <form method="post" action="{% url 'ticket_rmm:affected' ticket.ticket_number %}" class="d-inline ms-auto">
+                {% csrf_token %}<input type="hidden" name="op" value="remove"><input type="hidden" name="asset" value="{{ a.asset.pk }}">
+                <button class="btn btn-link btn-sm p-0 text-danger" data-ticket-device-remove title="Remove from this ticket">Remove</button>
+            </form>
+            {% endif %}
+        </li>
+        {% empty %}
+        <li class="text-muted">No devices yet.</li>
+        {% endfor %}
+    </ul>
+    {% if p.affected_choices %}
+    <form method="post" action="{% url 'ticket_rmm:affected' ticket.ticket_number %}" class="d-flex gap-1 mb-2" data-ticket-device-add>
+        {% csrf_token %}<input type="hidden" name="op" value="add">
+        <select name="asset" class="form-select form-select-sm" aria-label="Add an affected device">
+            {% for c in p.affected_choices %}<option value="{{ c.pk }}">{{ c.name }}{% if c.hostname and c.hostname != c.name %} ({{ c.hostname }}){% endif %}</option>{% endfor %}
+        </select>
+        <button class="btn btn-sm btn-outline-primary text-nowrap">Add device</button>
+    </form>
+    {% endif %}
+
     <div class="fw-semibold mb-1"><i class="fas fa-satellite-dish me-1" aria-hidden="true"></i>Paired RMM</div>
     {% if not p.targets %}
     <p class="text-muted mb-2">{{ p.no_target_reason }}</p>
@@ -14,7 +43,25 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
     {% for t in p.targets %}
     {% with a=t.actions dev=t.device %}
     <div class="mb-2 {% if not forloop.last %}border-bottom pb-2{% endif %}" data-rmm-target="{{ dev.pk }}">
-        <div class="mb-1"><strong>{{ dev.device_name }}</strong> <span class="text-muted">via {{ t.connection.name }}</span></div>
+        <div class="mb-1 d-flex flex-wrap align-items-center gap-1">
+            <strong>{{ dev.device_name }}</strong> <span class="text-muted">via {{ t.connection.name }}</span>
+            {% if t.status.state == 'online' %}<span class="badge bg-success" data-rmm-health="online">Online</span>
+            {% elif t.status.state == 'offline' %}<span class="badge bg-danger" data-rmm-health="offline">Offline</span>
+            {% elif t.status.state == 'stale' %}<span class="badge bg-warning text-dark" data-rmm-health="stale">Stale data</span>
+            {% else %}<span class="badge bg-secondary" data-rmm-health="unknown">Status unknown</span>{% endif %}
+            {% if t.patches.reboot is True %}<span class="badge bg-warning text-dark">Restart pending</span>{% endif %}
+            <a class="ms-auto small" href="{% url 'assets:device_workspace' t.asset.pk %}?device={{ dev.pk }}&amp;ticket={{ ticket.ticket_number|urlencode }}" data-workspace-link>Workspace</a>
+        </div>
+        {% if t.status.state != 'online' %}<div class="small text-muted mb-1">{{ t.status.detail }}</div>{% endif %}
+        <details class="mb-1 small" data-rmm-recent>
+            <summary>Recent alerts and changes{% if t.alerts or t.rem0te_alerts %} ({{ t.alerts|length }}{% if t.rem0te_alerts %}+{{ t.rem0te_alerts|length }}{% endif %}){% endif %}</summary>
+            {% if t.alerts_support.state != 'supported' %}<div class="text-muted">Alerts: {{ t.alerts_support.detail }}</div>{% endif %}
+            {% for al in t.alerts %}<div>{{ al.triggered_at|date:"m-d H:i" }} · {{ al.get_severity_display }} · {{ al.alert_type }} — {{ al.message|truncatechars:100 }} <span class="text-muted">({{ al.get_status_display }})</span></div>{% endfor %}
+            {% for ra in t.rem0te_alerts %}<div>Rem0te · {{ ra.kind }} — {{ ra.title|truncatechars:100 }} <span class="text-muted">({{ ra.state }})</span></div>{% endfor %}
+            {% if t.alerts_support.state == 'supported' and not t.alerts and not t.rem0te_alerts %}<div class="text-muted">No alerts in the last 7 days.</div>{% endif %}
+            {% if t.changes_support.state != 'supported' %}<div class="text-muted">Changes: {{ t.changes_support.detail }}</div>
+            {% else %}{% for c in t.changes %}<div>{{ c }}</div>{% empty %}<div class="text-muted">No software installed in the last 14 days.</div>{% endfor %}{% endif %}
+        </details>
         <div class="d-flex flex-wrap gap-1 mb-1">
             {% if a.handoff.ok %}
             <a class="btn btn-sm btn-outline-primary" data-rmm-action="handoff" href="{% url 'ticket_rmm:handoff' ticket.ticket_number %}?device={{ dev.pk }}">
@@ -30,6 +77,10 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
             </form>
             {% else %}
             <button type="button" class="btn btn-sm btn-outline-secondary" disabled data-rmm-action="remote_view" title="{{ a.remote_view.reason }}">View session</button>
+            {% if t.console.console_url %}
+            <a class="btn btn-sm btn-outline-primary" href="{{ t.console.console_url }}" target="_blank" rel="noopener noreferrer" data-rmm-action="console" title="Opens {{ t.console.provider }}, which applies its own sign-in and launch policy. ClientSt0r is not told whether a session started.">
+                <i class="fas fa-external-link-alt me-1" aria-hidden="true"></i>{{ t.console.console_label }}</a>
+            {% endif %}
             {% endif %}
             {% if a.remote_control.ok %}
             <form method="post" action="{% url 'ticket_rmm:launch' ticket.ticket_number %}" target="_blank" class="d-inline">
@@ -90,6 +141,13 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
         {% else %}
         <div class="small text-muted" data-rmm-action="fix" data-disabled="1">Fix referral: {{ a.fix_low.reason }}</div>
         {% endif %}
+        {% if not a.remote_view.ok %}<div class="small text-muted" data-rmm-reason="remote_view">Remote launch: {{ a.remote_view.reason }}</div>{% endif %}
+        {% if t.history %}
+        <details class="small mt-1" data-rmm-device-history>
+            <summary>This device's requests on this ticket ({{ t.history|length }})</summary>
+            {% for r in t.history %}<div>{{ r.created_at|date:"m-d H:i" }} · {{ r.get_kind_display }}{% if r.diagnostic_label %} ({{ r.diagnostic_label }}){% endif %}{% if r.fix_title %} ({{ r.fix_title|truncatechars:40 }}){% endif %} — {{ r.get_status_display }}</div>{% endfor %}
+        </details>
+        {% endif %}
     </div>
     {% endwith %}
     {% endfor %}
@@ -113,8 +171,38 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
                 <pre class="small bg-light border rounded p-2 mb-0" style="max-height: 20rem; overflow: auto; white-space: pre-wrap;">{{ r.result_text }}</pre>
             </details>
             {% endif %}
+            {% if r.status != 'created' and r.status != 'pending' %}
+            <form method="post" action="{% url 'ticket_rmm:note' ticket.ticket_number %}" class="d-inline">
+                {% csrf_token %}<input type="hidden" name="request" value="{{ r.pk }}">
+                <button class="btn btn-link btn-sm p-0" data-rmm-attach-note="{{ r.pk }}">Add result as internal note</button>
+            </form>
+            {% endif %}
         </li>
         {% endfor %}
     </ul>
     {% endif %}
+
+    {% if p.launches %}
+    <div class="fw-semibold mt-2">Remote launches</div>
+    <ul class="list-unstyled mb-0">
+        {% for l in p.launches %}
+        <li class="border-top py-1" data-rmm-launch data-session-confirmed="0">
+            {{ l.when|date:"Y-m-d H:i" }} · {{ l.user.username|default:"—" }} · {{ l.mode }} —
+            {% if l.ok %}<span class="badge bg-warning text-dark">Link issued — session not confirmed</span>{% else %}<span class="badge bg-danger">Refused</span> <span class="text-muted">{{ l.detail }}</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="small text-muted mb-0">The RMM authorizes and runs remote sessions. ClientSt0r records that it handed out a launch link; no RMM reports back whether a session started.</p>
+    {% endif %}
+
+    <div class="d-flex flex-wrap gap-2 align-items-end mt-2 border-top pt-2">
+        <form method="post" action="{% url 'psa:time_entry_manual' ticket.ticket_number %}" class="d-flex gap-1 align-items-center" data-rmm-time>
+            {% csrf_token %}
+            <input type="number" name="minutes" min="1" max="1440" class="form-control form-control-sm" style="width: 6rem;" placeholder="Minutes" aria-label="Minutes worked" required>
+            <input type="hidden" name="notes" value="RMM work">
+            <input type="hidden" name="is_billable" value="1">
+            <button class="btn btn-sm btn-outline-secondary text-nowrap">Log time</button>
+        </form>
+        <a class="btn btn-sm btn-outline-success" href="{% url 'ticket_rmm:verify' ticket.ticket_number %}" data-rmm-verify>Verify resolution, then close</a>
+    </div>
 </div>

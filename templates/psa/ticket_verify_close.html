@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% comment %}
+Verify resolution, then close (psa_ai/rmm_views.verify / verify_close).
+Technicians only. The checks are recomputed on POST; this page only shows them.
+{% endcomment %}
+{% block title %}Verify {{ ticket.ticket_number }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Verify resolution — {{ ticket.ticket_number }}</h1>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:ticket_detail' ticket.ticket_number %}#ticket-rmm-panel">Back to ticket</a>
+</div>
+<p class="text-muted small">{{ ticket.subject }} · checked {{ v.checked_at|date:"Y-m-d H:i" }} from the latest synced RMM data. ClientSt0r doesn't contact the RMM for this; refresh the RMM connection first if the data is old.</p>
+
+<div class="card mb-3" data-verify-result="{% if v.all_ok %}ok{% else %}not-ok{% endif %}">
+    <div class="card-body">
+        {% for row in v.rows %}
+        <h6 class="mb-1">{% if row.asset %}{{ row.asset.name }}{% else %}Linked alerts{% endif %}</h6>
+        <ul class="list-unstyled small mb-2">
+            {% for c in row.checks %}
+            <li data-verify-check="{{ c.state }}">
+                {% if c.state == 'ok' %}<span class="badge bg-success">OK</span>{% elif c.state == 'fail' %}<span class="badge bg-danger">Not OK</span>{% else %}<span class="badge bg-secondary">Unknown</span>{% endif %}
+                {{ c.text }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% empty %}
+        <p class="text-muted small mb-0">No devices on this ticket, so there is nothing to check automatically.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<form method="post" action="{% url 'ticket_rmm:verify_close' ticket.ticket_number %}" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <label class="form-label small" for="vc-status">Close as</label>
+                <select id="vc-status" name="status" class="form-select form-select-sm">
+                    {% for s in statuses %}<option value="{{ s.pk }}" {% if s.slug == 'closed' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small" for="vc-category">Closure category</label>
+                <select id="vc-category" name="closure_category" class="form-select form-select-sm">
+                    {% for k, label in categories %}<option value="{{ k }}" {% if k == ticket.closure_category or not ticket.closure_category and k == 'fixed' %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <label class="form-label small mt-2" for="vc-summary">Resolution summary</label>
+        <textarea id="vc-summary" name="resolution_summary" rows="3" class="form-control form-control-sm" placeholder="What fixed it">{{ ticket.resolution_summary }}</textarea>
+        {% if not v.all_ok %}
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="acknowledge" value="1" id="vc-ack">
+            <label class="form-check-label small" for="vc-ack">Close anyway — I verified the fix another way ({{ v.failed }} not OK, {{ v.unknown }} unknown). This is recorded on the ticket.</label>
+        </div>
+        {% endif %}
+        <p class="small text-muted mt-2 mb-2">The verification is added to the ticket as an internal note. Closing then works exactly like the Close button: the same closeout rules, resolution comment and satisfaction survey settings apply.</p>
+        <button class="btn btn-sm btn-primary" data-verify-close>Close ticket</button>
+    </div>
+</form>
+{% endblock %}
