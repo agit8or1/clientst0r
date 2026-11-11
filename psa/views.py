@@ -4574,6 +4574,14 @@ def invoice_list(request):
         qs = qs.filter(organization=org)
     elif not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         qs = qs.none()
+    # Same rule as the invoice page: only invoices whose billed customer (or
+    # booking customer) the user holds billing_view_invoices for, and for a
+    # customer user only their own customers.
+    from accounts.permission_utils import orgs_with_perm
+    allowed = orgs_with_perm(request.user, 'billing_view_invoices')
+    if allowed is not None:
+        qs = qs.filter(models.Q(client_org_id__in=allowed) | models.Q(organization_id__in=allowed))
+    qs = _invoices_for_customer(request, qs)
     status = request.GET.get('status')
     if status in {'draft', 'sent', 'partial', 'paid', 'overdue', 'void'}:
         qs = qs.filter(status=status)
@@ -5312,7 +5320,14 @@ def invoice_email(request, pk):
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs.select_related('client_org', 'organization'), pk=pk)
+    # Bounded to a customer user's own customers even when no customer is
+    # selected, and sending needs billing_send_invoices for the customer.
+    invoice = get_object_or_404(_invoices_for_customer(request, qs.select_related('client_org', 'organization')),
+                                pk=pk)
+    from accounts.permission_utils import has_perm_for_org
+    if not (has_perm_for_org(request.user, invoice.client_org_id, 'billing_send_invoices')
+            or has_perm_for_org(request.user, invoice.organization_id, 'billing_send_invoices')):
+        raise PermissionDenied("You don't have the 'billing_send_invoices' permission for this customer.")
     recipient = (request.POST.get('recipient') or '').strip()
     subject = (request.POST.get('subject') or '').strip()
     body = (request.POST.get('body') or '').strip()
