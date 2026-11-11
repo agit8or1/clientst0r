@@ -13,7 +13,10 @@
         <h2 class="mb-0"><i class="fas fa-bolt me-2"></i>Workflow Rules</h2>
         <small class="text-muted">When a ticket event fires, evaluate conditions and run actions automatically.</small>
     </div>
-    <a href="{% url 'psa:workflow_rule_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Rule</a>
+    <div>
+        <a href="{% url 'psa:workflow_rule_map' %}" class="btn btn-outline-secondary"><i class="fas fa-project-diagram"></i> Flow map</a>
+        <a href="{% url 'psa:workflow_rule_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Rule</a>
+    </div>
 </div>
 
 <div class="card">
@@ -41,6 +44,7 @@
                     <td>{{ r.fire_count|default:0 }}</td>
                     <td>{% if r.last_fired_at %}<span data-utc="{{ r.last_fired_at|date:'c' }}">{{ r.last_fired_at|date:'Y-m-d H:i' }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                     <td class="text-nowrap">
+                        <a href="{% url 'psa:workflow_rule_flow' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Show the flow"><i class="fas fa-project-diagram"></i></a>
                         <a href="{% url 'psa:workflow_rule_edit' r.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                         <form method="post" action="{% url 'psa:workflow_rule_delete' r.pk %}" class="d-inline">
                             {% csrf_token %}

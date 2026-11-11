@@ -319,7 +319,7 @@ Planned capabilities:
 **Roadmap item:** Visual Workflow & Operational Automation Engine. Extends the workflow rules engine (v3.17.111) + visual rule builder (v3.17.112).
 
 Planned capabilities:
-- Visual workflow builder *(partial — visual rule builder shipped v3.17.112)*
+- Visual workflow builder *(partial — visual rule builder shipped v3.17.112)* *(in progress — on the development branch, not yet released: the builder edits both branches of a rule (then / otherwise), chains rules with "Run another rule" steps and sets the once-per-ticket guard; a flow view per rule and a flow map of every rule draw trigger → condition → branches with chained rules inline; definitions are checked before saving (action types, required settings, missing chained rules, loops) and the engine refuses chain loops at run time; raw JSON editing stays available and the stored shape is unchanged)*
 - Conditional workflow routing (branching based on ticket fields) *(shipped v3.17.285 — `WorkflowRule.else_actions` JSONField runs when `conditions` evaluate false; engine picks branch and counts both as fires)*
 - SLA-driven automation *(shipped v3.17.286 — `sla_threshold_crossed` trigger + `sla_pct_at_least` condition + `WorkflowRule.fire_once_per_ticket` guard via `WorkflowRuleFiring` join table; `psa_sla_workflow_tick` cron evaluates open tickets every 5 min)*
 - Ticket orchestration (multi-step automated sequences) *(shipped v3.17.285 — new `fire_rule` action type chains by name within the same org / MSP-wide scope; sub-rule's else_actions also honored)*
