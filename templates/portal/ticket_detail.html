@@ -97,6 +97,25 @@
             </div>
         </div>
     </form>
+    <form method="post" action="{% url 'portal:secure_reply' ticket.ticket_number %}" class="card-body border-top" id="secure-reply-form">
+        {% csrf_token %}
+        <details>
+            <summary class="fw-semibold"><i class="fas fa-lock me-1"></i>Send something sensitive securely</summary>
+            <p class="text-muted small mt-2 mb-1">For a password or other secret. It is stored encrypted, never e-mailed, shown only to the support team, and erased after {{ secure_retention_days }} days.</p>
+            <textarea name="reply" rows="3" class="form-control mb-2" maxlength="{{ secure_max_length }}" required aria-label="Secure reply"></textarea>
+            <div class="text-end"><button type="submit" class="btn btn-outline-primary">Send securely</button></div>
+        </details>
+    </form>
+    {% endif %}
+    {% if secure_replies %}
+    <div class="card-body border-top small">
+        <div class="fw-semibold mb-1"><i class="fas fa-lock me-1"></i>Your secure replies</div>
+        <ul class="list-unstyled mb-0">
+        {% for r in secure_replies %}
+            <li>{{ r.created_at|date:'Y-m-d H:i' }} — {% if r.state == 'erased' or r.state == 'expired' %}erased after its retention period{% elif r.state == 'read' %}received and read by the support team{% else %}received, not read yet{% endif %}</li>
+        {% endfor %}
+        </ul>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

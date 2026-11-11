@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Secure reply{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                {% if error %}
+                <i class="fas fa-circle-exclamation fa-3x text-warning mb-3"></i>
+                <h4>Your secure reply was not sent</h4>
+                <p class="text-muted">{{ error }}</p>
+                {% else %}
+                <i class="fas fa-lock fa-3x text-success mb-3"></i>
+                <h4>Secure reply sent</h4>
+                <p class="text-muted">Your reply on {{ ticket_number }} is stored encrypted and only the support team can open it.
+                    It is not sent by e-mail.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

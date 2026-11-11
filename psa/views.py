@@ -441,6 +441,9 @@ def ticket_detail(request, ticket_number):
         'kit_inventory': InventoryItem.objects.for_organization(
             ticket.organization),
     }
+    if workspace['is_msp_staff']:
+        from .ticket_secure import thread_for_ticket
+        context['secure_thread'] = thread_for_ticket(ticket)
     if not workspace['is_msp_staff']:
         # A customer user reaching the staff ticket page gets the portal's
         # view of the ticket: the shared conversation and their own
@@ -458,7 +461,7 @@ STAFF_ONLY_TICKET_CONTEXT = {
     'total_minutes': 0, 'billable_minutes': 0, 'similar_tickets': [], 'contract': None,
     'expenses': [], 'total_expense_billable': 0, 'problems': [], 'problem_can_create': False,
     'kit_items': [], 'kit_packed_count': 0, 'kit_tools': [], 'kit_inventory': [],
-    'can_assign': False, 'eligible_assignees': [], 'hygiene': [],
+    'can_assign': False, 'eligible_assignees': [], 'hygiene': [], 'secure_thread': [],
 }
 
 
@@ -5202,6 +5205,85 @@ def invoice_approve(request, pk):
     return redirect('psa:invoice_detail', pk=item.pk)
 
 
+def _billing_review_contracts(request):
+    from .models import Contract
+    org = get_request_organization(request)
+    qs = Contract.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    elif not request.user.is_superuser:
+        qs = qs.none()
+    return qs
+
+
+@login_required
+@require_admin
+@require_psa_enabled
+def billing_review(request):
+    """Phase 36: per-cycle agreement billing review — included hours
+    consumed, overage and the draft invoice for every agreement, with
+    approve / hold feeding the pre-invoice approval gate."""
+    from dateutil.relativedelta import relativedelta
+    from . import billing_review as br
+    if not (request.user.is_superuser or is_msp_staff(request.user)):
+        raise Http404
+    start, end = br.parse_cycle(request.GET.get('period'))
+    rows = br.build_rows(br.contracts_for_cycle(_billing_review_contracts(request), start, end), start, end)
+    state = request.GET.get('state') or ''
+    shown = [r for r in rows if not state or r.state == state
+             or (state == 'overage' and r.overage_minutes)
+             or (state == 'none' and r.invoice is None)]
+    return render(request, 'psa/billing_review.html', {
+        'rows': shown, 'summary': br.summary(rows), 'cycle_start': start,
+        'cycle_end': end - relativedelta(days=1), 'period': f'{start:%Y-%m}',
+        'prev_period': f'{start - relativedelta(months=1):%Y-%m}',
+        'next_period': f'{end:%Y-%m}', 'state': state,
+    })
+
+
+@login_required
+@require_admin
+@require_psa_enabled
+@require_http_methods(['POST'])
+def billing_review_decide(request, pk):
+    """Approve or hold one agreement's draft invoice from the billing review."""
+    from . import billing_review as br
+    from .models import Invoice
+    if not (request.user.is_superuser or is_msp_staff(request.user)):
+        raise Http404
+    period = (request.POST.get('period') or '')[:7]
+    back = redirect(reverse('psa:billing_review') + (f'?period={period}' if period else ''))
+    contract_ids = _billing_review_contracts(request).values_list('pk', flat=True)
+    invoice = get_object_or_404(Invoice.objects.filter(source_contract_id__in=contract_ids,
+                                                       is_credit_memo=False), pk=pk)
+    decision = request.POST.get('decision') or ''
+    note = (request.POST.get('note') or '').strip()[:150]
+    if invoice.status != 'draft':
+        messages.error(request, f'{invoice.invoice_number} is already {invoice.get_status_display().lower()}; '
+                                'only draft invoices are reviewed here.')
+        return back
+    if decision == 'approve':
+        was = invoice.approval_reason if invoice.requires_approval else ''
+        br.approve(invoice, user=request.user)
+        description = (f'Approved invoice {invoice.invoice_number} at billing review'
+                       + (f' (was: {was})' if was else '') + (f' — {note}' if note else ''))
+        messages.success(request, f'Approved {invoice.invoice_number}.')
+    elif decision == 'hold':
+        reason = br.hold(invoice, user=request.user, note=note)
+        description = f'Held invoice {invoice.invoice_number}: {reason}'
+        messages.success(request, f'{invoice.invoice_number} is on hold; it cannot be sent until approved.')
+    else:
+        messages.error(request, 'Pick approve or hold.')
+        return back
+    AuditLog.log(
+        user=request.user, action='update', organization=invoice.organization,
+        object_type='psa.Invoice', object_id=invoice.pk, object_repr=invoice.invoice_number,
+        description=description, ip_address=_client_ip(request), path=request.path,
+        extra_data={'event': 'billing_review', 'decision': decision, 'period': period},
+    )
+    return back
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -8951,6 +9033,9 @@ def my_timesheet(request, year=None, week=None):
                 status='pending', submitter_notes=notes,
             )
         entries.update(submission=submission)
+        from .models import TimeEntryAuditEvent
+        TimeEntryAuditEvent.record_for_entries(
+            entries, action='submitted', actor=request.user, submission=submission, note=notes)
         messages.success(request,
             f'Submitted {len(entries)} entries for the week of {period_start}.')
         return redirect('psa:my_timesheet_iso',
@@ -8980,10 +9065,12 @@ def timesheet_approval_queue(request):
         messages.error(request, 'Only staff/superuser can review timesheets.')
         return redirect('core:dashboard')
     pending = (TimesheetSubmission.objects.filter(status='pending')
-               .select_related('user').order_by('-submitted_at'))
+               .select_related('user').order_by('-submitted_at')
+               .prefetch_related('entries__ticket', 'entries__audit_events__actor'))
     decided = (TimesheetSubmission.objects
                .exclude(status__in=['pending', 'draft'])
-               .select_related('user', 'decided_by').order_by('-decided_at')[:50])
+               .select_related('user', 'decided_by').prefetch_related('entry_events')
+               .order_by('-decided_at')[:50])
     return render(request, 'psa/timesheet_approval_queue.html', {
         'pending': pending,
         'decided': decided,
@@ -9051,6 +9138,74 @@ def timesheet_bulk_decide(request):
     else:
         messages.info(request, 'No pending submissions matched.')
     return redirect('psa:timesheet_approval_queue')
+
+
+def _can_see_time_entry_history(user, entry, request):
+    is_staff = getattr(request, 'is_staff_user', False)
+    return user.is_superuser or is_staff or entry.user_id == user.pk
+
+
+@login_required
+@require_psa_enabled
+def time_entry_history(request, pk):
+    """Phase 25: one time entry's approval trail — submitted, approved or
+    rejected (by whom, when, with what note) and any change after approval.
+    Staff, superusers and the entry's own technician."""
+    from .models import TicketTimeEntry, TimeEntryAuditEvent
+    entry = TicketTimeEntry.objects.select_related('ticket', 'user', 'submission').filter(pk=pk).first()
+    events = TimeEntryAuditEvent.objects.filter(entry_ref=pk).select_related('actor', 'submission')
+    if entry is None:
+        # Deleted: the trail remains, for staff only.
+        if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)) or not events.exists():
+            raise Http404
+    elif not _can_see_time_entry_history(request.user, entry, request):
+        raise Http404
+    locked = bool(entry and entry.submission_id and entry.submission.status == 'approved')
+    return render(request, 'psa/time_entry_history.html', {
+        'entry': entry, 'entry_ref': pk, 'events': events, 'locked': locked,
+        'can_correct': locked and request.user.is_superuser,
+    })
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def time_entry_correct(request, pk):
+    """Phase 25: a superuser changes an entry after its timesheet was
+    approved. A reason is required and the change is recorded field by
+    field on the entry's trail (and in the audit log)."""
+    from .models import TicketTimeEntry
+    if not request.user.is_superuser:
+        raise Http404
+    entry = get_object_or_404(TicketTimeEntry.objects.select_related('submission', 'ticket'), pk=pk)
+    back = redirect('psa:time_entry_history', pk=pk)
+    if not (entry.submission_id and entry.submission.status == 'approved'):
+        messages.info(request, 'This entry is not locked by an approved timesheet.')
+        return back
+    reason = (request.POST.get('reason') or '').strip()
+    if not reason:
+        messages.error(request, 'Give a reason for changing an approved entry.')
+        return back
+    try:
+        minutes = int(request.POST.get('duration_minutes') or entry.duration_minutes)
+        if minutes < 0:
+            raise ValueError
+    except ValueError:
+        messages.error(request, 'Minutes must be a whole number, zero or more.')
+        return back
+    entry.duration_minutes = minutes
+    entry.is_billable = (request.POST.get('is_billable') or '') in ('1', 'on', 'true')
+    entry.notes = (request.POST.get('notes') if 'notes' in request.POST else entry.notes) or ''
+    entry.save(_force_unlock=True, _audit_user=request.user, _audit_note=reason)
+    AuditLog.log(
+        user=request.user, action='update', organization=entry.ticket.organization,
+        object_type='psa.TicketTimeEntry', object_id=entry.pk,
+        object_repr=f'time entry {entry.pk} on {entry.ticket.ticket_number}',
+        description=f'Changed approved time entry {entry.pk}: {reason[:200]}',
+        ip_address=_client_ip(request), path=request.path,
+    )
+    messages.success(request, 'Entry changed; the change is on its approval trail.')
+    return back
 
 
 @login_required
@@ -10242,3 +10397,73 @@ def ticket_kb_draft(request, ticket_number):
     )
     messages.success(request, 'KB draft created. Edit it, then submit it for review — it is not published.')
     return redirect('docs:document_edit', slug=doc.slug)
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — two-way secure messages (requester replies)
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def secure_reply_reveal(request, ticket_number, pk):
+    """Show one secure reply to a technician. POST-only, audit-logged, not cached."""
+    from .models import TicketSecureReply
+    if not is_msp_staff(request.user) and not request.user.is_superuser:
+        raise Http404
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    reply = get_object_or_404(TicketSecureReply, pk=pk, ticket=ticket)
+    content = None
+    if reply.state in ('unread', 'read'):
+        content = reply.get_body()
+        now = timezone.now()
+        fields = ['view_count']
+        reply.view_count += 1
+        if not reply.first_viewed_at:
+            reply.first_viewed_at, reply.first_viewed_by = now, request.user
+            fields += ['first_viewed_at', 'first_viewed_by']
+        reply.save(update_fields=fields)
+        AuditLog.log(
+            user=request.user, action='read', organization=ticket.organization,
+            object_type='psa.TicketSecureReply', object_id=reply.pk,
+            object_repr=f'secure reply on {ticket.ticket_number}',
+            description=f'Revealed a secure reply on {ticket.ticket_number}',
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'event': 'ticket_secure_reply_reveal', 'view': reply.view_count},
+        )
+    response = render(request, 'psa/secure_reply_reveal.html',
+                      {'ticket': ticket, 'reply': reply, 'content': content})
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@require_http_methods(['POST'])
+def secure_reply_submit(request, token):
+    """The requester answers a secure message from its opened page.
+
+    No login: the reply token is signed, handed out only when the message is
+    opened, bound to that message's link and short-lived."""
+    from django_ratelimit.core import is_ratelimited
+    from .models import TicketSecureReply
+    from .ticket_secure import MAX_SECURE_LENGTH, comment_for_note, create_secure_reply, note_for_reply_token, replies_left
+    if is_ratelimited(request, group='psa.secure_reply', key='ip', rate='20/h', increment=True):
+        return render(request, 'psa/secure_reply_sent.html', {'error': 'Too many replies from here. Try again later.'},
+                      status=429)
+    note = note_for_reply_token(token)
+    comment = comment_for_note(note) if note else None
+    if comment is None:
+        return render(request, 'psa/secure_reply_sent.html',
+                      {'error': 'This reply link is no longer valid. Reply to the e-mail, or ask for a new secure message.'},
+                      status=410)
+    text = (request.POST.get('reply') or '').strip()
+    if not text or len(text) > MAX_SECURE_LENGTH:
+        return render(request, 'psa/secure_reply_sent.html',
+                      {'error': f'A secure reply must be between 1 and {MAX_SECURE_LENGTH} characters.'}, status=400)
+    if not replies_left(note):
+        return render(request, 'psa/secure_reply_sent.html',
+                      {'error': 'No more secure replies can be sent to this message.'}, status=410)
+    ticket = comment.ticket
+    create_secure_reply(ticket=ticket, text=text, via=TicketSecureReply.VIA_LINK,
+                        author=request.user, author_email=ticket.requester_email, in_reply_to=note,
+                        ip_address=_client_ip(request), path=request.path)
+    return render(request, 'psa/secure_reply_sent.html', {'ticket_number': ticket.ticket_number})

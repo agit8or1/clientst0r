@@ -1162,6 +1162,10 @@ class ScheduledTask(models.Model):
         # and expires stale ones (OPTIONAL AI; nothing to do when unused).
         ('poll_analysis_jobs', 'Ticket AI Analysis Job Recovery (optional AI)'),
         ('run_migration_rehearsals', 'IT Glue / Hudu Migration Rehearsal Worker'),
+        # Phase 9.4: weekly digest of unresolved security alerts to opted-in
+        # customer contacts; Phase 12: erase secure ticket replies past retention.
+        ('send_security_digests', 'Security Alert Weekly Digest (customer contacts)'),
+        ('psa_purge_secure_replies', 'Erase Expired Secure Ticket Replies'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1660,6 +1664,21 @@ class ScheduledTask(models.Model):
             'description': 'Run queued IT Glue / Hudu migration rehearsal work '
                            '(does nothing when nothing is queued)',
             'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Opt-in per contact; sends nothing without subscribers, open
+            # alerts and SMTP. Contacts mailed in the last six days are skipped.
+            'task_type': 'send_security_digests',
+            'description': 'E-mail opted-in customer contacts a weekly digest of their unresolved '
+                           'security alerts (nothing is sent without subscribers or open alerts)',
+            'interval_minutes': 10080,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_purge_secure_replies',
+            'description': 'Erase the text of secure ticket replies whose retention period has ended',
+            'interval_minutes': 60,
             'enabled': True,
         },
     ]

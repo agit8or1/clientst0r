@@ -781,6 +781,69 @@ class CannedReply(models.Model):
 # Phase 2c — time tracking + service catalog + hygiene
 # ---------------------------------------------------------------------------
 
+class TicketSecureReply(models.Model):
+    """Phase 12: the requester's half of a secure message thread.
+
+    Staff send sealed one-time messages with a reply (`TicketComment.secure_note`,
+    v3.17.654). The requester answers from that message's page (a signed,
+    short-lived reply token handed out only when the message is opened) or
+    from the customer portal. The text is sealed at rest, never put in an
+    e-mail or notification, shown to staff only behind a logged Reveal, and
+    erased when `expires_at` passes (`manage.py psa_purge_secure_replies`).
+    """
+    VIA_LINK = 'link'
+    VIA_PORTAL = 'portal'
+    VIA_CHOICES = [(VIA_LINK, 'Secure message link'), (VIA_PORTAL, 'Customer portal')]
+
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='secure_replies')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                     related_name='psa_secure_replies')
+    in_reply_to = models.ForeignKey('core.SecureNote', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='ticket_replies',
+                                    help_text='The secure message this answers, when sent from its link.')
+    body = SealedTextField(blank=True)
+    author = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name='+')
+    author_email = models.EmailField(blank=True)
+    via = models.CharField(max_length=10, choices=VIA_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text='The text is erased after this.')
+    first_viewed_at = models.DateTimeField(null=True, blank=True)
+    first_viewed_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                        null=True, blank=True, related_name='+')
+    view_count = models.PositiveIntegerField(default=0)
+    purged_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'psa_ticket_secure_replies'
+        ordering = ['created_at', 'pk']
+        indexes = [models.Index(fields=['ticket', 'created_at']),
+                   models.Index(fields=['expires_at'])]
+
+    def __str__(self):
+        return f'secure reply {self.pk} on {self.ticket_id}'
+
+    def set_body(self, text):
+        self.body = self._meta.get_field('body').seal(text) if text else ''
+
+    def get_body(self):
+        if not self.body:
+            return ''
+        return self._meta.get_field('body').unseal_text(self.body)
+
+    @property
+    def is_expired(self):
+        return self.expires_at is not None and timezone.now() >= self.expires_at
+
+    @property
+    def state(self):
+        if self.purged_at or not self.body:
+            return 'erased'
+        if self.is_expired:
+            return 'expired'
+        return 'read' if self.view_count else 'unread'
+
+
 class TicketTimeEntry(models.Model):
     """
     Time logged against a ticket. Supports running-timer entries
@@ -857,11 +920,14 @@ class TicketTimeEntry(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         prior_scope = None
+        # Phase 25 audit trail: who is saving, and why, when the entry is
+        # already approved. Both optional; popped so Model.save() never sees them.
+        audit_user = kwargs.pop('_audit_user', None)
+        audit_note = kwargs.pop('_audit_note', '')
+        force_unlock = kwargs.pop('_force_unlock', False)
+        approved_prior = None
         if not is_new:
-            prior = TicketTimeEntry.objects.filter(pk=self.pk).only(
-                'duration_minutes', 'ended_at', 'submission_id',
-                'ticket_id', 'started_at',
-            ).first()
+            prior = TicketTimeEntry.objects.filter(pk=self.pk).first()
             if prior:
                 # Where the entry counted before this save, so an edit that
                 # moves it (other ticket/client, other date) also corrects
@@ -870,22 +936,33 @@ class TicketTimeEntry(models.Model):
                 # Phase 25 v2 (v3.17.249): lock entries attached to an
                 # approved TimesheetSubmission. Caller can pass
                 # `_force_unlock=True` for admin overrides; otherwise the
-                # save is silently a no-op via early return.
-                if (prior.submission_id
-                        and not kwargs.pop('_force_unlock', False)):
-                    try:
-                        sub = TimesheetSubmission.objects.only('status').get(
-                            pk=prior.submission_id,
-                        )
-                        if sub.status == 'approved':
+                # save is a no-op via early return (now recorded).
+                if prior.submission_id:
+                    sub = TimesheetSubmission.objects.filter(
+                        pk=prior.submission_id).only('status').first()
+                    if sub is not None and sub.status == 'approved':
+                        changes = TimeEntryAuditEvent.diff(prior, self)
+                        if not force_unlock:
+                            if changes:
+                                TimeEntryAuditEvent.objects.create(
+                                    entry_id=self.pk, entry_ref=self.pk, submission=sub,
+                                    action='edit_refused', actor=audit_user,
+                                    note=(audit_note or '')[:5000], changes=changes)
                             return
-                    except Exception:
-                        pass
+                        approved_prior = (sub, changes)
 
         if self.ended_at and self.started_at and not self.duration_minutes:
             delta = self.ended_at - self.started_at
             self.duration_minutes = max(0, int(delta.total_seconds() // 60))
         super().save(*args, **kwargs)
+
+        if approved_prior is not None:
+            sub, changes = approved_prior
+            if changes:
+                TimeEntryAuditEvent.objects.create(
+                    entry_id=self.pk, entry_ref=self.pk, submission=sub,
+                    action='changed_after_approval', actor=audit_user,
+                    note=(audit_note or '')[:5000], changes=changes)
 
         # Contract hour accounting (v3.17.600). This used to add
         # `duration_minutes` to the active contract's `hours_used_minutes` on
@@ -2118,11 +2195,12 @@ class Contract(models.Model):
         period. If `recurring_amount` is set explicitly, use that;
         otherwise fall back to `total_hours * hourly_rate` for
         retainer/managed-services contracts."""
-        from decimal import Decimal as _D
+        from decimal import Decimal as _D, ROUND_HALF_UP
         if self.recurring_amount and self.recurring_amount > 0:
             return _D(str(self.recurring_amount))
         if self.total_hours and self.hourly_rate:
-            return (_D(str(self.total_hours)) * _D(str(self.hourly_rate))).quantize(_D('0.01'))
+            return (_D(str(self.total_hours)) * _D(str(self.hourly_rate))).quantize(
+                _D('0.01'), rounding=ROUND_HALF_UP)
         return _D('0')
 
     @staticmethod
@@ -2193,7 +2271,7 @@ class Contract(models.Model):
         for meters.
         """
         from datetime import date as _d
-        from decimal import Decimal as _D
+        from decimal import Decimal as _D, ROUND_HALF_UP
         if self.billing_frequency == 'none':
             return None
         on_date = on_date or _d.today()
@@ -2233,7 +2311,8 @@ class Contract(models.Model):
 
         # Phase 15 v4: prorate the base amount when applicable
         proration = self._proration_factor(on_date, self.billing_frequency)
-        prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(_D('0.01'))
+        prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(
+            _D('0.01'), rounding=ROUND_HALF_UP)
 
         inv = Invoice.objects.create(
             organization=self.organization,
@@ -3065,13 +3144,16 @@ class QuoteLineItem(models.Model):
 
     @property
     def line_total(self):
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
         try:
             q = Decimal(str(self.quantity or '0'))
             p = Decimal(str(self.unit_price or '0'))
         except (InvalidOperation, ValueError, TypeError):
             return Decimal('0.00')
-        return (q * p).quantize(Decimal('0.01'))
+        # Half-up, like the tax (v3.17.561) and like the accounting
+        # providers. Decimal's default is banker's rounding, which put a
+        # 0.25 h x 10.10 line at 2.52 here and 2.53 in QuickBooks / Xero.
+        return (q * p).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     def __str__(self):
         return f'{self.description} ({self.quantity} × {self.unit_price})'
@@ -3168,6 +3250,9 @@ class TimesheetSubmission(models.Model):
         self.decided_at = timezone.now()
         self.decision_notes = (notes or '')[:5000]
         self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
+        TimeEntryAuditEvent.record_for_entries(
+            self.entries.all(), action='approved', actor=user, submission=self,
+            note=self.decision_notes)
 
     def reject(self, *, user, notes=''):
         self.status = 'rejected'
@@ -3175,8 +3260,87 @@ class TimesheetSubmission(models.Model):
         self.decided_at = timezone.now()
         self.decision_notes = (notes or '')[:5000]
         self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
+        # Recorded per entry before they are detached, so each entry keeps
+        # who rejected it, when and why after it leaves the submission.
+        TimeEntryAuditEvent.record_for_entries(
+            self.entries.all(), action='rejected', actor=user, submission=self,
+            note=self.decision_notes)
         # Detach entries so the tech can re-submit after fixes.
         self.entries.update(submission=None)
+
+
+class TimeEntryAuditEvent(models.Model):
+    """Phase 25: the approval history of one time entry.
+
+    One row per entry per event — submitted, approved, rejected, and any
+    change or delete made after approval (which the lock in
+    `TicketTimeEntry.save()` otherwise only allows through `_force_unlock`).
+    An edit the lock refused is recorded too, so a change that silently did
+    not happen is visible. Rows outlive the entry: `entry_ref` keeps its id.
+    """
+    ACTION_CHOICES = [
+        ('submitted', 'Submitted for approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('changed_after_approval', 'Changed after approval'),
+        ('edit_refused', 'Edit refused (entry locked by approval)'),
+        ('deleted_after_approval', 'Deleted after approval'),
+    ]
+    # Fields whose change after approval is worth recording.
+    TRACKED_FIELDS = ('ticket_id', 'started_at', 'ended_at', 'duration_minutes',
+                      'is_billable', 'role_code', 'notes')
+
+    entry = models.ForeignKey(
+        'psa.TicketTimeEntry', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='audit_events')
+    entry_ref = models.PositiveIntegerField(
+        db_index=True, help_text='Time entry id, kept after the entry is deleted.')
+    submission = models.ForeignKey(
+        TimesheetSubmission, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='entry_events')
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    actor = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+')
+    note = models.TextField(blank=True)
+    changes = models.JSONField(
+        default=dict, blank=True,
+        help_text='{field: [before, after]} for changes after approval.')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_time_entry_audit_events'
+        ordering = ['created_at', 'pk']
+        indexes = [models.Index(fields=['entry_ref', 'created_at'])]
+
+    def __str__(self):
+        return f'entry {self.entry_ref}: {self.action}'
+
+    @classmethod
+    def record_for_entries(cls, entries, *, action, actor=None, submission=None, note=''):
+        rows = [cls(entry_id=e.pk, entry_ref=e.pk, submission=submission, action=action,
+                    actor=actor, note=(note or '')[:5000]) for e in entries]
+        if rows:
+            cls.objects.bulk_create(rows)
+        return len(rows)
+
+    @classmethod
+    def diff(cls, before, after):
+        """{field: [before, after]} over TRACKED_FIELDS, JSON-safe."""
+        out = {}
+        for f in cls.TRACKED_FIELDS:
+            a, b = getattr(before, f, None), getattr(after, f, None)
+            if a != b:
+                out[f] = [_audit_value(a), _audit_value(b)]
+        return out
+
+
+def _audit_value(v):
+    if v is None or isinstance(v, (bool, int, str)):
+        return v
+    if hasattr(v, 'isoformat'):
+        return v.isoformat()
+    return str(v)
 
 
 class TicketCSATSurvey(models.Model):
@@ -4149,47 +4313,92 @@ class Invoice(models.Model):
           - The new memo's invoice_number uses a `CN-YYYY-NNNNN` prefix
             so credit memos sort separately from regular invoices.
         """
-        from decimal import Decimal as _D
+        from decimal import Decimal as _D, InvalidOperation, ROUND_HALF_UP
         if self.is_credit_memo:
             raise ValueError('Cannot issue a credit memo against another credit memo.')
-
-        memo = Invoice(
-            organization=self.organization,
-            client_org=self.client_org,
-            title=f'Credit Memo for {self.invoice_number}',
-            description=(reason or '')[:500],
-            status='draft',
-            invoice_date=timezone.now().date(),
-            currency=self.currency,
-            tax_rate=self.tax_rate,
-            is_credit_memo=True,
-            credits_invoice=self,
-            created_by=user,
-        )
-        # Override _next_number prefix via direct assign before save
-        memo.invoice_number = self._next_credit_memo_number()
-        memo.save()
-
         if amount is not None:
-            InvoiceLineItem.objects.create(
-                invoice=memo,
-                description=(reason or f'Credit memo against {self.invoice_number}')[:300],
-                quantity=1,
-                unit_price=-_D(str(amount)),
-                is_taxable=False,
-                source='manual',
+            try:
+                amount = _D(str(amount)).quantize(_D('0.01'), rounding=ROUND_HALF_UP)
+            except (InvalidOperation, ValueError, TypeError):
+                raise ValueError('The credit amount is not a number.')
+            if amount <= 0:
+                raise ValueError('The credit amount must be more than zero.')
+
+        with transaction.atomic():
+            # Locked so two clicks (or two staff) cannot both pass the checks
+            # below against the same, not-yet-credited invoice.
+            source = Invoice.objects.select_for_update().get(pk=self.pk)
+            if source.status == 'void':
+                raise ValueError(f'{source.invoice_number} is void; there is nothing to credit.')
+            if amount is None:
+                # A full credit copies every line. A second one — a double
+                # click, or a full credit after a partial one — credited the
+                # same lines again, and the client's balance went negative by
+                # a whole invoice. Partial credits by amount stay allowed past
+                # the total: that is account credit, by design (v3.17.578).
+                already = source.credited_amount
+                if already > 0:
+                    remaining = max(_D('0.00'), _D(str(source.total or 0)) - already)
+                    raise ValueError(
+                        f'{source.invoice_number} already has {already} credited. '
+                        f'A full credit would credit those lines again; credit the '
+                        f'remaining {remaining} as an amount instead.')
+                if _D(str(source.total or 0)) <= 0:
+                    raise ValueError(f'{source.invoice_number} has no positive total to credit.')
+
+            memo = Invoice(
+                organization=self.organization,
+                client_org=self.client_org,
+                title=f'Credit Memo for {self.invoice_number}',
+                description=(reason or '')[:500],
+                status='draft',
+                invoice_date=timezone.now().date(),
+                currency=self.currency,
+                tax_rate=self.tax_rate,
+                is_credit_memo=True,
+                credits_invoice=self,
+                created_by=user,
             )
-        else:
-            for li in self.line_items.all():
+            # CN- numbers are assigned here, so Invoice.save()'s retry on a
+            # duplicate number never ran for credit memos: two memos raised at
+            # once could pick the same number and the loser failed with a raw
+            # IntegrityError. Same savepoint retry as invoices.
+            last_error = None
+            for _attempt in range(5):
+                memo.invoice_number = self._next_credit_memo_number()
+                try:
+                    with transaction.atomic():
+                        memo.save()
+                    last_error = None
+                    break
+                except IntegrityError as exc:
+                    if 'invoice_number' not in str(exc).lower():
+                        raise
+                    last_error = exc
+                    memo.pk = None
+            if last_error is not None:
+                raise last_error
+
+            if amount is not None:
                 InvoiceLineItem.objects.create(
                     invoice=memo,
-                    description=f'Credit: {li.description}'[:300],
-                    quantity=li.quantity,
-                    unit_price=-li.unit_price,
-                    is_taxable=li.is_taxable,
+                    description=(reason or f'Credit memo against {self.invoice_number}')[:300],
+                    quantity=1,
+                    unit_price=-amount,
+                    is_taxable=False,
                     source='manual',
                 )
-        memo.recompute_totals()
+            else:
+                for li in self.line_items.all():
+                    InvoiceLineItem.objects.create(
+                        invoice=memo,
+                        description=f'Credit: {li.description}'[:300],
+                        quantity=li.quantity,
+                        unit_price=-li.unit_price,
+                        is_taxable=li.is_taxable,
+                        source='manual',
+                    )
+            memo.recompute_totals()
         return memo
 
     @classmethod
@@ -4268,13 +4477,16 @@ class InvoiceLineItem(models.Model):
 
     @property
     def line_total(self):
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
         try:
             q = Decimal(str(self.quantity or '0'))
             p = Decimal(str(self.unit_price or '0'))
         except (InvalidOperation, ValueError, TypeError):
             return Decimal('0.00')
-        return (q * p).quantize(Decimal('0.01'))
+        # Half-up, like the tax (v3.17.561) and like the accounting
+        # providers. Decimal's default is banker's rounding, which put a
+        # 0.25 h x 10.10 line at 2.52 here and 2.53 in QuickBooks / Xero.
+        return (q * p).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     def __str__(self):
         return f'{self.description} ({self.quantity} × {self.unit_price})'

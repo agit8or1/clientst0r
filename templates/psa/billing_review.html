@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Agreement Billing Review{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:invoice_list' %}">Invoices</a></li>
+        <li class="breadcrumb-item active">Billing review</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Agreement billing review</h2>
+    <div class="btn-group btn-group-sm">
+        <a class="btn btn-outline-secondary" href="?period={{ prev_period }}">&larr; {{ prev_period }}</a>
+        <span class="btn btn-outline-secondary disabled">{{ cycle_start|date:'F Y' }}</span>
+        <a class="btn btn-outline-secondary" href="?period={{ next_period }}">{{ next_period }} &rarr;</a>
+    </div>
+</div>
+<p class="text-muted small">
+    Cycle {{ cycle_start }} to {{ cycle_end }}. Hours are qualifying time (billable, in the agreement window, allowed by its role rules),
+    counted against the agreement's allowance from its start. <strong>Hold</strong> puts the draft invoice on the pre-invoice
+    approval gate, so it cannot be sent or pushed to accounting until it is approved; <strong>Approve</strong> clears the gate.
+</p>
+
+<div class="d-flex flex-wrap gap-2 mb-3 small">
+    <a href="?period={{ period }}" class="badge {% if not state %}bg-primary{% else %}bg-secondary{% endif %} text-decoration-none">All {{ summary.agreements }}</a>
+    <a href="?period={{ period }}&state=overage" class="badge {% if state == 'overage' %}bg-primary{% else %}bg-warning text-dark{% endif %} text-decoration-none">Overage {{ summary.overage }} ({{ summary.overage_hours }} h)</a>
+    <a href="?period={{ period }}&state=draft" class="badge {% if state == 'draft' %}bg-primary{% else %}bg-secondary{% endif %} text-decoration-none">To review {{ summary.draft }}</a>
+    <a href="?period={{ period }}&state=held" class="badge {% if state == 'held' %}bg-primary{% else %}bg-danger{% endif %} text-decoration-none">Held {{ summary.held }}</a>
+    <a href="?period={{ period }}&state=flagged" class="badge {% if state == 'flagged' %}bg-primary{% else %}bg-danger{% endif %} text-decoration-none">Flagged {{ summary.flagged }}</a>
+    <a href="?period={{ period }}&state=approved" class="badge {% if state == 'approved' %}bg-primary{% else %}bg-success{% endif %} text-decoration-none">Approved {{ summary.approved }}</a>
+    <a href="?period={{ period }}&state=sent" class="badge {% if state == 'sent' %}bg-primary{% else %}bg-info text-dark{% endif %} text-decoration-none">Sent {{ summary.sent }}</a>
+    <a href="?period={{ period }}&state=none" class="badge {% if state == 'none' %}bg-primary{% else %}bg-light text-dark border{% endif %} text-decoration-none">No invoice {{ summary.without_invoice }}</a>
+    <span class="ms-auto text-muted">Draft total {{ summary.draft_total }}</span>
+</div>
+
+<div class="card">
+<div class="table-responsive">
+<table class="table table-sm small mb-0 align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Client / agreement</th>
+            <th class="text-end">Allowance (h)</th>
+            <th class="text-end">This cycle (h)</th>
+            <th class="text-end">Included (h)</th>
+            <th class="text-end">Overage (h)</th>
+            <th class="text-end">Remaining (h)</th>
+            <th>Draft invoice</th>
+            <th>Review</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+        <tr>
+            <td>
+                <strong>{{ r.contract.client_org.name }}</strong><br>
+                <a href="{% url 'reports:agreement_reconciliation_detail' r.contract.pk %}">{{ r.contract.name }}</a>
+                <span class="text-muted">· {{ r.contract.get_contract_type_display }}{% if r.contract.billing_frequency != 'none' %} · {{ r.contract.get_billing_frequency_display }}{% endif %}</span>
+            </td>
+            <td class="text-end">{% if r.unlimited %}<span class="text-muted">unlimited</span>{% else %}{{ r.allowance_hours }}{% endif %}</td>
+            <td class="text-end">{{ r.cycle_hours }}</td>
+            <td class="text-end">{{ r.included_hours }}</td>
+            <td class="text-end">{% if r.overage_minutes %}<span class="text-danger fw-bold">{{ r.overage_hours }}</span><div class="text-muted">≈ {{ r.overage_value }} at {{ r.overage_rate }}</div>{% else %}0.00{% endif %}</td>
+            <td class="text-end">{% if r.remaining_hours is None %}—{% else %}{{ r.remaining_hours }}{% endif %}</td>
+            <td>
+                {% if r.invoice %}
+                    <a href="{% url 'psa:invoice_detail' r.invoice.pk %}">{{ r.invoice.invoice_number }}</a>
+                    <div>{{ r.invoice.total }} {{ r.invoice.currency }} · {{ r.invoice.get_status_display }}</div>
+                    {% if r.other_invoices %}<div class="text-muted">+{{ r.other_invoices|length }} more this cycle</div>{% endif %}
+                {% else %}
+                    <span class="text-muted">None for this cycle</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if r.state == 'held' or r.state == 'flagged' %}<span class="badge bg-danger">{% if r.state == 'held' %}Held{% else %}Needs approval{% endif %}</span>
+                    <div class="text-muted">{{ r.invoice.approval_reason }}</div>
+                {% elif r.state == 'approved' %}<span class="badge bg-success">Approved</span>
+                    <div class="text-muted">{{ r.invoice.approved_by.username|default:'' }} {{ r.invoice.approved_at|date:'Y-m-d H:i' }}</div>
+                {% elif r.state == 'sent' %}<span class="badge bg-info text-dark">Sent</span>
+                {% elif r.state == 'draft' %}<span class="badge bg-secondary">To review</span>
+                {% endif %}
+                {% if r.invoice and r.invoice.status == 'draft' %}
+                <form method="post" action="{% url 'psa:billing_review_decide' r.invoice.pk %}" class="d-flex gap-1 mt-1 flex-wrap">
+                    {% csrf_token %}
+                    <input type="hidden" name="period" value="{{ period }}">
+                    <input type="text" name="note" maxlength="150" class="form-control form-control-sm" style="max-width: 160px;" placeholder="Note">
+                    {% if r.state != 'approved' %}<button type="submit" name="decision" value="approve" class="btn btn-sm btn-success">Approve</button>{% endif %}
+                    {% if r.state != 'held' %}<button type="submit" name="decision" value="hold" class="btn btn-sm btn-outline-danger">Hold</button>{% endif %}
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No agreements in this cycle{% if state %} match this filter{% endif %}.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+{% endblock %}

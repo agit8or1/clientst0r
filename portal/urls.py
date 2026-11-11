@@ -21,6 +21,8 @@ urlpatterns = [
     path('new/', views.ticket_create, name='ticket_create'),
     path('t/<str:ticket_number>/', views.ticket_detail, name='ticket_detail'),
     path('t/<str:ticket_number>/reply/', views.post_reply, name='post_reply'),
+    # Phase 12: secure (encrypted, never e-mailed) reply.
+    path('t/<str:ticket_number>/secure-reply/', views.secure_reply, name='secure_reply'),
     # v3.17.235 — Phase 12: portal user "I care about this too" vote.
     path('t/<str:ticket_number>/vote/', views.ticket_vote, name='ticket_vote'),
     # v3.17.236 — Phase 12: portal user escalation.

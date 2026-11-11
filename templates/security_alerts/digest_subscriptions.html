@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Security Alert Digest{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'security_alerts:alert_list' %}">Security alerts</a></li>
+        <li class="breadcrumb-item active">Weekly digest</li>
+    </ol>
+</nav>
+<h2 class="mb-2"><i class="fas fa-envelope-open-text me-2"></i>Weekly security alert digest</h2>
+<p class="text-muted small">Once a week, each opted-in contact of a customer gets a list of that customer's security alerts that are still open:
+    severity, title, device and when it was first seen. Nothing else from the alert is included. Customers with nothing open get no e-mail.
+    Contacts can opt in or out themselves from portal preferences, and every digest has an unsubscribe link.</p>
+
+<form method="get" class="mb-3 d-flex gap-2 align-items-center">
+    <label for="digest-org" class="small">Customer</label>
+    <select id="digest-org" name="org" class="form-select form-select-sm" style="max-width: 320px;" data-autosubmit>
+        <option value="">Choose a customer…</option>
+        {% for o in orgs %}<option value="{{ o.pk }}" {% if org and o.pk == org.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn btn-sm btn-secondary">Show</button></noscript>
+</form>
+
+{% if org %}
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">Contacts for {{ org.name }}</div>
+            <table class="table table-sm small mb-0">
+                <thead class="table-light"><tr><th>E-mail</th><th>Status</th><th>Changed</th><th>Last sent</th><th></th></tr></thead>
+                <tbody>
+                {% for s in subs %}
+                    <tr>
+                        <td>{{ s.email }}{% if s.user %} <span class="text-muted">(portal user)</span>{% elif s.contact %} <span class="text-muted">({{ s.contact.full_name }})</span>{% endif %}</td>
+                        <td>{% if s.is_subscribed %}<span class="badge bg-success">Subscribed</span>{% else %}<span class="badge bg-secondary">Off</span>{% endif %}</td>
+                        <td>{{ s.get_changed_via_display|default:'—' }}</td>
+                        <td>{{ s.last_sent_at|date:'Y-m-d'|default:'—' }}</td>
+                        <td>{% if can_manage %}
+                            <form method="post" class="d-inline">{% csrf_token %}
+                                <input type="hidden" name="org" value="{{ org.pk }}"><input type="hidden" name="sub" value="{{ s.pk }}">
+                                {% if s.is_subscribed %}<button name="action" value="off" class="btn btn-sm btn-outline-secondary">Turn off</button>
+                                {% else %}<button name="action" value="on" class="btn btn-sm btn-outline-success">Turn on</button>{% endif %}
+                            </form>{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="text-muted text-center py-3">No one at {{ org.name }} has been added.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% if can_manage %}
+            <form method="post" class="card-body border-top d-flex gap-2 flex-wrap small">{% csrf_token %}
+                <input type="hidden" name="org" value="{{ org.pk }}"><input type="hidden" name="action" value="add">
+                <input type="email" name="email" class="form-control form-control-sm" style="max-width: 240px;" placeholder="name@customer.example" aria-label="E-mail">
+                {% if contacts %}<select name="contact" class="form-select form-select-sm" style="max-width: 220px;" aria-label="Or a contact">
+                    <option value="">…or a contact</option>
+                    {% for c in contacts %}<option value="{{ c.pk }}">{{ c.full_name }} ({{ c.email }})</option>{% endfor %}
+                </select>{% endif %}
+                <button class="btn btn-sm btn-primary">Subscribe</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">This week's digest for {{ org.name }} ({{ rows|length }} open)</div>
+            <div class="card-body small">
+                {% if preview %}
+                <div class="fw-semibold mb-1">{{ preview.0 }}</div>
+                <pre class="mb-0" style="white-space: pre-wrap;">{{ preview.1 }}</pre>
+                {% else %}
+                <p class="text-muted mb-0">Nothing unresolved, so no digest would be sent this week.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

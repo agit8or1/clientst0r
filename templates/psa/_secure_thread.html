@@ -1,0 +1,44 @@
+{% comment %}Phase 12: the ticket's secure message thread. Staff messages show
+status only; requester replies show metadata and open behind a logged Reveal.
+Never renders any secure content itself.{% endcomment %}
+<div class="card-body border-top small" id="secure-thread">
+    <h6 class="mb-2"><i class="fas fa-lock me-1"></i>Secure replies and messages</h6>
+    <ul class="list-unstyled mb-0">
+    {% for item in secure_thread %}
+        <li class="d-flex justify-content-between align-items-start gap-2 py-1 border-bottom">
+        {% if item.kind == 'message' %}
+            <div>
+                <span class="badge bg-secondary me-1">Sent</span>
+                Secure message from {{ item.who.username|default:'a technician' }} · {{ item.at|date:'Y-m-d H:i' }}
+                <div class="text-muted">
+                    {% if item.status.state == 'opened' %}Opened by the recipient
+                    {% elif item.status.state == 'waiting' %}Not opened yet, expires {{ item.status.expires_at|date:'Y-m-d H:i' }}
+                    {% elif item.status.state == 'expired' %}Expired unopened
+                    {% else %}Withdrawn{% endif %}
+                </div>
+            </div>
+        {% else %}
+            {% with r=item.reply %}
+            <div>
+                <span class="badge {% if r.state == 'unread' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %} me-1">Reply</span>
+                From {% firstof r.author_email r.author.username 'the requester' %} via {{ r.get_via_display|lower }} · {{ r.created_at|date:'Y-m-d H:i' }}
+                <div class="text-muted">
+                    {% if r.state == 'erased' %}Erased after its retention period ({{ r.purged_at|date:'Y-m-d' }})
+                    {% elif r.state == 'expired' %}Retention ended {{ r.expires_at|date:'Y-m-d H:i' }}
+                    {% elif r.state == 'read' %}Read by {{ r.first_viewed_by.username|default:'staff' }}, {{ r.view_count }} view{{ r.view_count|pluralize }} · kept until {{ r.expires_at|date:'Y-m-d H:i' }}
+                    {% else %}Not read yet · kept until {{ r.expires_at|date:'Y-m-d H:i' }}{% endif %}
+                </div>
+            </div>
+            {% if r.state == 'unread' or r.state == 'read' %}
+            <form method="post" action="{% url 'psa:secure_reply_reveal' ticket.ticket_number r.pk %}" target="_blank">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye me-1"></i>Reveal</button>
+            </form>
+            {% endif %}
+            {% endwith %}
+        {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+    <div class="text-muted mt-1">Opening a reply is recorded in the audit log.</div>
+</div>

@@ -217,6 +217,7 @@
                  data-can-send="{{ ai_can_send|yesno:'1,0' }}"></div>
             {% endif %}
             {% include "psa/_conversation.html" with entries=conversation staff_view=is_msp_staff allow_reply=reply_open empty_text="No description or activity yet." %}
+            {% if is_msp_staff and secure_thread %}{% include "psa/_secure_thread.html" %}{% endif %}
 
             {% comment %}Reply / internal note composer — drafts autosave, posts carry the
                newest activity id so a stale reply is held for confirmation.{% endcomment %}

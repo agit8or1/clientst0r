@@ -9,7 +9,7 @@ skips invoices that already have a "Late fee for INV-..." charge.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.management.base import BaseCommand
 from django.db.models import F, Q
@@ -56,7 +56,10 @@ class Command(BaseCommand):
             balance = inv.net_balance_due
             if balance <= 0:
                 continue
-            fee = (balance * pct / Decimal('100')).quantize(Decimal('0.01'))
+            # Half-up, as invoice tax and line totals are; Decimal's default
+            # banker's rounding charged 5% of 1000.50 as 50.02.
+            fee = (balance * pct / Decimal('100')).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP)
             if fee <= 0:
                 continue
             if dry:

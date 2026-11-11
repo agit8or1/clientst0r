@@ -795,3 +795,116 @@ def playbook_list(request):
         'playbooks': playbooks,
         'can_manage': user_has_perm(request.user, 'security_alerts_create_rules'),
     })
+
+
+# ---------------------------------------------------------------------------
+# Phase 9.4 — weekly digest subscriptions
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_perm('security_alerts_view')
+def digest_subscriptions(request):
+    """Staff: who at a customer gets the weekly security alert digest, and a
+    preview of what it would say. Changes need security_alerts_manage_connections."""
+    from django.core.exceptions import PermissionDenied
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+    from audit.models import AuditLog
+    from assets.models import Contact
+    from accounts.permission_utils import has_perm_for_org
+    from .digest import digest_rows, render_digest
+    from .models import SecurityDigestSubscription
+
+    orgs = _user_orgs(request.user).filter(is_active=True).order_by('name')
+    org = None
+    raw = request.POST.get('org') or request.GET.get('org')
+    if raw and str(raw).isdigit():
+        org = orgs.filter(pk=int(raw)).first()
+    if org is None:
+        from core.middleware import get_request_organization
+        current = get_request_organization(request)
+        if current is not None:
+            org = orgs.filter(pk=current.pk).first()
+
+    if request.method == 'POST':
+        if org is None:
+            raise Http404
+        if not has_perm_for_org(request.user, org.pk, 'security_alerts_manage_connections'):
+            raise PermissionDenied
+        action = request.POST.get('action') or ''
+        back = redirect(f'{reverse("security_alerts:digest_subscriptions")}?org={org.pk}')
+        if action == 'add':
+            email = (request.POST.get('email') or '').strip().lower()
+            contact = None
+            cid = request.POST.get('contact')
+            if cid and str(cid).isdigit():
+                contact = Contact.objects.filter(pk=int(cid), organization=org).first()
+                if contact and not email:
+                    email = (contact.email or '').strip().lower()
+            try:
+                validate_email(email)
+            except ValidationError:
+                messages.error(request, 'Enter a valid e-mail address (or pick a contact that has one).')
+                return back
+            sub, _ = SecurityDigestSubscription.objects.get_or_create(organization=org, email=email)
+            if contact and not sub.contact_id:
+                sub.contact = contact
+            sub.set_subscribed(True, via='staff', by=request.user)
+            messages.success(request, f'{email} will receive the weekly digest for {org.name}.')
+        elif action in ('on', 'off'):
+            sub = get_object_or_404(SecurityDigestSubscription, pk=request.POST.get('sub'), organization=org)
+            sub.set_subscribed(action == 'on', via='staff', by=request.user)
+            email = sub.email
+            messages.success(request, f'Digest {"on" if action == "on" else "off"} for {email}.')
+        else:
+            messages.error(request, 'Unknown action.')
+            return back
+        AuditLog.log(
+            user=request.user, action='update', organization=org,
+            object_type='security_alerts.SecurityDigestSubscription', object_repr=email,
+            description=f'Security digest {action} for {email} ({org.name})',
+            path=request.path, extra_data={'event': 'security_digest_subscription', 'action': action},
+        )
+        return back
+
+    subs, rows, preview, contacts = [], [], None, []
+    if org is not None:
+        subs = list(SecurityDigestSubscription.objects.filter(organization=org).select_related('user', 'contact'))
+        rows = digest_rows(org)
+        if rows:
+            from core.models import SystemSetting
+            from core.mailer import brand_name
+            preview = render_digest(org, rows, brand=brand_name(SystemSetting.get_settings()),
+                                    unsubscribe='(each contact\'s personal unsubscribe link)')
+        have = {s.email for s in subs}
+        contacts = [c for c in Contact.objects.filter(organization=org).exclude(email='')
+                    if c.email.lower() not in have]
+    return render(request, 'security_alerts/digest_subscriptions.html', {
+        'orgs': orgs, 'org': org, 'subs': subs, 'rows': rows, 'preview': preview, 'contacts': contacts,
+        'can_manage': bool(org) and has_perm_for_org(request.user, org.pk, 'security_alerts_manage_connections'),
+    })
+
+
+@csrf_exempt
+def digest_unsubscribe(request, token):
+    """Public, signed unsubscribe. GET shows a confirmation button (mail
+    scanners fetch links); POST unsubscribes, including the RFC 8058
+    one-click POST mail clients send. The signed token is the authority, so
+    no login and no CSRF token are needed for this one action."""
+    from audit.models import AuditLog
+    from .digest import subscription_for_token
+    sub = subscription_for_token(token)
+    if sub is None:
+        return render(request, 'security_alerts/digest_unsubscribe.html', {'invalid': True}, status=404)
+    done = False
+    if request.method == 'POST':
+        if sub.is_subscribed:
+            sub.set_subscribed(False, via='unsubscribe_link')
+            AuditLog.log(
+                user=None, action='update', organization=sub.organization,
+                object_type='security_alerts.SecurityDigestSubscription', object_id=sub.pk,
+                object_repr=sub.email, description=f'{sub.email} unsubscribed from the security digest by link',
+                path=request.path, extra_data={'event': 'security_digest_unsubscribe'},
+            )
+        done = True
+    return render(request, 'security_alerts/digest_unsubscribe.html', {'sub': sub, 'done': done})

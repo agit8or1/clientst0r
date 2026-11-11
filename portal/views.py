@@ -25,6 +25,7 @@ from django_ratelimit.decorators import ratelimit
 
 from accounts.models import Membership
 from audit.models import AuditLog
+from psa import ticket_secure as _secure
 from psa.feature_flags import is_psa_enabled, is_psa_enabled_for_client
 from psa.models import (
     ClientPSASettings, Queue, Ticket, TicketAttachment,
@@ -295,7 +296,41 @@ def ticket_detail(request, ticket_number):
         'user_voted': user_voted,
         'voting_enabled': voting_enabled,
         'escalation_enabled': escalation_enabled,
+        # Phase 12: the customer's own secure replies (metadata only).
+        'secure_replies': ticket.secure_replies.filter(author=request.user),
+        'secure_max_length': _secure.MAX_SECURE_LENGTH,
+        'secure_retention_days': _secure.SECURE_REPLY_RETENTION_HOURS // 24,
     })
+
+
+@portal_psa_required
+@require_http_methods(['POST'])
+@ratelimit(key='user', rate='30/h', method='POST', block=False)
+def secure_reply(request, ticket_number):
+    """Phase 12: the customer sends a secure (encrypted, never e-mailed)
+    reply on their ticket."""
+    from psa.models import TicketSecureReply
+    m = request.portal_membership
+    ticket = get_object_or_404(
+        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        ticket_number=ticket_number,
+    )
+    back = redirect('portal:ticket_detail', ticket_number=ticket_number)
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Too many secure replies. Try again later.')
+        return back
+    if ticket.status_id and ticket.status.is_terminal:
+        messages.error(request, 'This ticket is closed.')
+        return back
+    text = (request.POST.get('reply') or '').strip()
+    if not text or len(text) > _secure.MAX_SECURE_LENGTH:
+        messages.error(request, f'A secure reply must be between 1 and {_secure.MAX_SECURE_LENGTH} characters.')
+        return back
+    _secure.create_secure_reply(
+        ticket=ticket, text=text, via=TicketSecureReply.VIA_PORTAL, author=request.user,
+        author_email=request.user.email or '', ip_address=request.META.get('REMOTE_ADDR'), path=request.path)
+    messages.success(request, 'Secure reply sent. Only the support team can open it.')
+    return back
 
 
 @portal_psa_required
@@ -817,12 +852,50 @@ def preferences(request):
             'phone',
             'updated_at',
         ])
+        # Phase 9.4: this customer's weekly security alert digest (opt-in).
+        if request.user.email:
+            _set_security_digest(request, request.POST.get('security_digest') == 'on')
         messages.success(request, 'Preferences saved.')
         return redirect('portal:preferences')
+    digest_sub = _security_digest_sub(request)
     return render(request, 'portal/preferences.html', {
         'profile': profile,
         'organization': request.portal_membership.organization,
+        'security_digest_on': bool(digest_sub and digest_sub.is_subscribed),
     })
+
+
+def _security_digest_sub(request):
+    from security_alerts.models import SecurityDigestSubscription
+    email = (request.user.email or '').strip().lower()
+    if not email:
+        return None
+    return SecurityDigestSubscription.objects.filter(
+        organization=request.portal_membership.organization, email=email).first()
+
+
+def _set_security_digest(request, on):
+    """Opt this portal user in or out for the current customer. A row is
+    only created when opting in."""
+    from security_alerts.models import SecurityDigestSubscription
+    sub = _security_digest_sub(request)
+    if sub is None:
+        if not on:
+            return
+        sub = SecurityDigestSubscription(organization=request.portal_membership.organization,
+                                         email=request.user.email.strip().lower())
+    if sub.user_id is None:
+        sub.user = request.user
+    if sub.pk is None or sub.is_subscribed != on:
+        sub.set_subscribed(on, via='portal', by=request.user)
+        AuditLog.log(
+            user=request.user, action='update', organization=sub.organization,
+            object_type='security_alerts.SecurityDigestSubscription', object_id=sub.pk,
+            object_repr=sub.email,
+            description=f'{sub.email} turned the security digest {"on" if on else "off"} in the portal',
+            path=request.path,
+            extra_data={'event': 'security_digest_subscription', 'action': 'on' if on else 'off'},
+        )
 
 
 SERVICE_REQUEST_APPROVAL_TYPE = 'psa.ServiceCatalogItem'

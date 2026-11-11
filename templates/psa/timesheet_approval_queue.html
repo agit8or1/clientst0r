@@ -52,7 +52,7 @@
             <details class="mt-2">
                 <summary class="text-muted small">View {{ s.entries.count }} entries</summary>
                 <table class="table table-sm small mt-2 mb-0">
-                    <thead><tr><th>Started</th><th>Ticket</th><th>Notes</th><th class="text-end">Min</th><th>Billable</th></tr></thead>
+                    <thead><tr><th>Started</th><th>Ticket</th><th>Notes</th><th class="text-end">Min</th><th>Billable</th><th>History</th></tr></thead>
                     <tbody>
                     {% for e in s.entries.all %}
                         <tr>
@@ -61,6 +61,12 @@
                             <td class="text-muted">{{ e.notes|truncatechars:50 }}</td>
                             <td class="text-end">{{ e.duration_minutes }}</td>
                             <td>{% if e.is_billable %}Yes{% else %}—{% endif %}</td>
+                            <td>
+                                {% for ev in e.audit_events.all %}
+                                <div class="text-muted">{{ ev.get_action_display }} {{ ev.created_at|date:'Y-m-d H:i' }}{% if ev.actor %} by {{ ev.actor.username }}{% endif %}{% if ev.note %} — {{ ev.note|truncatechars:40 }}{% endif %}</div>
+                                {% empty %}<span class="text-muted">—</span>{% endfor %}
+                                <a href="{% url 'psa:time_entry_history' e.pk %}">Full trail</a>
+                            </td>
                         </tr>
                     {% endfor %}
                     </tbody>
@@ -110,7 +116,7 @@
 <div class="card">
     <table class="table table-sm small mb-0">
         <thead class="table-light">
-            <tr><th>Tech</th><th>Week</th><th>Status</th><th>Decided</th><th>By</th><th>Notes</th></tr>
+            <tr><th>Tech</th><th>Week</th><th>Status</th><th>Decided</th><th>By</th><th>Notes</th><th>Entries</th></tr>
         </thead>
         <tbody>
             {% for s in decided %}
@@ -125,6 +131,7 @@
                 <td>{{ s.decided_at|date:'Y-m-d H:i' }}</td>
                 <td>{{ s.decided_by.username|default:'—' }}</td>
                 <td>{{ s.decision_notes|truncatechars:50 }}</td>
+                <td>{% for ev in s.entry_events.all %}{% if ev.action == s.status %}<a href="{% url 'psa:time_entry_history' ev.entry_ref %}" class="me-1">#{{ ev.entry_ref }}</a>{% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}</td>
             </tr>
             {% endfor %}
         </tbody>

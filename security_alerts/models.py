@@ -898,3 +898,64 @@ def _correlate_alert_to_incident(alert, *, window_minutes=60):
                 alert=alert,
             )
     return incident
+
+
+class SecurityDigestSubscription(models.Model):
+    """Phase 9.4: one customer contact's opt-in to the weekly digest of
+    unresolved security alerts.
+
+    Opt-in only (`is_subscribed` defaults to False). A portal user manages
+    their own row from portal preferences; staff can add a customer contact
+    and switch them on or off; every digest carries a signed unsubscribe
+    link that works without signing in. One row per (customer, address).
+    """
+    VIA_CHOICES = [
+        ('staff', 'Staff'),
+        ('portal', 'Customer portal preferences'),
+        ('unsubscribe_link', 'Unsubscribe link'),
+    ]
+
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE,
+        related_name='security_digest_subscriptions',
+        help_text='The customer whose alerts this contact receives.')
+    email = models.EmailField()
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='security_digest_subscriptions',
+        help_text='Portal user this address belongs to, when there is one.')
+    contact = models.ForeignKey(
+        'assets.Contact', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='security_digest_subscriptions')
+    is_subscribed = models.BooleanField(default=False)
+    subscribed_at = models.DateTimeField(null=True, blank=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True)
+    changed_via = models.CharField(max_length=20, choices=VIA_CHOICES, blank=True)
+    changed_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+')
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'security_digest_subscriptions'
+        ordering = ['organization', 'email']
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'email'],
+                                    name='uniq_security_digest_org_email'),
+        ]
+
+    def __str__(self):
+        return f'{self.email} @ {self.organization_id} ({"on" if self.is_subscribed else "off"})'
+
+    def set_subscribed(self, on, *, via, by=None):
+        from django.utils import timezone
+        now = timezone.now()
+        self.is_subscribed = bool(on)
+        if on:
+            self.subscribed_at = now
+        else:
+            self.unsubscribed_at = now
+        self.changed_via = via
+        self.changed_by = by if (by is not None and getattr(by, 'is_authenticated', False)) else None
+        self.save()

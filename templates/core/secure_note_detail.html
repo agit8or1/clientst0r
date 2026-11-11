@@ -32,6 +32,16 @@
                     <i class="fas fa-eye-slash"></i> This note will self-destruct after you close this page.
                 </div>
                 {% endif %}
+
+                {% if secure_reply %}
+                <form method="post" action="{% url 'psa:secure_reply_submit' secure_reply.token %}" class="mt-4 border-top pt-3">
+                    {% csrf_token %}
+                    <label for="secureReply" class="form-label fw-bold"><i class="fas fa-reply"></i> Reply securely about {{ secure_reply.ticket_number }}</label>
+                    <textarea id="secureReply" name="reply" rows="4" maxlength="{{ secure_reply.max_length }}" required class="form-control"></textarea>
+                    <div class="form-text">Your reply is stored encrypted, is never sent by e-mail and is kept for {{ secure_reply.retention_days }} days. You can send it from this page for the next 24 hours.</div>
+                    <button type="submit" class="btn btn-primary mt-2"><i class="fas fa-lock"></i> Send secure reply</button>
+                </form>
+                {% endif %}
             </div>
         </div>
     </div>

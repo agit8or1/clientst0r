@@ -35,7 +35,7 @@ it was raised. What remains is what the fee should have been.
 """
 import csv
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -124,7 +124,7 @@ class Command(BaseCommand):
 
             should_have_billed_on = max(Decimal('0'), billed_on - credited_then)
             should_have_been = (
-                should_have_billed_on * pct / Decimal('100')).quantize(CENT)
+                should_have_billed_on * pct / Decimal('100')).quantize(CENT, rounding=ROUND_HALF_UP)
             charged = Decimal(str(charge.amount or '0'))
             overcharge = (charged - should_have_been).quantize(CENT)
             if overcharge <= 0:
