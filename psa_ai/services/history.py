@@ -8,6 +8,7 @@ except `record_draft_decision`, which writes AIDraftDecision rows):
 
   AISuggestion (+ AIActionLog, AIDraftDecision)   AI reply / action / triage drafts
   AnalysisJob (+ AnalysisRun, AIDraftDecision)    "Analyze ticket" / "Compare models", incl. Rem0te jobs
+  TroubleshootSession (+ runs, action links)      AI Troubleshoot on the ticket
   RMMRequest                                      handoffs, read-only diagnostics, fix referrals,
                                                   Rem0te action proposals
   Rem0teAlertTicket                               the ticket was opened from a Rem0te alert
@@ -101,7 +102,9 @@ def purge_expired(now=None) -> dict:
     default = default_retention_days()
     for org_id in Organization.objects.values_list('pk', flat=True):
         groups.setdefault(custom.get(org_id, default), []).append(org_id)
-    deleted = {'suggestions': 0, 'analysis_jobs': 0, 'rmm_requests': 0, 'draft_decisions': 0}
+    from psa_ai.models import TroubleshootSession
+    deleted = {'suggestions': 0, 'analysis_jobs': 0, 'rmm_requests': 0, 'draft_decisions': 0,
+               'troubleshoot_sessions': 0}
     for days, org_ids in groups.items():
         if not days:
             continue
@@ -112,6 +115,9 @@ def purge_expired(now=None) -> dict:
             deleted['suggestions'] += AISuggestion.objects.filter(
                 organization_id__in=org_ids, created_at__lt=cutoff).exclude(
                 review_state='pending_review').delete()[1].get('psa_ai.AISuggestion', 0)
+            deleted['troubleshoot_sessions'] += TroubleshootSession.objects.filter(
+                organization_id__in=org_ids, created_at__lt=cutoff,
+                status__in=TroubleshootSession.TERMINAL).delete()[1].get('psa_ai.TroubleshootSession', 0)
             deleted['analysis_jobs'] += AnalysisJob.objects.filter(
                 organization_id__in=org_ids, created_at__lt=cutoff,
                 status__in=AnalysisJob.TERMINAL).delete()[1].get('psa_ai.AnalysisJob', 0)
@@ -187,7 +193,8 @@ def ai_text_allowed(organization) -> bool:
     from psa_ai.models import AIBusinessPolicy
     if not ai_features_enabled():
         return False
-    return AIBusinessPolicy.objects.filter(organization=organization, analysis_enabled=True).exists()
+    return AIBusinessPolicy.objects.filter(organization=organization, analysis_enabled=True,
+                                           ai_excluded=False).exists()
 
 
 def _entry(at, kind, title, *, ai=False, actor='', icon='fa-robot'):
@@ -301,6 +308,47 @@ def _jobs(ticket, cutoff, show_text):
         e['decisions'] = [_decision_line(d) for d in job.draft_decisions.all()]
         if show_text:
             e['excerpt'] = _excerpt(_job_excerpt(job, runs))
+        out.append(e)
+    return out
+
+
+def _troubleshoot(ticket, cutoff, show_text):
+    from psa_ai.models import TroubleshootSession
+    qs = (TroubleshootSession.objects.filter(ticket=ticket).select_related('actor')
+          .prefetch_related('runs__profile', 'action_links__rmm_request', 'action_links__requested_by'))
+    if cutoff:
+        qs = qs.filter(created_at__gte=cutoff)
+    out = []
+    for s in qs.order_by('-created_at')[:MAX_ENTRIES]:
+        e = _entry(s.created_at, 'ai_troubleshoot', f'AI Troubleshoot ({s.get_mode_display()})', ai=True,
+                   actor=_who(s.actor), icon='fa-stethoscope')
+        withheld = (s.sharing or {}).get('withheld') or []
+        e['facts'] = [('Status', s.get_status_display()), ('Routing', s.routing or '—'),
+                      ('Observations', str(len((s.observations or {}).get('items') or []))),
+                      ('Withheld by sharing rules', ', '.join(withheld) or 'nothing')]
+        runs = list(s.runs.all())
+        for run in runs:
+            e['runs'].append({
+                'profile': run.profile.name,
+                'model': run.resolved_model or f'{run.profile.provider}/{run.profile.model} (as configured now)',
+                'prompt_version': _prompt_label(run.prompt_version) or 'not run',
+                'status': run.get_status_display(), 'error': run.error[:200],
+                'tokens': run.input_tokens + run.output_tokens,
+                'cost_cents': run.actual_cost / 100 if run.actual_cost else 0,
+            })
+        for link in s.action_links.all():
+            req = link.rmm_request
+            e['decisions'].append({'text': f'Requested suggested action {link.action_key}'
+                                           + (f' — {req.get_status_display()}' if req else ''),
+                                   'by': _who(link.requested_by), 'at': link.created_at})
+        e['approval'] = ('Advisory only: nothing was executed. A suggested action is requested by a technician '
+                         'through the normal RMM request, and the RMM\'s approvers decide.')
+        if s.status in ('failed', 'partial'):
+            e['outcome'] = (s.error or s.get_status_display())[:300]
+        if show_text:
+            ok = next((r for r in runs if r.status == 'succeeded'), None)
+            if ok is not None:
+                e['excerpt'] = _excerpt((ok.result or {}).get('technician_summary', ''))
         out.append(e)
     return out
 
@@ -421,7 +469,8 @@ def build(ticket, user) -> dict:
     cutoff = cutoff_for(ticket.organization)
     entries = []
     if ai_visible:
-        entries += _suggestions(ticket, cutoff, show_text) + _jobs(ticket, cutoff, show_text)
+        entries += (_suggestions(ticket, cutoff, show_text) + _jobs(ticket, cutoff, show_text)
+                    + _troubleshoot(ticket, cutoff, show_text))
     entries += _rmm_requests(ticket, cutoff) + _alerts(ticket, cutoff) + _routing(ticket, cutoff)
     entries.sort(key=lambda e: e['at'], reverse=True)
     entries = entries[:MAX_ENTRIES]
