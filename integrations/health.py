@@ -215,9 +215,8 @@ def record_sync(conn, kind: str, *, status: str, created: int = 0, updated: int 
     try:
         ct = ContentType.objects.get_for_model(type(conn))
         row, _ = IntegrationSyncHealth.objects.get_or_create(
-            content_type=ct, object_id=conn.pk,
-            defaults={'kind': kind, 'organization_id': getattr(conn, 'organization_id', None)})
-        row.kind = kind
+            content_type=ct, object_id=conn.pk, kind=kind,
+            defaults={'organization_id': getattr(conn, 'organization_id', None)})
         row.organization_id = getattr(conn, 'organization_id', None)
         row.status = status
         row.last_attempt_at = now
@@ -253,14 +252,23 @@ def stats_counts(stats: dict) -> dict:
 # Reading
 # ---------------------------------------------------------------------------
 
-def get_health_row(conn):
+# Health rows that describe a connection's contract pairing rather than its
+# sync (integrations.rem0te.health). The sync health of a connection never
+# reads them.
+SUBSYSTEM_KINDS = ('rem0te',)
+
+
+def get_health_row(conn, kind=None):
+    """The connection's sync health row (or the row of `kind`)."""
     from django.contrib.contenttypes.models import ContentType
     from .models import IntegrationSyncHealth
     if conn is None or not getattr(conn, 'pk', None):
         return None
     try:
         ct = ContentType.objects.get_for_model(type(conn))
-        return IntegrationSyncHealth.objects.filter(content_type=ct, object_id=conn.pk).first()
+        qs = IntegrationSyncHealth.objects.filter(content_type=ct, object_id=conn.pk)
+        qs = qs.filter(kind=kind) if kind else qs.exclude(kind__in=SUBSYSTEM_KINDS)
+        return qs.order_by('-updated_at').first()
     except Exception:
         return None
 

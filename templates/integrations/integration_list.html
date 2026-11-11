@@ -182,6 +182,7 @@
                             <span class="dot"></span>{{ r.status.label }}
                         </span>
                         {% if r.status.state != 'off' %}{% sync_health health=r.health compact=True %}{% endif %}
+{% if r.rem0te %}<span class="badge bg-{{ r.rem0te.badge }} ms-1" data-rem0te-state="{{ r.rem0te.state }}" title="{% if r.rem0te.reasons %}{{ r.rem0te.reasons.0.message }}{% endif %}">Rem0te: {{ r.rem0te.label }}</span>{% endif %}
                     </td>
                     <td class="small">
                         {% if r.status.last_at %}
@@ -229,6 +230,7 @@
                 <span class="dot"></span>{{ r.status.label }}
             </span>
             {% if r.status.state != 'off' %}{% sync_health health=r.health compact=True %}{% endif %}
+{% if r.rem0te %}<span class="badge bg-{{ r.rem0te.badge }} ms-1" data-rem0te-state="{{ r.rem0te.state }}" title="{% if r.rem0te.reasons %}{{ r.rem0te.reasons.0.message }}{% endif %}">Rem0te: {{ r.rem0te.label }}</span>{% endif %}
         </div>
         <div class="tile-foot">
             <span class="text-muted">
