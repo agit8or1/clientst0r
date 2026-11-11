@@ -14,7 +14,17 @@ from .version import get_version
 # under Docker Compose, `env_file: .env` injects the (often empty) keys into
 # the container environment at startup, and a plain load_dotenv() would NOT
 # overwrite them — so a key saved via the UI would never take effect (#137).
-load_dotenv(override=True)
+#
+# The AI gateway worker may run as its own OS user (clientst0r-ai, see
+# deploy/setup-ai-gateway-user.sh) that is deliberately unable to read .env,
+# which holds APP_MASTER_KEY. It gets its settings from the environment its
+# launcher passes instead, so an unreadable .env is skipped for that process
+# only; for every other process it is still an error.
+try:
+    load_dotenv(override=True)
+except PermissionError:
+    if os.environ.get('CLIENTST0R_PROCESS_ROLE') != 'ai_gateway':
+        raise
 
 # The AI gateway worker (config/settings_ai_gateway.py) runs from this same
 # file but must never hold the vault master key or any other secret: it only
@@ -22,12 +32,16 @@ load_dotenv(override=True)
 # CLIENTST0R_PROCESS_ROLE=ai_gateway; every secret-looking variable that
 # .env just loaded is dropped again before anything below reads it, and the
 # few settings that must be non-empty get throwaway per-process values.
+# DB_PASSWORD is the one secret it keeps: the worker reads and writes its
+# rows through the database by design, and without it a MariaDB/MySQL
+# install's worker could not connect at all.
 AI_GATEWAY_ROLE = 'worker' if os.environ.get('CLIENTST0R_PROCESS_ROLE') == 'ai_gateway' else ''
+_AI_GATEWAY_KEEP = ('AI_GATEWAY_KEY_DIR', 'DB_PASSWORD')
 if AI_GATEWAY_ROLE:
     import secrets as _secrets
     for _name in list(os.environ):
         if (any(t in _name for t in ('KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'PASSWD', 'CREDENTIAL'))
-                and _name != 'AI_GATEWAY_KEY_DIR'):
+                and _name not in _AI_GATEWAY_KEEP):
             del os.environ[_name]
     os.environ['SECRET_KEY'] = _secrets.token_urlsafe(48)
     os.environ['API_KEY_SECRET'] = _secrets.token_urlsafe(48)

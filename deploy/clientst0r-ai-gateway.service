@@ -1,24 +1,35 @@
 # Restricted AI gateway worker for Ticket AI Assist (OPTIONAL AI).
-# Not installed automatically. Use it with AI_GATEWAY_MODE=worker in .env.
 #
-# No EnvironmentFile on purpose: the worker must not receive APP_MASTER_KEY.
-# config/settings_ai_gateway.py drops every KEY/SECRET/TOKEN/PASSWORD
-# variable that .env would load, and ai_gateway_worker refuses to start if
-# it can still see the master key. For OS-level isolation, run it as a
-# separate user that can read the gateway private key and the database but
-# not .env or the vault backups.
+# Installed and enabled by deploy/setup-ai-gateway-user.sh (bash install.sh
+# runs it on a fresh MariaDB/MySQL install; existing installs run it by
+# hand). It runs as its own system user, `clientst0r-ai`, which:
+#   * cannot read .env (mode 0600, owned by the web app's user), so it never
+#     sees APP_MASTER_KEY, SECRET_KEY or any integration secret;
+#   * reads the code and venv through the web app's group (SupplementaryGroups);
+#   * owns the gateway private key (/etc/clientst0r/ai-gateway/private.key,
+#     0600) that the web app's user cannot read.
+# Its database settings come from /etc/clientst0r/ai-gateway.env (root-only,
+# written by the setup script from .env: DB_* only). config/settings.py
+# still drops every other KEY/SECRET/TOKEN/PASSWORD variable, and
+# ai_gateway_worker refuses to start if it can see the master key.
+#
+# The setup script rewrites /home/administrator and the group below for the
+# actual install; this file is written for the reference install.
 [Unit]
-Description=Client St0r AI gateway worker (restricted)
-After=network.target
+Description=Client St0r AI gateway worker (restricted, own user)
+After=network.target mariadb.service
 
 [Service]
 Type=simple
-User=administrator
-Group=administrator
+User=clientst0r-ai
+Group=clientst0r-ai
+SupplementaryGroups=administrator
 WorkingDirectory=/home/administrator
+EnvironmentFile=/etc/clientst0r/ai-gateway.env
 Environment="PATH=/home/administrator/venv/bin"
 Environment="CLIENTST0R_PROCESS_ROLE=ai_gateway"
 Environment="DJANGO_SETTINGS_MODULE=config.settings_ai_gateway"
+Environment="AI_GATEWAY_MODE=worker"
 UnsetEnvironment=APP_MASTER_KEY APP_MASTER_KEY_PREVIOUS SECRET_KEY API_KEY_SECRET
 ExecStart=/home/administrator/venv/bin/python manage.py ai_gateway_worker
 Restart=on-failure
@@ -26,6 +37,8 @@ RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
+ProtectHome=read-only
+UMask=0077
 StandardOutput=journal
 StandardError=journal
 

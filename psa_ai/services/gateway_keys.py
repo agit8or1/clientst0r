@@ -59,10 +59,14 @@ def _raw(key) -> bytes:
     return key.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
 
 
-def generate(directory: Path | None = None, force=False) -> Path:
+def generate(directory: Path | None = None, force=False, group_readable=False) -> Path:
+    """Write the pair. The directory is owner-only (0700) unless
+    `group_readable`: then 0750, for a worker that runs as its own OS user
+    and shares the directory with the web app's group, which needs to read
+    public.key. private.key is 0600 either way."""
     d = directory or key_dir()
     d.mkdir(parents=True, exist_ok=True)
-    os.chmod(d, 0o700)
+    os.chmod(d, 0o750 if group_readable else 0o700)
     priv_path, pub_path = d / 'private.key', d / 'public.key'
     if priv_path.exists() and not force:
         raise GatewayKeyError(f'{priv_path} already exists. Keys sealed to it would become unreadable '

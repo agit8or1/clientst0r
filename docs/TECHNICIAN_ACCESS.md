@@ -251,12 +251,59 @@ AI provider keys are encrypted to an X25519 public key (`AI_GATEWAY_KEY_DIR`, de
 - **`AI_GATEWAY_MODE=worker`**: only `manage.py ai_gateway_worker` running under `config.settings_ai_gateway` opens
   them. That process:
   - drops `APP_MASTER_KEY`, the previous master keys, `SECRET_KEY`, `API_KEY_SECRET` and every other
-    KEY/SECRET/TOKEN/PASSWORD variable;
+    KEY/SECRET/TOKEN/PASSWORD variable, except `DB_PASSWORD`: it reads and writes its rows through the
+    database;
   - refuses to start if it can still see the master key;
   - therefore can't decrypt vault entries, integration credentials or backup secrets.
 
-  Install `deploy/clientst0r-ai-gateway.service` to run it. The unit runs as the same OS user; running it as a
-  separate user that can't read `.env` is a further deployment step and not done automatically.
+### Running the worker as its own OS user
+
+On the development branch (not yet released), the worker runs as a separate system user, `clientst0r-ai`, that
+cannot read `.env`. Even a bug in the worker or in a provider library can't reach the master key.
+
+**Native install (MariaDB / MySQL).** A fresh `bash install.sh` runs `deploy/setup-ai-gateway-user.sh`. You can skip
+it with `CLIENTST0R_AI_GATEWAY_USER=n`. On an existing install, run that script yourself as the web app's user.
+It:
+
+1. creates `clientst0r-ai` (system user, no home, no shell). It also adds that user to the web app's group so it can
+   read the code and the venv.
+2. stops without changing anything if `clientst0r-ai` could read `.env`, `.env.backup`, the `backups/` directory
+   or the web app's own gateway private key. It also stops if `clientst0r-ai` can't read the code.
+3. keeps the key pair in `/etc/clientst0r/ai-gateway/`:
+   - the directory is `clientst0r-ai:<app group>`, mode 0750;
+   - `private.key` is 0600 and owned by `clientst0r-ai`;
+   - `public.key` is 0644.
+
+   If the web app already has a pair, the script moves it there and deletes the web app's copy of the private key.
+   Provider keys you already saved keep working. Otherwise it generates a new pair as `clientst0r-ai`.
+4. writes `/etc/clientst0r/ai-gateway.env` (root-only, mode 0600) with the `DB_*` settings from `.env`. It writes
+   nothing else secret, and systemd reads the file before it drops privileges.
+5. sets `AI_GATEWAY_MODE=worker` and `AI_GATEWAY_KEY_DIR=/etc/clientst0r/ai-gateway` in `.env`. Then it installs
+   and starts `clientst0r-ai-gateway.service` (`User=clientst0r-ai`) and checks that the running worker's
+   environment has no `APP_MASTER_KEY`.
+
+Afterwards, restart the web app (`sudo systemctl restart clientst0r-gunicorn.service`) so it reads the new mode.
+SQLite installs are refused: SQLite writes its journal next to the database, so the worker would need write access
+to the install directory, which would let it change the web app's code. On SQLite the worker stays in the
+default mode.
+
+**Docker.** The `ai-gateway` compose profile runs the worker as uid 1001 (`clientst0r-ai`). It has no `env_file`,
+so it gets only the database settings. It owns the private key in the `clientst0r-ai-gateway-keys` volume. The
+`app` service mounts that volume read-only and can read `public.key` only. To set it up:
+
+1. Set `AI_GATEWAY_MODE=worker` and `AI_GATEWAY_KEY_DIR=/var/lib/clientst0r/ai-gateway` in `.env`.
+2. Run `docker compose --profile ai-gateway run --rm ai-gateway python manage.py ai_gateway_keygen --group-readable`.
+3. Run `docker compose --profile ai-gateway up -d`.
+
+Provider keys saved before this were sealed to a different pair, so you must enter them again.
+
+**CI.** The native-install job in `.github/workflows/install-upgrade.yml` checks that a fresh install:
+
+- runs the worker as `clientst0r-ai`;
+- leaves that user unable to read `.env`;
+- leaves the web app's user unable to read the private key;
+- keeps `APP_MASTER_KEY` and `SECRET_KEY` out of the worker's environment;
+- lets the worker reach the database.
 
 Model calls only go to:
 

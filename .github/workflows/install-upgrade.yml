@@ -185,6 +185,33 @@ jobs:
           systemctl list-timers --all | grep clientst0r-scheduler
           sudo systemctl start clientst0r-scheduler.service
           sudo journalctl -u clientst0r-scheduler.service -n 30 --no-pager
+      - name: AI gateway worker runs as its own user and can't read the master key
+        run: |
+          id clientst0r-ai
+          test "$(systemctl show -p User --value clientst0r-ai-gateway.service)" = clientst0r-ai
+          sudo systemctl is-active clientst0r-ai-gateway.service
+          grep -qx 'AI_GATEWAY_MODE=worker' .env
+          grep -qx 'AI_GATEWAY_KEY_DIR=/etc/clientst0r/ai-gateway' .env
+          # The worker can read the code and its private key, not .env.
+          sudo -u clientst0r-ai test -r manage.py
+          sudo -u clientst0r-ai test -r /etc/clientst0r/ai-gateway/private.key
+          ! sudo -u clientst0r-ai test -r .env
+          # The web app's user can read the public key, not the private key.
+          test -r /etc/clientst0r/ai-gateway/public.key
+          ! test -r /etc/clientst0r/ai-gateway/private.key
+          test "$(sudo stat -c '%U %a' /etc/clientst0r/ai-gateway.env)" = 'root 600'
+          ! sudo grep -q '^APP_MASTER_KEY' /etc/clientst0r/ai-gateway.env
+          pid="$(systemctl show -p MainPID --value clientst0r-ai-gateway.service)"
+          ! sudo tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^APP_MASTER_KEY='
+          ! sudo tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^SECRET_KEY='
+          # It reaches the database and does a pass over waiting runs.
+          sudo -u clientst0r-ai env -i PATH="$PWD/venv/bin:/usr/bin:/bin" \
+            $(sudo cat /etc/clientst0r/ai-gateway.env | grep -v '^#' | xargs) \
+            CLIENTST0R_PROCESS_ROLE=ai_gateway DJANGO_SETTINGS_MODULE=config.settings_ai_gateway \
+            venv/bin/python manage.py ai_gateway_worker --once
+          sudo journalctl -u clientst0r-ai-gateway.service -n 30 --no-pager
+          # The web app came back in worker mode.
+          curl -fsS http://127.0.0.1:8000/health/
       - name: Verified backup on a native MariaDB install
         run: |
           venv/bin/python manage.py upgrade_backup --reason ci | tee "$RUNNER_TEMP/backup.log"
