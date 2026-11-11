@@ -205,10 +205,12 @@ jobs:
           ! sudo tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^APP_MASTER_KEY='
           ! sudo tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^SECRET_KEY='
           # It reaches the database and does a pass over waiting runs.
-          sudo -u clientst0r-ai env -i PATH="$PWD/venv/bin:/usr/bin:/bin" \
-            $(sudo cat /etc/clientst0r/ai-gateway.env | grep -v '^#' | xargs) \
-            CLIENTST0R_PROCESS_ROLE=ai_gateway DJANGO_SETTINGS_MODULE=config.settings_ai_gateway \
-            venv/bin/python manage.py ai_gateway_worker --once
+          sudo systemd-run --wait --pipe --quiet -p User=clientst0r-ai -p Group=clientst0r-ai \
+            -p EnvironmentFile=/etc/clientst0r/ai-gateway.env -p WorkingDirectory="$PWD" \
+            --setenv=CLIENTST0R_PROCESS_ROLE=ai_gateway \
+            --setenv=DJANGO_SETTINGS_MODULE=config.settings_ai_gateway \
+            "$PWD/venv/bin/python" manage.py ai_gateway_worker --once | tee "$RUNNER_TEMP/aigw.log"
+          grep -q 'run(s) executed' "$RUNNER_TEMP/aigw.log"
           sudo journalctl -u clientst0r-ai-gateway.service -n 30 --no-pager
           # The web app came back in worker mode.
           curl -fsS http://127.0.0.1:8000/health/

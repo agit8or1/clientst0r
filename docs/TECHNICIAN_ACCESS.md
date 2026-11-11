@@ -265,8 +265,11 @@ cannot read `.env`. Even a bug in the worker or in a provider library can't reac
 it with `CLIENTST0R_AI_GATEWAY_USER=n`. On an existing install, run that script yourself as the web app's user.
 It:
 
-1. creates `clientst0r-ai` (system user, no home, no shell). It also adds that user to the web app's group so it can
-   read the code and the venv.
+1. creates `clientst0r-ai` (system user, no home, no shell, its own group only). It is not added to the web app's
+   group, because that group can be a privileged one such as `docker` or `adm`. The worker reads the code and the
+   venv the way any local user can. Where a directory above the code is closed (for example a 0750 home
+   directory), an ACL gives `clientst0r-ai` traverse-only access to the parent directories, and read and traverse
+   access to the install directory. This needs the `acl` package.
 2. stops without changing anything if `clientst0r-ai` could read `.env`, `.env.backup`, the `backups/` directory
    or the web app's own gateway private key. It also stops if `clientst0r-ai` can't read the code.
 3. keeps the key pair in `/etc/clientst0r/ai-gateway/`:

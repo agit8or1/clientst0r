@@ -7,10 +7,15 @@
 # a fresh install. Idempotent: running it again changes nothing that is
 # already in place. What it does:
 #
-#   1. creates the system user `clientst0r-ai` (no home, no shell) and adds
-#      it to the web app's group, so it can read the code and the venv;
-#   2. refuses to go on if that user could read .env (APP_MASTER_KEY lives
-#      there), the upgrade backups, or anything else listed below;
+#   1. creates the system user `clientst0r-ai` (no home, no shell, its own
+#      group only: it is NOT added to the web app's group, which may be a
+#      privileged one such as docker or adm);
+#   2. lets it reach the code the way any local user reads it (files 644,
+#      directories 755): where a directory above the code is closed (a 0750
+#      home directory), an ACL gives clientst0r-ai traverse-only access to
+#      the parents and read + traverse on the install directory itself;
+#      then refuses to go on if that user could read .env (APP_MASTER_KEY
+#      lives there), the upgrade backups, or anything else listed below;
 #   3. puts the gateway key pair in /etc/clientst0r/ai-gateway/ (directory
 #      clientst0r-ai:<app group> 0750, private.key 0600 owned by
 #      clientst0r-ai, public.key 0644). An existing pair from the web app's
@@ -80,17 +85,26 @@ else
         --shell /usr/sbin/nologin --comment "Client St0r AI gateway worker" "$AI_USER"
     say "created system user $AI_USER"
 fi
-if ! id -nG "$AI_USER" | tr ' ' '\n' | grep -qx "$APP_GROUP"; then
-    sudo usermod -aG "$APP_GROUP" "$AI_USER"
-    say "added $AI_USER to group $APP_GROUP (read access to code and venv)"
-fi
 
-# sudo -u sets the target's groups from /etc/group at run time, so the group
-# added just above is already in effect here.
 as_ai() { sudo -u "$AI_USER" -- "$@" 2>/dev/null; }
 
 # -- 2. what it must and must not reach ------------------------------------------
 chmod 600 "$APP_ENV"
+grant_acl() {  # $1 = permissions, $2 = directory
+    command -v setfacl >/dev/null 2>&1 \
+        || fail "$AI_USER cannot enter $2. Install the 'acl' package (setfacl) or make $2 traversable (chmod o+x), then run this again."
+    sudo setfacl -m "u:$AI_USER:$1" "$2"
+    say "ACL: $AI_USER gets $1 on $2"
+}
+d="$(dirname "$INSTALL_DIR")"
+while :; do
+    as_ai test -x "$d" || grant_acl --x "$d"
+    [ "$d" = "/" ] && break
+    d="$(dirname "$d")"
+done
+# Python lists the directories it imports from, so the install directory
+# itself needs read as well as traverse.
+{ as_ai test -r "$INSTALL_DIR" && as_ai test -x "$INSTALL_DIR"; } || grant_acl r-x "$INSTALL_DIR"
 for secret in "$APP_ENV" "$APP_ENV.backup" "$INSTALL_DIR/backups" "$INSTALL_DIR/db.sqlite3" \
               "$HOME/.config/clientst0r/ai-gateway/private.key" "$HOME/.config/clientst0r/release-signing"; do
     [ -e "$secret" ] || continue
@@ -99,7 +113,7 @@ for secret in "$APP_ENV" "$APP_ENV.backup" "$INSTALL_DIR/backups" "$INSTALL_DIR/
     fi
 done
 as_ai test -r "$INSTALL_DIR/manage.py" \
-    || fail "$AI_USER cannot read $INSTALL_DIR/manage.py. Give group $APP_GROUP read + execute on the install directory and its parents (e.g. chmod 750 \"$HOME\"), then run this again."
+    || fail "$AI_USER cannot read $INSTALL_DIR/manage.py; the code must be readable by other users (chmod -R o+rX on the code, not on .env or backups/)."
 as_ai test -x "$PY" || fail "$AI_USER cannot run $PY (see above)."
 
 # -- 3. keys ---------------------------------------------------------------------
@@ -141,7 +155,13 @@ chmod 600 "$tmp"
     echo "# Written by deploy/setup-ai-gateway-user.sh. DB_* from $APP_ENV and nothing else secret."
     for name in DB_ENGINE DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT DEBUG; do
         value="$(env_value "$name")"
-        [ -n "$value" ] && printf '%s=%s\n' "$name" "$value"
+        [ -n "$value" ] || continue
+        # Single-quoted: systemd takes the value literally (install.sh's
+        # generated DB password may contain # $ % & * ...).
+        case "$value" in
+            *"'"*) fail "$name in .env contains a single quote; set it without one and run this again." ;;
+        esac
+        printf "%s='%s'\n" "$name" "$value"
     done
     echo "AI_GATEWAY_MODE=worker"
     echo "AI_GATEWAY_KEY_DIR=$KEY_DIR"
@@ -163,9 +183,7 @@ set_env AI_GATEWAY_MODE worker
 chmod 600 "$APP_ENV"
 
 tmp="$(mktemp)"
-sed -e "s|/home/administrator|$INSTALL_DIR|g" \
-    -e "s|^SupplementaryGroups=.*|SupplementaryGroups=$APP_GROUP|" \
-    "$UNIT_SRC" > "$tmp"
+sed -e "s|/home/administrator|$INSTALL_DIR|g" "$UNIT_SRC" > "$tmp"
 if [ "$DB_ENGINE" != "mysql" ]; then
     sed -i "s|^After=network.target mariadb.service|After=network.target|" "$tmp"
 fi

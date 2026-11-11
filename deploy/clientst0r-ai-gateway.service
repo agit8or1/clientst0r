@@ -5,7 +5,9 @@
 # hand). It runs as its own system user, `clientst0r-ai`, which:
 #   * cannot read .env (mode 0600, owned by the web app's user), so it never
 #     sees APP_MASTER_KEY, SECRET_KEY or any integration secret;
-#   * reads the code and venv through the web app's group (SupplementaryGroups);
+#   * reads the code and venv like any local user (plus traverse ACLs the
+#     setup script adds where the home directory is closed); it is not in
+#     the web app's group;
 #   * owns the gateway private key (/etc/clientst0r/ai-gateway/private.key,
 #     0600) that the web app's user cannot read.
 # Its database settings come from /etc/clientst0r/ai-gateway.env (root-only,
@@ -13,8 +15,8 @@
 # still drops every other KEY/SECRET/TOKEN/PASSWORD variable, and
 # ai_gateway_worker refuses to start if it can see the master key.
 #
-# The setup script rewrites /home/administrator and the group below for the
-# actual install; this file is written for the reference install.
+# The setup script rewrites /home/administrator for the actual install; this
+# file is written for the reference install.
 [Unit]
 Description=Client St0r AI gateway worker (restricted, own user)
 After=network.target mariadb.service
@@ -23,7 +25,6 @@ After=network.target mariadb.service
 Type=simple
 User=clientst0r-ai
 Group=clientst0r-ai
-SupplementaryGroups=administrator
 WorkingDirectory=/home/administrator
 EnvironmentFile=/etc/clientst0r/ai-gateway.env
 Environment="PATH=/home/administrator/venv/bin"
