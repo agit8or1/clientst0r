@@ -107,7 +107,7 @@
                             {% if scheduling_enabled %}
                             <li><a class="dropdown-item{% if nav.section == 'ops_scheduling' %} active{% endif %}" href="{% url 'scheduling:task_list' %}"{% if nav.section == 'ops_scheduling' %} aria-current="page"{% endif %}><i class="fas fa-calendar-alt"></i> {% trans "Scheduling" %}</a></li>
                             {% endif %}
-                            {% if monitoring_enabled %}
+                            {% if monitoring_enabled and section_view.monitoring_view %}
                             <li><a class="dropdown-item{% if nav.section == 'ops_monitoring' %} active{% endif %}" href="{% url 'monitoring:website_monitor_list' %}"{% if nav.section == 'ops_monitoring' %} aria-current="page"{% endif %}><i class="fas fa-globe"></i> {% trans "Monitoring" %}</a></li>
                             {% endif %}
                             {% if vehicles_enabled %}
@@ -146,7 +146,9 @@
                         <ul class="dropdown-menu" aria-labelledby="assetsDropdown">
                             <li><a class="dropdown-item{% if nav.section == 'assets_all' %} active{% endif %}" href="{% url 'assets:asset_list' %}"{% if nav.section == 'assets_all' %} aria-current="page"{% endif %}><i class="fas fa-box"></i> {% trans "All Assets" %}</a></li>
                             <li><a class="dropdown-item{% if nav.section == 'assets_hardware' %} active{% endif %}" href="{% url 'hardware:device_list' %}"{% if nav.section == 'assets_hardware' %} aria-current="page"{% endif %}><i class="fas fa-network-wired"></i> {% trans "Hardware & Ports" %}</a></li>
+                            {% if section_view.monitoring_view %}
                             <li><a class="dropdown-item{% if nav.section == 'assets_infra' %} active{% endif %}" href="{% url 'monitoring:rack_list' %}"{% if nav.section == 'assets_infra' %} aria-current="page"{% endif %}><i class="fas fa-server"></i> {% trans "Infrastructure" %}</a></li>
+                            {% endif %}
                             {% if is_staff_user or user.is_superuser or user.is_staff %}
                             <li><a class="dropdown-item{% if nav.section == 'assets_setup' %} active{% endif %}" href="{% url 'assets:vendor_list' %}"{% if nav.section == 'assets_setup' %} aria-current="page"{% endif %}><i class="fas fa-sliders-h"></i> {% trans "Asset Setup" %}</a></li>
                             {% endif %}
@@ -183,7 +185,9 @@
                             <li><a class="dropdown-item{% if nav.section == 'admin_system' %} active{% endif %}" href="{% url 'core:settings_general' %}"{% if nav.section == 'admin_system' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Settings, system status and updates' %}"><i class="fas fa-sliders-h"></i> {% trans "System" %}</a></li>
                             <li><a class="dropdown-item{% if nav.section == 'admin_security' %} active{% endif %}" href="{% url 'core:security_dashboard' %}"{% if nav.section == 'admin_security' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Security overview, vulnerability scans and scan configuration' %}"><i class="fas fa-shield-alt"></i> {% trans "Security" %}</a></li>
                             <li><a class="dropdown-item{% if nav.section == 'admin_access' %} active{% endif %}" href="{% url 'accounts:organization_list' %}"{% if nav.section == 'admin_access' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Organizations, users, roles and permissions' %}"><i class="fas fa-users-cog"></i> {% trans "Organizations & Access" %}</a></li>
+                            {% if section_view.integrations_view %}
                             <li><a class="dropdown-item{% if nav.section == 'admin_integrations' %} active{% endif %}" href="{% url 'integrations:integration_list' %}"{% if nav.section == 'admin_integrations' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Integrations and webhooks' %}"><i class="fas fa-plug"></i> {% trans "Integrations" %}</a></li>
+                            {% endif %}
                             <li><a class="dropdown-item{% if nav.section == 'admin_mobile' %} active{% endif %}" href="{% url 'core:mobile_apps_admin' %}"{% if nav.section == 'admin_mobile' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Mobile app builds and beta tester requests' %}"><i class="fas fa-mobile-alt"></i> {% trans "Mobile" %}</a></li>
                         </ul>
                     </li>
