@@ -21,6 +21,10 @@ urlpatterns = [
     path('catalog/<int:pk>/edit/', views.service_catalog_form, name='service_catalog_edit'),
     path('catalog/<int:pk>/approvers/', views.service_catalog_approvers, name='service_catalog_approvers'),
     # Time entries
+    # Phase 12: two-way secure messages.
+    path('t/<str:ticket_number>/secure-replies/<int:pk>/reveal/', views.secure_reply_reveal,
+         name='secure_reply_reveal'),
+    path('secure-reply/<str:token>/', views.secure_reply_submit, name='secure_reply_submit'),
     path('t/<str:ticket_number>/timer/start/', views.timer_start, name='timer_start'),
     path('t/<str:ticket_number>/timer/stop/', views.timer_stop, name='timer_stop'),
     path('t/<str:ticket_number>/time/manual/', views.time_entry_manual, name='time_entry_manual'),

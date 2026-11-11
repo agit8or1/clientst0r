@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Secure reply {{ ticket.ticket_number }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
+        <li class="breadcrumb-item active">Secure reply</li>
+    </ol>
+</nav>
+<div class="card" style="max-width: 760px;">
+    <div class="card-header"><i class="fas fa-lock me-1"></i>Secure reply from {% firstof reply.author_email reply.author.username 'the requester' %}
+        · {{ reply.created_at|date:'Y-m-d H:i' }} via {{ reply.get_via_display|lower }}</div>
+    <div class="card-body">
+        {% if content is None %}
+        <p class="text-muted mb-0">{% if reply.state == 'erased' %}This reply was erased when its retention period ended.{% else %}This reply's retention period has ended.{% endif %}</p>
+        {% else %}
+        <div class="bg-light p-3 rounded" style="white-space: pre-wrap;">{{ content }}</div>
+        <p class="text-muted small mt-2 mb-0">Kept until {{ reply.expires_at|date:'Y-m-d H:i' }}, then erased. Don't copy it into the ticket, notes or e-mail; keep credentials in the vault.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

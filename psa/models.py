@@ -781,6 +781,69 @@ class CannedReply(models.Model):
 # Phase 2c — time tracking + service catalog + hygiene
 # ---------------------------------------------------------------------------
 
+class TicketSecureReply(models.Model):
+    """Phase 12: the requester's half of a secure message thread.
+
+    Staff send sealed one-time messages with a reply (`TicketComment.secure_note`,
+    v3.17.654). The requester answers from that message's page (a signed,
+    short-lived reply token handed out only when the message is opened) or
+    from the customer portal. The text is sealed at rest, never put in an
+    e-mail or notification, shown to staff only behind a logged Reveal, and
+    erased when `expires_at` passes (`manage.py psa_purge_secure_replies`).
+    """
+    VIA_LINK = 'link'
+    VIA_PORTAL = 'portal'
+    VIA_CHOICES = [(VIA_LINK, 'Secure message link'), (VIA_PORTAL, 'Customer portal')]
+
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='secure_replies')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                     related_name='psa_secure_replies')
+    in_reply_to = models.ForeignKey('core.SecureNote', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='ticket_replies',
+                                    help_text='The secure message this answers, when sent from its link.')
+    body = SealedTextField(blank=True)
+    author = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name='+')
+    author_email = models.EmailField(blank=True)
+    via = models.CharField(max_length=10, choices=VIA_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text='The text is erased after this.')
+    first_viewed_at = models.DateTimeField(null=True, blank=True)
+    first_viewed_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                        null=True, blank=True, related_name='+')
+    view_count = models.PositiveIntegerField(default=0)
+    purged_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'psa_ticket_secure_replies'
+        ordering = ['created_at', 'pk']
+        indexes = [models.Index(fields=['ticket', 'created_at']),
+                   models.Index(fields=['expires_at'])]
+
+    def __str__(self):
+        return f'secure reply {self.pk} on {self.ticket_id}'
+
+    def set_body(self, text):
+        self.body = self._meta.get_field('body').seal(text) if text else ''
+
+    def get_body(self):
+        if not self.body:
+            return ''
+        return self._meta.get_field('body').unseal_text(self.body)
+
+    @property
+    def is_expired(self):
+        return self.expires_at is not None and timezone.now() >= self.expires_at
+
+    @property
+    def state(self):
+        if self.purged_at or not self.body:
+            return 'erased'
+        if self.is_expired:
+            return 'expired'
+        return 'read' if self.view_count else 'unread'
+
+
 class TicketTimeEntry(models.Model):
     """
     Time logged against a ticket. Supports running-timer entries

@@ -441,6 +441,9 @@ def ticket_detail(request, ticket_number):
         'kit_inventory': InventoryItem.objects.for_organization(
             ticket.organization),
     }
+    if workspace['is_msp_staff']:
+        from .ticket_secure import thread_for_ticket
+        context['secure_thread'] = thread_for_ticket(ticket)
     if not workspace['is_msp_staff']:
         # A customer user reaching the staff ticket page gets the portal's
         # view of the ticket: the shared conversation and their own
@@ -458,7 +461,7 @@ STAFF_ONLY_TICKET_CONTEXT = {
     'total_minutes': 0, 'billable_minutes': 0, 'similar_tickets': [], 'contract': None,
     'expenses': [], 'total_expense_billable': 0, 'problems': [], 'problem_can_create': False,
     'kit_items': [], 'kit_packed_count': 0, 'kit_tools': [], 'kit_inventory': [],
-    'can_assign': False, 'eligible_assignees': [], 'hygiene': [],
+    'can_assign': False, 'eligible_assignees': [], 'hygiene': [], 'secure_thread': [],
 }
 
 
@@ -10309,3 +10312,73 @@ def ticket_kb_draft(request, ticket_number):
     )
     messages.success(request, 'KB draft created. Edit it, then submit it for review — it is not published.')
     return redirect('docs:document_edit', slug=doc.slug)
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — two-way secure messages (requester replies)
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def secure_reply_reveal(request, ticket_number, pk):
+    """Show one secure reply to a technician. POST-only, audit-logged, not cached."""
+    from .models import TicketSecureReply
+    if not is_msp_staff(request.user) and not request.user.is_superuser:
+        raise Http404
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    reply = get_object_or_404(TicketSecureReply, pk=pk, ticket=ticket)
+    content = None
+    if reply.state in ('unread', 'read'):
+        content = reply.get_body()
+        now = timezone.now()
+        fields = ['view_count']
+        reply.view_count += 1
+        if not reply.first_viewed_at:
+            reply.first_viewed_at, reply.first_viewed_by = now, request.user
+            fields += ['first_viewed_at', 'first_viewed_by']
+        reply.save(update_fields=fields)
+        AuditLog.log(
+            user=request.user, action='read', organization=ticket.organization,
+            object_type='psa.TicketSecureReply', object_id=reply.pk,
+            object_repr=f'secure reply on {ticket.ticket_number}',
+            description=f'Revealed a secure reply on {ticket.ticket_number}',
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'event': 'ticket_secure_reply_reveal', 'view': reply.view_count},
+        )
+    response = render(request, 'psa/secure_reply_reveal.html',
+                      {'ticket': ticket, 'reply': reply, 'content': content})
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@require_http_methods(['POST'])
+def secure_reply_submit(request, token):
+    """The requester answers a secure message from its opened page.
+
+    No login: the reply token is signed, handed out only when the message is
+    opened, bound to that message's link and short-lived."""
+    from django_ratelimit.core import is_ratelimited
+    from .models import TicketSecureReply
+    from .ticket_secure import MAX_SECURE_LENGTH, comment_for_note, create_secure_reply, note_for_reply_token, replies_left
+    if is_ratelimited(request, group='psa.secure_reply', key='ip', rate='20/h', increment=True):
+        return render(request, 'psa/secure_reply_sent.html', {'error': 'Too many replies from here. Try again later.'},
+                      status=429)
+    note = note_for_reply_token(token)
+    comment = comment_for_note(note) if note else None
+    if comment is None:
+        return render(request, 'psa/secure_reply_sent.html',
+                      {'error': 'This reply link is no longer valid. Reply to the e-mail, or ask for a new secure message.'},
+                      status=410)
+    text = (request.POST.get('reply') or '').strip()
+    if not text or len(text) > MAX_SECURE_LENGTH:
+        return render(request, 'psa/secure_reply_sent.html',
+                      {'error': f'A secure reply must be between 1 and {MAX_SECURE_LENGTH} characters.'}, status=400)
+    if not replies_left(note):
+        return render(request, 'psa/secure_reply_sent.html',
+                      {'error': 'No more secure replies can be sent to this message.'}, status=410)
+    ticket = comment.ticket
+    create_secure_reply(ticket=ticket, text=text, via=TicketSecureReply.VIA_LINK,
+                        author=request.user, author_email=ticket.requester_email, in_reply_to=note,
+                        ip_address=_client_ip(request), path=request.path)
+    return render(request, 'psa/secure_reply_sent.html', {'ticket_number': ticket.ticket_number})

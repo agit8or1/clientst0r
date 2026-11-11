@@ -1,6 +1,8 @@
 """
 Secure Notes views - Encrypted messaging between users
 """
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -13,6 +15,8 @@ from django.views.decorators.http import require_POST
 from .client_ip import get_client_ip
 from .models import SecureNote
 from .middleware import get_request_organization
+
+logger = logging.getLogger(__name__)
 
 # Wrong-password attempts allowed per note per client within the window.
 NOTE_PASSWORD_MAX_FAILURES = 10
@@ -452,9 +456,20 @@ def secure_note_view_link(request, token):
         messages.error(request, f'Error decrypting note: {str(e)}')
         decrypted_content = '[Unable to decrypt]'
 
+    # Phase 12: a secure message sent with a ticket reply can be answered
+    # securely from here. The reply form carries a signed, short-lived token
+    # that is handed out only now, when the message has been opened.
+    secure_reply = None
+    try:
+        from psa.ticket_secure import reply_context_for_note
+        secure_reply = reply_context_for_note(note)
+    except Exception:
+        logger.exception('secure reply form unavailable for note %s', note.pk)
+
     return render(request, 'core/secure_note_detail.html', {
         'note': note,
         'content': decrypted_content,
         'is_link_access': True,
         'read_once_warning': note.read_once,
+        'secure_reply': secure_reply,
     })

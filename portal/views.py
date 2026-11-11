@@ -25,6 +25,7 @@ from django_ratelimit.decorators import ratelimit
 
 from accounts.models import Membership
 from audit.models import AuditLog
+from psa import ticket_secure as _secure
 from psa.feature_flags import is_psa_enabled, is_psa_enabled_for_client
 from psa.models import (
     ClientPSASettings, Queue, Ticket, TicketAttachment,
@@ -295,7 +296,41 @@ def ticket_detail(request, ticket_number):
         'user_voted': user_voted,
         'voting_enabled': voting_enabled,
         'escalation_enabled': escalation_enabled,
+        # Phase 12: the customer's own secure replies (metadata only).
+        'secure_replies': ticket.secure_replies.filter(author=request.user),
+        'secure_max_length': _secure.MAX_SECURE_LENGTH,
+        'secure_retention_days': _secure.SECURE_REPLY_RETENTION_HOURS // 24,
     })
+
+
+@portal_psa_required
+@require_http_methods(['POST'])
+@ratelimit(key='user', rate='30/h', method='POST', block=False)
+def secure_reply(request, ticket_number):
+    """Phase 12: the customer sends a secure (encrypted, never e-mailed)
+    reply on their ticket."""
+    from psa.models import TicketSecureReply
+    m = request.portal_membership
+    ticket = get_object_or_404(
+        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        ticket_number=ticket_number,
+    )
+    back = redirect('portal:ticket_detail', ticket_number=ticket_number)
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Too many secure replies. Try again later.')
+        return back
+    if ticket.status_id and ticket.status.is_terminal:
+        messages.error(request, 'This ticket is closed.')
+        return back
+    text = (request.POST.get('reply') or '').strip()
+    if not text or len(text) > _secure.MAX_SECURE_LENGTH:
+        messages.error(request, f'A secure reply must be between 1 and {_secure.MAX_SECURE_LENGTH} characters.')
+        return back
+    _secure.create_secure_reply(
+        ticket=ticket, text=text, via=TicketSecureReply.VIA_PORTAL, author=request.user,
+        author_email=request.user.email or '', ip_address=request.META.get('REMOTE_ADDR'), path=request.path)
+    messages.success(request, 'Secure reply sent. Only the support team can open it.')
+    return back
 
 
 @portal_psa_required
