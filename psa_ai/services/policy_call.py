@@ -70,7 +70,8 @@ def complete(ticket, policy, profile, system: str, user_text: str) -> Tuple[str,
     org = ticket.organization
     _, _, cost = profiles.estimate(profile, len(system) + len(user_text))
     if cost and not budget.reserve(org, cost, policy.daily_budget_cents * 100):
-        raise PolicyRefused("This customer's AI budget doesn't cover this request.")
+        raise PolicyRefused(budget.installation_refusal(cost)
+                            or "This customer's AI budget doesn't cover this request.")
     try:
         text, t_in, t_out = gateway.call_provider(profile, system, user_text)
     except gateway.GatewayRefusal as e:

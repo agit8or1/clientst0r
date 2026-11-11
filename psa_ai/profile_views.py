@@ -18,8 +18,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from audit.models import AuditLog
 from core.models import Organization
 
-from .models import AIBusinessPolicy, AIModelProfile
-from .services import gateway_keys
+from .models import AIBusinessPolicy, AIInstallationSettings, AIModelProfile
+from .services import budget, gateway_keys
 
 
 def _admin(user):
@@ -100,6 +100,38 @@ class PolicyForm(forms.ModelForm):
                                       else 'form-control')
 
 
+class InstallationForm(forms.ModelForm):
+    """Installation-wide AI settings: the monthly cap across all customers
+    and AI Troubleshoot's read-only command allowlist."""
+    class Meta:
+        model = AIInstallationSettings
+        fields = ['monthly_budget_cents', 'command_allowlist']
+        labels = {'monthly_budget_cents': 'Installation-wide monthly AI budget (cents)',
+                  'command_allowlist': 'Read-only command allowlist (AI Troubleshoot)'}
+        widgets = {'command_allowlist': forms.Textarea(attrs={'rows': 6, 'class': 'form-control font-monospace',
+                                                              'placeholder': 'Get-Service *\nipconfig /all\n'
+                                                                             'df -h*'})}
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.fields['monthly_budget_cents'].widget.attrs.setdefault('class', 'form-control')
+
+    def clean_command_allowlist(self):
+        from .services.troubleshoot_result import allowlist_errors
+        text = self.cleaned_data.get('command_allowlist') or ''
+        errors = allowlist_errors(text)
+        if errors:
+            raise forms.ValidationError(errors)
+        return text
+
+
+def _installation_usage():
+    used, cap = budget.installation_usage()
+    return {'used_cents': round(used / 100, 2), 'cap_cents': None if cap is None else cap // 100,
+            'remaining_cents': None if cap is None else round(max(0, cap - used) / 100, 2),
+            'exhausted': bool(budget.installation_refusal())}
+
+
 def _status():
     configured = gateway_keys.configured()
     mode = gateway_keys.mode()
@@ -145,6 +177,24 @@ def profiles(request):
             return redirect(request.path)
     else:
         form = ProfileForm(instance=edit)
+    settings_row = AIInstallationSettings.load()
+    if request.method == 'POST' and request.POST.get('action') == 'installation':
+        install_form = InstallationForm(request.POST, instance=settings_row)
+        if install_form.is_valid():
+            before = settings_row.monthly_budget_cents
+            row = install_form.save(commit=False)
+            row.updated_by = request.user
+            row.save()
+            from .services.troubleshoot_result import parse_allowlist
+            AuditLog.log(user=request.user, action='update', object_type='psa_ai.AIInstallationSettings',
+                         object_id=row.pk, object_repr='AI installation settings',
+                         description='Installation-wide AI settings saved',
+                         extra_data={'monthly_budget_cents': row.monthly_budget_cents, 'before': before,
+                                     'allowlist_patterns': len(parse_allowlist(row.command_allowlist))})
+            messages.success(request, 'Installation-wide AI settings saved.')
+            return redirect(request.path)
+    else:
+        install_form = InstallationForm(instance=settings_row)
     if request.method == 'POST' and request.POST.get('action') == 'approve_destination':
         from tech_access.services import propose_destination
         profile = get_object_or_404(AIModelProfile, pk=request.POST.get('pk'), provider='ollama')
@@ -158,6 +208,7 @@ def profiles(request):
     return render(request, 'psa_ai/profiles.html', {
         'profiles': AIModelProfile.objects.prefetch_related('assigned_organizations'),
         'form': form, 'edit': edit, 'gateway': _status(),
+        'install_form': install_form, 'install_usage': _installation_usage(),
         'organizations': Organization.objects.filter(is_active=True).order_by('name'),
         'policies': {p.organization_id: p for p in AIBusinessPolicy.objects.prefetch_related('allowed_profiles')},
     })
@@ -186,7 +237,8 @@ def policy(request, org_id):
                                  'profiles': list(p.allowed_profiles.values_list('pk', flat=True))})
         messages.success(request, f'AI policy for {org.name} saved.')
         return redirect('psa_ai:profiles')
-    return render(request, 'psa_ai/policy.html', {'form': form, 'organization': org})
+    return render(request, 'psa_ai/policy.html', {'form': form, 'organization': org,
+                                                  'install_usage': _installation_usage()})
 
 
 # --- technicians' own keys ----------------------------------------------------
