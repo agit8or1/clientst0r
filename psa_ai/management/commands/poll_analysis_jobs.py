@@ -58,28 +58,23 @@ class Command(BaseCommand):
             self.stdout.write('AI history purged: ' + ', '.join(f'{v} {k}' for k, v in counts.items() if v))
 
     def _rem0te(self):
-        """Rem0te: recover alert events missed while ClientSt0r was down,
-        retry ticket links, and read open action proposals' status."""
-        from integrations.models import RMMConnection
-        from integrations.rem0te import actions, alerts
-        for conn in RMMConnection.objects.filter(is_active=True, provider_type='rem0te'):
-            try:
-                n = alerts.poll(conn)
-                if n:
-                    self.stdout.write(f'{n} Rem0te alert event(s) recovered for {conn.name}.')
-            except Exception:
-                logger.exception('polling Rem0te alerts for connection %s failed', conn.pk)
+        """Rem0te: reconciliation (integrations/rem0te/reconcile.py) —
+        capabilities re-check with backoff, alert events missed while
+        ClientSt0r was down, ticket link retries, open action proposals —
+        with every outcome on the connection's integration health."""
+        from integrations.rem0te.reconcile import reconcile_all
         try:
-            actions.poll_open()
+            reconcile_all(self.stdout)
         except Exception:
-            logger.exception('refreshing Rem0te action proposals failed')
+            logger.exception('reconciling Rem0te connections failed')
 
     def _refresh_capabilities(self):
         from integrations.models import RMMConnection
         from integrations.ticket_rmm import check, settings
         from django.utils.dateparse import parse_datetime
         now = timezone.now()
-        for conn in RMMConnection.objects.filter(is_active=True):
+        # Rem0te connections are re-checked by their reconciliation (with backoff).
+        for conn in RMMConnection.objects.filter(is_active=True).exclude(provider_type='rem0te'):
             try:
                 if not settings(conn)['enabled']:
                     continue
