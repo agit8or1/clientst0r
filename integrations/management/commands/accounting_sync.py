@@ -66,6 +66,7 @@ class Command(BaseCommand):
             self.stdout.write(f'--- {connection.name} '
                               f'({connection.provider_type}) ---')
             errors = []
+            self._attention = []
 
             if not options['skip_customers']:
                 errors += self._run(
@@ -87,9 +88,17 @@ class Command(BaseCommand):
             # v3.17.531: these three fields have existed since the model was
             # created and were never written, so the connections page rendered
             # "Never" no matter how often the sync ran.
+            # 'attention' is a parked, operator-actionable condition (e.g. a
+            # Xero consent without payment access): it is reported, not
+            # counted as a failed run.
             connection.last_sync_at = timezone.now()
-            connection.last_sync_status = 'error' if errors else 'ok'
-            connection.last_error = '; '.join(errors)[:2000]
+            if errors:
+                connection.last_sync_status = 'error'
+            elif self._attention:
+                connection.last_sync_status = 'attention'
+            else:
+                connection.last_sync_status = 'ok'
+            connection.last_error = '; '.join(errors + self._attention)[:2000]
             connection.save(update_fields=['last_sync_at', 'last_sync_status',
                                            'last_error', 'updated_at'])
             total_errors += len(errors)
@@ -115,6 +124,9 @@ class Command(BaseCommand):
 
         if hasattr(result, 'summary'):
             errors = list(result.errors)
+            for note in getattr(result, 'attention', None) or []:
+                self._attention.append(f'{label}: {note}')
+                self.stdout.write(f'  {label}: needs attention: {note}')
             self.stdout.write(f'  {prefix}{label}: {result.summary()}')
         else:
             errors = [] if result.get('success') else [

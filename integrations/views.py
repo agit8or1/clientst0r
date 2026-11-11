@@ -3695,6 +3695,9 @@ def accounting_sync_now(request, pk):
     item.refresh_from_db()
     if item.last_sync_status == 'ok':
         messages.success(request, f'Sync finished. {out.getvalue().strip()[:400]}')
+    elif item.last_sync_status == 'attention':
+        messages.warning(
+            request, f'Sync finished; needs attention: {item.last_error[:600]}')
     else:
         messages.warning(
             request,
