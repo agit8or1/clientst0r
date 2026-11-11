@@ -104,6 +104,9 @@ logs/
 *.pem
 # Rem0te's contract fixtures: public test keys only
 !integrations/rem0te/contract/fixtures/*.pub.pem
+# Rem0te's published TEST-ONLY example keys (public in its repo) and rev-1 fixture key.
+!integrations/rem0te/contract/examples/keys/*.pem
+!integrations/rem0te/contract/rev1/fixtures/*.pub.pem
 *.key
 *.crt
 *.cer

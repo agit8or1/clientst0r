@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         ('core', '0083_existing_installs_follow_main'),
         ('integrations', '0037_rem0te_hmac_needs_repair'),
         ('psa', '0076_service_request_approvers'),
-        ('psa_ai', '0006_ticket_ai_history'),
+        ('psa_ai', '0007_rem0te_rev2_patch_summary'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
