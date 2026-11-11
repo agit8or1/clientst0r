@@ -959,3 +959,34 @@ class SecurityDigestSubscription(models.Model):
         self.changed_via = via
         self.changed_by = by if (by is not None and getattr(by, 'is_authenticated', False)) else None
         self.save()
+
+
+class SecurityDigestCustomerSetting(models.Model):
+    """Per-customer options for the weekly digest.
+
+    `send_all_clear` (off by default): when the customer has no unresolved
+    alerts, opted-in contacts get a short "nothing unresolved" note instead
+    of no e-mail at all, so silence is never ambiguous. A customer without a
+    row behaves exactly as before: no alerts, no e-mail.
+    """
+    organization = models.OneToOneField(
+        'core.Organization', on_delete=models.CASCADE,
+        related_name='security_digest_setting')
+    send_all_clear = models.BooleanField(
+        default=False,
+        help_text='Send opted-in contacts a short weekly "no unresolved alerts" '
+                  'e-mail when there is nothing to report.')
+    updated_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'security_digest_customer_settings'
+
+    def __str__(self):
+        return f'digest settings for {self.organization_id} (all clear {"on" if self.send_all_clear else "off"})'
+
+    @classmethod
+    def all_clear_enabled(cls, org):
+        return cls.objects.filter(organization=org, send_all_clear=True).exists()

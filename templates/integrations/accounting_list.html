@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load integration_health %}
 {% block title %}Accounting Connections{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -30,6 +31,9 @@
                     <td>{% if conn.sync_enabled %}<span class="badge text-bg-warning">Live push</span>{% else %}<span class="badge text-bg-secondary">Disabled</span>{% endif %}</td>
                     <td>
                         {% if conn.last_sync_at %}<span data-utc="{{ conn.last_sync_at|date:'c' }}">{{ conn.last_sync_at|date:'Y-m-d H:i' }}</span>{% else %}Never{% endif %}
+                        {% if conn.last_sync_status == 'error' %}<span class="badge text-bg-danger" title="{{ conn.last_error|redacted|truncatechars:300 }}">Error</span>
+                        {% elif conn.last_sync_status == 'attention' %}<span class="badge text-bg-warning" title="{{ conn.last_error|redacted|truncatechars:300 }}">Needs attention</span>
+                        <div class="small text-muted">{{ conn.last_error|redacted|truncatechars:300 }}</div>{% endif %}
                     </td>
                     <td class="text-nowrap">
                         <a href="{% url 'integrations:accounting_edit' conn.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>

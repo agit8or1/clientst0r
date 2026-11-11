@@ -263,3 +263,21 @@ class AgreementReminder(models.Model):
 
     def __str__(self):
         return f'Reminder to {self.email} for {self.revision} at {self.sent_at:%Y-%m-%d %H:%M}'
+
+
+class AgreementReminderOptOut(models.Model):
+    """One person's opt-out of reminder e-mails for one agreement (every
+    revision of it), recorded from the signed link in a reminder. It stops
+    the e-mails only: the agreement still shows as waiting in the portal."""
+    agreement = models.ForeignKey(Agreement, on_delete=models.CASCADE, related_name='reminder_opt_outs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
+    email = models.EmailField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'docs_agreement_reminder_opt_outs'
+        constraints = [models.UniqueConstraint(fields=['agreement', 'user'],
+                                               name='uniq_agreement_reminder_opt_out')]
+
+    def __str__(self):
+        return f'{self.email} opted out of reminders for agreement {self.agreement_id}'

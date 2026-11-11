@@ -411,6 +411,76 @@ def _portal_enabled(organization_id) -> bool:
     return ClientPSASettings.objects.filter(organization_id=organization_id, portal_enabled=True).exists()
 
 
+REMINDER_UNSUBSCRIBE_SALT = 'docs.agreements.reminder.unsubscribe'
+
+
+def reminder_unsubscribe_token(agreement, user) -> str:
+    """Signed, no-login token naming one person and one agreement."""
+    from django.core import signing
+    return signing.dumps({'a': agreement.pk, 'u': user.pk, 'e': (user.email or '').lower()},
+                         salt=REMINDER_UNSUBSCRIBE_SALT, compress=True)
+
+
+def reminder_opt_out_for_token(token):
+    """(agreement, user) for a valid token, else None. The address must still
+    be the user's, so a link forwarded after an e-mail change stops working."""
+    from django.contrib.auth import get_user_model
+    from django.core import signing
+    try:
+        data = signing.loads(token or '', salt=REMINDER_UNSUBSCRIBE_SALT)
+    except signing.BadSignature:
+        return None
+    agreement = Agreement.objects.filter(pk=data.get('a')).first()
+    user = get_user_model().objects.filter(pk=data.get('u')).first()
+    if agreement is None or user is None or (user.email or '').lower() != data.get('e'):
+        return None
+    return agreement, user
+
+
+def reminder_unsubscribe_url(agreement, user, base='') -> str:
+    from django.urls import reverse
+    return base + reverse('portal:agreement_reminder_unsubscribe',
+                          kwargs={'token': reminder_unsubscribe_token(agreement, user)})
+
+
+def opt_out_of_reminders(agreement, user):
+    from .agreement_models import AgreementReminderOptOut
+    row, _ = AgreementReminderOptOut.objects.get_or_create(
+        agreement=agreement, user=user, defaults={'email': user.email or ''})
+    return row
+
+
+def signed_earlier_revision(agreement, rev, user) -> bool:
+    """Whether this person signed a previous revision of the agreement, or,
+    for a one-signature-per-customer agreement, whether their customer did."""
+    earlier = AgreementSignature.objects.filter(
+        revision__agreement=agreement, revision__version_number__lt=rev.version_number)
+    if earlier.filter(user=user).exists():
+        return True
+    return agreement.audience == Agreement.ONE and earlier.filter(
+        organization=agreement.organization).exists()
+
+
+def reminder_text(agreement, rev, user, *, link, unsubscribe, brand):
+    """Body of one reminder e-mail. The opening sentence says "a new
+    version" only to someone who signed an earlier one (or whose customer did,
+    for a single-signature agreement); a version number above 1 alone does not
+    mean this person has seen the agreement before."""
+    for_org = f' for {agreement.organization_name}' if agreement.audience == Agreement.ONE else ''
+    issued = f'version {rev.version_number}, issued {rev.issued_at:%Y-%m-%d}'
+    if signed_earlier_revision(agreement, rev, user):
+        opening = (f'There is a new version of "{rev.title}" ({issued}) that needs to be '
+                   f'{agreement.verb_past}{for_org}.')
+    else:
+        opening = f'You are asked to {agreement.verb} "{rev.title}" ({issued}){for_org}.'
+    body = (f'Hello {user.get_full_name() or user.username},\n\n'
+            f'{opening}\n\nRead it and {agreement.verb} it in the customer portal:\n{link}\n\n'
+            f'You get this because you may {agreement.verb} it for your organization.\n'
+            f'Stop reminders about this agreement: {unsubscribe}\n'
+            f'To stop all e-mail notifications, turn them off in your profile.\n\n— {brand}\n')
+    return body
+
+
 def send_reminders(*, now=None, dry_run=False, stdout=None) -> dict:
     """E-mail outstanding signers of every open agreement's current revision.
 
@@ -422,7 +492,10 @@ def send_reminders(*, now=None, dry_run=False, stdout=None) -> dict:
     from core import mailer
     from core.models import SystemSetting
     now = now or timezone.now()
-    counts = {'sent': 0, 'throttled': 0, 'opted_out': 0, 'no_email': 0, 'failed': 0, 'agreements': 0}
+    from django.core.mail import EmailMessage
+    from .agreement_models import AgreementReminderOptOut
+    counts = {'sent': 0, 'throttled': 0, 'opted_out': 0, 'unsubscribed': 0, 'no_email': 0, 'failed': 0,
+              'agreements': 0}
     settings = SystemSetting.get_settings()
     connection = None if dry_run else mailer.get_smtp_connection(settings)
     if connection is None and not dry_run:
@@ -439,12 +512,17 @@ def send_reminders(*, now=None, dry_run=False, stdout=None) -> dict:
             continue
         counts['agreements'] += 1
         interval = timedelta(days=max(1, agreement.reminder_interval_days or 7))
+        unsubscribed = set(AgreementReminderOptOut.objects.filter(
+            agreement=agreement).values_list('user_id', flat=True))
         for user in reminder_recipients(agreement, rev):
             if not user.email:
                 counts['no_email'] += 1
                 continue
             if _opted_out(user):
                 counts['opted_out'] += 1
+                continue
+            if user.pk in unsubscribed:
+                counts['unsubscribed'] += 1
                 continue
             sent = AgreementReminder.objects.filter(revision=rev, user=user)
             last = sent.order_by('-sent_at').first()
@@ -455,21 +533,22 @@ def send_reminders(*, now=None, dry_run=False, stdout=None) -> dict:
             subject = (f'{"Please" if first else "Reminder: please"} {agreement.verb} '
                        f'"{rev.title}" version {rev.version_number}')
             link = f'{base}/portal/agreements/{agreement.pk}/' if base else f'/portal/agreements/{agreement.pk}/'
-            body = (f'Hello {user.get_full_name() or user.username},\n\n'
-                    f'{"A new version of" if rev.version_number > 1 else ""}'
-                    f'{" " if rev.version_number > 1 else ""}"{rev.title}" '
-                    f'(version {rev.version_number}, issued {rev.issued_at:%Y-%m-%d}) needs to be '
-                    f'{agreement.verb_past}'
-                    + (f' for {agreement.organization_name}' if agreement.audience == Agreement.ONE else '')
-                    + f'.\n\nRead it and {agreement.verb} it in the customer portal:\n{link}\n\n'
-                    f'You get this because you may {agreement.verb} it for your organization. To stop these '
-                    f'e-mails, turn off e-mail notifications in your profile.\n\n— {brand}\n')
+            unsubscribe = reminder_unsubscribe_url(agreement, user, base)
+            body = reminder_text(agreement, rev, user, link=link, unsubscribe=unsubscribe, brand=brand)
             if dry_run:
                 counts['sent'] += 1
                 if stdout is not None:
                     stdout.write(f'would remind {user.email} about {rev}\n')
                 continue
-            ok = mailer.send_to_recipients(connection, from_email, [user.email], subject, body)
+            msg = EmailMessage(subject=subject, body=body, from_email=from_email, to=[user.email],
+                               connection=connection,
+                               headers={'List-Unsubscribe': f'<{unsubscribe}>',
+                                        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'})
+            try:
+                ok = msg.send(fail_silently=False)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning('agreement reminder to %s failed: %s', user.email, exc)
+                ok = 0
             if ok:
                 AgreementReminder.objects.create(revision=rev, user=user, email=user.email, sent_at=now)
                 counts['sent'] += 1
