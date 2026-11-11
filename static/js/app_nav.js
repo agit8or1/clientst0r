@@ -100,7 +100,15 @@
         body.classList.add('appnav-open');
         if (backdrop) backdrop.hidden = false;
         if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
-        (filter || nav).focus();
+        // Focus once the drawer is laid out (it is visibility:hidden until the
+        // class applies), and again after the slide-in in case a late click
+        // or transition stole it.
+        var target = filter || nav;
+        target.focus();
+        window.requestAnimationFrame(function () { if (drawerOpen()) target.focus(); });
+        window.setTimeout(function () {
+            if (drawerOpen() && !nav.contains(doc.activeElement)) target.focus();
+        }, 250);
     }
 
     function closeDrawer() {
