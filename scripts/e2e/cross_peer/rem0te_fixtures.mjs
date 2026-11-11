@@ -12,6 +12,10 @@
  *   node rem0te_fixtures.mjs alert '<json>'      → {endpointId} → open alerts for the computer
  *   node rem0te_fixtures.mjs deliveries '<json>' → {peerId} → alert events and whether each was acknowledged
  *   node rem0te_fixtures.mjs retryNow '<json>'   → {peerId} → bring Rem0te's next delivery attempt forward
+ *   node rem0te_fixtures.mjs pause '<json>'      → {customerId, kinds, reason} → a business containment pause
+ *   node rem0te_fixtures.mjs unpause '<json>'    → {id} → lift it
+ *   node rem0te_fixtures.mjs rebootRule '<json>' → {customerId} → a REBOOT_PENDING (1 h) monitor rule
+ *   node rem0te_fixtures.mjs rebootSince '<json>'→ {endpointId, minutes} → backdate the pending restart
  *   node rem0te_fixtures.mjs cleanup '<json>'    → remove what setup created
  */
 import { createRequire } from 'node:module';
@@ -103,6 +107,29 @@ async function retryNow({ peerId }) {
   return { updated: r.count };
 }
 
+async function pause({ customerId, kinds, reason }) {
+  // A Platform Admin's containment pause for one business (Rem0te ≥ 0.30).
+  const p = await prisma.containmentPause.create({ data: { scope: 'BUSINESS', customerId, kinds, reason, setById: 'cross-peer-e2e', setBy: 'msp' } });
+  return { id: p.id };
+}
+
+async function unpause({ id }) {
+  const r = await prisma.containmentPause.updateMany({ where: { id, clearedAt: null }, data: { clearedAt: new Date(), clearedById: 'cross-peer-e2e-2', clearReason: 'e2e done' } });
+  return { updated: r.count };
+}
+
+async function rebootRule({ customerId }) {
+  // REBOOT_PENDING after 1 h for this business (Rem0te's own e2e does the same).
+  await prisma.monitorRule.create({ data: { scopeKey: `b:${customerId}`, customerId, key: 'reboot-pending-e2e', kind: 'REBOOT_PENDING', name: 'Restart pending (e2e)', severity: 'WARNING', params: { hours: 1 }, createdById: 'cross-peer-e2e' } });
+  return { ok: true };
+}
+
+async function rebootSince({ endpointId, minutes }) {
+  // The monitor counts from when Rem0te first saw the restart pending; move that back.
+  const r = await prisma.endpointMonitorState.updateMany({ where: { endpointId, ruleKey: 'reboot-pending-e2e' }, data: { breachSince: new Date(Date.now() - minutes * 60_000) } });
+  return { updated: r.count };
+}
+
 async function cleanup({ peerId, businesses = {}, users = {}, owners = {}, endpoints = {} }) {
   const biz = Object.values(businesses), us = [...Object.values(users), ...Object.values(owners)], eps = Object.values(endpoints).map((e) => e.id);
   const jobs = await prisma.integrationJob.findMany({ where: { customerId: { in: biz } }, select: { id: true } });
@@ -112,6 +139,8 @@ async function cleanup({ peerId, businesses = {}, users = {}, owners = {}, endpo
   await prisma.integrationTechnicianMapping.deleteMany({ where: { peerId } });
   await prisma.integrationOrgMapping.deleteMany({ where: { peerId } });
   await prisma.apiKey.deleteMany({ where: { customerId: { in: biz } } });
+  await prisma.containmentPause.deleteMany({ where: { customerId: { in: biz } } }).catch(() => {});
+  await prisma.endpointMonitorState.deleteMany({ where: { endpointId: { in: eps } } }).catch(() => {});
   await prisma.monitorNotifyPolicy.deleteMany({ where: { customerId: { in: biz } } });
   await prisma.monitorRule.deleteMany({ where: { customerId: { in: biz } } });
   await prisma.monitorAlert.deleteMany({ where: { endpointId: { in: eps } } }).catch(() => {});
@@ -124,7 +153,7 @@ async function cleanup({ peerId, businesses = {}, users = {}, owners = {}, endpo
   return { ok: true };
 }
 
-const handlers = { setup, caps, mapping, job, alert, deliveries, retryNow, cleanup };
+const handlers = { setup, caps, mapping, job, alert, deliveries, retryNow, pause, unpause, rebootRule, rebootSince, cleanup };
 try {
   if (!handlers[cmd]) throw new Error(`unknown command ${cmd}`);
   const out = await handlers[cmd](input);
