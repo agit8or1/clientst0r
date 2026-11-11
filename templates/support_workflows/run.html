@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ run.workflow_name }} — {{ ticket.ticket_number }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+    <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'support_workflows:ticket' ticket.ticket_number %}">Support workflows</a></li>
+    <li class="breadcrumb-item active">{{ run.workflow_name }}</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <h4 class="mb-0">{{ run.workflow_name }}</h4>
+    <span class="badge {% if run.status == 'verified' %}bg-success{% elif run.is_open %}bg-primary{% else %}bg-secondary{% endif %}">{{ run.get_status_display }}</span>
+</div>
+<p class="small text-muted">Started by {{ run.actor.username }} {{ run.created_at|date:"Y-m-d H:i" }}{% if run.device %} · {{ run.device.device_name }}{% endif %}. Staff only.</p>
+{% if run.outcome_note %}<div class="alert alert-{% if run.status == 'verified' %}success{% else %}secondary{% endif %} small">{{ run.outcome_note }}</div>{% endif %}
+
+<div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center"><strong>Evidence</strong>
+    {% if can_run and run.is_open %}<form method="post" class="mb-0">{% csrf_token %}<input type="hidden" name="op" value="refresh"><button class="btn btn-sm btn-outline-secondary">Refresh status</button></form>{% endif %}</div>
+<table class="table table-sm small mb-0"><thead><tr><th>What</th><th>Value</th><th>Source</th><th>Age</th></tr></thead><tbody>
+{% for i in run.evidence %}<tr>
+    <td>{{ i.label }}</td>
+    <td>{% for k, v in i.value.items %}<div><span class="text-muted">{{ k }}</span> {{ v }}</div>{% endfor %}</td>
+    <td>{{ i.source }}</td>
+    <td>{% if i.age_minutes is not None %}{{ i.age_minutes }} min {% if i.fresh %}<span class="badge bg-success">fresh</span>{% else %}<span class="badge bg-warning text-dark">stale</span>{% endif %}{% else %}—{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="4" class="text-muted">No evidence available.</td></tr>{% endfor %}
+</tbody></table></div>
+
+<div class="card mb-3"><div class="card-header"><strong>Likely causes</strong> <small class="text-muted">rule-based</small></div>
+<ul class="list-group list-group-flush small">{% for c in run.causes %}<li class="list-group-item">{{ c.text }}</li>{% empty %}<li class="list-group-item text-muted">No rule matched the evidence.</li>{% endfor %}</ul></div>
+
+{% if run.diagnostics %}
+<div class="card mb-3"><div class="card-header"><strong>Read-only diagnostics</strong> <small class="text-muted">offered by the RMM</small></div>
+<div class="card-body small d-flex flex-wrap gap-2">
+{% for dgn in run.diagnostics %}{% if can_run %}<form method="post" class="mb-0">{% csrf_token %}<input type="hidden" name="op" value="diagnostic"><input type="hidden" name="diagnostic" value="{{ dgn.key }}"><input type="hidden" name="key" value="{{ request_key }}"><button class="btn btn-sm btn-outline-primary">{{ dgn.label }}</button></form>{% endif %}{% endfor %}
+</div>
+{% if diagnostic_requests %}<ul class="list-group list-group-flush small">{% for q in diagnostic_requests %}<li class="list-group-item">{{ q.diagnostic_label }} · {{ q.get_status_display }}{% if q.result_text %}<pre class="small mb-0">{{ q.result_text|truncatechars:2000 }}</pre>{% endif %}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header"><strong>Remediation</strong></div>
+<ul class="list-group list-group-flush small">
+{% for r in run.remediations %}
+<li class="list-group-item">
+    <div class="d-flex justify-content-between flex-wrap gap-2"><strong>{{ r.label }}</strong><span class="badge {% if r.risk == 'high' %}bg-danger{% else %}bg-secondary{% endif %}">{{ r.risk }} risk</span></div>
+    {% if r.impact %}<div>{{ r.impact }}</div>{% endif %}
+    {% if r.offered %}
+        {% if can_propose %}
+        <form method="post" class="mt-1">{% csrf_token %}<input type="hidden" name="op" value="propose"><input type="hidden" name="action" value="{{ r.action }}"><input type="hidden" name="key" value="{{ request_key }}">
+            <button class="btn btn-sm btn-warning">Request approval in Rem0te</button>
+            <span class="text-muted ms-1">Nothing runs until Rem0te's approvers approve it.</span></form>
+        {% endif %}
+    {% else %}<div class="text-muted">Not offered: {{ r.why_not }}</div>{% endif %}
+</li>
+{% empty %}<li class="list-group-item text-muted">The RMM offers no action for this. Use the manual steps.</li>{% endfor %}
+</ul>
+{% if run.rmm_request %}<div class="card-body small border-top">
+    Request: {{ run.rmm_request.get_status_display }}{% if run.rmm_request.remote_status %} ({{ run.rmm_request.remote_status }}){% endif %}
+    {% if run.rmm_request.approval_url %} · <a href="{{ run.rmm_request.approval_url }}" target="_blank" rel="noopener noreferrer">Approval page in Rem0te</a>{% endif %}
+    {% if run.rmm_request.approval_expires_at %} · approval window ends {{ run.rmm_request.approval_expires_at|date:"Y-m-d H:i" }}{% endif %}
+    {% if run.rmm_request.status_note %}<div class="text-muted">{{ run.rmm_request.status_note }}</div>{% endif %}
+    {% if run.rmm_request.error %}<div class="text-danger">{{ run.rmm_request.error }}</div>{% endif %}
+</div>{% endif %}
+</div>
+
+{% if run.definition.manual_steps %}
+<div class="card mb-3"><div class="card-header"><strong>Manual steps</strong></div>
+<div class="card-body small"><ol class="mb-2">{% for s in run.definition.manual_steps %}<li>{{ s }}</li>{% endfor %}</ol>
+{% if can_manual %}
+<form method="post" class="d-flex gap-2 flex-wrap">{% csrf_token %}<input type="hidden" name="op" value="manual">
+    <input type="text" name="note" maxlength="2000" class="form-control form-control-sm" style="max-width:32rem" placeholder="What you did (staff note)">
+    <button class="btn btn-sm btn-outline-success">Manual steps done — wait for monitoring</button></form>
+{% endif %}
+</div></div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header"><strong>History</strong></div>
+<ul class="list-group list-group-flush small">{% for h in run.history %}<li class="list-group-item"><span class="text-muted">{{ h.at|slice:":16" }}</span> {{ h.text }}</li>{% endfor %}</ul></div>
+{% if can_run and run.is_open %}<form method="post">{% csrf_token %}<input type="hidden" name="op" value="cancel"><button class="btn btn-sm btn-link text-danger p-0">Cancel this workflow</button></form>{% endif %}
+{% endblock %}
