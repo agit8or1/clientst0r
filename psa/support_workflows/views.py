@@ -133,43 +133,62 @@ def admin_list(request):
 @require_routing_perm(PERM_MANAGE)
 @require_http_methods(['GET', 'POST'])
 def admin_edit(request, slug=None):
+    """Edit a workflow. The structured editor is the default; ?view=json (or
+    editor=json in the POST) is the advanced JSON view. Both save the same
+    definition format and both go through engine.validate_definition."""
     from django.utils.text import slugify
+    from integrations.rem0te.pairing import KNOWN_ACTIONS
+    from . import forms as wf_forms
     row = SupportWorkflowDefinition.objects.filter(slug=slug).first() if slug else None
     current = (dict(row.definition) if row else (engine.builtin(slug) if slug else None))
     if slug and current is None:
         raise Http404
-    errors = []
-    text = json.dumps({k: v for k, v in (current or {
+    current = {k: v for k, v in (current or {
         'name': '', 'description': '', 'categories': ['other'], 'freshness_minutes': 30,
         'evidence': ['alert', 'device_status'], 'causes': [], 'remediations': [], 'manual_steps': [],
-        'verify_within_minutes': 60}).items() if k != 'slug'}, indent=2)
+        'verify_within_minutes': 60}).items() if k != 'slug'}
+    editor = request.POST.get('editor') or ('json' if request.GET.get('view') == 'json' else 'form')
+    if editor not in ('json', 'form'):
+        editor = 'form'
+    errors, data, more = [], current, 0
+    text = json.dumps(current, indent=2)
+    new_slug = slug or slugify(request.POST.get('slug') or '')[:64]
     if request.method == 'POST':
-        text = request.POST.get('definition') or ''
-        new_slug = slug or slugify(request.POST.get('slug') or '')[:64]
-        try:
-            data = json.loads(text)
-        except ValueError as e:
-            data, errors = None, [f'Not valid JSON: {e}']
-        if data is not None:
-            errors = engine.validate_definition(data)
-        if not new_slug:
-            errors.append('A slug is required.')
-        elif not slug and (engine.builtin(new_slug) or SupportWorkflowDefinition.objects.filter(slug=new_slug).exists()):
-            errors.append('That slug is taken.')
-        if not errors:
+        if editor == 'json':
+            text = request.POST.get('definition') or ''
+            try:
+                data = json.loads(text)
+            except ValueError as e:
+                data, errors = None, [f'Not valid JSON: {e}']
+        else:
+            data, errors = wf_forms.from_post(request.POST, base=current)
+            text = json.dumps(data, indent=2)
+            if request.POST.get('op') == 'more':
+                more = 2  # re-render with more blank rows; nothing is saved
+        if data is not None and not more:
+            errors += engine.validate_definition(data)
+        if not more:
+            if not new_slug:
+                errors.append('A slug is required.')
+            elif not slug and (engine.builtin(new_slug)
+                               or SupportWorkflowDefinition.objects.filter(slug=new_slug).exists()):
+                errors.append('That slug is taken.')
+        if not errors and not more:
             data.pop('slug', None)
-            obj, _ = SupportWorkflowDefinition.objects.update_or_create(
+            SupportWorkflowDefinition.objects.update_or_create(
                 slug=new_slug, defaults={'name': str(data['name'])[:120],
                                          'description': str(data.get('description') or '')[:300],
                                          'definition': data, 'updated_by': request.user})
-            _audit(request, 'update', new_slug, f'Support workflow "{new_slug}" saved')
+            _audit(request, 'update', new_slug, f'Support workflow "{new_slug}" saved ({editor} editor)')
             messages.success(request, 'Workflow saved. Runs already started keep the version they started with.')
             return redirect('support_workflows:admin')
-    from integrations.rem0te.pairing import KNOWN_ACTIONS
+    rows = wf_forms.to_rows(data if isinstance(data, dict) else current, more=more)
     return render(request, 'support_workflows/admin_edit.html', {
-        'slug': slug, 'text': text, 'errors': errors, 'is_builtin': bool(slug and engine.builtin(slug)),
+        'slug': slug, 'new_slug': '' if slug else new_slug, 'text': text, 'errors': errors, 'editor': editor,
+        'rows': rows, 'is_builtin': bool(slug and engine.builtin(slug)),
         'evidence_keys': engine.EVIDENCE, 'facts': sorted(engine.FACTS), 'ops': sorted(engine.OPS),
         'categories': sorted(engine.CATEGORIES), 'known_actions': KNOWN_ACTIONS,
+        'value_ops': sorted(wf_forms.VALUE_OPS),
     })
 
 
