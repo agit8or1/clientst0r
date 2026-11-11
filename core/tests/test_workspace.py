@@ -299,8 +299,11 @@ class DenseListFilterTests(_Fixture):
                          'status=all&severity=critical')
 
     def test_rmm_alerts_bar_is_staff_only(self):
+        # Customers can't open RMM pages at all (v3.17.661), so no bar either.
         _login(self.client, self.customer, self.a)
-        self.assertNotContains(self.client.get(reverse('integrations:rmm_alerts')), 'id="savedViews"')
+        r = self.client.get(reverse('integrations:rmm_alerts'))
+        self.assertEqual(r.status_code, 403)
+        self.assertNotIn(b'id="savedViews"', r.content)
 
     def test_triage_filters(self):
         from psa.routing.models import STATUS_FALLBACK, STATUS_SUGGESTED, TRIGGER_CREATED, RoutingDecision
