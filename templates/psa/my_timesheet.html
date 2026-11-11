@@ -80,6 +80,9 @@
                     <td>
                         {% if e.submission_id %}
                             <span class="badge bg-info">In submission</span>
+                        {% elif e.rejected_at %}
+                            <span class="badge bg-danger">Returned</span>
+                            <div class="small text-danger">{{ e.rejection_reason|default:"No reason given." }}</div>
                         {% else %}
                             <span class="text-muted">—</span>
                         {% endif %}
@@ -101,11 +104,28 @@
 </div>
 {% endif %}
 
-{% if not submission or submission.status == 'rejected' %}
+{% if returned_entries %}
+<div class="alert alert-warning small">
+    <strong>{{ returned_entries|length }} entr{{ returned_entries|length|pluralize:"y,ies" }} sent back by your approver.</strong>
+    <ul class="mb-1">
+        {% for e in returned_entries %}
+        <li>{{ e.started_at|date:'Y-m-d H:i' }} on {{ e.ticket.ticket_number }} ({{ e.duration_minutes }} min){% if e.rejected_by %}, returned by {{ e.rejected_by.username }}{% endif %}: {{ e.rejection_reason|default:"No reason given." }}</li>
+        {% endfor %}
+    </ul>
+    Fix them on the ticket and resubmit; the rest of the week stays as it was decided.
+</div>
+{% endif %}
+
+{% if not submission or submission.status == 'rejected' or submission.status == 'approved' and unsubmitted_count %}
 <form method="post" class="card">
     {% csrf_token %}
     <div class="card-body">
+        {% if submission.status == 'approved' %}
+        <h6>Resubmit {{ unsubmitted_count }} entr{{ unsubmitted_count|pluralize:"y,ies" }} for approval</h6>
+        <p class="small text-muted mb-2">Approved entries are not affected; only the entries not yet in a submission go up for approval.</p>
+        {% else %}
         <h6>Submit this week for approval</h6>
+        {% endif %}
         <textarea name="notes" rows="2" class="form-control mb-2" maxlength="5000"
                   placeholder="Optional comment for the approver..."></textarea>
     </div>
