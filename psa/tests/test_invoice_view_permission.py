@@ -104,3 +104,11 @@ class InvoiceViewPermissionTests(TestCase):
         session.save()
         self.assertEqual(c.get(f'/psa/invoices/{self.inv_b.pk}/').status_code, 404)
         self.assertEqual(c.get(f'/psa/invoices/{self.inv_b.pk}/pdf/').status_code, 404)
+
+    def test_pdf_opens_for_a_holder(self):
+        # invoice_pdf used to raise NameError (Invoice not imported) for everyone.
+        from unittest import mock
+        with mock.patch('psa.pdf.render_invoice_pdf', return_value=b'%PDF-1.4 test'):
+            r = self._client(self.owner_a, self.a).get(f'/psa/invoices/{self.inv_a.pk}/pdf/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')

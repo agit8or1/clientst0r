@@ -5239,6 +5239,9 @@ def quote_pdf(request, pk):
 @require_psa_enabled
 def invoice_pdf(request, pk):
     from django.http import HttpResponse
+    # `Invoice` is not in the module-level imports; without this the PDF
+    # view raised NameError on every call.
+    from .models import Invoice
     from .pdf import render_invoice_pdf
     org = get_request_organization(request)
     qs = Invoice.objects.all()
