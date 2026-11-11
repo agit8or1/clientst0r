@@ -174,7 +174,14 @@
                                    placeholder="CN=MSP Techs,OU=Groups,DC=example,DC=com">
                             <div class="form-text">When set, members sign in as MSP staff and everyone else as organization users
                                 (checked on every sign-in). When blank, the user type is managed in Client St0r.
-                                Organization memberships and roles are always assigned in Client St0r.</div>
+                                Organization memberships and roles are assigned in Client St0r, or by
+                                <a href="{% url 'accounts:ldap_group_mappings' %}">group mappings</a>.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:ldap_group_mappings' %}">
+                                <i class="fas fa-project-diagram"></i> Group mappings (directory group to customer and role)
+                            </a>
                         </div>
 
                         <div class="card bg-body-tertiary mb-3">

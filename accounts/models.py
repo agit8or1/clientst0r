@@ -69,6 +69,13 @@ class Membership(BaseModel):
     )
     invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='invited_memberships')
     invited_at = models.DateTimeField(auto_now_add=True)
+    # Set when the membership was created by an LDAP group mapping. Only
+    # these memberships are ever changed by directory sign-ins; memberships
+    # created by hand (this is null) are never touched by the mapping.
+    ldap_group_mapping = models.ForeignKey(
+        'LDAPGroupMapping', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='memberships',
+        help_text='LDAP group mapping that manages this membership, if any')
 
     class Meta:
         db_table = 'memberships'
@@ -197,7 +204,7 @@ class Membership(BaseModel):
                 files_view=True, files_upload=True, files_delete=False,
                 monitoring_view=True, monitoring_create=True, monitoring_edit=True,
                 monitoring_delete=False, monitoring_trigger=True,
-                integrations_view=False, integrations_configure=False, integrations_sync=False,
+                integrations_view=True, integrations_configure=False, integrations_sync=False,
                 audit_view=False, audit_export=False,
                 org_view_members=True, org_invite_members=False, org_manage_members=False,
                 org_manage_settings=False,
@@ -250,7 +257,7 @@ class Membership(BaseModel):
                 files_view=True, files_upload=False, files_delete=False,
                 monitoring_view=True, monitoring_create=False, monitoring_edit=False,
                 monitoring_delete=False, monitoring_trigger=False,
-                integrations_view=False, integrations_configure=False, integrations_sync=False,
+                integrations_view=True, integrations_configure=False, integrations_sync=False,
                 audit_view=False, audit_export=False,
                 org_view_members=True, org_invite_members=False, org_manage_members=False,
                 org_manage_settings=False,
@@ -1219,7 +1226,7 @@ class RoleTemplate(BaseModel):
                 'monitoring_edit': True,
                 'monitoring_delete': False,
                 'monitoring_trigger': True,
-                'integrations_view': False,
+                'integrations_view': True,
                 'integrations_configure': False,
                 'integrations_sync': False,
                 'audit_view': False,
@@ -1334,7 +1341,7 @@ class RoleTemplate(BaseModel):
                 'monitoring_edit': False,
                 'monitoring_delete': False,
                 'monitoring_trigger': False,
-                'integrations_view': False,
+                'integrations_view': True,
                 'integrations_configure': False,
                 'integrations_sync': False,
                 'audit_view': False,
@@ -1569,7 +1576,7 @@ class RoleTemplate(BaseModel):
                 'monitoring_edit': False,
                 'monitoring_delete': False,
                 'monitoring_trigger': False,
-                'integrations_view': False,
+                'integrations_view': True,
                 'integrations_configure': False,
                 'integrations_sync': False,
                 'audit_view': False,
@@ -1683,7 +1690,7 @@ class RoleTemplate(BaseModel):
                 'monitoring_edit': False,
                 'monitoring_delete': False,
                 'monitoring_trigger': False,
-                'integrations_view': False,
+                'integrations_view': True,
                 'integrations_configure': False,
                 'integrations_sync': False,
                 'audit_view': False,
@@ -2046,3 +2053,48 @@ class RoleTemplate(BaseModel):
             )
             if created:
                 print(f"Created system role template: {template.name}")
+
+
+def normalize_group_dn(dn):
+    """Directory DNs compare case-insensitively; whitespace around the
+    comma-separated parts is not significant."""
+    return ','.join(part.strip() for part in (dn or '').split(',')).strip().lower()
+
+
+class LDAPGroupMapping(BaseModel):
+    """Directory group -> customer membership with a role.
+
+    On every LDAP sign-in the user's mapped groups are checked: a membership
+    is created (or re-activated / re-roled) in `organization` for each mapped
+    group the user is in, and memberships created by a mapping are
+    deactivated when the user is no longer in any mapped group for that
+    customer. Memberships not created by a mapping are never touched.
+    """
+    group_dn = models.CharField(max_length=500, help_text='Distinguished name of the directory group')
+    # 500 chars keeps the unique index within MariaDB's utf8mb4 key limit.
+    group_dn_normalized = models.CharField(max_length=500, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     related_name='ldap_group_mappings')
+    role_template = models.ForeignKey('RoleTemplate', on_delete=models.PROTECT,
+                                      related_name='ldap_group_mappings')
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+
+    class Meta:
+        db_table = 'ldap_group_mappings'
+        ordering = ['organization__name', 'group_dn']
+        unique_together = [['group_dn_normalized', 'organization']]
+
+    def __str__(self):
+        return f"{self.group_dn} -> {self.organization} ({self.role_template.name})"
+
+    def role_allowed(self):
+        """System / global roles, or the customer's own custom roles."""
+        rt = self.role_template
+        return rt is not None and rt.organization_id in (None, self.organization_id)
+
+    def save(self, *args, **kwargs):
+        self.group_dn = (self.group_dn or '').strip()
+        self.group_dn_normalized = normalize_group_dn(self.group_dn)
+        super().save(*args, **kwargs)

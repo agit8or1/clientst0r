@@ -7,12 +7,18 @@ from . import roles_views
 from . import quick_views
 from . import shortcut_views
 from . import oauth_views
+from . import ldap_mapping_views
 
 app_name = 'accounts'
 
 urlpatterns = [
     # Account lockout page (shown by django-axes after too many failed logins)
     path('locked/', views.lockout, name='lockout'),
+
+    # LDAP group -> customer membership mappings (superuser only)
+    path('ldap/group-mappings/', ldap_mapping_views.mapping_list, name='ldap_group_mappings'),
+    path('ldap/group-mappings/<int:pk>/delete/', ldap_mapping_views.mapping_delete,
+         name='ldap_group_mapping_delete'),
 
     # Azure AD OAuth
     path('auth/azure/login/', oauth_views.azure_login, name='azure_login'),
