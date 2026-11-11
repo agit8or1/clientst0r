@@ -9,6 +9,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -4573,6 +4574,14 @@ def invoice_list(request):
         qs = qs.filter(organization=org)
     elif not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         qs = qs.none()
+    # Same rule as the invoice page: only invoices whose billed customer (or
+    # booking customer) the user holds billing_view_invoices for, and for a
+    # customer user only their own customers.
+    from accounts.permission_utils import orgs_with_perm
+    allowed = orgs_with_perm(request.user, 'billing_view_invoices')
+    if allowed is not None:
+        qs = qs.filter(models.Q(client_org_id__in=allowed) | models.Q(organization_id__in=allowed))
+    qs = _invoices_for_customer(request, qs)
     status = request.GET.get('status')
     if status in {'draft', 'sent', 'partial', 'paid', 'overdue', 'void'}:
         qs = qs.filter(status=status)
@@ -4580,6 +4589,26 @@ def invoice_list(request):
         'invoices': qs.order_by('-invoice_date', '-created_at')[:200],
         'status_filter': status or '',
     })
+
+
+def _invoices_for_customer(request, qs):
+    """Customer users reach only invoices billed to their own customers,
+    whatever customer (or Global View) the session is on. MSP staff are
+    unaffected."""
+    if _is_msp_staff(request):
+        return qs
+    return qs.filter(client_org_id__in=_member_org_ids(request))
+
+
+def _require_invoice_view(request, invoice):
+    """403 unless the user holds `billing_view_invoices` for the customer
+    billed (or the customer the invoice is booked under). Superusers, and
+    MSP staff without a global role, keep the access they always had
+    (accounts.permission_utils.orgs_with_perm)."""
+    from accounts.permission_utils import has_perm_for_org
+    if not (has_perm_for_org(request.user, invoice.client_org_id, 'billing_view_invoices')
+            or has_perm_for_org(request.user, invoice.organization_id, 'billing_view_invoices')):
+        raise PermissionDenied("You don't have the 'billing_view_invoices' permission for this customer.")
 
 
 @login_required
@@ -4590,7 +4619,8 @@ def invoice_detail(request, pk):
     qs = Invoice.objects.select_related('client_org', 'source_quote', 'source_ticket', 'source_contract')
     if org is not None:
         qs = qs.filter(organization=org)
-    item = get_object_or_404(qs, pk=pk)
+    item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    _require_invoice_view(request, item)
     return render(request, 'psa/invoice_detail.html', {
         'item': item,
         'line_items': item.line_items.all(),
@@ -5217,12 +5247,17 @@ def quote_pdf(request, pk):
 @require_psa_enabled
 def invoice_pdf(request, pk):
     from django.http import HttpResponse
+    # `Invoice` is not in the module-level imports; without this the PDF
+    # view raised NameError on every call.
+    from .models import Invoice
     from .pdf import render_invoice_pdf
     org = get_request_organization(request)
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs.select_related('client_org', 'organization'), pk=pk)
+    invoice = get_object_or_404(_invoices_for_customer(request, qs.select_related('client_org', 'organization')),
+                                pk=pk)
+    _require_invoice_view(request, invoice)
     pdf_bytes = render_invoice_pdf(invoice)
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     disposition = 'attachment' if request.GET.get('download') else 'inline'
@@ -5285,7 +5320,14 @@ def invoice_email(request, pk):
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs.select_related('client_org', 'organization'), pk=pk)
+    # Bounded to a customer user's own customers even when no customer is
+    # selected, and sending needs billing_send_invoices for the customer.
+    invoice = get_object_or_404(_invoices_for_customer(request, qs.select_related('client_org', 'organization')),
+                                pk=pk)
+    from accounts.permission_utils import has_perm_for_org
+    if not (has_perm_for_org(request.user, invoice.client_org_id, 'billing_send_invoices')
+            or has_perm_for_org(request.user, invoice.organization_id, 'billing_send_invoices')):
+        raise PermissionDenied("You don't have the 'billing_send_invoices' permission for this customer.")
     recipient = (request.POST.get('recipient') or '').strip()
     subject = (request.POST.get('subject') or '').strip()
     body = (request.POST.get('body') or '').strip()
@@ -5354,6 +5396,9 @@ def client_account(request, org_id):
     from .models import Charge, Invoice, Payment, get_psa_balance
     from core.models import Organization
     client = get_object_or_404(_customer_orgs(request), pk=org_id)
+    from accounts.permission_utils import has_perm_for_org
+    if not has_perm_for_org(request.user, client, 'billing_view_invoices'):
+        raise PermissionDenied("You don't have the 'billing_view_invoices' permission for this customer.")
 
     org = get_request_organization(request)
     summary = get_psa_balance(client, msp_org=org)
