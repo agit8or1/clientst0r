@@ -263,7 +263,7 @@ class ConnectWiseAutomateProvider(BaseRMMProvider):
             'os_version': os_name,
             'hostname': name,
             'ip_address': raw_data.get('LocalIPAddress') or None,
-            'mac_address': raw_data.get('MACAddress', '') or '',
+            'mac_address': raw_data.get('MacAddress') or raw_data.get('MACAddress', '') or '',
             'is_online': status == 'online',
             'last_seen': self._parse_datetime(last_seen),
             'client_id': str(client_id) if client_id not in (None, '') else '',
