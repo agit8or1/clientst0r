@@ -1,10 +1,17 @@
 from django.urls import path
 
-from . import views
+from . import shift_views, views
 
 app_name = 'resourcing'
 
 urlpatterns = [
+    # Phase 11 — shift templates + weekly shift schedule
+    path('shifts/', shift_views.schedule, name='shift_schedule'),
+    path('shifts/templates/', shift_views.templates, name='shift_templates'),
+    path('shifts/assign/', shift_views.assign, name='shift_assign'),
+    path('shifts/assignments/<int:pk>/delete/', shift_views.assignment_delete,
+         name='shift_assignment_delete'),
+
     # My profile (current user manages own skills/certs/hours)
     path('me/', views.my_resourcing, name='my_resourcing'),
 

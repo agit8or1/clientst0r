@@ -860,10 +860,11 @@ def rank_techs_for_ticket(ticket):
             score += 20
             reasons.append("member of client org")
 
-        # Currently working
-        profile = getattr(u, 'profile', None)
+        # Currently working — the weekly shift schedule when the tech has
+        # one, otherwise WorkingHours (resourcing/shifts.py).
         try:
-            available_now = bool(profile and profile.is_working_now()) if profile else True
+            from .shifts import is_working
+            available_now = is_working(u)
         except Exception:
             available_now = True
         if available_now:

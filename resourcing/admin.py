@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .models import (
     BillableTarget, Holiday, LeaveRequest, TechCostRate,
-    UserSkill, UserCertification, WorkingHours,
+    ShiftAssignment, ShiftTemplate, UserSkill, UserCertification, WorkingHours,
 )
 
 
@@ -83,3 +83,15 @@ class TechCostRateAdmin(admin.ModelAdmin):
     autocomplete_fields = ('user',)
     date_hierarchy = 'effective_from'
     ordering = ('-effective_from', 'user__username')
+
+
+@admin.register(ShiftTemplate)
+class ShiftTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'start_time', 'end_time', 'is_on_call', 'is_active')
+    list_filter = ('is_on_call', 'is_active')
+
+
+@admin.register(ShiftAssignment)
+class ShiftAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('template', 'user', 'team', 'weekdays', 'effective_from', 'effective_until')
+    list_filter = ('template',)

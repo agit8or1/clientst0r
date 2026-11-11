@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Shift schedule{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h1 class="mb-1"><i class="fas fa-user-clock"></i> Shift schedule</h1>
+        <p class="text-muted mb-0">Weekly shifts per technician or team. Dispatch, on-call and ticket routing availability read this schedule; technicians without any shift keep using their working hours.</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if can_manage %}<a href="{% url 'resourcing:shift_templates' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-layer-group"></i> Shift templates</a>{% endif %}
+        <a href="{% url 'resourcing:my_leave' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-umbrella-beach"></i> Leave</a>
+    </div>
+</div>
+
+<div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+    <a class="btn btn-sm btn-outline-primary" href="?week={{ prev_week|date:'Y-m-d' }}{% if team %}&team={{ team.pk }}{% endif %}">&larr; Previous</a>
+    <strong>Week of {{ start|date:"D j M Y" }}</strong>
+    <a class="btn btn-sm btn-outline-primary" href="?week={{ next_week|date:'Y-m-d' }}{% if team %}&team={{ team.pk }}{% endif %}">Next &rarr;</a>
+    <a class="btn btn-sm btn-link" href="?{% if team %}team={{ team.pk }}{% endif %}">This week</a>
+    {% if can_view_team %}
+    <form method="get" class="d-flex gap-1 ms-auto">
+        <input type="hidden" name="week" value="{{ start|date:'Y-m-d' }}">
+        <select name="team" class="form-select form-select-sm" aria-label="Team">
+            <option value="">All technicians</option>
+            {% for g in teams %}<option value="{{ g.pk }}" {% if team and team.pk == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-sm btn-outline-secondary">Show</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if conflict_count %}
+<div class="alert alert-warning py-2 small" id="shift-pto-conflicts"><i class="fas fa-exclamation-triangle me-1"></i>{{ conflict_count }} scheduled shift{{ conflict_count|pluralize }} this week clash{{ conflict_count|pluralize:"es," }} with leave or a holiday. Marked in red below.</div>
+{% endif %}
+
+<div class="table-responsive">
+<table class="table table-sm table-bordered align-top shift-grid">
+    <thead class="table-light">
+        <tr>
+            <th>Technician</th>
+            {% for d in days %}<th class="text-center{% if d == today %} table-primary{% endif %}">{{ d|date:"D" }} <small class="text-muted">{{ d|date:"M j" }}</small></th>{% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td><strong>{{ row.user.get_full_name|default:row.user.username }}</strong></td>
+            {% for c in row.cells %}
+            <td class="small{% if c.conflict %} table-danger{% endif %}">
+                {% for s in c.shifts %}
+                <div class="shift-chip"{% if s.template.color %} style="border-left: 3px solid {{ s.template.color }}; padding-left: 4px;"{% endif %}>
+                    {{ s.template.name }} <span class="text-muted">{{ s.template.start_time|time:"H:i" }}–{{ s.template.end_time|time:"H:i" }}</span>
+                    {% if s.template.is_on_call %}<span class="badge text-bg-warning">on call</span>{% endif %}
+                    {% if s.assignment.team %}<span class="text-muted">({{ s.assignment.team.name }})</span>{% endif %}
+                </div>
+                {% endfor %}
+                {% for lr in c.leave %}<div class="text-danger"><i class="fas fa-umbrella-beach"></i> {{ lr.get_leave_type_display }}</div>{% endfor %}
+                {% for lr in c.pending_leave %}<div class="text-warning"><i class="fas fa-hourglass-half"></i> {{ lr.get_leave_type_display }} (pending)</div>{% endfor %}
+                {% if c.holiday %}<div class="text-info"><i class="fas fa-calendar-day"></i> {{ c.holiday.name }}</div>{% endif %}
+                {% if c.conflict %}<div class="text-danger fw-semibold shift-conflict">{{ c.conflict }}</div>{% endif %}
+                {% if not c.shifts and not c.leave and not c.pending_leave and not c.holiday %}<span class="text-muted">·</span>{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-3">No technicians.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if can_manage %}
+<div class="row g-3 mt-1">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><strong>Add to the weekly schedule</strong></div>
+            <div class="card-body">
+                {% if templates %}
+                <form method="post" action="{% url 'resourcing:shift_assign' %}" class="small">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <div class="mb-2"><label class="form-label">Shift</label>
+                        <select name="template" class="form-select form-select-sm" required>
+                            {% for t in templates %}<option value="{{ t.pk }}">{{ t }}{% if t.is_on_call %} (on call){% endif %}</option>{% endfor %}
+                        </select></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col"><label class="form-label">Technician</label>
+                            <select name="user" class="form-select form-select-sm"><option value="">—</option>{% for u in technicians %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+                        <div class="col"><label class="form-label">…or team</label>
+                            <select name="team" class="form-select form-select-sm"><option value="">—</option>{% for g in teams %}<option value="{{ g.pk }}">{{ g.name }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="mb-2"><label class="form-label d-block">Weekdays</label>
+                        {% for i, label in weekdays %}<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="weekdays" value="{{ i }}" id="wd{{ i }}" {% if i < 5 %}checked{% endif %}><label class="form-check-label" for="wd{{ i }}">{{ label }}</label></div>{% endfor %}</div>
+                    <div class="row g-2 mb-2">
+                        <div class="col"><label class="form-label">From</label><input type="date" name="effective_from" class="form-control form-control-sm" value="{{ start|date:'Y-m-d' }}"></div>
+                        <div class="col"><label class="form-label">Until <span class="text-muted">(optional)</span></label><input type="date" name="effective_until" class="form-control form-control-sm"></div>
+                    </div>
+                    <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Note (optional)">
+                    <button class="btn btn-sm btn-primary">Add</button>
+                </form>
+                {% else %}
+                <p class="mb-0 text-muted">Create a <a href="{% url 'resourcing:shift_templates' %}">shift template</a> first.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><strong>Weekly assignments</strong></div>
+            <ul class="list-group list-group-flush small">
+                {% for a in assignments %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{% if a.user %}{{ a.user.get_full_name|default:a.user.username }}{% else %}Team {{ a.team.name }}{% endif %} — {{ a.template }} on {{ a.weekday_labels }}
+                        <span class="text-muted">from {{ a.effective_from|date:"Y-m-d" }}{% if a.effective_until %} until {{ a.effective_until|date:"Y-m-d" }}{% endif %}</span>
+                        {% if not a.template.is_active %}<span class="badge text-bg-secondary">template off</span>{% endif %}</span>
+                    <form method="post" action="{% url 'resourcing:shift_assignment_delete' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-danger" title="Remove">&times;</button></form>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">No shifts scheduled yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

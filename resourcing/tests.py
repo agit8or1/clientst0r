@@ -413,3 +413,199 @@ class TechCostRateViewTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(TechCostRate.objects.filter(user=self.regular,
                                                     rate_per_hour='75.50').exists())
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 — shift templates + weekly shift schedule
+# ---------------------------------------------------------------------------
+
+from datetime import date as _date, datetime as _dt, timezone as _utc_mod  # noqa: E402
+
+from django.conf import settings as _settings  # noqa: E402
+from django.contrib.auth.models import Group  # noqa: E402
+
+from . import shifts as shift_svc  # noqa: E402
+from .models import ShiftAssignment, ShiftTemplate  # noqa: E402
+
+_UTC = _utc_mod.utc
+_MON = _date(2030, 1, 7)  # a Monday
+_SHIFT_MIDDLEWARE = [m for m in _settings.MIDDLEWARE
+                     if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m]
+
+
+def _at(day, hh, mm=0):
+    return _dt(day.year, day.month, day.day, hh, mm, tzinfo=_UTC)
+
+
+def _shift_tech(username):
+    from accounts.models import UserType
+    u = User.objects.create_user(username=username, password='pw-test-12345')
+    u.profile.user_type = UserType.STAFF
+    u.profile.timezone = 'UTC'
+    u.profile.save()
+    return u
+
+
+class ShiftScheduleTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.tech = _shift_tech('shifty')
+        cls.other = _shift_tech('teammate')
+        cls.team = Group.objects.create(name='Nights')
+        cls.team.user_set.add(cls.other)
+        cls.day = ShiftTemplate.objects.create(name='Day', start_time=time(8), end_time=time(16))
+        cls.night = ShiftTemplate.objects.create(name='Night on-call', start_time=time(22), end_time=time(6),
+                                                 is_on_call=True)
+
+    def test_template_overnight_and_duration(self):
+        self.assertFalse(self.day.overnight)
+        self.assertTrue(self.night.overnight)
+        self.assertEqual(self.day.duration_minutes, 480)
+        self.assertEqual(self.night.duration_minutes, 480)
+
+    def test_assignment_xor_constraint(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ShiftAssignment.objects.create(template=self.day, weekdays=[0], effective_from=_MON)
+        a = ShiftAssignment(template=self.day, user=self.tech, team=self.team, weekdays=[0], effective_from=_MON)
+        with self.assertRaises(ValidationError):
+            a.clean()
+
+    def test_day_shift_and_effective_dates(self):
+        ShiftAssignment.objects.create(template=self.day, user=self.tech, weekdays=[0, 1, 2, 3, 4],
+                                       effective_from=_MON, effective_until=_MON + timedelta(days=7))
+        self.assertIsNotNone(shift_svc.shift_at(self.tech, _at(_MON, 9)))
+        self.assertIsNone(shift_svc.shift_at(self.tech, _at(_MON, 17)))
+        self.assertIsNone(shift_svc.shift_at(self.tech, _at(_MON + timedelta(days=5), 9)))  # Saturday
+        self.assertIsNone(shift_svc.shift_at(self.tech, _at(_MON - timedelta(days=7), 9)))  # before start
+        self.assertIsNone(shift_svc.shift_at(self.tech, _at(_MON + timedelta(days=14), 9)))  # after end
+        self.assertTrue(shift_svc.has_schedule(self.tech, on=_MON))
+        self.assertFalse(shift_svc.has_schedule(self.tech, on=_MON + timedelta(days=30)))
+
+    def test_overnight_team_shift_runs_into_next_day(self):
+        ShiftAssignment.objects.create(template=self.night, team=self.team, weekdays=[0], effective_from=_MON)
+        tue = _MON + timedelta(days=1)
+        self.assertIsNotNone(shift_svc.shift_at(self.other, _at(_MON, 23)))
+        self.assertIsNotNone(shift_svc.shift_at(self.other, _at(tue, 5, 59)))
+        self.assertIsNone(shift_svc.shift_at(self.other, _at(tue, 6)))
+        self.assertIsNone(shift_svc.shift_at(self.tech, _at(_MON, 23)))  # not in the team
+        self.assertIsNotNone(shift_svc.on_call_shift(self.other, _at(tue, 1), team_id=self.team.pk))
+        other_team = Group.objects.create(name='Days')
+        self.assertIsNone(shift_svc.on_call_shift(self.other, _at(tue, 1), team_id=other_team.pk))
+        self.assertIsNotNone(shift_svc.on_call_shift(self.other, _at(tue, 1)))
+
+    def test_switched_off_template_is_ignored(self):
+        ShiftAssignment.objects.create(template=self.day, user=self.tech, weekdays=[0], effective_from=_MON)
+        self.day.is_active = False
+        self.day.save()
+        self.assertIsNone(shift_svc.shift_at(self.tech, _at(_MON, 9)))
+        self.assertFalse(shift_svc.has_schedule(self.tech, on=_MON))
+
+    def test_availability_order(self):
+        # Neither schedule nor working hours: available (unchanged behaviour).
+        self.assertIsNone(shift_svc.availability_problem(self.tech, _at(_MON, 3)))
+        # Working hours only: the old rule.
+        WorkingHours.objects.create(user=self.tech, weekday=0, start_time=time(9), end_time=time(12))
+        self.assertEqual(shift_svc.availability_problem(self.tech, _at(_MON, 13)), 'outside their working hours')
+        # A schedule takes over from working hours.
+        ShiftAssignment.objects.create(template=self.day, user=self.tech, weekdays=[0], effective_from=_MON)
+        self.assertIsNone(shift_svc.availability_problem(self.tech, _at(_MON, 13)))
+        self.assertEqual(shift_svc.availability_problem(self.tech, _at(_MON, 17)), 'outside their scheduled shifts')
+        # Approved leave beats everything.
+        LeaveRequest.objects.create(user=self.tech, start_date=_MON, end_date=_MON, status='approved')
+        self.assertEqual(shift_svc.availability_problem(self.tech, _at(_MON, 10)), 'on approved leave today')
+        self.assertTrue(shift_svc.is_working(self.tech, _at(_MON, 10)))  # leave is not "off shift"
+
+    def test_week_grid_flags_pto_conflicts(self):
+        ShiftAssignment.objects.create(template=self.day, user=self.tech, weekdays=[0, 1, 2], effective_from=_MON)
+        LeaveRequest.objects.create(user=self.tech, start_date=_MON, end_date=_MON, status='approved')
+        LeaveRequest.objects.create(user=self.tech, start_date=_MON + timedelta(days=1),
+                                    end_date=_MON + timedelta(days=1), status='pending')
+        LeaveRequest.objects.create(user=self.tech, start_date=_MON + timedelta(days=4),
+                                    end_date=_MON + timedelta(days=4), status='approved')  # no shift that day
+        Holiday.objects.create(name='Founders day', date=_MON + timedelta(days=2))
+        row = shift_svc.week_grid([self.tech], _MON)[0]
+        conflicts = [c['conflict'] for c in row['cells']]
+        self.assertIn('approved vacation', conflicts[0])
+        self.assertIn('Pending', conflicts[1])
+        self.assertIn('Founders day', conflicts[2])
+        self.assertEqual(conflicts[4], '')
+        self.assertEqual(row['conflicts'], 3)
+        self.assertEqual(len(shift_svc.pto_conflicts(self.tech, _MON, _MON + timedelta(days=6))), 3)
+
+    def test_is_working_follows_schedule(self):
+        ShiftAssignment.objects.create(template=self.day, user=self.tech, weekdays=[0], effective_from=_MON)
+        from unittest import mock
+        with mock.patch('django.utils.timezone.now', return_value=_at(_MON, 20)):
+            self.assertFalse(shift_svc.is_working(self.tech))
+        with mock.patch('django.utils.timezone.now', return_value=_at(_MON, 9)):
+            self.assertTrue(shift_svc.is_working(self.tech))
+
+
+@override_settings(MIDDLEWARE=_SHIFT_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REQUIRE_2FA=False)
+class ShiftViewTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_superuser('shift-admin', 'sa@example.com', 'pw-test-12345')
+        cls.tech = _shift_tech('plain-shift-tech')
+        cls.tech2 = _shift_tech('second-shift-tech')
+        cls.customer = User.objects.create_user('shift-customer', password='pw-test-12345')
+        cls.tpl = ShiftTemplate.objects.create(name='Early', start_time=time(7), end_time=time(15))
+
+    def _login(self, user):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s.save()
+        return c
+
+    def test_manager_creates_template_and_assignment_with_pto_warning(self):
+        c = self._login(self.admin)
+        self.assertEqual(c.get(reverse('resourcing:shift_templates')).status_code, 200)
+        c.post(reverse('resourcing:shift_templates'), {'name': 'Late', 'start_time': '14:00', 'end_time': '22:00',
+                                                      'is_active': 'on'})
+        late = ShiftTemplate.objects.get(name='Late')
+        start = timezone.localdate()
+        LeaveRequest.objects.create(user=self.tech, start_date=start, end_date=start + timedelta(days=6),
+                                    status='approved')
+        resp = c.post(reverse('resourcing:shift_assign'), {
+            'template': late.pk, 'user': self.tech.pk, 'weekdays': [str(i) for i in range(7)],
+            'effective_from': start.isoformat()}, follow=True)
+        self.assertContains(resp, 'clashes with leave')
+        a = ShiftAssignment.objects.get(user=self.tech)
+        self.assertEqual(a.weekdays, list(range(7)))
+        page = c.get(reverse('resourcing:shift_schedule'))
+        self.assertContains(page, 'Late')
+        self.assertContains(page, 'shift-pto-conflicts')
+        c.post(reverse('resourcing:shift_assignment_delete', args=[a.pk]))
+        self.assertFalse(ShiftAssignment.objects.filter(pk=a.pk).exists())
+        # Deleting a used template switches it off instead.
+        ShiftAssignment.objects.create(template=late, user=self.tech, weekdays=[0], effective_from=start)
+        c.post(reverse('resourcing:shift_templates'), {'delete': late.pk})
+        late.refresh_from_db()
+        self.assertFalse(late.is_active)
+
+    def test_invalid_assignment_is_refused(self):
+        c = self._login(self.admin)
+        c.post(reverse('resourcing:shift_assign'), {'template': self.tpl.pk, 'weekdays': ['0']})
+        c.post(reverse('resourcing:shift_assign'), {'template': self.tpl.pk, 'user': self.tech.pk})
+        c.post(reverse('resourcing:shift_assign'), {'template': self.tpl.pk, 'user': self.customer.pk,
+                                                   'weekdays': ['0']})  # not a technician
+        self.assertFalse(ShiftAssignment.objects.exists())
+
+    def test_permissions(self):
+        self.assertEqual(self._login(self.customer).get(reverse('resourcing:shift_schedule')).status_code, 404)
+        tech = self._login(self.tech)
+        ShiftAssignment.objects.create(template=self.tpl, user=self.tech2, weekdays=list(range(7)),
+                                       effective_from=timezone.localdate() - timedelta(days=7))
+        page = tech.get(reverse('resourcing:shift_schedule'))
+        self.assertEqual(page.status_code, 200)
+        # A technician without team rights sees only their own row and cannot manage.
+        self.assertEqual([r['user'] for r in page.context['rows']], [self.tech])
+        self.assertFalse(page.context['can_manage'])
+        self.assertEqual(tech.get(reverse('resourcing:shift_templates')).status_code, 404)
+        tech.post(reverse('resourcing:shift_assign'), {'template': self.tpl.pk, 'user': self.tech.pk,
+                                                      'weekdays': ['0']})
+        self.assertFalse(ShiftAssignment.objects.filter(user=self.tech).exists())

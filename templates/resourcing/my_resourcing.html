@@ -10,11 +10,16 @@
         </h1>
         <p class="text-muted mb-0">Skills, certifications, and working hours.</p>
     </div>
+    <div class="d-flex gap-2">
+    <a href="{% url 'resourcing:shift_schedule' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-user-clock"></i> Shift schedule
+    </a>
     {% if request.user.is_staff or request.user.is_superuser %}
     <a href="{% url 'resourcing:tech_roster' %}" class="btn btn-outline-secondary">
         <i class="fas fa-users"></i> Tech Roster
     </a>
     {% endif %}
+    </div>
 </div>
 
 {% if viewing_as_admin %}
