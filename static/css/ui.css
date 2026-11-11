@@ -274,6 +274,9 @@ main [tabindex]:focus-visible {
     outline: 2px solid var(--ui-primary);
     outline-offset: 2px;
     box-shadow: none;
+    /* custom.css gives .btn / .form-select `transition: all`; the ring
+       should appear at once, not grow in. */
+    transition-property: color, background-color, border-color;
 }
 
 /* -------------------------------------------------------------------------

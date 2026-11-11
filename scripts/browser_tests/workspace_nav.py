@@ -12,7 +12,11 @@
    the bar's menu button, opens with focus in the filter, closes on Escape;
    tablet width (820px) uses the drawer too;
 5. My Work renders its panels and a device link opens in context, offering
-   the way back to the previous customer.
+   the way back to the previous customer;
+6. the main technician pages (My Work, ticket detail, Device Workspace,
+   dispatch board, RMM devices, asset list) at 390px and 820px: no horizontal
+   scroll, every control has an accessible name (aria-label or text, not a
+   title alone), and keyboard focus is visible on the first 40 tab stops.
 
 It never touches production: it refuses to run unless the database is the
 isolated demo SQLite file under $DEMO_DIR, and it starts its own `runserver`
@@ -102,8 +106,15 @@ class Fx:
         RMMDevice.objects.filter(connection=conn).delete()
         self.dev_b = RMMDevice.objects.create(organization=self.b, connection=conn, external_id='nav-b1',
                                               device_name='NAV-BRAVO-SRV', is_online=False)
-        RMMDevice.objects.create(organization=self.a, connection=conn, external_id='nav-a1',
-                                 device_name='NAV-ALPHA-SRV', is_online=False)
+        self.dev_a = RMMDevice.objects.create(organization=self.a, connection=conn, external_id='nav-a1',
+                                              device_name='NAV-ALPHA-SRV', is_online=False)
+        self.ticket = t
+        from assets.models import Asset
+        Asset.objects.filter(name__startswith='NAV-').delete()
+        self.asset = Asset.objects.create(organization=self.a, name='NAV-ALPHA-SRV', asset_type='server',
+                                          serial_number='NAV-SN-1')
+        RMMDevice.objects.filter(pk=self.dev_a.pk).update(linked_asset=self.asset,
+                                                          data_refreshed_at=timezone.now())
 
     def session(self, org) -> str:
         store = SessionStore()
@@ -293,12 +304,95 @@ def my_work_open_device_in_context(run):
     page.context.close()
 
 
+# 6. Technician pages at phone and tablet width --------------------------------
+
+# Controls a screen reader would announce without a name: icon-only links and
+# buttons with no aria-label / aria-labelledby / visible or visually-hidden
+# text, and form fields with no label. A `title` alone does not count.
+UNLABELLED_JS = r"""() => {
+  const shown = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length)
+                     && getComputedStyle(e).visibility !== 'hidden';
+  const named = e => e.getAttribute('aria-label') || e.getAttribute('aria-labelledby');
+  const out = [];
+  for (const e of document.querySelectorAll('a[href], button, [role="button"], input, select, textarea')) {
+    if (!shown(e) || e.closest('[aria-hidden="true"]') || e.type === 'hidden') continue;
+    let ok;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.tagName)) {
+      if (['submit', 'button', 'reset'].includes(e.type)) ok = named(e) || (e.value || '').trim();
+      else ok = named(e) || e.closest('label') || e.placeholder && e.type === 'search'
+                || (e.id && document.querySelector('label[for="' + CSS.escape(e.id) + '"]'));
+    } else {
+      ok = named(e) || (e.textContent || '').trim() || e.querySelector('img[alt]:not([alt=""])');
+    }
+    if (!ok) out.push(e.outerHTML.slice(0, 180));
+  }
+  return out;
+}"""
+
+# Focusable controls whose keyboard focus draws nothing: no outline, no box
+# shadow, no change of border or background from the unfocused state.
+FOCUS_JS = r"""() => {
+  const e = document.activeElement;
+  if (!e || e === document.body) return null;
+  const s = getComputedStyle(e);
+  const ring = (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) || s.boxShadow !== 'none';
+  return ring ? '' : e.outerHTML.slice(0, 120) + ' [outline ' + s.outlineStyle + ' ' + s.outlineWidth
+                     + ', focus-visible ' + e.matches(':focus-visible') + ']';
+}"""
+
+
+def technician_pages_at_phone_and_tablet(run):
+    fx = run.fx
+    pages = {
+        'My Work': '/psa/my-work/',
+        'ticket detail': f'/psa/t/{fx.ticket.ticket_number}/',
+        'Device Workspace': f'/assets/{fx.asset.pk}/workspace/',
+        'dispatch board': '/psa/dispatch/',
+        'RMM devices': '/integrations/rmm/devices/',
+        'asset list': '/assets/',
+    }
+    problems = []
+    for width, height in ((390, 844), (820, 1180)):
+        ctx = run.context(width=width, height=height, is_mobile=True, has_touch=True)
+        page = ctx.new_page()
+        for label, path in pages.items():
+            resp = page.goto(f'{run.base}{path}')
+            if resp is None or resp.status != 200:
+                problems.append(f'{width}px {label}: HTTP {resp.status if resp else "?"}')
+                continue
+            overflow = page.evaluate('document.documentElement.scrollWidth - window.innerWidth')
+            if overflow > 1:
+                wide = page.evaluate("""() => Array.from(document.querySelectorAll('main *'))
+                    .filter(e => e.getBoundingClientRect().right > window.innerWidth + 1)
+                    .slice(0, 3).map(e => e.tagName + '.' + e.className)""")
+                problems.append(f'{width}px {label}: horizontal scroll {overflow}px ({wide})')
+            for html in page.evaluate(UNLABELLED_JS):
+                problems.append(f'{width}px {label}: no accessible name: {html}')
+            if width == 820:
+                # Tab through the first controls and check each shows focus.
+                page.evaluate('document.activeElement && document.activeElement.blur()')
+                seen = set()
+                for _ in range(40):
+                    page.keyboard.press('Tab')
+                    # custom.css animates .btn / .form-select with `transition: all`,
+                    # so the ring grows in over 150ms; read it once it has.
+                    page.wait_for_timeout(200)
+                    bad = page.evaluate(FOCUS_JS)
+                    if bad and bad not in seen:
+                        seen.add(bad)
+                        problems.append(f'{width}px {label}: no visible focus: {bad}')
+        ctx.close()
+    expect(not problems, f'{len(problems)} problem(s):\n      ' + '\n      '.join(problems))
+
+
 CHECKS = [
     ('sidebar filter narrows, Enter opens, no match searches', filter_narrows_and_enter_opens),
     ('rail collapse button and [ remembered; group chevrons', rail_collapse_is_remembered),
     ('? help, / search, g t, no shortcuts while typing', shortcuts_and_help),
     ('phone width: no horizontal scroll, drawer, focus; tablet drawer', phone_layout_and_drawer),
     ('My Work device opens in context and returns', my_work_open_device_in_context),
+    ('technician pages at 390/820px: no overflow, named controls, visible focus',
+     technician_pages_at_phone_and_tablet),
 ]
 
 
@@ -328,7 +422,10 @@ def main() -> int:
         if args.port in (8000, 8097, 8099):
             raise SystemExit(f'port {args.port} is reserved on this host')
         base = f'http://127.0.0.1:{args.port}'
-        env = dict(os.environ, DEMO_PORT=str(args.port))
+        # The server needs demo_settings on its path too, whatever the caller exported.
+        env = dict(os.environ, DEMO_PORT=str(args.port),
+                   PYTHONPATH=os.pathsep.join(filter(None, [str(ROOT / 'scripts' / 'demo'), str(ROOT),
+                                                            os.environ.get('PYTHONPATH', '')])))
         server = subprocess.Popen(
             [sys.executable, 'manage.py', 'runserver', f'127.0.0.1:{args.port}', '--noreload',
              '--settings=demo_settings'],
@@ -336,7 +433,12 @@ def main() -> int:
             stderr=open(pathlib.Path(os.environ['DEMO_DIR']) / 'nav-server.log', 'w'))
     try:
         wait_for(f'{base}/health/')
-        from playwright.sync_api import sync_playwright
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # installed with `pip install --user`, outside the venv
+            import site
+            sys.path.append(site.getusersitepackages())
+            from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=not args.headed)
             run = Run(base, None, browser)
