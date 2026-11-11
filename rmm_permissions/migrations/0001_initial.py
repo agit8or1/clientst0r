@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('accounts', '0040_roletemplate_rmm_tier'),
+        ('accounts', '0042_roletemplate_rmm_tier'),
         ('core', '0083_existing_installs_follow_main'),
         ('psa', '0076_service_request_approvers'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

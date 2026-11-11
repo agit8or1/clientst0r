@@ -98,7 +98,7 @@ class BuiltinTemplateTests(Base):
         t = role('l2')
         t.description, t.rmm_tier, t.assets_delete = 'site edit', '', True
         t.save()
-        mig = importlib.import_module('accounts.migrations.0040_roletemplate_rmm_tier')
+        mig = importlib.import_module('accounts.migrations.0042_roletemplate_rmm_tier')
         mig.create_templates(django_apps, None)
         t.refresh_from_db()
         self.assertEqual((t.description, t.rmm_tier, t.assets_delete), ('site edit', '', True))
@@ -145,7 +145,7 @@ class UpgradeTests(Base):
         old = self.tech('old', orgs=[self.a], preset='l2')
         m = Membership.objects.create(user=old, organization=self.a, role=Role.EDITOR)
         before = (m.role, m.role_template_id, old.profile.global_role_template_id)
-        mig = importlib.import_module('accounts.migrations.0040_roletemplate_rmm_tier')
+        mig = importlib.import_module('accounts.migrations.0042_roletemplate_rmm_tier')
         mig.create_templates(django_apps, None)
         m.refresh_from_db()
         old.refresh_from_db()

@@ -65,7 +65,7 @@ def create_templates(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0039_roletemplate_routing_manage_rules_and_more'),
+        ('accounts', '0041_ldap_group_mapping'),
     ]
 
     operations = [
