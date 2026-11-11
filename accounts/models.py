@@ -542,6 +542,9 @@ class UserProfile(BaseModel):
         default='local',
         help_text='Authentication source for this user'
     )
+    # When the background LDAP group sync (accounts.ldap_group_sync) last
+    # re-checked this LDAP user's mapped groups; it works oldest-first.
+    ldap_groups_checked_at = models.DateTimeField(null=True, blank=True, editable=False)
     azure_ad_oid = models.CharField(
         max_length=255,
         blank=True,

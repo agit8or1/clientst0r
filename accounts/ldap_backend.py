@@ -342,6 +342,12 @@ class ClientSt0rLDAPBackend(_BaseLDAPBackend):
                 update.append('user_type')
         if update:
             profile.save(update_fields=update + ['updated_at'])
+        # Replace any profile cached on `user` (the post_save signal attaches
+        # one on first sign-in): login() saves the user, and the
+        # save_user_profile signal would re-save that stale copy, putting
+        # auth_source back to 'local' and hiding the user from the background
+        # group sync.
+        user.profile = profile
 
     # Sessions: an LDAP session ends when LDAP is turned off or the user is
     # deactivated locally.
