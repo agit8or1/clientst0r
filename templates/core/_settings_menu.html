@@ -94,6 +94,9 @@ navbar's Admin menu lands on each group's first visible entry from there.
                 <a href="{% url 'tech_access:index' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'technician_access' %}active{% endif %}"{% if active_page == 'technician_access' %} aria-current="page"{% endif %}>
                     <i class="fas fa-user-shield fa-fw" aria-hidden="true"></i> {% trans "Technician Access" %}
                 </a>
+                <a href="{% url 'rmm_permissions:index' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'rmm_permissions' %}active{% endif %}"{% if active_page == 'rmm_permissions' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-user-lock fa-fw" aria-hidden="true"></i> {% trans "RMM Permissions" %}
+                </a>
                 <a href="{% url 'core:security_dashboard' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'security_dashboard' %}active{% endif %}"{% if active_page == 'security_dashboard' %} aria-current="page"{% endif %}>
                     <i class="fas fa-chart-line fa-fw" aria-hidden="true"></i> {% trans "Security Dashboard" %}
                 </a>

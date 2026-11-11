@@ -1,0 +1,26 @@
+<div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="badge {% if o.effect == 'deny' %}bg-danger{% elif o.effect == 'allow' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ o.get_effect_display }}</span>
+    <strong>#{{ o.pk }} {{ o.action }}</strong> for {{ o.subject_label }} at {{ o.where_label }}
+    {% if o.approval_level %}<span class="badge bg-light text-dark">approval: {{ o.approval_level }}</span>{% endif %}
+    {% if o.expires_at %}<span class="text-muted">until {{ o.expires_at|date:"Y-m-d H:i" }}</span>{% endif %}
+    <span class="text-muted">by {{ o.created_by.username|default:"?" }} {{ o.created_at|date:"Y-m-d H:i" }}{% if o.reviewed_by %}, approved by {{ o.reviewed_by.username }}{% endif %}</span>
+    {% if o.lift_requested_by %}<span class="badge bg-info text-dark">lift requested by {{ o.lift_requested_by.username }}</span>{% endif %}
+</div>
+{% if o.reason %}<div class="text-muted">{{ o.reason }}</div>{% endif %}
+{% if manage %}
+<form method="post" class="d-flex flex-wrap gap-2 mt-1">{% csrf_token %}
+    <input type="hidden" name="override" value="{{ o.pk }}">
+    {% if o.status == 'pending' or lifting %}
+    <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="Your password" aria-label="Password" autocomplete="current-password">
+    <input name="otp" class="form-control form-control-sm w-auto" placeholder="Authenticator code" aria-label="Authenticator code" autocomplete="one-time-code">
+    {% if lifting %}
+    <button name="op" value="confirm_lift" class="btn btn-sm btn-outline-danger">Confirm lift</button>
+    <button name="op" value="keep" class="btn btn-sm btn-outline-secondary">Keep</button>
+    {% else %}
+    <button name="op" value="approve" class="btn btn-sm btn-outline-success">Approve</button>
+    <button name="op" value="reject" class="btn btn-sm btn-outline-secondary">Reject</button>
+    {% endif %}
+    {% endif %}
+    {% if not lifting and not o.lift_requested_by %}<button name="op" value="revoke" class="btn btn-sm btn-outline-danger">{% if o.effect == 'allow' or o.status == 'pending' %}Revoke{% else %}Request lift{% endif %}</button>{% endif %}
+</form>
+{% endif %}

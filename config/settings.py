@@ -127,6 +127,7 @@ INSTALLED_APPS = [
     'psa.routing.apps.TicketRoutingConfig',
     'psa_ai.apps.PsaAiConfig',
     'tech_access.apps.TechAccessConfig',
+    'rmm_permissions.apps.RmmPermissionsConfig',
     'portal.apps.PortalConfig',
     'resourcing.apps.ResourcingConfig',
     'crm.apps.CrmConfig',

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}RMM Permissions{% endblock %}
+
+{% block content %}
+{% include "rmm_permissions/_frame_start.html" %}
+<div class="row">
+    <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="rmm_permissions" %}</div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><strong>RMM permissions</strong></div>
+            <div class="card-body small">
+                <p>Every RMM action is decided server-side by one check: locked safeguards, the technician, containment,
+                    the customer boundary, deny overrides, technician access restrictions, what the paired RMM supports,
+                    then grants (role tier where the technician is assigned to the customer, technician access presets,
+                    existing permissions, approved allow overrides) and finally second-person approval. A deny always wins.
+                    When the device is managed by Rem0te, Rem0te decides again and its refusal wins.</p>
+                <p class="mb-1"><strong>Role tiers</strong> come from a technician's <em>global</em> role:
+                    {% for r in tiered_roles %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% empty %}none yet{% endfor %}.
+                    A tier never reaches a customer on its own; the technician also needs a
+                    <a href="{% url 'tech_access:index' %}">technician access assignment</a> there.</p>
+                <p class="mb-0">
+                    <a href="{% url 'rmm_permissions:approvals' %}">Pending approvals ({{ open_approvals }})</a> ·
+                    Effective permissions:
+                    <select class="form-select form-select-sm d-inline-block w-auto" aria-label="Technician" onchange="if(this.value)location=this.value">
+                        <option value="">technician…</option>
+                        {% for t in technicians %}<option value="{% url 'rmm_permissions:technician' t.pk %}">{{ t.username }}</option>{% endfor %}
+                    </select>
+                    <select class="form-select form-select-sm d-inline-block w-auto" aria-label="Customer" onchange="if(this.value)location=this.value">
+                        <option value="">customer…</option>
+                        {% for o in organizations %}<option value="{% url 'rmm_permissions:customer' o.pk %}">{{ o.name }}</option>{% endfor %}
+                    </select>
+                </p>
+            </div>
+        </div>
+
+        {% if manage %}
+        <div class="card mb-3">
+            <div class="card-header"><strong>Add an override</strong></div>
+            <div class="card-body small">
+                <p class="text-muted">Deny and require-approval apply at once. Allow waits for a second Platform
+                    Administrator, names one customer and one action, and never covers credential reveal.</p>
+                <form method="post" class="row g-2">{% csrf_token %}
+                    <input type="hidden" name="op" value="create">
+                    <div class="col-md-3"><select name="effect" class="form-select form-select-sm" aria-label="Effect">{% for k, l in effects %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-md-5"><select name="action" class="form-select form-select-sm" aria-label="Action"><option value="*">* (every action — deny / require approval)</option>{% for k, a in actions %}<option value="{{ k }}">{{ a.group }}: {{ a.label }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><select name="organization" class="form-select form-select-sm" aria-label="Customer"><option value="">every customer</option>{% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><select name="user" class="form-select form-select-sm" aria-label="Technician"><option value="">any technician</option>{% for t in technicians %}<option value="{{ t.pk }}">{{ t.username }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><select name="role_template" class="form-select form-select-sm" aria-label="Role"><option value="">any role</option>{% for r in roles %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><select name="approval_level" class="form-select form-select-sm" aria-label="Approval level"><option value="">approval: peer (default)</option>{% for k, l in levels %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-md-5"><input name="reason" class="form-control form-control-sm" placeholder="Reason" aria-label="Reason"></div>
+                    <div class="col-md-4"><input name="expires_at" type="datetime-local" class="form-control form-control-sm" aria-label="Expires"></div>
+                    <div class="col-md-3"><button class="btn btn-sm btn-primary w-100">Save</button></div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Waiting for a second administrator</strong></div>
+            <div class="card-body small">
+                {% for o in pending %}
+                <div class="border-bottom py-2">{% include "rmm_permissions/_override.html" %}</div>
+                {% empty %}<p class="text-muted mb-0">Nothing waiting.</p>{% endfor %}
+                {% for o in live %}{% if o.lift_requested_by %}
+                <div class="border-bottom py-2">{% include "rmm_permissions/_override.html" with lifting=True %}</div>
+                {% endif %}{% endfor %}
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><strong>In force</strong></div>
+            <div class="card-body small">
+                {% for o in live %}<div class="border-bottom py-2">{% include "rmm_permissions/_override.html" %}</div>
+                {% empty %}<p class="text-muted mb-0">No overrides. Role tiers, technician access and permissions decide.</p>{% endfor %}
+            </div>
+        </div>
+        {% if ended %}
+        <details class="mb-3"><summary>Ended ({{ ended|length }})</summary>
+            {% for o in ended %}<div class="small border-bottom py-1">#{{ o.pk }} {{ o }} — {{ o.get_status_display }}</div>{% endfor %}
+        </details>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

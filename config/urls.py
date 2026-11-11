@@ -92,6 +92,7 @@ urlpatterns = [
     path('network-discovery/', include('network_discovery.urls')),
 
     path('settings/security/technician-access/', include('tech_access.urls')),
+    path('settings/security/rmm-permissions/', include('rmm_permissions.urls')),
     # Ticket ↔ paired RMM integration (ticket-rmm-v1): signed requests only.
     path('api/integration/v1/', include('psa_ai.integration_api')),
 

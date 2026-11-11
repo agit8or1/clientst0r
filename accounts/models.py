@@ -928,6 +928,16 @@ class RoleTemplate(BaseModel):
     routing_override = models.BooleanField(default=False,
         help_text='Ticket routing: accept or reject routing suggestions.')
 
+    # RMM role tier (Phase 8). Read by rmm_permissions from a technician's
+    # global role template only; '' (every pre-existing template) means
+    # technician access and the flags above decide, exactly as before.
+    # Not editable in the role editor: the built-in RMM templates carry it.
+    rmm_tier = models.CharField(
+        max_length=20, blank=True, default='',
+        choices=[('', 'None'), ('l1', 'RMM L1'), ('l2', 'RMM L2'), ('l3', 'RMM L3'),
+                 ('platform_admin', 'Platform Administrator')],
+        help_text='RMM role tier, from the global role template only.')
+
     class Meta:
         db_table = 'role_templates'
         ordering = ['name']
@@ -2044,6 +2054,10 @@ class RoleTemplate(BaseModel):
                 **{k: True for k in ALL_FALSE.keys()},
             ),
         ]
+
+        # Phase 8 RMM tiers: L1, L2, L3, Platform Administrator.
+        from .rmm_role_templates import template_rows
+        templates += [dict(defaults, name=name) for name, defaults in template_rows(ALL_FALSE.keys())]
 
         for template_data in templates:
             template, created = cls.objects.get_or_create(

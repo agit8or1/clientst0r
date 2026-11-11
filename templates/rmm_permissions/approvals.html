@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}RMM Approvals{% endblock %}
+
+{% block content %}
+{% include "rmm_permissions/_frame_start.html" with crumb="Approvals" %}
+<div class="card mb-3">
+    <div class="card-header"><strong>High-impact RMM work waiting for a second person</strong></div>
+    <div class="card-body small">
+        <p class="text-muted">Nobody approves their own request. Approving takes your password, and you must qualify at
+            that customer now. An approval is used once, for exactly the operation requested, within 24 hours. For a
+            Rem0te-managed device, Rem0te's own approvals still follow.</p>
+        {% for r in rows %}
+        <div class="border-bottom py-2">
+            <div><strong>#{{ r.a.pk }} {{ r.label }}</strong> at {{ r.a.organization.name }}{% if r.a.device_label %} on {{ r.a.device_label }}{% endif %}
+                — requested by {{ r.a.requester.username }} {{ r.a.created_at|date:"Y-m-d H:i" }}, needs {{ r.level }}.</div>
+            {% if r.a.summary %}<div class="text-muted">{{ r.a.summary }}</div>{% endif %}
+            <form method="post" class="d-flex flex-wrap gap-2 mt-1">{% csrf_token %}
+                <input type="hidden" name="approval" value="{{ r.a.pk }}">
+                {% if r.mine %}
+                <button name="op" value="cancel" class="btn btn-sm btn-outline-secondary">Cancel my request</button>
+                {% elif r.can_decide %}
+                <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="Your password" aria-label="Password" autocomplete="current-password">
+                <input name="otp" class="form-control form-control-sm w-auto" placeholder="Authenticator code" aria-label="Authenticator code" autocomplete="one-time-code">
+                <input name="note" class="form-control form-control-sm w-auto" placeholder="Note" aria-label="Note">
+                <button name="op" value="approve" class="btn btn-sm btn-outline-success">Approve</button>
+                <button name="op" value="reject" class="btn btn-sm btn-outline-danger">Reject</button>
+                {% else %}
+                <span class="text-muted">{{ r.why }}</span>
+                {% endif %}
+            </form>
+        </div>
+        {% empty %}<p class="text-muted mb-0">Nothing waiting.</p>{% endfor %}
+    </div>
+</div>
+{% endblock %}
