@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}AI Troubleshoot{% endblock %}
+{% block extra_css %}{% if not terminal %}<meta http-equiv="refresh" content="4">{% endif %}{% endblock %}
+{% block content %}
+<div class="container-fluid" style="max-width: 1100px" data-ai-troubleshoot-session="{{ session.id }}">
+    <div class="d-flex align-items-center mb-2">
+        <h4 class="mb-0">AI Troubleshoot</h4>
+        <span class="badge bg-warning text-dark ms-2">Optional AI</span>
+        <span class="badge bg-secondary ms-2">{{ session.get_status_display }}</span>
+        <span class="ms-auto small text-muted">
+            {% if session.ticket %}Ticket <a href="{% url 'psa:ticket_detail' session.ticket.ticket_number %}">{{ session.ticket.ticket_number }}</a>{% endif %}
+            {% if session.device %}Device <a href="{% url 'integrations:rmm_device_detail' session.device.pk %}">{{ session.device.device_name }}</a>{% endif %}
+            · {{ session.get_mode_display }} · {{ session.created_at|date:"Y-m-d H:i" }} by {{ session.actor.get_full_name|default:session.actor.username }}
+        </span>
+    </div>
+    <div class="alert alert-light border small py-2">
+        AI output is advisory and labelled as such. Nothing was executed, nothing was sent to the customer, and
+        no RMM was contacted by the AI. A suggested action only opens the normal request; the RMM's approvers decide.
+        Commands are shown as text for you to read.
+    </div>
+    {% if not terminal %}<p class="text-muted">Waiting for the model… this page refreshes.</p>{% endif %}
+    {% if session.error %}<div class="alert alert-danger py-2">{{ session.error }}</div>{% endif %}
+
+    {# ---- 1. Observations ---------------------------------------------------- #}
+    <div class="card mb-3" data-layer="observation">
+        <div class="card-header py-2"><i class="fas fa-eye me-1" aria-hidden="true"></i><strong>Observations</strong>
+            <span class="small text-muted">— data sent to the model, with source and freshness</span></div>
+        <div class="card-body py-2">
+            <table class="table table-sm small mb-2">
+                <thead><tr><th>ID</th><th>Kind</th><th>Source</th><th>Observed</th><th>Text (redacted)</th></tr></thead>
+                <tbody>
+                {% for o in observations %}
+                <tr><td><code>{{ o.id }}</code></td><td>{{ o.kind }}</td><td>{{ o.source }}</td>
+                    <td class="text-nowrap">{{ o.observed_at|slice:":16" }} <span class="badge bg-light text-dark">{{ o.freshness }}</span></td>
+                    <td style="white-space: pre-wrap">{{ o.text|truncatechars:600 }}</td></tr>
+                {% empty %}<tr><td colspan="5" class="text-muted">Nothing was shared.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="small text-muted">
+                Withheld by this customer's sharing rules: {% for w in sharing.withheld %}{{ w }}{% if not forloop.last %}, {% endif %}{% empty %}nothing{% endfor %}.
+                {% if sharing.masked %}Masked: {% for k, v in sharing.masked.items %}{{ k }} {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
+                {% if redactions %}Redacted: {% for k, v in redactions.items %}{{ k }} {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
+                Never included: vault data, internal notes ({{ excluded.internal_notes|default:0 }}), attachments, raw RMM payloads, remote-session data.
+            </div>
+        </div>
+    </div>
+
+    {# ---- 2. AI inference ---------------------------------------------------- #}
+    {% if comparison.agreements or comparison.disagreements %}
+    <div class="card mb-3 border-info" data-layer="comparison">
+        <div class="card-header py-2"><strong>Model comparison</strong> <span class="badge bg-info text-dark">AI inference</span></div>
+        <div class="card-body py-2 small">
+            {% if comparison.agreements %}<div class="mb-1"><strong>Agree:</strong><ul class="mb-1">{% for a in comparison.agreements %}<li>{{ a }}</li>{% endfor %}</ul></div>{% endif %}
+            {% if comparison.disagreements %}<div><strong>Disagree:</strong><ul class="mb-0">{% for d in comparison.disagreements %}<li>{{ d.detail }}</li>{% endfor %}</ul></div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+    <div class="row">
+    {% for r in runs %}
+    <div class="col-lg-{% if runs|length > 1 %}6{% else %}12{% endif %} mb-3">
+    <div class="card h-100 border-info" data-layer="inference" data-run="{{ r.id }}">
+        <div class="card-header py-2">
+            <span class="badge bg-info text-dark">AI inference</span>
+            <strong>{{ r.profile }}</strong> <span class="small text-muted">({{ r.role }})</span>
+            <div class="small text-muted">Model {{ r.model }} · prompt {{ r.prompt_version }} · {{ r.status_label }}{% if r.tokens %} · {{ r.tokens }} tokens · {{ r.cost_cents }}¢{% endif %}</div>
+        </div>
+        <div class="card-body py-2 small">
+        {% if r.result %}{% with res=r.result %}
+            {% if res.technician_summary %}<p><strong>Technician summary:</strong> {{ res.technician_summary }}</p>{% endif %}
+            <p><strong>Risk:</strong> {{ res.risk.level }}{% if res.risk.service_impact %} — {{ res.risk.service_impact }}{% endif %}</p>
+            {% if res.alert_summary %}<p><strong>Alerts and events:</strong> {{ res.alert_summary }}</p>{% endif %}
+            {% if res.likely_causes %}<strong>Likely causes</strong><ol>{% for c in res.likely_causes %}<li>{{ c.text }} <span class="badge bg-light text-dark">{{ c.likelihood }}</span>{% for e in c.evidence %} <code>{{ e }}</code>{% endfor %}</li>{% endfor %}</ol>{% endif %}
+            {% if res.diagnostic_steps %}<strong>Read-only diagnostic steps</strong> <span class="text-muted">(for you to perform; nothing runs from here)</span><ol>{% for s in res.diagnostic_steps %}<li>{{ s.text }}{% if s.command %}<pre class="bg-light border p-1 mb-1 user-select-all" data-command-text>{{ s.command }}</pre>{% endif %}</li>{% endfor %}</ol>{% endif %}
+            {% if res.runbooks %}<strong>Relevant runbooks</strong><ul>{% for b in res.runbooks %}<li>{% if b.url %}<a href="{{ b.url }}">{{ b.title }}</a>{% else %}{{ b.title }}{% endif %}{% if b.why %} — {{ b.why }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+            {% if res.recommended_actions %}<strong>Suggested approved actions</strong>
+            <ul class="list-unstyled">{% for a in res.recommended_actions %}
+                <li class="mb-1">{{ a.label }} on {{ a.device }} <span class="badge bg-light text-dark">{{ a.risk }}</span>{% if a.why %} — {{ a.why }}{% endif %}<br>
+                {% if a.can_request %}<a class="btn btn-sm btn-outline-primary mt-1" data-ai-suggested-action="{{ a.id }}" href="{% url 'psa_ai:troubleshoot_action' session.id a.id %}">Request…</a>
+                {% else %}<span class="text-muted">{{ a.reason }}</span>{% endif %}</li>
+            {% endfor %}</ul>{% endif %}
+            {% if res.customer_response %}<strong>Suggested customer response</strong> <span class="text-muted">(draft; copy into the composer and edit before sending)</span><pre class="bg-light border p-2" style="white-space: pre-wrap">{{ res.customer_response }}</pre>{% endif %}
+            {% if res.missing_information %}<strong>Missing information</strong><ul>{% for m in res.missing_information %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+            {% if res.warnings %}<div class="text-warning"><strong>Warnings</strong><ul class="mb-0">{% for w in res.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+        {% endwith %}{% elif r.error %}<p class="text-danger mb-0">{{ r.error }}</p>
+        {% else %}<p class="text-muted mb-0">Waiting…</p>{% endif %}
+        </div>
+    </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    {# ---- 3. Technician-requested actions / 4. Verified results ---------------- #}
+    <div class="card mb-3" data-layer="technician_action">
+        <div class="card-header py-2"><i class="fas fa-user-check me-1" aria-hidden="true"></i><strong>Technician-requested actions</strong>
+            <span class="small text-muted">— requested by a person through the normal flow; approved (or not) by the RMM</span></div>
+        <div class="card-body py-2 small">
+            {% for q in requested %}
+            <div class="mb-2">{{ q.label }} — {{ q.status }} · requested {{ q.at|date:"Y-m-d H:i" }} by {{ q.by.get_full_name|default:q.by.username }}
+                {% if q.approval_url %} · <a href="{{ q.approval_url }}" rel="noopener noreferrer" target="_blank">approval page</a>{% endif %}</div>
+            {% empty %}<p class="text-muted mb-0">None yet.</p>{% endfor %}
+        </div>
+    </div>
+    <div class="card mb-3" data-layer="verified_result">
+        <div class="card-header py-2"><i class="fas fa-circle-check me-1" aria-hidden="true"></i><strong>Verified results</strong>
+            <span class="small text-muted">— reported by the RMM in signed status updates</span></div>
+        <div class="card-body py-2 small">
+            {% for q in requested %}{% if q.verified %}
+            <div class="mb-2"><strong>{{ q.label }}</strong>: {{ q.verified.status }}{% if q.verified.outcome %} ({{ q.verified.outcome }}){% endif %}{% if q.verified.note %} — {{ q.verified.note }}{% endif %}
+                {% if q.verified.observed %}<div>Observed: {% for k, v in q.verified.observed.items %}{{ k }}={{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+                {% if q.verified.result_text %}<pre class="bg-light border p-1 mb-0">{{ q.verified.result_text }}</pre>{% endif %}</div>
+            {% endif %}{% empty %}<p class="text-muted mb-0">No verified results yet.</p>{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
