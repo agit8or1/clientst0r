@@ -2224,6 +2224,16 @@ class Webhook(models.Model):
     EVENT_INTEGRATION_SYNCED = 'integration.synced'
     EVENT_INTEGRATION_FAILED = 'integration.failed'
 
+    # Tickets, contacts, invoices
+    EVENT_TICKET_CREATED = 'ticket.created'
+    EVENT_TICKET_UPDATED = 'ticket.updated'
+    EVENT_TICKET_STATUS_CHANGED = 'ticket.status_changed'
+    EVENT_CONTACT_CREATED = 'contact.created'
+    EVENT_CONTACT_UPDATED = 'contact.updated'
+    EVENT_INVOICE_CREATED = 'invoice.created'
+    EVENT_INVOICE_UPDATED = 'invoice.updated'
+    EVENT_INVOICE_STATUS_CHANGED = 'invoice.status_changed'
+
     # System
     EVENT_SYSTEM_UPDATE_AVAILABLE = 'system.update_available'
     EVENT_SYSTEM_UPDATE_APPLIED = 'system.update_applied'
@@ -2284,6 +2294,16 @@ class Webhook(models.Model):
         # Integrations
         (EVENT_INTEGRATION_SYNCED, 'Integration Synced'),
         (EVENT_INTEGRATION_FAILED, 'Integration Failed'),
+
+        # Tickets (shared with the customer), contacts, invoices (issued)
+        (EVENT_TICKET_CREATED, 'Ticket Created'),
+        (EVENT_TICKET_UPDATED, 'Ticket Updated'),
+        (EVENT_TICKET_STATUS_CHANGED, 'Ticket Status Changed'),
+        (EVENT_CONTACT_CREATED, 'Contact Created'),
+        (EVENT_CONTACT_UPDATED, 'Contact Updated'),
+        (EVENT_INVOICE_CREATED, 'Invoice Issued'),
+        (EVENT_INVOICE_UPDATED, 'Invoice Updated'),
+        (EVENT_INVOICE_STATUS_CHANGED, 'Invoice Status Changed'),
 
         # System
         (EVENT_SYSTEM_UPDATE_AVAILABLE, 'System Update Available'),

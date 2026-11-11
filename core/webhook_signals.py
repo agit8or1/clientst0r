@@ -165,6 +165,124 @@ def execution_saved(sender, instance, created, **kwargs):
         wh.fire(event, instance.organization_id, wh.workflow_data(instance))
 
 
+# --- tickets, contacts, invoices ----------------------------------------
+#
+# Each model keeps a snapshot of the fields its events report on (taken in
+# post_init, refreshed after every save), so a save that changes nothing a
+# receiver can see — SLA bookkeeping, response timestamps, AI fields — sends
+# nothing. Fields deferred out of the load are left out of the comparison.
+#
+# A status change sends `*.status_changed` (with `previous_status`), never
+# `*.updated`; `*.updated` sends when another reported field changed and
+# lists them in `changed_fields`. A save that changes both sends both.
+
+_TICKET_UPDATE_FIELDS = ('subject', 'priority_id', 'ticket_type_id', 'contact_id')
+_TICKET_FIELDS = _TICKET_UPDATE_FIELDS + ('status_id', 'client_can_view')
+_CONTACT_FIELDS = ('first_name', 'last_name', 'email', 'phone', 'title')
+_INVOICE_UPDATE_FIELDS = ('invoice_number', 'title', 'invoice_date', 'due_date',
+                          'currency', 'subtotal', 'tax_amount', 'total', 'amount_paid')
+_INVOICE_FIELDS = _INVOICE_UPDATE_FIELDS + ('status',)
+
+
+def _snapshot(instance, fields):
+    return {f: instance.__dict__[f] for f in fields if f in instance.__dict__}
+
+
+def _snapshot_init(fields):
+    def receiver(sender, instance, **kwargs):
+        instance._wh_fields = _snapshot(instance, fields)
+    return receiver
+
+
+ticket_init = _snapshot_init(_TICKET_FIELDS)
+contact_init = _snapshot_init(_CONTACT_FIELDS)
+invoice_init = _snapshot_init(_INVOICE_FIELDS)
+
+
+def _diff(instance, fields):
+    """(previous snapshot, names of fields that changed); refreshes the
+    snapshot so the next save compares against what was just written."""
+    previous = getattr(instance, '_wh_fields', None) or {}
+    current = _snapshot(instance, fields)
+    instance._wh_fields = current
+    changed = {f for f, v in current.items() if f in previous and previous[f] != v}
+    return previous, changed
+
+
+def _field_names(changed, allowed):
+    return sorted(f[:-3] if f.endswith('_id') else f for f in changed if f in allowed)
+
+
+@_safe
+def ticket_saved(sender, instance, created, **kwargs):
+    """Ticket events follow the portal rule: only tickets shared with the
+    customer (`client_can_view`) are announced, because a customer's own
+    admins can create webhooks and read their deliveries. A ticket shared
+    after it was created sends `ticket.created` at that point."""
+    if _skip(kwargs):
+        return
+    previous, changed = _diff(instance, _TICKET_FIELDS)
+    if not instance.client_can_view or not instance.organization_id:
+        return
+    org_id = instance.organization_id
+    if created or 'client_can_view' in changed:
+        wh.fire('ticket.created', org_id, wh.ticket_data(instance))
+        return
+    if 'status_id' in changed:
+        from psa.models import TicketStatus
+        data = wh.ticket_data(instance)
+        data['previous_status'] = TicketStatus.objects.filter(
+            pk=previous['status_id']).values_list('slug', flat=True).first()
+        wh.fire('ticket.status_changed', org_id, data)
+    fields = _field_names(changed, _TICKET_UPDATE_FIELDS)
+    if fields:
+        data = wh.ticket_data(instance)
+        data['changed_fields'] = fields
+        wh.fire('ticket.updated', org_id, data)
+
+
+@_safe
+def contact_saved(sender, instance, created, **kwargs):
+    if _skip(kwargs):
+        return
+    _, changed = _diff(instance, _CONTACT_FIELDS)
+    if not instance.organization_id:
+        return
+    if created:
+        wh.fire('contact.created', instance.organization_id, wh.contact_data(instance))
+        return
+    fields = _field_names(changed, _CONTACT_FIELDS)
+    if fields:
+        data = wh.contact_data(instance)
+        data['changed_fields'] = fields
+        wh.fire('contact.updated', instance.organization_id, data)
+
+
+@_safe
+def invoice_saved(sender, instance, created, **kwargs):
+    """Invoice events go to the billed customer (`client_org`). Drafts are
+    never announced: `invoice.created` sends when an invoice is issued —
+    created in a non-draft status, or moved out of draft."""
+    if _skip(kwargs):
+        return
+    previous, changed = _diff(instance, _INVOICE_FIELDS)
+    org_id = instance.client_org_id
+    if not org_id or instance.status == 'draft':
+        return
+    if created or ('status' in changed and previous.get('status') == 'draft'):
+        wh.fire('invoice.created', org_id, wh.invoice_data(instance))
+        return
+    if 'status' in changed:
+        data = wh.invoice_data(instance)
+        data['previous_status'] = previous['status']
+        wh.fire('invoice.status_changed', org_id, data)
+    fields = _field_names(changed, _INVOICE_UPDATE_FIELDS)
+    if fields:
+        data = wh.invoice_data(instance)
+        data['changed_fields'] = fields
+        wh.fire('invoice.updated', org_id, data)
+
+
 # --- users ---------------------------------------------------------------
 
 @_safe
@@ -210,6 +328,8 @@ def connect():
     from docs.models import Document
     from locations.models import Location
     from processes.models import ProcessExecution
+    from assets.models import Contact
+    from psa.models import Invoice, Ticket
     from vault.models import Password
 
     User = get_user_model()
@@ -227,6 +347,12 @@ def connect():
     post_save.connect(organization_saved, sender=Organization, dispatch_uid=uid + 'org_saved')
     post_init.connect(execution_init, sender=ProcessExecution, dispatch_uid=uid + 'exec_init')
     post_save.connect(execution_saved, sender=ProcessExecution, dispatch_uid=uid + 'exec_saved')
+    post_init.connect(ticket_init, sender=Ticket, dispatch_uid=uid + 'ticket_init')
+    post_save.connect(ticket_saved, sender=Ticket, dispatch_uid=uid + 'ticket_saved')
+    post_init.connect(contact_init, sender=Contact, dispatch_uid=uid + 'contact_init')
+    post_save.connect(contact_saved, sender=Contact, dispatch_uid=uid + 'contact_saved')
+    post_init.connect(invoice_init, sender=Invoice, dispatch_uid=uid + 'invoice_init')
+    post_save.connect(invoice_saved, sender=Invoice, dispatch_uid=uid + 'invoice_saved')
     post_init.connect(user_init, sender=User, dispatch_uid=uid + 'user_init')
     post_save.connect(user_saved, sender=User, dispatch_uid=uid + 'user_saved')
     user_logged_in.connect(on_login, dispatch_uid=uid + 'login')
