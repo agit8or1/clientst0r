@@ -1184,7 +1184,7 @@ fetched by id without checking which tenant it belongs to.
   layer (no AAD context binding, no version tag), while vault passwords use v2
   (both). Re-encrypting live credentials is a migration and needs its own
   release with a rollback path. No key rotation command exists.
-- Billing arithmetic *(partial — tax shipped v3.17.561)* — `is_taxable` was
+- Billing arithmetic *(tax shipped v3.17.561; credit-memo balances and late fees shipped v3.17.577–579, listed below; the remainder *(in progress — on the development branch, not yet released)*: half-up rounding for invoice and quote line totals, the retainer amount, the prorated first period and late fees, where Decimal's banker's rounding put exact half cents a cent below the accounting providers; a second full credit memo for the same invoice is refused instead of crediting the same lines twice, while partial credits may still exceed the total as account credit; void invoices cannot be credited; credit amounts are rounded to cents; and credit-memo numbers retry on a collision like invoice numbers)* — `is_taxable` was
   stored on every invoice and quote line and read by no tax calculation, so
   invoices mixing taxable goods with non-taxable labour or reimbursed expenses
   overcharged the customer, and partial credit memos were worth more than the

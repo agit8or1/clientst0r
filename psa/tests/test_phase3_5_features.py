@@ -1643,8 +1643,11 @@ class CreditMemoTests(TestCase):
 
     def test_credit_memo_numbers_are_sequential(self):
         inv = self._make_invoice_with_lines()
-        memo1 = inv.create_credit_memo(user=self.user, reason='one')
-        memo2 = inv.create_credit_memo(user=self.user, reason='two')
+        # Two partial credits: a second *full* credit of the same lines is
+        # refused (psa/tests/test_billing_arithmetic.py).
+        from decimal import Decimal as _D
+        memo1 = inv.create_credit_memo(user=self.user, reason='one', amount=_D('10.00'))
+        memo2 = inv.create_credit_memo(user=self.user, reason='two', amount=_D('10.00'))
         # CN-YYYY-NNNNN — second should be one greater
         n1 = int(memo1.invoice_number.rsplit('-', 1)[-1])
         n2 = int(memo2.invoice_number.rsplit('-', 1)[-1])

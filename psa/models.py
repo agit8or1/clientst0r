@@ -2118,11 +2118,12 @@ class Contract(models.Model):
         period. If `recurring_amount` is set explicitly, use that;
         otherwise fall back to `total_hours * hourly_rate` for
         retainer/managed-services contracts."""
-        from decimal import Decimal as _D
+        from decimal import Decimal as _D, ROUND_HALF_UP
         if self.recurring_amount and self.recurring_amount > 0:
             return _D(str(self.recurring_amount))
         if self.total_hours and self.hourly_rate:
-            return (_D(str(self.total_hours)) * _D(str(self.hourly_rate))).quantize(_D('0.01'))
+            return (_D(str(self.total_hours)) * _D(str(self.hourly_rate))).quantize(
+                _D('0.01'), rounding=ROUND_HALF_UP)
         return _D('0')
 
     @staticmethod
@@ -2193,7 +2194,7 @@ class Contract(models.Model):
         for meters.
         """
         from datetime import date as _d
-        from decimal import Decimal as _D
+        from decimal import Decimal as _D, ROUND_HALF_UP
         if self.billing_frequency == 'none':
             return None
         on_date = on_date or _d.today()
@@ -2233,7 +2234,8 @@ class Contract(models.Model):
 
         # Phase 15 v4: prorate the base amount when applicable
         proration = self._proration_factor(on_date, self.billing_frequency)
-        prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(_D('0.01'))
+        prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(
+            _D('0.01'), rounding=ROUND_HALF_UP)
 
         inv = Invoice.objects.create(
             organization=self.organization,
@@ -3065,13 +3067,16 @@ class QuoteLineItem(models.Model):
 
     @property
     def line_total(self):
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
         try:
             q = Decimal(str(self.quantity or '0'))
             p = Decimal(str(self.unit_price or '0'))
         except (InvalidOperation, ValueError, TypeError):
             return Decimal('0.00')
-        return (q * p).quantize(Decimal('0.01'))
+        # Half-up, like the tax (v3.17.561) and like the accounting
+        # providers. Decimal's default is banker's rounding, which put a
+        # 0.25 h x 10.10 line at 2.52 here and 2.53 in QuickBooks / Xero.
+        return (q * p).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     def __str__(self):
         return f'{self.description} ({self.quantity} × {self.unit_price})'
@@ -4149,47 +4154,92 @@ class Invoice(models.Model):
           - The new memo's invoice_number uses a `CN-YYYY-NNNNN` prefix
             so credit memos sort separately from regular invoices.
         """
-        from decimal import Decimal as _D
+        from decimal import Decimal as _D, InvalidOperation, ROUND_HALF_UP
         if self.is_credit_memo:
             raise ValueError('Cannot issue a credit memo against another credit memo.')
-
-        memo = Invoice(
-            organization=self.organization,
-            client_org=self.client_org,
-            title=f'Credit Memo for {self.invoice_number}',
-            description=(reason or '')[:500],
-            status='draft',
-            invoice_date=timezone.now().date(),
-            currency=self.currency,
-            tax_rate=self.tax_rate,
-            is_credit_memo=True,
-            credits_invoice=self,
-            created_by=user,
-        )
-        # Override _next_number prefix via direct assign before save
-        memo.invoice_number = self._next_credit_memo_number()
-        memo.save()
-
         if amount is not None:
-            InvoiceLineItem.objects.create(
-                invoice=memo,
-                description=(reason or f'Credit memo against {self.invoice_number}')[:300],
-                quantity=1,
-                unit_price=-_D(str(amount)),
-                is_taxable=False,
-                source='manual',
+            try:
+                amount = _D(str(amount)).quantize(_D('0.01'), rounding=ROUND_HALF_UP)
+            except (InvalidOperation, ValueError, TypeError):
+                raise ValueError('The credit amount is not a number.')
+            if amount <= 0:
+                raise ValueError('The credit amount must be more than zero.')
+
+        with transaction.atomic():
+            # Locked so two clicks (or two staff) cannot both pass the checks
+            # below against the same, not-yet-credited invoice.
+            source = Invoice.objects.select_for_update().get(pk=self.pk)
+            if source.status == 'void':
+                raise ValueError(f'{source.invoice_number} is void; there is nothing to credit.')
+            if amount is None:
+                # A full credit copies every line. A second one — a double
+                # click, or a full credit after a partial one — credited the
+                # same lines again, and the client's balance went negative by
+                # a whole invoice. Partial credits by amount stay allowed past
+                # the total: that is account credit, by design (v3.17.578).
+                already = source.credited_amount
+                if already > 0:
+                    remaining = max(_D('0.00'), _D(str(source.total or 0)) - already)
+                    raise ValueError(
+                        f'{source.invoice_number} already has {already} credited. '
+                        f'A full credit would credit those lines again; credit the '
+                        f'remaining {remaining} as an amount instead.')
+                if _D(str(source.total or 0)) <= 0:
+                    raise ValueError(f'{source.invoice_number} has no positive total to credit.')
+
+            memo = Invoice(
+                organization=self.organization,
+                client_org=self.client_org,
+                title=f'Credit Memo for {self.invoice_number}',
+                description=(reason or '')[:500],
+                status='draft',
+                invoice_date=timezone.now().date(),
+                currency=self.currency,
+                tax_rate=self.tax_rate,
+                is_credit_memo=True,
+                credits_invoice=self,
+                created_by=user,
             )
-        else:
-            for li in self.line_items.all():
+            # CN- numbers are assigned here, so Invoice.save()'s retry on a
+            # duplicate number never ran for credit memos: two memos raised at
+            # once could pick the same number and the loser failed with a raw
+            # IntegrityError. Same savepoint retry as invoices.
+            last_error = None
+            for _attempt in range(5):
+                memo.invoice_number = self._next_credit_memo_number()
+                try:
+                    with transaction.atomic():
+                        memo.save()
+                    last_error = None
+                    break
+                except IntegrityError as exc:
+                    if 'invoice_number' not in str(exc).lower():
+                        raise
+                    last_error = exc
+                    memo.pk = None
+            if last_error is not None:
+                raise last_error
+
+            if amount is not None:
                 InvoiceLineItem.objects.create(
                     invoice=memo,
-                    description=f'Credit: {li.description}'[:300],
-                    quantity=li.quantity,
-                    unit_price=-li.unit_price,
-                    is_taxable=li.is_taxable,
+                    description=(reason or f'Credit memo against {self.invoice_number}')[:300],
+                    quantity=1,
+                    unit_price=-amount,
+                    is_taxable=False,
                     source='manual',
                 )
-        memo.recompute_totals()
+            else:
+                for li in self.line_items.all():
+                    InvoiceLineItem.objects.create(
+                        invoice=memo,
+                        description=f'Credit: {li.description}'[:300],
+                        quantity=li.quantity,
+                        unit_price=-li.unit_price,
+                        is_taxable=li.is_taxable,
+                        source='manual',
+                    )
+            memo.recompute_totals()
         return memo
 
     @classmethod
@@ -4268,13 +4318,16 @@ class InvoiceLineItem(models.Model):
 
     @property
     def line_total(self):
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
         try:
             q = Decimal(str(self.quantity or '0'))
             p = Decimal(str(self.unit_price or '0'))
         except (InvalidOperation, ValueError, TypeError):
             return Decimal('0.00')
-        return (q * p).quantize(Decimal('0.01'))
+        # Half-up, like the tax (v3.17.561) and like the accounting
+        # providers. Decimal's default is banker's rounding, which put a
+        # 0.25 h x 10.10 line at 2.52 here and 2.53 in QuickBooks / Xero.
+        return (q * p).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     def __str__(self):
         return f'{self.description} ({self.quantity} × {self.unit_price})'
