@@ -73,6 +73,17 @@ ACTION_ADVERTISED = {
     'fix_low': 'signed_actions',
     'fix_high': 'signed_actions',
 }
+# RMM permission action (rmm_permissions.catalog) for each action. The
+# decision includes the technician-access capability above, plus role tiers,
+# overrides and second-person approval.
+RMM_ACTION = {
+    'handoff': 'rmm.handoff',
+    'diagnostic': 'diagnostics.run',
+    'remote_view': 'remote.request_support',
+    'remote_control': 'remote.request_control',
+    'fix_low': 'remediation.request_low',
+    'fix_high': 'remediation.request_high',
+}
 ACTION_LABEL = {
     'handoff': 'Send to RMM', 'diagnostic': 'Run diagnostic', 'remote_view': 'View session',
     'remote_control': 'Control session', 'fix_low': 'Refer a fix', 'fix_high': 'Refer higher-risk work',
@@ -154,24 +165,52 @@ def find_target(ticket, device_pk) -> Target:
 
 # --- availability ------------------------------------------------------------
 
-def _decision(user, ticket, action):
-    from tech_access.resolver import decide
-    return decide(user, ticket.organization, ACTION_CAPABILITY[action], ticket=ticket,
-                  asset=ticket.related_asset)
+def _decision(user, ticket, action, target=None):
+    from rmm_permissions import can
+    return can(user, ticket.organization, RMM_ACTION[action], device=target.device if target else None,
+               ticket=ticket)
+
+
+def authorize(user, ticket, target: Target, action, request=None, digest=''):
+    """The audited permission check right before an RMM operation runs.
+    Needs approval → an approval request is filed and the operation is
+    refused until a second person approves it."""
+    from rmm_permissions import rmm_action
+    d = rmm_action(user, ticket.organization, RMM_ACTION[action], device=target.device, ticket=ticket,
+                   digest=digest, request=request)
+    if d.permitted_now:
+        return d
+    if not d.allowed:
+        raise ActionRefused(d.reason)
+    from rmm_permissions.approvals import request_approval
+    a = request_approval(user, ticket.organization, RMM_ACTION[action], device=target.device, ticket=ticket,
+                         digest=digest, summary=f'{ACTION_LABEL[action]} on {ticket.ticket_number}',
+                         request=request)
+    raise ActionRefused(f'{d.reason} Approval #{a.pk} has been requested; try again once it is approved.', 409)
 
 
 def action_state(user, ticket, target: Target, action) -> Tuple[bool, str, str]:
     """(usable, reason when not, grant 'allowed'|'request')."""
     from integrations.ticket_rmm import advertised
-    d = _decision(user, ticket, action)
+    d = _decision(user, ticket, action, target)
     remote = action in ('remote_view', 'remote_control')
-    if not (d.allowed or (remote and d.requestable)):
+    if not d.allowed or (d.grant == 'request' and not remote):
         return False, d.reason, ''
     if ACTION_ADVERTISED[action] not in advertised(target.connection):
         return False, f"{target.connection.name} doesn't offer this.", ''
     if action == 'diagnostic' and not diagnostics_for(target):
         return False, f'{target.connection.name} lists no read-only diagnostics for this device.', ''
-    return True, '', ('request' if d.requestable else 'allowed')
+    return True, '', ('request' if d.grant == 'request' else 'allowed')
+
+
+def _usable_or_refuse(user, ticket, target: Target, action, request=None) -> str:
+    """action_state for an operation about to run: a refusal is audited."""
+    ok, reason, grant = action_state(user, ticket, target, action)
+    if not ok:
+        from rmm_permissions import audit_denial
+        audit_denial(user, ticket.organization, RMM_ACTION[action], reason, device=target.device, request=request)
+        raise ActionRefused(reason)
+    return grant
 
 
 def diagnostics_for(target: Target) -> List[dict]:
@@ -360,14 +399,13 @@ def send(req):
 
 def handoff(user, ticket, device_pk, key, context_digest, note='', request=None):
     target = find_target(ticket, device_pk)
-    ok, reason, _ = action_state(user, ticket, target, 'handoff')
-    if not ok:
-        raise ActionRefused(reason)
+    _usable_or_refuse(user, ticket, target, 'handoff', request)
     context = handoff_context(ticket)
     digest = ev.digest(context)
     if context_digest != digest:
         raise ActionRefused('The ticket changed since you previewed it. Preview again before sending.', 409)
     note = ev.redact((note or '').strip(), max_chars=MAX_NOTE_CHARS)
+    authorize(user, ticket, target, 'handoff', request, digest=ev.digest({'context': digest, 'note': note}))
     return _create_and_send(kind='handoff', ticket=ticket, target=target, user=user, key=key,
                             digest_parts={'context': digest, 'note': note},
                             fill={'kind': 'handoff', 'context': context, 'context_digest': digest, 'note': note},
@@ -376,12 +414,11 @@ def handoff(user, ticket, device_pk, key, context_digest, note='', request=None)
 
 def diagnostic(user, ticket, device_pk, diagnostic_key, key, request=None):
     target = find_target(ticket, device_pk)
-    ok, reason, _ = action_state(user, ticket, target, 'diagnostic')
-    if not ok:
-        raise ActionRefused(reason)
+    _usable_or_refuse(user, ticket, target, 'diagnostic', request)
     diag = next((d for d in diagnostics_for(target) if d['key'] == diagnostic_key), None)
     if diag is None:
         raise ActionRefused(f"{target.connection.name} doesn't offer that diagnostic for this device.", 400)
+    authorize(user, ticket, target, 'diagnostic', request, digest=ev.digest({'diagnostic': diag['key']}))
     return _create_and_send(kind='diagnostic', ticket=ticket, target=target, user=user, key=key,
                             digest_parts={'diagnostic': diag['key']},
                             fill={'kind': 'diagnostic', 'diagnostic': diag['key'], 'readonly': True,
@@ -392,7 +429,7 @@ def diagnostic(user, ticket, device_pk, diagnostic_key, key, request=None):
 
 def refer_fix(user, ticket, device_pk, key, risk='low', title='', description='', suggestion_ref='',
               request=None, action_key=''):
-    from tech_access.resolver import decide
+    from rmm_permissions import can
     target = find_target(ticket, device_pk)
     rem0te_action = None
     if target.connection.provider_type == 'rem0te':
@@ -403,15 +440,14 @@ def refer_fix(user, ticket, device_pk, key, risk='low', title='', description=''
         risk = rem0te_action.get('risk', 'high')
         title = title or rem0te_action['label']
     risk = 'high' if risk == 'high' else 'low'
-    ok, reason, _ = action_state(user, ticket, target, 'fix_high' if risk == 'high' else 'fix_low')
-    if not ok:
-        raise ActionRefused(reason)
+    _usable_or_refuse(user, ticket, target, 'fix_high' if risk == 'high' else 'fix_low', request)
     source = {'type': 'technician'}
     if suggestion_ref:
         s = _suggestion(ticket, suggestion_ref)
         if s is None:
             raise ActionRefused('That analysis suggestion is no longer on this ticket.', 400)
-        if s['actor_id'] != user.pk and not decide(user, ticket.organization, 'fix_refer', ticket=ticket).allowed:
+        if s['actor_id'] != user.pk and not can(user, ticket.organization, 'remediation.refer',
+                                                ticket=ticket).allowed:
             raise ActionRefused("Referring another technician's proposed fix needs “Refer a fix for independent "
                                 'approval”.')
         job_id, profile_id, n = suggestion_ref.split(':')
@@ -438,10 +474,18 @@ def refer_fix(user, ticket, device_pk, key, risk='low', title='', description=''
         except rem0te_schema.SchemaError as e:
             raise ActionRefused(f'This device cannot take a Rem0te action proposal: {e}', 400)
         digest_parts['action'] = rem0te_action['key']
-    return _create_and_send(kind='fix_referral', ticket=ticket, target=target, user=user, key=key,
-                            digest_parts=digest_parts, fill=fill,
-                            request=request, audit_text=f'Fix referred for independent approval ({risk} risk)',
-                            extra={'fix_title': title[:200], 'fix_risk': risk})
+    decision = authorize(user, ticket, target, 'fix_high' if risk == 'high' else 'fix_low', request,
+                         digest=ev.digest(digest_parts))
+    req, replay = _create_and_send(kind='fix_referral', ticket=ticket, target=target, user=user, key=key,
+                                   digest_parts=digest_parts, fill=fill,
+                                   request=request, audit_text=f'Fix referred for independent approval ({risk} risk)',
+                                   extra={'fix_title': title[:200], 'fix_risk': risk})
+    if not replay and rem0te_action is not None and req.status == 'rejected':
+        # Rem0te refused what ClientSt0r allowed: its refusal wins, on record.
+        from rmm_permissions import record_remote_refusal
+        record_remote_refusal(decision, user, ticket.organization, code=req.remote_status, message=req.error,
+                              request=request)
+    return req, replay
 
 
 # --- remote launch -----------------------------------------------------------
@@ -453,9 +497,8 @@ def launch(user, ticket, device_pk, mode, request=None) -> str:
     from integrations.ticket_rmm import launch_hosts
     action = 'remote_control' if mode == 'control' else 'remote_view'
     target = find_target(ticket, device_pk)
-    ok, reason, grant = action_state(user, ticket, target, action)
-    if not ok:
-        raise ActionRefused(reason)
+    grant = _usable_or_refuse(user, ticket, target, action, request)
+    authorize(user, ticket, target, action, request, digest=ev.digest({'mode': action, 'ticket': ticket.pk}))
     launch_id = str(uuid.uuid4())
     payload = {'contract': processor.CONTRACT, 'request_id': launch_id,
                'mode': 'control' if action == 'remote_control' else 'view', 'grant': grant,
