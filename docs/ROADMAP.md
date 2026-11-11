@@ -2279,6 +2279,40 @@ a time.
   to documents or to assets with custom fields. All through the same plan,
   review, apply, rollback and report.
 
+## Phase 62 — Pluggable document editors **(L · documents)** [planned]
+
+Edit Word, Excel and PowerPoint files attached to documentation, KB articles
+and assets in the browser, through an editor the MSP chooses. Today documents
+use the built-in editor only, and the Microsoft 365 connection reads tenant
+data without editing files.
+
+- **62.1 Editor framework** *(planned)* — one interface for opening, saving
+  and locking a file through an external editor. Each file keeps its version
+  history, and every save is audited. Off until an editor is configured;
+  switched on per installation, with per-customer opt-out.
+- **62.2 ONLYOFFICE Docs (self-hosted)** *(planned)* — first editor. Uses the
+  Document Server's signed (JWT) editor config and save callbacks. The
+  Document Server fetches files through short-lived, single-file download
+  links. Real-time co-editing when the server allows it.
+- **62.3 Collabora Online (self-hosted)** *(planned)* — WOPI host endpoints
+  (CheckFileInfo, GetFile, PutFile, locks) with per-file, per-user access
+  tokens that expire.
+- **62.4 Microsoft 365 for the web** *(planned)* — optional connector. Files
+  are opened in Word, Excel or PowerPoint Online through the customer's or the
+  MSP's tenant; needs consent to write files, separate from the read-only
+  Microsoft 365 connection.
+- **62.5 Google Docs** *(planned)* — optional connector. Open a copy in
+  Google Drive, then import the edited file back as a new version; files are
+  never left shared in Drive.
+- **62.6 Permissions and customer boundaries** *(planned)* — opening a file
+  in an editor follows the same view and edit permissions as the document it
+  belongs to. Editor tokens are limited to one file and one user. Customer
+  portal users can edit only files shared to the portal, and only when the
+  MSP allows it.
+
+**Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
+Microsoft 365 and Google Docs 1–2 weeks each.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2341,6 +2375,7 @@ a time.
 | 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals implemented (unreleased); LTS planned | updater, root helper (release signing key), Docker entrypoint |
 | 60 — Optional ticket routing | M | in progress (unreleased) | extends the workflow engine (Phase 14), email routing rules, service catalog, dispatch |
 | 61 — One-customer migration rehearsals | M | in progress (unreleased) | extends the IT Glue / Hudu importers and import rollback; scheduler |
+| 62 — Pluggable document editors | L | planned | documents and file attachments; optional Microsoft 365 / Google connectors |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
