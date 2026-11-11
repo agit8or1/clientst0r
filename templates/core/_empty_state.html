@@ -1,0 +1,21 @@
+{% comment %}
+An empty page or list that says what would fill it and how to set that up.
+
+  {% include "core/_empty_state.html" with icon="fa-box" title="No assets yet" text="…" action_url=… action_label="…" secondary_url=… secondary_label="…" %}
+
+`icon` is a Font Awesome solid icon name; `text` is one or two sentences;
+both actions are optional (pass no url to leave one out, e.g. when the user
+may not open the setup page). `compact` drops the large icon for use inside
+cards and table cells.
+{% endcomment %}
+<div class="empty-state text-center {% if compact %}py-3{% else %}py-5{% endif %}" role="status">
+    {% if not compact %}<i class="fas {{ icon|default:'fa-inbox' }} fa-2x text-body-secondary mb-3" aria-hidden="true"></i>{% endif %}
+    <p class="fw-semibold mb-1">{{ title }}</p>
+    {% if text %}<p class="text-body-secondary small mb-3 mx-auto" style="max-width: 36rem;">{{ text }}</p>{% endif %}
+    {% if action_url or secondary_url %}
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+        {% if action_url %}<a class="btn btn-sm btn-primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+        {% if secondary_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ secondary_url }}">{{ secondary_label }}</a>{% endif %}
+    </div>
+    {% endif %}
+</div>

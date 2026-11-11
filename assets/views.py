@@ -19,30 +19,55 @@ from .views_custom import can_manage_asset_catalog, require_catalog_manager
 @login_required
 def asset_list(request):
     """
-    List all assets in current organization with filtering.
-    In global view mode, shows all assets across all organizations.
+    List assets in the current organization (and its sites) with filters,
+    a stable sort and server-side paging. In Global View, MSP staff see every
+    customer's assets. Filters, sort and page size are query parameters
+    (assets/list_filters.py), so saved views and bookmarks keep working.
     """
+    from django.core.paginator import Paginator
+    from psa.visibility import is_msp_staff
+    from . import list_filters as lf
+
     org = get_request_organization(request)
 
     # Check if user is in global view mode (no org but is superuser/staff)
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     in_global_view = not org and (request.user.is_superuser or is_staff)
+    staff_filters = bool(is_msp_staff(request.user))
 
     if in_global_view:
         # Global view: show all assets across all organizations
-        assets = Asset.objects.all().select_related('organization').prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor', 'artwork_model', 'hardware')
         all_assets = Asset.objects.all()
     else:
         # Organization view: show only assets for current org
-        assets = Asset.objects.for_organization(org).prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor', 'artwork_model', 'hardware')
         all_assets = Asset.objects.for_organization(org)
+    assets = all_assets.select_related(
+        'organization', 'primary_contact', 'equipment_model__vendor', 'artwork_model', 'hardware',
+    ).prefetch_related('tags')
 
     # Apply filters
-    filter_type = request.GET.get('type', '')
-    filter_manufacturer = request.GET.get('manufacturer', '')
-    filter_status = request.GET.get('status', '')
-    filter_location = request.GET.get('location', '')
-    filter_needs_reorder = request.GET.get('needs_reorder', '')
+    get = request.GET
+    filter_type = get.get('type', '')
+    filter_manufacturer = get.get('manufacturer', '')
+    filter_status = get.get('status', '')
+    filter_location = get.get('location', '')
+    filter_needs_reorder = get.get('needs_reorder', '')
+    filter_q = (get.get('q') or get.get('search') or '').strip()[:100]
+    filter_client = get.get('client', '')
+    filter_rmm = get.get('rmm', '') if staff_filters else ''
+    filter_alerts = get.get('alerts', '') if staff_filters else ''
+
+    # Customers present in the scoped list; any other id is ignored.
+    customer_ids = set(all_assets.values_list('organization_id', flat=True).distinct())
+    customers = []
+    if len(customer_ids) > 1:
+        from core.models import Organization
+        customers = list(Organization.objects.filter(pk__in=customer_ids).order_by('name')
+                         .values('pk', 'name'))
+    if filter_client.isdigit() and int(filter_client) in customer_ids:
+        assets = assets.filter(organization_id=int(filter_client))
+    else:
+        filter_client = ''
 
     if filter_type:
         assets = assets.filter(asset_type=filter_type)
@@ -55,11 +80,34 @@ def asset_list(request):
         assets = assets.filter(custom_fields__status=filter_status)
 
     if filter_location:
-        # Location is typically stored in custom_fields
+        # Location (site) is typically stored in custom_fields
         assets = assets.filter(custom_fields__location__icontains=filter_location)
 
     if filter_needs_reorder:
         assets = assets.filter(needs_reorder=True)
+
+    assets = lf.text_filter(assets, filter_q)
+
+    has_rmm = False
+    if staff_filters:
+        from integrations.models import RMMConnection
+        has_rmm = RMMConnection.objects.exists()
+        if filter_rmm in dict(lf.RMM_STATES):
+            assets = lf.rmm_filter(assets, filter_rmm)
+        else:
+            filter_rmm = ''
+        if filter_alerts == 'active':
+            assets = lf.alerts_filter(assets)
+        else:
+            filter_alerts = ''
+
+    sort = get.get('sort', '')
+    if sort not in lf.SORTS:
+        sort = lf.DEFAULT_SORT
+    assets = assets.order_by(*lf.SORTS[sort][1])
+    per_page = lf.page_size(get.get('per_page'))
+    page = Paginator(assets, per_page).get_page(get.get('page'))
+    rows = list(page.object_list)
 
     # Get unique values for filter dropdowns
     manufacturers = all_assets.exclude(manufacturer='').values_list('manufacturer', flat=True).distinct().order_by('manufacturer')
@@ -89,22 +137,45 @@ def asset_list(request):
     asset_age_statuses = {}
     if sys_settings.asset_age_warnings_enabled:
         svc = AssetAgeService(sys_settings)
-        for a in assets:
+        for a in rows:  # only the rows on this page
             status = svc.get_age_status(a)
             if status:
                 asset_age_statuses[a.pk] = status
 
+    keep = request.GET.copy()
+    keep.pop('page', None)
+    filters_active = any([filter_type, filter_manufacturer, filter_status, filter_location,
+                          filter_needs_reorder, filter_q, filter_client, filter_rmm, filter_alerts])
+
     return render(request, 'assets/asset_list.html', {
-        'assets': assets,
+        'assets': rows,
+        'page_obj': page,
+        'page_query': keep.urlencode(),
+        'total_count': page.paginator.count,
+        'any_assets': bool(customer_ids),
+        'filters_active': filters_active,
         'manufacturers': manufacturers,
         'asset_types': asset_types,
         'statuses': sorted(statuses),
         'locations': sorted(locations),
+        'customers': customers,
         'filter_type': filter_type,
         'filter_manufacturer': filter_manufacturer,
         'filter_status': filter_status,
         'filter_location': filter_location,
         'filter_needs_reorder': filter_needs_reorder,
+        'filter_q': filter_q,
+        'filter_client': filter_client,
+        'filter_rmm': filter_rmm,
+        'filter_alerts': filter_alerts,
+        'sort': sort,
+        'sorts': [(k, v[0]) for k, v in lf.SORTS.items()],
+        'per_page': per_page,
+        'page_sizes': lf.PAGE_SIZES,
+        'rmm_states': lf.RMM_STATES,
+        'staff_filters': staff_filters,
+        'has_rmm': has_rmm,
+        'rmm_rows': lf.rmm_rows(rows) if staff_filters and has_rmm else {},
         'in_global_view': in_global_view,
         'health_enabled': health_enabled,
         'asset_age_enabled': sys_settings.asset_age_warnings_enabled,

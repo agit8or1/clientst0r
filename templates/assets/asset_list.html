@@ -5,20 +5,36 @@
 
 {% block content %}
 <style>.asset-stock-img{display:inline-block;background-color:currentColor;opacity:.75;-webkit-mask:var(--stock) center/contain no-repeat;mask:var(--stock) center/contain no-repeat}</style>
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-box"></i> Assets</h1>
-    <a href="{% url 'assets:asset_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Asset</a>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="mb-0"><i class="fas fa-box" aria-hidden="true"></i> Assets</h1>
+    <a href="{% url 'assets:asset_create' %}" class="btn btn-primary"><i class="fas fa-plus" aria-hidden="true"></i> Add Asset</a>
 </div>
 
 <!-- Filter Panel -->
 <div class="card mb-3">
     <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-filter"></i> Filter Assets</h5>
+        <h2 class="h5 mb-0"><i class="fas fa-filter" aria-hidden="true"></i> Filter Assets</h2>
     </div>
     <div class="card-body">
         <form method="GET" action="{% url 'assets:asset_list' %}" id="filterForm">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="q" class="form-label">Search</label>
+                    <input type="search" name="q" id="q" class="form-control" value="{{ filter_q }}" maxlength="100"
+                           placeholder="Name, serial, asset tag, hostname, model…">
+                </div>
+                {% if customers %}
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="client" class="form-label">Customer</label>
+                    <select name="client" id="client" class="form-select">
+                        <option value="">All customers</option>
+                        {% for c in customers %}
+                        <option value="{{ c.pk }}" {% if filter_client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-6 col-md-3 col-lg-2">
                     <label for="type" class="form-label">Asset Type</label>
                     <select name="type" id="type" class="form-select">
                         <option value="">All Types</option>
@@ -27,16 +43,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label for="manufacturer" class="form-label">Manufacturer</label>
-                    <select name="manufacturer" id="manufacturer" class="form-select">
-                        <option value="">All Manufacturers</option>
-                        {% for mfr in manufacturers %}
-                        <option value="{{ mfr }}" {% if filter_manufacturer == mfr %}selected{% endif %}>{{ mfr }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
+                <div class="col-6 col-md-3 col-lg-2">
                     <label for="status" class="form-label">Status</label>
                     <select name="status" id="status" class="form-select">
                         <option value="">All Statuses</option>
@@ -45,38 +52,98 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label for="location" class="form-label">Location</label>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="location" class="form-label">Site / Location</label>
                     <select name="location" id="location" class="form-select">
-                        <option value="">All Locations</option>
+                        <option value="">All Sites</option>
                         {% for loc in locations %}
                         <option value="{{ loc }}" {% if filter_location == loc %}selected{% endif %}>{{ loc }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="manufacturer" class="form-label">Manufacturer</label>
+                    <select name="manufacturer" id="manufacturer" class="form-select">
+                        <option value="">All Manufacturers</option>
+                        {% for mfr in manufacturers %}
+                        <option value="{{ mfr }}" {% if filter_manufacturer == mfr %}selected{% endif %}>{{ mfr }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if staff_filters and has_rmm %}
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="rmm" class="form-label">RMM status</label>
+                    <select name="rmm" id="rmm" class="form-select">
+                        <option value="">Any</option>
+                        {% for value, label in rmm_states %}
+                        <option value="{{ value }}" {% if filter_rmm == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 col-lg-2 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="alerts" value="active" id="alerts" {% if filter_alerts %}checked{% endif %}>
+                        <label class="form-check-label" for="alerts">Has active RMM alerts</label>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="sort" class="form-label">Sort by</label>
+                    <select name="sort" id="sort" class="form-select">
+                        {% for value, label in sorts %}
+                        {% if value != 'customer' or customers %}<option value="{{ value }}" {% if sort == value %}selected{% endif %}>{{ label }}</option>{% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="per_page" class="form-label">Per page</label>
+                    <select name="per_page" id="per_page" class="form-select">
+                        {% for n in page_sizes %}
+                        <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Apply Filters</button>
-                <a href="{% url 'assets:asset_list' %}" class="btn btn-secondary"><i class="fas fa-undo"></i> Clear Filters</a>
-                <a href="{% url 'assets:asset_list' %}?needs_reorder=true" class="btn btn-warning{% if filter_needs_reorder %} active{% endif %}"><i class="fas fa-redo"></i> Needs Reorder</a>
-                <span class="text-muted ms-3">Showing {{ assets.count }} asset{{ assets.count|pluralize }}</span>
+            {% if filter_needs_reorder %}<input type="hidden" name="needs_reorder" value="true">{% endif %}
+            <div class="mt-3 d-flex flex-wrap align-items-center gap-2">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search" aria-hidden="true"></i> Apply Filters</button>
+                <a href="{% url 'assets:asset_list' %}?view=all" class="btn btn-secondary"><i class="fas fa-undo" aria-hidden="true"></i> Clear Filters</a>
+                <a href="{% url 'assets:asset_list' %}?needs_reorder=true" class="btn btn-warning{% if filter_needs_reorder %} active{% endif %}"{% if filter_needs_reorder %} aria-current="true"{% endif %}><i class="fas fa-redo" aria-hidden="true"></i> Needs Reorder</a>
+                <span class="text-muted ms-md-2" aria-live="polite">Showing {{ total_count }} asset{{ total_count|pluralize }}</span>
             </div>
         </form>
     </div>
 </div>
 
+
+{% if not any_assets %}
 <div class="card">
     <div class="card-body">
-        <table id="assetTable" class="table table-striped table-hover">
+        {% url 'assets:asset_create' as create_url %}{% url 'integrations:integration_list' as integrations_url %}
+        {% if user.is_superuser %}
+        {% include "core/_empty_state.html" with icon="fa-box-open" title="No assets yet" text="Add assets by hand, or connect an RMM in Integrations: synced devices can be linked to assets so their online status and alerts show here." action_url=create_url action_label="Add an asset" secondary_url=integrations_url secondary_label="Connect an RMM" %}
+        {% else %}
+        {% include "core/_empty_state.html" with icon="fa-box-open" title="No assets yet" text="Add servers, workstations and network gear here; each asset keeps its serials, warranty, documents and linked RMM device." action_url=create_url action_label="Add an asset" %}
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+        <table id="assetTable" class="table table-striped table-hover align-middle">
+            <caption class="visually-hidden">Assets, page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</caption>
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Manufacturer</th>
-                    <th>Model</th>
-                    <th>Serial Number</th>
-                    <th>Asset Tag</th>
-                    <th width="100">Actions</th>
+                    <th scope="col">Name</th>
+                    {% if customers %}<th scope="col">Customer</th>{% endif %}
+                    <th scope="col">Type</th>
+                    {% if staff_filters and has_rmm %}<th scope="col">RMM</th>{% endif %}
+                    <th scope="col">Manufacturer</th>
+                    <th scope="col">Model</th>
+                    <th scope="col">Serial Number</th>
+                    <th scope="col">Asset Tag</th>
+                    <th scope="col" width="100"><span class="visually-hidden">Actions</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -100,43 +167,51 @@
                             {% endif %}
                         {% endif %}
                     </td>
+                    {% if customers %}<td>{{ asset.organization.name }}</td>{% endif %}
                     <td>
                         {% asset_type_icon asset.asset_type "me-1" %}
                         {{ asset.get_asset_type_display }}
                     </td>
+                    {% if staff_filters and has_rmm %}
+                    <td>{% with r=rmm_rows|get_item:asset.pk %}{% if r %}
+                        {% with st=r.status.state %}<span class="badge {% if st == 'online' %}text-bg-success{% elif st == 'offline' %}text-bg-danger{% elif st == 'stale' %}text-bg-warning{% else %}text-bg-secondary{% endif %}" title="{{ r.status.detail }}">{{ r.status.label }}</span>{% endwith %}
+                        {% if r.alerts %}<span class="badge text-bg-danger" title="Active RMM alerts"><i class="fas fa-bell" aria-hidden="true"></i> {{ r.alerts }}<span class="visually-hidden"> active alert{{ r.alerts|pluralize }}</span></span>{% endif %}
+                    {% else %}<span class="text-body-secondary">—</span>{% endif %}{% endwith %}</td>
+                    {% endif %}
                     <td>{{ asset.manufacturer|default:"—" }}</td>
                     <td>{{ asset.model|default:"—" }}</td>
                     <td><code>{{ asset.serial_number|default:"—" }}</code></td>
                     <td><span class="badge bg-secondary">{{ asset.asset_tag|default:"—" }}</span></td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <a href="{% url 'assets:asset_detail' asset.pk %}" class="btn btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
-                            <a href="{% url 'assets:asset_edit' asset.pk %}" class="btn btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                            <a href="{% url 'assets:asset_detail' asset.pk %}" class="btn btn-outline-primary" title="View" aria-label="View {{ asset.name }}"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                            <a href="{% url 'assets:asset_edit' asset.pk %}" class="btn btn-outline-secondary" title="Edit" aria-label="Edit {{ asset.name }}"><i class="fas fa-edit" aria-hidden="true"></i></a>
                         </div>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-inbox"></i> No assets found. <a href="{% url 'assets:asset_create' %}">Create one</a>.</td></tr>
+                <tr><td colspan="10" class="text-center py-4 text-muted"><i class="fas fa-filter" aria-hidden="true"></i> No assets match these filters. <a href="{% url 'assets:asset_list' %}?view=all">Clear filters</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Asset pages" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+            <span class="small text-body-secondary">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }}</span>
+            <ul class="pagination pagination-sm mb-0 flex-wrap">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page=1">First</a></li>
+                <li class="page-item"><a class="page-link" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" rel="prev">Previous</a></li>
+                {% endif %}
+                <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}" rel="next">Next</a></li>
+                <li class="page-item"><a class="page-link" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_obj.paginator.num_pages }}">Last</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script nonce="{{ csp_nonce }}">
-$(document).ready(function() {
-    {% if assets %}
-    $('#assetTable').DataTable({
-        order: [[0, 'asc']],
-        pageLength: 25,
-        language: {
-            search: "_INPUT_",
-            searchPlaceholder: "Search assets..."
-        }
-    });
-    {% endif %}
-});
-</script>
+{% endif %}
 {% endblock %}
