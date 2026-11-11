@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         ('assets', '0028_asset_image'),
         ('core', '0083_existing_installs_follow_main'),
         ('locations', '0009_wan_scheduled_checks'),
-        ('psa', '0076_service_request_approvers'),
+        ('psa', '0078_ticket_secure_replies'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
