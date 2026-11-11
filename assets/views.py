@@ -211,6 +211,7 @@ def asset_detail(request, pk):
         'has_ai': has_ai,
         'rmm_devices': rmm_devices,
         'rmm_summaries': rmm_summaries,
+        'can_workspace': is_msp_staff(request.user),
         'asset_age_enabled': sys_settings.asset_age_warnings_enabled,
         'firmware_enabled': sys_settings.firmware_checks_enabled,
         'warranty_enabled': sys_settings.warranty_checks_enabled,

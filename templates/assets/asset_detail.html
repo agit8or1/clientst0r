@@ -22,6 +22,11 @@
     </div>
     <div>
         {% include "includes/favorite_button.html" with object=asset %}
+        {% if can_workspace %}
+        <a href="{% url 'assets:device_workspace' asset.pk %}" class="btn btn-primary" data-device-workspace-link>
+            <i class="fas fa-laptop-medical"></i> Device workspace
+        </a>
+        {% endif %}
         {% if asset.profile_document %}
         <a href="{% url 'docs:document_detail' asset.profile_document.slug %}" class="btn btn-outline-info">
             <i class="fas fa-file-alt"></i> View Profile Doc

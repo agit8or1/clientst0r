@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% comment %}
+Device Workspace (assets/workspace_views.py). Technicians only. Everything an
+RMM reported (names, users, software, alert text) is autoescaped text.
+Stale, unsupported and unknown values are labelled as such, never shown as
+current, "none" or "no".
+{% endcomment %}
+{% block title %}{{ asset.name }} — Device workspace{% endblock %}
+
+{% block content %}
+<div id="device-workspace" data-asset="{{ asset.pk }}">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+    <div>
+        <h1 class="h3 mb-1"><i class="fas fa-desktop me-2" aria-hidden="true"></i>{{ asset.name }}</h1>
+        <div class="text-muted small">
+            {{ asset.organization.name }}{% if sites %} · {{ sites|join:", " }}{% endif %}
+            · {{ asset.get_asset_type_display }}
+            {% if sel %} ·
+            {% if sel.status.state == 'online' %}<span class="badge bg-success" data-ws-state="online">Online</span>
+            {% elif sel.status.state == 'offline' %}<span class="badge bg-danger" data-ws-state="offline">Offline</span>
+            {% elif sel.status.state == 'stale' %}<span class="badge bg-warning text-dark" data-ws-state="stale"><i class="fas fa-clock me-1" aria-hidden="true"></i>Stale data</span>
+            {% else %}<span class="badge bg-secondary" data-ws-state="unknown">Status unknown</span>{% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-1">
+        {% if ticket %}
+        <a class="btn btn-sm btn-outline-primary" data-ws-back-ticket href="{% url 'psa:ticket_detail' ticket.ticket_number %}#ticket-rmm-panel">
+            <i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back to {{ ticket.ticket_number }}</a>
+        {% endif %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'assets:asset_detail' asset.pk %}">Asset page</a>
+    </div>
+</div>
+
+{% if ticket %}
+<div class="alert alert-info py-2 small mb-2" data-ws-ticket="{{ ticket.ticket_number }}">
+    Working on <a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a> — {{ ticket.subject }}. Actions below are requested from this ticket and recorded on it.
+</div>
+{% elif ticket_note %}
+<div class="alert alert-warning py-2 small mb-2" data-ws-ticket-ignored>{{ ticket_note }}</div>
+{% endif %}
+
+{# ---- Toolbar: CONNECT | DIAGNOSE | RUN APPROVED ACTION | PATCHES | CREATE TICKET | MORE ---- #}
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-1 align-items-center" role="toolbar" aria-label="Device actions" data-ws-toolbar>
+            {% for b in toolbar %}
+            {% if b.enabled and b.post %}
+            <form method="post" action="{{ b.post.url }}" target="_blank" class="d-inline">
+                {% csrf_token %}<input type="hidden" name="device" value="{{ b.post.device }}"><input type="hidden" name="mode" value="{{ b.post.mode }}">
+                <button class="btn btn-sm btn-primary" data-ws-action="{{ b.key }}" title="{{ b.note }}"><i class="fas {{ b.icon }} me-1" aria-hidden="true"></i>{{ b.label }}</button>
+            </form>
+            {% elif b.enabled %}
+            <a class="btn btn-sm btn-outline-primary" data-ws-action="{{ b.key }}" href="{{ b.href }}" title="{{ b.note }}"
+               {% if b.key == 'connect' %}target="_blank" rel="noopener noreferrer"{% endif %}><i class="fas {{ b.icon }} me-1" aria-hidden="true"></i>{{ b.label }}</a>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled data-ws-action="{{ b.key }}" data-disabled="1" title="{{ b.reason }}"><i class="fas {{ b.icon }} me-1" aria-hidden="true"></i>{{ b.label }}</button>
+            {% endif %}
+            {% endfor %}
+            <div class="dropdown d-inline">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-ws-action="more">More</button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'assets:asset_detail' asset.pk %}">Asset page</a></li>
+                    <li><a class="dropdown-item" href="{% url 'assets:asset_edit' asset.pk %}">Edit asset</a></li>
+                    {% for v in views %}
+                    <li><a class="dropdown-item" href="{% url 'integrations:rmm_device_detail' v.device.pk %}">{{ v.provider }} record: {{ v.device.device_name }}</a></li>
+                    {% endfor %}
+                    {% if ticket %}<li><a class="dropdown-item" href="{% url 'ticket_rmm:verify' ticket.ticket_number %}">Verify resolution of {{ ticket.ticket_number }}</a></li>{% endif %}
+                </ul>
+            </div>
+        </div>
+        {% for b in toolbar %}{% if b.enabled and b.note %}<div class="small text-muted mt-1" data-ws-note="{{ b.key }}">{{ b.label }}: {{ b.note }}</div>{% endif %}{% endfor %}
+        {% if disabled_reasons %}
+        <ul class="small text-muted mb-0 mt-1 ps-3" data-ws-disabled-reasons>
+            {% for b in disabled_reasons %}<li data-ws-reason="{{ b.key }}"><strong>{{ b.label }}</strong>: {{ b.reason }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+{% if not views %}
+<div class="alert alert-secondary" data-ws-no-rmm>No RMM manages this asset for {{ asset.organization.name }}. Inventory, alerts and patch status appear here once an RMM device is linked to it (Integrations → RMM).</div>
+<div class="card"><div class="card-body">{% include "assets/_ws_related.html" %}</div></div>
+{% else %}
+
+{# ---- Linked external records (one per provider device) ---- #}
+{% if views|length > 1 %}
+<div class="mb-2 small" data-ws-devices>
+    <span class="text-muted me-1">Linked records:</span>
+    {% for v in views %}
+    <a class="btn btn-sm {% if v.device.pk == sel.device.pk %}btn-secondary{% else %}btn-outline-secondary{% endif %} me-1 mb-1"
+       href="?device={{ v.device.pk }}{% if ticket %}&amp;ticket={{ ticket.ticket_number|urlencode }}{% endif %}">
+        {{ v.provider }} · {{ v.device.device_name }} ({{ v.status.label }})</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if sel.status.state == 'stale' or sel.status.state == 'unknown' %}
+<div class="alert alert-warning py-2 small" data-ws-stale>{{ sel.status.detail }} Values below are as of that refresh, not current.</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ws-overview" type="button" role="tab">Overview</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-hardware" type="button" role="tab">Hardware &amp; network</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-software" type="button" role="tab">Software</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-system" type="button" role="tab">Services &amp; events</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-patches" type="button" role="tab">Patches</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-alerts" type="button" role="tab">Alerts{% if sel.alert_count %} <span class="badge bg-warning text-dark">{{ sel.alert_count }}</span>{% endif %}</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-history" type="button" role="tab">History</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ws-related" type="button" role="tab">Tickets, docs &amp; access</button></li>
+        </ul>
+    </div>
+    <div class="card-body tab-content">
+        {# Overview #}
+        <div class="tab-pane fade show active" id="ws-overview" role="tabpanel">
+            <dl class="row small mb-0">
+                <dt class="col-sm-3">Source</dt><dd class="col-sm-9">{{ sel.provider }} · {{ sel.connection.name }} <span class="text-muted">(ID <code>{{ sel.external_id }}</code>)</span></dd>
+                <dt class="col-sm-3">Customer / site (RMM)</dt><dd class="col-sm-9">{{ sel.device.client_name|default:"—" }}{% if sel.device.site_name and sel.device.site_name != sel.device.client_name %} / {{ sel.device.site_name }}{% endif %}</dd>
+                <dt class="col-sm-3">Status</dt><dd class="col-sm-9" data-ws-status="{{ sel.status.state }}">{{ sel.status.label }} — {{ sel.status.detail }}</dd>
+                <dt class="col-sm-3">Last heartbeat</dt><dd class="col-sm-9">{% if sel.last_heartbeat %}{{ sel.last_heartbeat|date:"Y-m-d H:i" }} ({{ sel.last_heartbeat|timesince }} ago){% else %}Not reported{% endif %}</dd>
+                <dt class="col-sm-3">Data refreshed</dt><dd class="col-sm-9" data-ws-freshness>{% if sel.data_refreshed_at %}{{ sel.data_refreshed_at|date:"Y-m-d H:i" }} ({{ sel.data_refreshed_at|timesince }} ago; stale after {{ sel.stale_after_hours }} h){% else %}Never refreshed from the RMM{% endif %}</dd>
+                <dt class="col-sm-3">Agent</dt><dd class="col-sm-9">{% if sel.agent_version %}Version {{ sel.agent_version }}{% else %}<span class="text-muted">Version not reported by {{ sel.provider }}</span>{% endif %}</dd>
+                <dt class="col-sm-3">Logged-in user</dt><dd class="col-sm-9" data-ws-logged-in>{% if sel.logged_in %}{{ sel.logged_in }} <span class="text-muted">(as of the data refresh)</span>{% elif sel.logged_in_hidden %}<span class="text-muted">Hidden — needs a technician access assignment at {{ asset.organization.name }}.</span>{% else %}<span class="text-muted">Not reported by {{ sel.provider }}</span>{% endif %}</dd>
+                <dt class="col-sm-3">OS</dt><dd class="col-sm-9">{{ sel.device.get_os_type_display|default:"" }} {{ sel.device.os_version|default:"—" }}</dd>
+                <dt class="col-sm-3">Make / model</dt><dd class="col-sm-9">{{ sel.device.manufacturer|default:asset.manufacturer|default:"—" }} {{ sel.device.model|default:asset.model }}</dd>
+                <dt class="col-sm-3">Serial</dt><dd class="col-sm-9">{% if sel.hardware.serial_number %}<code>{{ sel.hardware.serial_number }}</code>{% elif asset.serial_number %}<code>{{ asset.serial_number }}</code> <span class="text-muted">(asset record)</span>{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3">Restart pending</dt><dd class="col-sm-9" data-ws-reboot>{% if sel.patches.reboot is True %}<span class="badge bg-warning text-dark">Yes</span>{% elif sel.patches.reboot is False %}No{% else %}<span class="text-muted">Unknown</span>{% endif %}</dd>
+            </dl>
+            {% if views|length > 1 %}
+            <hr><h6 class="small text-uppercase text-muted">All linked records</h6>
+            <ul class="small mb-0">{% for v in views %}<li>{{ v.provider }} · {{ v.connection.name }} — {{ v.device.device_name }}: {{ v.status.label }}{% if v.data_refreshed_at %}, refreshed {{ v.data_refreshed_at|timesince }} ago{% endif %}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+
+        {# Hardware & network #}
+        <div class="tab-pane fade" id="ws-hardware" role="tabpanel">
+            <div class="row small">
+                <div class="col-md-6">
+                    <dl class="row mb-2">
+                        <dt class="col-5">CPU</dt><dd class="col-7">{{ sel.hardware.cpu|default:"Not reported" }}</dd>
+                        <dt class="col-5">RAM</dt><dd class="col-7">{% if sel.hardware.ram_gb %}{{ sel.hardware.ram_gb }} GB{% else %}Not reported{% endif %}</dd>
+                        <dt class="col-5">Storage</dt><dd class="col-7">{{ sel.hardware.storage|default:"Not reported" }}</dd>
+                        <dt class="col-5">Last boot</dt><dd class="col-7">{% if sel.last_boot %}{{ sel.last_boot|date:"Y-m-d H:i" }}{% else %}Not reported{% endif %}</dd>
+                        <dt class="col-5">Uptime</dt><dd class="col-7">{% if sel.uptime %}{{ sel.uptime }}{% elif sel.last_boot %}<span class="text-muted">Unknown — the device isn't confirmed online now</span>{% else %}Not reported{% endif %}</dd>
+                    </dl>
+                    <h6 class="text-uppercase text-muted small">Disks</h6>
+                    {% if sel.disks %}
+                    <table class="table table-sm"><thead><tr><th>Disk</th><th>Size</th><th>Free</th><th>Used</th></tr></thead><tbody>
+                        {% for d in sel.disks %}<tr><td>{{ d.name }}</td><td>{{ d.total|default:"—" }}</td><td>{{ d.free|default:"—" }}</td><td>{% if d.percent is not None %}{{ d.percent|floatformat:0 }}%{% else %}—{% endif %}</td></tr>{% endfor %}
+                    </tbody></table>
+                    {% else %}<p class="text-muted">{{ sel.provider }} reported no disk details.</p>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-uppercase text-muted small">Network</h6>
+                    <dl class="row mb-2">
+                        <dt class="col-5">IP addresses</dt><dd class="col-7">{% for ip in sel.ips %}<code>{{ ip }}</code>{% if not forloop.last %}, {% endif %}{% empty %}Not reported{% endfor %}</dd>
+                        <dt class="col-5">Public IP</dt><dd class="col-7">{% if sel.public_ip %}<code>{{ sel.public_ip }}</code>{% else %}Not reported{% endif %}</dd>
+                        <dt class="col-5">MAC</dt><dd class="col-7">{% if sel.device.mac_address %}<code>{{ sel.device.mac_address }}</code>{% else %}Not reported{% endif %}</dd>
+                    </dl>
+                    {% if sel.nics %}
+                    <table class="table table-sm"><thead><tr><th>Adapter</th><th>MAC</th><th>IPs</th></tr></thead><tbody>
+                        {% for n in sel.nics %}<tr><td>{{ n.name }}</td><td><code>{{ n.mac|default:"—" }}</code></td><td>{{ n.ips|default:"—" }}</td></tr>{% endfor %}
+                    </tbody></table>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="small text-muted mb-0">As of {{ sel.data_refreshed_at|date:"Y-m-d H:i"|default:"no refresh yet" }} from {{ sel.provider }}.</p>
+        </div>
+
+        {# Software #}
+        <div class="tab-pane fade" id="ws-software" role="tabpanel" data-ws-support="software:{{ sel.support.software.state }}">
+            {% if sel.support.software.state == 'supported' %}
+            {% if sel.recent_software %}
+            <h6 class="small text-uppercase text-muted">Installed in the last 14 days</h6>
+            <ul class="small">{% for s in sel.recent_software %}<li>{{ s.name }} {{ s.version }} — {{ s.install_date|date:"Y-m-d" }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if sel.software %}
+            <div style="max-height: 28rem; overflow-y: auto;">
+            <table class="table table-sm table-striped"><thead class="sticky-top"><tr><th>Name</th><th>Version</th><th>Vendor</th><th>Installed</th></tr></thead><tbody>
+                {% for s in sel.software %}<tr><td>{{ s.name }}</td><td>{{ s.version|default:"—" }}</td><td>{{ s.vendor|default:"—" }}</td><td>{{ s.install_date|date:"Y-m-d"|default:"—" }}</td></tr>{% endfor %}
+            </tbody></table></div>
+            {% if sel.software_total > sel.software|length %}<p class="small text-muted">Showing {{ sel.software|length }} of {{ sel.software_total }}.</p>{% endif %}
+            {% else %}<p class="text-muted small">No software reported by {{ sel.provider }} yet.</p>{% endif %}
+            {% elif sel.support.software.state == 'not_synced' %}
+            <p class="text-muted small" data-ws-unsupported="software">Not synced. {{ sel.support.software.detail }}</p>
+            {% else %}
+            <p class="text-muted small" data-ws-unsupported="software">Unsupported. {{ sel.support.software.detail }}</p>
+            {% endif %}
+        </div>
+
+        {# Services, processes and Windows events #}
+        <div class="tab-pane fade" id="ws-system" role="tabpanel">
+            <h6 class="small text-uppercase text-muted">Services</h6>
+            {% if sel.support.services.state == 'supported' %}<ul class="small">{% for s in sel.services %}<li>{{ s }}</li>{% empty %}<li class="text-muted">None reported.</li>{% endfor %}</ul>
+            {% else %}<p class="small text-muted" data-ws-unsupported="services">Unsupported. {{ sel.support.services.detail }}</p>{% endif %}
+            <h6 class="small text-uppercase text-muted">Processes</h6>
+            {% if sel.support.processes.state == 'supported' %}<p class="small text-muted">Reported by {{ sel.provider }}.</p>
+            {% else %}<p class="small text-muted" data-ws-unsupported="processes">Unsupported. {{ sel.support.processes.detail }}</p>{% endif %}
+            <h6 class="small text-uppercase text-muted">Windows events</h6>
+            {% if sel.support.events.state == 'supported' %}<ul class="small">{% for e in sel.events %}<li>{{ e }}</li>{% empty %}<li class="text-muted">None reported.</li>{% endfor %}</ul>
+            {% else %}<p class="small text-muted" data-ws-unsupported="events">Unsupported. {{ sel.support.events.detail }}</p>{% endif %}
+        </div>
+
+        {# Patches #}
+        <div class="tab-pane fade" id="ws-patches" role="tabpanel" data-ws-patches="{{ sel.patches.state }}">
+            {% with p=sel.patches %}
+            {% if p.state == 'unsupported' %}
+            <p class="small text-muted" data-ws-unsupported="patches">Unsupported. {{ p.detail }}</p>
+            {% elif p.state == 'no_data' %}
+            <p class="small text-muted">{{ p.detail }}</p>
+            {% elif p.summary %}
+            {% with s=p.summary %}
+            <dl class="row small mb-2">
+                <dt class="col-sm-4">Evidence</dt><dd class="col-sm-8">{% if s.evidence_source == 'signed_agent_scan' %}Signed agent scan{% elif s.evidence_source == 'standard_agent_scan' %}Standard agent scan (read-only){% else %}No scan received{% endif %}{% if s.evidence_at %}, {{ s.evidence_at|date:"Y-m-d H:i" }}{% endif %} — <span data-ws-patch-freshness="{{ s.freshness }}">{% if s.freshness == 'fresh' %}fresh{% elif s.freshness == 'stale' %}<span class="text-warning-emphasis">stale</span>{% else %}unknown{% endif %}</span></dd>
+                <dt class="col-sm-4">Restart pending</dt><dd class="col-sm-8">{% if s.reboot_required is True %}Yes{% elif s.reboot_required is False %}No{% else %}Unknown{% endif %}</dd>
+                <dt class="col-sm-4">Last boot</dt><dd class="col-sm-8">{{ s.last_boot_at|date:"Y-m-d H:i"|default:"Not reported" }}</dd>
+                <dt class="col-sm-4">Who manages patching</dt><dd class="col-sm-8">{% if s.managed_by == 'rem0te_or_windows_update' %}Windows Update (Rem0te can deploy){% elif s.managed_by == 'external' %}Managed elsewhere{% if s.managers %}: {{ s.managers|join:", " }}{% endif %}{% else %}Unknown{% endif %}</dd>
+                <dt class="col-sm-4">Pending updates</dt><dd class="col-sm-8">{% if s.pending_count is not None %}{{ s.pending_count }}{% else %}Unknown{% endif %}{% if s.pending_kbs %} — {{ s.pending_kbs|join:", " }}{% endif %}</dd>
+                {% if s.confirmed_kbs %}<dt class="col-sm-4">Confirmed by a later scan</dt><dd class="col-sm-8">{{ s.confirmed_kbs|join:", " }}</dd>{% endif %}
+                {% if s.failed_kbs %}<dt class="col-sm-4">Failed</dt><dd class="col-sm-8 text-danger">{{ s.failed_kbs|join:", " }}</dd>{% endif %}
+                {% if s.awaiting_confirmation_kbs %}<dt class="col-sm-4">Awaiting confirmation</dt><dd class="col-sm-8">{{ s.awaiting_confirmation_kbs|join:", " }}</dd>{% endif %}
+                <dt class="col-sm-4">Deploy from Rem0te</dt><dd class="col-sm-8">{% if s.deploy_available is True %}Available in Rem0te (approvals happen there){% elif s.deploy_available is False %}Not available{% else %}Unknown{% endif %}</dd>
+            </dl>
+            <p class="small text-muted mb-0">{{ p.source }}, received {{ s.received_at|date:"Y-m-d H:i" }}. ClientSt0r shows it; deploying and approving updates happen in Rem0te.</p>
+            {% endwith %}
+            {% else %}
+            <dl class="row small mb-2">
+                <dt class="col-sm-4">Restart pending</dt><dd class="col-sm-8">{% if p.reboot is True %}Yes{% elif p.reboot is False %}No{% else %}Unknown{% endif %}</dd>
+                {% for k, v in p.fields %}<dt class="col-sm-4">{{ k }}</dt><dd class="col-sm-8">{{ v }}</dd>{% endfor %}
+            </dl>
+            <p class="small text-muted mb-0">From {{ p.source }}, as of {{ p.as_of|date:"Y-m-d H:i"|default:"no refresh yet" }}.</p>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+        {# Alerts #}
+        <div class="tab-pane fade" id="ws-alerts" role="tabpanel" data-ws-support="alerts:{{ sel.support.alerts.state }}">
+            {% if sel.support.alerts.state != 'supported' %}
+            <p class="small text-muted" data-ws-unsupported="alerts">{% if sel.support.alerts.state == 'not_synced' %}Not synced.{% else %}Unsupported.{% endif %} {{ sel.support.alerts.detail }}</p>
+            {% endif %}
+            {% for a in sel.alerts %}
+            <div class="border rounded p-2 mb-1 small" data-ws-alert="{{ a.pk }}">
+                <span class="badge {% if a.severity == 'critical' or a.severity == 'error' %}bg-danger{% elif a.severity == 'warning' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ a.get_severity_display }}</span>
+                <strong>{{ a.alert_type }}</strong> — {{ a.message|truncatechars:200 }}
+                <span class="text-muted">· {{ a.triggered_at|date:"Y-m-d H:i" }} · {{ a.get_status_display }}</span>
+                {% if psa_on %}<a class="ms-1" href="{% url 'psa:ticket_create' %}?rmm_alert={{ a.pk }}">Create ticket</a>{% endif %}
+            </div>
+            {% endfor %}
+            {% for r in sel.rem0te_alerts %}
+            <div class="border rounded p-2 mb-1 small" data-ws-rem0te-alert="{{ r.alert_id }}">
+                <span class="badge bg-secondary">{{ r.severity|default:"alert" }}</span> <strong>{{ r.kind }}</strong> — {{ r.title }} <span class="text-muted">· {{ r.state }}</span>
+                {% if r.ticket %}· <a href="{% url 'psa:ticket_detail' r.ticket.ticket_number %}">{{ r.ticket.ticket_number }}</a>{% endif %}
+            </div>
+            {% endfor %}
+            {% if sel.support.alerts.state == 'supported' and not sel.alerts and not sel.rem0te_alerts %}<p class="small text-muted mb-0">No open alerts reported.</p>{% endif %}
+        </div>
+
+        {# History: remediation and launches #}
+        <div class="tab-pane fade" id="ws-history" role="tabpanel">
+            <h6 class="small text-uppercase text-muted">Requests to the RMM</h6>
+            {% for r in history %}
+            <div class="border-bottom py-1 small" data-ws-history="{{ r.pk }}" data-status="{{ r.status }}">
+                <strong>{{ r.get_kind_display }}</strong>{% if r.diagnostic_label %} — {{ r.diagnostic_label }}{% endif %}{% if r.fix_title %} — {{ r.fix_title|truncatechars:80 }}{% endif %}
+                · {{ r.get_status_display }}{% if r.remote_outcome %} ({{ r.remote_outcome }}){% endif %}
+                <span class="text-muted">· {{ r.device_name }} · {{ r.actor.username }} · {{ r.created_at|date:"Y-m-d H:i" }} · <a href="{% url 'psa:ticket_detail' r.ticket.ticket_number %}">{{ r.ticket.ticket_number }}</a></span>
+                {% if r.error %}<div class="text-danger">{{ r.error }}</div>{% endif %}
+            </div>
+            {% empty %}<p class="small text-muted">No handoffs, diagnostics or action requests for this device yet.</p>{% endfor %}
+            <h6 class="small text-uppercase text-muted mt-3">Remote launches</h6>
+            {% for l in launches %}
+            <div class="small border-bottom py-1" data-ws-launch data-session-confirmed="0">
+                {{ l.when|date:"Y-m-d H:i" }} · {{ l.user.username|default:"—" }} · {{ l.mode }} —
+                {% if l.ok %}Launch link issued; session not confirmed by the RMM{% else %}Launch refused or failed{% endif %}
+            </div>
+            {% empty %}<p class="small text-muted mb-0">No remote launches from ClientSt0r.</p>{% endfor %}
+        </div>
+
+        {# Related: tickets, docs, runbooks, credentials #}
+        <div class="tab-pane fade" id="ws-related" role="tabpanel">
+            {% include "assets/_ws_related.html" %}
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}
