@@ -391,7 +391,10 @@ def diagnostic(user, ticket, device_pk, diagnostic_key, key, request=None):
 
 
 def refer_fix(user, ticket, device_pk, key, risk='low', title='', description='', suggestion_ref='',
-              request=None, action_key=''):
+              request=None, action_key='', ai_suggested=False):
+    # ai_suggested: the technician is requesting an action AI Troubleshoot
+    # suggested (services/troubleshoot.request_action). It changes only the
+    # origin label Rem0te sees; every check below still applies.
     from tech_access.resolver import decide
     target = find_target(ticket, device_pk)
     rem0te_action = None
@@ -434,7 +437,7 @@ def refer_fix(user, ticket, device_pk, key, risk='low', title='', description=''
             fill['rem0te_proposal'] = rem0te_actions.proposal_body(
                 connection=target.connection, user=user, ticket=ticket,
                 device_external_id=target.device.external_id, action_key=rem0te_action['key'], reason=reason,
-                origin='ai_suggestion' if suggestion_ref else 'technician', key=key)
+                origin='ai_suggestion' if (suggestion_ref or ai_suggested) else 'technician', key=key)
         except rem0te_schema.SchemaError as e:
             raise ActionRefused(f'This device cannot take a Rem0te action proposal: {e}', 400)
         digest_parts['action'] = rem0te_action['key']
