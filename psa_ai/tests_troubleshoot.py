@@ -355,6 +355,35 @@ class ActionTests(TroubleshootBase):
         self.assertEqual(RMMRequest.objects.count(), 0)
 
 
+class PermissionPathTests(TroubleshootBase):
+    """AI Troubleshoot's "may request" filter is rmm_permissions (through
+    rmm_actions.action_state): a deny override removes an action from the
+    session and from the live re-check."""
+
+    def deny(self, action):
+        from rmm_permissions import overrides
+        from rmm_permissions.models import RMMPermissionOverride as O
+        return overrides.create(make_tech('ts-admin', superuser=True), action=action, effect=O.DENY,
+                                organization=self.a, user=self.tech)
+
+    def test_deny_override_removes_the_action(self):
+        self.deny('remediation.request_low')
+        self.start()
+        s = TroubleshootSession.objects.get()
+        self.assertEqual(s.observations['actions'], [])
+
+    def test_deny_after_the_session_refuses_the_request(self):
+        self.start()
+        s = TroubleshootSession.objects.get()
+        self.assertEqual(troubleshoot.current_actions(self.tech, s), {'X1': (True, '')})
+        self.deny('remediation.request_low')
+        self.assertFalse(troubleshoot.current_actions(self.tech, s)['X1'][0])
+        with patch('integrations.rem0te.actions.send') as send:
+            self.c.post(f'/psa/ai/troubleshoot/{s.id}/action/X1/', {'idempotency_key': 'reqkey-deny1'})
+        send.assert_not_called()
+        self.assertEqual(RMMRequest.objects.count(), 0)
+
+
 class DeviceOutputInjectionTests(TroubleshootBase):
     """Device job output posted to the ticket (source='rmm', from the device
     workspace's "Add result as internal note") is attacker-influenceable."""

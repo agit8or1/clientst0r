@@ -58,7 +58,8 @@ def device_workspace(request, pk):
     from integrations.rmm_association import exposed_devices
     from psa.feature_flags import is_psa_enabled_for_client
     from psa.visibility import is_msp_staff
-    from tech_access.resolver import has_any_assignment
+    from rmm_permissions import can
+    from rmm_permissions.decision import scoped
     if not is_msp_staff(request.user):
         raise Http404()
     asset = _asset(request, pk)
@@ -66,8 +67,13 @@ def device_workspace(request, pk):
     now = timezone.now()
     # Logged-in user names are personal data about the customer's staff:
     # shown only to a technician with live access at this customer.
-    show_user = has_any_assignment(request.user, asset.organization)
-    devices = list(exposed_devices(asset).order_by('-data_refreshed_at', 'pk'))
+    show_user = scoped(request.user, asset.organization)
+    # The page has always opened for every MSP technician; an RMM permission
+    # block (a deny override, a technician-access deny, containment) now
+    # withholds what the RMMs report about the device.
+    view_decision = can(request.user, asset.organization, 'device.view', device=asset)
+    blocked_reason = view_decision.reason if view_decision.blocked else ''
+    devices = [] if blocked_reason else list(exposed_devices(asset).order_by('-data_refreshed_at', 'pk'))
     views = [ws.device_view(d, show_user=show_user, now=now) for d in devices]
     selected = None
     wanted = (request.GET.get('device') or '').strip()
@@ -80,7 +86,7 @@ def device_workspace(request, pk):
         psa_on = is_psa_enabled_for_client(asset.organization)
     except Exception:
         psa_on = False
-    toolbar = ws.toolbar(request.user, asset, selected, ticket=ticket, psa_on=psa_on)
+    toolbar = ws.toolbar(request.user, asset, selected, ticket=ticket, psa_on=psa_on, blocked_reason=blocked_reason)
     sites = sorted({v['device'].site_name for v in views if v['device'].site_name})
     return render(request, 'assets/device_workspace.html', {
         'asset': asset,
@@ -92,6 +98,7 @@ def device_workspace(request, pk):
         'disabled_reasons': [b for b in toolbar if not b['enabled'] and b['reason']],
         'sites': sites,
         'show_user': show_user,
+        'blocked_reason': blocked_reason,
         'tickets': ws.related_tickets(asset) if psa_on else [],
         'psa_on': psa_on,
         'docs': ws.related_docs(asset),

@@ -17,10 +17,12 @@ Rules this module keeps:
     "unknown" unless something reported it.
   * Only the asset's own customer's devices (rmm_association.exposed_devices)
     and records. Technicians only: the view checks that before calling here.
-  * Actions are not decided here. The toolbar asks the same server-side
-    checks the ticket routes enforce (psa_ai.services.rmm_actions
-    .action_state) and the routes check again on POST; this module only
-    explains why something is disabled.
+  * Actions are not decided here. The toolbar asks rmm_permissions — the
+    same server-side checks the ticket routes enforce (psa_ai.services
+    .rmm_actions.action_state → rmm_permissions.can) — and the routes check
+    again on POST (rmm_permissions.rmm_action); this module only explains
+    why something is disabled. A console link (the RMM's own page) needs no
+    grant, but an RMM permission block on viewing the device withholds it.
 """
 from __future__ import annotations
 
@@ -438,7 +440,7 @@ def _btn(key, label, enabled, reason='', href='', post=None, icon='', note=''):
             'icon': icon, 'note': note}
 
 
-def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True) -> List[dict]:
+def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True, blocked_reason='') -> List[dict]:
     """CONNECT | DIAGNOSE | RUN APPROVED ACTION | PATCHES | CREATE TICKET | MORE.
 
     Device actions are requested from a ticket (that is where they are
@@ -446,6 +448,8 @@ def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True) -> L
     point to one instead of acting. `primary` is the selected device's
     `device_view`."""
     from psa_ai.services import rmm_actions
+    if blocked_reason:
+        primary = None
     out = []
     target = None
     if primary is not None and ticket is not None:
@@ -453,7 +457,11 @@ def toolbar(user, asset, primary: Optional[dict], ticket=None, psa_on=True) -> L
             target = rmm_actions.find_target(ticket, primary['device'].pk)
         except rmm_actions.ActionRefused:
             target = None
-    no_device = 'No RMM manages this asset.'
+    # `blocked_reason`: rmm_permissions refused viewing this device
+    # (workspace_views); the caller then passes no devices at all.
+    no_device = blocked_reason or 'No RMM manages this asset.'
+    if blocked_reason:
+        primary = target = None
     need_ticket = ('Requested from a ticket so it is authorized and recorded there: open this device from a '
                    'ticket, or create one.')
 

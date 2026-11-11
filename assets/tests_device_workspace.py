@@ -197,3 +197,45 @@ class Rem0teWorkspaceTests(WorkspaceBase):
         self.device.refresh_from_db()
         view = ws.device_view(self.device, show_user=True)
         self.assertEqual([s.name for s in view['recent_software']], ['7-Zip'])
+
+
+class WorkspacePermissionPathTests(WorkspaceBase):
+    """The workspace asks rmm_permissions; an RMM permission block withholds
+    the device's RMM data and every device action, ticket context or not."""
+
+    def deny(self, action, **kw):
+        from rmm_permissions import overrides
+        from rmm_permissions.models import RMMPermissionOverride as O
+        from django.contrib.auth.models import User
+        admin = User.objects.filter(username='ws-admin').first() or make_tech('ws-admin', superuser=True)
+        return overrides.create(admin, action=action, effect=O.DENY, organization=self.a, user=self.tech, **kw)
+
+    def test_no_override_keeps_todays_page(self):
+        html = self.ws().content.decode()
+        self.assertNotIn('data-ws-blocked', html)
+        self.assertIn('pat.frontdesk', html)
+
+    def test_device_view_deny_withholds_rmm_data_and_actions(self):
+        self.deny('device.view', reason='Under review')
+        html = self.ws(ticket=self.ticket.ticket_number).content.decode()
+        self.assertIn('data-ws-blocked', html)
+        self.assertIn('Under review', html)
+        self.assertNotIn('pat.frontdesk', html)
+        self.assertNotIn('Version 2.7.0', html)
+        self.assertNotIn(f'action="/psa/rmm/{self.ticket.ticket_number}/launch/"', html)
+        for key in ('connect', 'diagnose', 'action', 'patches'):
+            self.assertIn(f'disabled data-ws-action="{key}"', html)
+        self.assertIn('data-ws-reason="connect"', html)
+
+    def test_remote_deny_disables_connect_from_the_ticket(self):
+        self.deny('remote.request_control')
+        self.deny('remote.request_support')
+        html = self.ws(ticket=self.ticket.ticket_number).content.decode()
+        self.assertNotIn(f'action="/psa/rmm/{self.ticket.ticket_number}/launch/"', html)
+        self.assertNotIn('data-ws-blocked', html)  # only remote work is denied
+
+    def test_diagnostics_deny_disables_diagnose(self):
+        self.deny('diagnostics.run')
+        html = self.ws(ticket=self.ticket.ticket_number).content.decode()
+        self.assertIn('disabled data-ws-action="diagnose"', html)
+        self.assertIn('Denied by override', html)

@@ -78,7 +78,10 @@ current, "none" or "no".
     </div>
 </div>
 
-{% if not views %}
+{% if blocked_reason %}
+<div class="alert alert-danger" data-ws-blocked>RMM data for this device is withheld: {{ blocked_reason }}</div>
+<div class="card"><div class="card-body">{% include "assets/_ws_related.html" %}</div></div>
+{% elif not views %}
 <div class="alert alert-secondary" data-ws-no-rmm>No RMM manages this asset for {{ asset.organization.name }}. Inventory, alerts and patch status appear here once an RMM device is linked to it (Integrations → RMM).</div>
 <div class="card"><div class="card-body">{% include "assets/_ws_related.html" %}</div></div>
 {% else %}

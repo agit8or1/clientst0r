@@ -180,32 +180,22 @@ def can_run(user, ticket) -> bool:
     return can_view(user, ticket) and has_perm_for_org(user, ticket.organization, 'tickets_edit')
 
 
-def _may_read_device(user, ticket):
-    """(allowed, why not) for reading the alert's live state in Rem0te.
+def _may_read_device(user, ticket, request=None):
+    """(allowed, why not) for reading the alert's live state in Rem0te,
+    decided by rmm_permissions (action `alert.read_live`) right before the
+    read, and audited there.
 
-    Uses the technician's "read-only diagnostics" grant for the customer and
-    the ticket's device (deny, customer restriction, containment and the
-    standard-workstation limit all apply). Rem0te does not advertise the
+    The action borrows the technician's "read-only diagnostics" grant for
+    the customer and the ticket's device (deny, customer restriction,
+    containment and the standard-workstation limit all apply), plus role
+    tiers and RMM permission overrides. Rem0te does not advertise the
     endpoint-diagnostics capability — this read is GET /alerts/{id}, a
     service-level read of monitoring state, not a diagnostic on the
-    computer — so when the only thing missing is the integration
-    advertisement, the technician's own grant decides."""
-    from tech_access import resolver
-    from tech_access.catalog import RANK
-    d = resolver.decide(user, ticket.organization, 'diagnostics_readonly', ticket=ticket,
-                        asset=ticket.related_asset)
-    if d.allowed:
-        return True, ''
-    if d.state != resolver.UNAVAILABLE:
-        return False, d.reason
-    best = None
-    for a in resolver.live_assignments(user, ticket.organization):
-        e = resolver._evaluate(a, user, 'diagnostics_readonly', ticket, ticket.related_asset)
-        if best is None or RANK[e.state] > RANK[best.state]:
-            best = e
-    if best is not None and best.allowed:
-        return True, ''
-    return False, best.reason if best is not None else d.reason
+    computer — so that advertisement doesn't decide it."""
+    from rmm_permissions import rmm_action
+    d = rmm_action(user, ticket.organization, 'alert.read_live', device=ticket.related_asset, ticket=ticket,
+                   request=request)
+    return (True, '') if d.permitted_now else (False, d.reason)
 
 
 # ---------------------------------------------------------------------------
@@ -261,12 +251,17 @@ def _rem0te_alert_now(link):
         return None, f'Not read: {e.message}'
     if not r.ok or not isinstance(r.data, dict):
         return None, f'Rem0te did not return the alert ({r.code or r.status}).'
-    if schema.errors('alert', r.data) or r.data.get('alert_id') != link.external_id:
+    # Validated like the alert intake does (integrations/rem0te/alerts.py):
+    # against every contract revision ClientSt0r implements, so a revision-1
+    # alert (no patch_summary field) is still this alert.
+    errs, _unknown, _rev = schema.errors_from_peer('alert', r.data,
+                                                   pairing.last_check(conn).get('contract_revision') or 1)
+    if errs or r.data.get('alert_id') != link.external_id:
         return None, 'Rem0te answered with something that is not this alert; ignored.'
     return r.data, ''
 
 
-def gather(run, user, ticket, link, now=None):
+def gather(run, user, ticket, link, now=None, request=None):
     """(evidence items, facts). Read only."""
     from integrations.rem0te.client import safe_text
     from psa.routing.models import AlertTicketLink
@@ -315,7 +310,7 @@ def gather(run, user, ticket, link, now=None):
                     pass
                 items.append(_item('patch', EVIDENCE['patch'], patch, when, now, fresh, 'Rem0te (with the alert)'))
         if 'alert_now' in wanted and link.source == AlertTicketLink.SOURCE_REM0TE:
-            may_read, read_refused = _may_read_device(user, ticket)
+            may_read, read_refused = _may_read_device(user, ticket, request)
             if may_read:
                 data, why = _rem0te_alert_now(link)
                 if data is not None:
@@ -549,7 +544,7 @@ def start(user, ticket, slug, link_id=None, request=None) -> WorkflowRun:
                       workflow_slug=d['slug'], workflow_name=d['name'][:120],
                       definition={k: v for k, v in d.items() if k not in ('builtin', 'customised', 'is_active')},
                       actor=user)
-    evidence, facts = gather(run, user, ticket, link)
+    evidence, facts = gather(run, user, ticket, link, request=request)
     run.evidence, run.facts = evidence, facts
     run.causes = likely_causes(run.definition, facts)
     run.remediations = remediations(run.definition, facts, user, ticket, device)
