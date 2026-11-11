@@ -1716,6 +1716,15 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Integrations from global view** *(shipped v3.17.662)*: in global view the
+  Integrations page explains that connections belong to an organization and
+  offers an organization picker, so the RMM, UniFi, Microsoft 365, Omada and
+  Grandstream Add buttons no longer bounce back.
+- **RMM page and invoice scoping** *(shipped v3.17.661)*: RMM pages are
+  for MSP technicians only, deleting an RMM device is limited to the selected
+  customer, admin-only and audited, and invoices, invoice PDFs and the client
+  account page need `billing_view_invoices` for the billed customer, including
+  when no customer is selected.
 - **Reveal, sign-in and audit-retention hardening** *(shipped v3.17.660)* — the
   customer portal's password reveal honours the approval requirement, access
   rules and the shared reveal rate limit, and shows nothing when its audit

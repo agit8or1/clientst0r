@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load tz integration_health %}
+{% load tz i18n integration_health %}
 
 {% block title %}Integrations{% endblock %}
 
@@ -110,6 +110,20 @@
         {% url 'integrations:accounting_create' as u %}{% if u %}<a href="{{ u }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus"></i> Accounting</a>{% endif %}
     </div>
 </div>
+
+{% if no_organization %}
+<div class="alert alert-info d-flex flex-wrap align-items-center gap-2" role="status">
+    <span><i class="fas fa-info-circle"></i> {% trans "You are in global view. Integrations belong to an organization: choose one to see and add its RMM, UniFi, Microsoft 365, Omada and Grandstream connections." %}</span>
+    {% if pick_orgs %}
+    <div class="dropdown">
+        <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">{% trans "Choose organization" %}</button>
+        <ul class="dropdown-menu">
+            {% for o in pick_orgs %}<li><a class="dropdown-item" href="{% url 'accounts:switch_organization' o.id %}?next={{ request.path|urlencode }}">{{ o.name }}</a></li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 
 <!-- Filter / search / view toggle -->
 <div class="card mb-3">
