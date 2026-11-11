@@ -10,8 +10,9 @@ Mirrors the structure of `reply_generator.py`:
     the single source of truth and the no-secrets test exercises it).
   * Persists exactly one `AISuggestion(kind='triage')` row per request
     (success, failure, or blocked).
-  * Anthropic call uses a Haiku-class model with lower temperature than
-    replies — triage advice should hallucinate less, even if it's blander.
+  * The model, key, budget and sharing rules come from the customer's AI
+    policy, through the AI gateway (services/policy_call.py, security
+    finding S2); the install-wide key is not used.
 """
 from __future__ import annotations
 
@@ -27,9 +28,8 @@ from .guardrails import (
     output_passes_filter, quota_exceeded, record_usage,
     subject_is_blocked, user_rate_exceeded,
 )
-from .reply_generator import (
-    Anthropic, SafetyFailure, _resolve_api_key,
-)
+from . import policy_call
+from .reply_generator import SafetyFailure, prepare_policy_call, split_system_prompt
 
 
 logger = logging.getLogger('psa_ai.triage_generator')
@@ -182,50 +182,22 @@ def generate_triage_for_ticket(ticket, *, requested_by, request=None):
 
     # 4. Build context (sanitises every user-supplied string; vault
     # excluded — the no-secrets test enforces this).
-    ctx = build_ticket_context(ticket)
+    # 5. The customer's AI policy picks the model and key (never the
+    # install-wide key) and its sharing rules shape the context (S2).
+    policy, profile = prepare_policy_call(ticket, requested_by)
+    ctx = build_ticket_context(ticket, policy=policy)
 
-    # 5. Resolve API key.
-    api_key = _resolve_api_key()
-    if not api_key:
-        raise SafetyFailure(
-            'Anthropic API key not configured (Settings → AI & LLM).'
-        )
-
-    # 6. Anthropic call.
-    if Anthropic is None:
-        return _persist_failed(ticket, requested_by, 'anthropic SDK not installed', TRIAGE_MODEL)
-
-    system_prompt = _load_system_prompt()
-    user_message = system_prompt.replace('{{context}}', ctx['prompt_text'])
-    model = os.getenv('CLAUDE_MODEL_TRIAGE', '').strip() or TRIAGE_MODEL
+    # 6. Model call through the AI gateway, against the customer's budget.
+    system_prompt = split_system_prompt(_load_system_prompt())
+    model = policy_call.model_label(profile)
 
     try:
-        client = Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model=model,
-            max_tokens=TRIAGE_MAX_OUTPUT_TOKENS,
-            **sampling_kwargs(model, temperature=TRIAGE_TEMPERATURE),
-            system=[
-                {
-                    'type': 'text',
-                    'text': system_prompt,
-                    'cache_control': {'type': 'ephemeral'},
-                },
-            ],
-            messages=[{'role': 'user', 'content': user_message}],
-        )
-        body = ''
-        for block in message.content:
-            if getattr(block, 'type', None) == 'text':
-                body += block.text or ''
-        usage = getattr(message, 'usage', None)
-        input_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
-        output_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
-    except Exception as exc:
-        logger.exception(
-            'Anthropic triage call failed for ticket %s',
-            getattr(ticket, 'ticket_number', ticket.pk),
-        )
+        body, input_tokens, output_tokens = policy_call.complete(
+            ticket, policy, profile, system_prompt, ctx['prompt_text'])
+    except policy_call.PolicyRefused as exc:
+        raise SafetyFailure(str(exc))
+    except policy_call.ProviderFailed as exc:
+        logger.warning('AI triage call failed for ticket %s: %s', getattr(ticket, 'ticket_number', ticket.pk), exc)
         return _persist_failed(ticket, requested_by, str(exc)[:500], model)
 
     body = (body or '').strip()

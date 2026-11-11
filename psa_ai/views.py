@@ -53,6 +53,10 @@ def _ticket_for(request, ticket_number, capability):
     ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
     if not has_capability(request.user, ticket.organization, capability, ticket=ticket):
         raise Http404()
+    from .services.tenant_rules import is_excluded
+    if is_excluded(ticket.organization):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('This customer is excluded from AI features.')
     return ticket
 
 

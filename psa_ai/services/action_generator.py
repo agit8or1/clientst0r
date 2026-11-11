@@ -23,9 +23,8 @@ from .guardrails import (
     output_passes_filter, quota_exceeded, record_usage,
     subject_is_blocked, user_rate_exceeded,
 )
-from .reply_generator import (
-    Anthropic, SafetyFailure, _resolve_api_key, _resolve_model,
-)
+from . import policy_call
+from .reply_generator import SafetyFailure, prepare_policy_call, split_system_prompt
 
 
 logger = logging.getLogger('psa_ai.action_generator')
@@ -136,42 +135,27 @@ def generate_actions_for_ticket(ticket, *, user, request_path: str = ''):
     if over:
         raise SafetyFailure(reason)
 
-    api_key = _resolve_api_key()
-    if not api_key:
-        raise SafetyFailure('Anthropic API key not configured (Settings → AI & LLM).')
-    if Anthropic is None:
-        raise SafetyFailure('anthropic SDK not installed.')
-
-    ctx = build_ticket_context(ticket)
+    # The customer's AI policy picks the model and key (never the
+    # install-wide key) and its sharing rules shape the context (S2).
+    policy, profile = prepare_policy_call(ticket, user)
+    ctx = build_ticket_context(ticket, policy=policy)
     status_slugs, priority_codes, assignee_usernames, kb_slugs = _gather_choice_lists(ticket)
-    system_prompt = _load_system_prompt(
+    system_prompt = split_system_prompt(_load_system_prompt(
         voice=ss.psa_ai_voice or '',
         brand=ss.custom_company_name or ss.site_name or 'our team',
         status_slugs=status_slugs, priority_codes=priority_codes,
         assignee_usernames=assignee_usernames, kb_slugs=kb_slugs,
-    )
-    user_message = system_prompt.replace('{{context}}', ctx['prompt_text'])
-    model = os.getenv('CLAUDE_MODEL_ACTIONS', '').strip() or _resolve_model()
-    max_output = int(ss.psa_ai_max_output_tokens or 2000)
+    ))
+    model = policy_call.model_label(profile)
 
     try:
-        client = Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model=model,
-            max_tokens=max_output,
-            system=[{'type': 'text', 'text': system_prompt,
-                     'cache_control': {'type': 'ephemeral'}}],
-            messages=[{'role': 'user', 'content': user_message}],
-        )
-        text = ''
-        for block in message.content:
-            if getattr(block, 'type', None) == 'text':
-                text += block.text or ''
-        usage = getattr(message, 'usage', None)
-        in_tokens = int(getattr(usage, 'input_tokens', 0) or 0)
-        out_tokens = int(getattr(usage, 'output_tokens', 0) or 0)
-    except Exception as exc:
-        logger.exception('Action generation failed for ticket %s', getattr(ticket, 'ticket_number', ticket.pk))
+        text, in_tokens, out_tokens = policy_call.complete(ticket, policy, profile, system_prompt,
+                                                           ctx['prompt_text'])
+    except policy_call.PolicyRefused as exc:
+        raise SafetyFailure(str(exc))
+    except policy_call.ProviderFailed as exc:
+        logger.warning('Action generation failed for ticket %s: %s', getattr(ticket, 'ticket_number', ticket.pk),
+                       exc)
         suggestion = AISuggestion.objects.create(
             organization=org,
             native_ticket=ticket if ticket.__class__.__name__ == 'Ticket' else None,
