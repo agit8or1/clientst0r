@@ -22,5 +22,5 @@ def _issue_agreement_revision(sender, instance, raw=False, **kwargs):
         from .agreements import ensure_revision
         agreement.document = instance
         ensure_revision(agreement, instance.last_modified_by)
-    except Exception:  # a save must not fail because issuing did; the next view issues it
+    except Exception:  # a save must not fail because issuing did; the reminder task issues it
         logger.exception('could not issue agreement revision for document %s', instance.pk)

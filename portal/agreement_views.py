@@ -55,14 +55,28 @@ def agreement_detail(request, pk):
         except agreements.AgreementError as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, f'Thank you. Version {rev.version_number} is {agreement.verb}d.')
+            messages.success(request, f'Thank you. Version {rev.version_number} is {agreement.verb_past}.')
         return redirect('portal:agreement_detail', pk=agreement.pk)
     signatures = AgreementSignature.objects.filter(revision__agreement=agreement, organization=org) \
         .select_related('revision').order_by('-signed_at')
     return render(request, 'portal/agreement_detail.html', {
         'agreement': agreement, 'rev': rev, 'needs': agreements.needs_signature(agreement, request.user),
+        'may_sign': agreements.may_sign(agreement, request.user),
+        'signer_text': agreements.signer_rule_text(agreement),
         'signatures': signatures, 'organization': org,
     })
+
+
+@portal_required
+def agreement_file(request, pk):
+    """The exact file of one revision of an uploaded-file agreement of the
+    portal user's own customer."""
+    from docs.agreement_models import AgreementRevision
+    from docs.agreement_views import snapshot_response
+    org = request.portal_membership.organization
+    rev = get_object_or_404(AgreementRevision.objects.select_related('agreement'), pk=pk,
+                            agreement__organization=org)
+    return snapshot_response(rev, 'file')
 
 
 @portal_required

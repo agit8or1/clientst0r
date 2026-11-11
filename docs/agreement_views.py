@@ -66,12 +66,17 @@ def agreement_manage(request, pk):
                 agreement = agreements.make_agreement(
                     document, request.user, request.POST.get('kind', 'msa'),
                     request.POST.get('mode', Agreement.SIGNATURE), request.POST.get('audience', Agreement.ONE),
-                    request=request)
+                    request=request, signer_rule=request.POST.get('signer_rule', Agreement.ANY),
+                    allowed_signers=request.POST.getlist('allowed_signers'),
+                    reminders_enabled=request.POST.get('reminders_enabled') == 'on',
+                    reminder_interval_days=request.POST.get('reminder_interval_days') or None)
                 messages.success(request, 'Saved. Customer portal users can now see and '
                                           f'{agreement.verb} the current version.')
             elif action in ('close', 'reopen') and agreement is not None:
                 agreement.is_active = action == 'reopen'
                 agreement.save(update_fields=['is_active'])
+                if agreement.is_active:
+                    agreements.ensure_revision(agreement, request.user)
                 agreements._audit(request.user, 'update', 'docs.Agreement', agreement.pk,
                                   f'{"Reopened" if agreement.is_active else "Closed"} agreement "{agreement.title}"',
                                   agreement.organization, request)
@@ -86,6 +91,10 @@ def agreement_manage(request, pk):
         'live': agreements.is_live(document),
         'can_publish_doc': can_publish(request.user, document),
         'kinds': Agreement.KINDS, 'modes': Agreement.MODES, 'audiences': Agreement.AUDIENCES,
+        'signer_rules': Agreement.SIGNER_RULES,
+        'members': agreements._customer_members(document.organization_id),
+        'allowed_ids': set(agreement.allowed_signers.values_list('pk', flat=True)) if agreement else set(),
+        'signer_text': agreements.signer_rule_text(agreement) if agreement else '',
     })
 
 
@@ -112,7 +121,15 @@ def evidence_response(sig):
 
 
 def snapshot_response(rev, fmt):
-    if fmt == 'pdf':
+    if fmt == 'file':
+        if not (rev.is_file and rev.file_data):
+            raise Http404()
+        from django.utils.http import content_disposition_header
+        response = HttpResponse(bytes(rev.file_data), content_type='application/octet-stream')
+        response['Content-Disposition'] = content_disposition_header(
+            True, f'v{rev.version_number}-{agreements.revision_file_name(rev)}')
+        response['X-Content-Type-Options'] = 'nosniff'
+    elif fmt == 'pdf':
         if not rev.pdf:
             raise Http404()
         response = HttpResponse(bytes(rev.pdf), content_type='application/pdf')
@@ -143,6 +160,6 @@ def revision_view(request, pk):
 
 @login_required
 def revision_snapshot(request, pk, fmt):
-    if fmt not in ('html', 'pdf'):
+    if fmt not in ('html', 'pdf', 'file'):
         raise Http404()
     return snapshot_response(_revision_for_staff(request, pk), fmt)

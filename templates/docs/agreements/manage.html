@@ -25,6 +25,15 @@
                 <select id="ag-mode" name="mode" class="form-select form-select-sm">{% for k, l in modes %}<option value="{{ k }}" {% if agreement.mode == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label" for="ag-aud">Who</label>
                 <select id="ag-aud" name="audience" class="form-select form-select-sm">{% for k, l in audiences %}<option value="{{ k }}" {% if agreement.audience == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label" for="ag-rule">Who may sign for the customer</label>
+                <select id="ag-rule" name="signer_rule" class="form-select form-select-sm">{% for k, l in signer_rules %}<option value="{{ k }}" {% if agreement.signer_rule == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div class="col-md-8"><label class="form-label" for="ag-named">Named signers <span class="text-muted">(with “only the people named”)</span></label>
+                <select id="ag-named" name="allowed_signers" class="form-select form-select-sm" multiple size="4">{% for u in members %}<option value="{{ u.pk }}" {% if u.pk in allowed_ids %}selected{% endif %}>{{ u.get_full_name|default:u.username }} — {{ u.email }}</option>{% empty %}<option disabled>No portal users at this customer yet</option>{% endfor %}</select></div>
+            <div class="col-md-4"><div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="ag-rem" name="reminders_enabled" {% if not agreement or agreement.reminders_enabled %}checked{% endif %}>
+                <label class="form-check-label" for="ag-rem">E-mail reminders to outstanding signers</label></div></div>
+            <div class="col-md-3"><label class="form-label" for="ag-int">Every (days)</label>
+                <input id="ag-int" type="number" min="1" max="90" name="reminder_interval_days" class="form-control form-control-sm" value="{{ agreement.reminder_interval_days|default:7 }}"></div>
+            <div class="col-12 text-muted">Reminders go out from the scheduler (“Agreement Signature Reminders”), at most once per interval and five times per version, never to people who turned off e-mail notifications.{% if document.content_type == 'file' %} This is an uploaded file: each version binds to the file's SHA-256 and keeps a copy of the exact file.{% endif %}</div>
             <div class="col-12"><button class="btn btn-sm btn-primary">{% if agreement %}Save{% else %}Make agreement{% endif %}</button></div>
         </form>
         {% if agreement %}
@@ -39,7 +48,7 @@
 <div class="card mb-3">
     <div class="card-header"><strong>Outstanding for version {{ status.current.version_number|default:"—" }}</strong></div>
     <div class="card-body small">
-        {% if status.outstanding %}<ul class="mb-0">{% for u in status.outstanding %}<li>{% if u %}{{ u.get_full_name|default:u.username }} <span class="text-muted">{{ u.email }}</span>{% else %}{{ agreement.organization_name }} — any one person may {{ agreement.verb }} for the customer{% endif %}</li>{% endfor %}</ul>
+        {% if status.outstanding %}<ul class="mb-0">{% for u in status.outstanding %}<li>{% if u %}{{ u.get_full_name|default:u.username }} <span class="text-muted">{{ u.email }}</span>{% else %}{{ agreement.organization_name }} — one signature by {{ signer_text }}{% endif %}</li>{% endfor %}</ul>
         {% elif status.current %}<p class="mb-0">Nobody outstanding.</p>
         {% else %}<p class="mb-0 text-muted">No version issued yet.</p>{% endif %}
     </div>

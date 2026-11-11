@@ -781,4 +781,4 @@ class DiagramAnnotation(BaseModel):
 
 
 # Version-specific agreements (MSAs, SOWs, policy acknowledgments).
-from .agreement_models import Agreement, AgreementRevision, AgreementSignature  # noqa: E402,F401
+from .agreement_models import Agreement, AgreementReminder, AgreementRevision, AgreementSignature  # noqa: E402,F401,E501
