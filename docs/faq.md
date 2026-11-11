@@ -74,10 +74,15 @@ members of customer organizations, change their User Type to Staff. Staff users 
 assigned tickets, projects and recurring work for any customer.
 
 **Do role permissions control what people can see?**
-Partly. **View passwords**, **View documents** and **View assets** (contacts follow View
+Yes. **View passwords**, **View documents** and **View assets** (contacts follow View
 assets) are enforced everywhere those records appear, including search, the APIs, the
-mobile app and the browser extension. **View files**, **View monitors** and **View
-integrations** are saved but not enforced yet; the role editor marks them as such.
+mobile app and the browser extension. **View files** (attachments and their downloads),
+**View monitors** (everything under Monitoring: website and WAN monitors, expirations,
+racks, IPAM, VLANs, closets, patch panels) and **View integrations** (every connection
+page, RMM devices, alerts and software, synced PSA companies and contacts) are enforced
+the same way on the development branch. On upgrade, every existing role gets View
+monitors and View integrations switched on, because before they were enforced every role
+could open those pages; untick them afterwards to restrict a role.
 
 ## Features
 

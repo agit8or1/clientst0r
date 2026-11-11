@@ -92,6 +92,11 @@ def organization_context(request):
     else:
         context['user_organizations'] = []
 
+    # Which role-gated sections the user may open in the current customer,
+    # by the same rule as accounts.middleware.SectionPermissionMiddleware, so
+    # the navbar doesn't offer links that end in a 403.
+    context['section_view'] = _section_view(request)
+
     # Navbar client switcher (templates/core/_client_switcher.html): recents,
     # search and the "View all clients" link, bounded for large client lists.
     if request.user.is_authenticated:
@@ -103,6 +108,26 @@ def organization_context(request):
             context['client_switcher'] = None
 
     return context
+
+
+class _SectionView(dict):
+    """Lazy {perm: bool}: each flag is resolved on first lookup in a template."""
+
+    def __init__(self, request):
+        super().__init__()
+        self._request = request
+
+    def __missing__(self, perm):
+        from accounts.middleware import SectionPermissionMiddleware
+        user = getattr(self._request, 'user', None)
+        ok = bool(user is not None and user.is_authenticated
+                  and SectionPermissionMiddleware.denial(self._request, user, perm) is None)
+        self[perm] = ok
+        return ok
+
+
+def _section_view(request):
+    return _SectionView(request)
 
 
 def support_links(request):

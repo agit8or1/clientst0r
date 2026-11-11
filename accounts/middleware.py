@@ -195,8 +195,10 @@ class Enforce2FAMiddleware:
 
 class SectionPermissionMiddleware:
     """
-    Enforce the role flags `vault_view`, `docs_view` and `assets_view` on the
-    staff UI, by URL prefix.
+    Enforce the role flags `vault_view`, `docs_view`, `assets_view`,
+    `files_view`, `monitoring_view` and `integrations_view` on the staff UI,
+    by URL prefix. (The last three since the release after v3.17.659; before
+    that the role editor labelled them "not enforced yet".)
 
     Those flags were stored and editable on every role template but nothing
     read them. Gating the whole section here covers every list, detail, edit
@@ -224,6 +226,13 @@ class SectionPermissionMiddleware:
         ('/docs/', 'docs_view'),
         ('/assets/', 'assets_view'),
         ('/hardware/', 'assets_view'),
+        ('/files/', 'files_view'),
+        # Website/WAN monitors, expirations, racks, IPAM, VLANs, closets and
+        # patch panels all live under /monitoring/.
+        ('/monitoring/', 'monitoring_view'),
+        # PSA/RMM/UniFi/M365/Omada/Grandstream/distributor/accounting
+        # connections and the RMM device, alert and software pages.
+        ('/integrations/', 'integrations_view'),
     )
 
     EXEMPT_PREFIXES = (
@@ -231,6 +240,12 @@ class SectionPermissionMiddleware:
         '/vault/api/extension/',   # token-authenticated browser extension
         '/vault/api/generate/',    # password generator utility
         '/vault/api/strength/',    # password strength utility
+        # Token-authenticated distributor callbacks: no signed-in user is
+        # involved, and a signed-in browser must not change that.
+        '/integrations/distributors/webhooks/',
+        # OAuth return leg from the accounting provider: the view's own
+        # superuser/staff check and session state token decide it.
+        '/integrations/accounting/oauth/callback/',
     )
 
     def __init__(self, get_response):
@@ -292,18 +307,28 @@ class SectionPermissionMiddleware:
         return user.memberships.filter(
             is_active=True, organization__is_active=True).exists()
 
-    def _check(self, request, user, perm):
-        from django.core.exceptions import PermissionDenied
+    @classmethod
+    def denial(cls, request, user, perm):
+        """Why `user` may not open the section `perm` governs, or None if
+        they may. Shared with the template context (`section_view`) so nav
+        links follow the same rule as the gate."""
         from accounts.permission_utils import orgs_with_perm
 
         allowed = orgs_with_perm(user, perm)
         if allowed is None:
-            return
+            return None
         if not allowed:
-            if not self._has_role_anywhere(user):
-                return
-            raise PermissionDenied(f"Your role does not include the '{perm}' permission.")
+            if not cls._has_role_anywhere(user):
+                return None
+            return f"Your role does not include the '{perm}' permission."
         org = getattr(request, 'current_organization', None)
         if org is not None and org.pk not in allowed:
-            raise PermissionDenied(
-                f"Your role does not include the '{perm}' permission for this customer.")
+            return f"Your role does not include the '{perm}' permission for this customer."
+        return None
+
+    def _check(self, request, user, perm):
+        from django.core.exceptions import PermissionDenied
+
+        reason = self.denial(request, user, perm)
+        if reason is not None:
+            raise PermissionDenied(reason)

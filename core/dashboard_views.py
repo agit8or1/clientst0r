@@ -56,6 +56,10 @@ def dashboard(request):
             messages.error(request, 'Organization context not available.')
             return redirect('home')
 
+    # Monitors live under /monitoring/ and follow its role flag.
+    monitors_qs = filter_by_org_perm(
+        WebsiteMonitor.objects.filter(organization=org), request.user, 'monitoring_view')
+
     # Stats cards
     stats = {
         # Gated by the same role flags as /vault/, /assets/ and /docs/.
@@ -66,7 +70,7 @@ def dashboard(request):
         'documents': filter_by_org_perm(
             Document.objects.filter(organization=org, is_published=True),
             request.user, 'docs_view').count(),
-        'monitors': WebsiteMonitor.objects.filter(organization=org).count(),
+        'monitors': monitors_qs.count(),
         'psa_companies': 0,
         'psa_tickets': 0,
     }
@@ -74,15 +78,19 @@ def dashboard(request):
     # PSA integration stats
     if HAS_PSA_INTEGRATION:
         try:
-            stats['psa_companies'] = PSACompany.objects.for_organization(org).count()
-            stats['psa_tickets'] = PSATicket.objects.for_organization(org).filter(
+            stats['psa_companies'] = filter_by_org_perm(
+                PSACompany.objects.for_organization(org), request.user,
+                'integrations_view').count()
+            stats['psa_tickets'] = filter_by_org_perm(
+                PSATicket.objects.for_organization(org), request.user,
+                'integrations_view').filter(
                 status__in=['new', 'in_progress']
             ).count()
         except Exception:
             pass  # Integrations app might not be available
 
     # Website monitor status summary (single aggregated query)
-    monitor_counts = WebsiteMonitor.objects.filter(organization=org).aggregate(
+    monitor_counts = monitors_qs.aggregate(
         monitors_down=Count('id', filter=Q(status='down')),
         monitors_warning=Count('id', filter=Q(status='warning')),
         monitors_active=Count('id', filter=Q(status='active')),
@@ -148,7 +156,8 @@ def global_dashboard(request):
             Document.objects.filter(is_published=True, is_archived=False),
             request.user, 'docs_view').count(),
         'total_processes': Process.objects.count(),
-        'total_monitors': WebsiteMonitor.objects.count(),
+        'total_monitors': filter_by_org_perm(
+            WebsiteMonitor.objects.all(), request.user, 'monitoring_view').count(),
     }
 
     # Organization stats (top 10 by member count)
@@ -178,7 +187,9 @@ def global_dashboard(request):
         'active_processes': ProcessExecution.objects.filter(
             status='in_progress'
         ).count(),
-        'monitors_down': WebsiteMonitor.objects.filter(status='down').count(),
+        'monitors_down': filter_by_org_perm(
+            WebsiteMonitor.objects.filter(status='down'), request.user,
+            'monitoring_view').count(),
     }
 
     # Global processes stats

@@ -270,6 +270,10 @@ def _expiring_rows(organization, user=None) -> list[TaskRow]:
             expires_at__gte=floor, expires_at__lte=cutoff)
         if organization is not None:
             qs = qs.filter(organization=organization)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            # /monitoring/ rows follow monitoring_view, as the section gate does.
+            from accounts.permission_utils import filter_by_org_perm
+            qs = filter_by_org_perm(qs, user, 'monitoring_view')
         for exp in qs.order_by('expires_at')[:10]:
             rows.append(TaskRow(
                 kind='expiration', title=f'Expiring: {exp.name}',
@@ -285,6 +289,10 @@ def _expiring_rows(organization, user=None) -> list[TaskRow]:
             ssl_expires_at__gte=floor, ssl_expires_at__lte=cutoff)
         if organization is not None:
             qs = qs.filter(organization=organization)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            # /monitoring/ rows follow monitoring_view, as the section gate does.
+            from accounts.permission_utils import filter_by_org_perm
+            qs = filter_by_org_perm(qs, user, 'monitoring_view')
         for mon in qs.order_by('ssl_expires_at')[:10]:
             rows.append(TaskRow(
                 kind='ssl', title=f'SSL expires: {mon.name}',

@@ -188,7 +188,7 @@ Planned capabilities:
 - Loop detection (ignore auto-responders) *(10.3 — shipped v3.17.188)*
 - Spam scoring before ticket creation *(10.3 — shipped v3.17.188)*
 - Attachment extraction with MIME-type allowlist *(10.2 — shipped v3.17.177)*
-- Automatic contact association (match sender email → existing contact / membership) *(planned — Phase 10.3.1)*
+- Automatic contact association (match sender email → existing contact / membership) — a new emailed ticket is linked to the matching contact and customer user of the customer it was assigned to, never another customer's; ambiguous matches stay unlinked and replies never change the requester *(in progress — Phase 10.3.1, on the development branch, not yet released)*
 - Per-client parsing rules *(10.3 — shipped v3.17.188 via EmailRoutingRule)*
 - Ticket categorization (rule-based) *(10.3 — shipped v3.17.188 via routing rule queue/priority overrides)*
 - Ticket tagging
@@ -1527,8 +1527,11 @@ are built on top of them.
   `docs_view` and `assets_view` are checked on every page, in search, the REST
   and GraphQL APIs, the mobile API and the browser extension; the ticket
   sidebar's credential card follows the same rule. `files_view`,
-  `monitoring_view` and `integrations_view` are labelled "not enforced yet" in
-  the role editor *(planned)*.
+  `monitoring_view` and `integrations_view` are enforced the same way on
+  `/files/`, `/monitoring/` and `/integrations/`, in search, dashboards,
+  GraphQL, the mobile API and the navbar; upgrading switches the monitoring
+  and integrations flags on for every existing role so nobody loses access
+  *(in progress — on the development branch, not yet released)*.
 - **Protected file downloads** *(shipped v3.17.600)* — every uploaded file is
   served through an authenticated view that checks the record it belongs to,
   so native installs can download attachments and Docker installs no longer
@@ -1543,8 +1546,14 @@ are built on top of them.
   test connection, required and staff groups; mapping directory groups to
   customer memberships is *(planned)*.
 - **Website-down alerts, complete webhook events, receipt AI gate**
-  *(shipped v3.17.609)*; ticket, contact and invoice webhook events are
-  *(planned)*.
+  *(shipped v3.17.609)*; ticket, contact and invoice webhook events
+  (`ticket.created` / `ticket.updated` / `ticket.status_changed`,
+  `contact.created` / `contact.updated`, `invoice.created` (issued) /
+  `invoice.updated` / `invoice.status_changed`) use the same signing and
+  delivery, send metadata only (no descriptions, comments or line items) and
+  go only to the record's own customer; tickets only when shared with the
+  customer, invoices only once issued *(in progress — on the development
+  branch, not yet released)*.
 - **Monitoring docs match the product** *(shipped v3.17.616)* — the
   monitoring guide and help page rewritten from the code; the Monitor Uptime
   report computes uptime from check history.

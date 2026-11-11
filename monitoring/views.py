@@ -406,6 +406,10 @@ def rack_detail(request, pk):
         entity_id=rack.id,
         content_type__startswith='image/'
     ).order_by('-created_at')
+    from accounts.permission_utils import has_perm_for_org
+    if not has_perm_for_org(request.user, org, 'files_view'):
+        # Attachments follow files_view (their downloads already do).
+        rack_images = Attachment.objects.none()
 
     return render(request, 'monitoring/rack_detail.html', {
         'rack': rack,

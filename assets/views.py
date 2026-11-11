@@ -150,6 +150,10 @@ def asset_detail(request, pk):
         entity_id=asset.id,
         content_type__startswith='image/'
     ).order_by('-created_at')[:50]
+    from accounts.permission_utils import has_perm_for_org
+    if not has_perm_for_org(request.user, asset_org, 'files_view'):
+        # Attachments follow files_view (their downloads already do).
+        asset_images = Attachment.objects.none()
 
     from docs.services.llm_providers import is_llm_configured
     has_ai, _ = is_llm_configured()

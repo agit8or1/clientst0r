@@ -86,16 +86,22 @@ def dashboard_view(request):
     except Exception:
         pass
 
+    # Expirations and monitors live under /monitoring/, so `monitoring_view`
+    # governs them per customer, as on the web.
+    monitoring_org_ids = perm_org_ids(request.user, 'monitoring_view')
+
     # === Expirations (within next 30 days) ===
     expiring_soon = _safe_count(
         'monitoring.models.Expiration',
-        organization_id__in=org_ids, expires_at__lte=soon, expires_at__gte=now,
+        organization_id__in=monitoring_org_ids, expires_at__lte=soon, expires_at__gte=now,
     )
 
     # === Monitors offline ===
+    # (`status`, not `last_status`: the latter is not a field, so this count
+    # silently came back 0 through _safe_count.)
     monitors_down = _safe_count(
         'monitoring.models.WebsiteMonitor',
-        organization_id__in=org_ids, last_status='down',
+        organization_id__in=monitoring_org_ids, status='down',
     )
 
     # === Security alerts ===

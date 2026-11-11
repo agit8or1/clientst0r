@@ -242,6 +242,44 @@ def _is_staff_sender(sender_email: str) -> bool:
     return any(is_msp_staff(u) for u in users[:5])
 
 
+def _associate_requester(organization, sender_email):
+    """Phase 10.3.1: the existing Contact and customer user behind a new
+    emailed ticket. Returns ``(contact, user)``; either may be None.
+
+    Only ``organization`` is searched: the customer the message was assigned
+    to (the mailbox's customer, or the routing rule's target). A contact or
+    member with the same address at another customer is never linked.
+
+    Matching is on the full address, case-insensitive. When more than one
+    contact (or more than one user) at that customer has the address, e.g. a
+    shared front-desk mailbox, nothing is linked for that kind: guessing the
+    wrong person is worse than leaving the field for a technician. Users must
+    have an active membership at the customer and are customer-side users;
+    MSP staff are never recorded as the requester. Nothing is created.
+    """
+    email_addr = (sender_email or '').strip().lower()
+    if organization is None or '@' not in email_addr:
+        return None, None
+
+    from assets.models import Contact
+    contacts = list(Contact.objects.filter(
+        organization=organization, email__iexact=email_addr).order_by('pk')[:2])
+    contact = contacts[0] if len(contacts) == 1 else None
+
+    from django.contrib.auth import get_user_model
+    from psa.visibility import is_msp_staff
+    users = [
+        u for u in get_user_model().objects.filter(
+            email__iexact=email_addr, is_active=True,
+            memberships__organization=organization,
+            memberships__is_active=True,
+        ).distinct().order_by('pk')[:3]
+        if not is_msp_staff(u)
+    ]
+    user = users[0] if len(users) == 1 else None
+    return contact, user
+
+
 def _thread_target(msg, organization) -> Ticket | None:
     """
     Header-based threading. Returns the matching Ticket or None.
@@ -566,6 +604,16 @@ class Command(BaseCommand):
             else:
                 # New tickets keep the full body so context (quoted screenshots /
                 # FYI) isn't lost.
+                # Phase 10.3.1: link the sender's existing contact / customer
+                # user at this customer only. Replies above never change the
+                # requester of the ticket they thread onto.
+                contact, requester_user = _associate_requester(target_org, from_email)
+                requester_name = from_name or ''
+                if not requester_name:
+                    if contact is not None:
+                        requester_name = contact.full_name.strip()
+                    elif requester_user is not None:
+                        requester_name = requester_user.get_full_name()
                 target = Ticket.objects.create(
                     organization=target_org,
                     subject=subject or '(no subject)',
@@ -577,9 +625,16 @@ class Command(BaseCommand):
                     source='email',
                     visibility='client',
                     client_can_view=True,
-                    requester_name=from_name[:200] if from_name else '',
+                    requester_name=requester_name[:200],
                     requester_email=from_email[:254] if from_email else '',
+                    contact=contact,
+                    created_by=requester_user,
                 )
+                if contact is not None or requester_user is not None:
+                    logger.info('email ticket %s linked to contact=%s user=%s',
+                                target.ticket_number,
+                                getattr(contact, 'pk', None),
+                                getattr(requester_user, 'pk', None))
                 result = 'created'
 
             # v3.17.654: people the customer copied stay copied on our replies.

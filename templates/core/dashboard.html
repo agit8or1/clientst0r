@@ -69,7 +69,7 @@
         </a>
     </div>
     <div class="col-md-3">
-        <a href="{% url 'monitoring:website_monitor_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View website and service monitors">
+        <a {% if section_view.monitoring_view %}href="{% url 'monitoring:website_monitor_list' %}" {% endif %}class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View website and service monitors">
             <div class="card bg-warning text-dark h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center">
