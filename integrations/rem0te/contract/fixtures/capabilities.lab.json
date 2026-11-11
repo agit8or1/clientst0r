@@ -1,8 +1,25 @@
 {
   "contract": "ticket-rmm-v1",
-  "rem0te_version": "0.26.0",
+  "contract_revision": 2,
+  "rem0te_version": "0.30.0",
   "audience": "rem0te:lab",
   "peer_id": "clientst0r-lab",
+  "organizations": [
+    {
+      "organization_id": "org-acme",
+      "business_id": "cmacme0000000000000000001",
+      "business_name": "Acme Dental",
+      "paused": []
+    },
+    {
+      "organization_id": "org-birch",
+      "business_id": "cmbirch000000000000000001",
+      "business_name": "Birch Legal",
+      "paused": [
+        "integration"
+      ]
+    }
+  ],
   "features": {
     "ticket_analysis": true,
     "model_comparison": true,

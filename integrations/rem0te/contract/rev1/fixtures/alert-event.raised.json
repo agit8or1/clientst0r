@@ -1,0 +1,26 @@
+{
+  "contract": "ticket-rmm-v1",
+  "event_id": "3e2d1c0b-9a8f-4e7d-8c6b-5a4f3e2d1c0b",
+  "sequence": 1,
+  "type": "alert.raised",
+  "occurred_at": "2026-11-10T09:12:00.000Z",
+  "peer_id": "clientst0r-lab",
+  "organization_id": "org-lab-a",
+  "alert": {
+    "alert_id": "cmx1a2b3c4d5e6f7g8h9i0j1k",
+    "monitor": "spooler",
+    "kind": "SERVICE_STOPPED",
+    "severity": "critical",
+    "state": "open",
+    "title": "FRONTDESK-01: service Spooler is Stopped",
+    "rem0te_endpoint_id": "cmw9eu6or000k106zmdtx3gvs",
+    "computer_name": "FRONTDESK-01",
+    "site_name": null,
+    "first_seen_at": "2026-11-10T09:12:00.000Z",
+    "last_seen_at": "2026-11-10T09:12:00.000Z",
+    "occurrences": 1,
+    "resolved_at": null,
+    "outage_alert_id": null,
+    "ticket": null
+  }
+}

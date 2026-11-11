@@ -1,0 +1,72 @@
+{
+  "name": "alert-event.raised-with-patch-summary",
+  "description": "rem0te → ClientSt0r: a signed alert event for a REBOOT_PENDING alert, carrying the redacted patch summary (revision 2). Verify over \"rem0te-alert-event-v1\\n\" + canonical JSON of `alert_event`.",
+  "direction": "rem0te_to_clientst0r",
+  "request": {
+    "method": "POST",
+    "path": "/api/integration/v1/events",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "rem0te/rem0te-example-1",
+      "rem0te-timestamp": "1794344292",
+      "rem0te-nonce": "TfjsGdSkjvU9Cic45M2qfdaV",
+      "rem0te-signature": "pqoITM1RpHRxrq9pcw654de3JggqSLDbQHjtoDf3M38NjnyWEqO5WCdbPb-KHa1fBWaOfNXMjwYqkmnssDy6CA"
+    },
+    "body": {
+      "alert_event": {
+        "type": "alert.raised",
+        "alert": {
+          "kind": "REBOOT_PENDING",
+          "state": "open",
+          "title": "FRONTDESK has needed a restart for 1 h",
+          "ticket": null,
+          "monitor": "reboot-pending",
+          "alert_id": "cmwb69h7c002614o15h82xlih",
+          "severity": "warning",
+          "site_name": null,
+          "occurrences": 1,
+          "resolved_at": null,
+          "last_seen_at": "2026-11-10T20:58:12.682Z",
+          "computer_name": "FRONTDESK",
+          "first_seen_at": "2026-11-10T20:58:12.682Z",
+          "patch_summary": {
+            "managers": [],
+            "freshness": "fresh",
+            "failed_kbs": [],
+            "managed_by": "rem0te_or_windows_update",
+            "evidence_at": "2026-11-10T20:58:09.298Z",
+            "pending_kbs": [],
+            "last_boot_at": null,
+            "confirmed_kbs": [],
+            "pending_count": 0,
+            "evidence_source": "signed_agent_scan",
+            "reboot_required": true,
+            "deploy_available": true,
+            "evidence_age_hours": 0,
+            "awaiting_confirmation_kbs": []
+          },
+          "outage_alert_id": null,
+          "rem0te_endpoint_id": "cmwb69a26000rx4amwdqpfgpi"
+        },
+        "peer_id": "clientst0r-example",
+        "contract": "ticket-rmm-v1",
+        "event_id": "67b6e93b-f33a-4125-ab12-e0043d06c41c",
+        "sequence": 1,
+        "occurred_at": "2026-11-10T20:58:12.727Z",
+        "organization_id": "org-acme-8ee2fa"
+      },
+      "signature": {
+        "alg": "Ed25519",
+        "kid": "rem0te-example-1",
+        "sig": "Z2OkZYG8CDp0ZNKQHFFOYGX42OCTKQeN2yGta3sCxpIWlgHlcNAIAIfILd0r13-mtHP5egA4sIqWC21MtL7mAg"
+      }
+    }
+  },
+  "response": {
+    "status": 204,
+    "headers": {},
+    "body": null
+  },
+  "request_schema": "signed-alert-event",
+  "response_schema": null
+}

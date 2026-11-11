@@ -1,0 +1,117 @@
+{
+  "name": "inference",
+  "description": "rem0te → ClientSt0r: one model run for a job. ClientSt0r holds the provider key and calls the model; rem0te never does. The response is signed over the request nonce and the body hash.",
+  "direction": "rem0te_to_clientst0r",
+  "request": {
+    "method": "POST",
+    "path": "/api/integration/v1/inference",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "rem0te/rem0te-example-1",
+      "rem0te-timestamp": "1794344287",
+      "rem0te-nonce": "3R8sYhpmiOdEUkYeamvEwkHk",
+      "rem0te-signature": "B0CZswhi758yEUQ5lvopXFNMBkZO07GCSh8_z4RNIEWoO3RiMZ7oq-D2MH5K85MStewYQkwo7veCLBDUF9E6Dw"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "request_id": "cf4a7535-3262-4e60-88a7-4d1a9b09054e",
+      "job_id": "721fb13e-a5e6-48fd-a3a8-21ddea8fcd5a",
+      "organization_id": "org-acme-8ee2fa",
+      "model_profile": "triage-fast",
+      "task": "ticket_triage_v1",
+      "output_schema": "analysis-output.v1",
+      "max_output_tokens": 2000,
+      "input": {
+        "instructions_ref": "rem0te/ticket-triage/v1",
+        "untrusted_segments": [
+          {
+            "ref": "ticket:T-8ee2fa-42@1#subject",
+            "kind": "ticket_subject",
+            "text": "Front desk cannot print"
+          },
+          {
+            "ref": "ticket:T-8ee2fa-42@1#body",
+            "kind": "ticket_body",
+            "text": "Nothing has printed from the front desk PC since this morning."
+          },
+          {
+            "ref": "ticket:T-8ee2fa-42@1#comment:c1",
+            "kind": "ticket_comment",
+            "author_role": "customer",
+            "text": "Still nothing."
+          },
+          {
+            "ref": "endpoint:cmwb69a26000rx4amwdqpfgpi#heartbeat@2026-11-10T20:58:07.106Z",
+            "kind": "endpoint_heartbeat",
+            "author_role": "rem0te",
+            "text": "name=FRONTDESK\nplatform=Windows\nagent_version=\nonline=true\nlast_heartbeat=2026-11-10T20:58:07.106Z\nheartbeat_age_minutes=0"
+          },
+          {
+            "ref": "endpoint:cmwb69a26000rx4amwdqpfgpi#inventory@never",
+            "kind": "endpoint_inventory",
+            "author_role": "rem0te",
+            "text": "inventory_collected_at=never\ninventory_age_minutes=n/a\nos= build=\nlast_boot=unknown uptime_seconds=unknown\nmemory_free_mb=? of ?\nsystem_disk_free_mb=? of ? (sampled never)\npending_updates=1 reboot_required=false (checked 2026-11-10T20:58:07.055Z)"
+          }
+        ],
+        "evidence_refs": [
+          "ticket:T-8ee2fa-42@1#subject",
+          "ticket:T-8ee2fa-42@1#body",
+          "ticket:T-8ee2fa-42@1#comment:c1",
+          "endpoint:cmwb69a26000rx4amwdqpfgpi#heartbeat@2026-11-10T20:58:07.106Z",
+          "endpoint:cmwb69a26000rx4amwdqpfgpi#inventory@never"
+        ]
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-response-signature": "k8euz15m7eKuZuCQe19FIdnKrF5a1BZtik8LuW1udie8tSfOrhP8IelN9maLyUcAnvPrA2Ha0SE00_wYzn1nDA"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "request_id": "cf4a7535-3262-4e60-88a7-4d1a9b09054e",
+      "job_id": "721fb13e-a5e6-48fd-a3a8-21ddea8fcd5a",
+      "organization_id": "org-acme-8ee2fa",
+      "model_profile": "triage-fast",
+      "resolved_model": "reference-model-1",
+      "status": "ok",
+      "usage": {
+        "input_tokens": 812,
+        "output_tokens": 214
+      },
+      "output": {
+        "category": "printing",
+        "summary": "Nothing prints from the front desk; the Print Spooler has probably stopped.",
+        "facts": [
+          {
+            "statement": "The customer reports that nothing has printed since this morning.",
+            "evidence_refs": [
+              "ticket:T-8ee2fa-42@1#body"
+            ]
+          }
+        ],
+        "hypotheses": [
+          {
+            "statement": "The Print Spooler service has stopped on the workstation",
+            "confidence": "medium",
+            "evidence_refs": [
+              "ticket:T-8ee2fa-42@1#body"
+            ]
+          }
+        ],
+        "draft_reply": "Thanks — we are looking at the print queue on your front desk PC now.",
+        "next_steps": [
+          "Restart the Print Spooler service",
+          "Run net stop spooler && net start spooler as administrator"
+        ],
+        "approve_fix": true,
+        "run_command": "sc start spooler"
+      }
+    }
+  },
+  "request_schema": "inference-request",
+  "response_schema": "inference-response"
+}

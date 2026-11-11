@@ -13,13 +13,27 @@ The canonical interface between **ClientSt0r** and **rem0te**. rem0te owns it.
 | `schemas/*.schema.json` | **Generated** from `apps/api/src/integration/contract.ts`. Do not edit — run `node scripts/gen-integration-contracts.mjs` |
 | `fixtures/*.json` | Example messages, produced by rem0te's own code paths. `<schema>.invalid-*.json` must be rejected. CI validates all of them |
 | `fixtures/fixture-signing-key.pub.pem` | Verifies `signed-event.job-succeeded.json`. Test-only key; its private half was discarded |
+| `examples/*.json` | **Real exchanges** (0.30), recorded by `apps/api/scripts/e2e-ticket-workflow.mjs --write-examples`: method, path, every signing header, body, and the response. Signed with the TEST-ONLY keys in `examples/keys/` (fixed seeds; the private halves are published on purpose so a peer can reproduce the signatures). `gen-integration-contracts.mjs --check` verifies every signature, delegation binding and schema in CI |
+| `CLIENTST0R.md` | What ClientSt0r should consume, and the measured gaps between it and this contract |
+| `clientst0r-interop.json` | The last run of ClientSt0r's own code against rem0te (`apps/api/scripts/interop-clientst0r.mjs`) |
+
+## Revisions
+
+`/capabilities` returns `contract_revision`. Revisions only add fields; a peer uses nothing newer than it
+implements.
+
+| Revision | rem0te | Adds |
+|---|---|---|
+| 1 | 0.25–0.29 | Jobs, events, action proposals (0.26), alerts and ticket links (0.29) |
+| 2 | 0.30 | `contract_revision`; `organizations` in `/capabilities` (each organization's `business_id`, `business_name` and `paused` kinds — the binding made explicit); `alert.patch_summary` on REBOOT_PENDING alerts (schema `patch-summary`) |
 
 ## Milestone status
 
 | Capability | State |
 |---|---|
 | Ticket-only analysis, optional device evidence, model comparison | **Fixture-tested** (`apps/api/scripts/e2e-integration.mjs`, simulated ClientSt0r) |
-| Paired lab with a real ClientSt0r | **Not yet done** |
+| Full workflow (pair, analyse, alert → ticket → resolve, restart without duplicates, identical PC names, revoked technician, offline endpoint, paused business, suggestions authorize nothing) | **Proved against a contract-conformant reference peer**, with the real API, worker and approval signer (`apps/api/scripts/e2e-ticket-workflow.mjs`) |
+| Paired with a real ClientSt0r | **Measured: does not interoperate.** ClientSt0r 3.17.659 signs with HMAC and expects a different capabilities and job shape — four gaps, in `CLIENTST0R.md` (`apps/api/scripts/interop-clientst0r.mjs`) |
 | Alert events and ticket links (`features.alerts`, `/alerts/*`, rem0te ≥ 0.29) | **Fixture-tested** (`apps/api/scripts/e2e-monitoring.mjs`, simulated ClientSt0r events endpoint). Not yet run against a real ClientSt0r |
 | Action proposals (`features.actions`, `/action-proposals`, rem0te ≥ 0.26) | **Fixture-tested** (`apps/api/scripts/e2e-approved-action.mjs`, simulated ClientSt0r and agent). ClientSt0r proposes; it cannot approve or execute. Lists `windows.service.start@1` (Print Spooler) only while an approval signer is configured, otherwise empty |
 
@@ -127,8 +141,13 @@ opened. `features.alerts` is `true` from 0.29.
   `rem0te-alert-event-v1\n{canonical alert_event}` — a different prefix from job events, so neither signature
   can stand in for the other — sequenced per (peer, organization) from 1 with no gaps, and POSTed as
   `{alert_event, signature}` to the same `eventsUrl` as job events, with the same retry. Schema:
-  `signed-alert-event`; fixture: `fixtures/signed-alert-event.raised.json`, verifiable with
-  `fixtures/fixture-alert-signing-key.pub.pem`.
+  `signed-alert-event`; example: `examples/alert-event.raised-with-patch-summary.json`, verifiable with
+  `examples/keys/rem0te-self.pub.pem`.
+- **Patch summary (revision 2).** A REBOOT_PENDING alert for a computer carries `patch_summary`: evidence source
+  (`signed_agent_scan` / `standard_agent_scan` / `none`), its time, age and freshness, last boot, who manages
+  patching (`managed_by` plus manager labels), whether a restart is pending, the pending KB numbers, and which KBs
+  were confirmed by a later scan, failed, or await confirmation. No update titles, error text, computer
+  identifiers, user names, addresses or registry values. Every other alert carries `null`.
 - **Recovering a gap.** `GET /api/integration/v1/alerts/events?organization_id=…&after={last sequence}`
   returns up to 100 signed events, oldest first. `GET /api/integration/v1/alerts/{alert_id}?organization_id=…`
   is the alert now.

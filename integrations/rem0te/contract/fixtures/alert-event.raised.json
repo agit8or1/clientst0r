@@ -21,6 +21,7 @@
     "occurrences": 1,
     "resolved_at": null,
     "outage_alert_id": null,
-    "ticket": null
+    "ticket": null,
+    "patch_summary": null
   }
 }

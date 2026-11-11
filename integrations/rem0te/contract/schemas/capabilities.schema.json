@@ -6,6 +6,11 @@
       "type": "string",
       "const": "ticket-rmm-v1"
     },
+    "contract_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
     "rem0te_version": {
       "type": "string"
     },
@@ -14,6 +19,42 @@
     },
     "peer_id": {
       "type": "string"
+    },
+    "organizations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "organization_id": {
+            "type": "string"
+          },
+          "business_id": {
+            "type": "string"
+          },
+          "business_name": {
+            "type": "string"
+          },
+          "paused": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "actions",
+                "remote",
+                "updates",
+                "integration"
+              ]
+            }
+          }
+        },
+        "required": [
+          "organization_id",
+          "business_id",
+          "business_name",
+          "paused"
+        ],
+        "additionalProperties": false
+      }
     },
     "features": {
       "type": "object",
@@ -118,9 +159,11 @@
   },
   "required": [
     "contract",
+    "contract_revision",
     "rem0te_version",
     "audience",
     "peer_id",
+    "organizations",
     "features",
     "model_profiles",
     "limits",

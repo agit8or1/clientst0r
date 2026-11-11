@@ -1,0 +1,79 @@
+{
+  "generated_by": "apps/api/scripts/interop-clientst0r.mjs",
+  "generated_at": "2026-11-10T21:16:22.230Z",
+  "rem0te_version": "0.29.1",
+  "clientst0r": {
+    "version": "3.17.659",
+    "commit": "a5f83826c059af20a74f100b74045405c93aa02a"
+  },
+  "steps": [
+    {
+      "step": "pairing configured",
+      "enabled": true,
+      "site": "http://127.0.0.1:3141",
+      "location": "local",
+      "key_id": "clientst0r-example"
+    },
+    {
+      "step": "refresh_capabilities (ClientSt0r signs with HMAC)",
+      "result": {
+        "ok": false,
+        "error": "The RMM answered HTTP 401."
+      },
+      "stored": {
+        "ok": false,
+        "error": "The RMM answered HTTP 401."
+      }
+    },
+    {
+      "step": "record_capabilities(rem0te's real capabilities document)",
+      "result": {
+        "ok": false,
+        "error": "The RMM did not say which tenant this pairing answers for (capabilities \"tenant.id\"), so it cannot be paired.",
+        "checked_at": "2026-11-10T21:16:20Z",
+        "fetched_at": "2026-11-10T21:16:20Z",
+        "contract": "ticket-rmm-v1",
+        "capabilities": [],
+        "diagnostics": [],
+        "tenant_id": "",
+        "tenant_name": "",
+        "tenant_mismatch": false
+      }
+    },
+    {
+      "step": "POST /api/integration/v1/events with rem0te's signed event",
+      "status": 401,
+      "body": "{\"error\": \"unauthenticated\", \"message\": \"Request signature not accepted.\"}"
+    },
+    {
+      "step": "processor.job_payload keys",
+      "keys": [
+        "contract",
+        "job_id",
+        "kind",
+        "correlation_id",
+        "idempotency_key",
+        "organization_id",
+        "business_id",
+        "ticket{id,ref,revision}",
+        "actor{id,delegation}",
+        "endpoint",
+        "profiles[{id,name,provider,location}]",
+        "evidence_digest",
+        "processing_location",
+        "expires_at",
+        "inference_url",
+        "events_url"
+      ]
+    }
+  ],
+  "job_request_issues": [
+    "idempotency_key: Too small: expected string to have >=8 characters",
+    "technician_id: Invalid input: expected string, received undefined",
+    "ticket.subject: Invalid input: expected string, received undefined",
+    "ticket.body: Invalid input: expected string, received undefined",
+    "ticket: Unrecognized key: \"ref\"",
+    "model_profiles: Invalid input: expected array, received undefined",
+    "(root): Unrecognized keys: \"job_id\", \"kind\", \"business_id\", \"actor\", \"profiles\", \"evidence_digest\", \"processing_location\", \"inference_url\", \"events_url\""
+  ]
+}

@@ -1,9 +1,16 @@
 {
   "contract": "ticket-rmm-v1",
-  "source": "https://github.com/agit8or1/rem0te/tree/1bff01a4a3b52fd745e001352e0c417909199aeb/docs/contracts/ticket-rmm-v1",
-  "rem0te_version": "0.29.0",
-  "rem0te_codename": "Lighthouse",
-  "rem0te_sha": "1bff01a4a3b52fd745e001352e0c417909199aeb",
-  "copied": "2026-11-10",
-  "note": "Vendored verbatim from Rem0te (the contract owner). Do not edit these files by hand: copy a new revision and update this pin."
+  "contract_revision": 2,
+  "source": "https://github.com/agit8or1/rem0te/tree/4b2b9f5cbe093b99563b9332ba3bdf9dded88720/docs/contracts/ticket-rmm-v1",
+  "rem0te_version": "0.30.1",
+  "rem0te_codename": "Plumbline",
+  "rem0te_sha": "4b2b9f5cbe093b99563b9332ba3bdf9dded88720",
+  "copied": "2026-11-11",
+  "previous": {
+    "contract_revision": 1,
+    "rem0te_version": "0.29.0",
+    "rem0te_sha": "1bff01a4a3b52fd745e001352e0c417909199aeb",
+    "kept_in": "rev1/ (the revision-1 schemas that revision 2 changed, and the revision-1 fixtures it removed)"
+  },
+  "note": "Vendored verbatim from Rem0te (the contract owner). Do not edit these files by hand: copy a new revision and update this pin. rev1/ is ClientSt0r's copy of the revision-1 files, kept so a Rem0te 0.26-0.29 peer is still validated against what it sends."
 }

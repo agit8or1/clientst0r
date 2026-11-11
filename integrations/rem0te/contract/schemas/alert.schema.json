@@ -149,6 +149,148 @@
           "type": "null"
         }
       ]
+    },
+    "patch_summary": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "evidence_source": {
+              "type": "string",
+              "enum": [
+                "signed_agent_scan",
+                "standard_agent_scan",
+                "none"
+              ]
+            },
+            "evidence_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "evidence_age_hours": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "freshness": {
+              "type": "string",
+              "enum": [
+                "fresh",
+                "stale",
+                "none"
+              ]
+            },
+            "last_boot_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "managed_by": {
+              "type": "string",
+              "enum": [
+                "rem0te_or_windows_update",
+                "external",
+                "unknown"
+              ]
+            },
+            "managers": {
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "reboot_required": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "pending_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "pending_kbs": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^KB[0-9]{4,10}$"
+              }
+            },
+            "confirmed_kbs": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^KB[0-9]{4,10}$"
+              }
+            },
+            "failed_kbs": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^KB[0-9]{4,10}$"
+              }
+            },
+            "awaiting_confirmation_kbs": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^KB[0-9]{4,10}$"
+              }
+            },
+            "deploy_available": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "evidence_source",
+            "evidence_at",
+            "evidence_age_hours",
+            "freshness",
+            "last_boot_at",
+            "managed_by",
+            "managers",
+            "reboot_required",
+            "pending_count",
+            "pending_kbs",
+            "confirmed_kbs",
+            "failed_kbs",
+            "awaiting_confirmation_kbs",
+            "deploy_available"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [
@@ -166,7 +308,8 @@
     "occurrences",
     "resolved_at",
     "outage_alert_id",
-    "ticket"
+    "ticket",
+    "patch_summary"
   ],
   "additionalProperties": false,
   "$id": "urn:rem0te:contract:ticket-rmm-v1:alert",

@@ -1,0 +1,84 @@
+{
+  "name": "capabilities",
+  "description": "ClientSt0r → rem0te: discovery. `organizations` is the explicit binding (contract revision 2): one organization per business, each request names its organization, and `paused` lists the containment kinds in force.",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "GET",
+    "path": "/api/integration/v1/capabilities",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-timestamp": "1794344287",
+      "rem0te-nonce": "2gCvuv5Y4WERHU_xZwdnmsgP",
+      "rem0te-signature": "D2IwVmFuBGbhyDkR3gwDxOqFpxKsbGzSWCf25EbnnO5XRY91vo_LFEkB6V1jjW3-Gt8lVx1vZHcPHOTaykf7BQ"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "contract_revision": 2,
+      "rem0te_version": "0.29.1",
+      "audience": "rem0te:example",
+      "peer_id": "clientst0r-example",
+      "organizations": [
+        {
+          "organization_id": "org-acme-8ee2fa",
+          "business_id": "cmwb699yc0001x4amry0j8n52",
+          "business_name": "TW Acme 8ee2fa",
+          "paused": []
+        },
+        {
+          "organization_id": "org-birch-8ee2fa",
+          "business_id": "cmwb699ym0003x4amq3fx0q4o",
+          "business_name": "TW Birch 8ee2fa",
+          "paused": []
+        },
+        {
+          "organization_id": "org-cedar-8ee2fa",
+          "business_id": "cmwb699yt0005x4amn4obsi7o",
+          "business_name": "TW Cedar 8ee2fa",
+          "paused": [
+            "actions",
+            "integration"
+          ]
+        }
+      ],
+      "features": {
+        "ticket_analysis": true,
+        "model_comparison": true,
+        "endpoint_evidence": [
+          "inventory",
+          "heartbeat"
+        ],
+        "actions": [
+          "windows.service.start@1",
+          "windows.update.install@1"
+        ],
+        "alerts": true
+      },
+      "model_profiles": [
+        "triage-fast"
+      ],
+      "limits": {
+        "max_model_profiles": 3,
+        "max_job_ttl_seconds": 86400,
+        "max_delegation_ttl_seconds": 300,
+        "max_request_bytes": 524288
+      },
+      "signing_keys": [
+        {
+          "kid": "rem0te-example-1",
+          "alg": "Ed25519",
+          "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAtBR0G0XhIQiBQy7HI6V5ptcVHcqkmNedxrchZ19/tUs=\n-----END PUBLIC KEY-----\n"
+        }
+      ]
+    }
+  },
+  "request_schema": null,
+  "response_schema": "capabilities"
+}

@@ -1,0 +1,88 @@
+{
+  "name": "job-submit",
+  "description": "ClientSt0r → rem0te: analyse one ticket, with rem0te's evidence about the bound computer. Signed request plus a delegation token bound to the body hash (req_sha256).",
+  "direction": "clientst0r_to_rem0te",
+  "request": {
+    "method": "POST",
+    "path": "/api/integration/v1/jobs",
+    "headers": {
+      "content-type": "application/json",
+      "rem0te-key-id": "clientst0r-example/req-1",
+      "rem0te-timestamp": "1794344287",
+      "rem0te-nonce": "QuZKwQB6w3b7n3mhtRL49QCH",
+      "rem0te-signature": "Rn-1ZcLZCHkGYQlNIUlb0A5tL0NkeyJfyZhWAekE6ckb9QK54kqG93tLvVnsP1YrbcEUU6aCAjL1dCIgF0FDAg",
+      "rem0te-delegation": "eyJhbGciOiJFZERTQSIsImtpZCI6ImRlbC0xIiwidHlwIjoicmVtMHRlLWRlbGVnYXRpb24rand0In0.eyJpc3MiOiJjbGllbnRzdDByLWV4YW1wbGUiLCJhdWQiOiJyZW0wdGU6ZXhhbXBsZSIsInN1YiI6ImNzLXRpbmEiLCJvcmciOiJvcmctYWNtZS04ZWUyZmEiLCJzY29wZSI6InRpY2tldF9hbmFseXNpczpzdWJtaXQiLCJpYXQiOjE3OTQzNDQyODcsImV4cCI6MTc5NDM0NDQwNywianRpIjoiNWQ4YjFlZmQwZjk3MjE2MmMyZmIzNjNmYWMzNGIxZGEiLCJyZXFfc2hhMjU2IjoiN2QwZDdiMGIyZDE3ZmQ3ODE1NzIxOGY3NjcwZDQ1YjI5YTQ5ODUyODE2OWRmN2I1MjM4ZjUyYTg0MTE2MzVmOSJ9.zWiTLl2VVRv2GX_5lcRQ0EsPAk0QcaI25GSRDFBe4OzfGqqUp_cl-9-yAOlisPz2ACNe64aNMF9vVLo-ous8Ag"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "idempotency_key": "cs-ticket-42-8ee2fa",
+      "correlation_id": "cs-corr-08cc3fde",
+      "organization_id": "org-acme-8ee2fa",
+      "technician_id": "cs-tina",
+      "ticket": {
+        "id": "T-8ee2fa-42",
+        "revision": 1,
+        "subject": "Front desk cannot print",
+        "body": "Nothing has printed from the front desk PC since this morning.",
+        "comments": [
+          {
+            "id": "c1",
+            "author_role": "customer",
+            "created_at": "2026-11-10T20:58:07.521Z",
+            "body": "Still nothing."
+          }
+        ]
+      },
+      "endpoint": {
+        "rem0te_endpoint_id": "cmwb69a26000rx4amwdqpfgpi"
+      },
+      "model_profiles": [
+        "triage-fast"
+      ],
+      "evidence": {
+        "include_endpoint_inventory": true
+      },
+      "expires_at": "2026-11-10T21:58:07.521Z"
+    }
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "contract": "ticket-rmm-v1",
+      "job_id": "721fb13e-a5e6-48fd-a3a8-21ddea8fcd5a",
+      "status": "queued",
+      "organization_id": "org-acme-8ee2fa",
+      "technician_id": "cs-tina",
+      "ticket": {
+        "id": "T-8ee2fa-42",
+        "revision": 1
+      },
+      "endpoint_id": "cmwb69a26000rx4amwdqpfgpi",
+      "model_profiles": [
+        "triage-fast"
+      ],
+      "correlation_id": "cs-corr-08cc3fde",
+      "idempotency_key": "cs-ticket-42-8ee2fa",
+      "payload_sha256": "7d0d7b0b2d17fd78157218f7670d45b29a498528169df7b5238f52a8411635f9",
+      "created_at": "2026-11-10T20:58:07.602Z",
+      "updated_at": "2026-11-10T20:58:07.607Z",
+      "expires_at": "2026-11-10T21:58:07.521Z",
+      "completed_at": null,
+      "last_event_sequence": 1,
+      "runs": [
+        {
+          "model_profile": "triage-fast",
+          "status": "pending",
+          "error_code": null
+        }
+      ],
+      "error": null,
+      "result": null
+    }
+  },
+  "request_schema": "job-request",
+  "response_schema": "job"
+}
