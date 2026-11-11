@@ -58,6 +58,39 @@ def serve_attachment(request, pk):
                        attachment.original_filename)
 
 
+# entity_type -> model the attachment hangs off. An upload must name a row of
+# the selected customer (vehicles are MSP-wide, so they only have to exist).
+_ENTITY_MODELS = {
+    'asset': ('assets', 'Asset', True),
+    'contact': ('assets', 'Contact', True),
+    'document': ('docs', 'Document', True),
+    'password': ('vault', 'Password', True),
+    'rack': ('monitoring', 'Rack', True),
+    'vehicle': ('vehicles', 'ServiceVehicle', False),
+}
+
+
+def _entity_exists(entity_type, entity_id, org):
+    spec = _ENTITY_MODELS.get(entity_type)
+    if spec is None:
+        return True
+    from django.apps import apps
+    app_label, model_name, org_scoped = spec
+    try:
+        model = apps.get_model(app_label, model_name)
+    except LookupError:
+        return False
+    manager = getattr(model, 'all_objects', None) or model._default_manager
+    qs = manager.filter(pk=entity_id)
+    if org_scoped:
+        qs = qs.filter(organization_id=org.pk)
+    return qs.exists()
+
+
+def _deny(message):
+    return JsonResponse({'error': message}, status=403)
+
+
 @login_required
 @require_http_methods(["POST"])
 def upload_attachment(request):
@@ -67,8 +100,16 @@ def upload_attachment(request):
     - entity_type
     - entity_id
     - description (optional)
+
+    Needs `files_upload` for the selected customer, and the entity must be
+    one of that customer's.
     """
+    from accounts.permission_utils import has_perm_for_org
     org = get_request_organization(request)
+    if org is None:
+        return HttpResponse("Select a customer first", status=400)
+    if not has_perm_for_org(request.user, org, 'files_upload'):
+        return _deny("Your role does not include the 'files_upload' permission for this customer.")
 
     if 'file' not in request.FILES:
         return HttpResponse("No file provided", status=400)
@@ -90,6 +131,9 @@ def upload_attachment(request):
         entity_id = int(entity_id)
     except ValueError:
         return HttpResponse("Invalid entity_id: must be an integer", status=400)
+
+    if not _entity_exists(entity_type, entity_id, org):
+        raise Http404("Not found")
 
     # Check image limit (max 20 images per entity for assets and racks)
     if entity_type in ['asset', 'rack']:
@@ -224,9 +268,25 @@ def upload_attachment(request):
 @login_required
 @require_http_methods(["POST"])
 def delete_attachment(request, pk):
-    """Delete an attachment owned by this organisation."""
+    """Delete an attachment owned by the selected customer. Needs
+    `files_delete` for that customer; audited."""
+    from accounts.permission_utils import has_perm_for_org
     org = get_request_organization(request)
     attachment = get_object_or_404(Attachment, pk=pk, organization=org)
+    if not has_perm_for_org(request.user, org, 'files_delete'):
+        return _deny("Your role does not include the 'files_delete' permission for this customer.")
+    try:
+        from audit.models import AuditLog
+        AuditLog.log(
+            user=request.user, action='delete', organization=org,
+            object_type='files.Attachment', object_id=attachment.pk,
+            object_repr=attachment.original_filename[:255],
+            description=(f'Deleted attachment {attachment.original_filename} '
+                         f'({attachment.entity_type} #{attachment.entity_id})'),
+            path=request.path,
+        )
+    except Exception:
+        pass
     attachment.file.delete(save=False)
     attachment.delete()
     return JsonResponse({'success': True})

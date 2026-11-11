@@ -929,9 +929,9 @@
                     <div class="tab-pane fade" id="images" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0">All Images ({{ rack_images.count }})</h6>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                            {% if can_upload_files %}<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
                                 <i class="fas fa-upload"></i> Upload Image
-                            </button>
+                            </button>{% endif %}
                         </div>
 
                         {% if rack_images %}
@@ -950,9 +950,9 @@
                                         </p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <small class="text-muted">{{ image.file_size|filesizeformat }}</small>
-                                            <button class="btn btn-sm btn-danger" data-action="deleteImage" data-args='[{{ image.id }}, "$this"]' title="Delete">
+                                            {% if can_delete_files %}<button class="btn btn-sm btn-danger" data-action="deleteImage" data-args='[{{ image.id }}, "$this"]' title="Delete">
                                                 <i class="fas fa-trash"></i>
-                                            </button>
+                                            </button>{% endif %}
                                         </div>
                                     </div>
                                 </div>
@@ -963,9 +963,9 @@
                         <div class="text-center text-muted py-5">
                             <i class="fas fa-images fa-3x mb-3 opacity-50"></i>
                             <p>No images uploaded yet</p>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                            {% if can_upload_files %}<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
                                 <i class="fas fa-upload"></i> Upload First Image
-                            </button>
+                            </button>{% endif %}
                         </div>
                         {% endif %}
                     </div>
@@ -2405,7 +2405,7 @@ function deleteImage(imageId, button) {
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-    fetch(`/files/attachments/${imageId}/delete/`, {
+    fetch(`/files/delete/${imageId}/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}'

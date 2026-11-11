@@ -394,7 +394,7 @@ def ticket_detail(request, ticket_number):
 
     context = {
         **workspace,
-        **_ticket_asset_context(ticket, workspace['is_msp_staff']),
+        **_ticket_asset_context(ticket, workspace['is_msp_staff'], request.user),
         **_ticket_site_context(ticket, workspace['is_msp_staff']),
         'ticket_rmm_panel': _ticket_rmm_panel(request, ticket, workspace['is_msp_staff']),
         'ticket': ticket,
@@ -969,7 +969,7 @@ def ticket_vault_context(request, ticket_number):
     })
 
 
-def _ticket_asset_context(ticket, staff):
+def _ticket_asset_context(ticket, staff, user=None):
     """The ticket's asset and, for technicians, what its RMMs report.
 
     Built from synced data only, so an RMM outage never slows or breaks the
@@ -983,7 +983,10 @@ def _ticket_asset_context(ticket, staff):
            'ticket_rmm': [], 'ticket_asset_choices': []}
     if not staff:
         return ctx
-    if asset and not foreign:
+    # RMM details follow integrations_view (or RMM device access) for the
+    # ticket's customer, like the same devices under /integrations/.
+    from integrations.rmm_visibility import can_see_rmm_data
+    if asset and not foreign and (user is None or can_see_rmm_data(user, ticket.organization)):
         from integrations.rmm_association import summaries_for_asset
         ctx['ticket_rmm'] = summaries_for_asset(asset)
     ctx['ticket_asset_choices'] = list(

@@ -26,6 +26,21 @@ from .forms import (
 )
 
 
+def _files_perm_here(request, perm):
+    """`perm` for the selected customer, which uploads are filed under."""
+    from accounts.permission_utils import has_perm_for_org
+    from core.middleware import get_request_organization
+    org = get_request_organization(request)
+    return org is not None and has_perm_for_org(request.user, org, perm)
+
+
+def _photos_user_may_see(user, qs):
+    """Vehicle photos follow `files_view` for the customer each attachment
+    was filed under (as asset and rack images do)."""
+    from accounts.permission_utils import filter_by_org_perm
+    return filter_by_org_perm(qs, user, 'files_view')
+
+
 @login_required
 def vehicles_dashboard(request):
     """Dashboard overview of fleet"""
@@ -255,19 +270,19 @@ def vehicle_detail(request, pk):
         vehicle_health_color = 'danger'
 
     # Vehicle photos
-    vehicle_photos = Attachment.objects.filter(
+    vehicle_photos = _photos_user_may_see(request.user, Attachment.objects.filter(
         entity_type='vehicle',
         entity_id=vehicle.pk,
         content_type__startswith='image/'
-    ).order_by('-created_at')
+    )).order_by('-created_at')
 
     # Damage report photos keyed by report ID
     damage_report_ids = list(damage_reports.values_list('id', flat=True))
-    damage_photos_qs = Attachment.objects.filter(
+    damage_photos_qs = _photos_user_may_see(request.user, Attachment.objects.filter(
         entity_type='vehicle_damage',
         entity_id__in=damage_report_ids,
         content_type__startswith='image/'
-    ).values('entity_id', 'id')
+    )).values('entity_id', 'id')
     damage_photos_map = {}
     for p in damage_photos_qs:
         damage_photos_map.setdefault(p['entity_id'], []).append(p['id'])
@@ -277,6 +292,8 @@ def vehicle_detail(request, pk):
         'vehicle': vehicle,
         'vehicle_photos': vehicle_photos,
         'damage_photos': damage_photos,
+        'can_upload_files': _files_perm_here(request, 'files_upload'),
+        'can_delete_files': _files_perm_here(request, 'files_delete'),
         'inventory_items': inventory_items,
         'damage_reports': damage_reports,
         'maintenance_records': maintenance_records,
@@ -598,10 +615,10 @@ def damage_report_create(request, vehicle_id):
             initial['damage_location'] = location
         form = VehicleDamageReportForm(initial=initial)
 
-    vehicle_photos = Attachment.objects.filter(
+    vehicle_photos = _photos_user_may_see(request.user, Attachment.objects.filter(
         entity_type='vehicle', entity_id=vehicle.pk,
         content_type__startswith='image/'
-    ).order_by('-created_at')
+    )).order_by('-created_at')
 
     return render(request, 'vehicles/damage_report_form.html', {
         'form': form,
@@ -626,10 +643,10 @@ def damage_report_edit(request, pk):
     else:
         form = VehicleDamageReportForm(instance=report)
 
-    vehicle_photos = Attachment.objects.filter(
+    vehicle_photos = _photos_user_may_see(request.user, Attachment.objects.filter(
         entity_type='vehicle', entity_id=report.vehicle.pk,
         content_type__startswith='image/'
-    ).order_by('-created_at')
+    )).order_by('-created_at')
 
     return render(request, 'vehicles/damage_report_form.html', {
         'form': form,

@@ -38,14 +38,17 @@ from .scoping import accessible_org_ids
 def _save_attachment(user, file_obj, *, entity_type: str, entity_id: int):
     """
     Persist an uploaded file as an Attachment row. Vehicles aren't org-
-    scoped, so we attribute the attachment to the uploader's primary
-    accessible org. Returns the Attachment instance, or None on failure.
+    scoped, so we attribute the attachment to the first customer the
+    uploader holds `files_upload` in (as /files/upload/ requires). Returns
+    the Attachment instance, or None when the user may not upload files or
+    on failure.
     """
     if file_obj is None:
         return None
     try:
         from files.models import Attachment
-        org_ids = list(accessible_org_ids(user))
+        from .scoping import perm_org_ids
+        org_ids = sorted(perm_org_ids(user, 'files_upload'))
         if not org_ids:
             return None
         att = Attachment.objects.create(
@@ -296,6 +299,8 @@ def vehicle_fuel_view(request, pk: int):
     payload = _serialize_fuel(fuel_log)
     if photo_attachment is not None:
         payload['photo'] = _serialize_attachment(photo_attachment)
+    elif photo is not None:
+        payload['photo_error'] = 'Photo not saved: no files_upload permission, or the file could not be stored.'
     return Response(payload, status=drf_status.HTTP_201_CREATED)
 
 
@@ -374,4 +379,6 @@ def vehicle_damage_view(request, pk: int):
     payload = _serialize_damage(report)
     if photo_attachment is not None:
         payload['photo'] = _serialize_attachment(photo_attachment)
+    elif photo is not None:
+        payload['photo_error'] = 'Photo not saved: no files_upload permission, or the file could not be stored.'
     return Response(payload, status=drf_status.HTTP_201_CREATED)

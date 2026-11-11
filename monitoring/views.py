@@ -419,6 +419,8 @@ def rack_detail(request, pk):
         'available_rack_assets': available_rack_assets,
         'all_org_assets': list(all_org_assets),
         'rack_images': rack_images,
+        'can_upload_files': has_perm_for_org(request.user, org, 'files_upload'),
+        'can_delete_files': has_perm_for_org(request.user, org, 'files_delete'),
     })
 
 
