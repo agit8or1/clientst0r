@@ -182,7 +182,7 @@ SECTIONS = (
         Tab(_('Commissions'), 'crm:commission_list', 'fa-hand-holding-usd'),
         Tab(_('Commission Rules'), 'crm:commission_rule_list', 'fa-cogs'),
     )),
-    Section('mod_reports', 'modules', _('Reports'), gate=_msp_staff, tabs=(
+    Section('mod_reports', 'modules', _('Reports'), gate=_all(_msp_staff, _flag('reports_enabled')), tabs=(
         Tab(_('Reports Home'), 'reports:home', 'fa-home'),
         Tab(_('Dashboards'), 'reports:dashboard_list', 'fa-th-large'),
         Tab(_('Wallboards'), 'reports:wallboard_list', 'fa-tv'),
@@ -242,7 +242,7 @@ SECTIONS = (
     Section('vault_personal', 'vault', _('My Vault'), tabs=(
         Tab(_('My Vault'), 'vault:personal_vault_list', 'fa-sticky-note'),
     )),
-    Section('vault_notes', 'vault', _('Secure Notes'), tabs=(
+    Section('vault_notes', 'vault', _('Secure Notes'), gate=_flag('secure_notes_enabled'), tabs=(
         Tab(_('Secure Notes'), 'core:secure_note_inbox', 'fa-lock'),
     )),
     Section('vault_rules', 'vault', _('Access Rules'), tabs=(

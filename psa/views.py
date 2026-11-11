@@ -851,26 +851,14 @@ def psa_global_settings_view(request):
                 messages.success(request, f'Removed opt-out for {org_repr}.')
             return redirect('psa:settings')
 
-        # Default: save global per-surface flags + AI behavior knobs
+        # Default: save the close-out rule + AI behavior knobs
         previous = {
-            'psa_portal_enabled': settings.psa_portal_enabled,
-            'psa_anonymous_ticket_form_enabled': settings.psa_anonymous_ticket_form_enabled,
-            'psa_email_to_ticket_enabled': settings.psa_email_to_ticket_enabled,
-            'psa_sms_notifications_enabled': settings.psa_sms_notifications_enabled,
-            'psa_desktop_alerts_enabled': settings.psa_desktop_alerts_enabled,
-            'psa_external_alert_ingest_enabled': settings.psa_external_alert_ingest_enabled,
             'psa_closeout_require_time': settings.psa_closeout_require_time,
             'psa_ai_enabled': settings.psa_ai_enabled,
             'psa_ai_voice': settings.psa_ai_voice,
             'psa_ai_min_confidence': str(settings.psa_ai_min_confidence),
             'psa_ai_blocked_subject_keywords': settings.psa_ai_blocked_subject_keywords,
         }
-        settings.psa_portal_enabled = request.POST.get('psa_portal_enabled') == 'on'
-        settings.psa_anonymous_ticket_form_enabled = request.POST.get('psa_anonymous_ticket_form_enabled') == 'on'
-        settings.psa_email_to_ticket_enabled = request.POST.get('psa_email_to_ticket_enabled') == 'on'
-        settings.psa_sms_notifications_enabled = request.POST.get('psa_sms_notifications_enabled') == 'on'
-        settings.psa_desktop_alerts_enabled = request.POST.get('psa_desktop_alerts_enabled') == 'on'
-        settings.psa_external_alert_ingest_enabled = request.POST.get('psa_external_alert_ingest_enabled') == 'on'
         settings.psa_closeout_require_time = request.POST.get('psa_closeout_require_time') == 'on'
 
         settings.psa_ai_enabled = request.POST.get('psa_ai_enabled') == 'on'

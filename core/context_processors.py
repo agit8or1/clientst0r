@@ -23,6 +23,8 @@ def organization_context(request):
             'scheduling_enabled': settings.scheduling_enabled,
             'psa_enabled': settings.psa_enabled,
             'crm_enabled': settings.crm_enabled,
+            'reports_enabled': settings.reports_enabled,
+            'secure_notes_enabled': settings.secure_notes_enabled,
             # Phase 12 portal feature toggles (v3.17.243).
             'psa_portal_announcements_enabled': getattr(settings, 'psa_portal_announcements_enabled', False),
             'psa_portal_voting_enabled': getattr(settings, 'psa_portal_voting_enabled', False),
@@ -43,6 +45,8 @@ def organization_context(request):
             'scheduling_enabled': True,
             'psa_enabled': False,
             'crm_enabled': False,
+            'reports_enabled': True,
+            'secure_notes_enabled': True,
         }
         system_settings = None
 

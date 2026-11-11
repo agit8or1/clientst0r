@@ -2,6 +2,9 @@
 URL Configuration for Reports and Analytics
 """
 from django.urls import path
+
+from core.feature_gates import gate_patterns
+
 from . import views
 
 app_name = 'reports'
@@ -176,3 +179,6 @@ urlpatterns = [
     path('saved-queries/<int:pk>/delete/', views.saved_query_delete, name='saved_query_delete'),
     path('psa/<str:report_type>/', views.psa_report_run, name='psa_report_run'),
 ]
+
+# Settings → Features → Reports & Analytics: every route 404s while it is off.
+urlpatterns = gate_patterns(urlpatterns, 'reports_enabled')

@@ -93,9 +93,8 @@ MODULES = (
         ),
         settings_links=(('Per-customer PSA settings', 'psa:client_settings'),),
         requires=('psa',),
-        note='Turned on per customer (Per-customer PSA settings → portal). The '
-             '"Client portal" switch on PSA settings is saved but the portal '
-             'itself goes by the per-customer setting.',
+        note='Turned on per customer (Per-customer PSA settings → portal). There is '
+             'no global portal switch: the unused one on PSA settings was removed.',
     ),
     Module(
         'portal_announcements', 'Portal announcements', 'fa-bullhorn',
@@ -205,6 +204,25 @@ MODULES = (
         field='global_kb_enabled', group='Operations',
     ),
 
+    Module(
+        'reports', 'Reports & Analytics', 'fa-chart-bar',
+        'Dashboards, wallboards, report templates, scheduled reports and the PSA / billing reports.',
+        shows=('Modules → Reports for MSP staff', 'Wallboard and agreement reconciliation quick actions',
+               'Scheduled report emails'),
+        settings_links=(('Feature toggles', 'core:settings_features'),),
+        field='reports_enabled', group='Operations',
+        note='Off: every /reports/ page is a 404 and scheduled reports pause.',
+    ),
+    Module(
+        'secure_notes', 'Secure Notes', 'fa-lock',
+        'Encrypted, self-destructing notes sent to users or by link.',
+        shows=('Vault → Secure Notes',),
+        settings_links=(('Feature toggles', 'core:settings_features'),),
+        field='secure_notes_enabled', group='Operations',
+        note='Off: the notes pages are a 404. Links already sent, and ticket secure '
+             'messages, still open until they expire.',
+    ),
+
     # ---- Asset health ----------------------------------------------------
     Module(
         'asset_age', 'Asset age warnings', 'fa-hourglass-half',
@@ -248,20 +266,6 @@ MODULES = (
 
 MODULES_BY_KEY = {m.key: m for m in MODULES}
 GROUP_ORDER = ('Service desk', 'Sales', 'Operations', 'Asset health', 'Always available')
-
-# SystemSetting switches that are saved by a settings page but that no page,
-# job or menu reads yet. Listed so nobody relies on them; not changed here.
-UNENFORCED_SWITCHES = (
-    ('psa_portal_enabled', 'Client portal (PSA settings)', 'the portal goes by the per-customer setting'),
-    ('psa_anonymous_ticket_form_enabled', 'Anonymous ticket form (PSA settings)', ''),
-    ('psa_email_to_ticket_enabled', 'Email to ticket (PSA settings)', 'email ingestion follows its own mailbox configuration'),
-    ('psa_sms_notifications_enabled', 'SMS to staff (PSA settings)', ''),
-    ('psa_desktop_alerts_enabled', 'Desktop alerts (PSA settings)', ''),
-    ('psa_external_alert_ingest_enabled', 'External alert ingest (PSA settings)', ''),
-    ('reports_enabled', 'Reports & Analytics (Feature toggles)', ''),
-    ('secure_notes_enabled', 'Secure Notes (Feature toggles)', ''),
-)
-
 
 def _custom_state(key, settings):
     """(on, detail) for modules managed outside SystemSetting."""

@@ -215,3 +215,14 @@ urlpatterns.append(path('test-db/', test_database_connection, name='test_databas
 # Debug version endpoint
 from core.debug_version_view import debug_version
 urlpatterns.append(path('debug-version/', debug_version, name='debug_version'))
+
+# Settings → Features → Secure Notes: the notes pages 404 while it is off.
+# The link view (`secret/<token>/`) is left open: ticket secure messages are
+# SecureNotes read through it, and a recipient holding a link that was
+# already sent can still open it until it expires.
+from core.feature_gates import gate_patterns  # noqa: E402
+gate_patterns(urlpatterns, 'secure_notes_enabled', only={
+    'secure_note_inbox', 'secure_note_sent', 'secure_note_create', 'secure_note_detail',
+    'secure_note_delete', 'secure_note_link_created', 'secure_note_regenerate_link',
+    'secure_note_analytics', 'secure_note_links_dashboard',
+})

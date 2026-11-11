@@ -88,7 +88,8 @@ SHORTCUT_REGISTRY = [
     {'key': 'website_monitors', 'label': _('Website Monitors'), 'icon': 'fa-globe',
      'url_name': 'monitoring:website_monitor_list', 'gate': _flag('monitoring_enabled')},
     {'key': 'reports', 'label': _('Reports'), 'icon': 'fa-chart-line',
-     'url_name': 'reports:home', 'gate': _all(_staff, _perm('reports_view_dashboards'))},
+     'url_name': 'reports:home',
+     'gate': _all(_flag('reports_enabled'), _staff, _perm('reports_view_dashboards'))},
     {'key': 'crm_pipeline', 'label': _('Pipeline'), 'icon': 'fa-columns',
      'url_name': 'crm:pipeline',
      'gate': _all(_flag('crm_enabled'), _staff, _perm('crm_manage_pipeline'))},
@@ -105,7 +106,7 @@ def feature_flags():
     """The module toggles the navigation reads, fresh from SystemSetting.
     Fails closed: if settings can't be read, no gated module is offered."""
     names = ('psa_enabled', 'crm_enabled', 'workflows_enabled',
-             'scheduling_enabled', 'monitoring_enabled')
+             'scheduling_enabled', 'monitoring_enabled', 'reports_enabled')
     try:
         from core.models import SystemSetting
         row = SystemSetting.get_settings()

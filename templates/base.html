@@ -135,7 +135,9 @@
                             {% if crm_enabled %}
                             <li><a class="dropdown-item{% if nav.section == 'mod_crm' %} active{% endif %}" href="{% url 'crm:home' %}"{% if nav.section == 'mod_crm' %} aria-current="page"{% endif %}><i class="fas fa-chart-pie fa-fw"></i> {% trans "CRM" %}</a></li>
                             {% endif %}
+                            {% if reports_enabled %}
                             <li><a class="dropdown-item{% if nav.section == 'mod_reports' %} active{% endif %}" href="{% url 'reports:home' %}"{% if nav.section == 'mod_reports' %} aria-current="page"{% endif %}><i class="fas fa-chart-bar fa-fw"></i> {% trans "Reports" %}</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}
@@ -170,7 +172,9 @@
                         <ul class="dropdown-menu" aria-labelledby="vaultDropdown">
                             <li><a class="dropdown-item{% if nav.section == 'vault_passwords' %} active{% endif %}" href="{% url 'vault:password_list' %}"{% if nav.section == 'vault_passwords' %} aria-current="page"{% endif %}><i class="fas fa-key"></i> {% trans "Passwords" %}</a></li>
                             <li><a class="dropdown-item{% if nav.section == 'vault_personal' %} active{% endif %}" href="{% url 'vault:personal_vault_list' %}"{% if nav.section == 'vault_personal' %} aria-current="page"{% endif %}><i class="fas fa-sticky-note"></i> {% trans "My Vault" %}</a></li>
+                            {% if secure_notes_enabled %}
                             <li><a class="dropdown-item{% if nav.section == 'vault_notes' %} active{% endif %}" href="{% url 'core:secure_note_inbox' %}"{% if nav.section == 'vault_notes' %} aria-current="page"{% endif %}><i class="fas fa-lock"></i> {% trans "Secure Notes" %}</a></li>
+                            {% endif %}
                             <li><a class="dropdown-item{% if nav.section == 'vault_rules' %} active{% endif %}" href="{% url 'vault:access_rule_list' %}"{% if nav.section == 'vault_rules' %} aria-current="page"{% endif %}><i class="fas fa-shield-halved"></i> {% trans "Access Rules" %}</a></li>
                         </ul>
                     </li>

@@ -25,7 +25,14 @@ class Command(BaseCommand):
                             help='Force-run a specific schedule by id (ignores next_run).')
 
     def handle(self, *args, **opts):
+        from core.feature_gates import feature_on
         from reports.models import ScheduledReport
+        if not feature_on('reports_enabled'):
+            # Settings -> Features -> Reports & Analytics is off: nothing is
+            # generated or emailed, and next_run is left alone so schedules
+            # pick up again when it is turned back on.
+            self.stdout.write('Reports & Analytics is turned off; no scheduled reports run.')
+            return
         now = timezone.now()
         if opts.get('force_id'):
             qs = ScheduledReport.objects.filter(pk=opts['force_id'])
