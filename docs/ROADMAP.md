@@ -1670,6 +1670,10 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **RMM software sync for every provider** *(shipped v3.17.663)*: NinjaOne,
+  Datto RMM, Atera and ConnectWise Automate software inventory syncs, Datto
+  uses its documented device and software routes, and a failed read keeps
+  the stored list instead of clearing it.
 - **Integrations from global view** *(shipped v3.17.662)*: in global view the
   Integrations page explains that connections belong to an organization and
   offers an organization picker, so the RMM, UniFi, Microsoft 365, Omada and

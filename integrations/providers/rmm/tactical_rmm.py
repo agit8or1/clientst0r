@@ -315,7 +315,9 @@ class TacticalRMMProvider(BaseRMMProvider):
             f"Tactical RMM: could not fetch software for agent {device_id} "
             f"(tried {paths_to_try}); last error: {last_error}"
         )
-        return []
+        # Raise so the sync keeps this agent's stored software instead of
+        # reading the failure as "nothing installed".
+        raise ProviderError(f"Failed to list software: {last_error or 'no software route answered'}")
 
     def normalize_device(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

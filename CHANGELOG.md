@@ -5,6 +5,17 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.663] - 2026-11-11
+
+### Fixed
+- **Installed software now syncs for NinjaOne, Datto RMM, Atera and ConnectWise Automate.**
+  - The sync passed an argument only Tactical RMM accepts, so every device failed for the other four and their software lists stayed empty.
+  - Datto RMM used device and software addresses its API doesn't have. It now uses `/api/v2/device/{uid}` and `/api/v2/audit/device/{uid}/software`.
+  - ConnectWise Automate MAC addresses are read from `MacAddress` as well as `MACAddress`.
+- **A failed software read no longer erases a device's software list.**
+  - When an RMM couldn't be reached, the providers answered "no software", and the sync deleted what it had stored. They now report the failure. The stored list is kept, and the failure is counted as a sync error.
+  - This also applies to Tactical RMM.
+
 ## [3.17.662] - 2026-11-11
 
 ### Fixed
