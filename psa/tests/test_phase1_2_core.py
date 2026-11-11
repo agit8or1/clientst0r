@@ -2,6 +2,7 @@
 Auto-split fragment of the legacy `psa/tests.py` (v3.17.192).
 See `psa/tests/__init__.py` for the rationale.
 """
+import re
 from datetime import timedelta
 
 from django.conf import settings as django_settings
@@ -432,7 +433,9 @@ class VaultContextTests(TestCase):
         # should leak into the rendered HTML.
         self.assertNotIn('encrypted_password', body)
         self.assertNotIn('decrypt', body)
-        self.assertNotIn('key=', body)
+        # A bare `key=` (as in a query string or key/value dump), not the
+        # sidebar's harmless `data-shortcut-key="w"` attributes.
+        self.assertIsNone(re.search(r'(?<![\w-])key=', body))
         # Plaintext sentinel must never appear either.
         self.assertNotIn('plaintext-A-do-not-leak', body)
 
