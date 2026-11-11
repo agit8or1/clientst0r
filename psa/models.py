@@ -6677,3 +6677,37 @@ class TicketPresence(models.Model):
         if exclude_user is not None:
             qs = qs.exclude(user=exclude_user)
         return qs.order_by('user__username')
+
+
+# ---------------------------------------------------------------------------
+# Affected devices (ClientSt0r ↔ RMM Phase 4). A ticket's own `related_asset`
+# stays its primary device; these rows add the other devices the same
+# problem touches. Always the ticket's own customer: `save()` refuses an
+# asset from anywhere else, and every reader filters on the organization
+# again (psa/affected.py).
+# ---------------------------------------------------------------------------
+
+class TicketAffectedAsset(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='affected_asset_links')
+    asset = models.ForeignKey('assets.Asset', on_delete=models.CASCADE, related_name='affected_ticket_links')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    added_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                 blank=True, related_name='+')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_ticket_affected_assets'
+        ordering = ['added_at', 'pk']
+        constraints = [
+            models.UniqueConstraint(fields=['ticket', 'asset'], name='psa_ticket_affected_asset_once'),
+        ]
+        indexes = [models.Index(fields=['asset', 'organization'])]
+
+    def save(self, *args, **kwargs):
+        if self.ticket.organization_id != self.asset.organization_id:
+            raise ValueError('An affected device must belong to the ticket\'s own customer.')
+        self.organization_id = self.ticket.organization_id
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.ticket_id} affects asset {self.asset_id}'
