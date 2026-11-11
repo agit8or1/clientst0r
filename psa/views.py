@@ -4961,9 +4961,30 @@ def invoice_list(request):
     status = request.GET.get('status')
     if status in {'draft', 'sent', 'partial', 'paid', 'overdue', 'void'}:
         qs = qs.filter(status=status)
+    # Billed-customer filter and search (saved views:
+    # core.workspace SAVED_VIEW_LISTS['invoices']). Choices come from the
+    # already-scoped list, so a filter can only hide rows.
+    client_ids = set(qs.values_list('client_org_id', flat=True).distinct()) - {None}
+    client = request.GET.get('client') or ''
+    if client.isdigit() and int(client) in client_ids:
+        qs = qs.filter(client_org_id=int(client))
+    else:
+        client = ''
+    q = (request.GET.get('q') or '').strip()[:100]
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(Q(invoice_number__icontains=q) | Q(title__icontains=q))
+    clients = []
+    if len(client_ids) > 1:
+        from core.models import Organization
+        clients = list(Organization.objects.filter(pk__in=client_ids).order_by('name').values('pk', 'name'))
     return render(request, 'psa/invoice_list.html', {
         'invoices': qs.order_by('-invoice_date', '-created_at')[:200],
         'status_filter': status or '',
+        'client_filter': client,
+        'clients': clients,
+        'q': q,
+        'has_filters': bool(status or client or q),
     })
 
 
@@ -9439,10 +9460,30 @@ def timesheet_approval_queue(request):
     decided = (TimesheetSubmission.objects
                .exclude(status__in=['pending', 'draft'])
                .select_related('user', 'decided_by').prefetch_related('entry_events')
-               .order_by('-decided_at')[:50])
+               .order_by('-decided_at'))
+    # Technician / decision filters (saved views:
+    # core.workspace SAVED_VIEW_LISTS['timesheets']).
+    from django.contrib.auth import get_user_model
+    tech_ids = set(TimesheetSubmission.objects.exclude(status='draft')
+                   .values_list('user_id', flat=True).distinct())
+    tech = request.GET.get('tech') or ''
+    if tech.isdigit() and int(tech) in tech_ids:
+        pending = pending.filter(user_id=int(tech))
+        decided = decided.filter(user_id=int(tech))
+    else:
+        tech = ''
+    decision = request.GET.get('decision') or ''
+    if decision in ('approved', 'rejected'):
+        decided = decided.filter(status=decision)
+    else:
+        decision = ''
     return render(request, 'psa/timesheet_approval_queue.html', {
         'pending': pending,
-        'decided': decided,
+        'decided': decided[:50],
+        'technicians': get_user_model().objects.filter(pk__in=tech_ids).order_by('username'),
+        'tech_filter': tech,
+        'decision_filter': decision,
+        'has_filters': bool(tech or decision),
     })
 
 

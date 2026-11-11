@@ -54,6 +54,47 @@ link the server would answer with 403 is not drawn.
 | *(new)* | Alerts → RMM Alerts (`integrations:rmm_alerts`) | staff |
 | Account menu (My Profile, My Work Details, Help, Apps & Downloads, Sign Out) | unchanged, top bar | auth |
 
+### Pages added on the dev branch (previously linked only from inside their apps)
+
+Each gate is the page's own view-level check, so the link appears exactly for
+the users the page lets in (`core/navigation.py`, the `_check_*` gates).
+Pages with their own local nav (ticket routing's `_nav.html`) get a sidebar
+entry rather than a tab strip.
+
+| Page | Sidebar | Gate |
+|---|---|---|
+| Shift schedule (`resourcing:shift_schedule`, `/resourcing/shifts/`) | Tickets → Shifts & Locations (landing, tab) | staff |
+| Shift templates (`resourcing:shift_templates`) | Tickets → Shifts & Locations → tab | staff + `can_manage_shifts` (`resourcing_approve_leave` or `routing_manage_rules`, su) |
+| Share my position with dispatch, the technician's consent (`field_ops:dispatch_sharing`) | Tickets → Shifts & Locations → Location Sharing | staff |
+| Dispatch geo settings (`field_ops:dispatch_geo_settings`) | Tickets → Shifts & Locations → Dispatch Locations | su who is MSP staff |
+| Billing review (`psa:billing_review`, `/psa/billing-review/`) | Clients → Billing → tab | psa + `require_admin` + staff |
+| Serial search (`assets:serial_search`, `/assets/serials/`) | Devices → All Assets → tab | auth + assets_view |
+| Workflow flow map (`psa:workflow_rule_map`, `/psa/rules/flow/`) | Tickets → Tickets → Workflow Flow Map | psa + `require_admin` + staff |
+| Support workflows admin (`support_workflows:admin`) | Tools → Support Workflows | psa + `routing_manage_rules` |
+| Alert policy (`ticket_routing:alerts`) | Alerts → Alert Policy (its rule and maintenance pages light up Alerts too) | psa + `routing_manage_rules` |
+| RMM permissions (`rmm_permissions:index`, `/settings/security/rmm-permissions/`) | Settings → RMM Permissions (also still in the Settings page menu) | `policy.manage` or `audit.review` |
+| KB analytics (`docs:kb_analytics`) | Clients → Review & Publishing → KB Analytics (already a tab; unchanged) | staff/su |
+| Security digest (`security_alerts:digest_subscriptions`) | Alerts → Security Alerts → Weekly Digest | staff + psa + `security_alerts_view` |
+| LDAP group mappings (`accounts:ldap_group_mappings`) | Settings → LDAP Group Mappings | su |
+| Rem0te setup wizard (`integrations:rem0te_setup`) | Settings → Integrations → Rem0te Setup (also still in the Settings page menu) | su |
+
+### Saved views and default filters
+
+The saved-views bar (`core/workspace.py` `SAVED_VIEW_LISTS`, drawn by
+`templates/core/_work_context.html`) is on these lists. Each list keeps its
+existing URL and query parameters; a saved view stores only those
+parameters, and `?view=all` skips a default view.
+
+| List | Filters (query parameters) | Bar shown to |
+|---|---|---|
+| Tickets (`psa:ticket_list`) | client status priority queue assigned q | staff |
+| RMM devices (`integrations:rmm_devices`) | q status type link | staff |
+| All assets (`assets:asset_list`) | client type manufacturer status location (site) needs_reorder q/search, sort, per_page (25/50/100/200, default 50, sorted by name); staff also rmm (online/offline/stale/linked/unlinked) and alerts=active | anyone who may open the list; RMM presets staff only |
+| RMM alerts (`integrations:rmm_alerts`) | status severity client q | staff |
+| Routing triage (`ticket_routing:triage`) | client routing (suggested/fallback) priority q | staff |
+| Invoices (`psa:invoice_list`) | status client q | staff, or `billing_view_invoices` |
+| Timesheet approvals (`psa:timesheet_approval_queue`) | tech decision | staff |
+
 Keyboard: `?` help, `/` search, `j` jump-to (sidebar filter), `[` collapse,
 `g` then `w t c d a o r s` for the groups.
 

@@ -64,6 +64,83 @@ def _all(*gates):
     return gate
 
 
+# Gates that mirror a page's own view-level check, so the link appears exactly
+# for the users the page would let in. Each imports lazily (navigation is
+# loaded early) and fails closed.
+
+def _view_check(fn):
+    def gate(ctx):
+        u = _user(ctx)
+        if u is None or not getattr(u, 'is_authenticated', False):
+            return False
+        try:
+            return bool(fn(u, ctx))
+        except Exception:
+            return False
+    return gate
+
+
+def _is_msp_staff(user):
+    from psa.visibility import is_msp_staff
+    return bool(is_msp_staff(user))
+
+
+def _check_shift_manager(u, ctx):
+    """resourcing.shift_views.templates: can_manage_shifts (MSP staff)."""
+    from resourcing.shift_views import can_manage_shifts
+    return _is_msp_staff(u) and can_manage_shifts(u)
+
+
+def _check_geo_admin(u, ctx):
+    """field_ops.dispatch_views.dispatch_geo_settings: a superuser technician."""
+    return u.is_superuser and _is_msp_staff(u)
+
+
+def _check_routing_manager(u, ctx):
+    """psa.routing PERM_MANAGE: alert policy, support workflows admin."""
+    from psa.routing.permissions import can_manage
+    return can_manage(u)
+
+
+def _check_org_admin(u, ctx):
+    """core.decorators.require_admin: superuser, Django staff, or an
+    Owner/Admin membership of the current customer."""
+    if u.is_superuser or u.is_staff:
+        return True
+    request = ctx.get('request')
+    if request is None:
+        return False
+    from core.decorators import get_user_membership
+    membership = get_user_membership(request)
+    return bool(membership and membership.can_admin())
+
+
+def _check_billing_reviewer(u, ctx):
+    """psa.views.billing_review: require_admin plus MSP staff."""
+    return _check_org_admin(u, ctx) and (u.is_superuser or _is_msp_staff(u))
+
+
+def _check_digest_reader(u, ctx):
+    """security_alerts.views.digest_subscriptions: security_alerts_view."""
+    from accounts.permission_utils import user_has_perm
+    return user_has_perm(u, 'security_alerts_view')
+
+
+def _check_rmm_policy_reader(u, ctx):
+    """rmm_permissions.views._gate: policy.manage or audit.review."""
+    from rmm_permissions.views import _reader
+    return _reader(u)
+
+
+_shift_manager = _view_check(_check_shift_manager)
+_geo_admin = _view_check(_check_geo_admin)
+_routing_manager = _view_check(_check_routing_manager)
+_org_admin = _view_check(_check_org_admin)
+_billing_reviewer = _view_check(_check_billing_reviewer)
+_digest_reader = _view_check(_check_digest_reader)
+_rmm_policy_reader = _view_check(_check_rmm_policy_reader)
+
+
 @dataclass(frozen=True)
 class Tab:
     label: str
@@ -104,6 +181,10 @@ SECTIONS = (
         Tab(_('Recurring Tickets'), 'psa:recurring_list', 'fa-repeat'),
         Tab(_('Canned Replies'), 'psa:canned_reply_list', 'fa-magic'),
         Tab(_('Workflow Rules'), 'psa:workflow_rule_list', 'fa-bolt'),
+        Tab(_('Workflow Flow Map'), 'psa:workflow_rule_map', 'fa-project-diagram',
+            # require_admin lets a customer's Owner in too; the map of every
+            # rule is an MSP tool, so the link is offered to MSP staff only.
+            gate=_all(_org_admin, _msp_staff)),
         Tab(_('Email Ingestion'), 'psa:email_config_list', 'fa-envelope-open-text'),
         Tab(_('AI Inbox'), 'psa_ai:inbox', 'fa-wand-magic-sparkles', gate=_ai_enabled),
     )),
@@ -112,6 +193,16 @@ SECTIONS = (
         # Routing pages check their own permissions (manage / test / override).
         Tab(_('Routing Triage'), 'ticket_routing:triage', 'fa-inbox', gate=_msp_staff),
         Tab(_('Ticket Routing'), 'ticket_routing:overview', 'fa-route', gate=_msp_staff),
+    )),
+    # Who works when, and where dispatch may see them: dispatch, on-call and
+    # ticket routing read the shift schedule, so it lives with them.
+    Section('psa_shifts', 'psa', _('Shifts & Locations'), gate=_all(_msp_staff, _psa), tabs=(
+        Tab(_('Shift Schedule'), 'resourcing:shift_schedule', 'fa-user-clock'),
+        Tab(_('Shift Templates'), 'resourcing:shift_templates', 'fa-layer-group', gate=_shift_manager),
+        # A technician's own opt-in to share their position with dispatch.
+        Tab(_('Location Sharing'), 'field_ops:dispatch_sharing', 'fa-location-dot'),
+        Tab(_('Dispatch Locations'), 'field_ops:dispatch_geo_settings', 'fa-map-location-dot',
+            gate=_geo_admin),
     )),
     Section('psa_projects', 'psa', _('Projects'), gate=_psa, tabs=(
         Tab(_('Projects'), 'psa:project_list', 'fa-diagram-project'),
@@ -131,6 +222,7 @@ SECTIONS = (
         Tab(_('Quotes'), 'psa:quote_list', 'fa-file-invoice-dollar'),
         Tab(_('Invoices'), 'psa:invoice_list', 'fa-file-invoice'),
         Tab(_('Aging Report'), 'psa:aging_report', 'fa-chart-column'),
+        Tab(_('Billing Review'), 'psa:billing_review', 'fa-list-check', gate=_billing_reviewer),
     )),
     Section('psa_procurement', 'psa', _('Procurement'), gate=_psa, tabs=(
         Tab(_('Requisitions'), 'psa:requisition_list', 'fa-clipboard-list'),
@@ -172,6 +264,8 @@ SECTIONS = (
         Tab(_('Security Alerts'), 'security_alerts:alert_list', 'fa-triangle-exclamation'),
         Tab(_('Vendor Connections'), 'security_alerts:connection_list', 'fa-plug'),
         Tab(_('Auto-Ticket Rules'), 'security_alerts:rule_list', 'fa-bolt'),
+        Tab(_('Weekly Digest'), 'security_alerts:digest_subscriptions', 'fa-envelope-open-text',
+            gate=_digest_reader),
     )),
     Section('mod_crm', 'modules', _('CRM'), gate=_all(_msp_staff, _flag('crm_enabled')), tabs=(
         Tab(_('Overview'), 'crm:home', 'fa-home'),
@@ -193,6 +287,7 @@ SECTIONS = (
     # ---- Assets -----------------------------------------------------------
     Section('assets_all', 'assets', _('All Assets'), tabs=(
         Tab(_('All Assets'), 'assets:asset_list', 'fa-box'),
+        Tab(_('Serial Search'), 'assets:serial_search', 'fa-barcode'),
     )),
     # hardware/_nav.html already is this section's local nav.
     Section('assets_hardware', 'assets', _('Hardware & Ports'), render_tabs=False, tabs=(
@@ -273,6 +368,7 @@ SECTIONS = (
     Section('admin_integrations', 'admin', _('Integrations'), gate=_superuser, tabs=(
         Tab(_('Integrations'), 'integrations:integration_list', 'fa-plug'),
         Tab(_('Webhooks'), 'core:webhook_list', 'fa-bolt'),
+        Tab(_('Rem0te Setup'), 'integrations:rem0te_setup', 'fa-desktop'),
     )),
     Section('admin_mobile', 'admin', _('Mobile'), gate=_superuser, tabs=(
         Tab(_('Mobile Apps'), 'core:mobile_apps_admin', 'fa-mobile-alt'),
@@ -494,6 +590,8 @@ PRIMARY = (
         Entry(_('Tickets'), section='psa_tickets', icon='fa-list', keywords='psa helpdesk'),
         Entry(_('Dispatch Board'), section='psa_dispatch', icon='fa-table-list',
               keywords='schedule routing triage'),
+        Entry(_('Shifts & Locations'), section='psa_shifts', icon='fa-user-clock',
+              keywords='shift schedule templates rota on-call dispatch location sharing consent geo'),
         Entry(_('Projects'), section='psa_projects', icon='fa-diagram-project'),
         Entry(_('Service Management'), section='psa_service', icon='fa-th',
               keywords='itil catalog change problem release approvals knowledge'),
@@ -534,9 +632,16 @@ PRIMARY = (
               keywords='edr siem incidents'),
         Entry(_('Monitoring'), section='ops_monitoring', icon='fa-globe',
               keywords='uptime websites wan expirations status pages'),
+        # Which RMM / monitoring alerts open tickets, and maintenance windows.
+        Entry(_('Alert Policy'), url_name='ticket_routing:alerts', icon='fa-sliders',
+              gate=_all(_psa, _routing_manager),
+              keywords='alert rules auto ticket maintenance suppression rmm'),
     )),
     Group('tools', _('Tools'), 'fa-toolbox', shortcut='o', entries=(
         Entry(_('Workflows'), section='ops_workflows', icon='fa-tasks', keywords='runbooks processes'),
+        Entry(_('Support Workflows'), url_name='support_workflows:admin', icon='fa-diagram-next',
+              gate=_all(_psa, _routing_manager),
+              keywords='ticket workflows guided troubleshooting playbooks'),
         Entry(_('Scheduling'), section='ops_scheduling', icon='fa-calendar-alt',
               keywords='tasks calendar wallboard'),
         Entry(_('Inventory'), section='ops_inventory', icon='fa-boxes', keywords='stock'),
@@ -559,6 +664,10 @@ SETTINGS = Group('settings', _('Settings'), 'fa-cog', shortcut='s', entries=(
           keywords='scans vulnerability superuser approval'),
     Entry(_('Access Management'), url_name='accounts:access_management', icon='fa-users-cog',
           gate=_superuser, keywords='users roles permissions'),
+    Entry(_('LDAP Group Mappings'), url_name='accounts:ldap_group_mappings', icon='fa-sitemap',
+          gate=_superuser, keywords='directory active directory ldap groups roles'),
+    Entry(_('RMM Permissions'), url_name='rmm_permissions:index', icon='fa-user-lock',
+          gate=_rmm_policy_reader, keywords='rmm roles overrides approvals remote actions policy'),
     Entry(_('Integrations'), section='admin_integrations', icon='fa-plug',
           keywords='rmm psa webhooks'),
     Entry(_('Asset Setup'), section='assets_setup', icon='fa-sliders-h',
@@ -591,13 +700,18 @@ NAMESPACE_GROUP = {
     'assets': 'devices', 'hardware': 'devices', 'network_discovery': 'devices',
     'docs': 'clients', 'readiness': 'clients', 'locations': 'clients', 'vault': 'clients',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',
-    'audit': 'settings',
+    'audit': 'settings', 'rmm_permissions': 'settings', 'support_workflows': 'tickets',
 }
 # Integrations pages a technician works in daily, not configuration.
 _WORK_PAGES = {
     'integrations:rmm_devices': 'devices', 'integrations:rmm_device_detail': 'devices',
     'integrations:rmm_device_delete': 'devices', 'integrations:rmm_software': 'devices',
     'integrations:rmm_alerts': 'alerts',
+    # Alert policy's own sub-pages sit with it under Alerts.
+    'ticket_routing:alert_rule_new': 'alerts', 'ticket_routing:alert_rule_edit': 'alerts',
+    'ticket_routing:alert_maintenance': 'alerts',
+    'support_workflows:admin_new': 'tools', 'support_workflows:admin_edit': 'tools',
+    'accounts:ldap_group_mapping_delete': 'settings',
 }
 _CORE_SETTINGS_PREFIXES = ('settings_', 'security_', 'system_', 'firewall', 'fail2ban', 'snyk',
                            'webhook', 'maintenance', 'vault_visibility', 'mobile_apps', 'beta_test_admin')

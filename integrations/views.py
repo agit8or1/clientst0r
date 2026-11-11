@@ -886,15 +886,48 @@ def rmm_alerts(request):
         alerts = alerts.filter(status='active')
     elif status_filter == 'resolved':
         alerts = alerts.filter(status='resolved')
-    # 'all' shows everything
-    
+    else:
+        status_filter = 'all'  # 'all' shows everything
+
+    # Narrowing filters (saved views: core.workspace SAVED_VIEW_LISTS['rmm_alerts']).
+    severity = request.GET.get('severity') or ''
+    if severity in dict(RMMAlert.SEVERITY_CHOICES):
+        alerts = alerts.filter(severity=severity)
+    else:
+        severity = ''
+    # Customers below the current one (sites / subsidiaries) that have alerts.
+    customer_ids = set(alerts.values_list('device__organization_id', flat=True).distinct())
+    client = request.GET.get('client') or ''
+    if client.isdigit() and int(client) in customer_ids:
+        alerts = alerts.filter(device__organization_id=int(client))
+    else:
+        client = ''
+    q = (request.GET.get('q') or '').strip()[:100]
+    if q:
+        from django.db.models import Q
+        alerts = alerts.filter(Q(device__device_name__icontains=q) | Q(message__icontains=q)
+                               | Q(alert_type__icontains=q))
+    customers = []
+    if len(customer_ids) > 1:
+        from core.models import Organization
+        customers = list(Organization.objects.filter(pk__in=customer_ids).order_by('name').values('pk', 'name'))
+
     # Order by most recent first
     alerts = alerts.order_by('-triggered_at')
-    
+
     from psa.visibility import is_msp_staff
     return render(request, 'integrations/rmm_alerts.html', {
-        'alerts': alerts,
+        'alerts': alerts[:500],
         'status_filter': status_filter,
+        'severity_filter': severity,
+        'severity_choices': RMMAlert.SEVERITY_CHOICES,
+        'client_filter': client,
+        'customers': customers,
+        'q': q,
+        'has_filters': bool(severity or client or q),
+        # Connections usually belong to the MSP, not to the customer whose
+        # devices they sync, so any connection counts for the empty state.
+        'has_rmm': RMMConnection.objects.exists(),
         'can_open_ticket': is_msp_staff(request.user),
     })
 

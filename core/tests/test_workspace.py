@@ -276,6 +276,95 @@ class SavedViewTests(_Fixture):
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class DenseListFilterTests(_Fixture):
+    """Default filters and the saved-views bar on RMM alerts, routing triage,
+    invoices and timesheet approvals."""
+
+    def test_rmm_alert_filters_and_bar(self):
+        _login(self.client, self.tech, self.a)
+        url = reverse('integrations:rmm_alerts')
+        r = self.client.get(url, {'severity': 'critical'})
+        self.assertContains(r, 'WS-ALPHA-SRV')
+        self.assertContains(r, 'id="savedViews"')
+        self.assertContains(r, 'Critical')  # preset
+        self.assertNotContains(self.client.get(url, {'severity': 'warning'}), 'WS-ALPHA-SRV')
+        self.assertNotContains(self.client.get(url, {'q': 'no-such-device'}), 'WS-ALPHA-SRV')
+        self.assertContains(self.client.get(url, {'q': 'no-such-device'}), 'No alerts match these filters')
+        # Another customer's id in ?client= is ignored, never a way in.
+        r = self.client.get(url, {'client': self.b.pk})
+        self.assertNotContains(r, 'WS-BRAVO-SRV')
+        self.client.post(reverse('core:saved_view_save'), {
+            'list_key': 'rmm_alerts', 'name': 'Crit', 'query': 'severity=critical&status=all'})
+        self.assertEqual(SavedView.objects.get(user=self.tech, list_key='rmm_alerts').query,
+                         'status=all&severity=critical')
+
+    def test_rmm_alerts_bar_is_staff_only(self):
+        _login(self.client, self.customer, self.a)
+        self.assertNotContains(self.client.get(reverse('integrations:rmm_alerts')), 'id="savedViews"')
+
+    def test_triage_filters(self):
+        from psa.routing.models import STATUS_FALLBACK, STATUS_SUGGESTED, TRIGGER_CREATED, RoutingDecision
+        from psa.models import Ticket
+        t2 = Ticket.objects.create(organization=self.a, subject='WS triage suggested',
+                                   queue=self.t_b.queue, priority=self.t_b.priority,
+                                   ticket_type=self.t_b.ticket_type, status=self.t_b.status)
+        RoutingDecision.objects.create(ticket=self.t_b, trigger=TRIGGER_CREATED, idempotency_key='ws-1',
+                                       status=STATUS_FALLBACK, reason='nobody qualified')
+        RoutingDecision.objects.create(ticket=t2, trigger=TRIGGER_CREATED, idempotency_key='ws-2',
+                                       status=STATUS_SUGGESTED, reason='suggested')
+        _login(self.client, self.tech, self.a)
+        url = reverse('ticket_routing:triage')
+        r = self.client.get(url)
+        self.assertContains(r, self.t_b.ticket_number)
+        self.assertContains(r, t2.ticket_number)
+        self.assertContains(r, 'id="savedViews"')
+        r = self.client.get(url, {'routing': 'suggested'})
+        self.assertNotContains(r, self.t_b.ticket_number)
+        self.assertContains(r, t2.ticket_number)
+        r = self.client.get(url, {'client': self.a.pk})
+        self.assertNotContains(r, self.t_b.ticket_number)
+        r = self.client.get(url, {'q': 'no-such-ticket'})
+        self.assertContains(r, 'No waiting tickets match these filters')
+
+    def test_invoice_filters_and_bar(self):
+        from psa.models import Invoice
+        day = timezone.localdate()
+        Invoice.objects.create(organization=self.a, client_org=self.a, title='WS alpha invoice',
+                               invoice_date=day, status='draft')
+        Invoice.objects.create(organization=self.a, client_org=self.b, title='WS bravo invoice',
+                               invoice_date=day, status='sent')
+        _login(self.client, self.tech, self.a)
+        url = reverse('psa:invoice_list')
+        r = self.client.get(url, {'status': 'draft'})
+        self.assertContains(r, 'WS alpha invoice')
+        self.assertNotContains(r, 'WS bravo invoice')
+        self.assertContains(r, 'id="savedViews"')
+        r = self.client.get(url, {'client': self.b.pk})
+        self.assertNotContains(r, 'WS alpha invoice')
+        self.assertContains(r, 'WS bravo invoice')
+        self.assertContains(self.client.get(url, {'q': 'bravo'}), 'WS bravo invoice')
+        self.assertNotContains(self.client.get(url, {'q': 'bravo'}), 'WS alpha invoice')
+
+    def test_timesheet_filters(self):
+        from psa.models import TimesheetSubmission
+        monday = timezone.localdate() - timedelta(days=timezone.localdate().weekday())
+        TimesheetSubmission.objects.create(user=self.tech, period_start=monday,
+                                           period_end=monday + timedelta(days=6), status='pending')
+        TimesheetSubmission.objects.create(user=self.tech2, period_start=monday - timedelta(days=7),
+                                           period_end=monday - timedelta(days=1),
+                                           status='rejected', decided_at=timezone.now())
+        su = User.objects.create_user('ws_su', 'su@msp.test', 'pw-ws-123', is_superuser=True, is_staff=True)
+        _login(self.client, su, self.a)
+        url = reverse('psa:timesheet_approval_queue')
+        r = self.client.get(url, {'tech': self.tech2.pk})
+        self.assertEqual(len(r.context['pending']), 0)
+        self.assertEqual([s.user_id for s in r.context['decided']], [self.tech2.pk])
+        r = self.client.get(url, {'decision': 'approved'})
+        self.assertEqual(list(r.context['decided']), [])
+        self.assertContains(r, 'id="savedViews"')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class SearchAndContextTests(_Fixture):
 
     def test_search_finds_tickets_devices_clients_and_pages_for_staff(self):

@@ -144,8 +144,8 @@
                     {% endif %}
                     <!-- Theme Toggle -->
                     <li class="nav-item">
-                        <button class="btn btn-link nav-link" data-action="toggleTheme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" style="border: none; background: none;">
-                            <i id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
+                        <button class="btn btn-link nav-link" data-action="toggleTheme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" aria-label="Toggle between dark and light theme" style="border: none; background: none;">
+                            <i aria-hidden="true" id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
                         </button>
                     </li>
                     <!-- Live Clock -->

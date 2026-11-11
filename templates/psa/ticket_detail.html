@@ -276,7 +276,7 @@
                     {{ canned_replies|json_script:"cannedReplies" }}
                     {% endif %}
 
-                    <textarea name="body" id="composerBody" class="form-control mb-2" rows="4" placeholder="Write a reply…" required>{{ draft.body|default:'' }}</textarea>
+                    <textarea name="body" id="composerBody" class="form-control mb-2" rows="4" placeholder="Write a reply…" aria-label="Reply" required>{{ draft.body|default:'' }}</textarea>
                     {% if is_msp_staff and ticket.requester_email %}
                     {# v3.17.654 — shown while "Email this reply" is ticked on a public reply. #}
                     <div id="composerEmailExtras" class="tc-email-extras mb-2" hidden>
@@ -376,7 +376,7 @@
             <div class="card-body">
                 <form method="post" action="{% url 'psa:ticket_attach' ticket.ticket_number %}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
                     {% csrf_token %}
-                    <input type="file" name="file" class="form-control form-control-sm" required>
+                    <input type="file" name="file" class="form-control form-control-sm" aria-label="File to attach" required>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="attach_is_internal" name="is_internal" value="1">
                         <label class="form-check-label small" for="attach_is_internal">internal</label>
@@ -713,8 +713,9 @@
                             <form method="post" action="{% url 'psa:ticket_kit_toggle_packed' ticket.ticket_number item.pk %}">
                                 {% csrf_token %}
                                 <button class="btn btn-sm p-0 border-0 bg-transparent"
-                                        title="{% if item.packed %}Mark not packed{% else %}Mark packed{% endif %}">
-                                    <i class="{% if item.packed %}fas fa-square-check text-success{% else %}far fa-square text-muted{% endif %}"></i>
+                                        title="{% if item.packed %}Mark not packed{% else %}Mark packed{% endif %}"
+                                        aria-label="{% if item.packed %}Mark {{ item }} not packed{% else %}Mark {{ item }} packed{% endif %}">
+                                    <i aria-hidden="true" class="{% if item.packed %}fas fa-square-check text-success{% else %}far fa-square text-muted{% endif %}"></i>
                                 </button>
                             </form>
                             <div>
@@ -856,15 +857,15 @@
                         <input type="checkbox" id="timer_billable" name="is_billable" value="1" class="form-check-input" checked>
                         <label class="form-check-label small" for="timer_billable">Billable</label>
                     </div>
-                    <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role (e.g. T1)" maxlength="40" style="width:110px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
+                    <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role (e.g. T1)" aria-label="Timer role code (optional)" maxlength="40" style="width:110px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
                     <button type="submit" class="btn btn-sm btn-outline-primary ms-auto"><i class="fas fa-play me-1"></i>Start timer</button>
                 </form>
                 {% endif %}
                 <form method="post" action="{% url 'psa:time_entry_manual' ticket.ticket_number %}" class="d-flex gap-1 align-items-center">
                     {% csrf_token %}
-                    <input type="number" name="minutes" id="timeManualMinutes" class="form-control form-control-sm" placeholder="min" min="1" max="1440" style="width:80px;" required>
-                    <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (manual entry)" maxlength="200">
-                    <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role" maxlength="40" style="width:80px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
+                    <input type="number" name="minutes" id="timeManualMinutes" class="form-control form-control-sm" placeholder="min" aria-label="Minutes worked" min="1" max="1440" style="width:80px;" required>
+                    <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (manual entry)" aria-label="Time entry notes" maxlength="200">
+                    <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role" aria-label="Time entry role code (optional)" maxlength="40" style="width:80px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
                     <div class="form-check">
                         <input type="checkbox" id="manual_billable" name="is_billable" value="1" class="form-check-input" checked>
                         <label class="form-check-label small" for="manual_billable">Bill</label>
@@ -1106,23 +1107,23 @@
                       enctype="multipart/form-data" class="row g-2 small mb-2">
                     {% csrf_token %}
                     <div class="col-12">
-                        <input type="text" name="description" class="form-control form-control-sm" required placeholder="What was bought / consumed">
+                        <input type="text" name="description" class="form-control form-control-sm" required placeholder="What was bought / consumed" aria-label="Expense description">
                     </div>
                     <div class="col-4">
-                        <input type="number" step="0.01" name="amount" class="form-control form-control-sm" required placeholder="Amount">
+                        <input type="number" step="0.01" name="amount" class="form-control form-control-sm" required placeholder="Amount" aria-label="Expense amount">
                     </div>
                     <div class="col-3">
-                        <input type="text" name="currency" class="form-control form-control-sm" value="USD" maxlength="8">
+                        <input type="text" name="currency" class="form-control form-control-sm" value="USD" maxlength="8" aria-label="Currency">
                     </div>
                     <div class="col-5">
-                        <select name="category" class="form-select form-select-sm">
+                        <select name="category" class="form-select form-select-sm" aria-label="Expense category">
                             {% for code, label in expense_categories %}
                             <option value="{{ code }}">{{ label }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="col-6">
-                        <input type="date" name="incurred_on" class="form-control form-control-sm">
+                        <input type="date" name="incurred_on" class="form-control form-control-sm" aria-label="Date incurred">
                     </div>
                     <div class="col-3 form-check ms-2">
                         <input type="checkbox" id="expense_billable" name="is_billable" class="form-check-input" checked>
@@ -1133,7 +1134,7 @@
                         <label class="form-check-label small" for="expense_reimbursable">Reimbursable</label>
                     </div>
                     <div class="col-12">
-                        <input type="file" name="receipt_file" class="form-control form-control-sm" accept="image/*,application/pdf">
+                        <input type="file" name="receipt_file" class="form-control form-control-sm" accept="image/*,application/pdf" aria-label="Receipt (image or PDF)">
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-sm btn-outline-secondary">Add expense</button>

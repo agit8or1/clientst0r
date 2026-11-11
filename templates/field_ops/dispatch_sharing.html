@@ -7,7 +7,7 @@
   <h1 class="h3 mb-3"><i class="fa-solid fa-location-dot me-2"></i>Share my position with dispatch</h1>
 
   {% if not cfg.enabled %}
-  <div class="alert alert-secondary">Geo-aware dispatch is switched off by your administrator. Nothing about your location is used for dispatch, whatever you choose here.</div>
+  <div class="alert alert-secondary">Geo-aware dispatch is switched off by your administrator. Nothing about your location is used for dispatch, whatever you choose here.{% if user.is_superuser %} <a href="{% url 'field_ops:dispatch_geo_settings' %}">Turn geo-aware dispatch on</a> in the dispatch location settings.{% endif %}</div>
   {% endif %}
 
   <div class="card mb-3">

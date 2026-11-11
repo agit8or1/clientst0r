@@ -12,32 +12,47 @@
 </nav>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-exclamation-triangle"></i> RMM Alerts</h1>
+    <h1><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> RMM Alerts</h1>
 </div>
 
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <p class="text-muted mb-0">
-                    Showing {{ alerts|length }} alerts
-                </p>
+        <form method="get" action="{% url 'integrations:rmm_alerts' %}" class="row g-2 align-items-end" id="rmmAlertFilters">
+            <div class="col-12 col-md-4">
+                <label class="form-label small mb-1" for="alertQ">Search</label>
+                <input type="search" class="form-control form-control-sm" id="alertQ" name="q" value="{{ q }}" maxlength="100" placeholder="Device, alert type or message">
             </div>
-            <div class="col-md-6 text-end">
-                <div class="btn-group" role="group">
-                    <a href="{% url 'integrations:rmm_alerts' %}?status=active" class="btn btn-sm {% if status_filter == 'active' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                        Active
-                    </a>
-                    <a href="{% url 'integrations:rmm_alerts' %}?status=resolved" class="btn btn-sm {% if status_filter == 'resolved' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                        Resolved
-                    </a>
-                    <a href="{% url 'integrations:rmm_alerts' %}?status=all" class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                        All
-                    </a>
-                </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1" for="alertStatus">Status</label>
+                <select class="form-select form-select-sm" id="alertStatus" name="status">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
             </div>
-        </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1" for="alertSeverity">Severity</label>
+                <select class="form-select form-select-sm" id="alertSeverity" name="severity">
+                    <option value="">Any</option>
+                    {% for value, label in severity_choices %}<option value="{{ value }}" {% if severity_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            {% if customers %}
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1" for="alertClient">Customer</label>
+                <select class="form-select form-select-sm" id="alertClient" name="client">
+                    <option value="">All customers</option>
+                    {% for c in customers %}<option value="{{ c.pk }}" {% if client_filter == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-6 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                {% if has_filters or status_filter != 'active' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'integrations:rmm_alerts' %}?view=all">Clear</a>{% endif %}
+            </div>
+        </form>
+        <p class="text-muted small mb-0 mt-2" aria-live="polite">Showing {{ alerts|length }} alert{{ alerts|length|pluralize }}{% if alerts|length >= 500 %} (the 500 most recent; narrow the filters to see older ones){% endif %}</p>
     </div>
 </div>
 
@@ -116,11 +131,15 @@
             </table>
         </div>
         {% else %}
-        <div class="text-center text-muted py-5">
-            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-            <p>No alerts found</p>
-            <p class="small">Alerts will appear here after RMM integrations are configured and synced</p>
-        </div>
+        {% url 'integrations:rmm_alerts' as all_alerts_url %}
+        {% if not has_rmm %}
+            {% if user.is_superuser %}{% url 'integrations:integration_list' as setup_url %}{% endif %}
+            {% include "core/_empty_state.html" with icon="fa-plug" title="No RMM connected" text="Connect an RMM in Integrations and run a sync; alerts from its agents then appear here, scoped to each device's customer." action_url=setup_url action_label="Connect an RMM" %}
+        {% elif has_filters or status_filter != 'active' %}
+            {% include "core/_empty_state.html" with icon="fa-filter" title="No alerts match these filters" text="Widen the status or severity, or clear the filters." secondary_url=all_alerts_url|add:"?view=all" secondary_label="Clear filters" %}
+        {% else %}
+            {% include "core/_empty_state.html" with icon="fa-circle-check" title="No active alerts" text="Nothing is alerting for this customer right now. New alerts arrive with each RMM sync; devices whose customer is not settled yet stay out of this list until a technician decides on the RMM review page." %}
+        {% endif %}
         {% endif %}
     </div>
 </div>
