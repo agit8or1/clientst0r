@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Share my position with dispatch{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 860px;">
+  <h1 class="h3 mb-3"><i class="fa-solid fa-location-dot me-2"></i>Share my position with dispatch</h1>
+
+  {% if not cfg.enabled %}
+  <div class="alert alert-secondary">Geo-aware dispatch is switched off by your administrator. Nothing about your location is used for dispatch, whatever you choose here.</div>
+  {% endif %}
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <p>When you share, the mobile app's on-shift location pings keep <strong>one</strong> last known position for you. Dispatchers (MSP staff only) see how long ago it was recorded and how far you are from a ticket's site, and routing rules can offer a ticket to the nearest eligible technician.</p>
+      <ul class="small mb-0">
+        <li>Customers never see your position, distances or travel times.</li>
+        <li>Only a position from the last <strong>{{ cfg.freshness_minutes }} minutes</strong> is used; it is deleted after <strong>{{ cfg.retention_hours }} hour{{ cfg.retention_hours|pluralize }}</strong>.</li>
+        <li>Pings sent outside your shifts or working hours are dropped and never become a position.</li>
+        <li>Inside a customer site that uses geofence-only mode, only the site's centre point is kept, not your exact position.</li>
+        <li>Stopping sharing deletes your last known position straight away.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header"><strong>What dispatch has now</strong></div>
+    <div class="card-body small">
+      {% if position %}
+      <p class="mb-0" id="dispatch-own-position">{{ position.lat }}, {{ position.lon }} ({{ position.get_source_display }}) — recorded {{ position.recorded_at|timesince }} ago.</p>
+      {% else %}
+      <p class="mb-0 text-muted" id="dispatch-own-position">No position.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="share" id="share" {% if sharing %}checked{% endif %}>
+        <label class="form-check-label" for="share">Share my last known position with dispatch</label>
+      </div>
+    </div>
+    <div class="card-footer"><button class="btn btn-primary btn-sm">Save</button>
+      <a class="btn btn-link btn-sm" href="{% url 'field_ops:my_location_history' %}">My full location history</a></div>
+  </form>
+</div>
+{% endblock %}

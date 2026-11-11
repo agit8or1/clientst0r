@@ -6,7 +6,7 @@ also gets a top-level `/timeclock/` mount for discoverability.
 """
 from django.urls import path
 
-from . import views
+from . import dispatch_views, views
 
 app_name = 'field_ops'
 
@@ -32,4 +32,7 @@ urlpatterns = [
     ),
     # Sub-phase 8.5 part 3 (v3.17.416)
     path('settings/', views.settings_view, name='settings'),
+    # Phase 11 — geo-aware dispatch (opt-in)
+    path('dispatch-sharing/', dispatch_views.dispatch_sharing, name='dispatch_sharing'),
+    path('dispatch-geo/', dispatch_views.dispatch_geo_settings, name='dispatch_geo_settings'),
 ]

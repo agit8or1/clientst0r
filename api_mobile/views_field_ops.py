@@ -61,6 +61,15 @@ def _is_off_shift(user, when):
     we treat them as always working (False).
     """
     try:
+        # A technician with a weekly shift schedule is on shift only during
+        # a scheduled shift (resourcing/shifts.py); everyone else keeps the
+        # WorkingHours rule below.
+        from resourcing.shifts import has_schedule, shift_at, user_tz
+        if has_schedule(user, on=when.astimezone(user_tz(user)).date()):
+            return shift_at(user, when) is None
+    except Exception:
+        pass
+    try:
         import zoneinfo
         profile = getattr(user, 'profile', None)
         tz_name = getattr(profile, 'timezone', None) or 'UTC'
@@ -153,6 +162,10 @@ def location_ping_view(request):
     fence = _first_geofence_only_match(lat, lon)
     if fence is not None:
         visit = _open_or_extend_visit(user, fence, when)
+        # Dispatch (opt-in) keeps only the geofence centre here, never the
+        # raw coordinates.
+        from field_ops.geo_dispatch import record_ping
+        record_ping(user, lat, lon, accuracy=accuracy, when=when, geofence=fence)
         _audit(user, 'api_call', request, {
             'event': 'locations_geofence_only_write',
             'channel': 'mobile',
@@ -174,10 +187,48 @@ def location_ping_view(request):
         timestamp=when,
         source='mobile',
     )
+    # Geo-aware dispatch: last known position, only with the technician's
+    # consent and only while an administrator has the feature on.
+    from field_ops.geo_dispatch import record_ping
+    record_ping(user, lat, lon, accuracy=accuracy, when=when)
     return Response(
         {'id': loc.id, 'timestamp': loc.timestamp.isoformat()},
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(['GET', 'POST'])
+@authentication_classes([MobileTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def dispatch_sharing_view(request):
+    """
+    GET/POST /api/mobile/v1/dispatch-sharing/
+
+    The technician's own choice to share their last known position with
+    dispatch (geo-aware dispatch). POST `{share: true|false}`. Withdrawing
+    deletes the stored position. MSP technicians only.
+    """
+    from psa.visibility import is_msp_staff
+    from field_ops import geo_dispatch
+    from field_ops.models import DispatchPosition
+    user = request.user
+    if not is_msp_staff(user):
+        return Response({'detail': 'Only MSP technicians can share a position with dispatch.'}, status=403)
+    if request.method == 'POST':
+        share = (request.data or {}).get('share')
+        share = share is True or str(share).lower() in ('1', 'true', 'on', 'yes')
+        geo_dispatch.set_consent(user, share)
+        _audit(user, 'update', request, {'event': 'dispatch_sharing', 'share': share, 'channel': 'mobile'})
+    cfg = geo_dispatch.load_settings()
+    pos = DispatchPosition.objects.filter(user=user).first()
+    return Response({
+        'enabled': cfg.enabled,
+        'sharing': geo_dispatch.has_consent(user),
+        'freshness_minutes': cfg.freshness_minutes,
+        'retention_hours': cfg.retention_hours,
+        'position': ({'lat': str(pos.lat), 'lon': str(pos.lon), 'source': pos.source,
+                      'recorded_at': pos.recorded_at.isoformat()} if pos else None),
+    })
 
 
 def _first_geofence_only_match(lat, lon):
