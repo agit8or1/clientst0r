@@ -505,17 +505,40 @@ def quote_sign(request, token):
             messages.error(request, 'Signature image is too large.')
             return redirect(request.path)
 
-        QuoteSignature.objects.update_or_create(
-            quote=quote,
-            defaults={
-                'signed_by_name': signed_by_name,
-                'signed_by_email': signed_by_email,
-                'signed_by_title': signed_by_title,
-                'signature_data': signature_data,
-                'ip_address': _client_ip_qs(request),
-                'user_agent': (request.META.get('HTTP_USER_AGENT') or '')[:400],
-            },
-        )
+        # Bind the signature to the exact revision the customer read: the
+        # page carries the content hash it was rendered from, and a quote
+        # edited since then is refused rather than signed unseen.
+        from django.db import transaction
+        from psa.pdf import render_quote_pdf
+        import hashlib
+        with transaction.atomic():
+            quote = Quote.objects.select_for_update().select_related('client_org', 'organization').get(pk=quote.pk)
+            if QuoteSignature.objects.filter(quote=quote).exists():
+                return render(request, 'portal/quote_sign.html', {
+                    'quote': quote, 'organization': quote.client_org, 'already': True})
+            content_json = quote.content_json()
+            content_hash = hashlib.sha256(content_json).hexdigest()
+            if (request.POST.get('content_hash') or '') != content_hash:
+                messages.error(request, 'This quote changed while you were reading it. '
+                                        'Please review it again before signing.')
+                return redirect(request.path)
+            try:
+                pdf = render_quote_pdf(quote)
+            except Exception:  # noqa: BLE001 — content.json is the evidence; the PDF is a convenience
+                pdf = None
+            QuoteSignature.objects.create(
+                quote=quote,
+                signed_by_name=signed_by_name,
+                signed_by_email=signed_by_email,
+                signed_by_title=signed_by_title,
+                signature_data=signature_data,
+                ip_address=_client_ip_qs(request),
+                user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:400],
+                content_hash=content_hash,
+                content_json=content_json.decode('utf-8'),
+                pdf=pdf,
+                pdf_hash=hashlib.sha256(pdf).hexdigest() if pdf else '',
+            )
 
         # Flip status + optionally create ticket
         queue = Queue.objects.filter(is_active=True).first()
@@ -542,7 +565,8 @@ def quote_sign(request, token):
                 description=f'Quote {quote.quote_number} signed by {signed_by_name} <{signed_by_email}> from IP {_client_ip_qs(request)}',
                 path=request.path,
                 extra_data={'signed_by_email': signed_by_email,
-                            'signed_by_name': signed_by_name},
+                            'signed_by_name': signed_by_name,
+                            'content_hash': content_hash},
             )
         except Exception:
             pass
@@ -557,6 +581,7 @@ def quote_sign(request, token):
         'quote': quote,
         'organization': quote.client_org,
         'line_items': quote.line_items.all(),
+        'content_hash': quote.content_hash(),
     })
 
 

@@ -2790,6 +2790,10 @@ class EmailIngestionConfig(models.Model):
 # Quotes / Estimates (Workstream 5 — sales pipeline)
 # ---------------------------------------------------------------------------
 
+class SignedQuoteLocked(ValueError):
+    """An edit would change the content of a quote the customer signed."""
+
+
 class Quote(models.Model):
     """
     Sales quote / estimate. Goes through draft → sent → accepted/rejected,
@@ -2876,7 +2880,72 @@ class Quote(models.Model):
             if kwargs.get('update_fields') is not None:
                 kwargs['update_fields'] = (set(kwargs['update_fields'])
                                            | {'customer_token', 'customer_token_hash'})
+        if self.pk:
+            self._refuse_signed_content_change()
         super().save(*args, **kwargs)
+
+    # --- signed-revision binding ------------------------------------------
+    # A signature records the hash of exactly what was signed (number,
+    # title, description, validity, client, tax rate, lines, totals). Once
+    # a quote carries such a signature its content cannot change: status,
+    # conversion and approval bookkeeping still save, anything else raises
+    # SignedQuoteLocked. Signatures from before this binding have no hash
+    # and lock nothing.
+
+    CONTENT_SCHEMA = 'clientst0r.quote-content.v1'
+
+    def content_snapshot(self, line_items=None) -> dict:
+        from decimal import Decimal
+
+        def money(v, places=2):
+            return f'{Decimal(str(v if v is not None else 0)):.{places}f}'
+
+        lines = line_items if line_items is not None else (
+            list(self.line_items.order_by('sort_order', 'pk')) if self.pk else [])
+        return {
+            'schema': self.CONTENT_SCHEMA,
+            'quote_number': self.quote_number or '',
+            'title': self.title or '',
+            'description': self.description or '',
+            'valid_until': self.valid_until.isoformat() if self.valid_until else '',
+            'client': {'id': self.client_org_id, 'name': getattr(self.client_org, 'name', '')},
+            'tax_rate': money(self.tax_rate, 4),
+            'subtotal': money(self.subtotal),
+            'tax_amount': money(self.tax_amount),
+            'total': money(self.total),
+            'lines': [{'sort_order': li.sort_order, 'description': li.description,
+                       'quantity': money(li.quantity), 'unit_price': money(li.unit_price),
+                       'is_taxable': bool(li.is_taxable), 'line_total': money(li.line_total)}
+                      for li in lines],
+        }
+
+    def content_json(self, line_items=None) -> bytes:
+        import json as _json
+        return _json.dumps(self.content_snapshot(line_items), sort_keys=True, ensure_ascii=False,
+                           separators=(',', ':')).encode('utf-8')
+
+    def content_hash(self, line_items=None) -> str:
+        import hashlib
+        return hashlib.sha256(self.content_json(line_items)).hexdigest()
+
+    def signed_content_hash(self) -> str:
+        """The content hash the quote's signature is bound to ('' if unsigned
+        or signed before binding)."""
+        if not self.pk:
+            return ''
+        return (QuoteSignature.objects.filter(quote_id=self.pk).values_list('content_hash', flat=True)
+                .first() or '')
+
+    @property
+    def is_signature_locked(self) -> bool:
+        return bool(self.signed_content_hash())
+
+    def _refuse_signed_content_change(self):
+        bound = self.signed_content_hash()
+        if bound and self.content_hash() != bound:
+            raise SignedQuoteLocked(
+                f'Quote {self.quote_number} was signed; its content cannot change. '
+                f'Create a new quote instead.')
 
     CUSTOMER_TOKEN_PURPOSE = 'psa.quote.sign'
 
@@ -3062,6 +3131,19 @@ class QuoteLineItem(models.Model):
     class Meta:
         db_table = 'psa_quote_line_items'
         ordering = ['sort_order', 'pk']
+
+    def _refuse_if_signed(self):
+        if self.quote_id and QuoteSignature.objects.filter(quote_id=self.quote_id).exclude(
+                content_hash='').exists():
+            raise SignedQuoteLocked('This quote was signed; its lines cannot change. Create a new quote instead.')
+
+    def save(self, *args, **kwargs):
+        self._refuse_if_signed()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        self._refuse_if_signed()
+        return super().delete(*args, **kwargs)
 
     @property
     def line_total(self):
@@ -4377,11 +4459,70 @@ class QuoteSignature(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=400, blank=True)
 
+    # Binding to the exact revision signed. Empty on signatures made before
+    # this was recorded (they show as "not bound" and lock nothing).
+    content_hash = models.CharField(max_length=64, blank=True,
+        help_text='SHA-256 of content_json: the quote exactly as signed')
+    content_json = models.TextField(blank=True,
+        help_text='Canonical JSON of the quote as signed (number, client, lines, tax, totals)')
+    pdf = models.BinaryField(null=True, blank=True, help_text='The quote PDF as the customer saw it')
+    pdf_hash = models.CharField(max_length=64, blank=True)
+    evidence_hash = models.CharField(max_length=64, blank=True,
+        help_text='SHA-256 of evidence.json')
+
     class Meta:
         db_table = 'psa_quote_signatures'
 
     def __str__(self):
         return f'Signed by {self.signed_by_name} at {self.signed_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def is_bound(self) -> bool:
+        return bool(self.content_hash)
+
+    def evidence(self) -> dict:
+        import hashlib
+        q = self.quote
+        return {
+            'schema': 'clientst0r.quote-signature-evidence.v1',
+            'quote': {'id': q.pk, 'number': q.quote_number, 'content_hash': self.content_hash,
+                      'pdf_hash': self.pdf_hash},
+            'signer': {'name': self.signed_by_name, 'email': self.signed_by_email,
+                       'title': self.signed_by_title,
+                       'signature_sha256': hashlib.sha256(self.signature_data.encode('utf-8')).hexdigest()
+                       if self.signature_data else ''},
+            'signed_at': self.signed_at.isoformat() if self.signed_at else '',
+            'ip_address': self.ip_address or '',
+            'user_agent': self.user_agent,
+        }
+
+    def evidence_json(self) -> bytes:
+        import json as _json
+        return _json.dumps(self.evidence(), sort_keys=True, ensure_ascii=False,
+                           separators=(',', ':')).encode('utf-8')
+
+    def verify(self) -> dict:
+        """Each stored hash recomputed, plus whether the quote still has the
+        content that was signed (`current`)."""
+        import hashlib
+
+        def h(b):
+            return hashlib.sha256(b or b'').hexdigest()
+        if not self.is_bound:
+            return {}
+        return {'content': h(self.content_json.encode('utf-8')) == self.content_hash,
+                'pdf': (not self.pdf_hash) or h(bytes(self.pdf or b'')) == self.pdf_hash,
+                'evidence': h(self.evidence_json()) == self.evidence_hash,
+                'current': self.quote.content_hash() == self.content_hash}
+
+    def save(self, *args, **kwargs):
+        if self.pk and QuoteSignature.objects.filter(pk=self.pk).exclude(content_hash='').exists():
+            raise SignedQuoteLocked('A bound quote signature cannot be changed.')
+        super().save(*args, **kwargs)
+        if self.content_hash and not self.evidence_hash:
+            import hashlib
+            self.evidence_hash = hashlib.sha256(self.evidence_json()).hexdigest()
+            QuoteSignature.objects.filter(pk=self.pk).update(evidence_hash=self.evidence_hash)
 
 
 # ---------------------------------------------------------------------------

@@ -150,6 +150,8 @@ urlpatterns = [
     # Quote PDF + email
     path('quotes/<int:pk>/pdf/', views.quote_pdf, name='quote_pdf'),
     path('quotes/<int:pk>/email/', views.quote_email, name='quote_email'),
+    path('quotes/<int:pk>/signature/evidence/', views.quote_signature_evidence,
+         name='quote_signature_evidence'),
     # Client account + charges + aging
     path('clients/<int:org_id>/account/', views.client_account, name='client_account'),
     path('clients/<int:org_id>/charge/', views.charge_add, name='charge_add'),

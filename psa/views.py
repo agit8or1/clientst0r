@@ -39,6 +39,7 @@ from .models import (
     Queue,
     Quote,
     QuoteLineItem,
+    QuoteSignature,
     RecurringTicketSchedule,
     ServiceCatalogItem,
     Ticket,
@@ -3768,6 +3769,13 @@ def quote_form(request, pk=None):
     if pk:
         item = get_object_or_404(_for_customer(request, Quote.objects.all()), pk=pk)
         org = item.organization
+        if item.is_signature_locked:
+            # The signature is bound to this exact content (lines, totals,
+            # terms): changing it would make the signature describe a quote
+            # the customer never saw.
+            messages.error(request, f'Quote {item.quote_number} was signed by the customer, so it can no '
+                                    'longer be edited. Create a new quote for any change.')
+            return redirect('psa:quote_detail', pk=item.pk)
     else:
         item = None
         org = get_request_organization(request)
@@ -5449,12 +5457,62 @@ def quote_detail(request, pk):
     if org is not None:
         qs = qs.filter(organization=org)
     item = get_object_or_404(qs, pk=pk)
+    sig = QuoteSignature.objects.filter(quote=item).first()
     return render(request, 'psa/quote_detail.html', {
         'item': item,
         'line_items': item.line_items.all(),
         'can_create_po': user_has_perm(request.user, 'procurement_create_po'),
         'linked_pos': item.purchase_orders.all().order_by('-created_at'),
+        'signature_checks': sig.verify() if sig else {},
     })
+
+
+@login_required
+@require_psa_enabled
+def quote_signature_evidence(request, pk):
+    """ZIP of what the customer signed: content.json (the quote exactly as
+    signed), quote.pdf, signature.png, evidence.json and SHA256SUMS. MSP
+    staff only, same customer scoping as the quote page."""
+    import base64
+    import hashlib
+    import io
+    import zipfile
+    from django.http import HttpResponse
+    _staff_or_403(request)
+    org = get_request_organization(request)
+    qs = Quote.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    item = get_object_or_404(qs, pk=pk)
+    sig = get_object_or_404(QuoteSignature, quote=item)
+    if not sig.is_bound:
+        raise Http404('This signature was recorded before signatures were bound to a quote revision.')
+    files = {'content.json': sig.content_json.encode('utf-8'), 'evidence.json': sig.evidence_json()}
+    if sig.pdf:
+        files['quote.pdf'] = bytes(sig.pdf)
+    if sig.signature_data.startswith('data:image/png;base64,'):
+        try:
+            files['signature.png'] = base64.b64decode(sig.signature_data.split(',', 1)[1])
+        except Exception:  # noqa: BLE001
+            pass
+    sums = ''.join(f'{hashlib.sha256(data).hexdigest()}  {name}\n' for name, data in sorted(files.items()))
+    sums += f'# content.json sha256 = content_hash {sig.content_hash}\n'
+    sums += f'# evidence.json sha256 = evidence_hash {sig.evidence_hash}\n'
+    if sig.pdf_hash:
+        sums += f'# quote.pdf sha256 = pdf_hash {sig.pdf_hash}\n'
+    files['SHA256SUMS'] = sums.encode('utf-8')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for name, data in files.items():
+            z.writestr(name, data)
+    AuditLog.log(user=request.user, action='export', organization=item.organization,
+                 object_type='psa.QuoteSignature', object_id=sig.pk, object_repr=item.quote_number,
+                 description=f'Downloaded signature evidence for quote {item.quote_number}',
+                 ip_address=_client_ip(request), path=request.path)
+    response = HttpResponse(buf.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{item.quote_number}-signature-evidence.zip"'
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 # ---------------------------------------------------------------------------
