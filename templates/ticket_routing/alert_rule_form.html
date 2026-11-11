@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Alert rule — Ticket Routing{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="alerts" crumb="Alert rule" %}
+<h4 class="mb-3">{% if rule.pk %}Edit alert rule{% else %}New alert rule{% endif %}</h4>
+<form method="post" class="card"><div class="card-body row g-2 small">{% csrf_token %}
+    <div class="col-md-6"><label class="form-label">Name</label><input name="name" value="{{ rule.name }}" maxlength="200" class="form-control form-control-sm" required></div>
+    <div class="col-md-4"><label class="form-label">Customer</label><select name="organization" class="form-select form-select-sm"><option value="">Every customer</option>{% for o in organizations %}<option value="{{ o.pk }}" {% if rule.organization_id == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label">Priority</label><input type="number" name="priority" value="{{ rule.priority }}" class="form-control form-control-sm"></div>
+
+    <div class="col-12"><strong>Matches</strong> <span class="text-muted">(nothing ticked = any)</span></div>
+    <div class="col-md-3"><label class="form-label">Source</label>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="sources" value="rem0te" id="src1" {% if 'rem0te' in rule.conditions.sources %}checked{% endif %}><label class="form-check-label" for="src1">Rem0te</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="sources" value="rmm" id="src2" {% if 'rmm' in rule.conditions.sources %}checked{% endif %}><label class="form-check-label" for="src2">RMM sync</label></div></div>
+    <div class="col-md-5"><label class="form-label">Category</label><div class="d-flex flex-wrap gap-2">
+        {% for k, v in category_choices %}<div class="form-check"><input class="form-check-input" type="checkbox" name="categories" value="{{ k }}" id="cat-{{ k }}" {% if k in rule.conditions.categories %}checked{% endif %}><label class="form-check-label" for="cat-{{ k }}">{{ v }}</label></div>{% endfor %}</div></div>
+    <div class="col-md-2"><label class="form-label">Severity</label>
+        {% for k, v in severity_choices %}<div class="form-check"><input class="form-check-input" type="checkbox" name="severities" value="{{ k }}" id="sev-{{ k }}" {% if k in rule.conditions.severities %}checked{% endif %}><label class="form-check-label" for="sev-{{ k }}">{{ v }}</label></div>{% endfor %}</div>
+    <div class="col-md-2"><label class="form-label">Sites</label><input name="sites" value="{{ sites_text }}" class="form-control form-control-sm" placeholder="Comma-separated"></div>
+
+    <div class="col-12"><strong>Does</strong></div>
+    <div class="col-md-4"><label class="form-label">Action</label><select name="action" class="form-select form-select-sm">{% for k, v in action_choices %}<option value="{{ k }}" {% if rule.action == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label">Queue</label><select name="queue" class="form-select form-select-sm"><option value="">Policy default</option>{% for q in queues %}<option value="{{ q.pk }}" {% if rule.queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label">Priority (SLA)</label><select name="ticket_priority" class="form-select form-select-sm"><option value="">From severity</option>{% for p in priorities %}<option value="{{ p.pk }}" {% if rule.ticket_priority_id == p.pk %}selected{% endif %}>{{ p.code }} {{ p.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label">Type</label><select name="ticket_type" class="form-select form-select-sm"><option value="">Monitoring Alert</option>{% for t in ticket_types %}<option value="{{ t.pk }}" {% if rule.ticket_type_id == t.pk %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label">Technician</label><select name="assign_mode" class="form-select form-select-sm">{% for k, v in assign_choices %}<option value="{{ k }}" {% if rule.assign_mode == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label">Named technician</label><select name="assign_user" class="form-select form-select-sm"><option value="">—</option>{% for u in technicians %}<option value="{{ u.pk }}" {% if rule.assign_user_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label">Outside business hours</label><select name="after_hours" class="form-select form-select-sm">{% for k, v in after_hours_choices %}<option value="{{ k }}" {% if rule.after_hours == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label">Escalate after (min)</label><input type="number" min="0" name="escalate_after_minutes" value="{{ rule.escalate_after_minutes|default_if_none:'' }}" class="form-control form-control-sm"><div class="form-text">Blank = never</div></div>
+    <div class="col-md-3"><label class="form-label">…to priority</label><select name="escalation_priority" class="form-select form-select-sm"><option value="">Keep</option>{% for p in priorities %}<option value="{{ p.pk }}" {% if rule.escalation_priority_id == p.pk %}selected{% endif %}>{{ p.code }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label">…and queue</label><select name="escalation_queue" class="form-select form-select-sm"><option value="">Keep</option>{% for q in queues %}<option value="{{ q.pk }}" {% if rule.escalation_queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label">On recovery</label><select name="on_recovery" class="form-select form-select-sm">{% for k, v in recovery_choices %}<option value="{{ k }}" {% if rule.on_recovery == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_active" id="active" {% if rule.is_active or not rule.pk %}checked{% endif %}><label class="form-check-label" for="active">Active</label></div></div>
+    <div class="col-12 d-flex gap-2"><button class="btn btn-sm btn-primary">Save</button><a class="btn btn-sm btn-link" href="{% url 'ticket_routing:alerts' %}">Back</a>
+        {% if rule.pk %}<button name="delete" value="1" class="btn btn-sm btn-outline-danger ms-auto">Delete</button>{% endif %}</div>
+</div></form>
+{% endblock %}

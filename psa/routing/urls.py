@@ -1,10 +1,14 @@
 from django.urls import path
 
-from . import views
+from . import alert_views, views
 
 app_name = 'ticket_routing'
 
 urlpatterns = [
+    path('alerts/', alert_views.alerts, name='alerts'),
+    path('alerts/rules/new/', alert_views.alert_rule_form, name='alert_rule_new'),
+    path('alerts/rules/<int:pk>/', alert_views.alert_rule_form, name='alert_rule_edit'),
+    path('alerts/maintenance/', alert_views.alert_maintenance, name='alert_maintenance'),
     path('', views.overview, name='overview'),
     path('mode/', views.quick_mode, name='quick_mode'),
     path('customers/<int:org_id>/', views.customer_settings, name='customer'),

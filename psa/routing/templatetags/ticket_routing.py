@@ -21,7 +21,10 @@ def routing_ticket_panel(context, ticket):
     decisions = list(RoutingDecision.objects.filter(ticket_id=ticket.pk)
                      .select_related('rule_version', 'previous_assignee', 'new_assignee',
                                      'previous_queue', 'new_queue', 'decided_by')[:20])
-    return {'show': bool(decisions), 'decisions': decisions, 'ticket': ticket,
+    from ..alert_policy import links_for_ticket
+    alert_links = links_for_ticket(ticket)
+    return {'show': bool(decisions or alert_links), 'decisions': decisions, 'ticket': ticket,
+            'alert_links': alert_links[:10],
             'can_override': can_override(user), 'csrf_token': context.get('csrf_token'),
             'next': request.get_full_path() if request else ''}
 
