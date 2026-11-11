@@ -652,7 +652,15 @@ def organization_create(request):
 def organization_detail(request, org_id):
     """
     View organization details and members.
-    Only accessible to members of the organization.
+
+    Open to anyone who may open this customer (core.tenancy.
+    accessible_org_ids): superusers, MSP staff — whose reach is every
+    customer, with or without a global role or technician access
+    assignments — and members of the customer or of a parent customer.
+    Until the development branch after v3.17.659 only direct members and
+    superusers got in; MSP technicians were bounced to the list, which they
+    usually can't see either. Management buttons still follow the
+    membership role (or superuser) in the template.
     """
     org = get_object_or_404(Organization, id=org_id)
 
@@ -663,7 +671,9 @@ def organization_detail(request, org_id):
         is_active=True
     ).first()
 
-    if not membership and not request.user.is_superuser:
+    from core.tenancy import accessible_org_ids
+    allowed = accessible_org_ids(request)
+    if not (allowed is None or org.pk in allowed or membership is not None):
         messages.error(request, "You don't have access to this organization.")
         return redirect('accounts:organization_list')
 

@@ -27,6 +27,8 @@ urlpatterns = [
     # aging assets for one customer (core/customer_ops.py).
     path('customers/operations/', customer_ops_views.customer_ops_current, name='customer_ops_current'),
     path('customers/<int:org_id>/operations/', customer_ops_views.customer_ops, name='customer_ops'),
+    path('customers/<int:org_id>/operations/invoices/<int:invoice_id>/reminder/',
+         customer_ops_views.invoice_reminder, name='customer_ops_invoice_reminder'),
     path('customers/<int:org_id>/operations/<slug:section>/', customer_ops_views.customer_ops_section,
          name='customer_ops_section'),
     path('global-dashboard/', dashboard_views.global_dashboard, name='global_dashboard'),
