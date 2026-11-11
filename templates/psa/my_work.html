@@ -179,7 +179,7 @@ list's ?queue= filter, so every count below equals the list its link opens.
             </div>
             <div class="list-group list-group-flush">
                 {% for q in approvals %}
-                <div class="list-group-item py-2">
+                <div class="list-group-item py-2" data-approvals-queue="{{ q.key }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="small fw-semibold"><i class="fas {{ q.icon }} text-muted"></i> {{ q.label }} <span class="badge bg-secondary">{{ q.count }}</span></span>
                         <a href="{{ q.url }}" class="small text-decoration-none">Open queue</a>

@@ -10195,6 +10195,31 @@ def _my_work_approvals(request):
                 'url': reverse('psa:invoice_detail', args=[i.pk]),
             } for i in invoices[:5]],
         })
+
+    # RMM approvals (rmm_permissions.approvals): other technicians' requests
+    # this user qualifies to approve now. Only the customer, the kind of
+    # action and the requester are shown; the details stay on the page.
+    try:
+        from rmm_permissions import approvals as rmm_approvals
+        from rmm_permissions import catalog as rmm_catalog
+        from rmm_permissions.decision import is_technician
+        if request.user.is_superuser or is_technician(request.user):
+            waiting = [a for a in rmm_approvals.open_for(request.user).exclude(requester=request.user)[:50]
+                       if not rmm_approvals.refusal(a, request.user)]
+            if waiting:
+                rmm_url = reverse('rmm_permissions:approvals')
+                queues.append({
+                    'key': 'rmm', 'label': 'RMM approvals', 'icon': 'fa-user-shield',
+                    'count': len(waiting), 'url': rmm_url,
+                    'items': [{
+                        'title': (rmm_catalog.ACTIONS[a.action].label if a.action in rmm_catalog.ACTIONS
+                                  else a.action),
+                        'context': f'{a.organization.name} · asked by {a.requester.get_username()}',
+                        'when': a.created_at, 'url': rmm_url,
+                    } for a in waiting[:5]],
+                })
+    except Exception:  # noqa: BLE001 — a broken queue must not take My Work down
+        logger.debug('My Work: RMM approvals unavailable', exc_info=True)
     return queues
 
 

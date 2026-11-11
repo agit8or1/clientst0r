@@ -72,7 +72,56 @@ def request_approval(user, organization, action, device=None, ticket=None, diges
                                    device_label=label, ticket=ticket, digest=digest or '',
                                    summary=(summary or '')[:500], approval_level=d.approval_level)
     _audit(user, a, 'requested', request)
+    notify_approvers(a)
     return a
+
+
+APPROVER_CANDIDATES = 200
+
+
+def approvers_for(approval):
+    """The people who could approve `approval` now: active superusers and
+    MSP technicians other than the requester for whom `refusal` finds
+    nothing (fresh authentication is asked for when they approve)."""
+    from django.contrib.auth import get_user_model
+    from django.db.models import Q
+    from accounts.models import UserType
+    candidates = (get_user_model().objects.filter(is_active=True)
+                  .filter(Q(is_superuser=True) | Q(profile__user_type=UserType.STAFF))
+                  .exclude(pk=approval.requester_id).order_by('pk').distinct()[:APPROVER_CANDIDATES])
+    return [u for u in candidates if not refusal(approval, u)]
+
+
+def notify_approvers(approval):
+    """Tell each qualified approver by email that an approval is waiting.
+    The message names the customer, the kind of action and who asked, and
+    links to the approvals page; it never carries the digest, the summary or
+    anything else about the operation itself. In-app, My Work lists the
+    waiting approval (psa.views._my_work_approvals). Best effort: a mail
+    failure never stops the request."""
+    try:
+        from django.conf import settings as django_settings
+        from django.urls import reverse
+        from psa.notifications import _send_email
+        label = catalog.ACTIONS[approval.action].label if approval.action in catalog.ACTIONS else approval.action
+        base = getattr(django_settings, 'SITE_URL', '').rstrip('/')
+        url = f'{base}{reverse("rmm_permissions:approvals")}'
+        subject = f'[ClientSt0r] RMM approval waiting at {approval.organization.name}'
+        body = (f'{approval.requester.get_username()} asked for approval of an RMM action '
+                f'({label}) at {approval.organization.name}.\n\n'
+                f'Review it, after confirming your password, at {url}\n\n'
+                'Details are shown only on that page.')
+        sent = [u.get_username() for u in approvers_for(approval) if _send_email(u, subject, body)[0]]
+        from audit.models import AuditLog
+        AuditLog.log(user=None, action='update', organization=approval.organization, object_type='rmm_approval',
+                     object_id=approval.pk, object_repr=f'{approval.action} approval #{approval.pk}'[:255],
+                     description=f'RMM approval #{approval.pk}: {len(sent)} approver(s) notified',
+                     extra_data={'approval': approval.pk, 'event': 'approvers_notified', 'notified': sent})
+        return sent
+    except Exception:  # noqa: BLE001 — notification is best effort
+        import logging
+        logging.getLogger('rmm_permissions').exception('could not notify RMM approvers')
+        return []
 
 
 def qualifies(approver, organization, action, device, level) -> str:
