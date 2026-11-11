@@ -1,7 +1,7 @@
 """Alert → ticket policy (optional; off by default).
 
-Takes a monitoring alert — a signed Rem0te alert event, or an alert synced
-from another RMM provider — and decides, by data an administrator edits:
+Takes a monitoring alert — a signed Rem0te alert event, or an alert that
+another RMM provider synced — and decides, by data an administrator edits:
 
   * open a ticket, join an existing one (same device + same issue, or the
     device's open ticket), or only record it;
@@ -56,6 +56,11 @@ logger = logging.getLogger('psa.routing.alerts')
 # Sent after an alert's recovery has been handled (link, ticket). Receivers
 # (support workflows' outcome verification) must not raise.
 alert_recovered = Signal()
+# Sent (inside the transaction) when an alert got its ticket after intake —
+# released from a hold, joined to an outage. The Rem0te side listens to
+# record it on its alert row and link it back (psa/support_workflows/receivers.py);
+# routing itself never talks to an RMM.
+alert_ticket_opened = Signal()
 
 SEVERITY_PRIORITY = {'critical': 'P1', 'error': 'P2', 'warning': 'P3', 'info': 'P4'}
 SEVERITIES = ('info', 'warning', 'error', 'critical')
@@ -182,18 +187,6 @@ def _dt(value):
         return None
 
 
-def _verified_device(connection, external_id, organization_id):
-    """The connection's device for an RMM id, only when its customer is the
-    expected one and it is not under review. Never matched by name."""
-    if not external_id or organization_id is None:
-        return None
-    from integrations.models import RMMDevice
-    return (RMMDevice.objects.filter(connection=connection, external_id=external_id,
-                                     organization_id=organization_id,
-                                     ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
-            .exclude(link_status__in=[RMMDevice.LINK_REVIEW, RMMDevice.LINK_UNLINKED]).first())
-
-
 def _device_asset(device):
     if device is None:
         return None
@@ -225,12 +218,18 @@ def _patch_summary(raw):
     return out
 
 
-def from_rem0te(connection, alert: dict, sequence: int = 0) -> AlertFacts:
+def from_rem0te(connection, alert: dict, sequence: int = 0, device=None) -> AlertFacts:
     """A Rem0te alert (contract ticket-rmm-v1). The customer is the
-    connection's own; the device only through Rem0te's computer id."""
+    connection's own; `device` is the one the Rem0te intake matched by
+    Rem0te's computer id (never by name), and is dropped unless it is this
+    connection's, this customer's and not under review."""
     org = connection.organization
     endpoint = _text(alert.get('rem0te_endpoint_id'), 64)
-    device = _verified_device(connection, endpoint, connection.organization_id)
+    if device is not None and (device.connection_id != connection.pk
+                               or device.organization_id != connection.organization_id
+                               or device.external_id != endpoint
+                               or device.link_status in (device.LINK_REVIEW, device.LINK_UNLINKED)):
+        device = None
     title = _text(alert.get('title'), 300)
     site = _text(alert.get('site_name'), 128) or (device.site_name if device else '')
     state = alert.get('state') if alert.get('state') in ('open', 'acknowledged', 'resolved') else 'open'
@@ -610,7 +609,7 @@ def _join_incident(link, inc, reason):
     _set(link, DISP_OUTAGE, f'{reason} Recorded on {inc.ticket.ticket_number}.', ticket=inc.ticket, incident=inc,
          hold_reason='', hold_until=None)
     AlertIncident.objects.filter(pk=inc.pk).update(member_count=F('member_count') + 1)
-    _bind_rem0te_later(link)
+    _ticket_opened_later(link)
     return None
 
 
@@ -641,7 +640,7 @@ def _open_incident(link, f: AlertFacts, rule, s, now, why_rule, peers=(), source
         else:
             p.disposition, p.ticket, p.hold_reason, p.hold_until = DISP_OUTAGE, ticket, '', None
             p.reason = (p.reason + f' Part of site outage {ticket.ticket_number}.')[:4000]
-            _bind_rem0te_later(p)
+            _ticket_opened_later(p)
         p.save()
     listed = ', '.join(names[:50]) + (f' and {len(names) - 50} more' if len(names) > 50 else '')
     if names:
@@ -651,26 +650,15 @@ def _open_incident(link, f: AlertFacts, rule, s, now, why_rule, peers=(), source
                 incident=inc, hold_reason='', hold_until=None)
 
 
-def _bind_rem0te_later(link):
-    """A Rem0te alert that got its ticket after intake: record it on the
-    Rem0te alert row and link it back in Rem0te once committed. The link
-    grants nothing; it only shows the ticket on the alert."""
-    if link.source != AlertTicketLink.SOURCE_REM0TE or link.ticket is None:
+def _ticket_opened_later(link):
+    """An alert that got its ticket after intake: tell the intake side
+    (alert_ticket_opened) so it can record and link it back."""
+    if link.ticket is None:
         return
-    from psa_ai.models import Rem0teAlertTicket
-    Rem0teAlertTicket.objects.filter(connection=link.connection, alert_id=link.external_id,
-                                     ticket__isnull=True).update(ticket=link.ticket)
-
-    def _link():
-        try:
-            from integrations.rem0te import alerts
-            row = (Rem0teAlertTicket.objects.filter(connection_id=link.connection_id, alert_id=link.external_id)
-                   .select_related('ticket', 'connection').first())
-            if row is not None and row.ticket_id:
-                alerts.link(row)
-        except Exception:  # noqa: BLE001 — retried by the alert poller
-            logger.exception('linking Rem0te alert %s back failed', link.external_id)
-    transaction.on_commit(_link, robust=True)
+    try:
+        alert_ticket_opened.send(sender=AlertTicketLink, link=link, ticket=link.ticket)
+    except Exception:  # noqa: BLE001 — retried by the intake's own poller
+        logger.exception('alert_ticket_opened receivers failed for link %s', link.pk)
 
 
 # ---------------------------------------------------------------------------
@@ -822,7 +810,7 @@ def _release(link_id, now, s):
         _place(link, from_link(link), now, s, releasing=True)
         link.save()
         if link.ticket_id and link.disposition in (DISP_CREATED, DISP_ATTACHED):
-            _bind_rem0te_later(link)
+            _ticket_opened_later(link)
     return link
 
 
@@ -904,11 +892,11 @@ def tick(now=None, limit=500) -> dict:
 # Entry points for the intake paths
 # ---------------------------------------------------------------------------
 
-def rem0te_event(connection, event: dict):
+def rem0te_event(connection, event: dict, device=None):
     """Called by integrations/rem0te/alerts.py inside its dedup transaction
-    when the policy is on. Returns the ticket for the alert (or None: held,
-    suppressed, ignored)."""
-    f = from_rem0te(connection, event['alert'], event.get('sequence') or 0)
+    when the policy is on, with the device it matched. Returns the ticket for
+    the alert (or None: held, suppressed, ignored)."""
+    f = from_rem0te(connection, event['alert'], event.get('sequence') or 0, device=device)
     if not f.external_id:
         return None
     link = process(f)

@@ -711,7 +711,7 @@ class SafetyTests(TestCase):
     def test_routing_code_has_no_remote_or_endpoint_paths(self):
         import pathlib
         root = pathlib.Path(__file__).parent
-        imports = [line.strip().lower() for p in root.rglob('*.py') if p.name != 'tests.py'
+        imports = [line.strip().lower() for p in root.rglob('*.py') if not p.name.startswith('tests')
                    for line in p.read_text().splitlines()
                    if line.strip().startswith(('import ', 'from '))]
         self.assertTrue(imports)

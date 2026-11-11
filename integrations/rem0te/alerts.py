@@ -115,7 +115,7 @@ def _apply(connection, event):
             if policy is not None:
                 # Optional alert policy (psa/routing/alert_policy.py): recovery
                 # notes, and resolving a ticket only this alert opened.
-                policy.rem0te_event(connection, event)
+                policy.rem0te_event(connection, event, device=_policy_device(connection, alert))
         return 'applied', None, False
     row, created = Rem0teAlertTicket.objects.get_or_create(
         connection=connection, alert_id=alert['alert_id'],
@@ -124,7 +124,7 @@ def _apply(connection, event):
         # The policy decides: open, join an existing ticket, hold (offline /
         # site outage / after hours), suppress (maintenance) or record only.
         try:
-            ticket = policy.rem0te_event(connection, event)
+            ticket = policy.rem0te_event(connection, event, device=_policy_device(connection, alert))
         except policy.NotReady as e:
             raise NotReady(str(e))
         if created or (row.ticket_id is None and ticket is not None):
@@ -146,6 +146,43 @@ def _policy():
     except Exception:  # noqa: BLE001 — routing app absent
         return None
     return alert_policy if alert_policy.mode_active('rem0te') else None
+
+
+def _policy_device(connection, alert):
+    """The synced device for the alert's Rem0te computer id: this
+    connection's, this customer's, resolved and not under review. Never
+    matched by name."""
+    endpoint_id = _text(alert.get('rem0te_endpoint_id'), 64)
+    if not endpoint_id:
+        return None
+    from integrations.models import RMMDevice
+    return (RMMDevice.objects.filter(connection=connection, external_id=endpoint_id,
+                                     organization_id=connection.organization_id,
+                                     ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
+            .exclude(link_status__in=[RMMDevice.LINK_REVIEW, RMMDevice.LINK_UNLINKED]).first())
+
+
+def bind_policy_ticket(policy_link):
+    """The alert policy gave a Rem0te alert its ticket after intake (a hold
+    released, an outage joined): record it on the alert row and link it back
+    in Rem0te once committed. The link grants nothing; it only shows the
+    ticket on the alert."""
+    from psa_ai.models import Rem0teAlertTicket
+    if policy_link.ticket_id is None:
+        return
+    Rem0teAlertTicket.objects.filter(connection_id=policy_link.connection_id, alert_id=policy_link.external_id,
+                                     ticket__isnull=True).update(ticket_id=policy_link.ticket_id)
+
+    def _link():
+        try:
+            row = (Rem0teAlertTicket.objects
+                   .filter(connection_id=policy_link.connection_id, alert_id=policy_link.external_id)
+                   .select_related('ticket', 'connection').first())
+            if row is not None and row.ticket_id:
+                link(row)
+        except Exception:  # noqa: BLE001 — retried by the alert poller
+            logger.exception('linking Rem0te alert %s back failed', policy_link.external_id)
+    transaction.on_commit(_link, robust=True)
 
 
 def _device_asset(connection, endpoint_id):
