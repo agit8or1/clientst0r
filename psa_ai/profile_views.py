@@ -62,8 +62,28 @@ class ProfileForm(forms.ModelForm):
 class PolicyForm(forms.ModelForm):
     class Meta:
         model = AIBusinessPolicy
-        fields = ['analysis_enabled', 'compare_enabled', 'allowed_profiles', 'default_profile',
-                  'allow_technician_credentials', 'local_only', 'daily_budget_cents', 'history_retention_days']
+        fields = ['ai_excluded', 'analysis_enabled', 'compare_enabled', 'allowed_profiles', 'default_profile',
+                  'allow_technician_credentials', 'local_only', 'daily_budget_cents', 'monthly_budget_cents',
+                  'history_retention_days',
+                  # AI Troubleshoot
+                  'troubleshoot_enabled', 'primary_profile', 'secondary_profile', 'multi_model_enabled',
+                  'model_routing', 'troubleshoot_daily_runs', 'troubleshoot_technician_daily_runs',
+                  # Information-sharing rules
+                  'share_ticket_text', 'share_device_data', 'share_network_identifiers', 'share_contact_data',
+                  'share_kb_titles']
+
+    def clean(self):
+        c = super().clean()
+        allowed = set(c.get('allowed_profiles') or [])
+        for name in ('primary_profile', 'secondary_profile'):
+            p = c.get(name)
+            if p is not None and p not in allowed and p.credential_owner != AIModelProfile.OWNER_TECHNICIAN:
+                self.add_error(name, 'Choose one of the allowed profiles.')
+        if c.get('primary_profile') and c.get('primary_profile') == c.get('secondary_profile'):
+            self.add_error('secondary_profile', 'The secondary model must differ from the primary.')
+        if c.get('multi_model_enabled') and not (c.get('primary_profile') and c.get('secondary_profile')):
+            self.add_error('multi_model_enabled', 'Multi-model analysis needs a primary and a secondary model.')
+        return c
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
@@ -147,6 +167,13 @@ def policy(request, org_id):
         AuditLog.log(user=request.user, action='update', organization=org, object_type='ai_business_policy',
                      object_id=p.pk, object_repr=f'AI policy for {org.name}', description=f'AI policy for {org.name} saved',
                      extra_data={'analysis': p.analysis_enabled, 'compare': p.compare_enabled,
+                                 'excluded': p.ai_excluded, 'troubleshoot': p.troubleshoot_enabled,
+                                 'multi_model': p.multi_model_enabled, 'routing': p.model_routing,
+                                 'primary': p.primary_profile_id, 'secondary': p.secondary_profile_id,
+                                 'monthly_budget_cents': p.monthly_budget_cents,
+                                 'sharing': {'ticket_text': p.share_ticket_text, 'device_data': p.share_device_data,
+                                             'network_identifiers': p.share_network_identifiers,
+                                             'contact_data': p.share_contact_data, 'kb_titles': p.share_kb_titles},
                                  'local_only': p.local_only, 'budget_cents': p.daily_budget_cents,
                                  'history_retention_days': p.history_retention_days,
                                  'profiles': list(p.allowed_profiles.values_list('pk', flat=True))})
