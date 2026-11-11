@@ -298,6 +298,7 @@ class SearchAndContextTests(_Fixture):
         self.assertNotContains(r, 'WS bravo unassigned breach')
         self.assertNotContains(r, 'WS Bravo')
         self.assertNotContains(r, 'id="search-devices"')
+        self.assertNotContains(r, 'id="search-clients"')
 
     def test_new_session_resumes_the_last_client(self):
         RecentClient.objects.create(user=self.tech, organization=self.b, switched_at=timezone.now())

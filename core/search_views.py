@@ -201,9 +201,13 @@ def global_search(request):
             except Exception:
                 logger.debug('RMM device search skipped', exc_info=True)
 
-        # Clients the user may switch to (the client switcher's rule).
-        from core.client_switcher import authorized_organizations
-        take('clients', authorized_organizations(request).filter(name__icontains=query).order_by('name'))
+        # Clients the technician may switch to (the client switcher's rule).
+        # Staff only: a customer user's only "client" is their own company, and
+        # the results link to the staff Customer Operations page.
+        if staff_user:
+            from core.client_switcher import authorized_organizations
+            take('clients', authorized_organizations(request).filter(
+                name__icontains=query).order_by('name'))
 
         # Real total across categories, not the sum of the sliced lists.
         results['total_count'] = sum(results['counts'].values())
