@@ -1670,6 +1670,10 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Integrations from global view** *(shipped v3.17.662)*: in global view the
+  Integrations page explains that connections belong to an organization and
+  offers an organization picker, so the RMM, UniFi, Microsoft 365, Omada and
+  Grandstream Add buttons no longer bounce back.
 - **RMM page and invoice scoping** *(shipped v3.17.661)*: RMM pages are
   for MSP technicians only, deleting an RMM device is limited to the selected
   customer, admin-only and audited, and invoices, invoice PDFs and the client

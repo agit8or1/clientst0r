@@ -160,11 +160,25 @@ def integration_list(request):
 
     rows.sort(key=lambda r: (r['category'], r['name'].lower()))
 
+    # Global view has no organization, so the per-organization create pages
+    # (RMM, UniFi, M365, ...) would bounce straight back here. Offer a picker.
+    pick_orgs = []
+    if org is None:
+        from core.models import Organization
+        from psa.visibility import is_msp_staff
+        if request.user.is_superuser or is_msp_staff(request.user):
+            pick_orgs = list(Organization.objects.filter(is_active=True).order_by('name'))
+        else:
+            pick_orgs = [m.organization for m in request.user.memberships.filter(
+                is_active=True, organization__is_active=True).select_related('organization')]
+
     return render(request, 'integrations/integration_list.html', {
         'rows': rows,
         'search_query': search_q,
         'view_mode': view_mode,
         'counts': counts,
+        'no_organization': org is None,
+        'pick_orgs': pick_orgs,
     })
 
 

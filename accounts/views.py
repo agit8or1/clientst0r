@@ -48,6 +48,15 @@ def switch_organization(request, org_id):
     switch_session_org(request, org)
     messages.success(request, f"Switched to {org.name}")
 
+    # An explicit same-site ?next= (e.g. the Integrations page's organization
+    # picker) wins over the stay-on-page setting.
+    next_url = request.GET.get('next', '')
+    if next_url:
+        from django.utils.http import url_has_allowed_host_and_scheme
+        if (next_url.startswith('/') and not next_url.startswith('//')
+                and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()})):
+            return redirect(next_url)
+
     # Check if user wants to stay on current page
     from core.models import SystemSetting
     settings = SystemSetting.get_settings()
@@ -95,6 +104,15 @@ def switch_to_global_view(request):
     request.session.modified = True
 
     messages.success(request, "Switched to Global View")
+
+    # An explicit same-site ?next= (e.g. the Integrations page's organization
+    # picker) wins over the stay-on-page setting.
+    next_url = request.GET.get('next', '')
+    if next_url:
+        from django.utils.http import url_has_allowed_host_and_scheme
+        if (next_url.startswith('/') and not next_url.startswith('//')
+                and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()})):
+            return redirect(next_url)
 
     # Check if user wants to stay on current page
     from core.models import SystemSetting

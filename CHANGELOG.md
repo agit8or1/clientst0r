@@ -5,6 +5,14 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.662] - 2026-11-11
+
+### Fixed
+- **Adding RMM, UniFi, Microsoft 365, Omada and Grandstream connections from global view.**
+  - These connections belong to an organization. In global view (no organization selected) their Add buttons sent you straight back to Integrations with "Please select an organization first", and the list showed no connections.
+  - In global view, Integrations now says why and offers a **Choose organization** menu that returns you to the page with that organization selected.
+  - The organization switch link accepts a `next` address on this site; addresses on other sites are ignored.
+
 ## [3.17.661] - 2026-11-11
 
 ### Security
