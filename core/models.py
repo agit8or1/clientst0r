@@ -1162,6 +1162,8 @@ class ScheduledTask(models.Model):
         # and expires stale ones (OPTIONAL AI; nothing to do when unused).
         ('poll_analysis_jobs', 'Ticket AI Analysis Job Recovery (optional AI)'),
         ('run_migration_rehearsals', 'IT Glue / Hudu Migration Rehearsal Worker'),
+        ('agreement_reminders', 'Agreement Signature Reminders'),
+        ('kb_link_check', 'KB Dead Link Check'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1660,6 +1662,22 @@ class ScheduledTask(models.Model):
             'description': 'Run queued IT Glue / Hudu migration rehearsal work '
                            '(does nothing when nothing is queued)',
             'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Hourly so a new revision's first notice goes out promptly; each
+            # person is still mailed at most once per the agreement's interval.
+            'task_type': 'agreement_reminders',
+            'description': 'Issue pending agreement revisions and e-mail outstanding signers '
+                           '(throttled per person; respects e-mail opt-out)',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            'task_type': 'kb_link_check',
+            'description': 'Find dead links in published KB articles: internal links to missing or '
+                           'archived documents, and external links (SSRF-safe HEAD check)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
     ]

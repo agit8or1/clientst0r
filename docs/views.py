@@ -2454,6 +2454,34 @@ def kb_analytics(request):
     never_viewed_count = never_qs.count()
     never_viewed = list(never_qs.order_by('created_at')[:50])
 
+    # Least viewed: read at least once, fewest opens first (never-viewed has
+    # its own list). Portal lists cover customer-visible articles only.
+    least_viewed = list(base.annotate(
+        total_views=F('staff_view_count') + F('portal_view_count'),
+    ).filter(total_views__gt=0).order_by('total_views', 'last_viewed_at', 'title')[:20])
+    portal_base = base.filter(is_client_visible=True)
+    portal_most = list(portal_base.filter(portal_view_count__gt=0)
+                       .order_by('-portal_view_count', 'title')[:10])
+    portal_least = list(portal_base.order_by('portal_view_count', 'title')[:10])
+    portal_count = portal_base.count()
+
+    # Dead links (kb_link_check scheduler task; internal half re-runnable here).
+    from .kb_link_models import KBDeadLink, KBExternalLink
+    if request.method == 'POST' and request.POST.get('action') == 'recheck_internal':
+        from .services import link_check
+        counts = link_check.run(check_external=False)
+        messages.success(request, f'Checked {counts["documents"]} articles: {counts["internal_dead"]} '
+                                  f'dead internal links. External links are checked by the scheduler.')
+        return redirect('docs:kb_analytics')
+    dead_qs = KBDeadLink.objects.filter(document__in=base).select_related('document', 'document__organization')
+    dead_links = list(dead_qs.order_by('kind', 'document__title')[:200])
+    dead_count = dead_qs.count()
+    from core.models import ScheduledTask
+    last_link_check = (ScheduledTask.objects.filter(task_type='kb_link_check')
+                       .values_list('last_run_at', flat=True).first()
+                       or KBDeadLink.objects.aggregate(m=Max('last_seen_at'))['m'])
+    last_external_check = KBExternalLink.objects.aggregate(m=Max('last_checked_at'))['m']
+
     now = timezone.now()
     stale = []
     for d in base.filter(review_interval_days__gt=0).only(
@@ -2482,6 +2510,14 @@ def kb_analytics(request):
         'most_viewed': most_viewed,
         'never_viewed': never_viewed,
         'never_viewed_count': never_viewed_count,
+        'least_viewed': least_viewed,
+        'portal_most': portal_most,
+        'portal_least': portal_least,
+        'portal_count': portal_count,
+        'dead_links': dead_links,
+        'dead_count': dead_count,
+        'last_link_check': last_link_check,
+        'last_external_check': last_external_check,
         'stale': stale,
         'stale_count': stale_count,
         'zero_queries': zero_queries,
@@ -2559,6 +2595,22 @@ def document_export(request, slug, fmt):
     return _export_response(payload, filename, content_type, inline=inline)
 
 
+def _wants_customer_copy(request) -> bool:
+    return request.GET.get('audience') == 'customer'
+
+
+def _customer_copy_or_404(request, document):
+    """`?audience=customer`: export what the customer sees — only for
+    articles visible in the portal, with internal-only blocks removed."""
+    from django.http import Http404
+    from .services.document_export import customer_copy
+    if not _wants_customer_copy(request):
+        return document
+    if not document.is_client_visible:
+        raise Http404('This article is internal; it has no customer copy.')
+    return customer_copy(document)
+
+
 @login_required
 @require_staff_user
 def global_kb_export(request, slug, fmt):
@@ -2575,22 +2627,6 @@ def global_kb_export(request, slug, fmt):
 
     inline = fmt == 'html' and request.GET.get('inline') == '1'
     return _export_response(payload, filename, content_type, inline=inline)
-
-
-def _wants_customer_copy(request) -> bool:
-    return request.GET.get('audience') == 'customer'
-
-
-def _customer_copy_or_404(request, document):
-    """`?audience=customer`: export what the customer sees — only for
-    articles visible in the portal, with internal-only blocks removed."""
-    from django.http import Http404
-    from .services.document_export import customer_copy
-    if not _wants_customer_copy(request):
-        return document
-    if not document.is_client_visible:
-        raise Http404('This article is internal; it has no customer copy.')
-    return customer_copy(document)
 
 
 @login_required

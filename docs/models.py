@@ -782,3 +782,6 @@ class DiagramAnnotation(BaseModel):
 
 # Version-specific agreements (MSAs, SOWs, policy acknowledgments).
 from .agreement_models import Agreement, AgreementReminder, AgreementRevision, AgreementSignature  # noqa: E402,F401,E501
+
+# KB dead-link check results (kb_link_check scheduler task).
+from .kb_link_models import KBDeadLink, KBExternalLink  # noqa: E402,F401

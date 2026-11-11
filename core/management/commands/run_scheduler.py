@@ -54,6 +54,8 @@ COMMAND_TASKS = {
     'rmm_sync': ('sync_rmm', []),
     'poll_analysis_jobs': ('poll_analysis_jobs', []),
     'run_migration_rehearsals': ('run_migration_rehearsals', []),
+    'agreement_reminders': ('agreement_reminders', []),
+    'kb_link_check': ('kb_link_check', []),
 }
 
 
