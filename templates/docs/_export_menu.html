@@ -11,6 +11,12 @@ Params: url_name (a docs: URL name taking slug + format), slug.
         <li><a class="dropdown-item" href="{% url url_name slug 'docx' %}"><i class="fas fa-file-word fa-fw text-primary"></i> Word (.docx)</a></li>
         <li><a class="dropdown-item" href="{% url url_name slug 'md' %}"><i class="fas fa-hashtag fa-fw text-muted"></i> Markdown (.md)</a></li>
         <li><a class="dropdown-item" href="{% url url_name slug 'html' %}"><i class="fas fa-file-code fa-fw text-success"></i> HTML (print-ready)</a></li>
+        {% if document.is_client_visible %}
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-header">Customer copy (no internal notes)</h6></li>
+        <li><a class="dropdown-item" href="{% url url_name slug 'pdf' %}?audience=customer"><i class="fas fa-file-pdf fa-fw text-danger"></i> PDF</a></li>
+        <li><a class="dropdown-item" href="{% url url_name slug 'docx' %}?audience=customer"><i class="fas fa-file-word fa-fw text-primary"></i> Word (.docx)</a></li>
+        {% endif %}
         <li><hr class="dropdown-divider"></li>
         <li>
             <a class="dropdown-item" href="{% url url_name slug 'html' %}?inline=1" target="_blank" rel="noopener">

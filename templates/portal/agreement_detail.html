@@ -6,9 +6,17 @@
 <p class="text-muted small mb-3">{{ agreement.get_kind_display }} · version {{ rev.version_number }} · issued
     {{ rev.issued_at|date:"Y-m-d H:i" }} · SHA-256 <code>{{ rev.content_hash|slice:":16" }}…</code></p>
 
-<div class="card mb-3"><div class="card-body agreement-body">{{ rev.rendered_html|safe }}</div></div>
+{% if rev.is_file %}
+<div class="card mb-3"><div class="card-body">
+    <p class="mb-1"><i class="fas fa-file me-1"></i><strong>{{ rev.file_name }}</strong> <span class="text-muted small">{{ rev.file_size|filesizeformat }} · SHA-256 <code>{{ rev.file_sha256|slice:":16" }}…</code></span></p>
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'portal:agreement_file' rev.pk %}"><i class="fas fa-download"></i> Download version {{ rev.version_number }}</a>
+</div></div>
+{% endif %}
+{% if rev.rendered_html %}<div class="card mb-3"><div class="card-body agreement-body">{{ rev.rendered_html|safe }}</div></div>{% endif %}
 
-{% if needs %}
+{% if needs and not may_sign %}
+<div class="alert alert-info">Version {{ rev.version_number }} needs to be {{ agreement.verb_past }} by {{ signer_text }}.</div>
+{% elif needs %}
 <div class="card mb-3">
     <div class="card-header"><strong>{% if agreement.mode == 'signature' %}Sign version {{ rev.version_number }}{% else %}Acknowledge version {{ rev.version_number }}{% endif %}</strong></div>
     <form method="post" id="sign-form">
@@ -44,7 +52,7 @@
     </form>
 </div>
 {% else %}
-<div class="alert alert-success">Version {{ rev.version_number }} is {{ agreement.verb }}d{% if agreement.audience == 'one' %} for {{ organization.name }}{% endif %}.</div>
+<div class="alert alert-success">Version {{ rev.version_number }} is {{ agreement.verb_past }}{% if agreement.audience == 'one' %} for {{ organization.name }}{% endif %}.</div>
 {% endif %}
 
 {% if signatures %}

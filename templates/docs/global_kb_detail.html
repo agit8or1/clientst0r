@@ -2,6 +2,15 @@
 
 {% block title %}{{ document.title }} - Global KB{% endblock %}
 
+{% block extra_css %}
+<style>
+.kb-internal { border-left: 4px solid var(--bs-warning, #f0ad4e); background: rgba(240, 173, 78, .08);
+    padding: .5rem .75rem; margin: .75rem 0; border-radius: .25rem; }
+.kb-internal::before { content: "Internal only — not shown to customers"; display: block;
+    font-size: .75rem; font-weight: 600; text-transform: uppercase; opacity: .75; margin-bottom: .25rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -10,7 +19,8 @@
     </ol>
 </nav>
 
-<div class="d-flex justify-content-end mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>{% if document.is_client_visible %}<span class="badge bg-info text-dark" title="Every portal user can read it once it is live">External · portal</span>{% else %}<span class="badge bg-secondary" title="Not shown in the customer portal">Internal</span>{% endif %}</div>
     <div class="d-flex gap-2">
         {% include "docs/_export_menu.html" with url_name='docs:global_kb_export' slug=document.slug %}
         {% if can_edit_doc %}

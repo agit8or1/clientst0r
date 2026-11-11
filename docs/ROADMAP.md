@@ -72,6 +72,14 @@ A mature PSA covers sales-pipeline-to-invoice. Currently we have quotes; we need
 - **Configurable wallboards.** Multi-named per-org boards, widget grid sourced from the v3.17.142 widget registry, per-wallboard refresh + per-widget override, NOC-TV rotation mode *(shipped v3.17.211; Chart.js + nav + screenshots v3.17.212; drag-to-reorder widgets v3.17.215; global / cross-tenant overview boards v3.17.216; selectable category dropdown on widgets v3.17.217; categories on tickets/revenue/at-risk sources v3.17.218; in-form widget add/delete + starter templates v3.17.220; 9 new operations / monitoring widget sources + Monitoring template v3.17.224)*
 - Sales-activity timeline per org/lead (calls, emails, meetings logged) *(5.3 — shipped v3.17.155)*
 - Commission rules engine + per-tech commission report *(5.2 — shipped v3.17.153)*
+- **Quote signatures bound to the exact quote revision** *(in progress — on the development branch, not yet released)* —
+  extends quote e-signature: the signature records a SHA-256 of the quote as
+  signed (number, client, description, validity, tax rate, lines, totals) with
+  a canonical JSON copy and the quote PDF the customer saw. A sign page left
+  open while the quote changed cannot sign the new content; a signed quote
+  cannot be edited (create a new quote); the quote page shows whether the
+  signature still matches, and staff download a hash-verifiable evidence ZIP.
+  Signatures made before this have no fingerprint and lock nothing.
 - Lead capture from web form / IMAP / API *(5.3 — web + API shipped v3.17.155; IMAP poller stubbed, full implementation deferred to 5.4 follow-up)*
 
 ## Phase 6 — ITIL maturity **— complete**
@@ -483,8 +491,26 @@ Planned capabilities:
 - Article ownership *(shipped v3.17.245 — `Document.owner` FK defaults to `created_by`)*
 - SOP workflows (links the KB to step-by-step Process executions)
 - Review reminders (article hasn't been reviewed in 90 days → email owner) *(shipped v3.17.245 — `kb_review_reminders` management command + `Document.review_interval_days` / `last_reviewed_at` / `is_review_overdue` + `/docs/review-queue/` view + `mark-reviewed` endpoint)*
-- Internal / external KB separation *(partial — `is_client_visible` shipped)*
-- KB analytics (most-viewed, least-viewed, dead links) *(partial — `Document.portal_view_count` shipped v3.17.234)*
+- Internal / external KB separation *(partial — `is_client_visible` shipped; rest in progress — on the development branch, not yet released)* —
+  publishers set **Visible in customer portal** (and **Featured in portal**) on the
+  document and global KB editors, and every article shows an Internal or
+  External badge. Inside a customer-visible article, technician-only notes go in
+  an internal block (`<div class="kb-internal">`, or `:::internal` … `:::` in
+  Markdown): highlighted for staff, removed from the portal article page (now
+  rendered sanitised), portal search and service-request KB suggestions,
+  customer-copy exports (`?audience=customer`, single article or ZIP; internal
+  articles have none) and agreement snapshots. The REST and GraphQL APIs report
+  the visibility flag (read-only).
+- KB analytics (most-viewed, least-viewed, dead links) *(partial — `Document.portal_view_count` shipped v3.17.234; most viewed / never viewed shipped v3.17.605; least viewed, portal most/least read and dead links in progress — on the development branch, not yet released)* —
+  the KB analytics page adds least-viewed articles, the most and least read
+  customer-visible articles in the portal, and a dead-link list: internal links
+  to missing, archived or unpublished documents (or from a customer-visible
+  article to an internal one), and external links that fail a HEAD check. The
+  check runs daily from the scheduler (**KB Dead Link Check**) through the
+  outbound SSRF guard — only public web addresses on ports 80/443 are fetched,
+  every redirect hop is re-validated, each URL at most weekly and 200 per run;
+  links to private addresses are recorded as not checked. Staff can re-run the
+  internal half from the page.
 - Public knowledge publishing (selected articles → public URL)
 - Documentation lifecycle management (draft → published → archived) *(model fields shipped v3.17.245 — `is_draft`, `published_at`; full pipeline is v2)*
 - Linked SOP automation (KB article triggers a workflow run)
@@ -1828,8 +1854,15 @@ Know what's missing, why it matters and who owns the fix.
   revision that needs a new signature; earlier revisions and their
   hash-verifiable evidence stay downloadable. Portal users sign only for their
   own customer; staff see who signed which version and who is outstanding.
-  Uploaded-file documents as agreements, signer-role limits and reminder
-  e-mails are planned.
+  Uploaded-file documents can be agreements: each revision binds to the
+  file's SHA-256 and keeps a copy of the exact file, which is in the evidence
+  ZIP. Signer-role limits choose who may sign for the customer (any portal
+  user, the customer's org admins, or named people). Reminder e-mails go to
+  outstanding signers when a new revision needs signing or acknowledging —
+  hourly scheduler task **Agreement Signature Reminders**, at most once per
+  the agreement's interval and five times per revision, skipping people who
+  turned off e-mail notifications. Revisions are issued on save, publish or
+  reopen and by that scheduler task, never by a page view.
 
 ## Phase 54 — Guided customer service requests **(L)** [shipped — v3.17.656]
 

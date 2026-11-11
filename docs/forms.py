@@ -9,8 +9,15 @@ class DocumentForm(forms.ModelForm):
     class Meta:
         model = Document
         fields = ['title', 'body', 'content_type', 'file', 'category', 'is_published', 'is_template', 'is_archived', 'tags',
-                  'owner', 'review_interval_days', 'requires_approval']
+                  'owner', 'review_interval_days', 'requires_approval',
+                  'is_client_visible', 'is_featured_in_portal']
+        labels = {
+            'is_client_visible': 'Visible in customer portal',
+            'is_featured_in_portal': 'Featured in portal',
+        }
         widgets = {
+            'is_client_visible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_featured_in_portal': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'owner': forms.Select(attrs={'class': 'form-select'}),
             'review_interval_days': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'requires_approval': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -32,6 +39,10 @@ class DocumentForm(forms.ModelForm):
             'owner': 'Responsible for keeping this document current; receives review reminders.',
             'review_interval_days': 'Days between reviews. 0 turns review reminders off.',
             'requires_approval': 'Every edit takes the document offline until it is submitted for review and approved.',
+            'is_client_visible': 'External: customers can read it in the portal once it is live. Off = internal '
+                                 'only. Keep technician-only notes inside an external article in a '
+                                 '"kb-internal" block (Markdown: :::internal … :::).',
+            'is_featured_in_portal': 'Pin to the top of the portal knowledge base.',
         }
 
     def __init__(self, *args, **kwargs):
@@ -52,6 +63,12 @@ class DocumentForm(forms.ModelForm):
         if not self.can_publish:
             self.fields.pop('is_published', None)
             self.fields.pop('requires_approval', None)
+        # Customer-portal visibility is a publishing decision too. Forms that
+        # do not render these boxes (no `kb_visibility_shown` marker) leave
+        # the saved values alone instead of clearing them.
+        if not self.can_publish or (self.is_bound and 'kb_visibility_shown' not in self.data):
+            self.fields.pop('is_client_visible', None)
+            self.fields.pop('is_featured_in_portal', None)
 
         from django.db.models import Q
         from .permissions import eligible_owners

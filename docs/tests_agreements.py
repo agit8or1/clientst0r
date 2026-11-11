@@ -212,10 +212,14 @@ class AgreementTests(TestCase):
                     f'/docs/lifecycle/agreements/revisions/{sig.revision_id}/'):
             self.assertNotEqual(self.portal.get(url).status_code, 200, url)
 
-    def test_global_and_file_documents_cannot_be_agreements(self):
-        self.doc.content_type = 'file'
+    def test_global_and_fileless_documents_cannot_be_agreements(self):
+        self.doc.content_type = 'file'  # an uploaded-file document with no file
         with self.assertRaises(agreements.AgreementError):
             agreements.make_agreement(self.doc, self.staff)
+        kb = Document.objects.create(title='Global', slug='global', body='x', is_global=True,
+                                     created_by=self.staff)
+        with self.assertRaises(agreements.AgreementError):
+            agreements.make_agreement(kb, self.staff)
 
     # --- staff view ------------------------------------------------------------
 

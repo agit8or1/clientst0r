@@ -48,6 +48,7 @@
     <div class="card-header"><strong>Sign &amp; accept</strong></div>
     <form method="post" id="sign-form">
         {% csrf_token %}
+        <input type="hidden" name="content_hash" value="{{ content_hash }}">
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
@@ -74,7 +75,8 @@
                 </div>
                 <div class="col-12 small text-muted">
                     By clicking <strong>Accept &amp; Sign</strong> you agree to the terms of this quote and
-                    authorize the work above. Your IP address, browser, and signature are recorded.
+                    authorize the work above. Your IP address, browser, and signature are recorded, together
+                    with a fingerprint of exactly this version of the quote (SHA-256 <code>{{ content_hash|slice:":16" }}…</code>).
                 </div>
             </div>
         </div>

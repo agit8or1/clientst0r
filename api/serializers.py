@@ -107,10 +107,14 @@ class DocumentSerializer(OrganizationScopedSerializerMixin):
             'id', 'organization', 'organization_name',
             'title', 'slug', 'body', 'content_type', 'category',
             'is_published', 'is_template', 'is_archived',
+            'is_client_visible', 'is_featured_in_portal',
             'tags', 'tag_ids', 'created_at', 'updated_at',
             'created_by', 'created_by_name'
         ]
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'created_by']
+        # Portal visibility is set in the web UI (a publishing decision); the
+        # API reports it so integrations can tell internal from external.
+        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'created_by',
+                            'is_client_visible', 'is_featured_in_portal']
 
 
 class PasswordListSerializer(serializers.ModelSerializer):

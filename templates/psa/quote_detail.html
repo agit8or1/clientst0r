@@ -91,6 +91,18 @@
                     ({{ item.signature.signed_by_email }}) on {{ item.signature.signed_at|date:'Y-m-d H:i' }}
                     {% if item.signature.ip_address %}<br><small class="text-muted">IP {{ item.signature.ip_address }}</small>{% endif %}
                 </p>
+                {% if item.signature.is_bound %}
+                <p class="mb-0 mt-1 small">
+                    Signed revision SHA-256 <code>{{ item.signature.content_hash|slice:":16" }}…</code>
+                    {% if signature_checks.current and signature_checks.content and signature_checks.evidence and signature_checks.pdf %}<span class="badge bg-success">matches this quote</span>
+                    {% elif not signature_checks.current %}<span class="badge bg-warning text-dark">signed an earlier revision</span>
+                    {% else %}<span class="badge bg-danger">verification failed</span>{% endif %}
+                    · <a href="{% url 'psa:quote_signature_evidence' item.pk %}">download evidence</a>
+                    <br><small class="text-muted">Signed quotes are locked: lines, totals and terms cannot be edited.</small>
+                </p>
+                {% else %}
+                <p class="mb-0 mt-1 small text-muted">Signed before signatures were bound to a quote revision; no content fingerprint was recorded.</p>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

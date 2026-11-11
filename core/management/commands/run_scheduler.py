@@ -56,6 +56,8 @@ COMMAND_TASKS = {
     'run_migration_rehearsals': ('run_migration_rehearsals', []),
     'send_security_digests': ('send_security_digests', []),
     'psa_purge_secure_replies': ('psa_purge_secure_replies', []),
+    'agreement_reminders': ('agreement_reminders', []),
+    'kb_link_check': ('kb_link_check', []),
 }
 
 

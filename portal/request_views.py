@@ -49,15 +49,15 @@ def suggest_kb_articles(organization, *texts, limit=5):
     terms = _terms(*texts)
     if not terms:
         return []
+    from docs.kb_visibility import client_body_matches
     qs = portal_kb_queryset(organization)
     title_q = Q()
-    body_q = Q()
     for t in terms:
         title_q |= Q(title__icontains=t)
-        body_q |= Q(body__icontains=t)
     picked = list(qs.filter(title_q).order_by('-portal_view_count', '-updated_at')[:limit])
     if len(picked) < limit:
-        more = (qs.filter(body_q).exclude(pk__in=[d.pk for d in picked])
+        # Body matches count only on what the customer can see (no internal-only blocks).
+        more = (qs.filter(pk__in=client_body_matches(qs, terms)).exclude(pk__in=[d.pk for d in picked])
                 .order_by('-portal_view_count', '-updated_at')[:limit - len(picked)])
         picked.extend(more)
     return picked

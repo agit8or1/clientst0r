@@ -13,12 +13,8 @@
 
 <div class="card">
     <div class="card-body">
-        {# Render the body — content_type can be 'html' or 'markdown'. Trust the staff-published content. #}
-        {% if article.content_type == 'markdown' %}
-            {{ article.body|linebreaksbr }}
-        {% else %}
-            {{ article.body|safe }}
-        {% endif %}
+        {# Sanitised render with internal-only blocks removed (Document.render_for_client). #}
+        {{ article_html|safe }}
     </div>
 </div>
 {% endblock %}

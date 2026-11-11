@@ -1166,6 +1166,8 @@ class ScheduledTask(models.Model):
         # customer contacts; Phase 12: erase secure ticket replies past retention.
         ('send_security_digests', 'Security Alert Weekly Digest (customer contacts)'),
         ('psa_purge_secure_replies', 'Erase Expired Secure Ticket Replies'),
+        ('agreement_reminders', 'Agreement Signature Reminders'),
+        ('kb_link_check', 'KB Dead Link Check'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1679,6 +1681,22 @@ class ScheduledTask(models.Model):
             'task_type': 'psa_purge_secure_replies',
             'description': 'Erase the text of secure ticket replies whose retention period has ended',
             'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Hourly so a new revision's first notice goes out promptly; each
+            # person is still mailed at most once per the agreement's interval.
+            'task_type': 'agreement_reminders',
+            'description': 'Issue pending agreement revisions and e-mail outstanding signers '
+                           '(throttled per person; respects e-mail opt-out)',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            'task_type': 'kb_link_check',
+            'description': 'Find dead links in published KB articles: internal links to missing or '
+                           'archived documents, and external links (SSRF-safe HEAD check)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
     ]

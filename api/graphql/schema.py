@@ -93,7 +93,7 @@ class DocumentType(DjangoObjectType):
         fields = (
             'id', 'title', 'slug', 'body', 'content_type', 'is_published',
             'is_draft', 'is_template', 'is_archived', 'is_global', 'organization',
-            'created_at', 'updated_at',
+            'is_client_visible', 'created_at', 'updated_at',
         )
 
 

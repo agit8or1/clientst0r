@@ -4,6 +4,12 @@
 
 {% block extra_css %}
 <style>
+/* Internal-only blocks inside a customer-visible article (docs/kb_visibility.py):
+   shown to staff, removed from everything a customer receives. */
+.kb-internal { border-left: 4px solid var(--bs-warning, #f0ad4e); background: rgba(240, 173, 78, .08);
+    padding: .5rem .75rem; margin: .75rem 0; border-radius: .25rem; }
+.kb-internal::before { content: "Internal only — not shown to customers"; display: block;
+    font-size: .75rem; font-weight: 600; text-transform: uppercase; opacity: .75; margin-bottom: .25rem; }
 /* Issue #144 — printing this page straight from the browser drops the app
    chrome and every decorative fill, so the document itself is what lands on
    paper. The standalone HTML export carries the same rules. */
@@ -31,12 +37,14 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>{{ document.title }}</h1>
+    <h1>{{ document.title }}
+        {% if document.is_client_visible %}<span class="badge bg-info text-dark fs-6 align-middle" title="Customers of this organization can read it in the portal once it is live">External · portal</span>
+        {% else %}<span class="badge bg-secondary fs-6 align-middle" title="Not shown in the customer portal">Internal</span>{% endif %}</h1>
     <div class="d-flex gap-2 doc-actions">
         {% if document.content_type != 'file' %}
         {% include "docs/_export_menu.html" with url_name='docs:document_export' slug=document.slug %}
         {% endif %}
-        {% if has_write_permission and document.organization_id and not document.is_global and document.content_type != 'file' %}
+        {% if has_write_permission and document.organization_id and not document.is_global %}
         <a href="{% url 'docs:agreement_manage' document.pk %}" class="btn btn-outline-primary" title="Signatures and acknowledgments, per version">
             <i class="fas fa-file-signature"></i> Agreement
         </a>

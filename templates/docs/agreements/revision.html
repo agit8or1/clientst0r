@@ -16,6 +16,8 @@
             · <a href="{% url 'docs:agreement_revision_snapshot' rev.pk 'html' %}">download HTML</a></dd>
         {% if rev.pdf_hash %}<dt class="col-sm-3">PDF SHA-256</dt><dd class="col-sm-9"><code>{{ rev.pdf_hash }}</code> {% if checks.pdf %}<span class="badge bg-success">verified</span>{% else %}<span class="badge bg-danger">mismatch</span>{% endif %}
             · <a href="{% url 'docs:agreement_revision_snapshot' rev.pk 'pdf' %}">download PDF</a></dd>{% endif %}
+        {% if rev.is_file %}<dt class="col-sm-3">File SHA-256</dt><dd class="col-sm-9"><code>{{ rev.file_sha256 }}</code> {% if checks.file %}<span class="badge bg-success">verified</span>{% else %}<span class="badge bg-danger">mismatch</span>{% endif %}
+            · {{ rev.file_name }} ({{ rev.file_size|filesizeformat }}) · <a href="{% url 'docs:agreement_revision_snapshot' rev.pk 'file' %}">download file</a></dd>{% endif %}
     </dl>
 </div></div>
 <div class="card mb-3"><div class="card-header"><strong>Signatures and acknowledgments</strong></div>
@@ -30,5 +32,5 @@
         {% empty %}<tr><td colspan="4" class="text-muted">None for this version.</td></tr>{% endfor %}</tbody>
     </table></div>
 </div>
-<div class="card"><div class="card-header"><strong>As issued</strong></div><div class="card-body">{{ rev.rendered_html|safe }}</div></div>
+{% if rev.rendered_html %}<div class="card"><div class="card-header"><strong>As issued</strong></div><div class="card-body">{{ rev.rendered_html|safe }}</div></div>{% endif %}
 {% endblock %}
