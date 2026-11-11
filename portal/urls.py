@@ -32,6 +32,7 @@ urlpatterns = [
     # Knowledge base for portal users
     path('kb/', views.kb_list, name='kb_list'),
     path('kb/<slug:slug>/', views.kb_detail, name='kb_detail'),
+    path('kb/<slug:slug>/download/', views.kb_download, name='kb_download'),
     # Vault access for portal users
     path('vault/', views.vault_list, name='vault_list'),
     path('vault/<int:pk>/reveal/', views.vault_reveal, name='vault_reveal'),
