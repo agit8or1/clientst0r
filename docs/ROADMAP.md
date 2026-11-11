@@ -298,7 +298,7 @@ Planned capabilities:
 **Roadmap item:** Advanced Procurement & Asset Lifecycle Management. Extends Phase 4 (Procurement) + the asset lifespan tracking already shipped.
 
 Planned capabilities:
-- Serial lifecycle tracking *(partial — serial capture shipped v3.17.149)*
+- Serial lifecycle tracking *(partial — serial capture shipped v3.17.149)* *(in progress — on the development branch, not yet released: per-serial history kept per customer — received on a PO, assigned to / removed from an asset, moved between customers, RMA opened / sent / replaced / refunded / closed, replacement received, and returned / retired / disposed / notes recorded by a technician; shown on the asset's Serial history tab and searchable by serial at `/assets/serials/`; `assets_backfill_serial_history` seeds history for receipts, assets and RMAs recorded earlier)*
 - Warranty expiration tracking *(shipped v3.17.254 — `assets_warranty_alerts` management command emails per-org digests with 7-day per-asset cooldown; configurable warning window via `--days N`)*
 - Vendor inventory checks (live stock from distributor APIs) *(shipped v3.17.272 — `/integrations/distributors/stock-check/` fans out `?sku=` to every active DistributorConnection's `check_stock()` + `get_pricing()` so a buyer can compare live qty + unit price across Ingram / Pax8 / SYNNEX in one shot)*
 - Procurement approval workflows *(shipped — Phase 4.1 PR/PO)*

@@ -52,6 +52,10 @@ urlpatterns = [
     path('rma/<int:pk>/', views.rma_detail, name='rma_detail'),
     path('rma/<int:pk>/transition/', views.rma_transition, name='rma_transition'),
 
+    # Phase 13 — serial lifecycle history
+    path('serials/', views.serial_search, name='serial_search'),
+    path('<int:pk>/serial-events/add/', views.asset_serial_event_add, name='asset_serial_event_add'),
+
     # Custom fields and custom asset types (v3.17.621)
     path('custom-fields/', views_custom.custom_field_list, name='custom_field_list'),
     path('custom-fields/new/', views_custom.custom_field_form, name='custom_field_create'),

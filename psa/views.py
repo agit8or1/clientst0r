@@ -6624,14 +6624,17 @@ def _maybe_create_assets_from_serials(line, serials, receipt, user):
         return
     org = line.po.client_org or line.po.organization
     for sn in serials:
-        # Skip duplicates
-        if Asset.objects.filter(serial_number=sn).exists():
+        # Skip a serial this customer already has an asset for. Scoped to the
+        # customer: another customer's asset with the same serial is not a
+        # duplicate here (and must not be revealed by skipping).
+        if Asset.objects.filter(organization=org, serial_number=sn).exists():
             continue
         try:
             Asset.objects.create(
                 organization=org,
                 name=f'{line.description} ({sn})'[:200],
                 serial_number=sn,
+                created_by=user if getattr(user, 'is_authenticated', False) else None,
                 notes=f'Auto-created from PO {line.po.po_number} receipt #{receipt.pk}',
                 # status default; let model defaults handle the rest
             )
@@ -6700,10 +6703,18 @@ def po_receive(request, pk):
                 serials_raw = (request.POST.get(f'serials_line_{line.pk}') or '').strip()
                 serials = [s.strip() for s in serials_raw.replace('\n', ',').split(',') if s.strip()]
 
-                POReceiptLine.objects.create(
+                receipt_line = POReceiptLine.objects.create(
                     receipt=receipt, po_line=line,
                     quantity_received=qty, serial_numbers=serials,
                 )
+                # Phase 13: serial lifecycle — the first event of each unit.
+                if serials:
+                    from assets import serial_lifecycle
+                    for sn in serials:
+                        serial_lifecycle.record(
+                            po.client_org or po.organization, sn, 'received',
+                            purchase_order=po, receipt_line=receipt_line, actor=request.user,
+                            notes=f'{po.po_number}: {line.description}'[:500])
                 # Roll up cumulative
                 line.received_quantity = (line.received_quantity or Decimal('0')) + qty
                 line.save(update_fields=['received_quantity'])

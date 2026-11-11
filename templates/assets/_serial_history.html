@@ -1,0 +1,72 @@
+{# Phase 13 — serial lifecycle history for one asset. Context: asset, serial_history, serial_manual_events #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h6 class="mb-0">Serial history{% if asset.serial_number %} — <code>{{ asset.serial_number }}</code>{% endif %}</h6>
+        <small class="text-muted">Received on a PO, assigned, moved, RMA, returned, retired or disposed.</small>
+    </div>
+    {% if asset.serial_number %}
+    <a href="{% url 'assets:serial_search' %}?q={{ asset.serial_number|urlencode }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-search"></i> Search this serial
+    </a>
+    {% endif %}
+</div>
+
+{% if serial_history %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+    <thead>
+        <tr><th>When</th><th>Event</th><th>Serial</th><th>Details</th><th>By</th></tr>
+    </thead>
+    <tbody>
+    {% for ev in serial_history %}
+        <tr>
+            <td class="text-nowrap small">{{ ev.occurred_at|date:"Y-m-d H:i" }}</td>
+            <td><span class="badge {% if ev.event_type == 'disposed' or ev.event_type == 'retired' %}bg-dark{% elif ev.event_type|slice:':4' == 'rma_' %}bg-warning text-dark{% elif ev.event_type == 'received' or ev.event_type == 'replacement_received' %}bg-success{% else %}bg-secondary{% endif %}">{{ ev.get_event_type_display }}</span></td>
+            <td><code>{{ ev.serial_number }}</code></td>
+            <td class="small">
+                {% if ev.purchase_order %}PO {{ ev.purchase_order.po_number }}{% endif %}
+                {% if ev.rma %}<a href="{% url 'assets:rma_detail' ev.rma.pk %}">RMA {{ ev.rma.rma_number|default:ev.rma.pk }}</a>{% endif %}
+                {% if ev.asset and ev.asset.pk != asset.pk %}<a href="{% url 'assets:asset_detail' ev.asset.pk %}">{{ ev.asset.name }}</a>{% elif not ev.asset and ev.asset_name %}{{ ev.asset_name }} (deleted){% endif %}
+                {% if ev.notes %}<div class="text-muted">{{ ev.notes|linebreaksbr }}</div>{% endif %}
+            </td>
+            <td class="small">{% if ev.actor %}{{ ev.actor.get_full_name|default:ev.actor.username }}{% else %}—{% endif %}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No history recorded for this serial yet.{% if not asset.serial_number %} Add a serial number to the asset to start tracking it.{% endif %}</p>
+{% endif %}
+
+{% if asset.serial_number %}
+<form method="post" action="{% url 'assets:asset_serial_event_add' asset.pk %}" class="card bg-body-tertiary border-0">
+    {% csrf_token %}
+    <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-end small">
+        <div>
+            <label class="form-label small mb-0" for="serial-event-type">Record</label>
+            <select name="event_type" id="serial-event-type" class="form-select form-select-sm">
+                {% for code, label in serial_manual_events %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label small mb-0" for="serial-event-date">Date</label>
+            <input type="date" name="occurred_on" id="serial-event-date" class="form-control form-control-sm">
+        </div>
+        <div class="flex-grow-1">
+            <label class="form-label small mb-0" for="serial-event-notes">Notes</label>
+            <input type="text" name="notes" id="serial-event-notes" maxlength="2000" class="form-control form-control-sm"
+                   placeholder="e.g. Wiped and sent to e-waste vendor, certificate #123">
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">Record</button>
+    </div>
+</form>
+{% endif %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    if (window.location.hash === '#serial-history') {
+        var btn = document.getElementById('serial-history-tab');
+        if (btn && window.bootstrap) { window.bootstrap.Tab.getOrCreateInstance(btn).show(); }
+    }
+})();
+</script>
