@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0083_existing_installs_follow_main'),
+        ('core', '0084_alter_scheduledtask_task_type'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
