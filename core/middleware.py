@@ -56,9 +56,28 @@ class CurrentOrganizationMiddleware:
                             if request.user.memberships.filter(organization=pref, is_active=True).exists():
                                 preferred_org = pref
 
+                # No preference: carry on in the client this user last worked
+                # in (core.RecentClient), so a new session doesn't drop them
+                # into an arbitrary first client and make them pick again.
+                # Access is re-checked here, exactly like the session value.
+                recent_org = None
+                if not preferred_org and not global_view_mode:
+                    from .models import RecentClient
+                    for rc in (RecentClient.objects.filter(user=request.user, organization__is_active=True)
+                               .select_related('organization').order_by('-switched_at')[:5]):
+                        if request.user.is_superuser or request.is_staff_user or (
+                                hasattr(request.user, 'memberships') and request.user.memberships.filter(
+                                    organization=rc.organization, is_active=True).exists()):
+                            recent_org = rc.organization
+                            break
+
                 if preferred_org and not global_view_mode:
                     request.current_organization = preferred_org
                     request.session['current_organization_id'] = preferred_org.id
+                    request.session.modified = True
+                elif recent_org is not None:
+                    request.current_organization = recent_org
+                    request.session['current_organization_id'] = recent_org.id
                     request.session.modified = True
                 elif request.user.is_superuser or request.is_staff_user:
                     # Skip auto-select if in global view mode

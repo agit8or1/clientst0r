@@ -17,12 +17,21 @@ from . import help_views
 from . import client_switcher
 from . import customer_ops_views
 from . import modules_views
+from . import workspace
 
 app_name = 'core'
 
 urlpatterns = [
     path('clients/switcher-search/', client_switcher.client_switcher_search, name='client_switcher_search'),
     path('dashboard/', dashboard_views.dashboard, name='dashboard'),
+    # Technician workspace (core/workspace.py): open a device in its customer's
+    # context, return from it, saved list views, recent devices.
+    path('open/<slug:kind>/<int:pk>/', workspace.open_device, name='open_device'),
+    path('context/return/', workspace.context_return, name='context_return'),
+    path('views/save/', workspace.saved_view_save, name='saved_view_save'),
+    path('views/<int:pk>/default/', workspace.saved_view_default, name='saved_view_default'),
+    path('views/<int:pk>/delete/', workspace.saved_view_delete, name='saved_view_delete'),
+    path('recent-devices.json', workspace.recent_devices_json, name='recent_devices_json'),
     # Customer operations: SLA risks, uptime, renewals, overdue invoices,
     # aging assets for one customer (core/customer_ops.py).
     path('customers/operations/', customer_ops_views.customer_ops_current, name='customer_ops_current'),
