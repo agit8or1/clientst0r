@@ -500,7 +500,10 @@ Planned capabilities:
   rendered sanitised), portal search and service-request KB suggestions,
   customer-copy exports (`?audience=customer`, single article or ZIP; internal
   articles have none) and agreement snapshots. The REST and GraphQL APIs report
-  the visibility flag (read-only).
+  the visibility flag (read-only). Uploaded-file articles that are customer
+  visible download from the portal article page (scoped to the customer or
+  global, audited; internal articles 404) *(in progress — on the development
+  branch, not yet released)*.
 - KB analytics (most-viewed, least-viewed, dead links) *(partial — `Document.portal_view_count` shipped v3.17.234; most viewed / never viewed shipped v3.17.605; least viewed, portal most/least read and dead links in progress — on the development branch, not yet released)* —
   the KB analytics page adds least-viewed articles, the most and least read
   customer-visible articles in the portal, and a dead-link list: internal links
@@ -1557,6 +1560,11 @@ are built on top of them.
   `/files/`, `/monitoring/` and `/integrations/`, in search, dashboards,
   GraphQL, the mobile API and the navbar; upgrading switches the monitoring
   and integrations flags on for every existing role so nobody loses access
+  *(in progress — on the development branch, not yet released)*. `files_upload`
+  and `files_delete` are checked on photo/attachment upload and delete (web
+  and mobile), vehicle photo lists follow `files_view`, and RMM data on asset
+  and ticket pages follows `integrations_view` (or RMM device access);
+  upgrading switches upload and delete on for every role that has `files_view`
   *(in progress — on the development branch, not yet released)*.
 - **Protected file downloads** *(shipped v3.17.600)* — every uploaded file is
   served through an authenticated view that checks the record it belongs to,
@@ -1570,7 +1578,10 @@ are built on top of them.
   `rotate_encryption_key` and `check_secrets_storage` commands.
 - **LDAP / Active Directory sign-in** *(shipped v3.17.608)* — optional, with
   test connection, required and staff groups; mapping directory groups to
-  customer memberships is *(planned)*.
+  customer memberships, applied at sign-in and re-checked by a throttled
+  background sync (removal without signing in again, sessions trimmed, skips
+  and reports when the directory is unreachable) *(in progress — on the
+  development branch, not yet released)*.
 - **Website-down alerts, complete webhook events, receipt AI gate**
   *(shipped v3.17.609)*; ticket, contact and invoice webhook events
   (`ticket.created` / `ticket.updated` / `ticket.status_changed`,
@@ -2216,7 +2227,10 @@ ticket's customer, access or SLA clock.
 - **60.6 Site conditions** *(in progress — on the development branch, not yet released)*: tickets carry an optional site (one of the customer's
   own or shared locations), filled at intake from the asset's site, the requester
   contact's or portal user's default site, or the customer's only site, and editable
-  on the ticket (optionally remembered as the requester's default). Routing rules and
+  on the ticket (optionally remembered as the requester's default). The portal
+  new-ticket form has a site picker (the customer's own active sites, preselecting
+  the user's default) and staff set contacts' and portal users' default sites on
+  one page. Routing rules and
   the visual builder match on specific sites or on "has a site / has none"; a site from
   another customer is a review error. Routing still never changes the customer, access,
   SLA or the site.
