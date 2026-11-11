@@ -1716,6 +1716,15 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Integrations from global view** *(shipped v3.17.662)*: in global view the
+  Integrations page explains that connections belong to an organization and
+  offers an organization picker, so the RMM, UniFi, Microsoft 365, Omada and
+  Grandstream Add buttons no longer bounce back.
+- **RMM page and invoice scoping** *(shipped v3.17.661)*: RMM pages are
+  for MSP technicians only, deleting an RMM device is limited to the selected
+  customer, admin-only and audited, and invoices, invoice PDFs and the client
+  account page need `billing_view_invoices` for the billed customer, including
+  when no customer is selected.
 - **Reveal, sign-in and audit-retention hardening** *(shipped v3.17.660)* — the
   customer portal's password reveal honours the approval requirement, access
   rules and the shared reveal rate limit, and shows nothing when its audit
@@ -2270,6 +2279,94 @@ a time.
   to documents or to assets with custom fields. All through the same plan,
   review, apply, rollback and report.
 
+## Phase 62 — Pluggable document editors **(L · documents)** [planned]
+
+Edit Word, Excel and PowerPoint files attached to documentation, KB articles
+and assets in the browser, through an editor the MSP chooses. Today documents
+use the built-in editor only, and the Microsoft 365 connection reads tenant
+data without editing files.
+
+- **62.1 Editor framework** *(planned)* — one interface for opening, saving
+  and locking a file through an external editor. Each file keeps its version
+  history, and every save is audited. Off until an editor is configured;
+  switched on per installation, with per-customer opt-out.
+- **62.2 ONLYOFFICE Docs (self-hosted)** *(planned)* — first editor. Uses the
+  Document Server's signed (JWT) editor config and save callbacks. The
+  Document Server fetches files through short-lived, single-file download
+  links. Real-time co-editing when the server allows it.
+- **62.3 Collabora Online (self-hosted)** *(planned)* — WOPI host endpoints
+  (CheckFileInfo, GetFile, PutFile, locks) with per-file, per-user access
+  tokens that expire.
+- **62.4 Microsoft 365 for the web** *(planned)* — optional connector. Files
+  are opened in Word, Excel or PowerPoint Online through the customer's or the
+  MSP's tenant; needs consent to write files, separate from the read-only
+  Microsoft 365 connection.
+- **62.5 Google Docs** *(planned)* — optional connector. Open a copy in
+  Google Drive, then import the edited file back as a new version; files are
+  never left shared in Drive.
+- **62.6 Permissions and customer boundaries** *(planned)* — opening a file
+  in an editor follows the same view and edit permissions as the document it
+  belongs to. Editor tokens are limited to one file and one user. Customer
+  portal users can edit only files shared to the portal, and only when the
+  MSP allows it.
+
+**Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
+Microsoft 365 and Google Docs 1–2 weeks each.
+
+## Phase 63 — RMM integration and technician workspace **(XL · RMM)** [in progress]
+
+One place for a technician to see a customer's devices, alerts and tickets,
+act on them within their permission level, and leave a record of what was
+done. Builds on Phase 56 (ticket AI and RMM handoff), Phase 57 (technician
+security levels) and Phase 52 (technician workspace).
+
+- **63.1 Rem0te contract revision 2** *(in progress — on the development branch, not yet released)* — Ed25519 request and delegation
+  keys with overlapping rotation, the contract revision negotiated per
+  connection (revision 1 still accepted), each organization bound to its own
+  Rem0te business, containment pauses shown as Degraded, and undeliverable
+  events recorded and re-applied later. One connection status everywhere
+  (Connected, Degraded, Disconnected, Authentication Problem, Configuration
+  Required), a setup wizard with Test connection, and a reconciliation job
+  with backoff. Tested against a real Rem0te 0.30.1 (99/102; job-across-restart
+  case pending R11). Extends 56.7 and 56.8.
+- **63.2 Technician workspace and navigation** *(in progress — on the development branch, not yet released)* — recent devices, saved
+  views with default filters on dense lists (assets, RMM alerts, routing
+  triage, invoices, timesheet approvals), open-in-context links and
+  setup guidance on empty pages. Extends Phase 52 and Phase 58.
+- **63.3 Device Workspace** *(in progress — on the development branch, not yet released)* — one page per device with stored RMM data,
+  each fact's source and age, and an explicit "not supported by this RMM"
+  where a provider has no such field. Per-provider field maps, opt-in service
+  lists (Tactical RMM) and a rate-limited Refresh from RMM.
+- **63.4 Ticket RMM panel** *(in progress — on the development branch, not yet released)* — affected devices on a ticket (same customer
+  only), device health and history, read-only diagnostics, result notes and
+  verify-then-close.
+- **63.5 AI Troubleshoot** **OPTIONAL AI** *(in progress — on the development branch, not yet released)* — gated by `psa_ai_enabled` and
+  off per customer until switched on. Sharing rules per customer, runbook and
+  KB matching, an installation-wide monthly cap and an optional command
+  allowlist. Suggested commands are shown as text only and never run.
+- **63.6 Alert-to-ticket policy** *(in progress — on the development branch, not yet released)* — rules, maintenance windows, site
+  outage grouping and recovery notes for Rem0te and synced RMM alerts. Off
+  (legacy one ticket per alert) until an administrator switches it on.
+- **63.7 One-click support workflows** *(in progress — on the development branch, not yet released)* — guided evidence, likely causes,
+  remediation the connected RMM advertises (with approval) or manual steps,
+  and recovery confirmed by monitoring. Structured editor, JSON kept as an
+  advanced view. Routing a ticket never starts a remote session or authorizes
+  an endpoint action.
+- **63.8 L1 / L2 / L3 RMM permission levels** *(in progress — on the development branch, not yet released)* — one server-side decision
+  for every RMM action, built-in level templates, per-customer and per-action
+  overrides, second-person approvals with approver e-mail, and level changes
+  that need a second administrator. Extends Phase 57.
+- **63.9 Technician UX and accessibility** *(in progress — on the development branch, not yet released)* — sidebar entries for the new
+  pages, named controls and visible focus on technician pages, checked at
+  phone and tablet widths.
+- **63.10 Tests and coordination** *(in progress — on the development branch, not yet released)* — unit and browser tests per part, a
+  cross-peer run against a real Rem0te, and a shared coordination record
+  (`INTEGRATION_COORDINATION.md`) with the Rem0te project.
+
+**Sizing:** **XL** — ten parts across integrations, assets, PSA, AI and
+permissions; interoperability with Rem0te is claimed only for what both
+applications have passed end to end.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2332,6 +2429,8 @@ a time.
 | 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals implemented (unreleased); LTS planned | updater, root helper (release signing key), Docker entrypoint |
 | 60 — Optional ticket routing | M | in progress (unreleased) | extends the workflow engine (Phase 14), email routing rules, service catalog, dispatch |
 | 61 — One-customer migration rehearsals | M | in progress (unreleased) | extends the IT Glue / Hudu importers and import rollback; scheduler |
+| 62 — Pluggable document editors | L | planned | documents and file attachments; optional Microsoft 365 / Google connectors |
+| 63 — RMM integration and technician workspace | XL | in progress (unreleased) — Rem0te revision 2 tested against Rem0te 0.30.1 (99/102) | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

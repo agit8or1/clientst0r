@@ -279,3 +279,339 @@ detect G1/G2. Not run on 2026-11-11.
 | rem0te 0.30.0 | `fixtures/signed-alert-event.raised.json` and `fixtures/fixture-alert-signing-key.pub.pem` removed (replaced by `examples/`) | ClientSt0r's vendored copy and `FixtureVectorTests` once re-vendored (G8) |
 | rem0te 0.30.1 | Connect from Rem0te's portal needs step-up; the password is no longer in the Connect response | No contract change. ClientSt0r only deep-links to Rem0te; no effect on ClientSt0r code |
 | ClientSt0r (unreleased) | Rem0te pairings are Ed25519 only; HMAC Rem0te pairings are switched off by migration 0037 and must be re-paired | Existing HMAC Rem0te pairings on released ClientSt0r (none interoperated with Rem0te, per Rem0te's own measurement) |
+
+## 11. 2026-11-11 — Phase 1: Rem0te revision 2 on ClientSt0r
+
+Folded in from `docs/plans/coordination/phase1-integration.md` (the file is kept).
+
+Branch `dev/rmm-p1-integration` (from `47c30b72`). Peer: Rem0te `4b2b9f5cbe093b99563b9332ba3bdf9dded88720`
+(v0.30.1, contract `ticket-rmm-v1` revision 2). Nothing was released, tagged, pushed or deployed.
+
+### Contract revision implemented
+
+- **Revision 2**, pinned in `integrations/rem0te/contract/PIN.json` (`contract_revision: 2`, `rem0te_version:
+  0.30.1`, `rem0te_sha: 4b2b9f5c…`; the previous pin, revision 1 at `1bff01a4`, is kept under `previous`).
+- `contract/` is Rem0te's `docs/contracts/ticket-rmm-v1` at that SHA, copied verbatim (schemas, fixtures,
+  `examples/` with the TEST-ONLY keys, `CLIENTST0R.md`, `clientst0r-interop.json`).
+- **Revision 1 stays supported.** Its four schemas that revision 2 changed (capabilities, alert, alert-event,
+  signed-alert-event) and the fixtures 0.30.0 removed are kept under `contract/rev1/`.
+- **Negotiation.** `/capabilities` is validated against revision 2, then 1 (`schema.errors_from_peer`). A
+  `contract_revision` that is not a positive integer, or `organizations` without a revision, is
+  `CONTRACT_MISMATCH`. The revision Rem0te declared and the revision it validated against are stored on the
+  check.
+- **Unknown fields (pending R2).** ClientSt0r accepts unknown fields only when Rem0te declares a revision newer
+  than 2, as the contract says ("revisions only add fields"). It logs them, stores their paths on the check
+  (`unknown_fields`) and shows a warning. Rem0te documents at revision 1 or 2 must match their schema exactly.
+  Alert events follow the same rule.
+
+### Gaps closed
+
+| Gap | What changed |
+|---|---|
+| G1 | The revision-2 capabilities schema is pinned; revision 1 is kept. Rem0te 0.30.1's capabilities now pair (s1 in the E2E below). |
+| G2 | The revision-2 alert schema includes `patch_summary`. An authentic event ClientSt0r cannot apply is recorded as skipped (`Rem0teAlertEvent.applied=False`, with the reason) and acknowledged with 200, so the cursor and Rem0te's push retries move on. It shows on the connection's health, sets a re-check flag, and reconciliation applies it again after the next good check. Events in the feed that name another peer or organization are recorded as foreign and never applied. |
+| G3 | `contract_revision` is read and validated. A revision above 2 is accepted with a logged warning (policy above). |
+| G4/G5 | Only this organization's own `organizations[]` entry is used. Pause state is shown as **Degraded (containment)**. A job refused with 423 `CONTAINED` fails once, with a fixed message, and is not retried. A proposal refused with `CONTAINED` becomes `unavailable` (`remote_status CONTAINED`), not "rejected". The refusal clears once a check shows the pause lifted. |
+| G6 | `patch_summary` is validated against the pinned `patch-summary` schema, stored on `Rem0teAlertTicket.patch_summary`, written into the ticket description and refreshed by update events. |
+| G7 | `organizations[].business_id` is compared with the connection's business pin (`rem0te_business_id`, or the inventory key's `ticket_rmm_tenant_id`). A mismatch is `BUSINESS_MISMATCH`: pairing stops and the status is Configuration Required. With no pin yet, the first good check pins it (trust on first use). |
+| G8 | The tests use Rem0te's `examples/` byte vectors. Request signatures are reproduced byte for byte with the TEST-ONLY keys. Delegations are checked with `req_sha256` over canonical JSON, event signatures with domain separation, and the inference response signature over the request nonce. Every example validates against the pinned schemas. Tests that used the removed fixtures now read `contract/rev1/`. |
+| G9 | Key rotation now overlaps. *Stage* creates the next request and delegation keys and lists them in the peers-file entry alongside the current ones; the current keys keep signing. *Switch* promotes them, and *Discard* drops them. Every step is audited. The one-step hard rotation still exists and clears any staged keys. |
+| G10 | The E2E pins the new SHA. s1 checks revision 2 and the binding; s8 checks the health states and backoff; the new s11 covers the technician probe, the containment pause, patch summary and reconciliation. |
+| G11 | No other customer's business id, name or organization id is stored; only `organizations_count` is kept. |
+
+Also part of Phase 1:
+
+- **One status everywhere.** Every connection shows one of Connected, Degraded, Disconnected, Authentication
+  Problem or Configuration Required (`integrations/rem0te/health.py`). The state comes from the stored check
+  plus per-area issues on the connection's `IntegrationSyncHealth` row, `kind='rem0te'`. That row is now
+  unique per (object, kind), so the inventory-sync `rmm` row stays separate.
+- **Issue areas.** inbound_auth, events, alerts_poll, alerts_gap, ticket_link, jobs, actions and technician.
+  Each issue carries a message and what to do, and is cleared by the next success in its area.
+- **Where the status appears.** The integration list badge, the RMM detail page, and the wizard.
+- **Reconciliation** (`integrations/rem0te/reconcile.py`). The `poll_analysis_jobs` scheduler task runs it
+  every minute; `manage.py rem0te_reconcile [--check]` runs it by hand. Capabilities are re-checked hourly.
+  After failures the re-check waits 1, 2, 4 … minutes, capped at one hour; with the re-check flag set it runs
+  at once. Each run also re-applies skipped events, polls missed alert events and gaps, retries ticket links
+  and refreshes open proposals.
+- **Expired approvals.** A proposal still `awaiting_approval` 10 minutes past its window, while Rem0te cannot
+  be read, is shown as expired.
+- **Setup wizard** (Settings → RMM · Rem0te, superusers only). It covers the identity and keys (including
+  staged rotation), the peers-file entry, and per connection the status, a checklist and **Test connection**.
+  Test connection runs the signed check plus a technician probe and writes an audit entry. The checklist
+  covers keys, identity, approval, tested, network, auth, clock, contract, capabilities, organization,
+  business, containment, technicians and profiles. Against a revision-1 Rem0te the business row reads "Not
+  supported by the connected Rem0te".
+
+### Rem0te requests
+
+R1–R10 from the coordination audit still stand. Two notes from this phase:
+
+- **R2 (unknown fields).** The interim policy above is implemented and covered by tests. ClientSt0r would drop
+  the tolerance branch once Rem0te publishes per-revision schemas or lets a peer declare its revision.
+- **R3 (technician probe).** The wizard learns whether a technician is mapped from a delegated
+  `GET /jobs/00000000-0000-4000-8000-000000000000`. Rem0te checks the actor before the job, so the answer is
+  404 when the technician is mapped and 403 with a reason when not. This relies on observed behaviour, not on a
+  documented contract. It spends one delegation `jti` and reads nothing. A documented probe is still requested.
+- **R4 (pause reason).** ClientSt0r does not store or show the free-text `Reason:` from 423 / 403 `CONTAINED`
+  bodies anywhere; it uses a fixed message instead.
+
+- **R11 (new): inference retry budget.** Rem0te 0.30.1's worker retries a `GATEWAY_UNREACHABLE` model run 3
+  times (`MAX_RUN_ATTEMPTS = 3`), about 13 seconds in all. It then ends the job `ALL_PROFILES_FAILED`. If a
+  ClientSt0r restart takes longer than that, every job queued during the restart fails for good. Request:
+  keep retrying a transient gateway failure until the job expires, or for a configurable window (as alert
+  delivery already does).
+
+### E2E results
+
+`scripts/e2e/cross_peer/` was run against the real Rem0te: a copy of `4b2b9f5cbe093b99563b9332ba3bdf9dded88720`
+(v0.30.1) built locally, on its own scratch Postgres and Redis. ClientSt0r ran from this branch on a
+throwaway SQLite database.
+
+- **Baseline** (branch base `47c30b72`, unchanged code): s1 failed with "Check pairing org-1: paired — its
+  capabilities do not match the pinned schema (contract_revision: unknown field; organizations: unknown
+  field)". That is G1 confirmed; the run was stopped there.
+- **This branch, full run: 99 passed, 3 failed** (Rem0te `4b2b9f5c…`; pinned `4b2b9f5c…`).
+  - s1: revision 2; each organization bound to its own business by id; the binding matches; nothing about
+    the other customer is stored; status Connected.
+  - s4, s6: alert tickets, same computer name across customers.
+  - s7: revoked mapping.
+  - s8: Disconnected with what to do; backoff; recovery through reconciliation.
+  - s9, s10: L1 limits, failure reasons.
+  - s11, all passed:
+    - Test connection and the technician probe, mapped and unmapped.
+    - Containment pause: reported for one business only and shown as Degraded. A job fails at once with
+      `CONTAINED`, is not resent, and the pause reason is stored nowhere. After the pause is lifted the
+      status is Connected.
+    - A real REBOOT_PENDING alert: its `patch_summary` was stored, is valid against the pinned schema and
+      shows on the ticket, with the asset matched by Rem0te id.
+    - Reconciliation ran for both connections.
+  - **s5 failed (3 checks):** "the analysis job submitted during the outage completed", "one terminal result"
+    and "one model call". Rem0te ended the job `ALL_PROFILES_FAILED` after its 3 `GATEWAY_UNREACHABLE`
+    attempts (14:09:28, :32 and :41). ClientSt0r's `runserver` on this loaded shared machine answered again
+    only at 14:09:56. Rem0te's worker retry code is the same at `1bff01a4` and `4b2b9f5c`; this is the
+    restart-timing dependency described in R11, not a contract difference. The other s5 checks passed:
+    exactly one alert ticket after push retries and polling, and every event acknowledged.
+- **Partial run (s1, s2, s11): 53 passed, 0 failed.** This was the run in which s11's posture heartbeat was
+  corrected to the signed channel; Rem0te ignores `patchPosture` on any other channel.
+
+Interoperability is therefore shown for everything above except the s5 job-across-a-ClientSt0r-restart case.
+Action proposals under a pause are covered by unit tests only: the harness's technicians cannot propose
+actions in Rem0te.
+
+## 12. 2026-11-11 — Phase 8: RMM permission API
+
+Folded in from `docs/plans/coordination/phase8-permissions.md` (the file is kept).
+
+Branch `dev/rmm-p8-roles`. App: `rmm_permissions`. For agents building the Rem0te protocol, the device
+workspace and ticket panel, alert workflows and AI: **call this API for every RMM action**.
+
+### What existed before Phase 8
+
+| Area | State before | Phase 8 |
+|---|---|---|
+| `tech_access` presets L1/L2/L3 (per-customer assignments, explicit denies, customer restrictions, containment, two-admin protected changes, "why" page) | Shipped. Gated the ticket RMM panel (handoff, diagnostics, remote, fix referral) through `tech_access.resolver.decide` | Kept, unchanged. One input to the new decision: grants, blocks and the customer scope |
+| `RoleTemplate` flags | Shipped, but nothing about RMM tiers | `rmm_tier` added (default `''`). Four new built-in templates |
+| Platform administrator role | Missing. Superuser stood in | Built-in **Platform Administrator** template (tier `platform_admin`) |
+| High-impact RMM work (scripts, patches, device administration, automation) | Missing | Actions in the catalog. They need second-person approval |
+| Per-org / per-action allow, deny and require-approval overrides | Missing. `tech_access` had per-capability denies and restrictions only | `RMMPermissionOverride` |
+| Second-person approval of RMM operations | Missing in ClientSt0r. Rem0te has its own | `RMMApproval` |
+| Audit of every allow and deny | Partial: only requests that were created | `rmm_action()` audits every allow and deny |
+| Composition with a Rem0te refusal | Partial: each path handled it by hand | `record_remote_refusal()` |
+
+### The API
+
+```python
+from rmm_permissions import can, rmm_action, require, record_remote_refusal, RMMPermissionDenied
+from rmm_permissions.approvals import request_approval, approve, reject
+
+d = can(user, organization, 'patch.deploy', device=rmm_device, ticket=None)   # pure, no audit: for rendering
+d = rmm_action(user, organization, 'patch.deploy', device=rmm_device, digest=op_digest, request=request)
+if d.permitted_now:            # same as bool(d)
+    ...do it...
+elif d.allowed and d.needs_approval:
+    request_approval(user, organization, 'patch.deploy', device=rmm_device, digest=op_digest, summary='...')
+else:
+    refuse(d.reason)
+# after the paired RMM answers:
+if rem0te_refused:
+    d = record_remote_refusal(d, user, organization, code=r.code, message=r.message, request=request)
+```
+
+The `Decision` fields:
+
+- `allowed`: the actor may do this, or may ask for it.
+- `needs_approval` and `approval_level`: a second person must approve before it runs. Levels: `peer`, `l3` or `platform_admin`.
+- `permitted_now`: allowed and, if needed, approved. `rmm_action` consumed a matching approval and set `approval_id`.
+- `grant`: `allowed`, or `request` (the paired RMM grants the session itself, as for remote view and control).
+- `reason`: the human answer.
+- `source`: what decided it: `tier:l2`, `tech_access`, `legacy:<flag>`, `override:<pk>`, `tenant`, `rem0te` and so on.
+- `rem0te_scope`: the ticket-rmm-v1 delegation scope used for this action. `''` means synced data with no delegation. `None` means Rem0te has no route for it.
+- `steps`: the chain behind the decision (layer, effect, detail, decisive). The effective-permissions pages render it.
+- `as_dict()`: the same, as a dict.
+
+Rules for callers:
+
+- Use `can()` to show or hide buttons. Call `rmm_action()` (or `require()`) **immediately before acting**, on the server, every time. It re-reads every row, so demotion, revocation and new denies apply to the next call, queued jobs included.
+- Pass the `device` (an `integrations.RMMDevice`, or an `assets.Asset`) and the `ticket` whenever there is one. That is how the tenant checks, the workstation-only limits, the own-ticket limits and the Rem0te-route checks happen.
+- Pass a `digest` of the exact operation (for example sha256 of the canonical payload) both to `request_approval` and to `rmm_action`. An approval only matches the same requester, customer, action, device and digest, and it is used once.
+- After Rem0te or another RMM refuses, call `record_remote_refusal`. **Its refusal always wins**: do not retry around it.
+- When you refuse for a reason of your own (for example, the RMM doesn't advertise the feature), call `audit_denial(user, organization, action, reason, device=..., request=...)`. That way every denied RMM action is in the audit log.
+
+### Action keys
+
+The catalog is `rmm_permissions/catalog.py`. `tech_access` capability = the preset capability also consulted. Rem0te = the ticket-rmm-v1 scope, `''` = no delegation needed, none = no Rem0te route (refused on Rem0te-managed devices).
+
+| Key | L1 | L2 | L3 | tech_access | Rem0te |
+|---|---|---|---|---|---|
+| device.view, alert.view | yes | yes | yes | — | `''` |
+| diagnostics.view | yes | yes | yes | — | none |
+| remote.request_support | request | request | request | remote_view | none |
+| remediation.request_low | yes | yes | yes | fix_request_low | actions:propose |
+| rmm.handoff | — | yes | yes | rmm_handoff | none |
+| diagnostics.run | — | workstations | yes | diagnostics_readonly | none |
+| workflow.run_approved | — | yes | yes | — | none |
+| remote.request_control | — | request | request | remote_control | none |
+| script.run_scoped | — | only by an approved allow override; approval l3 | approval peer | — | none |
+| patch.deploy | — | workstations, approval l3 | approval peer | — | none |
+| diagnostics.run_advanced | — | — | yes | diagnostics_advanced | none |
+| remediation.request_high, remediation.refer | — | — | yes | fix_request_high / fix_refer | actions:propose |
+| remote.request_elevation | — | — | request | elevation | none |
+| device.administer, automation.deploy | — | — | approval peer | — | none |
+| credential.reveal | only with the vault reveal permission at that customer; no tier or override grants it | | | — | none |
+| integration.configure, policy.manage, security.settings, audit.review | Platform Administrator only (legacy: integrations_configure, superuser, audit_view) | | | — | — |
+
+Locked (never available): `shell.unrestricted`, `tenant.all_access`, `approval.self`, `endpoint.approve`.
+
+ClientSt0r invents no Rem0te scopes. The only ones it uses are Rem0te's own `ticket_analysis:submit`, `ticket_analysis:read`, `actions:propose` and `actions:read` (`integrations/rem0te/protocol.py SCOPES`). A test checks this. Rem0te's approval roster, passkeys and signer still apply on top of any ClientSt0r approval.
+
+### How a decision is made
+
+The order is in the docstring of `rmm_permissions/decision.py`. In short:
+
+1. **Blocks come first**: locked actions, the user not being a technician, containment, the customer boundary, deny overrides, tech_access denies and restrictions, an unavailable integration, and no Rem0te route.
+2. **Then grants**:
+   - the role tier, read only from the technician's *global* role, and only at customers where they hold a live tech_access assignment;
+   - the tech_access preset;
+   - the legacy flags;
+   - approved allow overrides.
+3. **Then approval.** A deny always wins.
+
+**Upgrade.** Existing templates have no tier and there are no override rows. The preset and legacy-flag grants are exactly the checks used before, so existing users get the same answers. Tests cover this.
+
+### Overrides and approvals
+
+- **Deny and require-approval** apply at once. They can target one action or `*`, one customer or every customer, and one technician, one global role or everyone.
+- **Allow** names one action at one customer. It stays pending until a *different* Platform Administrator approves it, after a fresh password check. The person it grants to cannot approve it. High-impact actions also need a tier that lists them. An allow never covers credential reveal.
+- **Lifting a deny or a require-approval** also needs a second administrator.
+- **RMMApproval approvers.** Nobody approves their own request. The approver re-authenticates, and must qualify now: *peer* = may do the same action there; *l3* = L3 tier or an L3 preset at that customer; *platform_admin* = holds policy.manage. The requester is re-checked when the approval is given and again when it runs. Approvals expire after 24 hours.
+
+### Pages
+
+These are under Settings → Security → **RMM Permissions** (`/settings/security/rmm-permissions/`):
+
+| Page | Shows | Who |
+|---|---|---|
+| Index | Overrides and their reviews | policy.manage to change; audit.review to read |
+| `technician/<id>/?organization=` | Effective permissions and approval requirements, with the chain for each, linked to tech_access's "why" for mapped capabilities | policy.manage or audit.review |
+| `customer/<id>/` | Every assigned technician × every action | policy.manage or audit.review |
+| `approvals/` | Approvals waiting for a second person | Technicians |
+
+### Wiring
+
+`psa_ai/services/rmm_actions.py` calls the API for the existing ticket panel actions (handoff, diagnostic, remote view and control, fix referrals). The panel uses `can()`. Each operation calls `rmm_action()` before it acts, and Rem0te proposal refusals are recorded with `record_remote_refusal()`.
+
+## 13. 2026-11-11 — ClientSt0r response to Rem0te revision 3
+
+Folded in from `docs/plans/coordination/clientst0r-response-2026-11-11.md` (the file is kept).
+
+From the ClientSt0r session, for rem0te's `INTEGRATION_COORDINATION.md` (rem0te's copy is authoritative for
+the contract). This file only reports and acknowledges. It changes nothing in rem0te.
+
+### 1. Correction: ClientSt0r's development branch already implements revision 2
+
+The status in rem0te's sections 2, 4C and 6 is correct for **released** ClientSt0r 3.17.660/3.17.661, which
+still uses HMAC. The development branch `dev/program-2026-11` is not yet released and has not been pushed. It
+implements rem0te's protocol in `integrations/rem0te/`:
+
+| rem0te item | ClientSt0r dev branch |
+|---|---|
+| CS-1 Ed25519 request key and separate delegation key | Done. Overlapping rotation: stage → switch → discard, each step audited. The peers-file entry lists the staged keys next to the current ones |
+| CS-2 Sign outbound requests and reproduce `examples/` byte for byte | Done. Tests use rem0te's `examples/` with the TEST-ONLY keys |
+| CS-3 Delegation JWS per technician action (`sub`, scope, `req_sha256`, short `exp`) | Done |
+| CS-4 Verify rem0te requests and events with `/capabilities.signing_keys`; sign `/inference` responses over the nonce | Done |
+| CS-5 Read `organizations` and `features` | Done. Only this organization's own `organizations[]` entry is kept (plus a count), and `business_id` is checked against the connection's business pin (`BUSINESS_MISMATCH` stops pairing) |
+| CS-6 Build `job-request` bodies and validate against `schemas/` | Done. Contract pinned at rem0te `4b2b9f5c` (revision 2); revision 1 is kept for older peers |
+| CS-7 Event names `job.succeeded/partial/failed/expired` | Done for rem0te connections (`integrations/rem0te/jobs.py`) |
+| CS-8 Acknowledge revision 3 | Section 2 below |
+
+Also built on the same branch:
+- Containment: pause shown as Degraded; a `CONTAINED` job fails once and isn't retried; a proposal under a pause is `unavailable`. The pause reason is never stored.
+- Alerts: events ClientSt0r can't apply are recorded and acknowledged (skip and record) and re-applied later.
+- `patch_summary` is stored and shown.
+- A reconciliation job with backoff.
+- A setup wizard with Test connection.
+- One connection status: Connected / Degraded / Disconnected / Authentication Problem / Configuration Required.
+
+**Real-app test, both sides running:** ClientSt0r's `scripts/e2e/cross_peer/` against a locally built rem0te
+`4b2b9f5cbe093b99563b9332ba3bdf9dded88720` (0.30.1, own Postgres and Redis), with ClientSt0r running from the
+branch: **99 passed, 3 failed.**
+
+The 3 failures are all scenario s5: an analysis job submitted while ClientSt0r restarts. rem0te's worker gives
+up after 3 `GATEWAY_UNREACHABLE` attempts (~13 s), and the loaded test host took longer to restart. See request
+R11.
+
+ClientSt0r does not claim interoperability for that case. Proposals during a pause are unit-tested only. Before
+this is released, ClientSt0r will run the test again against rem0te 0.31.0 (`915cb58`); its contract schemas are
+unchanged from 0.30.1.
+
+ClientSt0r would welcome rem0te running its own `e2e-ticket-workflow` with this branch in place of the
+reference peer once it is pushed.
+
+### 2. Acknowledgement of revision 3 (P1–P10)
+
+ClientSt0r **acknowledges P1–P10 as proposed**, with these notes. None of them changes rem0te's authentication.
+
+| ID | Response |
+|---|---|
+| P1 | Agreed, including `remote_view` only when view-only is actually enforced. ClientSt0r never shows view-only as a restriction unless it is advertised. The `diagnostics` catalog with `device_classes` matches what ClientSt0r's ticket panel and Device Workspace already read |
+| P2 | Agreed. ClientSt0r will send only catalog keys; results are shown as untrusted device output and never fed to AI as instructions |
+| P3 | Agreed; these match ClientSt0r's transitions |
+| P4 | Agreed. ClientSt0r already uses `action-proposals` for catalog actions; `/fixes` for referrals with `fix.received` when nothing fits is what ClientSt0r wants. Free text never becomes a command on either side |
+| P5 | Agreed. ClientSt0r treats `fix.succeeded` as "verifying" until monitoring confirms recovery |
+| P6 | Agreed (no credentials; `view` refused until enforceable). Request: a signed `remote.session_started` / `remote.session_ended` event carrying `request_id` and ticket ref, so ClientSt0r can show "session started" only after rem0te confirms it (until then ClientSt0r shows "link issued — session not confirmed") |
+| P7 | **Yes: a staff note on the computer, in its History, with the ticket ref, is the intended effect** of a handoff. Nothing else should happen |
+| P8 | Already done for rem0te connections on the development branch |
+| P9 | Agreed |
+| P10 | Agreed. ClientSt0r would use it for the Device Workspace and the ticket panel instead of relying only on synced data. Please include agent version and data freshness (`observed_at`) per field group |
+
+Suggested section 9 row:
+`2026-11-11 | ClientSt0r | Revision 3 P1–P10 acknowledged as proposed, with the notes in ClientSt0r's response (P6 session events, P7 = staff note, P10 freshness)`.
+
+### 3. Requests from ClientSt0r (proposals; not implemented on either side)
+
+ClientSt0r's development work needs these. Each is a request: rem0te decides the shape. Nothing here was built
+against an invented API; on ClientSt0r's side each one shows as "not supported by the connected rem0te" until it
+is advertised.
+
+| ID | Request | Why |
+|---|---|---|
+| R2 | State how a peer implementing revision N handles fields from N+1: per-revision schemas, or a declared peer revision | The generated schemas reject unknown fields, which is what broke pairing and every alert when 0.30.0 shipped. Interim: ClientSt0r accepts unknown fields only when `contract_revision` is newer than it implements, and logs them |
+| R3 | A documented technician-mapping probe | Today ClientSt0r infers it from a delegated `GET /jobs/{nil uuid}` (404 = mapped, 403 = not), which spends a delegation id |
+| R4 | Leave the pause reason out of 423/403 `CONTAINED` bodies, as `/capabilities` already does | ClientSt0r shows a fixed message and never stores it, but the reason crosses the wire |
+| R6 | Remote-session confirmation events | See P6 |
+| R7 | Push action-proposal status changes as signed events | ClientSt0r polls proposals today |
+| R8 | More catalog actions, with parameter schemas in capabilities, proposable from a ticket: disk cleanup (temp files, Windows Update cache, Recycle Bin), reboot (for pending-reboot), `windows.update.install@1` from a ticket, not only through staged patching | ClientSt0r's one-click workflows can only offer manual steps for these today. Only `windows.service.start@1` (Spooler) is remediable |
+| R9 | Accept ticket state back (opened, resolved, closed), or confirm it is out of scope | — |
+| R10 | `examples/index.json` says 0.29.1 although it is labelled revision 2 | Cosmetic |
+| R11 | Keep retrying a transient `GATEWAY_UNREACHABLE` model run until the job expires, or for a configurable window (as alert delivery already does) | A ClientSt0r restart longer than ~13 s ends every job queued during it as `ALL_PROFILES_FAILED` (s5 above) |
+| R12 | Structured metrics on alerts: disk free % and GB per volume, CPU %, memory % | ClientSt0r currently parses alert titles |
+| R13 | Read-only evidence and diagnostics that don't need `model_profiles` (jobs are AI-only today) | Read-only diagnostics must work with AI disabled |
+| R14 | A route listing active maintenance windows per organization | So ClientSt0r can show which alerts rem0te itself is holding |
+| R15 | Read access to local and endpoint user accounts per computer | ClientSt0r's offboarding check can verify removal in Microsoft 365 and ClientSt0r but must mark rem0te "not verifiable" |
+| R16 | Services, processes, event-log excerpts and installed software via `computers/{id}/summary` or a read-only diagnostic | The Device Workspace shows them as unsupported for rem0te |
+
+### 4. Breaking changes on ClientSt0r's side
+
+Replacing HMAC with Ed25519 for rem0te connections is ClientSt0r's migration. The development branch keeps
+revision-1 peers and the generic HMAC "any RMM" path for other providers. Pairing records for rem0te move to
+`Rem0teIdentity` and `Rem0teReplayGuard` (migrations `integrations 0036–0038`). No change is needed in rem0te.

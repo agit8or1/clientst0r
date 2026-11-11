@@ -5,6 +5,137 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+On the development branch `dev/program-2026-11`. Not released, tagged or deployed.
+
+### Added
+- **Rem0te integration, contract revision 2** (Phase 63.1).
+  - Rem0te connections pair over Ed25519 request and delegation keys, with overlapping key rotation (stage, switch, discard), each step audited.
+  - The contract revision is negotiated per connection; revision 1 peers still work.
+  - Each organization is bound to its own Rem0te business. A mismatch stops pairing.
+  - A containment pause shows as **Degraded**. A job refused under a pause fails once and isn't retried, and the pause reason is never stored.
+  - Alert events ClientSt0r can't apply are recorded and acknowledged, then re-applied later. Rem0te patch summaries are stored and shown on the ticket.
+  - One status on every connection: Connected, Degraded, Disconnected, Authentication Problem or Configuration Required.
+  - Settings → Integrations → **Rem0te Setup** wizard with **Test connection**, and a reconciliation job with backoff.
+  - Tested against a real Rem0te 0.30.1: 99 of 102 checks pass. The job-across-a-ClientSt0r-restart case is pending a Rem0te retry change.
+- **Device Workspace** (Phase 63.3).
+  - One page per device: stored RMM data with each fact's source and age, and "not supported by this RMM" where a provider has no such field.
+  - Per-provider field maps for Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate and Rem0te.
+  - Optional service lists from Tactical RMM (off by default), kept 14 days.
+  - **Refresh from RMM** for one device, at most once every 5 minutes, audited.
+- **Technician workspace** (Phase 63.2).
+  - Recent devices, saved views and default filters on assets, RMM alerts, routing triage, invoices and timesheet approvals.
+  - Asset list filters (customer, type, status, site, RMM state, active alerts), sorting and paging.
+  - My Work panels for SLA, alerts, device health, maintenance, reviews, recent devices, remote session launches, RMM jobs and RMM approvals.
+  - Compact technician sidebar with filter, shortcuts and breadcrumbs; links for every new page.
+  - Setup guidance on empty pages (no shifts, alert policy off, geo dispatch off, no RMM connected).
+- **Ticket RMM panel** (Phase 63.4): affected devices on a ticket (same customer only), device health and history, read-only diagnostics, result notes and verify-then-close.
+- **AI Troubleshoot — OPTIONAL AI** (Phase 63.5).
+  - Needs `psa_ai_enabled`, and is off for each customer until switched on in that customer's AI policy.
+  - Sharing rules per customer: ticket text, device data, network identifiers, contact names and KB titles, each switchable.
+  - Runbook and KB matching by title, tags, category and body; only published items, and internal items are never offered for customer replies.
+  - Installation-wide monthly AI spending cap and optional command allowlist (Settings: `/psa/ai/profiles/`).
+  - Suggested commands are shown as text and never run. Device output is treated as untrusted data.
+  - The session page updates itself instead of reloading.
+- **Alert-to-ticket policy** (Phase 63.6): rules, maintenance windows, site outage grouping and recovery notes for Rem0te alerts, and optionally for alerts synced from other RMMs. Off (one ticket per Rem0te alert, as before) until switched on.
+- **One-click support workflows** (Phase 63.7).
+  - Evidence, likely causes, remediation the RMM advertises (with approval) or manual steps, and recovery confirmed by monitoring.
+  - Twelve built-in workflows; a form editor with the JSON view kept as an advanced option.
+- **L1 / L2 / L3 RMM permission levels** (Phase 63.8).
+  - One server-side decision for every RMM action; built-in L1, L2, L3 and Platform Administrator role templates.
+  - Per-customer and per-action overrides; second-person approvals, with an e-mail to every eligible approver.
+  - Settings → **RMM Permissions** shows why a technician can or can't do something.
+- **Optional ticket routing** (Phase 60): Off / Suggest only / Automatic, per customer or inherited, with rules, a review step, Test routing and a triage queue. Off by default.
+- **Shifts and geo-aware dispatch**: shift templates and a weekly schedule with leave clashes; opt-in technician positions and straight-line travel estimates (off by default).
+- **One-customer migration rehearsals for IT Glue and Hudu** (Phase 61): staging, dry run, review, exact apply, resumable apply, rollback and a redacted reconciliation report.
+- **Verified installs and upgrades** (Phase 59): Stable and Preview channels, Apply installs the exact reviewed revision behind a backup proven to restore, preflight checks and interrupted-upgrade recovery.
+- **LDAP group mappings**: directory groups map to customer memberships at sign-in and every 15 minutes in the background.
+- **Billing and time**
+  - Xero now pulls payments, invoice state and customers.
+  - Approvers can send individual timesheet entries back with a reason; the technician resubmits them.
+  - Per-cycle agreement billing review with approve and hold.
+  - Quote signatures are bound to the exact quote revision.
+- **Customer communication**
+  - Version-specific agreements (MSAs, SOWs, policy acknowledgements) with reminders and a per-agreement unsubscribe link.
+  - Weekly security digest for opted-in customer contacts, with an optional "all clear" e-mail per customer (off by default).
+  - Two-way secure ticket messages.
+  - Portal customers can choose a site when opening a ticket, and download customer-visible KB files.
+- **Documentation and KB**: internal/external separation with internal-only blocks; KB analytics (least viewed, portal reads, dead links).
+- **Other**
+  - Customer operations page per customer; Settings → System → **Optional Modules**.
+  - Serial lifecycle history; access removal verification for offboarding; visual workflow builder with branches.
+  - Webhooks for ticket, contact and invoice events; emailed tickets link to the sender's contact.
+  - Standard sync health with redacted diagnostics for every integration.
+
+### Changed
+- **Edit forms keep what they don't submit.** Contract, invoice, quote, requisition and purchase order edits no longer clear fields the form doesn't carry.
+- **Per-customer PSA settings** show only the two switches that are read (native PSA opt-out and portal). Five unused switches are removed.
+- **Global search** includes tickets, RMM devices, clients and pages; client results are for technicians only.
+
+### Security
+- **Every RMM action goes through one permission check** — the ticket panel, the Device Workspace, support workflows and AI Troubleshoot.
+- **Files need their own permissions.** Upload needs `files_upload`, delete needs `files_delete` (audited), and the target must belong to the selected customer.
+- **RMM data on asset and ticket pages** needs `integrations_view` or RMM device access; customers never see it.
+- **Invoices**: creating or editing needs `billing_send_invoices`; recording a payment needs `billing_record_payments`, both for the billed customer.
+- **Giving, taking or changing an RMM level needs a second administrator.** Changes made outside the UI are audited.
+- **Older AI reply, action and triage features follow the customer's AI policy.**
+- **The `files_view`, `monitoring_view` and `integrations_view` flags** are enforced on their sections, in search, dashboards, GraphQL and the mobile API.
+- **The AI gateway worker runs as its own OS user.**
+
+### Fixed
+- **Software sync never worked for NinjaOne, Datto RMM, Atera and ConnectWise Automate** (a wrong argument raised an error on every device).
+- **Datto RMM device and software addresses** follow its API v2; Automate's MAC address is read.
+- **Recording a payment always failed**, and the per-customer PSA opt-out removal always crashed.
+- **Audit entries were lost** on pages whose address carries a long ID.
+- **An LDAP user's first sign-in** could reset the account to a local one.
+- **One ticket per email Message-ID**; one UniFi asset sync for scheduled and manual runs; money rounds half up and a second full credit memo is refused.
+
+### Upgrade notes
+- **Rem0te connections move from HMAC to Ed25519.** After upgrading, open Settings → Integrations → Rem0te Setup, create the identity keys, add the peers-file entry to Rem0te and run Test connection for each connection. Other RMM providers are unchanged.
+- **Invoices**: customer Editor and Read-Only members can no longer create or edit invoices or record payments. Owner, Admin, superusers, and global roles holding the billing flags keep access.
+- **Files** (migration accounts 0044): custom roles that can view files get `files_upload` and `files_delete` switched on, so they keep what they had until an administrator unticks them. Built-in roles without a custom template change: Editor loses delete, Read-Only loses upload and delete.
+- **RMM levels** need two administrators to change. An installation with one administrator can't give or change a level until a second one exists.
+- **LDAP group sync** is a new scheduled task, on by default every 15 minutes. It does nothing unless LDAP sign-in and group mappings are set up.
+- **psa 0083** drops five unused per-customer PSA switches. Nothing read them, so behaviour doesn't change.
+- **Existing installs keep following `main`** (Preview channel) after upgrading; new installs default to Stable.
+- Ticket routing, the alert policy, AI Troubleshoot, geo dispatch, service lists and the "all clear" digest are all off after upgrading.
+
+## [3.17.662] - 2026-11-11
+
+### Fixed
+- **Adding RMM, UniFi, Microsoft 365, Omada and Grandstream connections from global view.**
+  - These connections belong to an organization. In global view (no organization selected) their Add buttons sent you straight back to Integrations with "Please select an organization first", and the list showed no connections.
+  - In global view, Integrations now says why and offers a **Choose organization** menu that returns you to the page with that organization selected.
+  - The organization switch link accepts a `next` address on this site; addresses on other sites are ignored.
+
+## [3.17.661] - 2026-11-11
+
+### Security
+- **RMM pages are for MSP technicians only.**
+  - Customer users could open their organization's RMM device list, device details, installed software, alerts and device map.
+  - Where an RMM connection belonged to a customer organization, that customer's owners and admins could also edit, delete, map or import it, and any member could start a sync. All `/integrations/rmm/` pages now return 403 to anyone who isn't MSP staff.
+  - Read-only technicians can no longer start an RMM sync.
+- **Deleting an RMM device is scoped and audited.**
+  - With no customer selected, any signed-in user could delete any customer's RMM device.
+  - Deleting now needs an admin MSP technician and only finds devices in the selected customer and its child customers. Anything else returns 404. Each delete is written to the audit log.
+- **Invoices follow the invoice permissions.**
+  - With no customer selected, any user could open any invoice.
+  - The invoice page, the invoice PDF and the client account page now need `billing_view_invoices` for the billed customer, and customer users only see invoices billed to their own customers.
+  - The invoice list applies the same rule.
+  - Emailing an invoice needs `billing_send_invoices`.
+
+### Fixed
+- The invoice PDF failed with an error on every request.
+
+### Upgrade notes
+- No migrations.
+- What admins may notice:
+  - Customer users no longer see RMM pages.
+  - Read-only technicians can't start RMM syncs.
+  - Roles without `billing_view_invoices` no longer see invoices.
+  - Emailing an invoice needs `billing_send_invoices`.
+
 ## [3.17.660] - 2026-11-10
 
 ### Security
