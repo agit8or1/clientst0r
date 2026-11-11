@@ -839,6 +839,15 @@ class RMMSync:
             self.stats['alerts']['created'] += 1
         else:
             self.stats['alerts']['updated'] += 1
+        # Optional alert → ticket policy (psa/routing/alert_policy.py). Off
+        # unless an administrator turned it on for synced alerts; never
+        # raises into the sync.
+        try:
+            from psa.routing.alert_policy import rmm_alert_synced
+        except Exception:  # noqa: BLE001
+            rmm_alert_synced = None
+        if rmm_alert_synced is not None:
+            rmm_alert_synced(alert)
         return alert
 
     def _upsert_software(self, device, sw_data):

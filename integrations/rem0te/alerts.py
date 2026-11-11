@@ -19,6 +19,11 @@ gaps. A gap is recovered with GET /alerts/events?organization_id=…&after=n
   alert.resolved  → the stored alert state only. No event closes, changes or
                     comments on a ticket: people do that.
 
+With the optional alert policy switched on (psa/routing/alert_policy.py)
+the policy decides instead whether a raise opens a ticket, joins one, is
+held or suppressed; and a recovery adds a staff note, and resolves the
+ticket only when a rule says so and this alert alone opened it.
+
 The ticket is the connection's own organization's, staff-only, and its asset
 is set only through the connection's verified device for Rem0te's immutable
 computer id — never by computer name, so two customers with a FRONTDESK-01
@@ -83,7 +88,7 @@ def apply_signed_alert_event(connection, signed: dict, via='push') -> Tuple[int,
         logger.warning('Rem0te alert %s not applied yet for connection %s: %s', alert['alert_id'], connection.pk, e)
         return 503, str(e)
     if row is not None:
-        if created:
+        if created and row.ticket_id:
             _audit(connection, row)
         link(row)
     return 200, outcome
@@ -96,6 +101,7 @@ def _apply(connection, event):
     fields = {'state': alert['state'], 'severity': alert['severity'], 'kind': alert['kind'],
               'title': _text(alert['title'], 300), 'computer_name': _text(alert.get('computer_name'), 128),
               'rem0te_endpoint_id': _text(alert.get('rem0te_endpoint_id'), 64)}
+    policy = _policy()
     if event['type'] != 'alert.raised':
         row = Rem0teAlertTicket.objects.filter(connection=connection, alert_id=alert['alert_id']).first()
         if row is None:
@@ -106,14 +112,40 @@ def _apply(connection, event):
                 updates['resolved_at'] = timezone.now()
             Rem0teAlertTicket.objects.filter(pk=row.pk, last_sequence__lt=seq).update(**updates,
                                                                                      updated_at=timezone.now())
+            if policy is not None:
+                # Optional alert policy (psa/routing/alert_policy.py): recovery
+                # notes, and resolving a ticket only this alert opened.
+                policy.rem0te_event(connection, event)
         return 'applied', None, False
     row, created = Rem0teAlertTicket.objects.get_or_create(
         connection=connection, alert_id=alert['alert_id'],
         defaults=dict(fields, organization_id=connection.organization_id, last_sequence=seq))
+    if policy is not None:
+        # The policy decides: open, join an existing ticket, hold (offline /
+        # site outage / after hours), suppress (maintenance) or record only.
+        try:
+            ticket = policy.rem0te_event(connection, event)
+        except policy.NotReady as e:
+            raise NotReady(str(e))
+        if created or (row.ticket_id is None and ticket is not None):
+            row.ticket = ticket
+            row.save(update_fields=['ticket'])
+        return ('ticket opened' if created and ticket is not None else
+                'recorded by the alert policy' if created else 'already has a ticket'), row, created
     if created:
         row.ticket = _open_ticket(connection, alert)
         row.save(update_fields=['ticket'])
     return ('ticket opened' if created else 'already has a ticket'), row, created
+
+
+def _policy():
+    """The alert policy module when it is switched on, else None (legacy:
+    one ticket per alert, events change only the alert row)."""
+    try:
+        from psa.routing import alert_policy
+    except Exception:  # noqa: BLE001 — routing app absent
+        return None
+    return alert_policy if alert_policy.mode_active('rem0te') else None
 
 
 def _device_asset(connection, endpoint_id):
