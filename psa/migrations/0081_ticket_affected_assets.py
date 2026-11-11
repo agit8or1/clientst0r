@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('assets', '0028_asset_image'),
         ('core', '0083_existing_installs_follow_main'),
-        ('psa', '0076_service_request_approvers'),
+        ('psa', '0080_quote_signature_revision_binding'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
