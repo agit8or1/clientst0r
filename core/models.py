@@ -1163,6 +1163,9 @@ class ScheduledTask(models.Model):
         ('agreement_reminders', 'Agreement Signature Reminders'),
         ('kb_link_check', 'KB Dead Link Check'),
         ('ldap_group_sync', 'LDAP Group Mapping Sync'),
+        # Office documents: remove unaccepted editor saves past retention and
+        # expired diagnostics files; close sessions nobody closed.
+        ('office_purge_quarantine', 'Purge Office Quarantine'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1701,6 +1704,14 @@ class ScheduledTask(models.Model):
                            'signed in again (batch of 100, each user at most hourly; skips and '
                            'reports when the directory is unreachable)',
             'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
+            # Retention is Settings -> Office Documents (default 30 days).
+            'task_type': 'office_purge_quarantine',
+            'description': 'Delete unaccepted Office editor saves past their retention period and '
+                           'expired diagnostics documents; mark expired edit sessions closed',
+            'interval_minutes': 60,
             'enabled': True,
         },
     ]

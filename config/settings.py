@@ -139,6 +139,7 @@ INSTALLED_APPS = [
     'netconfig.apps.NetConfigConfig',
     'network_discovery.apps.NetworkDiscoveryConfig',
     'hardware.apps.HardwareConfig',
+    'office.apps.OfficeConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).
@@ -783,6 +784,14 @@ LOGGING = {
 if not DEBUG:
     log_dir = Path('/var/log/itdocs')
     log_dir.mkdir(parents=True, exist_ok=True)
+
+# Office documents (office/, docs/OFFICE_DOCUMENTS.md). Hard ceiling for one
+# Office file; each editor instance can lower it. OFFICE_SCAN_HOOK names a
+# content scanner (dotted path); none ships with clientst0r, so the default
+# '' accepts files unscanned and Office diagnostics say so.
+OFFICE_MAX_FILE_MB = int(os.getenv('OFFICE_MAX_FILE_MB', '100'))
+OFFICE_QUARANTINE_RETENTION_DAYS = int(os.getenv('OFFICE_QUARANTINE_RETENTION_DAYS', '30'))
+OFFICE_SCAN_HOOK = os.getenv('OFFICE_SCAN_HOOK', '')
 
 # Auto-Update Settings
 GITHUB_REPO_OWNER = os.getenv('GITHUB_REPO_OWNER', 'agit8or1')

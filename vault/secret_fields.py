@@ -561,6 +561,8 @@ HASHED_SECRET_FIELDS = [
     ('scheduling', 'SchedulerWallboard', 'token_hash', 'hex64'),
     ('psa', 'Quote', 'customer_token_hash', 'hex64'),
     ('otp_static', 'StaticToken', 'token', 'otp_static'),
+    # Office edit-session access tokens (office.tokens, purpose office.access).
+    ('office', 'AccessToken', 'token_hash', 'hex64'),
 ]
 
 # Columns encrypted by their model with vault.encryption_v2 and a per-row AAD

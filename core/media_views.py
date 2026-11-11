@@ -224,6 +224,20 @@ def _profile_owner_or_staff(user, profile):
     return profile.user_id == user.pk or is_msp_staff(user)
 
 
+def _office_revision(user, rev):
+    """A stored Office revision: whoever may view the file it belongs to.
+    (A file document or attachment points at its current revision's file, so
+    this rule also answers for those names.)"""
+    from office.targets import target_of
+    target = target_of(rev)
+    return target is not None and target.can_view(user)
+
+
+def _office_file(user, f):
+    from office.targets import OfficeFileTarget
+    return OfficeFileTarget(f).can_view(user)
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -282,6 +296,13 @@ MEDIA_REGISTRY = (
     MediaRule('monitoring.RackDevice', 'photo', _rack_child, ('rack_devices/',)),
     MediaRule('monitoring.RackResource', 'photo', _rack_child, ('rack_resources/',)),
     MediaRule('reports.GeneratedReport', 'file', _generated_report, ('reports/',)),
+    # Office documents: binary revisions, templates / diagnostics files, and
+    # quarantined saves (downloaded only through office views, never here).
+    MediaRule('office.FileRevision', 'file', _office_revision, ('office/revisions/',),
+              filename_attr='original_name'),
+    MediaRule('office.OfficeFile', 'file', _office_file, ('office/files/',),
+              filename_attr='name'),
+    MediaRule('office.QuarantinedSave', 'file', _never, ('office/quarantine/',)),
 )
 
 

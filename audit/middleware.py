@@ -4,7 +4,14 @@ Logs: reads (views), creates, updates, deletes, logins, API calls
 """
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.contenttypes.models import ContentType
+import re
+
 from .models import AuditLog
+
+# Any field or query parameter whose name looks like a credential
+# (shared_secret, access_token, client_secret, ca_bundle private keys, ...).
+_SENSITIVE_KEY = re.compile(r'(?i)(password|passwd|secret|token|api_?key|credential|private|'
+                            r'passphrase|auth)')
 
 
 class AuditLoggingMiddleware(MiddlewareMixin):
@@ -75,7 +82,9 @@ class AuditLoggingMiddleware(MiddlewareMixin):
 
         # Add query params for GET requests
         if request.method == 'GET' and request.GET:
-            extra_data['query_params'] = dict(request.GET)
+            extra_data['query_params'] = {
+                k: ('***REDACTED***' if _SENSITIVE_KEY.search(k) else v)
+                for k, v in request.GET.lists()}
 
         # Add form data for POST requests (excluding passwords)
         if request.method == 'POST' and request.POST:
@@ -83,7 +92,8 @@ class AuditLoggingMiddleware(MiddlewareMixin):
             for key, value in request.POST.items():
                 # Don't log sensitive fields
                 if key.lower() in ['password', 'password1', 'password2', 'old_password',
-                                  'new_password', 'secret', 'token', 'api_key', 'csrfmiddlewaretoken']:
+                                  'new_password', 'secret', 'token', 'api_key', 'csrfmiddlewaretoken'] \
+                        or _SENSITIVE_KEY.search(key):
                     form_data[key] = '***REDACTED***'
                 else:
                     form_data[key] = value[:100]  # Limit length
