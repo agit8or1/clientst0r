@@ -27,9 +27,10 @@
                     {% if fav.notes %}<br><small class="text-muted">{{ fav.notes }}</small>{% endif %}
                     <br><small class="text-muted"><i class="fas fa-clock"></i> {{ fav.created_at|date:"M d, Y" }}</small>
                 </div>
-                <form action="{% url 'core:favorite_toggle' fav.content_type.id fav.object_id %}" method="post" class="d-inline">
+                <form action="{% url 'core:favorite_toggle' fav.content_type.id fav.object_id %}" method="post" class="d-inline"
+                      data-confirm="Remove “{{ fav.content_object }}” from your favorites? The record itself is not deleted.">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Remove {{ fav.content_object }} from favorites" title="Remove from favorites"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </form>
             </div>
             {% endfor %}

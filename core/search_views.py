@@ -57,6 +57,9 @@ def global_search(request):
         'passwords': [],
         'psa_companies': [],
         'psa_contacts': [],
+        'tickets': [],
+        'rmm_devices': [],
+        'clients': [],
         'total_count': 0,
         # Real match counts per category, before the RESULT_LIMIT slice, so
         # the page can say "showing 10 of 37" instead of implying 10 is all.
@@ -163,6 +166,44 @@ def global_search(request):
             # The PSA tables are optional on an install that has never had an
             # integration configured; a search must not 500 over that.
             logger.debug('PSA search skipped', exc_info=True)
+
+        # Tickets (PSA on): the ticket list's own scoping — every ticket for
+        # MSP staff, shared tickets of their customers for customer users. A
+        # ticket number typed exactly is listed first.
+        from core.models import SystemSetting
+        from psa.visibility import is_msp_staff
+        staff_user = is_msp_staff(user)
+        if getattr(SystemSetting.get_settings(), 'psa_enabled', False):
+            try:
+                from django.db.models import Case, IntegerField, Value, When
+                from psa.views import _scoped_ticket_qs
+                tickets = _scoped_ticket_qs(request).filter(
+                    Q(ticket_number__icontains=query) | Q(subject__icontains=query)
+                ).annotate(_exact=Case(When(ticket_number__iexact=query, then=Value(0)),
+                                       default=Value(1), output_field=IntegerField())
+                           ).order_by('_exact', '-created_at')
+                take('tickets', tickets)
+            except Exception:
+                logger.debug('ticket search skipped', exc_info=True)
+
+        # RMM devices (MSP staff): the same customer scoping as assets above,
+        # settled customers only. Results open through core:open_device, so a
+        # device of another customer switches context instead of 404ing.
+        if staff_user:
+            try:
+                from integrations.models import RMMDevice
+                take('rmm_devices', permitted(RMMDevice, 'assets_view').filter(
+                    ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+                ).filter(
+                    Q(device_name__icontains=query) | Q(hostname__icontains=query)
+                    | Q(serial_number__icontains=query) | Q(ip_address__icontains=query)
+                ).select_related('organization'))
+            except Exception:
+                logger.debug('RMM device search skipped', exc_info=True)
+
+        # Clients the user may switch to (the client switcher's rule).
+        from core.client_switcher import authorized_organizations
+        take('clients', authorized_organizations(request).filter(name__icontains=query).order_by('name'))
 
         # Real total across categories, not the sum of the sliced lists.
         results['total_count'] = sum(results['counts'].values())

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load asset_tags %}
+{% load asset_tags navigation %}
 
 {% block title %}Search: {{ query }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
@@ -21,7 +21,81 @@
     {% endif %}
 </div>
 
+{% nav_matches pnav query as pages %}
+{% if pages %}
+<!-- Pages (from this user's sidebar) -->
+<div class="card mb-3" id="search-pages">
+    <div class="card-header"><h4 class="mb-0 h5"><i class="fas fa-compass"></i> Pages</h4></div>
+    <div class="list-group list-group-flush">
+        {% for p in pages %}
+        <a href="{{ p.href }}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span>{{ p.label }}</span><small class="text-muted">{{ p.where }}</small>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 {% if total_count > 0 %}
+
+<!-- Tickets -->
+{% if tickets %}
+<div class="card mb-3" id="search-tickets">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-ticket-alt"></i> Tickets ({{ counts.tickets }})</h4>
+        {% if counts.tickets > tickets|length %}<a class="small" href="{% url 'psa:ticket_list' %}?q={{ query|urlencode }}">Showing {{ tickets|length }} of {{ counts.tickets }} — open in the ticket list</a>{% endif %}
+    </div>
+    <div class="list-group list-group-flush">
+        {% for t in tickets %}
+        <a href="{% url 'psa:ticket_detail' t.ticket_number %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">{{ t.subject }} <span class="badge bg-light text-dark border ms-1">{{ t.organization.name }}</span></h6>
+                <small class="text-muted text-nowrap">{{ t.ticket_number }} · {{ t.status.name }}</small>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- RMM devices -->
+{% if rmm_devices %}
+<div class="card mb-3" id="search-devices">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-desktop"></i> RMM devices ({{ counts.rmm_devices }})</h4>
+        {% if counts.rmm_devices > rmm_devices|length %}<small class="text-muted">Showing {{ rmm_devices|length }} of {{ counts.rmm_devices }}</small>{% endif %}
+    </div>
+    <div class="list-group list-group-flush">
+        {% for d in rmm_devices %}
+        <a href="{% url 'core:open_device' 'rmm_device' d.pk %}?next={{ request.get_full_path|urlencode }}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">{{ d.device_name }} <span class="badge bg-light text-dark border ms-1">{{ d.organization.name }}</span></h6>
+                <small class="{% if d.is_online %}text-success{% else %}text-muted{% endif %}">{% if d.is_online %}Online{% else %}Offline{% endif %}</small>
+            </div>
+            {% if d.hostname %}<small class="text-muted">{{ d.hostname }}</small>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Clients -->
+{% if clients %}
+<div class="card mb-3" id="search-clients">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-building"></i> Clients ({{ counts.clients }})</h4>
+        {% if counts.clients > clients|length %}<small class="text-muted">Showing {{ clients|length }} of {{ counts.clients }}</small>{% endif %}
+    </div>
+    <div class="list-group list-group-flush">
+        {% for c in clients %}
+        <a href="{% url 'core:customer_ops' c.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="fas fa-building text-warning"></i> {{ c.name }}</span>
+            <small class="text-muted">Open customer operations{% if current_organization.pk != c.pk %} (switches client){% endif %}</small>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <!-- Assets -->
 {% if assets %}
@@ -175,8 +249,8 @@
 <div class="card">
     <div class="card-body text-center py-5">
         <i class="fas fa-search fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No results found</h5>
-        <p class="text-muted">Try different keywords or check your spelling</p>
+        <h5 class="text-muted">{% if pages %}No records match{% else %}No results found{% endif %}</h5>
+        <p class="text-muted">Try a ticket number, device or host name, client name, or different keywords.{% if query|length < 2 %} Searches need at least two characters.{% endif %}</p>
     </div>
 </div>
 {% else %}
@@ -184,7 +258,7 @@
     <div class="card-body text-center py-5">
         <i class="fas fa-search fa-3x text-muted mb-3"></i>
         <h5 class="text-muted">Enter a search query</h5>
-        <p class="text-muted">Search across assets, documents, passwords, contacts, and more</p>
+        <p class="text-muted">Search across tickets, devices, clients, assets, documents, passwords, contacts, and pages</p>
     </div>
 </div>
 {% endif %}

@@ -787,11 +787,49 @@ def rmm_delete(request, pk):
 @login_required
 def rmm_devices(request):
     """List all RMM devices."""
+    from django.db.models import Q
     org = get_request_organization(request)
     devices = RMMDevice.objects.for_organization(org).select_related('connection', 'linked_asset')
+    total = devices.count()
+
+    # Filters (saved views in core/workspace.py SAVED_VIEW_LISTS['rmm_devices']
+    # store exactly these parameters).
+    q = (request.GET.get('q') or '').strip()[:100]
+    status = request.GET.get('status') or ''
+    dtype = request.GET.get('type') or ''
+    link = request.GET.get('link') or ''
+    if q:
+        devices = devices.filter(Q(device_name__icontains=q) | Q(hostname__icontains=q)
+                                 | Q(serial_number__icontains=q) | Q(ip_address__icontains=q))
+    if status == 'online':
+        devices = devices.filter(is_online=True)
+    elif status == 'offline':
+        devices = devices.filter(is_online=False)
+    else:
+        status = ''
+    if dtype in dict(RMMDevice.DEVICE_TYPES):
+        devices = devices.filter(device_type=dtype)
+    else:
+        dtype = ''
+    if link == 'linked':
+        devices = devices.filter(linked_asset__isnull=False)
+    elif link == 'unlinked':
+        devices = devices.filter(linked_asset__isnull=True)
+    else:
+        link = ''
+    # Name order, as before; the cap keeps a large fleet's page responsive.
+    shown = devices.count()
+    cap = 500
 
     return render(request, 'integrations/rmm_devices.html', {
-        'devices': devices,
+        'devices': devices[:cap],
+        'total': total,
+        'shown': shown,
+        'capped': shown > cap,
+        'cap': cap,
+        'device_types': RMMDevice.DEVICE_TYPES,
+        'filters': {'q': q, 'status': status, 'type': dtype, 'link': link},
+        'has_filters': any([q, status, dtype, link]),
     })
 
 

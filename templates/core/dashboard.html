@@ -425,6 +425,8 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading device data:', error);
+                // The toggle would otherwise look like it did nothing.
+                if (window.appToast) window.appToast('RMM devices could not be loaded for the map.', 'error');
             });
     }
 
