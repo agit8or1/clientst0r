@@ -127,9 +127,15 @@ current, "none" or "no".
                 <dt class="col-sm-3">Customer / site (RMM)</dt><dd class="col-sm-9">{{ sel.device.client_name|default:"—" }}{% if sel.device.site_name and sel.device.site_name != sel.device.client_name %} / {{ sel.device.site_name }}{% endif %}</dd>
                 <dt class="col-sm-3">Status</dt><dd class="col-sm-9" data-ws-status="{{ sel.status.state }}">{{ sel.status.label }} — {{ sel.status.detail }}</dd>
                 <dt class="col-sm-3">Last heartbeat</dt><dd class="col-sm-9">{% if sel.last_heartbeat %}{{ sel.last_heartbeat|date:"Y-m-d H:i" }} ({{ sel.last_heartbeat|timesince }} ago){% else %}Not reported{% endif %}</dd>
-                <dt class="col-sm-3">Data refreshed</dt><dd class="col-sm-9" data-ws-freshness>{% if sel.data_refreshed_at %}{{ sel.data_refreshed_at|date:"Y-m-d H:i" }} ({{ sel.data_refreshed_at|timesince }} ago; stale after {{ sel.stale_after_hours }} h){% else %}Never refreshed from the RMM{% endif %}</dd>
-                <dt class="col-sm-3">Agent</dt><dd class="col-sm-9">{% if sel.agent_version %}Version {{ sel.agent_version }}{% else %}<span class="text-muted">Version not reported by {{ sel.provider }}</span>{% endif %}</dd>
-                <dt class="col-sm-3">Logged-in user</dt><dd class="col-sm-9" data-ws-logged-in>{% if sel.logged_in %}{{ sel.logged_in }} <span class="text-muted">(as of the data refresh)</span>{% elif sel.logged_in_hidden %}<span class="text-muted">Hidden — needs a technician access assignment at {{ asset.organization.name }}.</span>{% else %}<span class="text-muted">Not reported by {{ sel.provider }}</span>{% endif %}</dd>
+                <dt class="col-sm-3">Data refreshed</dt><dd class="col-sm-9" data-ws-freshness>{% if sel.data_refreshed_at %}{{ sel.data_refreshed_at|date:"Y-m-d H:i" }} ({{ sel.data_refreshed_at|timesince }} ago; stale after {{ sel.stale_after_hours }} h){% else %}Never refreshed from the RMM{% endif %}
+                    {% if sel.refresh.available %}
+                    <form method="post" action="{% url 'assets:device_workspace_refresh' asset.pk %}" class="d-inline ms-2" data-ws-refresh>
+                        {% csrf_token %}<input type="hidden" name="device" value="{{ sel.device.pk }}">{% if ticket %}<input type="hidden" name="ticket" value="{{ ticket.ticket_number }}">{% endif %}
+                        <button class="btn btn-sm btn-outline-secondary py-0" title="Ask {{ sel.provider }} for this device's current record now (at most once every 5 minutes)."><i class="fas fa-rotate me-1" aria-hidden="true"></i>Refresh from RMM</button>
+                    </form>
+                    {% else %}<span class="text-muted ms-2" data-ws-refresh-unavailable>Refresh from RMM not available: {{ sel.refresh.reason }}</span>{% endif %}</dd>
+                <dt class="col-sm-3">Agent</dt><dd class="col-sm-9">{% if sel.agent_version %}Version {{ sel.agent_version }}{% elif sel.gaps.agent_version %}<span class="text-muted" data-ws-gap="agent_version">Unsupported. {{ sel.gaps.agent_version }}</span>{% else %}<span class="text-muted">Version not reported by {{ sel.provider }}</span>{% endif %}</dd>
+                <dt class="col-sm-3">Logged-in user</dt><dd class="col-sm-9" data-ws-logged-in>{% if sel.logged_in %}{{ sel.logged_in }} <span class="text-muted">(as of the data refresh)</span>{% elif sel.logged_in_hidden %}<span class="text-muted">Hidden — needs a technician access assignment at {{ asset.organization.name }}.</span>{% elif sel.gaps.logged_in %}<span class="text-muted" data-ws-gap="logged_in">Unsupported. {{ sel.gaps.logged_in }}</span>{% else %}<span class="text-muted">Not reported by {{ sel.provider }}</span>{% endif %}</dd>
                 <dt class="col-sm-3">OS</dt><dd class="col-sm-9">{{ sel.device.get_os_type_display|default:"" }} {{ sel.device.os_version|default:"—" }}</dd>
                 <dt class="col-sm-3">Make / model</dt><dd class="col-sm-9">{{ sel.device.manufacturer|default:asset.manufacturer|default:"—" }} {{ sel.device.model|default:asset.model }}</dd>
                 <dt class="col-sm-3">Serial</dt><dd class="col-sm-9">{% if sel.hardware.serial_number %}<code>{{ sel.hardware.serial_number }}</code>{% elif asset.serial_number %}<code>{{ asset.serial_number }}</code> <span class="text-muted">(asset record)</span>{% else %}—{% endif %}</dd>
@@ -149,7 +155,7 @@ current, "none" or "no".
                         <dt class="col-5">CPU</dt><dd class="col-7">{{ sel.hardware.cpu|default:"Not reported" }}</dd>
                         <dt class="col-5">RAM</dt><dd class="col-7">{% if sel.hardware.ram_gb %}{{ sel.hardware.ram_gb }} GB{% else %}Not reported{% endif %}</dd>
                         <dt class="col-5">Storage</dt><dd class="col-7">{{ sel.hardware.storage|default:"Not reported" }}</dd>
-                        <dt class="col-5">Last boot</dt><dd class="col-7">{% if sel.last_boot %}{{ sel.last_boot|date:"Y-m-d H:i" }}{% else %}Not reported{% endif %}</dd>
+                        <dt class="col-5">Last boot</dt><dd class="col-7">{% if sel.last_boot %}{{ sel.last_boot|date:"Y-m-d H:i" }}{% elif sel.gaps.last_boot %}<span class="text-muted" data-ws-gap="last_boot">{{ sel.gaps.last_boot }}</span>{% else %}Not reported{% endif %}</dd>
                         <dt class="col-5">Uptime</dt><dd class="col-7">{% if sel.uptime %}{{ sel.uptime }}{% elif sel.last_boot %}<span class="text-muted">Unknown — the device isn't confirmed online now</span>{% else %}Not reported{% endif %}</dd>
                     </dl>
                     <h6 class="text-uppercase text-muted small">Disks</h6>
@@ -157,6 +163,7 @@ current, "none" or "no".
                     <table class="table table-sm"><thead><tr><th>Disk</th><th>Size</th><th>Free</th><th>Used</th></tr></thead><tbody>
                         {% for d in sel.disks %}<tr><td>{{ d.name }}</td><td>{{ d.total|default:"—" }}</td><td>{{ d.free|default:"—" }}</td><td>{% if d.percent is not None %}{{ d.percent|floatformat:0 }}%{% else %}—{% endif %}</td></tr>{% endfor %}
                     </tbody></table>
+                    {% elif sel.gaps.disks %}<p class="text-muted" data-ws-gap="disks">Unsupported. {{ sel.gaps.disks }}</p>
                     {% else %}<p class="text-muted">{{ sel.provider }} reported no disk details.</p>{% endif %}
                 </div>
                 <div class="col-md-6">
@@ -170,6 +177,7 @@ current, "none" or "no".
                     <table class="table table-sm"><thead><tr><th>Adapter</th><th>MAC</th><th>IPs</th></tr></thead><tbody>
                         {% for n in sel.nics %}<tr><td>{{ n.name }}</td><td><code>{{ n.mac|default:"—" }}</code></td><td>{{ n.ips|default:"—" }}</td></tr>{% endfor %}
                     </tbody></table>
+                    {% elif sel.gaps.nics %}<p class="text-muted" data-ws-gap="nics">Adapters: {{ sel.gaps.nics }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -200,7 +208,12 @@ current, "none" or "no".
         {# Services, processes and Windows events #}
         <div class="tab-pane fade" id="ws-system" role="tabpanel">
             <h6 class="small text-uppercase text-muted">Services</h6>
-            {% if sel.support.services.state == 'supported' %}<ul class="small">{% for s in sel.services %}<li>{{ s }}</li>{% empty %}<li class="text-muted">None reported.</li>{% endfor %}</ul>
+            {% if sel.support.services.state == 'supported' %}
+            {% if sel.services_as_of %}<p class="small text-muted mb-1" data-ws-services-as-of>As of {{ sel.services_as_of|date:"Y-m-d H:i" }} ({{ sel.services_as_of|timesince }} ago). {{ sel.support.services.detail }}</p>
+            <ul class="small" data-ws-services>{% for s in sel.services %}<li>{{ s }}</li>{% empty %}<li class="text-muted">None reported.</li>{% endfor %}</ul>
+            {% if sel.services_truncated %}<p class="small text-muted">Showing {{ sel.services|length }} of {{ sel.services_total }}.</p>{% endif %}
+            {% else %}<p class="small text-muted" data-ws-services-none>No service list collected yet (or the last one is older than the retention window). {{ sel.support.services.detail }}</p>{% endif %}
+            {% elif sel.support.services.state == 'not_synced' %}<p class="small text-muted" data-ws-unsupported="services" data-ws-support="services:not_synced">Not collected. {{ sel.support.services.detail }}</p>
             {% else %}<p class="small text-muted" data-ws-unsupported="services">Unsupported. {{ sel.support.services.detail }}</p>{% endif %}
             <h6 class="small text-uppercase text-muted">Processes</h6>
             {% if sel.support.processes.state == 'supported' %}<p class="small text-muted">Reported by {{ sel.provider }}.</p>
@@ -234,7 +247,7 @@ current, "none" or "no".
             {% endwith %}
             {% else %}
             <dl class="row small mb-2">
-                <dt class="col-sm-4">Restart pending</dt><dd class="col-sm-8">{% if p.reboot is True %}Yes{% elif p.reboot is False %}No{% else %}Unknown{% endif %}</dd>
+                <dt class="col-sm-4">Restart pending</dt><dd class="col-sm-8">{% if p.reboot is True %}Yes{% elif p.reboot is False %}No{% else %}Unknown{% if p.reboot_detail %} <span class="text-muted">({{ p.reboot_detail }})</span>{% endif %}{% endif %}</dd>
                 {% for k, v in p.fields %}<dt class="col-sm-4">{{ k }}</dt><dd class="col-sm-8">{{ v }}</dd>{% endfor %}
             </dl>
             <p class="small text-muted mb-0">From {{ p.source }}, as of {{ p.as_of|date:"Y-m-d H:i"|default:"no refresh yet" }}.</p>

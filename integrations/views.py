@@ -35,6 +35,22 @@ def _rem0te_summary(conn):
     return rem0te_health.summary(conn)
 
 
+def rmm_staff_only(view_func):
+    """RMM pages (devices, software, alerts, console links, connections,
+    sync) are MSP technician tooling. Customer users get 403 on every one of
+    them, whatever role they hold at their own organization; the same rule
+    is enforced by URL prefix in accounts.middleware.SectionPermissionMiddleware."""
+    from functools import wraps
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        from psa.visibility import is_msp_staff
+        if not is_msp_staff(request.user):
+            raise PermissionDenied('RMM pages are available to MSP staff only.')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 @login_required
 def integration_list(request):
     """
@@ -537,6 +553,7 @@ def psa_ticket_detail(request, pk):
 
 # RMM Views
 @login_required
+@rmm_staff_only
 @require_admin
 def rmm_create(request):
     """Create new RMM connection."""
@@ -605,6 +622,7 @@ def rmm_create(request):
 
 
 @login_required
+@rmm_staff_only
 def rmm_detail(request, pk):
     """View RMM connection details."""
     org = get_request_organization(request)
@@ -642,6 +660,7 @@ def _propose_pairing(request, form, connection):
 
 
 @login_required
+@rmm_staff_only
 @require_admin
 @require_POST
 def rmm_pairing_check(request, pk):
@@ -671,6 +690,7 @@ def rmm_pairing_check(request, pk):
 
 
 @login_required
+@rmm_staff_only
 @require_admin
 @require_POST
 def rmm_rem0te_identity(request, pk):
@@ -756,6 +776,7 @@ def rmm_edit(request, pk):
 
 
 @login_required
+@rmm_staff_only
 @require_admin
 def rmm_delete(request, pk):
     """Delete RMM connection."""
@@ -795,6 +816,7 @@ def rmm_delete(request, pk):
 
 
 @login_required
+@rmm_staff_only
 def rmm_devices(request):
     """List all RMM devices."""
     from django.db.models import Q
@@ -844,6 +866,7 @@ def rmm_devices(request):
 
 
 @login_required
+@rmm_staff_only
 def rmm_alerts(request):
     """List all RMM alerts."""
     org = get_request_organization(request)
@@ -877,6 +900,7 @@ def rmm_alerts(request):
 
 
 @login_required
+@rmm_staff_only
 def rmm_software(request):
     """List all software from RMM integrations."""
     org = get_request_organization(request)
@@ -911,6 +935,7 @@ def rmm_software(request):
 
 
 @login_required
+@rmm_staff_only
 def rmm_device_detail(request, pk):
     """Show details of a single RMM device."""
     org = get_request_organization(request)
@@ -979,6 +1004,7 @@ def _review_queryset(connection):
 
 
 @login_required
+@rmm_staff_only
 def rmm_review(request, pk):
     """Staff-only queue for one connection: unresolved customers, upstream
     moves and asset matches that need a decision."""
@@ -1006,6 +1032,7 @@ def rmm_review(request, pk):
 
 
 @login_required
+@rmm_staff_only
 @require_POST
 def rmm_device_decide(request, pk):
     """Apply a technician's decision about one device."""
@@ -1049,6 +1076,7 @@ def rmm_device_decide(request, pk):
 
 
 @login_required
+@rmm_staff_only
 def rmm_device_open(request, pk):
     """Open a device in its RMM console via a short-lived vendor link,
     fetched on the server so no API credential reaches the browser."""
@@ -1076,22 +1104,45 @@ def rmm_device_open(request, pk):
 
 
 @login_required
+@rmm_staff_only
+@require_admin
 def rmm_device_delete(request, pk):
-    """Delete an RMM device (orphaned or synced)."""
-    org = get_request_organization(request)
-    device = get_object_or_404(RMMDevice, pk=pk)
+    """Delete an RMM device (orphaned or synced).
 
-    # Check organization access
-    if org and device.organization != org:
-        messages.error(request, "You don't have access to this device.")
-        return redirect('integrations:rmm_devices')
+    The device is looked up inside the selected organization (and its
+    descendants): its own customer, or the owner of its connection for a
+    device whose customer isn't settled. Anything else, and everything when
+    no organization is selected, is a 404 so the device's existence isn't
+    confirmed. Until v3.17.661 the organization was compared only when one
+    was selected, so with none selected any signed-in user could delete any
+    customer's device."""
+    from django.db.models import Q
+    from core.utils import descendant_org_ids
+    org = get_request_organization(request)
+    ids = descendant_org_ids(org)
+    device = get_object_or_404(
+        RMMDevice.objects.select_related('connection', 'organization')
+        .filter(Q(organization_id__in=ids) | Q(connection__organization_id__in=ids)), pk=pk)
 
     if request.method == 'POST':
         device_name = device.device_name
         connection_name = device.connection.name if device.connection else 'Unknown'
 
         try:
+            device_pk, external_id = device.pk, device.external_id
+            device_org, device_org_id, connection_id = device.organization, device.organization_id, device.connection_id
             device.delete()
+            from audit.models import AuditLog
+            AuditLog.log(user=request.user, action='delete', organization=device_org or org,
+                         object_type='rmm_device', object_id=device_pk,
+                         object_repr=f'{device_name} ({connection_name})'[:255],
+                         description=f'Deleted RMM device {device_name} (external ID {external_id}) '
+                                     f'from {connection_name}',
+                         path=request.path,
+                         extra_data={'connection_id': connection_id,
+                                     'organization_id': device_org_id,
+                                     'external_id': external_id})
+
             messages.success(request, f"✓ RMM device '{device_name}' from {connection_name} deleted successfully.")
             logger.info(f"RMM device '{device_name}' (pk={pk}) deleted successfully")
         except Exception as e:
@@ -1106,6 +1157,7 @@ def rmm_device_delete(request, pk):
 
 
 @login_required
+@rmm_staff_only
 def rmm_device_map_data(request):
     """Return GeoJSON for RMM devices with location data (organization-specific)."""
     organization = request.current_organization
@@ -1160,6 +1212,7 @@ def rmm_device_map_data(request):
 
 
 @login_required
+@rmm_staff_only
 def global_rmm_device_map_data(request):
     """Return GeoJSON for RMM devices with location data (all organizations, superusers and staff only)."""
     # Check if user is staff (MSP tech) or superuser
@@ -1220,6 +1273,8 @@ def global_rmm_device_map_data(request):
 
 
 @login_required
+@rmm_staff_only
+@require_write
 @require_POST
 def rmm_trigger_sync(request, pk):
     """Manually trigger RMM sync for a connection."""
@@ -1246,6 +1301,7 @@ def rmm_trigger_sync(request, pk):
 
 
 @login_required
+@rmm_staff_only
 @require_admin
 def rmm_import_clients(request, pk):
     """
@@ -1508,6 +1564,7 @@ def psa_organization_mapping(request, pk):
 
 
 @login_required
+@rmm_staff_only
 @require_admin
 def rmm_organization_mapping(request, pk):
     """
@@ -3695,6 +3752,9 @@ def accounting_sync_now(request, pk):
     item.refresh_from_db()
     if item.last_sync_status == 'ok':
         messages.success(request, f'Sync finished. {out.getvalue().strip()[:400]}')
+    elif item.last_sync_status == 'attention':
+        messages.warning(
+            request, f'Sync finished; needs attention: {item.last_error[:600]}')
     else:
         messages.warning(
             request,

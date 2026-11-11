@@ -147,7 +147,8 @@ FEATURES = [
                   'attachment is always public.',
         'link': '',
         'doc': 'docs/CLIENT_DATA_PROTECTION.md#a-shared-ticket-seen-by-the-customer',
-        'tests': ['psa.tests.test_customer_on_staff_ticket_page', 'psa.tests.test_internal_ticket_visibility', 'integrations.tests_rmm_association'],
+        'tests': ['psa.tests.test_customer_on_staff_ticket_page', 'psa.tests.test_internal_ticket_visibility', 'integrations.tests_rmm_association',
+                  'integrations.tests_rmm_scope'],
     },
     {
         'key': 'per_route_authorization',

@@ -102,6 +102,9 @@ class XeroProvider(BaseAccountingProvider):
             refresh_token=data.get('refresh_token'),
             expires_in=int(data.get('expires_in', 1800)),
             tenant_id=tenant_id,
+            # A fresh consent may grant what the last one lacked; let the
+            # payments pull try again rather than staying parked.
+            payments_forbidden='',
         )
 
     def refresh_access_token(self) -> str:
@@ -341,6 +344,198 @@ class XeroProvider(BaseAccountingProvider):
             response_summary='ok',
         )
         return {'success': True}
+
+    # ---- Pull (Phase 27 gap: payments, invoice state, customers) ----------
+
+    # Xero answers 403 when the token is valid but the consent did not cover
+    # the endpoint (or the organisation disconnected the app). That will not
+    # fix itself on the next run, so it is reported as something to do, not as
+    # an error to repeat every hour.
+    PAYMENTS_FORBIDDEN_MESSAGE = (
+        'Xero refused access to Payments (HTTP 403): this connection was not '
+        'granted permission to read payments. Click Connect on the connection '
+        'and approve access again; if your Xero app uses granular scopes, '
+        'include accounting.payments.read (or the broad '
+        'accounting.transactions scope). Payment import is paused until then.')
+
+    @staticmethod
+    def _xero_date(row: Dict[str, Any], key: str = 'Date'):
+        """Xero JSON dates arrive as '/Date(1518652800000+0000)/' and, on most
+        documents, also as an ISO `<key>String`. Returns 'YYYY-MM-DD' or None."""
+        import re
+        from datetime import datetime, timezone as _tz
+        iso = row.get(f'{key}String')
+        if isinstance(iso, str) and len(iso) >= 10:
+            return iso[:10]
+        raw = row.get(key)
+        if isinstance(raw, str):
+            m = re.match(r'/Date\((-?\d+)([+-]\d{4})?\)/', raw)
+            if m:
+                return datetime.fromtimestamp(int(m.group(1)) / 1000,
+                                              tz=_tz.utc).date().isoformat()
+            if len(raw) >= 10 and raw[4] == '-':
+                return raw[:10]
+        return None
+
+    def fetch_payments(self, since=None, limit: int = 500) -> Dict[str, Any]:
+        """Read Xero Payment records against sales invoices.
+
+        GET /Payments, paged (100 per page), with If-Modified-Since so an edit
+        or a deletion made after the window opened is seen, not just new rows.
+        Each Xero payment settles exactly one invoice, so a partial payment is
+        simply a payment smaller than the invoice. A payment removed or
+        reversed in Xero comes back with Status DELETED and is reported as
+        voided. Bill payments (ACCPAY), credit-note refunds and
+        prepayment/overpayment allocations are left out: they are not money
+        received against an invoice this system raised.
+        """
+        from decimal import Decimal as _D
+
+        if self.credentials.get('payments_forbidden'):
+            return {'success': False, 'needs_attention': True,
+                    'error': self.PAYMENTS_FORBIDDEN_MESSAGE, 'payments': []}
+
+        headers = {}
+        if since is not None:
+            from datetime import timezone as _tz
+            stamp = since.astimezone(_tz.utc) if since.tzinfo else since
+            headers['If-Modified-Since'] = stamp.strftime('%Y-%m-%dT%H:%M:%S')
+
+        payments, page_no, page_size = [], 1, 100
+        while len(payments) < limit:
+            resp = self._api('GET', f'/Payments?page={page_no}&pageSize={page_size}',
+                             headers=headers)
+            if resp.status_code == 403:
+                self.connection.update_credentials(payments_forbidden='1')
+                self.connection.save(update_fields=['encrypted_credentials',
+                                                    'updated_at'])
+                log_accounting_call(
+                    connection=self.connection, action='pull_payments',
+                    resource_type='payment', success=False, http_status=403,
+                    error_message=self.PAYMENTS_FORBIDDEN_MESSAGE,
+                    response_summary=resp.text[:500])
+                return {'success': False, 'needs_attention': True,
+                        'error': self.PAYMENTS_FORBIDDEN_MESSAGE,
+                        'payments': payments}
+            if resp.status_code != 200:
+                return {'success': False,
+                        'error': f'HTTP {resp.status_code}: {resp.text[:200]}',
+                        'payments': payments}
+            rows = (resp.json() or {}).get('Payments') or []
+            if not rows:
+                break
+
+            for row in rows:
+                invoice = row.get('Invoice') or {}
+                if row.get('PaymentType', 'ACCRECPAYMENT') != 'ACCRECPAYMENT':
+                    continue
+                if invoice.get('Type', 'ACCREC') != 'ACCREC':
+                    continue
+                invoice_id = invoice.get('InvoiceID')
+                status = str(row.get('Status') or '').upper()
+                payments.append({
+                    'external_id': str(row.get('PaymentID') or ''),
+                    'amount': _D(str(row.get('Amount') or '0')),
+                    'txn_date': self._xero_date(row),
+                    'reference': (row.get('Reference') or '')[:120],
+                    'invoice_external_ids': [str(invoice_id)] if invoice_id else [],
+                    'voided': status in ('DELETED', 'VOIDED'),
+                })
+
+            if len(rows) < page_size:
+                break
+            page_no += 1
+
+        return {'success': True, 'payments': payments[:limit], 'error': None}
+
+    def fetch_invoice(self, external_id: str) -> Dict[str, Any]:
+        """The whole Xero invoice, in the shape sync_invoice_state reads."""
+        from decimal import Decimal as _D
+        resp = self._api('GET', f'/Invoices/{external_id}')
+        if resp.status_code != 200:
+            return {'success': False,
+                    'error': f'HTTP {resp.status_code}: {resp.text[:200]}',
+                    'invoice': None}
+        rows = (resp.json() or {}).get('Invoices') or []
+        if not rows:
+            return {'success': False,
+                    'error': 'HTTP 404: no invoice in the Xero response',
+                    'invoice': None}
+        data = rows[0]
+        status = str(data.get('Status') or '').upper()
+        return {
+            'success': True,
+            'error': None,
+            'invoice': {
+                'external_id': str(data.get('InvoiceID') or ''),
+                'balance': _D(str(data.get('AmountDue', '0'))),
+                'total': _D(str(data.get('Total', '0'))),
+                'txn_date': self._xero_date(data, 'Date'),
+                'due_date': self._xero_date(data, 'DueDate'),
+                'doc_number': data.get('InvoiceNumber') or '',
+                # Xero keeps a voided or deleted invoice and says so in Status.
+                'voided': status in ('VOIDED', 'DELETED'),
+            },
+        }
+
+    def pull_customers(self, limit: int = 500) -> Dict[str, Any]:
+        """Link Xero customer contacts to organizations by exact name.
+
+        Same rules as the QBO pull: never creates an organization; a contact
+        with no matching organization is reported as unmatched.
+        """
+        from urllib.parse import quote
+        from core.models import Organization
+        from integrations.models import AccountingCustomerLink
+
+        linked, unmatched, already = 0, [], 0
+        page_no, page_size, seen = 1, 100, 0
+        where = quote('IsCustomer==true')
+        while seen < limit:
+            resp = self._api('GET', f'/Contacts?where={where}&page={page_no}'
+                                    f'&pageSize={page_size}')
+            if resp.status_code != 200:
+                return {'success': False,
+                        'error': f'HTTP {resp.status_code}: {resp.text[:200]}',
+                        'linked': linked, 'unmatched': unmatched}
+            rows = (resp.json() or {}).get('Contacts') or []
+            if not rows:
+                break
+            for row in rows:
+                seen += 1
+                name = (row.get('Name') or '').strip()
+                contact_id = str(row.get('ContactID') or '')
+                if not name or not contact_id:
+                    continue
+                if str(row.get('ContactStatus') or 'ACTIVE').upper() != 'ACTIVE':
+                    continue
+                if AccountingCustomerLink.objects.filter(
+                        connection=self.connection,
+                        provider_customer_id=contact_id).exists():
+                    already += 1
+                    continue
+                org = Organization.objects.filter(name__iexact=name).first()
+                if org is None:
+                    unmatched.append(name)
+                    continue
+                try:
+                    self._save_link(org, contact_id, source='pull',
+                                    display_name=name)
+                    linked += 1
+                except AccountingProviderError:
+                    unmatched.append(name)
+            if len(rows) < page_size:
+                break
+            page_no += 1
+
+        log_accounting_call(
+            connection=self.connection, action='pull_customers',
+            resource_type='customer', success=True,
+            request_summary=f'limit={limit}',
+            response_summary=f'linked={linked} already={already} '
+                             f'unmatched={len(unmatched)}')
+        return {'success': True, 'linked': linked, 'already_linked': already,
+                'unmatched': unmatched, 'error': None}
 
     def poll_invoice_balance(self, invoice):
         """Phase 27 v8 (v3.17.280): GET /Invoices/<id> and pull AmountDue."""
