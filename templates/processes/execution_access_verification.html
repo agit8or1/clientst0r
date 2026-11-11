@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Access Removal — {{ execution.process.title }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-0"><i class="fas fa-user-lock"></i> Access removal verification</h1>
+        <div class="text-muted">{{ execution.process.title }} · {{ execution.organization.name }}</div>
+    </div>
+    <div>
+        {% if execution.native_psa_ticket_id %}
+        <a href="{% url 'psa:ticket_detail' execution.native_psa_ticket.ticket_number %}" class="btn btn-outline-secondary"><i class="fas fa-ticket-alt"></i> Back to ticket</a>
+        {% else %}
+        <a href="{% url 'processes:execution_detail' execution.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Back to run</a>
+        {% endif %}
+        <a href="{% url 'processes:execution_audit_log' execution.pk %}" class="btn btn-outline-info"><i class="fas fa-history"></i> Audit log</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="subject">
+            <div class="col-md-6">
+                <label class="form-label" for="subject_email">Departing person (email or Microsoft 365 sign-in)</label>
+                <input type="text" name="subject_email" id="subject_email" class="form-control" maxlength="254"
+                       value="{{ execution.subject_email }}" placeholder="jane.doe@customer.com">
+            </div>
+            <div class="col-auto"><button class="btn btn-outline-primary">Save</button></div>
+        </form>
+        {% if execution.subject_user %}<div class="small text-muted mt-1">ClientSt0r account: {{ execution.subject_user.username }}</div>{% endif %}
+        <form method="post" class="mt-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="verify">
+            <button class="btn btn-primary" {% if not execution.subject_email and not execution.subject_user %}disabled{% endif %}>
+                <i class="fas fa-search"></i> Verify access removal
+            </button>
+            <span class="small text-muted ms-2">Read-only: checks ClientSt0r, the customer's Microsoft 365 connection and its RMM connections. Nothing is changed.{% if last_run %} Last run {{ last_run|date:"Y-m-d H:i" }}.{% endif %}</span>
+        </form>
+    </div>
+</div>
+
+{% if orphaned %}
+<div class="alert alert-danger">
+    <strong><i class="fas fa-exclamation-triangle me-1"></i>Orphaned access</strong>
+    <ul class="mb-0">{% for c in orphaned %}<li>{{ c.get_system_display }} — {{ c.target }}: {{ c.summary }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% for c in checks %}
+<div class="card mb-2">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <div><strong>{{ c.get_system_display }}</strong> <span class="text-muted">{{ c.target }}</span>{% if c.subject %} <code class="ms-1">{{ c.subject }}</code>{% endif %}</div>
+        <span class="badge {% if c.status == 'removed' %}bg-success{% elif c.status == 'orphaned' %}bg-danger{% elif c.status == 'error' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ c.get_status_display }}</span>
+    </div>
+    <div class="card-body py-2">
+        <div class="small">{{ c.summary }}</div>
+        {% if c.findings %}
+        <table class="table table-sm mb-0 mt-1">
+            <tbody>
+            {% for f in c.findings %}
+            <tr>
+                <td>{{ f.item }}</td>
+                <td>{% if f.state == 'active' %}<span class="text-danger">still active</span>{% elif f.state == 'removed' %}<span class="text-success">removed</span>{% else %}<span class="text-muted">info</span>{% endif %}</td>
+                <td class="text-muted">{{ f.detail }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        <div class="small text-muted mt-1">Checked {{ c.created_at|date:"Y-m-d H:i" }}{% if c.checked_by %} by {{ c.checked_by.username }}{% endif %}</div>
+    </div>
+</div>
+{% empty %}
+<p class="text-muted">Not checked yet.</p>
+{% endfor %}
+
+<p class="small text-muted mt-3">
+    Systems without an integration (and anything marked "not verifiable") stay on the runbook's manual stages:
+    tick those off after confirming by hand.
+</p>
+{% endblock %}

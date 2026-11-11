@@ -38,6 +38,9 @@ urlpatterns = [
     path('execution/<int:execution_pk>/stage/<int:stage_pk>/spawn-ticket/',
          views.stage_spawn_ticket, name='stage_spawn_ticket'),
     path('execution/<int:pk>/audit-log/', views.execution_audit_log, name='execution_audit_log'),
+    # Phase 38: read-only access removal verification for offboarding runs.
+    path('execution/<int:pk>/access-verification/', views.execution_access_verification,
+         name='execution_access_verification'),
     path('execution/<int:pk>/delete/', views.execution_delete, name='execution_delete'),
     path('completion/<int:pk>/complete/', views.stage_complete, name='stage_complete'),
     path('completion/<int:pk>/uncomplete/', views.stage_uncomplete, name='stage_uncomplete'),

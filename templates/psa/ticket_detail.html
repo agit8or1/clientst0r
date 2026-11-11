@@ -917,6 +917,12 @@
                             <a href="{% url 'processes:execution_audit_log' ex.pk %}" class="text-decoration-none">
                                 <i class="fas fa-history me-1"></i>View audit log
                             </a>
+                            {% if ex.is_offboarding %}
+                            <span class="text-muted mx-1">·</span>
+                            <a href="{% url 'processes:execution_access_verification' ex.pk %}" class="text-decoration-none">
+                                <i class="fas fa-user-lock me-1"></i>Verify access removal
+                            </a>
+                            {% endif %}
                             {% if request.user.is_superuser %}
                             <span class="text-muted mx-1">·</span>
                             <a href="{% url 'processes:execution_detail' ex.pk %}" class="text-decoration-none text-muted">

@@ -13,6 +13,11 @@
         <a href="{% url 'processes:execution_audit_log' execution.pk %}" class="btn btn-outline-info">
             <i class="fas fa-history"></i> Audit Log
         </a>
+        {% if execution.is_offboarding %}
+        <a href="{% url 'processes:execution_access_verification' execution.pk %}" class="btn btn-outline-danger">
+            <i class="fas fa-user-lock"></i> Verify access removal
+        </a>
+        {% endif %}
         {% if user.is_superuser %}
         <form method="post" action="{% url 'processes:execution_delete' execution.pk %}" style="display: inline;" data-confirm="Are you sure you want to delete this workflow execution?
 

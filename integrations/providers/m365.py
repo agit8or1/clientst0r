@@ -138,6 +138,26 @@ class M365Provider:
             logger.warning(f"M365 get_users failed: {e}")
             return []
 
+    def get_user_access(self, sign_in: str):
+        """Read-only lookup of one user for offboarding verification:
+        {id, userPrincipalName, displayName, accountEnabled, assignedLicenses}
+        or None when no user has this sign-in name / mail address.
+        Errors other than "not found" raise (the caller records them)."""
+        select = 'id,userPrincipalName,displayName,mail,accountEnabled,assignedLicenses'
+        try:
+            return self._get(f'/users/{quote(sign_in, safe="@")}', params={'$select': select})
+        except requests.exceptions.HTTPError as e:
+            if e.response is None or e.response.status_code != 404:
+                raise
+        # Not a UPN: the address may be the user's mail / proxy address.
+        safe = sign_in.replace("'", "''")
+        found = self._get('/users', params={
+            '$select': select, '$top': '2',
+            '$filter': f"mail eq '{safe}' or proxyAddresses/any(p:p eq 'smtp:{safe}')",
+            '$count': 'true',
+        }).get('value', [])
+        return found[0] if found else None
+
     def get_licenses(self) -> list:
         try:
             return self._get_all('/subscribedSkus', params={
