@@ -125,6 +125,10 @@ urlpatterns = [
     path('dispatch/assign/', views.dispatch_assign, name='dispatch_assign'),
     path('dispatch/heatmap/', views.dispatch_heatmap, name='dispatch_heatmap'),
     # Invoices + payments (Workstream 5 billing)
+    # Phase 36: per-cycle agreement billing review (approve / hold).
+    path('billing-review/', views.billing_review, name='billing_review'),
+    path('billing-review/invoices/<int:pk>/decide/', views.billing_review_decide,
+         name='billing_review_decide'),
     path('invoices/', views.invoice_list, name='invoice_list'),
     path('invoices/new/', views.invoice_form, name='invoice_create'),
     path('invoices/<int:pk>/', views.invoice_detail, name='invoice_detail'),

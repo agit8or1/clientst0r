@@ -5128,6 +5128,85 @@ def invoice_approve(request, pk):
     return redirect('psa:invoice_detail', pk=item.pk)
 
 
+def _billing_review_contracts(request):
+    from .models import Contract
+    org = get_request_organization(request)
+    qs = Contract.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    elif not request.user.is_superuser:
+        qs = qs.none()
+    return qs
+
+
+@login_required
+@require_admin
+@require_psa_enabled
+def billing_review(request):
+    """Phase 36: per-cycle agreement billing review — included hours
+    consumed, overage and the draft invoice for every agreement, with
+    approve / hold feeding the pre-invoice approval gate."""
+    from dateutil.relativedelta import relativedelta
+    from . import billing_review as br
+    if not (request.user.is_superuser or is_msp_staff(request.user)):
+        raise Http404
+    start, end = br.parse_cycle(request.GET.get('period'))
+    rows = br.build_rows(br.contracts_for_cycle(_billing_review_contracts(request), start, end), start, end)
+    state = request.GET.get('state') or ''
+    shown = [r for r in rows if not state or r.state == state
+             or (state == 'overage' and r.overage_minutes)
+             or (state == 'none' and r.invoice is None)]
+    return render(request, 'psa/billing_review.html', {
+        'rows': shown, 'summary': br.summary(rows), 'cycle_start': start,
+        'cycle_end': end - relativedelta(days=1), 'period': f'{start:%Y-%m}',
+        'prev_period': f'{start - relativedelta(months=1):%Y-%m}',
+        'next_period': f'{end:%Y-%m}', 'state': state,
+    })
+
+
+@login_required
+@require_admin
+@require_psa_enabled
+@require_http_methods(['POST'])
+def billing_review_decide(request, pk):
+    """Approve or hold one agreement's draft invoice from the billing review."""
+    from . import billing_review as br
+    from .models import Invoice
+    if not (request.user.is_superuser or is_msp_staff(request.user)):
+        raise Http404
+    period = (request.POST.get('period') or '')[:7]
+    back = redirect(reverse('psa:billing_review') + (f'?period={period}' if period else ''))
+    contract_ids = _billing_review_contracts(request).values_list('pk', flat=True)
+    invoice = get_object_or_404(Invoice.objects.filter(source_contract_id__in=contract_ids,
+                                                       is_credit_memo=False), pk=pk)
+    decision = request.POST.get('decision') or ''
+    note = (request.POST.get('note') or '').strip()[:150]
+    if invoice.status != 'draft':
+        messages.error(request, f'{invoice.invoice_number} is already {invoice.get_status_display().lower()}; '
+                                'only draft invoices are reviewed here.')
+        return back
+    if decision == 'approve':
+        was = invoice.approval_reason if invoice.requires_approval else ''
+        br.approve(invoice, user=request.user)
+        description = (f'Approved invoice {invoice.invoice_number} at billing review'
+                       + (f' (was: {was})' if was else '') + (f' — {note}' if note else ''))
+        messages.success(request, f'Approved {invoice.invoice_number}.')
+    elif decision == 'hold':
+        reason = br.hold(invoice, user=request.user, note=note)
+        description = f'Held invoice {invoice.invoice_number}: {reason}'
+        messages.success(request, f'{invoice.invoice_number} is on hold; it cannot be sent until approved.')
+    else:
+        messages.error(request, 'Pick approve or hold.')
+        return back
+    AuditLog.log(
+        user=request.user, action='update', organization=invoice.organization,
+        object_type='psa.Invoice', object_id=invoice.pk, object_repr=invoice.invoice_number,
+        description=description, ip_address=_client_ip(request), path=request.path,
+        extra_data={'event': 'billing_review', 'decision': decision, 'period': period},
+    )
+    return back
+
+
 @login_required
 @require_write
 @require_psa_enabled

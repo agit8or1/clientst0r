@@ -10,7 +10,10 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Invoices</h2>
-    <a href="{% url 'psa:invoice_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Invoice</a>
+    <div class="d-flex gap-2">
+        <a href="{% url 'psa:billing_review' %}" class="btn btn-outline-secondary"><i class="fas fa-list-check"></i> Billing review</a>
+        <a href="{% url 'psa:invoice_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Invoice</a>
+    </div>
 </div>
 
 <form method="get" class="mb-3">
