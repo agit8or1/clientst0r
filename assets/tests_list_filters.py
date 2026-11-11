@@ -111,8 +111,10 @@ class AssetListFilterTests(TestCase):
         r = self.client.get(URL, {'per_page': 25, 'page': 2, 'type': 'other'})
         self.assertEqual(len(r.context['assets']), 5)
         self.assertEqual(r.context['total_count'], 30)
-        self.assertIn('per_page=25', r.context['page_query'])
-        self.assertNotIn('page=2', r.context['page_query'])
+        from django.http import QueryDict
+        kept = QueryDict(r.context['page_query'])
+        self.assertEqual(kept.get('per_page'), '25')
+        self.assertNotIn('page', kept)  # pagination links add their own
         # An unknown page size falls back to the default.
         self.assertEqual(self.client.get(URL, {'per_page': 7}).context['per_page'], 50)
 

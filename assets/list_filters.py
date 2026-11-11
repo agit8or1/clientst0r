@@ -80,9 +80,15 @@ def rmm_filter(qs, state):
 
 
 def alerts_filter(qs):
-    from integrations.models import RMMAlert
+    from integrations.models import RMMAlert, RMMDevice
+    # The same device rule as _linked_devices(), spelled through the alert so
+    # OuterRef points at the asset (a nested subquery would point at the alert).
     return qs.filter(Exists(RMMAlert.objects.filter(
-        status='active', device__in=_linked_devices())))
+        status='active',
+        device__linked_asset_id=OuterRef('pk'),
+        device__organization_id=OuterRef('organization_id'),
+        device__ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+    )))
 
 
 def text_filter(qs, text):

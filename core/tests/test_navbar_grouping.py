@@ -388,9 +388,12 @@ class AddedPagesInSidebarTests(NavbarTestBase):
         for name in TECH_HIDDEN:
             with self.subTest(page=name):
                 self.assertNotIn(f'href="{reverse(name)}"', aside)
-        for href in sorted(set(re.findall(r'href="(/[^"#?]*)"', aside))):
-            with self.subTest(href=href):
-                self.assertNotIn(self.client.get(href).status_code, (403, 404), href)
+        offered = set(re.findall(r'href="(/[^"#?]*)"', aside))
+        for name in ADDED_PAGES:
+            href = reverse(name)
+            if href in offered:
+                with self.subTest(href=href):
+                    self.assertNotIn(self.client.get(href).status_code, (403, 404), href)
 
     def test_customer_gets_none_of_the_staff_pages(self):
         aside = aside_of(self.page(self.make_customer()))

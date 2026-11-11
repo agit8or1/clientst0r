@@ -69,7 +69,7 @@ entry rather than a tab strip.
 | Dispatch geo settings (`field_ops:dispatch_geo_settings`) | Tickets → Shifts & Locations → Dispatch Locations | su who is MSP staff |
 | Billing review (`psa:billing_review`, `/psa/billing-review/`) | Clients → Billing → tab | psa + `require_admin` + staff |
 | Serial search (`assets:serial_search`, `/assets/serials/`) | Devices → All Assets → tab | auth + assets_view |
-| Workflow flow map (`psa:workflow_rule_map`, `/psa/rules/flow/`) | Tickets → Tickets → Workflow Flow Map | psa + `require_admin` |
+| Workflow flow map (`psa:workflow_rule_map`, `/psa/rules/flow/`) | Tickets → Tickets → Workflow Flow Map | psa + `require_admin` + staff |
 | Support workflows admin (`support_workflows:admin`) | Tools → Support Workflows | psa + `routing_manage_rules` |
 | Alert policy (`ticket_routing:alerts`) | Alerts → Alert Policy (its rule and maintenance pages light up Alerts too) | psa + `routing_manage_rules` |
 | RMM permissions (`rmm_permissions:index`, `/settings/security/rmm-permissions/`) | Settings → RMM Permissions (also still in the Settings page menu) | `policy.manage` or `audit.review` |

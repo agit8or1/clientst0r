@@ -181,7 +181,10 @@ SECTIONS = (
         Tab(_('Recurring Tickets'), 'psa:recurring_list', 'fa-repeat'),
         Tab(_('Canned Replies'), 'psa:canned_reply_list', 'fa-magic'),
         Tab(_('Workflow Rules'), 'psa:workflow_rule_list', 'fa-bolt'),
-        Tab(_('Workflow Flow Map'), 'psa:workflow_rule_map', 'fa-project-diagram', gate=_org_admin),
+        Tab(_('Workflow Flow Map'), 'psa:workflow_rule_map', 'fa-project-diagram',
+            # require_admin lets a customer's Owner in too; the map of every
+            # rule is an MSP tool, so the link is offered to MSP staff only.
+            gate=_all(_org_admin, _msp_staff)),
         Tab(_('Email Ingestion'), 'psa:email_config_list', 'fa-envelope-open-text'),
         Tab(_('AI Inbox'), 'psa_ai:inbox', 'fa-wand-magic-sparkles', gate=_ai_enabled),
     )),
