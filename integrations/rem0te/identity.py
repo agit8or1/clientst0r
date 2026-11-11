@@ -64,12 +64,92 @@ def generate_keys(by=None, rotate=False):
         ident.delegation_private_key = protocol.generate_private_key_pem()
         if rotate:
             ident.rotated_at = timezone.now()
+        ident.next_request_kid = ident.next_request_private_key = ''
+        ident.next_delegation_kid = ident.next_delegation_private_key = ''
+        ident.next_staged_at = None
         ident.save()
     AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
                  object_repr='ClientSt0r Rem0te identity',
                  description=('Rotated' if rotate else 'Generated') + ' ClientSt0r\'s Rem0te request and delegation '
                  f'keys (request {ident.request_kid}, delegation {ident.delegation_kid})',
                  extra_data={'request_kid': ident.request_kid, 'delegation_kid': ident.delegation_kid})
+    return ident
+
+
+def has_next_keys(ident=None) -> bool:
+    ident = ident or get(create=False)
+    return bool(ident and ident.next_request_kid and ident.next_request_private_key and ident.next_delegation_kid
+                and ident.next_delegation_private_key)
+
+
+def stage_next_keys(by=None):
+    """Rotation without an outage, step 1: create the next request and
+    delegation key pairs. They are listed in the peers-file entry next to the
+    current ones (Rem0te accepts every listed key) but nothing signs with them
+    until `promote_next_keys`."""
+    from audit.models import AuditLog
+    from integrations.models import Rem0teIdentity
+    with transaction.atomic():
+        ident = get(create=False)
+        if ident is None or not has_keys(ident):
+            raise IdentityError('Generate the first keys before staging new ones.')
+        ident = Rem0teIdentity.objects.select_for_update().get(pk=ident.pk)
+        if has_next_keys(ident):
+            raise IdentityError('New keys are already staged: switch to them or discard them first.')
+        ident.next_request_kid, ident.next_request_private_key = _kid('req'), protocol.generate_private_key_pem()
+        ident.next_delegation_kid, ident.next_delegation_private_key = _kid('del'), protocol.generate_private_key_pem()
+        ident.next_staged_at = timezone.now()
+        ident.save()
+    AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
+                 object_repr='ClientSt0r Rem0te identity',
+                 description=f'Staged next Rem0te keys (request {ident.next_request_kid}, delegation '
+                             f'{ident.next_delegation_kid}); the current keys still sign',
+                 extra_data={'next_request_kid': ident.next_request_kid,
+                             'next_delegation_kid': ident.next_delegation_kid})
+    return ident
+
+
+def promote_next_keys(by=None):
+    """Step 2, once Rem0te was restarted with the entry listing both: sign with
+    the staged keys. The old public keys may then leave the peers file."""
+    from audit.models import AuditLog
+    from integrations.models import Rem0teIdentity
+    with transaction.atomic():
+        ident = get(create=False)
+        if ident is None or not has_next_keys(ident):
+            raise IdentityError('No keys are staged.')
+        ident = Rem0teIdentity.objects.select_for_update().get(pk=ident.pk)
+        old = (ident.request_kid, ident.delegation_kid)
+        ident.request_kid, ident.request_private_key = ident.next_request_kid, ident.next_request_private_key
+        ident.delegation_kid, ident.delegation_private_key = (ident.next_delegation_kid,
+                                                              ident.next_delegation_private_key)
+        ident.next_request_kid = ident.next_request_private_key = ''
+        ident.next_delegation_kid = ident.next_delegation_private_key = ''
+        ident.next_staged_at = None
+        ident.rotated_at = timezone.now()
+        ident.save()
+    AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
+                 object_repr='ClientSt0r Rem0te identity',
+                 description=f'Switched to the staged Rem0te keys (request {ident.request_kid}, delegation '
+                             f'{ident.delegation_kid}); retired {old[0]}, {old[1]}',
+                 extra_data={'request_kid': ident.request_kid, 'delegation_kid': ident.delegation_kid,
+                             'retired': list(old)})
+    return ident
+
+
+def discard_next_keys(by=None):
+    from audit.models import AuditLog
+    ident = get(create=False)
+    if ident is None or not has_next_keys(ident):
+        return ident
+    kids = (ident.next_request_kid, ident.next_delegation_kid)
+    ident.next_request_kid = ident.next_request_private_key = ''
+    ident.next_delegation_kid = ident.next_delegation_private_key = ''
+    ident.next_staged_at = None
+    ident.save()
+    AuditLog.log(user=by, action='update', object_type='rem0te_identity', object_id=ident.pk,
+                 object_repr='ClientSt0r Rem0te identity', description=f'Discarded staged Rem0te keys {kids[0]}, '
+                                                                        f'{kids[1]}')
     return ident
 
 
@@ -162,6 +242,13 @@ def public_view(ident=None) -> Optional[dict]:
             pem = protocol.public_pem(getattr(ident, f'{which}_private_key'))
             out[which] = {'kid': getattr(ident, f'{which}_kid'), 'public_key_pem': pem,
                           'fingerprint': protocol.fingerprint(pem)}
+    out['next'] = None
+    if has_keys(ident) and has_next_keys(ident):
+        out['next'] = {'staged_at': ident.next_staged_at}
+        for which in ('request', 'delegation'):
+            pem = protocol.public_pem(getattr(ident, f'next_{which}_private_key'))
+            out['next'][which] = {'kid': getattr(ident, f'next_{which}_kid'), 'public_key_pem': pem,
+                                  'fingerprint': protocol.fingerprint(pem)}
     return out
 
 
@@ -175,12 +262,16 @@ def peer_entry(connection=None, model_profiles=None) -> Optional[dict]:
     if connection is not None:
         from .pairing import settings as rem0te_settings
         rem0te_audience = rem0te_settings(connection)['rem0te_audience']
+    keys = {w: [{'kid': view[w]['kid'], 'publicKeyPem': view[w]['public_key_pem']}] for w in ('request', 'delegation')}
+    if view.get('next'):
+        for w in ('request', 'delegation'):
+            keys[w].append({'kid': view['next'][w]['kid'], 'publicKeyPem': view['next'][w]['public_key_pem']})
     return {
         'id': view['peer_id'],
         'audience': rem0te_audience or 'rem0te:<your-rem0te-host>',
         'peerAudience': view['audience'] or 'clientst0r:<your-clientst0r-host>',
-        'requestKeys': [{'kid': view['request']['kid'], 'publicKeyPem': view['request']['public_key_pem']}],
-        'delegationKeys': [{'kid': view['delegation']['kid'], 'publicKeyPem': view['delegation']['public_key_pem']}],
+        'requestKeys': keys['request'],
+        'delegationKeys': keys['delegation'],
         'inferenceUrl': view['urls']['inference'] or '<https://clientst0r.example.com>/api/integration/v1/inference',
         'eventsUrl': view['urls']['events'] or '<https://clientst0r.example.com>/api/integration/v1/events',
         'modelProfiles': list(model_profiles or []) or ['<profile>'],

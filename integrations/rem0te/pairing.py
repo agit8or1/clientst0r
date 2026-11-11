@@ -18,10 +18,24 @@ The organization id Rem0te maps to a business is `organization_id()`
 ("org-<pk>"); technicians are "tech-<user pk>". Rem0te matches nothing by
 name: an administrator maps both in Rem0te.
 
-Check pairing (`check()`) makes one signed GET /capabilities and one signed
-GET /alerts/events probe and records exactly why it failed, without
-secrets. Compatibility is pinned to the contract revision in
-contract/PIN.json.
+Check pairing (`check()`) makes one signed GET /capabilities and records
+exactly why it failed, without secrets. Revisions (contract_revision in
+/capabilities; absent = 1):
+
+  1  Rem0te 0.26–0.29. The organization mapping is learned from a signed,
+     side-effect-free GET /alerts/events probe (403 = not mapped). Nothing
+     says which business the organization is bound to.
+  2  Rem0te 0.30. `organizations` names every organization of this peer with
+     its business id, name and containment pauses. ClientSt0r keeps only
+     this connection's own entry (the others are other customers'), checks
+     its business id against the business the connection's inventory API
+     key belongs to (a mismatch stops the pairing: BUSINESS_MISMATCH), and
+     shows the pauses. Alerts may carry `patch_summary`.
+  >2 accepted with a warning: fields ClientSt0r does not know are tolerated
+     in what Rem0te sends (logged by path, never by value) and never used.
+
+Compatibility is pinned to the revision in contract/PIN.json; rev1/ keeps
+the revision-1 schemas.
 """
 from __future__ import annotations
 
@@ -31,7 +45,11 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
+import logging
+
 from . import client, identity, protocol, schema
+
+logger = logging.getLogger('integrations.rem0te')
 
 AUTH = 'ticket_rmm_auth'
 AUDIENCE = 'rem0te_audience'
@@ -41,6 +59,7 @@ LEGACY = 'ticket_rmm_legacy_hmac'
 
 MIN_VERSION = (0, 26, 0)      # analysis jobs + action proposals in the contract shape tested here
 ALERTS_VERSION = (0, 29, 0)   # alert events
+IMPLEMENTED_REVISION = schema.IMPLEMENTED_REVISION
 _VERSION_RE = re.compile(r'^(\d+)\.(\d+)\.(\d+)')
 
 # Catalog actions ClientSt0r knows how to propose (Rem0te's catalog decides
@@ -254,7 +273,50 @@ FAILURE_TEXT = {
     'SIGNING_KEY_MISMATCH': '{detail}',
     'INVALID_RESPONSE': '{detail}',
     'HTTP_ERROR': 'Rem0te answered HTTP {status}{code}.',
+    'BUSINESS_MISMATCH': '{detail}',
 }
+BUSINESS_MISMATCH = 'BUSINESS_MISMATCH'
+
+
+def _bind_business(connection, organizations, doc, pins, warnings) -> str:
+    """Revision 2's `organizations`: record this organization's own entry and
+    check its business against the one this connection is pinned to (the
+    business its inventory API key answers for). Returns why the pairing
+    must stop, or ''. Never stores another organization's entry."""
+    from integrations.ticket_rmm import REM0TE_BUSINESS_PIN, TENANT_PIN
+    own_id = organization_id(connection)
+    own = next((o for o in organizations if isinstance(o, dict) and o.get('organization_id') == own_id), None)
+    doc['organizations_count'] = len(organizations)
+    if own is None:
+        doc['org_mapped'] = False
+        doc.pop('organization', None)
+        warnings.append(f'Rem0te has no business mapped to this organization ("{own_id}"). A Platform Admin maps '
+                        'it in Rem0te (POST /api/v1/admin/integration/mappings/organizations); analysis jobs and '
+                        'alerts are refused until then.')
+        return ''
+    paused = sorted({p for p in own.get('paused') or [] if p in ('actions', 'remote', 'updates', 'integration')})
+    business_id = client.safe_text(own.get('business_id'), 64)
+    doc['org_mapped'] = True
+    doc['organization'] = {'organization_id': own_id, 'business_id': business_id,
+                           'business_name': client.safe_text(own.get('business_name'), 120), 'paused': paused}
+    m = connection.field_mappings or {}
+    pinned = str(m.get(REM0TE_BUSINESS_PIN) or m.get(TENANT_PIN) or '')
+    if pinned and pinned != business_id:
+        doc['business_binding'] = {
+            'status': 'mismatch', 'pinned': pinned, 'reported': business_id,
+            'detail': f'Rem0te binds organization "{own_id}" to business {business_id}, but this connection belongs '
+                      f'to business {pinned} (its inventory API key). ClientSt0r stopped the pairing so one '
+                      "customer's alerts and computers are never filed under another."}
+        return doc['business_binding']['detail']
+    if not pinned:
+        pins[TENANT_PIN] = business_id  # the inventory sync now refuses a key for any other business
+    doc['business_binding'] = {'status': 'match', 'pinned': pinned or business_id, 'reported': business_id,
+                               'detail': f'Organization "{own_id}" is bound to business {business_id}'
+                                         + (' (pinned now).' if not pinned else ', the same business as the '
+                                            'inventory API key.')}
+    if paused:
+        warnings.append('Rem0te reports a containment pause for this business: ' + ', '.join(paused) + '.')
+    return ''
 
 
 def _classify(r: client.Result, ctx: dict) -> Tuple[str, str]:
@@ -293,18 +355,34 @@ def _text(code, ctx, detail='') -> str:
         **{k: v for k, v in ctx.items() if k != 'skew'})
 
 
-def validate_capabilities(doc, connection, ident) -> Tuple[str, str, List[str]]:
-    """(failure code or '', detail, warnings) for a capabilities response."""
+def validate_capabilities(doc, connection, ident, meta=None) -> Tuple[str, str, List[str]]:
+    """(failure code or '', detail, warnings) for a capabilities response.
+    `meta` (a dict) receives the revision Rem0te reports and the unknown
+    field paths that were tolerated."""
     warnings: List[str] = []
+    meta = meta if meta is not None else {}
     if not isinstance(doc, dict):
         return 'INVALID_RESPONSE', 'The capabilities response is not a JSON object.', warnings
     if doc.get('contract') != protocol.CONTRACT:
         return 'CONTRACT_MISMATCH', f'it reports contract "{client.safe_text(doc.get("contract"), 40)}", ' \
                                     f'ClientSt0r speaks "{protocol.CONTRACT}".', warnings
-    errs = schema.errors('capabilities', doc)
+    raw_rev = doc.get('contract_revision', 1)
+    if not isinstance(raw_rev, int) or isinstance(raw_rev, bool) or raw_rev < 1:
+        return 'CONTRACT_MISMATCH', 'its contract_revision is not a positive integer.', warnings
+    errs, unknown, validated = schema.errors_from_peer('capabilities', doc, raw_rev)
+    meta.update(contract_revision=raw_rev, validated_revision=validated, unknown_fields=unknown)
     if errs:
-        return 'CONTRACT_MISMATCH', 'its capabilities do not match the pinned schema (' + \
+        return 'CONTRACT_MISMATCH', f'its capabilities (revision {raw_rev}) do not match the pinned schema (' + \
             '; '.join(client.safe_text(e, 80) for e in errs[:3]) + ').', warnings
+    if validated != raw_rev and raw_rev <= IMPLEMENTED_REVISION:
+        return 'CONTRACT_MISMATCH', (f'it reports revision {raw_rev} but sends a revision-{validated} document.'), \
+            warnings
+    if raw_rev > IMPLEMENTED_REVISION:
+        logger.warning('Rem0te speaks ticket-rmm-v1 revision %s (ClientSt0r implements %s); tolerated unknown '
+                    'capabilities fields: %s', raw_rev, IMPLEMENTED_REVISION, ', '.join(unknown) or 'none')
+        warnings.append(f'Rem0te speaks contract revision {raw_rev}; this ClientSt0r implements revision '
+                        f'{IMPLEMENTED_REVISION} and uses nothing newer'
+                        + (f' (ignored: {", ".join(unknown[:6])})' if unknown else '') + '.')
     version = version_tuple(doc.get('rem0te_version'))
     tested = version_tuple(pin()['rem0te_version'])
     if version is None:
@@ -368,6 +446,8 @@ def check(connection) -> dict:
                            'tested_against': {'contract': pin()['contract'], 'rem0te_version': pin()['rem0te_version'],
                                               'rem0te_sha': pin()['rem0te_sha']}}
 
+    pins = {}
+
     def done(code='', detail=''):
         if code:
             doc.update(code=code, error=_text(code, ctx, detail)[:600])
@@ -375,11 +455,18 @@ def check(connection) -> dict:
             # (shown with the error); a protocol failure does not.
             if code in ('UNREACHABLE', 'RATE_LIMITED') and previous.get('compatible'):
                 for k in ('features', 'model_profiles', 'limits', 'rem0te_version', 'signing_keys',
-                          'org_mapped', 'fetched_at'):
+                          'org_mapped', 'fetched_at', 'contract_revision', 'validated_revision', 'organization',
+                          'business_binding', 'technicians'):
                     if k in previous:
                         doc[k] = previous[k]
                 doc['compatible'] = True
+            doc['failures'] = int(previous.get('failures') or 0) + 1 if not previous.get('ok') else 1
+        else:
+            doc['failures'] = 0
+            if previous.get('technicians'):
+                doc['technicians'] = previous['technicians']
         mappings = dict(connection.field_mappings or {})
+        mappings.update(pins)
         mappings[CAPS] = doc
         _save(connection, mappings)
         return doc
@@ -401,8 +488,12 @@ def check(connection) -> dict:
         ctx['status'] = r.status
         ctx['code'] = f' ({r.code})' if r.code and not r.code.startswith('HTTP_') else ''
         return done(code, detail)
-    code, detail, warnings = validate_capabilities(r.data, connection, ident)
+    meta: Dict[str, Any] = {}
+    code, detail, warnings = validate_capabilities(r.data, connection, ident, meta)
     doc['warnings'] = warnings
+    doc.update(meta)
+    if isinstance(r.clock_skew_s, int):
+        doc['clock_skew_s'] = r.clock_skew_s
     if code:
         return done(code, detail)
     cap = r.data
@@ -411,10 +502,26 @@ def check(connection) -> dict:
                signing_keys=[{'kid': k['kid'], 'fingerprint': _fp(k['public_key_pem'])} for k in cap['signing_keys']])
     if isinstance(r.clock_skew_s, int) and abs(r.clock_skew_s) > 60:
         warnings.append(f'Rem0te\'s clock is {r.clock_skew_s:+d} s from ClientSt0r\'s; requests fail beyond ±120 s.')
-    # Is this organization mapped to a business in Rem0te? Alert polling
-    # answers 403 for an unmapped organization and is service-level (no
-    # technician token), so it is a side-effect-free probe.
-    if cap['features'].get('alerts'):
+    if isinstance(cap.get('organizations'), list):
+        # Revision 2: the binding, stated by Rem0te. Only this organization's
+        # own entry is kept: the others are other customers' businesses.
+        problem = _bind_business(connection, cap['organizations'], doc, pins, warnings)
+        if problem:
+            # Not a processor for this connection until the binding agrees.
+            doc.update(ok=False, compatible=False)
+            return done(BUSINESS_MISMATCH, problem)
+        from . import health
+        paused = (doc.get('organization') or {}).get('paused') or []
+        # A refusal recorded during a pause is history once Rem0te says the
+        # pause is lifted; the next job or proposal shows any new problem.
+        if 'integration' not in paused:
+            health.clear(connection, 'jobs', code='CONTAINED')
+        if 'actions' not in paused:
+            health.clear(connection, 'actions', code='CONTAINED')
+    elif cap['features'].get('alerts'):
+        # Revision 1: is this organization mapped to a business in Rem0te?
+        # Alert polling answers 403 for an unmapped organization and is
+        # service-level (no technician token): a side-effect-free probe.
         probe = client.request(connection, 'GET', '/alerts/events',
                                query={'organization_id': organization_id(connection), 'after': 999999999})
         if probe.ok:
@@ -478,7 +585,9 @@ def status(connection) -> Dict[str, Any]:
         detail = doc['error'] + ' The capabilities below are from the last successful check.'
     else:
         state, label, detail = 'ok', 'Paired', 'Rem0te processes ticket-rmm-v1 requests for this organization.'
+    from . import health
     return {
+        'health': health.evaluate(connection),
         'protocol': 'ed25519', 'state': state, 'label': label, 'detail': detail, 'pending_approval': pending,
         'settings': s, 'check': doc, 'warnings': doc.get('warnings') or [],
         'capabilities': sorted(advertised(connection)), 'diagnostics': [],
