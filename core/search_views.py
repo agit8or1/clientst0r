@@ -155,13 +155,24 @@ def global_search(request):
         # the way `integrations.views` does, not via the connection — same
         # rows, and it picks up descendants like everything else here. They
         # open under /integrations/, so integrations_view governs them.
+        # Rows a platform-owned connection has not assigned to a customer
+        # yet (organization empty) are platform data: only platform staff
+        # see them, and only in global view.
+        def psa_rows(model):
+            qs = permitted(model, 'integrations_view')
+            from integrations.ownership import can_view_platform
+            if not (in_global_view and can_view_platform(user)):
+                qs = qs.exclude(organization__isnull=True)
+            return qs
+
         try:
-            take('psa_companies', permitted(PSACompany, 'integrations_view').filter(
+            take('psa_companies', psa_rows(PSACompany).filter(
                 Q(name__icontains=query)
             ))
 
-            take('psa_contacts', permitted(PSAContact, 'integrations_view').filter(
-                Q(name__icontains=query) |
+            take('psa_contacts', psa_rows(PSAContact).filter(
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
                 Q(email__icontains=query)
             ))
         except Exception:

@@ -37,12 +37,21 @@ def client_has_external_psa(organization):
     except Exception:
         return False
     try:
-        return PSAConnection.objects.filter(
-            organization=organization,
-            is_active=True,
-        ).exists()
+        return _external_psa_connections(organization).exists()
     except Exception:
         return False
+
+
+def _external_psa_connections(organization):
+    """Active external PSA connections that manage this customer: its own
+    connection, or a platform-owned one with a company mapped to it."""
+    from django.db.models import Q
+    from integrations.models import PSAConnection
+    return PSAConnection.objects.filter(
+        Q(organization=organization)
+        | Q(organization__isnull=True, companies__organization=organization),
+        is_active=True,
+    ).distinct()
 
 
 def clients_eligible_for_native_psa(user):
@@ -76,8 +85,16 @@ def clients_eligible_for_native_psa(user):
             )
         qs = qs.filter(id__in=member_org_ids)
     # Exclude orgs with an active external PSA — that's the hard opt-out.
-    external_org_ids = PSAConnection.objects.filter(is_active=True).values_list('organization_id', flat=True)
-    qs = qs.exclude(id__in=external_org_ids)
+    # A platform-owned connection has no organization (NULL must not reach a
+    # NOT IN list); it manages the customers its companies are mapped to.
+    from integrations.models import PSACompany
+    external_org_ids = (PSAConnection.objects.filter(is_active=True, organization__isnull=False)
+                        .values_list('organization_id', flat=True))
+    platform_org_ids = (PSACompany.objects.filter(connection__is_active=True,
+                                                  connection__organization__isnull=True,
+                                                  organization__isnull=False)
+                        .values_list('organization_id', flat=True))
+    qs = qs.exclude(id__in=external_org_ids).exclude(id__in=platform_org_ids)
     # Exclude orgs with an explicit ClientPSASettings.enabled=False override.
     try:
         from psa.models import ClientPSASettings
@@ -101,11 +118,7 @@ def get_external_psa_summary(organization):
     except Exception:
         return ''
     try:
-        names = list(
-            PSAConnection.objects
-            .filter(organization=organization, is_active=True)
-            .values_list('provider_type', 'name')
-        )
+        names = list(_external_psa_connections(organization).values_list('provider_type', 'name'))
     except Exception:
         return ''
     if not names:

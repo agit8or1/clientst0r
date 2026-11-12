@@ -160,8 +160,11 @@ class ProcessExecutionForm(forms.ModelForm):
         if self.organization:
             # Filter PSA tickets by organization and open status
             from integrations.models import PSATicket
+            from django.db.models import Q
+            # This customer's tickets: from its own PSA, or assigned to it
+            # from a platform-owned PSA by company mapping.
             self.fields['psa_ticket'].queryset = PSATicket.objects.filter(
-                connection__organization=self.organization,
+                Q(organization=self.organization) | Q(connection__organization=self.organization),
                 status__in=['open', 'in_progress']
             ).select_related('connection').order_by('-created_at')[:100]  # Limit to 100 recent tickets
             self.fields['psa_ticket'].label_from_instance = lambda obj: f"[{obj.connection.provider}] {obj.ticket_number} - {obj.subject[:50]}"

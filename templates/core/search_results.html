@@ -235,7 +235,7 @@
     <div class="list-group list-group-flush">
         {% for contact in psa_contacts %}
         <div class="list-group-item">
-            <h6 class="mb-1"><i class="fas fa-user-tie text-success"></i> {{ contact.name }}{% if show_org_badge and contact.organization %}<span class="badge bg-light text-dark border ms-2">{{ contact.organization.name }}</span>{% endif %}</h6>
+            <h6 class="mb-1"><i class="fas fa-user-tie text-success"></i> {{ contact.full_name }}{% if show_org_badge and contact.organization %}<span class="badge bg-light text-dark border ms-2">{{ contact.organization.name }}</span>{% endif %}</h6>
             {% if contact.email %}
             <small class="text-muted">{{ contact.email }}</small>
             {% endif %}
