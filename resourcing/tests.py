@@ -52,7 +52,7 @@ class WorkingHoursTests(TestCase):
 class UserCertificationTests(TestCase):
     def test_is_expired_when_past(self):
         u = User.objects.create_user(username='carol', password='pw-test-12345')
-        yesterday = timezone.now().date() - timedelta(days=1)
+        yesterday = timezone.localdate() - timedelta(days=1)
         cert = UserCertification.objects.create(user=u, name='CCNA', expires_at=yesterday)
         self.assertTrue(cert.is_expired)
         self.assertFalse(cert.expires_soon)  # expired ≠ expires_soon
@@ -64,14 +64,14 @@ class UserCertificationTests(TestCase):
 
     def test_expires_soon_within_60_days(self):
         u = User.objects.create_user(username='dave', password='pw-test-12345')
-        in_30 = timezone.now().date() + timedelta(days=30)
+        in_30 = timezone.localdate() + timedelta(days=30)
         cert = UserCertification.objects.create(user=u, name='Microsoft 365 Admin', expires_at=in_30)
         self.assertTrue(cert.expires_soon)
         self.assertFalse(cert.is_expired)
 
     def test_expires_soon_false_when_far(self):
         u = User.objects.create_user(username='dave2', password='pw-test-12345')
-        in_120 = timezone.now().date() + timedelta(days=120)
+        in_120 = timezone.localdate() + timedelta(days=120)
         cert = UserCertification.objects.create(user=u, name='AWS Solutions Architect', expires_at=in_120)
         self.assertFalse(cert.expires_soon)
 
@@ -626,3 +626,43 @@ class ShiftViewTests(TestCase):
         tech.post(reverse('resourcing:shift_assign'), {'template': self.tpl.pk, 'user': self.tech.pk,
                                                       'weekdays': ['0']})
         self.assertFalse(ShiftAssignment.objects.filter(user=self.tech).exists())
+
+
+# ---------------------------------------------------------------------------
+# Local calendar days. At 23:00 Eastern the UTC date is already tomorrow;
+# "today" used to come from UTC, so a certificate expiring today read as
+# expired and leave ending today dropped out of "upcoming" every evening.
+# ---------------------------------------------------------------------------
+
+from unittest import mock as _mock  # noqa: E402
+from zoneinfo import ZoneInfo as _ZoneInfo  # noqa: E402
+
+_EVENING = _dt(2026, 11, 11, 23, 0, tzinfo=_ZoneInfo('America/New_York'))
+_EVENING_DAY = _date(2026, 11, 11)
+
+
+def _evening_clock():
+    # Django's now() is UTC-aware; returning a local-aware value would hide the bug.
+    return _mock.patch('django.utils.timezone.now',
+                       return_value=_EVENING.astimezone(_ZoneInfo('UTC')))
+
+
+@override_settings(TIME_ZONE='America/New_York', MIDDLEWARE=_SHIFT_MIDDLEWARE,
+                   SECURE_SSL_REDIRECT=False)
+class LocalDayTests(TestCase):
+
+    def test_certificate_expiring_today_is_not_expired_in_the_evening(self):
+        cert = UserCertification(name='CCNA', expires_at=_EVENING_DAY)
+        with _evening_clock():
+            self.assertFalse(cert.is_expired)
+            self.assertTrue(cert.expires_soon)
+
+    def test_leave_ending_today_is_still_upcoming_in_the_evening(self):
+        u = User.objects.create_user(username='evening-leave', password='pw-test-12345')
+        LeaveRequest.objects.create(user=u, start_date=_EVENING_DAY - timedelta(days=2),
+                                    end_date=_EVENING_DAY, status='approved')
+        self.client.force_login(u)
+        with _evening_clock():
+            resp = self.client.get(reverse('resourcing:my_leave'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['upcoming']), 1)
