@@ -612,6 +612,10 @@ class PolicyTests(OfficeTestBase):
         self.assertFalse(av.can_edit)
         self.assertIn('No Office editor', av.reason)
         inst = self.make_instance()
+
+        class _Stub(EditorProvider):     # a connector that is not installed
+            key = 'onlyoffice'
+        register(_Stub(), replace=True)
         av = policy.availability(self.editor, t)
         self.assertFalse(av.can_edit, 'stub connector must not enable editing')
         self.assertIn('not installed', av.reason)
