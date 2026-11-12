@@ -173,7 +173,7 @@ class Command(BaseCommand):
             }
             item = ServiceCatalogItem.objects.filter(slug=spec['slug']).first()
             if item is None:
-                if ServiceCatalogItem.objects.filter(name=spec['name']).exists():
+                if ServiceCatalogItem.objects.filter(name=spec['name'], organization__isnull=True).exists():
                     self.stdout.write(f'  skip {spec["name"]}: another item already uses that name')
                     skipped += 1
                     continue
