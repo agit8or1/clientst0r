@@ -323,3 +323,13 @@ def health_for(conn, row=None) -> dict:
         'action': suggest_action(error, conn) if status in (STATUS_ERROR, STATUS_PARTIAL) else '',
         'source': 'legacy',
     }
+
+
+def record_owner_change(conn):
+    """Keep the connection's health rows with its owner (a platform-owned
+    connection's rows belong to no customer)."""
+    from django.contrib.contenttypes.models import ContentType
+    from .models import IntegrationSyncHealth
+    ct = ContentType.objects.get_for_model(type(conn))
+    IntegrationSyncHealth.objects.filter(content_type=ct, object_id=conn.pk).update(
+        organization_id=getattr(conn, 'organization_id', None))

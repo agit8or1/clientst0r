@@ -328,8 +328,9 @@ class PSASync:
             Organization instance
         """
         if not self.connection.import_organizations:
-            # Organization import disabled - use connection's organization
-            return self.organization
+            # Organization import disabled - use connection's organization,
+            # or for a platform connection the company's mapped customer.
+            return self._fallback_organization(company_data)
 
         # Import/create organization for this PSA company
         try:
@@ -360,7 +361,7 @@ class PSASync:
             else:
                 # Import returned None - fallback to connection org
                 logger.warning(f"Failed to import organization for company {company_data.get('name')}, using connection org")
-                return self.organization
+                return self._fallback_organization(company_data)
 
         except Exception as e:
             logger.error(f"Error importing organization for company {company_data.get('name')}: {e}")
@@ -368,7 +369,47 @@ class PSASync:
                 self.stats['organizations'] = {'created': 0, 'updated': 0, 'errors': 0}
             self.stats['organizations']['errors'] += 1
             # On error, fallback to connection org
+            return self._fallback_organization(company_data)
+
+    @property
+    def platform_owned(self):
+        return self.connection.organization_id is None
+
+    def _fallback_organization(self, company_data):
+        """The customer a company goes to when nothing was imported for it.
+
+        A customer's own connection: that customer, as always. A platform
+        connection has no customer of its own: the company keeps the
+        customer it was assigned (mapping page or an earlier import), or the
+        organization its mapping row names, and otherwise stays unassigned —
+        never filed under some organization by default."""
+        if not self.platform_owned:
             return self.organization
+        from core.models import Organization
+        from .org_import import find_existing_organization_by_psa_id
+        external_id = str(company_data.get('external_id', ''))
+        existing = (PSACompany.objects.filter(connection=self.connection, external_id=external_id)
+                    .exclude(organization__isnull=True).select_related('organization').first())
+        if existing is not None:
+            return existing.organization
+        mapped = find_existing_organization_by_psa_id(self.connection, external_id)
+        if mapped is not None and mapped.is_active:
+            return mapped
+        return None
+
+    def _row_organization(self, model, external_id, *parents):
+        """Customer for a contact or ticket. A customer's own connection files
+        them under that customer, as always. A platform connection files them
+        with their company (or contact), else keeps what they had, else
+        leaves them unassigned."""
+        if not self.platform_owned:
+            return self.organization
+        for parent in parents:
+            if parent is not None and parent.organization_id:
+                return parent.organization
+        existing = (model.objects.filter(connection=self.connection, external_id=external_id)
+                    .exclude(organization__isnull=True).select_related('organization').first())
+        return existing.organization if existing is not None else None
 
     def _upsert_contact(self, contact_data):
         """Create or update contact."""
@@ -385,11 +426,12 @@ class PSASync:
             except PSACompany.DoesNotExist:
                 pass
 
+        row_org = self._row_organization(PSAContact, external_id, company)
         contact, created = PSAContact.objects.update_or_create(
             connection=self.connection,
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': row_org,
                 'company': company,
                 'first_name': contact_data['first_name'],
                 'last_name': contact_data['last_name'],
@@ -412,7 +454,7 @@ class PSASync:
             external_type='contact',
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': row_org,
                 'local_type': 'psa_contact',
                 'local_id': contact.id,
                 'external_hash': data_hash,
@@ -447,11 +489,12 @@ class PSASync:
             except PSAContact.DoesNotExist:
                 pass
 
+        row_org = self._row_organization(PSATicket, external_id, company, contact)
         ticket, created = PSATicket.objects.update_or_create(
             connection=self.connection,
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': row_org,
                 'company': company,
                 'contact': contact,
                 'ticket_number': ticket_data.get('ticket_number', external_id),
@@ -477,7 +520,7 @@ class PSASync:
             external_type='ticket',
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': row_org,
                 'local_type': 'psa_ticket',
                 'local_id': ticket.id,
                 'external_hash': data_hash,

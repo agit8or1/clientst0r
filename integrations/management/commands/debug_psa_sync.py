@@ -109,9 +109,9 @@ class Command(BaseCommand):
                         org_name = f"{connection.org_name_prefix}{company_name}" if connection.org_name_prefix else company_name
                         self.stdout.write(f'  → Would create/update organization: "{org_name}"')
                     else:
-                        self.stdout.write(self.style.WARNING(f'  → Would use connection org: {connection.organization.name}'))
+                        self.stdout.write(self.style.WARNING(f'  → Would use connection org: {connection.owner_label}'))
                 else:
-                    self.stdout.write(self.style.WARNING(f'  → Organization import disabled, would use: {connection.organization.name}'))
+                    self.stdout.write(self.style.WARNING(f'  → Organization import disabled, would use: {connection.owner_label}'))
 
             # Summary
             self.stdout.write('\n' + '=' * 80)
@@ -130,7 +130,7 @@ class Command(BaseCommand):
                     self.stdout.write(f'  ... and {len(unique_orgs) - 10} more')
             elif unique_orgs and not connection.import_organizations:
                 self.stdout.write(self.style.WARNING('\n⚠ Organization import is DISABLED'))
-                self.stdout.write(f'All {len(unique_orgs)} companies would use: {connection.organization.name}')
+                self.stdout.write(f'All {len(unique_orgs)} companies would use: {connection.owner_label}')
             else:
                 self.stdout.write(self.style.WARNING('\nNo organizations would be created!'))
 
@@ -163,7 +163,7 @@ class Command(BaseCommand):
             elif companies_without_data > 0:
                 self.stdout.write(self.style.WARNING(f'⚠ {companies_without_data}/{len(companies)} companies missing required data'))
                 self.stdout.write('\nThese companies will use the connection\'s organization:')
-                self.stdout.write(f'  • {connection.organization.name}')
+                self.stdout.write(f'  • {connection.owner_label}')
             else:
                 self.stdout.write(self.style.SUCCESS('✓ All companies have required data!'))
                 if connection.import_organizations:
