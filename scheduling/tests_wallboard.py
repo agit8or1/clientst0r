@@ -7,7 +7,9 @@ about who can reach it and what leaks when they do.
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from unittest import mock
+from zoneinfo import ZoneInfo
 
 from django.conf import settings as django_settings
 from django.contrib.auth.models import User
@@ -18,6 +20,24 @@ from django.utils import timezone
 from core.models import Organization
 from scheduling.models import ScheduledTask, SchedulerWallboard
 
+# The board shows the installation's local day, so the tests pin the clock to
+# mid-afternoon local time; "a few hours from now" is then always today.
+AFTERNOON = datetime(2026, 11, 11, 14, 0, tzinfo=ZoneInfo(django_settings.TIME_ZONE))
+
+
+class _FrozenAfternoon:
+    @classmethod
+    def setUpClass(cls):
+        cls._clock = mock.patch('django.utils.timezone.now', return_value=AFTERNOON.astimezone(ZoneInfo('UTC')))
+        cls._clock.start()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls._clock.stop()
+
+
 _TEST_MIDDLEWARE = [
     m for m in django_settings.MIDDLEWARE
     if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m
@@ -25,7 +45,7 @@ _TEST_MIDDLEWARE = [
 
 
 @override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class WallboardAccessTests(TestCase):
+class WallboardAccessTests(_FrozenAfternoon, TestCase):
 
     @classmethod
     def setUpTestData(cls):
@@ -91,7 +111,7 @@ class WallboardAccessTests(TestCase):
 
 
 @override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class WallboardDisclosureTests(TestCase):
+class WallboardDisclosureTests(_FrozenAfternoon, TestCase):
     """Each toggle keeps something off an unauthenticated page."""
 
     @classmethod
@@ -213,3 +233,38 @@ class WallboardSettingsViewTests(TestCase):
         self.client.logout()
         r = self.client.get(reverse('scheduling:wallboard_settings'))
         self.assertIn(r.status_code, (302, 403))
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WallboardLocalDayTests(TestCase):
+    """At 23:00 Eastern the UTC date is already tomorrow. The board used to
+    take "today" from UTC, so the rest of the evening's jobs vanished from 19:00
+    or 20:00 Eastern onward and late tasks were grouped under the next day."""
+
+    LATE = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+
+    def setUp(self):
+        self.board = SchedulerWallboard.get_board()
+        self.board.is_enabled = True
+        self.board.days_ahead = 1
+        self.board.save()
+        org = Organization.objects.create(name='Late Co', slug='late-co')
+        ScheduledTask.objects.create(organization=org, title='Late patch window', status='pending',
+                                     due_date=self.LATE + timedelta(minutes=30))
+        ScheduledTask.objects.create(organization=org, title='Tomorrow morning job', status='pending',
+                                     due_date=self.LATE + timedelta(hours=10))
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_evening_jobs_stay_on_tonights_board(self):
+        with mock.patch('django.utils.timezone.now', return_value=self.LATE.astimezone(ZoneInfo('UTC'))):
+            r = self.client.get(reverse('scheduling:wallboard_public', args=[self.board.token]))
+        self.assertContains(r, 'Late patch window')
+        self.assertNotContains(r, 'Tomorrow morning job')
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_days_are_grouped_by_local_date(self):
+        from scheduling.views import _wallboard_days
+        with mock.patch('django.utils.timezone.now', return_value=self.LATE.astimezone(ZoneInfo('UTC'))):
+            days = _wallboard_days(2)
+        self.assertEqual([(d.isoformat(), [t.title for t in ts]) for d, ts in days],
+                         [('2026-11-11', ['Late patch window']), ('2026-11-12', ['Tomorrow morning job'])])

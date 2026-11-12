@@ -1713,6 +1713,9 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Local days on the wall display and Schedule panel** *(shipped v3.17.665)*:
+  both use the installation's time zone for "today", so the evening's tasks
+  no longer disappear once the UTC date rolls over.
 - **RMM software sync for every provider** *(shipped v3.17.663)*: NinjaOne,
   Datto RMM, Atera and ConnectWise Automate software inventory syncs, Datto
   uses its documented device and software routes, and a failed read keeps

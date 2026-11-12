@@ -53,14 +53,14 @@ class TaskRow:
         if isinstance(self.due, datetime):
             due = due_aware(self.due)
             return due < now
-        return self.due < now.date()
+        return self.due < timezone.localdate()
 
     @property
     def days_until(self):
         if not self.due:
             return None
-        today = timezone.now().date()
-        d = self.due.date() if isinstance(self.due, datetime) else self.due
+        today = timezone.localdate()
+        d = timezone.localtime(due_aware(self.due)).date() if isinstance(self.due, datetime) else self.due
         return (d - today).days
 
 
@@ -92,7 +92,7 @@ class ScheduleDay:
 
     @property
     def is_today(self) -> bool:
-        return self.day == timezone.now().date()
+        return self.day == timezone.localdate()
 
 
 def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[ScheduleDay]:
@@ -104,7 +104,9 @@ def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[Schedule
     from scheduling.models import ScheduledTask
 
     days = max(1, min(int(days or SCHEDULE_DAYS), 14))
-    today = timezone.now().date()
+    # Days are the installation's local days (TIME_ZONE), both for the window
+    # and the grouping: the UTC date is already tomorrow every evening.
+    today = timezone.localdate()
     end = today + timedelta(days=days)
     start_dt = timezone.make_aware(datetime.combine(today, time.min))
     end_dt = timezone.make_aware(datetime.combine(end, time.min))
@@ -123,7 +125,7 @@ def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[Schedule
     if organization is not None:
         tasks = tasks.filter(organization=organization)
     for task in tasks.select_related('organization').order_by('due_date')[:60]:
-        bucket_for(task.due_date.date()).items.append({
+        bucket_for(timezone.localtime(task.due_date).date()).items.append({
             'kind': 'task',
             'title': task.title,
             'when': task.due_date,
@@ -150,7 +152,7 @@ def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[Schedule
             tickets = customer_visible_tickets(tickets, user)
         for ticket in tickets.select_related('organization', 'priority').order_by(
                 'resolution_due_at')[:60]:
-            bucket_for(ticket.resolution_due_at.date()).items.append({
+            bucket_for(timezone.localtime(ticket.resolution_due_at).date()).items.append({
                 'kind': 'ticket',
                 'title': f'{ticket.ticket_number} {ticket.subject}'[:90],
                 'when': ticket.resolution_due_at,
