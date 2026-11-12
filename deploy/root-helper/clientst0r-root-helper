@@ -28,6 +28,10 @@ Usage (as root, normally via sudo from the app):
     clientst0r-root-helper self-update vX.Y.Z
     clientst0r-root-helper apply-system-config
 
+With the managed ONLYOFFICE service configured (/etc/clientst0r/office-service.conf),
+`apt upgrade` and `apt upgrade-packages` leave the container engine alone, and
+self-update also replaces /usr/local/sbin/clientst0r-office-helper.
+
 Files (all root-owned, none writable by the app user):
     /etc/clientst0r/root-helper.conf      APP_USER, APP_DIR, SERVICE, REPO_URL
     /etc/clientst0r/allowed_signers       ssh keys trusted to sign releases
@@ -51,6 +55,12 @@ SUDOERS_DIR = '/etc/sudoers.d'
 SYSTEMD_DIR = '/etc/systemd/system'
 LOCK_PATH = '/run/clientst0r-root-helper.lock'
 HELPER_REPO_PATH = 'deploy/root-helper/clientst0r-root-helper'
+# Managed Local ONLYOFFICE (docs/office/MANAGED_LOCAL.md): a separate root
+# service installed by scripts/office/install-editor.sh --mode managed-local.
+# When it is installed, self-update replaces it from the same signed tag.
+OFFICE_HELPER_PATH = '/usr/local/sbin/clientst0r-office-helper'
+OFFICE_HELPER_REPO_PATH = 'deploy/office-helper/clientst0r-office-helper'
+OFFICE_SERVICE_CONF = '/etc/clientst0r/office-service.conf'
 OWN_SUDOERS = 'clientst0r-root-helper'
 
 # Tests turn this off so they can run against files they own.
@@ -84,6 +94,19 @@ PKG_RE = re.compile(r'^[a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?$')
 # the sessions are drained, so the app's package updates never name them.
 EDITOR_PKG_RE = re.compile(r'^(onlyoffice-documentserver(-ee|-de)?|coolwsd|code-brand|'
                            r'collabora-online-brand|collaboraoffice[a-z0-9+.-]*)(:[a-z0-9-]{1,20})?$')
+# Container engine packages. Upgrading them restarts dockerd and with it the
+# managed ONLYOFFICE container, without draining editing sessions, so while
+# that service is configured the app's package updates leave them alone.
+ENGINE_PKG_RE = re.compile(r'^(docker\.io|docker-ce(-cli|-rootless-extras)?|docker-compose-v2|'
+                           r'docker-compose-plugin|docker-buildx(-plugin)?|containerd(\.io)?|runc)'
+                           r'(:[a-z0-9-]{1,20})?$')
+ENGINE_REFUSAL = ('the managed ONLYOFFICE service runs on Docker here: stop it from Office settings '
+                  '(that saves open documents first), upgrade the container engine from a root '
+                  'shell, then start it again')
+
+
+def office_service_configured():
+    return os.path.exists(OFFICE_SERVICE_CONF)
 
 
 class HelperError(Exception):
@@ -238,11 +261,45 @@ def apt_argv(args):
         if editor:
             raise HelperError(f'refusing to upgrade Office editor package(s) {editor[:5]}: '
                               'use scripts/office/install-editor.sh --upgrade after draining sessions')
+        engine = [p for p in packages if ENGINE_PKG_RE.match(p)]
+        if engine and office_service_configured():
+            raise HelperError(f'refusing to upgrade {engine[:5]}: {ENGINE_REFUSAL}')
         return ['apt-get', *APT_OPTS, 'install', '--only-upgrade', *packages]
     raise HelperError('usage: apt update | upgrade | upgrade-packages PKG...')
 
 
+INST_RE = re.compile(r'^Inst ([a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?) ')
+
+
+def held_back_upgrade_argv(simulation):
+    """`apt upgrade` while the managed ONLYOFFICE service is configured:
+    every package a plain upgrade would upgrade (from `apt-get -s upgrade`),
+    except the container engine and the editor packages. Returns
+    (argv or None, skipped)."""
+    names, skipped = [], []
+    for line in simulation.splitlines():
+        m = INST_RE.match(line)
+        if not m:
+            continue
+        name = m.group(1)
+        (skipped if ENGINE_PKG_RE.match(name) or EDITOR_PKG_RE.match(name) else names).append(name)
+    if not names:
+        return None, skipped
+    return ['apt-get', *APT_OPTS, 'install', '--only-upgrade', *names], skipped
+
+
 def cmd_apt(args):
+    if args == ['upgrade'] and office_service_configured():
+        sim = _run(['apt-get', '-s', '-q', 'upgrade'], env=APT_ENV, timeout=600, capture=True)
+        if sim.returncode != 0:
+            raise HelperError('apt-get -s upgrade failed: ' + (sim.stderr or '').strip()[:300])
+        argv, skipped = held_back_upgrade_argv(sim.stdout)
+        if skipped:
+            print(f'Not upgrading {" ".join(skipped)}: {ENGINE_REFUSAL}')
+        if argv is None:
+            print('nothing else to upgrade')
+            return 0
+        return _run(argv, env=APT_ENV, timeout=1800).returncode
     return _run(apt_argv(args), env=APT_ENV, timeout=1800).returncode
 
 
@@ -309,10 +366,30 @@ def self_update(conf, tag):
         changed = True
     if changed:
         _write_atomic(HELPER_PATH, source, 0o755)
+    office_note = _update_office_helper(mirror, tag)
     _write_atomic(os.path.join(STATE_DIR, 'installed-version'), tag + '\n', 0o644)
-    _log(f'self-update to {tag} ({"replaced" if changed else "unchanged"})')
-    print(f'root helper {"updated" if changed else "already current"} at {tag}')
+    _log(f'self-update to {tag} ({"replaced" if changed else "unchanged"}){office_note}')
+    print(f'root helper {"updated" if changed else "already current"} at {tag}{office_note}')
     return 0
+
+
+def _update_office_helper(mirror, tag):
+    """Replace the Office service helper from the same verified tag, only
+    where install-editor.sh --mode managed-local installed it. It is socket
+    activated per connection, so the next request runs the new copy and an
+    operation already running finishes on the old one."""
+    if not os.path.exists(OFFICE_HELPER_PATH):
+        return ''
+    r = _git(mirror, 'cat-file', 'blob', f'{tag}:{OFFICE_HELPER_REPO_PATH}')
+    if r.returncode != 0:
+        return '; office helper: not in this release, left as it is'
+    source = r.stdout
+    compile(source, OFFICE_HELPER_REPO_PATH, 'exec')
+    with open(OFFICE_HELPER_PATH, encoding='utf-8') as f:
+        if f.read() == source:
+            return '; office helper unchanged'
+    _write_atomic(OFFICE_HELPER_PATH, source, 0o755)
+    return '; office helper updated'
 
 
 # ---------------------------------------------------------------------------

@@ -169,6 +169,7 @@ class SelfUpdateTests(SimpleTestCase):
         self.h.SIGNERS_PATH = str(signers)
         self.h.STATE_DIR = str(self.tmp / 'state')
         self.h.HELPER_PATH = str(self.tmp / 'installed-helper')
+        self.h.OFFICE_HELPER_PATH = str(self.tmp / 'installed-office-helper')
         self.conf = {'REPO_URL': f'file://{self.origin}'}
 
     def keygen(self, name):
@@ -182,10 +183,14 @@ class SelfUpdateTests(SimpleTestCase):
                               cwd=cwd or self.origin, env=env, check=True,
                               capture_output=True, text=True)
 
-    def release(self, tag, body, key=None, signed=True, name=None):
+    def release(self, tag, body, key=None, signed=True, name=None, office=None):
         path = self.origin / 'deploy' / 'root-helper'
         path.mkdir(parents=True, exist_ok=True)
         (path / 'clientst0r-root-helper').write_text(body)
+        if office is not None:
+            opath = self.origin / 'deploy' / 'office-helper'
+            opath.mkdir(parents=True, exist_ok=True)
+            (opath / 'clientst0r-office-helper').write_text(office)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', tag)
         if signed:
@@ -235,6 +240,33 @@ class SelfUpdateTests(SimpleTestCase):
         with self.assertRaises(SyntaxError):
             self.h.self_update(self.conf, 'v1.0.7')
         self.assertFalse(os.path.exists(self.h.HELPER_PATH))
+
+    def test_office_helper_is_not_installed_by_self_update(self):
+        """Only install-editor.sh --mode managed-local installs it."""
+        self.release('v1.1.0', "print('root')\n", office="print('office')\n")
+        self.h.self_update(self.conf, 'v1.1.0')
+        self.assertFalse(os.path.exists(self.h.OFFICE_HELPER_PATH))
+
+    def test_installed_office_helper_is_replaced_from_the_signed_tag(self):
+        Path(self.h.OFFICE_HELPER_PATH).write_text("print('old office')\n")
+        self.release('v1.1.1', "print('root')\n", office="print('new office')\n")
+        self.h.self_update(self.conf, 'v1.1.1')
+        self.assertEqual(Path(self.h.OFFICE_HELPER_PATH).read_text(), "print('new office')\n")
+        self.assertEqual(os.stat(self.h.OFFICE_HELPER_PATH).st_mode & 0o777, 0o755)
+
+    def test_office_helper_from_an_unsigned_tag_is_not_installed(self):
+        Path(self.h.OFFICE_HELPER_PATH).write_text("print('old office')\n")
+        self.release('v1.1.2', "print('root')\n", office="print('evil')\n", signed=False)
+        with self.assertRaises(self.h.HelperError):
+            self.h.self_update(self.conf, 'v1.1.2')
+        self.assertEqual(Path(self.h.OFFICE_HELPER_PATH).read_text(), "print('old office')\n")
+
+    def test_unparseable_office_helper_is_refused(self):
+        Path(self.h.OFFICE_HELPER_PATH).write_text("print('old office')\n")
+        self.release('v1.1.3', "print('root')\n", office="def broken(:\n")
+        with self.assertRaises(SyntaxError):
+            self.h.self_update(self.conf, 'v1.1.3')
+        self.assertEqual(Path(self.h.OFFICE_HELPER_PATH).read_text(), "print('old office')\n")
 
     def test_bad_tag_names_are_refused(self):
         for tag in ('main', 'v1.0', 'v1.0.0; id', '../v1.0.0'):
@@ -319,3 +351,70 @@ class ApplySystemConfigTests(SimpleTestCase):
         after = {p.name: p.read_text() for p in (self.tmp / 'sudoers.d').iterdir()}
         self.assertEqual(before, after)
         self.assertEqual(self.systemctl, [])
+
+
+class ManagedOfficeEngineGuardTests(SimpleTestCase):
+    """With Managed Local ONLYOFFICE configured, package updates from the app
+    must not restart dockerd (and the editor container) without a drain."""
+
+    def setUp(self):
+        self.h = load_helper()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.h.OFFICE_SERVICE_CONF = str(self.tmp / 'office-service.conf')
+
+    def configure(self):
+        Path(self.h.OFFICE_SERVICE_CONF).write_text('DEPLOYMENT_ID=x\n')
+
+    def test_engine_packages_allowed_without_the_service(self):
+        argv = self.h.apt_argv(['upgrade-packages', 'docker.io', 'containerd', 'runc'])
+        self.assertEqual(argv[-3:], ['docker.io', 'containerd', 'runc'])
+
+    def test_engine_packages_refused_with_the_service(self):
+        self.configure()
+        for pkg in ('docker.io', 'containerd', 'containerd.io', 'runc', 'docker-ce',
+                    'docker-ce-cli', 'docker-compose-v2', 'docker-compose-plugin', 'docker.io:amd64'):
+            with self.assertRaisesRegex(self.h.HelperError, 'managed ONLYOFFICE', msg=pkg):
+                self.h.apt_argv(['upgrade-packages', 'openssl', pkg])
+        self.assertEqual(self.h.apt_argv(['upgrade-packages', 'openssl', 'docker-doc'])[-1], 'docker-doc')
+
+    def test_full_upgrade_holds_back_engine_and_editor(self):
+        sim = ('Reading package lists...\n'
+               'Inst openssl [3.0.2] (3.0.3 Ubuntu:22.04/jammy-security [amd64])\n'
+               'Inst docker.io [24.0] (24.1 Ubuntu [amd64])\n'
+               'Inst containerd [1.7] (1.7.1 Ubuntu [amd64])\n'
+               'Inst libc6:amd64 [2.35] (2.35.1 Ubuntu [amd64])\n'
+               'Inst onlyoffice-documentserver [9] (10 x [amd64])\n'
+               'Conf openssl (3.0.3 Ubuntu [amd64])\n')
+        argv, skipped = self.h.held_back_upgrade_argv(sim)
+        self.assertEqual(argv[-2:], ['openssl', 'libc6:amd64'])
+        self.assertIn('--only-upgrade', argv)
+        self.assertEqual(skipped, ['docker.io', 'containerd', 'onlyoffice-documentserver'])
+        self.assertEqual(self.h.held_back_upgrade_argv('Inst runc [1] (2 x)\n'), (None, ['runc']))
+
+    def test_cmd_apt_upgrade_uses_the_held_back_plan(self):
+        self.configure()
+        calls = []
+
+        def run(argv, **kw):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, 'Inst openssl [1] (2 x)\nInst runc [1] (2 x)\n', '')
+        with mock.patch.object(self.h, '_run', side_effect=run):
+            self.assertEqual(self.h.cmd_apt(['upgrade']), 0)
+        self.assertEqual(calls[0], ['apt-get', '-s', '-q', 'upgrade'])
+        self.assertEqual(calls[1][-1], 'openssl')
+        self.assertNotIn('runc', calls[1])
+        self.assertNotIn('upgrade', calls[1][-2:])
+
+    def test_cmd_apt_upgrade_unchanged_without_the_service(self):
+        with mock.patch.object(self.h, '_run',
+                               return_value=subprocess.CompletedProcess([], 0, '', '')) as run:
+            self.h.cmd_apt(['upgrade'])
+        self.assertEqual(run.call_args[0][0][-1], 'upgrade')
+
+    def test_app_package_updater_skips_engine_with_the_service(self):
+        from core.management.commands.update_system_packages import without_editor_packages
+        kept, skipped = without_editor_packages(['openssl', 'docker.io', 'runc'], managed_office=True)
+        self.assertEqual((kept, skipped), (['openssl'], ['docker.io', 'runc']))
+        kept, skipped = without_editor_packages(['openssl', 'docker.io'], managed_office=False)
+        self.assertEqual(skipped, [])

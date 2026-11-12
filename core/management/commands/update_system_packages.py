@@ -25,10 +25,24 @@ EDITOR_PACKAGE = re.compile(r'(onlyoffice-documentserver(-ee|-de)?|coolwsd|code-
                             r'collabora-online-brand|collaboraoffice[a-z0-9+.-]*)(:[a-z0-9-]+)?')
 
 
-def without_editor_packages(names):
-    """(kept, skipped): Office editor packages are never upgraded from here."""
-    kept = [n for n in names if not EDITOR_PACKAGE.fullmatch(n)]
-    return kept, [n for n in names if EDITOR_PACKAGE.fullmatch(n)]
+# The container engine, while Managed Local ONLYOFFICE is configured on this
+# server: upgrading it restarts the editor container without draining
+# editing sessions (the root helper refuses these too).
+ENGINE_PACKAGE = re.compile(r'(docker\.io|docker-ce(-cli|-rootless-extras)?|docker-compose-v2|'
+                            r'docker-compose-plugin|docker-buildx(-plugin)?|containerd(\.io)?|runc)'
+                            r'(:[a-z0-9-]+)?')
+OFFICE_SERVICE_CONF = Path('/etc/clientst0r/office-service.conf')
+
+
+def without_editor_packages(names, *, managed_office=None):
+    """(kept, skipped): Office editor packages are never upgraded from here,
+    nor the container engine while the managed ONLYOFFICE service exists."""
+    if managed_office is None:
+        managed_office = OFFICE_SERVICE_CONF.exists()
+
+    def held(n):
+        return bool(EDITOR_PACKAGE.fullmatch(n) or (managed_office and ENGINE_PACKAGE.fullmatch(n)))
+    return [n for n in names if not held(n)], [n for n in names if held(n)]
 
 
 def parse_package_list(value):
@@ -203,8 +217,8 @@ class Command(BaseCommand):
                 security_packages, skipped = without_editor_packages(security_packages)
                 if skipped:
                     self.stdout.write(self.style.WARNING(
-                        f'Skipping Office editor package(s) {", ".join(skipped)}: upgrade them with '
-                        f'scripts/office/install-editor.sh --upgrade after draining sessions.'))
+                        f'Skipping Office editor / container engine package(s) {", ".join(skipped)}: '
+                        f'see docs/office/MANAGED_LOCAL.md and install-editor.sh --upgrade.'))
                 if not security_packages:
                     self.stdout.write(self.style.SUCCESS('No security updates available'))
                     return True
@@ -216,8 +230,8 @@ class Command(BaseCommand):
                 packages, skipped = without_editor_packages(self.packages)
                 if skipped:
                     self.stdout.write(self.style.WARNING(
-                        f'Skipping Office editor package(s) {", ".join(skipped)}: upgrade them with '
-                        f'scripts/office/install-editor.sh --upgrade after draining sessions.'))
+                        f'Skipping Office editor / container engine package(s) {", ".join(skipped)}: '
+                        f'see docs/office/MANAGED_LOCAL.md and install-editor.sh --upgrade.'))
                 if not packages:
                     return True
                 self.packages = packages
