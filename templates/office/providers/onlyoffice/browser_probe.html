@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Browser check · {{ instance.name }}{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb=instance.name %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+    <div class="card">
+      <div class="card-header"><h1 class="h5 mb-0">Browser check · {{ instance.name }}</h1></div>
+      <div class="card-body">
+        <p>This page loads the editor's <code>api.js</code> from <code>{{ instance.browser_url }}</code> in <em>your</em> browser and records the result for the instance diagnostics. Run it from a computer on the same network as the people who will edit documents.</p>
+        <div id="oo-probe-status" class="alert alert-secondary" role="status" aria-live="polite">Checking…</div>
+        <a class="btn btn-outline-secondary" href="{% url 'office:instance_diagnostics' instance.pk %}">Back to diagnostics</a>
+      </div>
+    </div>
+  </div>
+</div>
+{{ probe_config|json_script:"oo-probe-config" }}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/office-onlyoffice-probe.js' %}"></script>{% endblock %}

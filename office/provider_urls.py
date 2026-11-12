@@ -10,3 +10,7 @@ must be csrf_exempt, authenticate with office.tokens.validate() (or the
 provider's signature check followed by it), and never rely on request.user.
 """
 urlpatterns = []
+
+from django.urls import include, path  # noqa: E402
+
+urlpatterns += [path('onlyoffice/', include('office.providers.onlyoffice.urls'))]

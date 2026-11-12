@@ -1,0 +1,9 @@
+{# ONLYOFFICE Docs editor area; DocsAPI.DocEditor replaces the placeholder with its iframe (static/js/office-onlyoffice.js). #}
+<div id="onlyoffice-editor" class="office-editor-frame" aria-label="Document editor"></div>
+<noscript><div class="container py-5"><div class="alert alert-warning">The editor needs JavaScript.</div></div></noscript>
+<div id="onlyoffice-load-error" class="container py-5 d-none" role="alert">
+  <div class="alert alert-warning mb-0">
+    <h2 class="h5">The editor did not load</h2>
+    <p class="mb-0">Your browser could not load the ONLYOFFICE editor from {{ session.instance.browser_url }}. Nothing was changed. Ask an administrator to run the browser check under Settings → Office Documents, or download the file.</p>
+  </div>
+</div>
