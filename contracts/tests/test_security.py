@@ -312,6 +312,21 @@ class AuditTrailTests(ContractTestCase):
         self.assertTrue(AuditLog.objects.filter(description__icontains=c.reference).exists()
                         or ContractEvent.objects.filter(contract=c, kind='sent').exists())
 
+    def test_secret_storage_check_passes_with_live_tokens_and_codes(self):
+        import io
+
+        from django.core.management import call_command
+        c = self.new_contract(require_email_verification=True)
+        self.issue_and_send(c)
+        inv = c.invitations.get()
+        cl, _ = self.signer_client(links_in_outbox()[0])
+        cl.post(f'/sign/i/{inv.public_id}/code/')
+        inv.refresh_from_db()
+        self.assertEqual(len(inv.code_hash), 64)
+        out = io.StringIO()
+        call_command('check_secrets_storage', stdout=out)
+        self.assertIn('No unprotected secrets found', out.getvalue())
+
     def test_staff_can_download_evidence_with_audit_permission(self):
         c = self.new_contract()
         self.issue_and_send(c)
