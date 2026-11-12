@@ -256,6 +256,26 @@ def payload_from_post(post):
         'sites': ids('sites')[:50],
         'site': post.get('site') if post.get('site') in ('set', 'unset') else 'any',
     }
+    answers = []
+    from psa.service_requests import CONDITION_OPS, KEY_RE
+    for i in range(5):
+        key = (post.get(f'answer_field_{i}') or '').strip()
+        op = post.get(f'answer_op_{i}') or 'equals'
+        raw = (post.get(f'answer_value_{i}') or '').strip()[:200]
+        if not key or not KEY_RE.match(key) or op not in CONDITION_OPS:
+            continue
+        cond = {'field': key, 'op': op}
+        if op in ('in', 'not_in'):
+            vals = [v.strip() for v in raw.split(',') if v.strip()][:50]
+            if not vals:
+                continue
+            cond['value'] = vals
+        elif op not in ('is_set', 'not_set'):
+            if not raw:
+                continue
+            cond['value'] = raw
+        answers.append(cond)
+    conditions['answers'] = answers
     if (post.get('sla_pct_at_least') or '').strip():
         conditions['sla_pct_at_least'] = _int(post.get('sla_pct_at_least'), 0, 0, 1000)
     conditions = {k: v for k, v in conditions.items() if v not in ([], '', None)}
@@ -398,7 +418,22 @@ def rule_form(request, pk=None):
     preset_org = request.GET.get('organization') or ''
     if not rule and preset_org.isdigit():
         data['organization_id'] = int(preset_org)
-    return render(request, 'ticket_routing/rule_form.html', {'rule': rule, 'data': data, **_choices()})
+    preset_service = (request.GET.get('service') or '').strip()
+    if not rule and preset_service:
+        from psa.models import ServiceCatalogItem
+        if ServiceCatalogItem.objects.filter(slug=preset_service).exists():
+            data['conditions'] = {'services': [preset_service]}
+    from psa.service_requests import CONDITION_OPS, OP_LABELS
+    answer_rows = []
+    for cond in (data['conditions'].get('answers') or [])[:5]:
+        v = cond.get('value')
+        answer_rows.append({'field': cond.get('field'), 'op': cond.get('op') or 'equals',
+                            'value_text': ', '.join(map(str, v)) if isinstance(v, list) else (v or '')})
+    while len(answer_rows) < 3 or (len(answer_rows) < 5 and answer_rows[-1].get('field')):
+        answer_rows.append({'op': 'equals'})
+    return render(request, 'ticket_routing/rule_form.html', {
+        'rule': rule, 'data': data, 'answer_rows': answer_rows,
+        'answer_ops': [(o, OP_LABELS[o]) for o in CONDITION_OPS], **_choices()})
 
 
 def _normalise_payload(raw):
@@ -420,6 +455,13 @@ def _normalise_payload(raw):
     q['hours'] = str(c.get('hours') or 'any')
     q.setlist('sites', [str(v) for v in (c.get('sites') or [])])
     q['site'] = str(c.get('site') or 'any')
+    for i, cond in enumerate((c.get('answers') or [])[:5]):
+        if not isinstance(cond, dict):
+            continue
+        q[f'answer_field_{i}'] = str(cond.get('field') or '')
+        q[f'answer_op_{i}'] = str(cond.get('op') or 'equals')
+        v = cond.get('value')
+        q[f'answer_value_{i}'] = ', '.join(str(x) for x in v) if isinstance(v, list) else str(v or '')
     if c.get('sla_pct_at_least') not in (None, ''):
         q['sla_pct_at_least'] = str(c['sla_pct_at_least'])
     d = raw.get('destination') or {}
@@ -574,7 +616,14 @@ def _sample_ticket(get):
             t.site = loc
     service_slug = (get.get('service') or '').strip()
     if service_slug:
-        t.custom_fields = {'service_request': {'catalog_item_slug': service_slug}}
+        rows = []
+        for line in (get.get('answers') or '').splitlines()[:30]:
+            if '=' in line:
+                k, v = line.split('=', 1)
+                k = k.strip()
+                if k:
+                    rows.append({'key': k[:50], 'type': 'text', 'value': v.strip()[:200]})
+        t.custom_fields = {'service_request': {'catalog_item_slug': service_slug, 'answers': rows}}
     return t
 
 

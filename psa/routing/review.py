@@ -81,6 +81,11 @@ def summarize(organization, conditions, destination, fallback):
     if c.get('services'):
         parts.append('requesting ' + ' or '.join(
             _names(ServiceCatalogItem, 'slug', c['services']) or c['services']))
+    if c.get('answers'):
+        from .engine import answer_condition_text
+        parts.append('where the request answer ' + ' and '.join(
+            f'"{a.get("field")}" {answer_condition_text(a)}' for a in c['answers']
+            if isinstance(a, dict)))
     if c.get('contract') == 'yes':
         parts.append('where the customer has an active contract')
     elif c.get('contract') == 'no':
@@ -233,6 +238,21 @@ def problems(rule_pk, organization, priority, conditions, destination, fallback)
         else:
             warnings.append('Only technicians who share their position with dispatch and whose position is '
                             'recent are candidates; tickets need a site with coordinates.')
+    answer_conds = [a for a in (conditions or {}).get('answers') or [] if isinstance(a, dict)]
+    if answer_conds:
+        from psa.models import ServiceCatalogItem
+        services = (conditions or {}).get('services') or []
+        if not services:
+            warnings.append('Request-answer conditions only match tickets raised from a request form; '
+                            'also pick the request type(s) so the field names are unambiguous.')
+        else:
+            keys = set()
+            for item in ServiceCatalogItem.objects.filter(slug__in=services):
+                keys |= {f.get('key') for f in item.get_form_schema()}
+            unknown = sorted({a['field'] for a in answer_conds} - keys)
+            if unknown:
+                warnings.append('No selected request type has a field called '
+                                + ', '.join(f'"{k}"' for k in unknown) + '; that condition never matches.')
     if (conditions or {}).get('hours') in ('business', 'after'):
         warnings.append('Business hours come from Ticket Routing settings (MSP-wide) and holidays in Resourcing.')
 

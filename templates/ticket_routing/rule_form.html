@@ -47,6 +47,17 @@
                 <select name="services" multiple size="5" class="form-select form-select-sm">
                     {% for s in services %}<option value="{{ s.slug }}" {% if s.slug in data.conditions.services %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
                 </select></div>
+            <div class="col-12"><label class="form-label">Request answers <small class="text-muted">— for tickets raised from a request form; all must hold. Use the field ID shown in the form builder.</small></label>
+                {% for cond in answer_rows %}
+                <div class="row g-1 mb-1">
+                    <div class="col-md-4"><input type="text" name="answer_field_{{ forloop.counter0 }}" class="form-control form-control-sm font-monospace" maxlength="50" placeholder="field id, e.g. location" value="{{ cond.field|default:'' }}" aria-label="Request field ID"></div>
+                    <div class="col-md-3"><select name="answer_op_{{ forloop.counter0 }}" class="form-select form-select-sm" aria-label="Comparison">
+                        {% for code, label in answer_ops %}<option value="{{ code }}" {% if cond.op == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select></div>
+                    <div class="col-md-5"><input type="text" name="answer_value_{{ forloop.counter0 }}" class="form-control form-control-sm" maxlength="200" placeholder="value (comma-separated for 'is one of')" value="{{ cond.value_text|default:'' }}" aria-label="Value"></div>
+                </div>
+                {% endfor %}
+            </div>
             <div class="col-md-4"><label class="form-label">Contract</label>
                 <select name="contract" class="form-select form-select-sm mb-1">
                     <option value="any">Any</option>
