@@ -267,7 +267,10 @@ class SectionPermissionMiddleware:
     # alerts, console links and connections. Until v3.17.661 a customer user
     # could open their organization's RMM pages, and a customer Owner could
     # edit, sync or delete a connection owned by their organization.
-    STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/')
+    #
+    # Contract documents (/contracts/) are written and sent by the MSP; the
+    # people who sign them use the account-less pages under /sign/ instead.
+    STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/', '/contracts/')
 
     # Token- or key-authenticated receivers under those prefixes. They don't
     # rely on a signed-in user, and a signed-in browser must not change that.

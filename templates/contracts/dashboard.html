@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% load contracts_tags tz %}
+{% block title %}Contracts{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0"><i class="fas fa-file-signature me-2"></i>Contract Documents</h2>
+    {% if can_create %}<a href="{% url 'contracts:new' %}{% if f.client %}?client={{ f.client }}{% endif %}" class="btn btn-primary"><i class="fas fa-plus"></i> New contract</a>{% endif %}
+</div>
+<p class="text-body-secondary small">Contracts your customers review and sign online. They are separate from PSA billing contracts; a signed contract can create a draft billing contract.</p>
+
+{% if alerts %}
+<div class="card mb-3 border-primary-subtle">
+    <div class="card-header d-flex justify-content-between align-items-center"><strong><i class="fas fa-bell me-1"></i> Your contract alerts</strong>
+        <form method="post" action="{% url 'contracts:notifications_read' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">Mark all read</button></form></div>
+    <ul class="list-group list-group-flush">{% for n in alerts %}
+        <li class="list-group-item d-flex justify-content-between gap-2"><span><a href="{% url 'contracts:detail' n.contract_id %}">{{ n.contract.reference }}</a> — {{ n.message }}</span>
+            <small class="text-body-secondary text-nowrap" title="{{ n.created_at|utc|date:'Y-m-d H:i' }} UTC">{{ n.created_at|date:"M j, H:i" }}</small></li>
+    {% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">One-time value (listed, open + signed)</div><div class="fs-4 fw-semibold">{{ sums.one|default:0|money }}</div><div class="small text-body-secondary">Signed: {{ signed_sums.one|default:0|money }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Recurring value per period</div><div class="fs-4 fw-semibold">{{ sums.rec|default:0|money }}</div><div class="small text-body-secondary">Signed: {{ signed_sums.rec|default:0|money }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Awaiting approval / countersignature</div><div class="fs-4 fw-semibold">{{ awaiting_approval|length }} / {{ awaiting_counter|length }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Unsigned, sent over 3 days ago</div><div class="fs-4 fw-semibold">{{ follow_up|length }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-header"><strong>Needs follow-up</strong> <small class="text-body-secondary">unsigned</small></div>
+        <ul class="list-group list-group-flush small">{% for c in follow_up %}<li class="list-group-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a> {{ c.client_name }} — sent {{ c.sent_at|timesince }} ago {{ c|status_badge }}</li>{% empty %}<li class="list-group-item text-body-secondary">Nothing waiting.</li>{% endfor %}</ul></div></div>
+    <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-header"><strong>Recently viewed</strong> <small class="text-body-secondary">likely human views</small></div>
+        <ul class="list-group list-group-flush small">{% for c in recently_viewed %}<li class="list-group-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a> {{ c.client_name }} — <span title="{{ c.last_viewed_at|utc|date:'Y-m-d H:i' }} UTC">{{ c.last_viewed_at|timesince }} ago</span> ({{ c.view_count }}×)</li>{% empty %}<li class="list-group-item text-body-secondary">No views yet.</li>{% endfor %}</ul></div></div>
+    <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-header"><strong>Awaiting internal action</strong></div>
+        <ul class="list-group list-group-flush small">{% for c in awaiting_approval %}<li class="list-group-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a> {{ c.client_name }} — approval</li>{% endfor %}
+            {% for c in awaiting_counter %}<li class="list-group-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a> {{ c.client_name }} — countersignature</li>{% endfor %}
+            {% if not awaiting_approval and not awaiting_counter %}<li class="list-group-item text-body-secondary">Nothing waiting on your team.</li>{% endif %}</ul></div></div>
+    <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-header"><strong>Upcoming expirations and renewals</strong> <small class="text-body-secondary">90 days</small></div>
+        <ul class="list-group list-group-flush small">{% for c in upcoming %}<li class="list-group-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a> {{ c.client_name }} — ends {{ c.expiration_date|date:"Y-m-d" }}{% if c.auto_renew %} (auto-renews){% endif %}</li>{% empty %}<li class="list-group-item text-body-secondary">None in the next 90 days.</li>{% endfor %}</ul></div></div>
+</div>
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-3"><label class="form-label small" for="f-q">Search</label><input id="f-q" name="q" value="{{ f.q }}" class="form-control form-control-sm" placeholder="Title, number or client"></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="f-client">Client</label><select id="f-client" name="client" class="form-select form-select-sm"><option value="">All</option>{% for o in clients %}<option value="{{ o.pk }}" {% if f.client == o.pk|stringformat:"d" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="f-owner">Owner</label><select id="f-owner" name="owner" class="form-select form-select-sm"><option value="">Anyone</option><option value="me" {% if f.owner == 'me' %}selected{% endif %}>Me</option>{% for u in owners %}<option value="{{ u.pk }}" {% if f.owner == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="f-status">Status</label><select id="f-status" name="status" class="form-select form-select-sm"><option value="">Any</option><option value="open" {% if f.status == 'open' %}selected{% endif %}>Open for signing</option>{% for k, l in statuses %}<option value="{{ k }}" {% if f.status == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="col-6 col-md-1"><label class="form-label small" for="f-df">Date</label><select id="f-df" name="date_field" class="form-select form-select-sm">
+            <option value="created" {% if f.date_field == 'created' %}selected{% endif %}>Created</option><option value="sent" {% if f.date_field == 'sent' %}selected{% endif %}>Sent</option><option value="signed" {% if f.date_field == 'signed' %}selected{% endif %}>Signed</option><option value="effective" {% if f.date_field == 'effective' %}selected{% endif %}>Effective</option><option value="expiration" {% if f.date_field == 'expiration' %}selected{% endif %}>Expires</option></select></div>
+        <div class="col-6 col-md-1"><label class="form-label small" for="f-from">From</label><input id="f-from" type="date" name="date_from" value="{{ f.date_from }}" class="form-control form-control-sm"></div>
+        <div class="col-6 col-md-1"><label class="form-label small" for="f-to">To</label><input id="f-to" type="date" name="date_to" value="{{ f.date_to }}" class="form-control form-control-sm"></div>
+        <div class="col-12 col-md-auto"><button class="btn btn-sm btn-primary">Filter</button> <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:dashboard' %}">Clear</a></div>
+    </div>
+</form>
+
+<div class="card">
+    {% if page.object_list %}
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+        <thead class="table-light"><tr><th>Contract</th><th>Client</th><th>Owner</th><th>Status</th><th>Views</th><th class="text-end">One-time</th><th class="text-end">Recurring</th><th>Updated</th></tr></thead>
+        <tbody>{% for c in page.object_list %}
+        <tr><td><a href="{% url 'contracts:detail' c.pk %}"><strong>{{ c.reference }}</strong></a><br><small>{{ c.title|truncatechars:60 }}</small></td>
+            <td>{{ c.client_name }}</td><td>{{ c.owner.get_full_name|default:c.owner.username|default:"—" }}</td>
+            <td>{{ c|status_badge }}</td><td>{% if c.view_count %}{{ c.view_count }}{% else %}—{% endif %}</td>
+            <td class="text-end">{{ c.one_time_total|money:c.currency }}</td><td class="text-end">{{ c.recurring_total|money:c.currency }}</td>
+            <td><span title="{{ c.updated_at|utc|date:'Y-m-d H:i' }} UTC">{{ c.updated_at|date:"Y-m-d" }}</span></td></tr>
+        {% endfor %}</tbody></table></div>
+    {% if page.has_other_pages %}<div class="card-footer d-flex gap-2">{% if page.has_previous %}<a href="?{{ request.GET.urlencode }}&page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ request.GET.urlencode }}&page={{ page.next_page_number }}">Next</a>{% endif %}</div>{% endif %}
+    {% elif has_any %}
+    {% include "core/_empty_state.html" with title="No contracts match these filters" text="Clear the filters to see every contract." %}
+    {% else %}
+    {% url 'contracts:new' as new_url %}{% url 'contracts:template_list' as tpl_url %}
+    {% include "core/_empty_state.html" with icon="fa-file-signature" title="No contracts yet" text="Pick a client and a starter template (managed services, statement of work, backup, security, renewal, amendment). Starter templates are sample language: review them before use." action_url=new_url action_label="New contract" secondary_url=tpl_url secondary_label="Browse templates" %}
+    {% endif %}
+</div>
+{% endblock %}

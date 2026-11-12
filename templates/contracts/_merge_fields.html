@@ -1,0 +1,10 @@
+<div class="card mb-3">
+    <div class="card-header"><strong>Merge fields</strong></div>
+    <div class="card-body small">
+        <p class="text-body-secondary mb-2">Click a field to insert it where the cursor is. Values are filled in when the contract is issued. Write notes for yourself in <code>[[double brackets]]</code>: they block sending until replaced.</p>
+        {% for group, items in merge_fields %}
+        <div class="mb-2"><div class="fw-semibold">{{ group }}</div>
+            <div class="d-flex flex-wrap gap-1">{% for key, label in items %}<button type="button" class="btn btn-sm btn-outline-secondary py-0" data-merge="{{ key }}" title="{{ key }}">{{ label }}</button>{% endfor %}</div></div>
+        {% endfor %}
+    </div>
+</div>

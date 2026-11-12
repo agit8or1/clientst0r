@@ -1,0 +1,9 @@
+<tr data-line>
+    <td><input class="form-control form-control-sm" name="item-{{ i }}-description" value="{{ li.description }}" maxlength="300" aria-label="Description"><input type="hidden" name="item-{{ i }}-deleted" value="0" data-deleted></td>
+    <td><select class="form-select form-select-sm" name="item-{{ i }}-kind" aria-label="Charge type">{% for k, l in line_kinds %}<option value="{{ k }}" {% if li.kind == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></td>
+    <td><input class="form-control form-control-sm text-end" name="item-{{ i }}-quantity" value="{{ li.quantity|default:'1' }}" inputmode="decimal" aria-label="Quantity" style="min-width:4rem"></td>
+    <td><input class="form-control form-control-sm text-end" name="item-{{ i }}-unit_price" value="{{ li.unit_price|default:'0' }}" inputmode="decimal" aria-label="Unit price" style="min-width:6rem"></td>
+    <td><input class="form-control form-control-sm text-end" name="item-{{ i }}-discount_percent" value="{{ li.discount_percent|default:'0' }}" inputmode="decimal" aria-label="Discount percent" style="min-width:4rem"></td>
+    <td class="text-center"><input class="form-check-input" type="checkbox" name="item-{{ i }}-taxable" {% if li.taxable %}checked{% endif %} aria-label="Taxable"></td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger" data-remove-row aria-label="Remove line"><i class="fas fa-times"></i></button></td>
+</tr>

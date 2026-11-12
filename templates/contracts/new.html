@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}New contract{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">New</li></ol></nav>
+<h2 class="mb-3">New contract</h2>
+{% if not clients %}
+{% include "core/_empty_state.html" with title="No client to create a contract for" text="Your role does not allow creating contracts for any active client." %}
+{% else %}
+<form method="post" class="card card-body" style="max-width: 46rem;">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label class="form-label" for="client">1. Client</label>
+        <select class="form-select" id="client" name="client" required>
+            <option value="">Choose a client…</option>
+            {% for o in clients %}<option value="{{ o.pk }}" {% if o.pk == selected_client or request.GET.client == o.pk|stringformat:"d" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <fieldset class="mb-3">
+        <legend class="form-label fs-6">2. Start from</legend>
+        <div class="form-check"><input class="form-check-input" type="radio" name="start" id="start-template" value="template" {% if not preselect_source %}checked{% endif %}><label class="form-check-label" for="start-template">A template</label></div>
+        <select class="form-select my-2" name="template" aria-label="Template">
+            {% for t in templates %}<option value="{{ t.pk }}" {% if preselect_template == t.pk|stringformat:"d" or not preselect_template and default_template == t.pk %}selected{% endif %}>{{ t.name }} — {{ t.scope_label }}{% if t.is_sample %} (sample, review before use){% endif %}</option>{% endfor %}
+        </select>
+        <div class="form-check"><input class="form-check-input" type="radio" name="start" id="start-clone" value="clone" {% if preselect_source %}checked{% endif %}><label class="form-check-label" for="start-clone">A copy of an existing contract</label></div>
+        <select class="form-select my-2" name="source" aria-label="Contract to copy">
+            <option value="">Choose a contract…</option>
+            {% for c in recent %}<option value="{{ c.pk }}" {% if preselect_source == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.reference }} — {{ c.title|truncatechars:50 }} ({{ c.client_name }})</option>{% endfor %}
+        </select>
+        <div class="form-check"><input class="form-check-input" type="radio" name="start" id="start-blank" value="blank"><label class="form-check-label" for="start-blank">A blank document</label></div>
+    </fieldset>
+    <div class="mb-3"><label class="form-label" for="title">3. Title <small class="text-body-secondary">(optional — the template name otherwise)</small></label>
+        <input class="form-control" id="title" name="title" maxlength="255"></div>
+    <div><button class="btn btn-primary">Create draft</button> <a class="btn btn-outline-secondary" href="{% url 'contracts:dashboard' %}">Cancel</a></div>
+    <p class="small text-body-secondary mt-3 mb-0">Starter templates contain sample language that has not been reviewed for your jurisdiction. Review and adapt every section before sending.</p>
+</form>
+{% endif %}
+{% endblock %}

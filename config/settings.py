@@ -140,6 +140,7 @@ INSTALLED_APPS = [
     'network_discovery.apps.NetworkDiscoveryConfig',
     'hardware.apps.HardwareConfig',
     'office.apps.OfficeConfig',
+    'contracts.apps.ContractsConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).

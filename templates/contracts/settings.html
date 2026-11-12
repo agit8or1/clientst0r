@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Contract settings{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">Settings</li></ol></nav>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <h2 class="h4 mb-0 me-auto">Contract settings — {% if org %}{{ org.name }}{% else %}deployment defaults{% endif %}</h2>
+    <form method="get" class="d-flex gap-1"><label class="visually-hidden" for="s-org">Settings for</label>
+        <select class="form-select form-select-sm" id="s-org" name="org" data-autosubmit>
+            {% if can_global %}<option value="global" {% if not org %}selected{% endif %}>Deployment defaults</option>{% endif %}
+            {% for o in clients %}<option value="{{ o.pk }}" {% if org and org.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+        </select><noscript><button class="btn btn-sm btn-outline-secondary">Go</button></noscript></form>
+</div>
+{% if org and not overriding %}<div class="alert alert-info py-2 small">{{ org.name }} uses the deployment defaults (shown below). Saving creates settings for this customer only.</div>{% endif %}
+{% if org and overriding %}<form method="post" class="mb-3" data-confirm="Remove {{ org.name }}'s own settings and use the deployment defaults?">{% csrf_token %}<input type="hidden" name="org" value="{{ org.pk }}"><input type="hidden" name="action" value="reset"><button class="btn btn-sm btn-outline-danger">Use the deployment defaults instead</button></form>{% endif %}
+
+<form method="post" novalidate>{% csrf_token %}
+<input type="hidden" name="org" value="{% if org %}{{ org.pk }}{% else %}global{% endif %}">
+<div class="row g-3">
+<div class="col-lg-6">
+    <div class="card mb-3"><div class="card-header"><strong>Provider and branding</strong></div><div class="card-body row g-2">
+        <div class="col-12"><label class="form-label small" for="provider_name">Provider name (blank: the site name)</label><input class="form-control" id="provider_name" name="provider_name" value="{{ s.provider_name }}"></div>
+        <div class="col-12"><label class="form-label small" for="provider_address">Address</label><textarea class="form-control" id="provider_address" name="provider_address" rows="2">{{ s.provider_address }}</textarea></div>
+        <div class="col-md-6"><label class="form-label small" for="provider_email">E-mail</label><input class="form-control" type="email" id="provider_email" name="provider_email" value="{{ s.provider_email }}"></div>
+        <div class="col-md-6"><label class="form-label small" for="provider_phone">Phone</label><input class="form-control" id="provider_phone" name="provider_phone" value="{{ s.provider_phone }}"></div>
+        <div class="col-md-8"><label class="form-label small" for="provider_website">Website</label><input class="form-control" id="provider_website" name="provider_website" value="{{ s.provider_website }}"></div>
+        <div class="col-md-4"><label class="form-label small" for="brand_color">Brand colour</label><input class="form-control form-control-color w-100" type="color" id="brand_color" name="brand_color" value="{{ s.brand_color }}"></div>
+        <div class="col-12"><label class="form-label small" for="email_footer">E-mail footer</label><textarea class="form-control" id="email_footer" name="email_footer" rows="2">{{ s.email_footer }}</textarea></div>
+    </div></div>
+    <div class="card mb-3"><div class="card-header"><strong>Defaults for new contracts</strong></div><div class="card-body row g-2">
+        <div class="col-12"><label class="form-label small" for="default_template">Default template</label><select class="form-select" id="default_template" name="default_template"><option value="">None</option>{% for t in templates %}<option value="{{ t.pk }}" {% if s.default_template_id == t.pk %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label small" for="default_clauses">Clauses added to every new contract</label><select class="form-select" id="default_clauses" name="default_clauses" multiple size="5">{% for cl in clause_choices %}<option value="{{ cl.pk }}" {% if cl.pk in default_clause_ids %}selected{% endif %}>{% if cl.category %}{{ cl.category }} — {% endif %}{{ cl.title }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label small" for="invitation_expiry_days">Signing links expire after (days)</label><input class="form-control" type="number" id="invitation_expiry_days" name="invitation_expiry_days" value="{{ s.invitation_expiry_days }}"></div>
+        <div class="col-md-6"><label class="form-label small" for="acceptance_deadline_days">Acceptance deadline (days, 0 = none)</label><input class="form-control" type="number" id="acceptance_deadline_days" name="acceptance_deadline_days" value="{{ s.acceptance_deadline_days }}"></div>
+    </div></div>
+    <div class="card mb-3"><div class="card-header"><strong>Signing</strong></div><div class="card-body row g-2">
+        <div class="col-12"><label class="form-label small" for="signing_order">Signing order</label><select class="form-select" id="signing_order" name="signing_order">{% for k, l in orders %}<option value="{{ k }}" {% if s.signing_order == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="require_email_verification" name="require_email_verification" {% if s.require_email_verification %}checked{% endif %}><label class="form-check-label" for="require_email_verification">Signers confirm a 6-digit e-mail code before signing</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="require_countersignature" name="require_countersignature" {% if s.require_countersignature %}checked{% endif %}><label class="form-check-label" for="require_countersignature">Require an internal countersignature</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="require_internal_approval" name="require_internal_approval" {% if s.require_internal_approval %}checked{% endif %}><label class="form-check-label" for="require_internal_approval">Require internal approval before sending</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="allow_self_approval" name="allow_self_approval" {% if s.allow_self_approval %}checked{% endif %}><label class="form-check-label" for="allow_self_approval">Allow the author to approve their own contract</label></div></div>
+        <div class="col-12"><label class="form-label small" for="consent_text">Electronic-signature consent shown to signers</label><textarea class="form-control" id="consent_text" name="consent_text" rows="4">{{ s.consent_text }}</textarea></div>
+        <div class="col-12"><label class="form-label small" for="intent_text">Intent statement</label><input class="form-control" id="intent_text" name="intent_text" value="{{ s.intent_text }}"></div>
+        <p class="small text-body-secondary mb-0">Sample wording only: have it reviewed for your jurisdiction.</p>
+    </div></div>
+</div>
+<div class="col-lg-6">
+    <div class="card mb-3"><div class="card-header"><strong>Alerts</strong></div><div class="card-body row g-2">
+        <div class="col-12">
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="notify_owner" name="notify_owner" {% if s.notify_owner %}checked{% endif %}><label class="form-check-label" for="notify_owner">Notify the contract owner</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="notify_account_manager" name="notify_account_manager" {% if s.notify_account_manager %}checked{% endif %}><label class="form-check-label" for="notify_account_manager">Notify the account manager</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="notify_in_app" name="notify_in_app" {% if s.notify_in_app %}checked{% endif %}><label class="form-check-label" for="notify_in_app">In-app notifications</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="notify_email" name="notify_email" {% if s.notify_email %}checked{% endif %}><label class="form-check-label" for="notify_email">E-mail notifications</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="notify_repeat_views" name="notify_repeat_views" {% if s.notify_repeat_views %}checked{% endif %}><label class="form-check-label" for="notify_repeat_views">Alert on repeat views too (not only the first)</label></div></div>
+        <div class="col-md-6"><label class="form-label small" for="repeat_view_cooldown_minutes">Repeat-view alert cooldown (minutes)</label><input class="form-control" type="number" id="repeat_view_cooldown_minutes" name="repeat_view_cooldown_minutes" value="{{ s.repeat_view_cooldown_minutes }}"></div>
+        <div class="col-md-6"><label class="form-label small" for="notify_users">Also notify these people</label><select class="form-select" id="notify_users" name="notify_users" multiple size="4">{% for u in staff %}<option value="{{ u.pk }}" {% if u.pk in notify_user_ids %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label small" for="notify_roles">And everyone with these roles</label><select class="form-select" id="notify_roles" name="notify_roles" multiple size="4">{% for r in roles %}<option value="{{ r.pk }}" {% if r.pk in notify_role_ids %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label small" for="renewal_alert_days">Renewal alert (days before the end, 0 = off)</label><input class="form-control" type="number" id="renewal_alert_days" name="renewal_alert_days" value="{{ s.renewal_alert_days }}"></div>
+        <div class="col-md-6"><label class="form-label small" for="expiration_alert_days">Expiration alert (days before, 0 = off)</label><input class="form-control" type="number" id="expiration_alert_days" name="expiration_alert_days" value="{{ s.expiration_alert_days }}"></div>
+    </div></div>
+    <div class="card mb-3"><div class="card-header"><strong>Reminders</strong></div><div class="card-body row g-2">
+        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="reminders_enabled" name="reminders_enabled" {% if s.reminders_enabled %}checked{% endif %}><label class="form-check-label" for="reminders_enabled">Send reminders to signers who have not signed</label></div></div>
+        <div class="col-4"><label class="form-label small" for="reminder_first_after_days">First after (days)</label><input class="form-control" type="number" id="reminder_first_after_days" name="reminder_first_after_days" value="{{ s.reminder_first_after_days }}"></div>
+        <div class="col-4"><label class="form-label small" for="reminder_interval_days">Then every (days)</label><input class="form-control" type="number" id="reminder_interval_days" name="reminder_interval_days" value="{{ s.reminder_interval_days }}"></div>
+        <div class="col-4"><label class="form-label small" for="reminder_max">At most</label><input class="form-control" type="number" id="reminder_max" name="reminder_max" value="{{ s.reminder_max }}"></div>
+    </div></div>
+    <div class="card mb-3"><div class="card-header"><strong>E-mail wording</strong> <small class="text-body-secondary">merge fields such as <code>{% templatetag openvariable %}signer.name{% templatetag closevariable %}</code>, <code>{% templatetag openvariable %}contract.title{% templatetag closevariable %}</code>, <code>{% templatetag openvariable %}provider.name{% templatetag closevariable %}</code>, <code>{% templatetag openvariable %}link{% templatetag closevariable %}</code>, <code>{% templatetag openvariable %}invitation.expires{% templatetag closevariable %}</code>; the link is added if you leave it out</small></div><div class="card-body row g-2">
+        <div class="col-12"><label class="form-label small" for="invitation_subject">Invitation subject</label><input class="form-control" id="invitation_subject" name="invitation_subject" value="{{ s.invitation_subject }}"></div>
+        <div class="col-12"><label class="form-label small" for="invitation_body">Invitation text</label><textarea class="form-control" id="invitation_body" name="invitation_body" rows="4">{{ s.invitation_body }}</textarea></div>
+        <div class="col-12"><label class="form-label small" for="reminder_subject">Reminder subject</label><input class="form-control" id="reminder_subject" name="reminder_subject" value="{{ s.reminder_subject }}"></div>
+        <div class="col-12"><label class="form-label small" for="reminder_body">Reminder text</label><textarea class="form-control" id="reminder_body" name="reminder_body" rows="3">{{ s.reminder_body }}</textarea></div>
+        <div class="col-12"><label class="form-label small" for="completed_subject">Signed-copy subject</label><input class="form-control" id="completed_subject" name="completed_subject" value="{{ s.completed_subject }}"></div>
+        <div class="col-12"><label class="form-label small" for="completed_body">Signed-copy text</label><textarea class="form-control" id="completed_body" name="completed_body" rows="3">{{ s.completed_body }}</textarea></div>
+    </div></div>
+    <div class="card mb-3"><div class="card-header"><strong>Privacy</strong></div><div class="card-body">
+        <label class="form-label small" for="access_log_retention_days">Keep IP address and browser of link opens and views for (days, 0 = keep)</label><input class="form-control" type="number" id="access_log_retention_days" name="access_log_retention_days" value="{{ s.access_log_retention_days }}">
+        <div class="form-text">Signature records keep theirs: they are part of the signing evidence.</div></div></div>
+</div>
+</div>
+<button class="btn btn-primary mb-4"><i class="fas fa-save"></i> Save settings</button>
+</form>
+{% endblock %}

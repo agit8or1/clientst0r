@@ -59,6 +59,9 @@ urlpatterns = [
     path('processes/', include('processes.urls')),
     path('files/', include('files.urls')),
     path('office/', include('office.urls')),
+    path('contracts/', include('contracts.urls')),
+    # Public, account-less contract signing pages (opaque tokens; see contracts/public_views.py).
+    path('sign/', include('contracts.public_urls')),
     path('integrations/', include('integrations.urls')),
     path('audit/', include('audit.urls')),
     path('compliance/', include('compliance.urls')),

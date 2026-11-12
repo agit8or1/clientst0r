@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{% if tpl %}{{ tpl.name }}{% else %}New template{% endif %}{% endblock %}
+{% block extra_css %}<link href="{% static 'vendor/quill/2.0.3/quill.snow.css' %}" rel="stylesheet"><link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:template_list' %}">Templates</a></li><li class="breadcrumb-item active">{% if tpl %}{{ tpl.name }}{% else %}New{% endif %}</li></ol></nav>
+{% if tpl and tpl.is_sample %}<div class="alert alert-warning small py-2">This is a sample template. Review all wording before relying on it.</div>{% endif %}
+{% if not can_edit %}<div class="alert alert-info small py-2">You can read this template but not change it. Copy it to a customer to make your own version.</div>{% endif %}
+<form method="post" id="cd-builder" data-unsaved-guard="off" data-template-editor novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="sections_present" value="1">
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="card mb-3"><div class="card-body row g-2">
+                <div class="col-md-6"><label class="form-label small" for="t-name">Template name</label><input class="form-control" id="t-name" name="name" value="{{ tpl.name|default:'' }}" maxlength="200" required></div>
+                <div class="col-md-3"><label class="form-label small" for="t-kind">Type</label><select class="form-select" id="t-kind" name="kind">{% for k, l in kinds %}<option value="{{ k }}" {% if tpl.kind == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                <div class="col-md-3">{% if tpl %}<label class="form-label small">Scope</label><div class="form-control-plaintext">{{ tpl.scope_label }}</div>{% else %}<label class="form-label small" for="t-scope">Scope</label><select class="form-select" id="t-scope" name="scope">{% if can_global %}<option value="">Every customer (starter)</option>{% endif %}{% for o in clients %}<option value="{{ o.pk }}" {% if org and org.pk == o.pk %}selected{% endif %}>{{ o.name }} only</option>{% endfor %}</select>{% endif %}</div>
+                <div class="col-12"><label class="form-label small" for="t-desc">Description</label><input class="form-control" id="t-desc" name="description" value="{{ tpl.description|default:'' }}" maxlength="2000"></div>
+                <div class="col-6 col-md-3"><label class="form-label small" for="t-freq">Billing frequency</label><select class="form-select" id="t-freq" name="billing_frequency">{% for k, l in frequencies %}<option value="{{ k }}" {% if defaults.billing_frequency == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                <div class="col-6 col-md-3"><label class="form-label small" for="t-terms">Payment terms</label><input class="form-control" id="t-terms" name="payment_terms" value="{{ defaults.payment_terms|default:'' }}"></div>
+                <div class="col-6 col-md-2"><label class="form-label small" for="t-dur">Months</label><input class="form-control" type="number" min="1" id="t-dur" name="duration_months" value="{{ defaults.duration_months|default_if_none:'' }}"></div>
+                <div class="col-6 col-md-2"><label class="form-label small" for="t-notice">Notice days</label><input class="form-control" type="number" min="0" id="t-notice" name="notice_period_days" value="{{ defaults.notice_period_days|default_if_none:'' }}"></div>
+                <div class="col-md-2 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="t-auto" name="auto_renew" {% if defaults.auto_renew %}checked{% endif %}><label class="form-check-label" for="t-auto">Auto-renew</label></div></div>
+                <div class="col-12"><label class="form-label small" for="t-renew">Renewal terms</label><input class="form-control" id="t-renew" name="renewal_terms" value="{{ defaults.renewal_terms|default:'' }}"></div>
+            </div></div>
+            {% include "contracts/_sections.html" %}
+            {% include "contracts/_line_items.html" %}
+            {% if can_edit %}<div class="card card-body mb-4"><label class="form-label small" for="t-note">Change note (optional)</label><input class="form-control mb-2" id="t-note" name="note" maxlength="255">
+                <div><button class="btn btn-primary"><i class="fas fa-save"></i> Save as a new version</button> <span class="small text-body-secondary">Contracts already created from this template keep their text.</span></div></div>{% endif %}
+        </div>
+        <div class="col-xl-4">
+            {% include "contracts/_merge_fields.html" %}
+            {% if versions %}<div class="card mb-3"><div class="card-header"><strong>Versions</strong></div><ul class="list-group list-group-flush">{% for tv in versions %}<li class="list-group-item small"><a href="{% url 'contracts:template_version' tpl.pk tv.version_number %}">v{{ tv.version_number }}</a> · {{ tv.created_at|date:"Y-m-d H:i" }}{% if tv.created_by %} · {{ tv.created_by.get_full_name|default:tv.created_by.username }}{% endif %}{% if tv.note %}<div class="text-body-secondary">{{ tv.note }}</div>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/quill/2.0.3/quill.js' %}"></script><script src="{% static 'js/contract-builder.js' %}"></script>{% endblock %}

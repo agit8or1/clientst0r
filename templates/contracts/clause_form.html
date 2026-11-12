@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{% if cl %}{{ cl.title }}{% else %}New clause{% endif %}{% endblock %}
+{% block extra_css %}<link href="{% static 'vendor/quill/2.0.3/quill.snow.css' %}" rel="stylesheet"><link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:clause_list' %}">Clauses</a></li><li class="breadcrumb-item active">{% if cl %}{{ cl.title }}{% else %}New{% endif %}</li></ol></nav>
+<form method="post" id="cd-builder" data-unsaved-guard="off" class="row g-3">{% csrf_token %}
+    <div class="col-xl-8"><div class="card card-body">
+        <div class="row g-2 mb-2">
+            <div class="col-md-6"><label class="form-label small" for="c-title">Title</label><input class="form-control" id="c-title" name="title" value="{{ cl.title|default:'' }}" required maxlength="200"></div>
+            <div class="col-md-3"><label class="form-label small" for="c-cat">Category</label><input class="form-control" id="c-cat" name="category" value="{{ cl.category|default:'' }}" maxlength="100"></div>
+            <div class="col-md-3">{% if cl %}<label class="form-label small">Scope</label><div class="form-control-plaintext">{% if cl.organization %}{{ cl.organization.name }}{% else %}Every customer{% endif %}</div>{% else %}<label class="form-label small" for="c-scope">Scope</label><select class="form-select" id="c-scope" name="scope">{% if can_global %}<option value="">Every customer</option>{% endif %}{% for o in clients %}<option value="{{ o.pk }}" {% if org and org.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select>{% endif %}</div>
+        </div>
+        <div data-section><label class="form-label small" for="c-body">Text</label>
+            <textarea class="form-control cd-body font-monospace small" rows="10" id="c-body" name="body">{{ cl.body|default:'' }}</textarea><div class="cd-editor" hidden></div></div>
+        <div class="d-flex gap-3 my-3">
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="c-opt" name="is_optional" {% if not cl or cl.is_optional %}checked{% endif %}><label class="form-check-label" for="c-opt">Optional clause</label></div>
+            <div class="form-check"><input type="hidden" name="is_active" value="off"><input class="form-check-input" type="checkbox" id="c-act" name="is_active" {% if not cl or cl.is_active %}checked{% endif %}><label class="form-check-label" for="c-act">Active</label></div>
+        </div>
+        <div><button class="btn btn-primary">Save clause</button> <a class="btn btn-outline-secondary" href="{% url 'contracts:clause_list' %}">Cancel</a></div>
+    </div></div>
+    <div class="col-xl-4">{% include "contracts/_merge_fields.html" %}</div>
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'vendor/quill/2.0.3/quill.js' %}"></script><script src="{% static 'js/contract-builder.js' %}"></script>{% endblock %}

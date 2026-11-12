@@ -1,0 +1,15 @@
+<div id="cd-sections" data-sections>
+    {% for s in sections %}{% with i=forloop.counter0 forloop_counter=forloop.counter %}{% include "contracts/_section_card.html" %}{% endwith %}{% endfor %}
+</div>
+<template id="tpl-section">{% with i="__i__" %}{% include "contracts/_section_card.html" with s=blank_section %}{% endwith %}</template>
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <button type="button" class="btn btn-sm btn-outline-primary" data-add-section><i class="fas fa-plus"></i> Add blank section</button>
+    {% if clauses %}
+    <div class="input-group input-group-sm" style="max-width: 28rem;">
+        <label class="input-group-text" for="cd-clause-pick">Clause</label>
+        <select class="form-select" id="cd-clause-pick">{% for cl in clauses %}<option value="{{ cl.pk }}">{% if cl.category %}{{ cl.category }} — {% endif %}{{ cl.title }}{% if cl.is_sample %} (sample){% endif %}</option>{% endfor %}</select>
+        <button type="button" class="btn btn-outline-primary" data-add-clause>Insert as section</button>
+    </div>
+    {% endif %}
+</div>
+{{ clause_data|json_script:"cd-clause-data" }}

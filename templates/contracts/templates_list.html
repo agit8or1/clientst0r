@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Contract templates{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">Templates</li></ol></nav>
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <h2 class="h4 mb-0 me-auto">Contract templates</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="?show={% if show == 'all' %}active{% else %}all{% endif %}">{% if show == 'all' %}Hide inactive{% else %}Show inactive{% endif %}</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:clause_list' %}">Clause library</a>
+    {% if can_manage_any %}<a class="btn btn-sm btn-primary" href="{% url 'contracts:template_new' %}"><i class="fas fa-plus"></i> New template</a>{% endif %}
+</div>
+<div class="alert alert-info small py-2">Starter templates are <strong>samples</strong>: their wording is a starting point, not legal advice. Each one contains a review note that blocks sending until you replace it. Have the final language reviewed for your jurisdiction.</div>
+<div class="table-responsive"><table class="table table-sm align-middle">
+    <thead><tr><th>Name</th><th>Type</th><th>Scope</th><th>Version</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>{% for t in templates %}
+    <tr><td><a href="{% url 'contracts:template_edit' t.pk %}">{{ t.name }}</a>{% if t.is_sample %} <span class="badge text-bg-warning text-dark">Sample</span>{% endif %}<div class="small text-body-secondary">{{ t.description|truncatechars:120 }}</div></td>
+        <td>{{ t.get_kind_display }}</td><td>{{ t.scope_label }}</td><td>{% if t.latest_version %}v{{ t.latest_version.version_number }}{% else %}—{% endif %}</td>
+        <td>{% if t.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
+        <td class="text-end"><div class="d-flex flex-wrap gap-1 justify-content-end">
+            {% if t.is_active %}<a class="btn btn-sm btn-outline-primary" href="{% url 'contracts:new' %}?template={{ t.pk }}">Use</a>{% endif %}
+            {% if clients %}<form method="post" action="{% url 'contracts:template_clone' t.pk %}" class="d-flex gap-1">{% csrf_token %}
+                <select class="form-select form-select-sm" name="organization" aria-label="Copy to customer" style="max-width:11rem"><option value="">Copy to…</option>{% for o in clients %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select>
+                <button class="btn btn-sm btn-outline-secondary">Copy</button></form>{% endif %}
+            {% if can_manage_global or t.organization_id %}<form method="post" action="{% url 'contracts:template_toggle' t.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">{% if t.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>{% endif %}
+        </div></td></tr>
+    {% empty %}<tr><td colspan="6" class="text-body-secondary">No templates.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

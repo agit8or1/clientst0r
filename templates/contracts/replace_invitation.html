@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Replace signer{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Replace signer</li></ol></nav>
+<form method="post" class="card card-body" style="max-width: 40rem">{% csrf_token %}
+    <h2 class="h5">Replace {{ inv.name }} &lt;{{ inv.email }}&gt;</h2>
+    <p class="small">The links already sent to {{ inv.email }} stop working. The new person signs the same version (the contract text does not change).</p>
+    <div class="mb-2"><label class="form-label" for="r-name">Name</label><input class="form-control" id="r-name" name="name" value="{{ inv.name }}" required maxlength="200"></div>
+    <div class="mb-2"><label class="form-label" for="r-email">E-mail</label><input class="form-control" type="email" id="r-email" name="email" value="{{ inv.email }}" required></div>
+    <div class="mb-3"><label class="form-label" for="r-title">Title</label><input class="form-control" id="r-title" name="title" value="{{ inv.title }}" maxlength="200"></div>
+    <div class="d-flex gap-2"><button class="btn btn-primary">Replace and send</button><a class="btn btn-outline-secondary" href="{% url 'contracts:detail' c.pk %}">Cancel</a></div>
+</form>
+{% endblock %}

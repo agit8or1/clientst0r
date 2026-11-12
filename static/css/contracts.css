@@ -1,0 +1,21 @@
+/* Contract documents: staff builder + previews */
+.cd-toolbar { position: sticky; top: 0; z-index: 5; background: var(--bs-body-bg); padding: .5rem 0; border-bottom: 1px solid var(--bs-border-color); }
+.cd-section-card.cd-excluded .card-body { opacity: .55; }
+.cd-editor .ql-editor { min-height: 9rem; font-size: 1rem; }
+.cd-editor .ql-editor hr.page-break, .cd-paper hr.page-break { border: 0; border-top: 2px dashed #9aa5b1; margin: 1.2rem 0; position: relative; }
+.cd-editor .ql-editor hr.page-break::after { content: "page break"; position: absolute; top: -.7rem; left: 50%; transform: translateX(-50%); font-size: .7rem; background: var(--bs-body-bg); padding: 0 .4rem; color: #6c757d; }
+.cd-editor .ql-editor table { border-collapse: collapse; width: 100%; }
+.cd-editor .ql-editor td { border: 1px solid #adb5bd; padding: .25rem .4rem; }
+.ql-toolbar .ql-pagebreak::before { content: "\21B5"; font-weight: 700; }
+.ql-toolbar .ql-table-insert::before { content: "\25A6"; font-weight: 700; }
+.ql-toolbar button.ql-pagebreak, .ql-toolbar button.ql-table-insert { width: auto; }
+.cd-paper { background: #fff; color: #1d232a; }
+[data-bs-theme="dark"] .cd-paper { background: #fbfbfa; }
+.cd-timeline { max-height: 34rem; overflow-y: auto; }
+.cd-line-desc { min-width: 14rem; }
+/* Section header: one row of compact controls; the heading takes the rest. */
+.cd-section-card > .card-header .form-control,
+.cd-section-card > .card-header .form-select { width: auto; }
+.cd-section-card > .card-header .cd-order { width: 4.5rem; flex: 0 0 4.5rem; }
+.cd-section-card > .card-header input[name$="-title"] { flex: 1 1 14rem; min-width: 10rem; }
+.cd-heading { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: .375rem; padding: .5rem .75rem; }

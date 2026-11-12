@@ -1,0 +1,22 @@
+{% load contracts_tags %}{% if show %}
+<div class="card mb-4" id="client-contracts">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-file-signature me-1"></i> Contracts{% if count %} <span class="badge text-bg-secondary">{{ count }}</span>{% endif %}</h5>
+        <div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:dashboard' %}?client={{ organization.pk }}">All</a>
+            {% if can_create %}<a class="btn btn-sm btn-primary" href="{% url 'contracts:new' %}?client={{ organization.pk }}"><i class="fas fa-plus"></i> New contract</a>{% endif %}
+        </div>
+    </div>
+    {% if contracts %}
+    <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Contract</th><th>Status</th><th class="text-end">One-time</th><th class="text-end">Recurring</th><th>Updated</th></tr></thead>
+        <tbody>{% for c in contracts %}
+            <tr><td><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a> {{ c.title|truncatechars:50 }}</td>
+                <td>{{ c|status_badge }}</td><td class="text-end">{{ c.one_time_total|money:c.currency }}</td>
+                <td class="text-end">{{ c.recurring_total|money:c.currency }}</td><td>{{ c.updated_at|date:"Y-m-d" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}
+    <div class="card-body">{% include "core/_empty_state.html" with compact=True title="No contracts for this client yet" text="Create one from a template, copy an existing contract, or start blank." %}</div>
+    {% endif %}
+</div>
+{% endif %}

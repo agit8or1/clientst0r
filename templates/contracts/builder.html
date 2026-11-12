@@ -1,0 +1,98 @@
+{% extends "base.html" %}{% load static contracts_tags %}
+{% block title %}Edit {{ c.reference }}{% endblock %}
+{% block extra_css %}
+<link href="{% static 'vendor/quill/2.0.3/quill.snow.css' %}" rel="stylesheet">
+<link href="{% static 'css/contracts.css' %}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Edit draft</li></ol></nav>
+
+<form method="post" id="cd-builder" action="{% url 'contracts:edit' c.pk %}" data-autosave-url="{% url 'contracts:autosave' c.pk %}" data-unsaved-guard="off" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="draft_revision" value="{{ c.draft_revision }}" id="cd-revision">
+    <input type="hidden" name="sections_present" value="1">
+    <div class="cd-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h2 class="h4 mb-0 me-auto">{{ c.reference }} <small class="text-body-secondary">for {{ c.client_name }}</small></h2>
+        <span id="cd-save-state" class="small text-body-secondary" role="status" aria-live="polite">{% if c.draft_saved_at %}Saved {{ c.draft_saved_at|date:"H:i:s" }}{% else %}Not saved yet{% endif %}</span>
+        <button type="submit" class="btn btn-sm btn-primary" name="next" value="edit"><i class="fas fa-save"></i> Save</button>
+        <button type="submit" class="btn btn-sm btn-outline-primary" name="next" value="preview"><i class="fas fa-eye"></i> Save &amp; preview</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:preview_pdf' c.pk %}" target="_blank" rel="noopener" data-save-first><i class="fas fa-file-pdf"></i> PDF preview</a>
+        <button type="submit" class="btn btn-sm btn-outline-secondary" name="next" value="detail">Done</button>
+    </div>
+    {% for e in errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+    <div id="cd-save-errors" class="alert alert-warning py-2" hidden></div>
+
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="card mb-3">
+                <div class="card-header"><strong>Details</strong></div>
+                <div class="card-body row g-2">
+                    <div class="col-md-8"><label class="form-label small" for="f-title">Contract title</label><input class="form-control" id="f-title" name="title" value="{{ c.title }}" maxlength="255" required></div>
+                    <div class="col-md-4"><label class="form-label small" for="f-ref">Contract number</label><input class="form-control" id="f-ref" value="{{ c.reference }}" readonly></div>
+                    <div class="col-md-4"><label class="form-label small" for="f-kind">Type</label><select class="form-select" id="f-kind" name="kind">{% for k, l in kinds %}<option value="{{ k }}" {% if c.kind == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label small" for="f-owner">Owner</label><select class="form-select" id="f-owner" name="owner"><option value="">—</option>{% for u in staff %}<option value="{{ u.pk }}" {% if c.owner_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label small" for="f-am">Account manager</label><select class="form-select" id="f-am" name="account_manager"><option value="">—</option>{% for u in staff %}<option value="{{ u.pk }}" {% if c.account_manager_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+                    <div class="col-6 col-md-3"><label class="form-label small" for="f-eff">Effective date</label><input class="form-control" type="date" id="f-eff" name="effective_date" value="{{ c.effective_date|date:'Y-m-d' }}"></div>
+                    <div class="col-6 col-md-3"><label class="form-label small" for="f-dur">Duration (months)</label><input class="form-control" type="number" min="1" id="f-dur" name="duration_months" value="{{ c.duration_months|default_if_none:'' }}"></div>
+                    <div class="col-6 col-md-3"><label class="form-label small" for="f-exp">Expiration date</label><input class="form-control" type="date" id="f-exp" name="expiration_date" value="{{ c.expiration_date|date:'Y-m-d' }}"><div class="form-text">Blank: worked out from the duration.</div></div>
+                    <div class="col-6 col-md-3"><label class="form-label small" for="f-notice">Notice period (days)</label><input class="form-control" type="number" min="0" id="f-notice" name="notice_period_days" value="{{ c.notice_period_days|default_if_none:'' }}"></div>
+                    <div class="col-md-9"><label class="form-label small" for="f-renew">Renewal terms</label><input class="form-control" id="f-renew" name="renewal_terms" value="{{ c.renewal_terms }}"></div>
+                    <div class="col-md-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="f-auto" name="auto_renew" {% if c.auto_renew %}checked{% endif %}><label class="form-check-label" for="f-auto">Renews automatically</label></div></div>
+                    <div class="col-6 col-md-3"><label class="form-label small" for="f-freq">Billing frequency</label><select class="form-select" id="f-freq" name="billing_frequency">{% for k, l in frequencies %}<option value="{{ k }}" {% if c.billing_frequency == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-6 col-md-3"><label class="form-label small" for="f-terms">Payment terms</label><input class="form-control" id="f-terms" name="payment_terms" value="{{ c.payment_terms }}"></div>
+                    <div class="col-6 col-md-2"><label class="form-label small" for="f-cur">Currency</label><input class="form-control" id="f-cur" name="currency" value="{{ c.currency }}" maxlength="3"></div>
+                    <div class="col-6 col-md-2"><label class="form-label small" for="f-tax">Tax rate %</label><input class="form-control" id="f-tax" name="tax_rate" value="{{ c.tax_rate }}" inputmode="decimal"></div>
+                    <div class="col-12 col-md-2"><label class="form-label small" for="f-deadline">Accept by</label><input class="form-control" type="date" id="f-deadline" name="acceptance_deadline" value="{{ c.acceptance_deadline|date:'Y-m-d' }}"></div>
+                </div>
+            </div>
+
+            <h3 class="h6 cd-heading mb-2">Sections <small class="text-body-secondary fw-normal">— every heading and word is editable; reorder, remove or leave out any section</small></h3>
+            {% include "contracts/_sections.html" %}
+            {% include "contracts/_line_items.html" %}
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card mb-3" id="cd-signers">
+                <div class="card-header d-flex justify-content-between align-items-center"><strong>Signers</strong>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-add-signer><i class="fas fa-plus"></i> Add</button></div>
+                <div class="card-body" data-signers>
+                    {% for sg in signers %}{% with i=forloop.counter0 %}{% include "contracts/_signer_row.html" %}{% endwith %}{% endfor %}
+                </div>
+                <template id="tpl-signer">{% with i="__i__" sg=None %}{% include "contracts/_signer_row.html" %}{% endwith %}</template>
+                <div class="card-footer small text-body-secondary">Client signers get a personal link; no account is needed. Internal countersigners sign after every client signer.</div>
+            </div>
+            {% include "contracts/_merge_fields.html" %}
+            <div class="card mb-3">
+                <div class="card-header"><button class="btn btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#cd-advanced" aria-expanded="false" aria-controls="cd-advanced"><strong>Advanced signing options</strong></button></div>
+                <div class="collapse" id="cd-advanced"><div class="card-body row g-2 small">
+                    <p class="text-body-secondary mb-1">Defaults come from Contract Settings ({% if settings.organization_id %}this client{% else %}deployment{% endif %}).</p>
+                    <div class="col-12"><label class="form-label mb-0" for="o-ver">E-mail code verification (default: {{ settings.require_email_verification|yesno:"on,off" }})</label><select class="form-select form-select-sm" id="o-ver" name="require_email_verification">{% for k, l in tri %}<option value="{{ k }}" {% if k == 'yes' and c.require_email_verification == True or k == 'no' and c.require_email_verification == False or k == '' and c.require_email_verification == None %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-12"><label class="form-label mb-0" for="o-cs">Require countersignature (default: {{ settings.require_countersignature|yesno:"on,off" }})</label><select class="form-select form-select-sm" id="o-cs" name="require_countersignature">{% for k, l in tri %}<option value="{{ k }}" {% if k == 'yes' and c.require_countersignature == True or k == 'no' and c.require_countersignature == False or k == '' and c.require_countersignature == None %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-12"><label class="form-label mb-0" for="o-ap">Internal approval before sending (default: {{ settings.require_internal_approval|yesno:"on,off" }})</label><select class="form-select form-select-sm" id="o-ap" name="require_internal_approval">{% for k, l in tri %}<option value="{{ k }}" {% if k == 'yes' and c.require_internal_approval == True or k == 'no' and c.require_internal_approval == False or k == '' and c.require_internal_approval == None %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-12"><label class="form-label mb-0" for="o-rem">Reminders (default: {{ settings.reminders_enabled|yesno:"on,off" }})</label><select class="form-select form-select-sm" id="o-rem" name="reminders_enabled">{% for k, l in tri %}<option value="{{ k }}" {% if k == 'yes' and c.reminders_enabled == True or k == 'no' and c.reminders_enabled == False or k == '' and c.reminders_enabled == None %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-12"><label class="form-label mb-0" for="o-order">Signing order (default: {{ settings.get_signing_order_display }})</label><select class="form-select form-select-sm" id="o-order" name="signing_order"><option value="">Use the setting</option>{% for k, l in orders %}<option value="{{ k }}" {% if c.signing_order == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+                    <div class="col-12"><label class="form-label mb-0" for="o-exp">Link expiry in days (default: {{ settings.invitation_expiry_days }})</label><input class="form-control form-control-sm" type="number" min="1" max="365" id="o-exp" name="invitation_expiry_days" value="{{ c.invitation_expiry_days|default_if_none:'' }}"></div>
+                    <div class="col-12"><label class="form-label mb-0" for="o-notify">Also notify</label><select class="form-select form-select-sm" id="o-notify" name="notify_users" multiple size="4">{% for u in staff %}<option value="{{ u.pk }}" {% if u.pk in notify_ids %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+                </div></div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="row g-3"><div class="col-xl-8">
+<div class="card mb-4" id="cd-attachments">
+    <div class="card-header"><strong>Attachments and exhibits</strong></div>
+    <ul class="list-group list-group-flush">{% for a in attachments %}
+        <li class="list-group-item d-flex justify-content-between align-items-center"><span><a href="{% url 'contracts:attachment_download' a.pk %}">{{ a.name }}</a> <small class="text-body-secondary">{{ a.size|filesizeformat }}</small></span>
+            <form method="post" action="{% url 'contracts:attachment_remove' a.pk %}" data-confirm="Remove {{ a.name }} from this draft?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Remove</button></form></li>
+    {% empty %}<li class="list-group-item text-body-secondary small">No attachments. Exhibits are listed in the contract with their SHA-256 and signers can download them.</li>{% endfor %}</ul>
+    <div class="card-body"><form method="post" enctype="multipart/form-data" action="{% url 'contracts:attachment_upload' c.pk %}" class="d-flex flex-wrap gap-2" data-unsaved-guard="off">{% csrf_token %}
+        <label class="visually-hidden" for="att-file">File</label><input class="form-control form-control-sm" style="max-width: 22rem" type="file" id="att-file" name="file" accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx" required>
+        <button class="btn btn-sm btn-outline-primary">Upload (save your edits first)</button></form></div>
+</div>
+</div></div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'vendor/quill/2.0.3/quill.js' %}"></script>
+<script src="{% static 'js/contract-builder.js' %}"></script>
+{% endblock %}
