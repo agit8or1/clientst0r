@@ -754,23 +754,11 @@ def list_snapshots(quick=False):
     return out
 
 
-def prune(keep=None, out=None):
-    """Delete verified snapshots beyond the newest `keep`
-    (settings.UPGRADE_BACKUPS_KEEP, default 5). Never removes the snapshot the
-    upgrade journal points at, or an unverified one (it may be the evidence
-    of a failure an admin still has to look at). Returns the removed paths."""
-    keep = keep if keep is not None else int(getattr(settings, 'UPGRADE_BACKUPS_KEEP', 5) or 5)
-    keep = max(keep, 1)
-    pinned = str((journal.read() or {}).get('backup') or '')
-    verified = [s for s in list_snapshots() if s['verified']]
-    removed = []
-    for snap in verified[keep:]:
-        if snap['path'] == pinned:
-            continue
-        shutil.rmtree(snap['path'], ignore_errors=True)
-        removed.append(snap['path'])
-        _out(out, f"Removed old upgrade backup {snap['path']}")
-    return removed
+def prune(keep=None, out=None, **kwargs):
+    """Apply the backup retention rules (core.upgrade.retention). Kept for
+    older callers; returns the removed paths."""
+    from . import retention
+    return retention.prune(keep=keep, out=out, **kwargs)
 
 
 # ---------------------------------------------------------------------------

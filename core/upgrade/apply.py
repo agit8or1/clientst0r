@@ -19,7 +19,6 @@ back with `manage.py upgrade_restore`.
 """
 from __future__ import annotations
 
-import fcntl
 import logging
 import os
 import subprocess
@@ -66,16 +65,11 @@ class ApplyFailed(Exception):
 
 @contextmanager
 def _exclusive():
-    root = journal.ensure_private_dir(journal.backup_root())
-    fd = os.open(str(root / 'apply.lock'), os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise ApplyRefused('Another upgrade is running.')
-        yield
-    finally:
-        os.close(fd)
+        with journal.upgrade_lock():
+            yield
+    except journal.LockHeld as e:
+        raise ApplyRefused(str(e))
 
 
 def _service_name():
@@ -89,6 +83,7 @@ def _service_name():
 class _Reporter:
     def __init__(self, emit, progress):
         self.emit, self.progress, self.lines = emit, progress, []
+        self.began = False   # set once this run owns the journal entry
 
     def __call__(self, line, level='info'):
         self.lines.append(line)
@@ -117,8 +112,16 @@ def run(target: Target | None, *, user=None, progress=None, emit=None, resume=Fa
               'backup': None, 'target': target.as_dict() if target else None}
     try:
         with _exclusive():
-            _run(target, say, result, user=user, resume=resume, deps_check=deps_check,
-                 allow_preview=allow_preview, env_extra=env_extra or {})
+            try:
+                _run(target, say, result, user=user, resume=resume, deps_check=deps_check,
+                     allow_preview=allow_preview, env_extra=env_extra or {})
+            finally:
+                # Every run that started, whatever its outcome, leaves the
+                # backup directory within the retention rules (the journal's
+                # backup is kept). A run refused before it began -- e.g.
+                # because the last upgrade needs recovery -- touches nothing.
+                if say.began:
+                    _groom(say, user, 'after the upgrade run')
     except ApplyRefused as e:
         result.update(refused=True, error=str(e))
         say(f'REFUSED: {e}')
@@ -179,6 +182,7 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     else:
         journal.begin(target=target.as_dict(), prev_sha=installed_sha, prev_version=installed_ver,
                       user=getattr(user, 'username', None) or 'system')
+    say.began = True
 
     # 1-2: the reviewed revision, exactly
     say.start('Verify Revision')
@@ -215,6 +219,11 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         pass
     journal.stage('revision_verified', target_version=target_version)
     say.done('Verify Revision')
+
+    # Free the space for this run's backup before the disk check: retention
+    # with the new backup counted, never below one verified backup.
+    if not resume:
+        _groom(say, user, 'before the pre-upgrade backup', reserve=1)
 
     # 3: preflight
     say.start('Preflight Checks')
@@ -305,10 +314,20 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     if data.get('status') != 'complete':
         journal.stage('complete')
     result['success'] = True
+
+
+def _groom(say, user, when, reserve=0):
+    """Apply backup retention inside this run (core.upgrade.retention). Never
+    fails the run: a backup that cannot be removed is only reported."""
+    from . import retention
     try:
-        snapshot.prune(out=say)
-    except Exception as e:  # pruning must never fail a finished upgrade
-        say(f'Could not prune old upgrade backups: {e}', 'warning')
+        removed = retention.prune(trigger='upgrade', user=user, out=say, reserve=reserve,
+                                  in_run=True)
+        if removed:
+            say(f'Backup cleanup {when}: removed {len(removed)} old backup(s).')
+    except Exception as e:
+        logger.exception('upgrade backup cleanup failed')
+        say(f'Could not clean up old upgrade backups ({when}): {e}', 'warning')
 
 
 def _audit(user, result):

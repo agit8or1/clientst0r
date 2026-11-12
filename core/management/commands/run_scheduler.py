@@ -59,6 +59,7 @@ COMMAND_TASKS = {
     'agreement_reminders': ('agreement_reminders', []),
     'kb_link_check': ('kb_link_check', []),
     'ldap_group_sync': ('ldap_group_sync', []),
+    'upgrade_backup_prune': ('upgrade_backup', ['--prune', '--trigger', 'scheduler']),
 }
 
 

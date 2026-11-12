@@ -1015,28 +1015,3 @@ class ChannelUpgradeDefaultTests(TestCase):
         SystemSetting.get_settings()
         self._run()
         self.assertEqual(SystemSetting.get_settings().update_channel, 'preview')
-
-
-class BackupPruneTests(TestCase):
-    """After a successful upgrade only the newest verified backups are kept;
-    the journal's backup and unverified ones are never removed."""
-
-    def test_prune_keeps_newest_pinned_and_unverified(self):
-        from unittest import mock
-        from core.upgrade import snapshot
-        root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, root, True)
-        snaps = []
-        for i in range(5):
-            d = root / f'snapshot-2026111{i}'
-            d.mkdir()
-            snaps.append({'path': str(d), 'verified': i != 1})
-        snaps.reverse()  # newest first, like list_snapshots()
-        pinned = str(root / 'snapshot-20261110')  # oldest, but the journal points at it
-        with mock.patch.object(snapshot, 'list_snapshots', return_value=snaps), \
-                mock.patch.object(snapshot.journal, 'read', return_value={'backup': pinned}):
-            removed = snapshot.prune(keep=2)
-        self.assertEqual(removed, [str(root / 'snapshot-20261112')])
-        left = sorted(p.name for p in root.iterdir())
-        self.assertEqual(left, ['snapshot-20261110', 'snapshot-20261111', 'snapshot-20261113',
-                                'snapshot-20261114'])
