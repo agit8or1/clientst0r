@@ -186,8 +186,12 @@ class SnapshotTests(_TmpMixin, SimpleTestCase):
     def test_backup_records_how_long_it_took_and_reports_its_parts(self):
         """v3.17.667: the next backup's estimate comes from these."""
         phases = []
-        snap = snapshot.create(reason='test', phase=phases.append)
-        report = snapshot.verify(snap)
+        # A clock that advances a second per reading: a tiny test backup
+        # would otherwise round to 0 s, which the estimate rightly ignores.
+        ticks = iter(range(0, 10_000))
+        with mock.patch.object(snapshot.time, 'monotonic', side_effect=lambda: float(next(ticks))):
+            snap = snapshot.create(reason='test', phase=phases.append)
+            report = snapshot.verify(snap)
         self.assertEqual(phases, ['database', 'media'])
         m = snapshot.load_manifest(snap)
         self.assertEqual(set(m['timings']), {'database_seconds', 'media_seconds', 'create_seconds'})
