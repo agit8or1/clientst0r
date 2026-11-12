@@ -127,9 +127,9 @@
                                 <a href="{% url 'locations:wan_detail' wan.location.id wan.id %}" class="btn btn-outline-primary" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'locations:wan_check_status' wan.location.id wan.id %}" class="btn btn-outline-success" title="Check Now">
-                                    <i class="fas fa-sync"></i>
-                                </a>
+                                <form method="post" action="{% url 'locations:wan_check_status' wan.location.id wan.id %}" class="d-inline">{% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success rounded-0" title="Check Now"><i class="fas fa-sync"></i></button>
+                                </form>
                                 <a href="{% url 'locations:wan_edit' wan.location.id wan.id %}" class="btn btn-outline-secondary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>

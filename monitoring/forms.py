@@ -96,8 +96,12 @@ class RackForm(forms.ModelForm):
 
         # If organization context exists, pre-select it and hide the field
         if organization:
+            from core.models import Organization
             self.fields['organization'].initial = organization
             self.fields['organization'].widget = forms.HiddenInput()
+            # Hidden is not enforced: the posted value was saved, so a rack
+            # could be created in, or moved to, another customer.
+            self.fields['organization'].queryset = Organization.objects.filter(pk=organization.pk)
         else:
             # Filter organizations by user permissions
             from core.models import Organization

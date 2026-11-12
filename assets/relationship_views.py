@@ -2,6 +2,7 @@
 Relationship views - Create and manage relationships between objects
 """
 from django.shortcuts import render, redirect, get_object_or_404
+from monitoring.access import org_flag_required, owner
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -99,6 +100,7 @@ def _split_ref(data, prefix):
 @org_handoff
 @require_write
 @require_organization_context
+@org_flag_required('assets_edit')
 def relationship_create(request):
     """
     Create a new relationship between two objects.
@@ -202,6 +204,7 @@ def relationship_create(request):
 
 @login_required
 @require_write
+@org_flag_required('assets_edit', owner('assets.Relationship'))
 def relationship_delete(request, pk):
     """
     Delete a relationship.

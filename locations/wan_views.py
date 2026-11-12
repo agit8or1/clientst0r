@@ -4,6 +4,7 @@ WAN connection views for locations
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.views.decorators.http import require_POST
 from django.db.models import Q
 from core.middleware import get_request_organization
 from core.decorators import require_write
@@ -29,6 +30,9 @@ def wan_list(request, location_id):
         )
 
     wan_connections = location.wan_connections.all().order_by('-is_primary', 'name')
+    if not in_global_view:
+        # A shared location carries every customer's circuits.
+        wan_connections = wan_connections.filter(organization=org)
 
     return render(request, 'locations/wan_list.html', {
         'location': location,
@@ -179,6 +183,7 @@ def wan_delete(request, location_id, wan_id):
 
 
 @login_required
+@require_POST
 def wan_check_status(request, location_id, wan_id):
     """Manually check WAN status."""
     org = get_request_organization(request)
@@ -196,6 +201,11 @@ def wan_check_status(request, location_id, wan_id):
             id=location_id
         )
         wan = get_object_or_404(WAN, id=wan_id, location=location, organization=org)
+
+    from accounts.permission_utils import has_perm_for_org
+    if not has_perm_for_org(request.user, wan.organization_id, 'monitoring_trigger'):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('Your role does not allow running checks here.')
 
     if not wan.monitoring_enabled:
         messages.warning(request, "Monitoring is not enabled for this WAN connection.")

@@ -64,7 +64,19 @@ class LocationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+        # Sharing a location with other customers is an MSP decision: the
+        # picker listed every customer's name and accepted any id. Customer
+        # users no longer get the two fields (existing values are kept).
+        from psa.visibility import is_msp_staff
+        if user is not None and not is_msp_staff(user):
+            self.fields.pop('is_shared', None)
+            self.fields.pop('associated_organizations', None)
+        elif 'associated_organizations' in self.fields:
+            self.fields['associated_organizations'].queryset = Organization.objects.filter(
+                is_active=True).order_by('name')
 
         # Add Bootstrap classes to extra fields
         self.fields['auto_geocode'].widget.attrs.update({'class': 'form-check-input'})

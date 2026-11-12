@@ -9,6 +9,7 @@ from django.db.models import Q
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
 from .models import WebsiteMonitor, Expiration, Rack, RackDevice, RackConnection, Subnet, IPAddress
+from .access import monitoring_perm, owner
 from .forms import (
     WebsiteMonitorForm, ExpirationForm, RackForm, RackDeviceForm,
     SubnetForm, IPAddressForm
@@ -67,6 +68,7 @@ def website_monitor_list(request):
 @login_required
 @require_write
 @require_organization_context
+@monitoring_perm('monitoring_create')
 def website_monitor_create(request):
     """Create website monitor."""
     org = get_request_organization(request)
@@ -89,6 +91,7 @@ def website_monitor_create(request):
 
 
 @login_required
+@monitoring_perm(None)
 def website_monitor_detail(request, pk):
     """
     View website monitor details.
@@ -118,6 +121,7 @@ def website_monitor_detail(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(WebsiteMonitor))
 def website_monitor_edit(request, pk):
     """Edit website monitor."""
     org = get_request_organization(request)
@@ -141,6 +145,7 @@ def website_monitor_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(WebsiteMonitor))
 def website_monitor_delete(request, pk):
     """Delete website monitor.
 
@@ -171,6 +176,7 @@ def website_monitor_delete(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_trigger', owner(WebsiteMonitor))
 def website_monitor_check(request, pk):
     """Manually trigger website check.
 
@@ -240,6 +246,7 @@ def expiration_list(request):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create')
 def expiration_create(request):
     """Create expiration."""
     org = get_request_organization(request)
@@ -268,6 +275,7 @@ def expiration_create(request):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(Expiration))
 def expiration_edit(request, pk):
     """Edit expiration."""
     org = get_request_organization(request)
@@ -291,6 +299,7 @@ def expiration_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(Expiration))
 def expiration_delete(request, pk):
     """Delete expiration."""
     org = get_request_organization(request)
@@ -330,6 +339,7 @@ def rack_list(request):
 @login_required
 @require_write
 @require_organization_context
+@monitoring_perm('monitoring_create')
 def rack_create(request):
     """Create rack."""
     org = get_request_organization(request)
@@ -356,6 +366,7 @@ def rack_create(request):
 
 
 @login_required
+@monitoring_perm(None)
 def rack_detail(request, pk):
     """View rack details with visual layout."""
     org = get_request_organization(request)
@@ -426,6 +437,7 @@ def rack_detail(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(Rack))
 def rack_edit(request, pk):
     """Edit rack."""
     org = get_request_organization(request)
@@ -449,6 +461,7 @@ def rack_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(Rack))
 def rack_delete(request, pk):
     """Delete rack."""
     org = get_request_organization(request)
@@ -467,6 +480,7 @@ def rack_delete(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create', owner(Rack, kwarg='rack_id'))
 def rack_device_create(request, rack_id):
     """Add asset to rack."""
     org = get_request_organization(request)
@@ -501,6 +515,7 @@ def rack_device_create(request, rack_id):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(RackDevice, 'rack__organization_id'))
 def rack_device_edit(request, pk):
     """Edit rack asset."""
     device = get_object_or_404(RackDevice, pk=pk)
@@ -531,6 +546,7 @@ def rack_device_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(RackDevice, 'rack__organization_id'))
 def rack_device_delete(request, pk):
     """Delete rack device."""
     device = get_object_or_404(RackDevice, pk=pk)
@@ -575,6 +591,7 @@ def subnet_list(request):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create')
 def subnet_create(request):
     """Create subnet."""
     org = get_request_organization(request)
@@ -602,6 +619,7 @@ def subnet_create(request):
 
 
 @login_required
+@monitoring_perm(None)
 def subnet_detail(request, pk):
     """View subnet details with IP addresses."""
     org = get_request_organization(request)
@@ -635,6 +653,7 @@ def subnet_detail(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(Subnet))
 def subnet_edit(request, pk):
     """Edit subnet."""
     org = get_request_organization(request)
@@ -658,6 +677,7 @@ def subnet_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(Subnet))
 def subnet_delete(request, pk):
     """Delete subnet."""
     org = get_request_organization(request)
@@ -676,6 +696,7 @@ def subnet_delete(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create', owner(Subnet, kwarg='subnet_id'))
 def ip_address_create(request, subnet_id):
     """Add IP address to subnet."""
     org = get_request_organization(request)
@@ -701,6 +722,7 @@ def ip_address_create(request, subnet_id):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(IPAddress, 'subnet__organization_id'))
 def ip_address_edit(request, pk):
     """Edit IP address."""
     ip_address = get_object_or_404(IPAddress, pk=pk)
@@ -729,6 +751,7 @@ def ip_address_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(IPAddress, 'subnet__organization_id'))
 def ip_address_delete(request, pk):
     """Delete IP address."""
     ip_address = get_object_or_404(IPAddress, pk=pk)
@@ -791,6 +814,7 @@ def network_closet_list(request):
 @login_required
 @require_write
 @require_organization_context
+@monitoring_perm('monitoring_create')
 def network_closet_create(request):
     """Create network closet."""
     org = get_request_organization(request)
@@ -823,6 +847,7 @@ def network_closet_create(request):
 
 
 @login_required
+@monitoring_perm(None)
 def network_closet_detail(request, pk):
     """View network closet details."""
     import re
@@ -925,6 +950,7 @@ def network_closet_detail(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(Rack))
 def network_closet_edit(request, pk):
     """Edit network closet."""
     org = get_request_organization(request)
@@ -952,6 +978,7 @@ def network_closet_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(Rack))
 def network_closet_delete(request, pk):
     """Delete network closet."""
     org = get_request_organization(request)
@@ -1055,6 +1082,7 @@ def _rack_connection_post_data(request):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create', owner(RackDevice, 'rack__organization_id', kwarg='device_id'))
 def rack_connection_create(request, device_id):
     """Create a new connection from a device."""
     org = get_request_organization(request)
@@ -1101,6 +1129,7 @@ def rack_connection_create(request, device_id):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(RackConnection, 'from_device__rack__organization_id'))
 def rack_connection_edit(request, pk):
     """Edit an existing connection."""
     org = get_request_organization(request)
@@ -1136,6 +1165,7 @@ def rack_connection_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(RackConnection, 'from_device__rack__organization_id'))
 def rack_connection_delete(request, pk):
     """Delete a connection."""
     org = get_request_organization(request)

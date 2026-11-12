@@ -33,9 +33,11 @@
             <i class="fas fa-file-alt"></i> View Profile Doc
         </a>
         {% endif %}
-        <a href="{% url 'assets:asset_generate_profile' asset.pk %}" class="btn btn-info">
+        <form method="post" action="{% url 'assets:asset_generate_profile' asset.pk %}" class="d-inline">{% csrf_token %}
+        <button type="submit" class="btn btn-info">
             <i class="fas fa-magic"></i> {% if asset.profile_document %}Regenerate Profile{% else %}Generate Profile{% endif %}
-        </a>
+        </button>
+        </form>
         {% if has_ai %}
         {% if asset.ai_document %}
         <a href="{% url 'docs:document_detail' asset.ai_document.slug %}" class="btn btn-outline-success">

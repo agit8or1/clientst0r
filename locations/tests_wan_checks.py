@@ -318,7 +318,7 @@ class WanPagesTests(TestCase):
     def test_manual_check_reports_the_streak(self):
         with mock.patch.object(wan_checks, 'ping_target', return_value=DOWN), \
              mock.patch('core.webhook_events.fire'):
-            r = self.client.get(f'/locations/{self.loc.pk}/wan/{self.wan.pk}/check-status/', follow=True)
+            r = self.client.post(f'/locations/{self.loc.pk}/wan/{self.wan.pk}/check-status/', follow=True)
         self.assertContains(r, '1 failed check(s) in a row')
         self.wan.refresh_from_db()
         self.assertEqual(self.wan.status, 'active')

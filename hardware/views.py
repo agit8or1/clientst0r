@@ -501,7 +501,8 @@ def search(request, org):
 @org_view()
 def vlan_list(request, org):
     if request.method == 'POST':
-        if not can(request, 'assets_edit', org):
+        # VLANs are shared with monitoring IPAM: both flags are needed.
+        if not (can(request, 'assets_edit', org) and can(request, 'monitoring_create', org)):
             raise Http404
         P = request.POST
         try:
