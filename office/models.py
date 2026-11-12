@@ -130,6 +130,11 @@ class EditorInstance(BaseModel):
         default=dict, blank=True,
         help_text='Detected by the provider\'s health check. Never typed in by hand.')
 
+    # Provider-specific options an administrator sets (never detected, never
+    # secrets). Collabora: require_proof, disable_print, hide_export — see
+    # office/providers/collabora/options.py and `manage.py office_collabora`.
+    provider_options = models.JSONField(default=dict, blank=True)
+
     max_file_mb = models.PositiveIntegerField(default=100)
     connect_timeout_s = models.PositiveSmallIntegerField(default=5)
     request_timeout_s = models.PositiveSmallIntegerField(default=30)
@@ -474,3 +479,38 @@ class QuarantinedSave(models.Model):
 
     def __str__(self):
         return f'quarantined {self.original_name} ({self.reason})'
+
+
+# ---------------------------------------------------------------------------
+# WOPI locks (Collabora Online)
+# ---------------------------------------------------------------------------
+
+class WopiLock(models.Model):
+    """The WOPI lock on one target file, as set by LOCK / UNLOCK.
+
+    One row per target (``target_kind`` + ``target_pk`` is unique). Changes
+    are compare-and-set updates on that row (``office.providers.collabora.
+    locks``), so two concurrent LOCK requests cannot both win, on any
+    database. A lock with ``expires_at`` in the past counts as no lock
+    (WOPI: locks expire after 30 minutes unless refreshed). The lock id is
+    the editor's opaque string (at most 1024 ASCII characters), not a
+    secret.
+    """
+
+    target_kind = models.CharField(max_length=20)
+    target_pk = models.BigIntegerField()
+    lock_id = models.CharField(max_length=1024)
+    expires_at = models.DateTimeField()
+    session = models.ForeignKey(EditSession, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'office_wopi_locks'
+        constraints = [
+            models.UniqueConstraint(fields=['target_kind', 'target_pk'],
+                                    name='office_wopi_lock_one_per_target'),
+        ]
+
+    def __str__(self):
+        return f'WOPI lock on {self.target_kind}:{self.target_pk}'
