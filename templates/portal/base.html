@@ -77,6 +77,7 @@
                 {% endif %}
                 <a href="{% url 'portal:preferences' %}" title="Notification preferences" {% if current == 'preferences' %}aria-current="page"{% endif %}><i class="fas fa-cog" aria-hidden="true"></i><span class="visually-hidden">Notification preferences</span></a>
                 {% if request.user.is_authenticated %}
+                <a href="{% url 'portal_auth:password_change' %}" title="Change password" {% if current == 'password_change' %}aria-current="page"{% endif %}><i class="fas fa-key" aria-hidden="true"></i><span class="visually-hidden">Change password</span></a>
                 <a href="{% url 'portal_auth:two_factor_setup' %}" title="Sign-in security"><i class="fas fa-shield-halved" aria-hidden="true"></i><span class="visually-hidden">Sign-in security</span></a>
                 {% endif %}
                 {% if request.portal_psa_enabled is not False %}

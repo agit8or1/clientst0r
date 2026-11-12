@@ -463,3 +463,122 @@ class CustomerLinkTests(TestCase):
         self.assertEqual(portal_surface.portal_site_url(), 'https://portal.example.com')
         self.assertEqual(portal_surface.portal_absolute_url('/psa/csat/x/'),
                          'https://portal.example.com/psa/csat/x/')
+
+
+@override_settings(MIDDLEWARE=NO_2FA_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PortalPasswordChangeTests(TestCase):
+    URL = '/portal/account/password/'
+    NEW = 'Brand-New-Passw0rd!'
+
+    def setUp(self):
+        cache.clear()
+        _setup_world(self)
+
+    def _post(self, client, old=PASSWORD, new1=None, new2=None):
+        new1 = new1 or self.NEW
+        return client.post(self.URL, {'old_password': old, 'new_password1': new1,
+                                      'new_password2': new2 or new1})
+
+    def test_page_renders_in_portal_theme_and_is_linked(self):
+        self.client.force_login(self.customer)
+        r = self.client.get(self.URL)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'css/portal.css')
+        self.assertContains(r, 'name="old_password"')
+        self.assertContains(self.client.get('/portal/kb/'), self.URL)
+
+    def test_success_keeps_this_session_ends_others_and_tokens(self):
+        from api_mobile.models import MobileAuthToken
+        from audit.models import AuditLog
+        from django.test import Client
+        other = Client()
+        other.force_login(self.customer)
+        _raw, token = MobileAuthToken.issue(self.customer)
+        self.client.force_login(self.customer)
+
+        r = self._post(self.client)
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], self.URL)
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password(self.NEW))
+        # This browser stays signed in; the other session is gone.
+        self.assertEqual(self.client.get('/portal/kb/').status_code, 200)
+        r = other.get('/portal/kb/')
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r['Location'].startswith(PORTAL_LOGIN))
+        token.refresh_from_db()
+        self.assertIsNotNone(token.revoked_at)
+        # Audited without password values.
+        entry = AuditLog.objects.filter(extra_data__op='portal_password_change').get()
+        self.assertEqual(entry.user, self.customer)
+        self.assertEqual(entry.extra_data['mobile_sessions_revoked'], 1)
+        dump = f'{entry.description} {entry.extra_data}'
+        self.assertNotIn(PASSWORD, dump)
+        self.assertNotIn(self.NEW, dump)
+        # Notification email: no secrets, links to the portal reset.
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertIn('/portal/password-reset/', body)
+        self.assertNotIn(self.NEW, body)
+        self.assertNotIn(PASSWORD, body)
+
+    def test_wrong_current_password(self):
+        self.client.force_login(self.customer)
+        r = self._post(self.client, old='not-my-password')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.context['form'].errors.get('old_password'))
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password(PASSWORD))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_password_policy_applies(self):
+        self.client.force_login(self.customer)
+        for weak in ('short', 'password12345', '1234567890123'):
+            r = self._post(self.client, new1=weak)
+            self.assertEqual(r.status_code, 200, weak)
+            self.assertTrue(r.context['form'].errors.get('new_password2'), weak)
+        r = self._post(self.client, new1=self.NEW, new2=self.NEW + 'x')
+        self.assertTrue(r.context['form'].errors.get('new_password2'))
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password(PASSWORD))
+
+    def test_staff_refused(self):
+        for user in (self.tech, self.admin):
+            self.client.force_login(user)
+            self.assertEqual(self.client.get(self.URL).status_code, 404)
+            r = self._post(self.client)
+            self.assertEqual(r.status_code, 404)
+            user.refresh_from_db()
+            self.assertTrue(user.check_password(PASSWORD))
+
+    def test_signed_out_goes_to_portal_login(self):
+        r = self.client.get(self.URL)
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r['Location'].startswith(PORTAL_LOGIN + '?next='), r['Location'])
+
+    def test_get_never_changes(self):
+        self.client.force_login(self.customer)
+        self.client.get(self.URL, {'old_password': PASSWORD, 'new_password1': self.NEW,
+                                   'new_password2': self.NEW})
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password(PASSWORD))
+
+    def test_rate_limited(self):
+        self.client.force_login(self.customer)
+        for _ in range(10):
+            self._post(self.client, old='wrong-wrong-wrong')
+        r = self._post(self.client)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('Too many attempts', str(r.context['form'].non_field_errors()))
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password(PASSWORD))
+
+    @override_settings(MIDDLEWARE=NO_2FA_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+    def test_csrf_required(self):
+        from django.test import Client
+        c = Client(enforce_csrf_checks=True)
+        c.force_login(self.customer)
+        r = self._post(c)
+        self.assertEqual(r.status_code, 403)
+        self.customer.refresh_from_db()
+        self.assertTrue(self.customer.check_password(PASSWORD))

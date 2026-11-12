@@ -195,6 +195,96 @@ class PortalPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
 
 
 # ---------------------------------------------------------------------------
+# Change password (signed-in portal users)
+# ---------------------------------------------------------------------------
+
+def _send_password_changed_email(request, user):
+    """Tell the account holder their password changed. No secrets in it; it
+    points to the portal password reset in case it was not them."""
+    if not user.email:
+        return
+    from core import mailer
+    from core.models import SystemSetting
+    ss = SystemSetting.get_settings()
+    brand = mailer.brand_name(ss)
+    reset_url = portal_surface.portal_absolute_url(reverse('portal_auth:password_reset'), request)
+    body = loader.render_to_string('portal/auth/password_changed_email.txt', {
+        'user': user, 'brand': brand, 'reset_url': reset_url,
+    })
+    message = EmailMultiAlternatives(
+        f'Your {brand} support portal password was changed', body,
+        mailer.default_from_email(ss) or None, [user.email],
+        connection=mailer.get_smtp_connection(ss))
+    try:
+        message.send()
+    except Exception:
+        logger.exception('Password-changed email to user %s failed', user.pk)
+
+
+@ratelimit(key='user', rate='10/h', method='POST', block=False)
+def portal_password_change(request):
+    """Change the signed-in portal user's password.
+
+    Needs the current password and applies the password policy
+    (AUTH_PASSWORD_VALIDATORS). This browser stays signed in
+    (update_session_auth_hash); every other web session of the account ends
+    by itself because the session hash changes, and the account's mobile app
+    sessions are revoked. Audited without any password values, and the
+    account holder gets an email. POST only changes; staff accounts are
+    refused like on the portal sign-in.
+    """
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.forms import PasswordChangeForm
+    from django.contrib.auth.views import redirect_to_login
+
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path(), reverse('portal_auth:login'))
+    if not portal_surface.is_portal_user(request.user):
+        return render(request, 'portal/auth/staff_account.html', status=404)
+
+    user = request.user
+    if request.method == 'POST':
+        form = PasswordChangeForm(user, request.POST)
+        if getattr(request, 'limited', False):
+            form.is_valid()  # bind, but never save
+            form.add_error(None, 'Too many attempts. Wait a while and try again.')
+        elif form.is_valid():
+            otp_device_id = request.session.get('_auth_user_otp_device_id')
+            user = form.save()
+            update_session_auth_hash(request, user)
+            if otp_device_id:
+                request.session['_auth_user_otp_device_id'] = otp_device_id
+                request.session.modified = True
+            revoked = 0
+            try:
+                from api_mobile.models import MobileAuthToken
+                revoked = MobileAuthToken.revoke_all_for(user)
+            except Exception:
+                logger.exception('Revoking mobile sessions after a password change failed')
+            try:
+                from audit.models import AuditLog
+                from core.client_ip import get_client_ip
+                AuditLog.log(
+                    user=user, action='update', object_type='user', object_id=user.pk,
+                    object_repr=user.username,
+                    description='Changed own password on the customer portal',
+                    ip_address=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+                    path=request.path,
+                    extra_data={'op': 'portal_password_change', 'mobile_sessions_revoked': revoked},
+                )
+            except Exception:
+                logger.exception('Audit entry for a portal password change failed')
+            _send_password_changed_email(request, user)
+            messages.success(request, 'Your password was changed. Other devices signed in to your '
+                                      'account have been signed out.')
+            return redirect('portal_auth:password_change')
+    else:
+        form = PasswordChangeForm(user)
+    return render(request, 'portal/auth/password_change.html', {'form': form})
+
+
+# ---------------------------------------------------------------------------
 # Invitation: first password (link from psa.views.portal_invite)
 # ---------------------------------------------------------------------------
 
