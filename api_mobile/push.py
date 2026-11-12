@@ -61,6 +61,9 @@ def send_push_to_user(
     """
     if user is None or not getattr(user, 'is_authenticated', True):
         return 0
+    # A deactivated account gets nothing, even while still an assignee.
+    if not getattr(user, 'is_active', True):
+        return 0
     try:
         from field_ops.models import MobileDevice
         devices = MobileDevice.objects.filter(

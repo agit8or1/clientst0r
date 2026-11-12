@@ -60,7 +60,7 @@ def _make_msp_tech(user):
     return _shared(user)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAuthLoginTests(TestCase):
     """Verifies happy-path login + wrong-password rejection + missing fields."""
 
@@ -99,7 +99,7 @@ class MobileAuthLoginTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAuth2FAFlowTests(TestCase):
     """Users with 2FA must complete `/auth/mfa/` to get the API token."""
 
@@ -130,7 +130,7 @@ class MobileAuth2FAFlowTests(TestCase):
         self.assertEqual(resp.status_code, 401)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAuthTokenLifecycleTests(TestCase):
     """Logout revokes the token; refresh issues a new one; me returns profile."""
 
@@ -173,7 +173,7 @@ class MobileAuthTokenLifecycleTests(TestCase):
         self.assertEqual(resp3.status_code, 200)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileDashboardShapeTests(TestCase):
     """
     v3.17.448: GET /api/mobile/v1/dashboard/ MUST return arrays for
@@ -236,7 +236,7 @@ class MobileDashboardShapeTests(TestCase):
         self.assertEqual(body['security']['recent_alerts'], [])
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileVaultEndpointTests(TestCase):
     """
     v3.17.449: /api/mobile/v1/vault/{,<id>/,<id>/reveal/} are reachable,
@@ -352,7 +352,7 @@ class MobileVaultEndpointTests(TestCase):
 
 
 # v3.17.347 — dashboard + organizations endpoints
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileDashboardOrgsTests(TestCase):
     """Dashboard counts + organization list + detail are org-scoped."""
 
@@ -416,7 +416,7 @@ class MobileDashboardOrgsTests(TestCase):
 
 
 # v3.17.348 — assets endpoints
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAssetsTests(TestCase):
     """Asset list + detail respect org-scoping; search + filters work."""
 
@@ -568,7 +568,7 @@ class MobileAssetsTests(TestCase):
 
 
 # v3.17.349 — tickets endpoints
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileTicketsTests(TestCase):
     """Ticket list/detail/create/patch/comment respect org scope."""
 
@@ -816,7 +816,7 @@ class MobileTicketsTests(TestCase):
 
 
 # v3.17.350 — KB endpoints
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileKBTests(TestCase):
     """KB list/search/detail respect global + org-scope visibility."""
 
@@ -837,7 +837,7 @@ class MobileKBTests(TestCase):
         self.org_a_doc = Document.objects.create(
             organization=self.org_a, title='OrgA Runbook', slug='orga-runbook',
             body='# OrgA runbook\n\nOrg A specific.', content_type='markdown',
-            is_published=True,
+            is_published=True, created_by=self.user_a,  # customer-written: full source (authz-tech)
         )
         self.org_b_doc = Document.objects.create(
             organization=self.org_b, title='OrgB Internal', slug='orgb-internal',
@@ -891,7 +891,7 @@ class MobileKBTests(TestCase):
 # Phase 8 — Field Ops endpoints (v3.17.410)
 # ---------------------------------------------------------------------------
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileFieldOpsTests(TestCase):
     """Locations + timeclock + active-ticket endpoints."""
 
@@ -1093,7 +1093,7 @@ class MobileFieldOpsTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAssetCreateTests(TestCase):
     """v3.17.454 — POST /api/mobile/v1/assets/ creates an asset, org-scoped."""
 
@@ -1152,7 +1152,7 @@ class MobileAssetCreateTests(TestCase):
         self.assertEqual(resp.status_code, 201)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileTicketTimeEntryTests(TestCase):
     """v3.17.454 — POST /api/mobile/v1/tickets/<id>/time/ logs time."""
 
@@ -1238,7 +1238,7 @@ class MobileTicketTimeEntryTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileWorkflowsTests(TestCase):
     """v3.17.455 — workflow list/detail/start + execution stage completion."""
 
@@ -1333,7 +1333,7 @@ class MobileWorkflowsTests(TestCase):
                 self.assertEqual(s['notes'], 'second')
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileVehiclesTests(TestCase):
     """v3.17.456 — vehicles list/detail/inventory/fuel/damage."""
 
@@ -1344,7 +1344,8 @@ class MobileVehiclesTests(TestCase):
         )
         _clear_throttle_cache()
         self.org = Organization.objects.create(name='OrgV', slug='orgv')
-        self.user = User.objects.create_user('vuser', password='hunter2')
+        # A technician: the fleet and the full ticket counts are MSP-only (authz-tech).
+        self.user = _make_msp_tech(User.objects.create_user('vuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )
@@ -1450,7 +1451,7 @@ class MobileVehiclesTests(TestCase):
         self.assertIn(resp.status_code, (401, 403))
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileDispatchTests(TestCase):
     """v3.17.457 — dispatch board buckets + sign-off flow."""
 
@@ -1545,7 +1546,7 @@ class MobileDispatchTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileInventoryTests(TestCase):
     """v3.17.458 — inventory list/detail/transactions, org-scoped."""
 
@@ -1554,7 +1555,7 @@ class MobileInventoryTests(TestCase):
         _clear_throttle_cache()
         self.org_a = Organization.objects.create(name='OrgA-Inv', slug='orga-inv')
         self.org_b = Organization.objects.create(name='OrgB-Inv', slug='orgb-inv')
-        self.user = User.objects.create_user('iuser', password='hunter2')
+        self.user = _make_msp_tech(User.objects.create_user('iuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org_a, role=Role.OWNER, is_active=True,
         )
@@ -1656,7 +1657,7 @@ class MobileInventoryTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileScanTests(TestCase):
     """v3.17.461 — /api/mobile/v1/scan/?code=X resolves to inventory / asset."""
 
@@ -1666,7 +1667,7 @@ class MobileScanTests(TestCase):
         _clear_throttle_cache()
         self.org_a = Organization.objects.create(name='OrgA-Scan', slug='orga-scan')
         self.org_b = Organization.objects.create(name='OrgB-Scan', slug='orgb-scan')
-        self.user = User.objects.create_user('suser', password='hunter2')
+        self.user = _make_msp_tech(User.objects.create_user('suser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org_a, role=Role.OWNER, is_active=True,
         )
@@ -1738,7 +1739,7 @@ class MobileScanTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileDispatchCalendarTests(TestCase):
     """v3.17.462 — /dispatch/calendar/ buckets assignments by date."""
 
@@ -1787,7 +1788,7 @@ class MobileDispatchCalendarTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST,
                    TIME_ZONE='America/New_York')
 class MobileDispatchLocalDayTests(TestCase):
     """Calendar and upcoming buckets are the installation's local days. A task
@@ -1832,7 +1833,7 @@ class MobileDispatchLocalDayTests(TestCase):
         self.assertEqual(list(body['days']), ['2026-05-31'])
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileNotificationRegisterTests(TestCase):
     """v3.17.463 — push token registration + deregistration."""
 
@@ -1912,7 +1913,7 @@ class MobileNotificationRegisterTests(TestCase):
         self.assertEqual(d.expo_push_token, '')
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileOcrEndpointTests(TestCase):
     """
     v3.17.465 — /api/mobile/v1/ocr/receipt/ returns 503 unless
@@ -1993,7 +1994,7 @@ class MobileOcrEndpointTests(TestCase):
                 os.environ['OCR_PROVIDER'] = old
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobilePushSignalsTests(TestCase):
     """
     v3.17.467 — verify the expanded signal coverage triggers
@@ -2380,7 +2381,7 @@ def _seed_psa_baseline():
     return status_new, priority_p1, priority_p3, ttype, queue
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileTicketAssignPermTests(TestCase):
     """v3.17.477 — PATCH assigned_to_id requires tickets_assign, except for
@@ -2462,7 +2463,7 @@ class MobileTicketAssignPermTests(TestCase):
         self.assertEqual(resp.json()['assigned_to_id'], self.tech_other.id)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAssignableUsersTests(TestCase):
     """/users/assignable/ lists MSP technicians only (v3.17.613), and just
@@ -2541,7 +2542,7 @@ class MobileAssignableUsersTests(TestCase):
         self.assertNotIn(self.outsider.id, ids)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAuthMePermissionsTests(TestCase):
     """v3.17.477 — /auth/me/ payload includes a `permissions` map."""
@@ -2573,7 +2574,7 @@ class MobileAuthMePermissionsTests(TestCase):
         self.assertIn('tickets_create', perms)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileDashboardNewTicketsCountTests(TestCase):
     """v3.17.477 — dashboard payload now exposes `new_tickets`."""
@@ -2582,7 +2583,8 @@ class MobileDashboardNewTicketsCountTests(TestCase):
         _clear_throttle_cache()
         from psa.models import Ticket
         self.org = Organization.objects.create(name='DashNT', slug='dashnt')
-        self.user = User.objects.create_user('dashntuser', password='hunter2')
+        # A technician: the fleet and the full ticket counts are MSP-only (authz-tech).
+        self.user = _make_msp_tech(User.objects.create_user('dashntuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )
@@ -2617,7 +2619,7 @@ class MobileDashboardNewTicketsCountTests(TestCase):
         self.assertEqual(body['open_tickets'], 3)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileVehiclesFleetWideTests(TestCase):
     """v3.17.477 — /vehicles/ now returns every active vehicle for any
@@ -2627,7 +2629,8 @@ class MobileVehiclesFleetWideTests(TestCase):
         _clear_throttle_cache()
         from vehicles.models import ServiceVehicle
         self.org = Organization.objects.create(name='FleetOrg', slug='fleetorg')
-        self.user = User.objects.create_user('fleetuser', password='hunter2')
+        # A technician: the fleet and the full ticket counts are MSP-only (authz-tech).
+        self.user = _make_msp_tech(User.objects.create_user('fleetuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.ADMIN, is_active=True,
         )
@@ -2664,7 +2667,7 @@ class MobileVehiclesFleetWideTests(TestCase):
         self.assertEqual(resp.json()['license_plate'], 'AAA-111')
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileTicketSerializerFieldsTests(TestCase):
     """v3.17.477 — serialized tickets expose `organization_name`,
@@ -2711,7 +2714,7 @@ class MobileTicketSerializerFieldsTests(TestCase):
 # Calendar + upcoming endpoints now mix scheduled tasks and tickets.
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileDispatchCalendarMixedTests(TestCase):
     """v3.17.478 — `/dispatch/calendar/` includes both tasks and tickets;
@@ -2807,7 +2810,7 @@ class MobileDispatchCalendarMixedTests(TestCase):
 # Vault create / edit / rotate, ticket billing rollup, schedule-on-day.
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileVaultEditTests(TestCase):
     """v3.17.479 — POST /vault/ + PATCH /vault/<id>/ gated on perms."""
@@ -2923,7 +2926,7 @@ class MobileVaultEditTests(TestCase):
         self.assertEqual(fresh.get_password(), 'rotated-plaintext')
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileTicketBillingRollupTests(TestCase):
     """v3.17.479 — ticket detail returns total/billable/non-billable plus
@@ -3002,7 +3005,7 @@ class MobileTicketBillingRollupTests(TestCase):
         self.assertEqual(c['remaining_minutes'], 225)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileScheduleTaskTests(TestCase):
     """v3.17.479 — POST /dispatch/tasks/ creates a ScheduledTask + assigns
@@ -3080,7 +3083,7 @@ class MobileScheduleTaskTests(TestCase):
 # Asset PATCH + asset ↔ vault link/unlink endpoints.
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAssetEditTests(TestCase):
     """v3.17.480 — PATCH /assets/<id>/ honors the whitelist + assets_edit gate."""
@@ -3155,7 +3158,7 @@ class MobileAssetEditTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAssetVaultLinkTests(TestCase):
     """v3.17.480 — POST/DELETE /assets/<id>/vault-links/ creates and
@@ -3264,7 +3267,7 @@ class MobileAssetVaultLinkTests(TestCase):
         self.assertEqual(resp.status_code, 403)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class ReceiptScanAiSwitchTests(TestCase):
     """Receipt extraction obeys the master AI switch (psa_ai_enabled).
 

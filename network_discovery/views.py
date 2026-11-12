@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from accounts.permission_utils import user_has_perm
+from accounts.permission_utils import has_perm_for_org
 from core.models import Organization
 from locations.models import Location
 
@@ -73,7 +73,18 @@ def _scope(request, org_id, location_id):
     location = get_object_or_404(Location, pk=location_id)
     if location.organization_id and location.organization_id != organization.pk:
         raise Http404('That location does not belong to that organization')
+    # The org comes from the URL and /network-discovery/ is outside the
+    # section middleware: the user must hold assets_view in that customer
+    # (imports and port maps are asset data).
+    if not has_perm_for_org(request.user, organization, 'assets_view'):
+        raise Http404('No such organization')
     return organization, location
+
+
+def _may_generate(request, organization):
+    """network_discovery_generate in this customer (it was read from any
+    membership, so a flag held at one customer issued tokens for another)."""
+    return has_perm_for_org(request.user, organization, 'network_discovery_generate')
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +108,7 @@ def discovery_home(request, org_id, location_id):
         'location': location,
         'tokens': tokens,
         'imports': imports,
-        'can_generate': user_has_perm(request.user, 'network_discovery_generate'),
+        'can_generate': _may_generate(request, organization),
         'default_ttl': DEFAULT_TOKEN_TTL_MINUTES,
         # Shown once, immediately after generation, then gone from the session.
         'new_token': request.session.pop('nd_new_token', None),
@@ -111,7 +122,7 @@ def generate(request, org_id, location_id):
     """Issue a token and show its plaintext once."""
     organization, location = _scope(request, org_id, location_id)
 
-    if not user_has_perm(request.user, 'network_discovery_generate'):
+    if not _may_generate(request, organization):
         _audit(request.user, 'error', organization=organization, request=request,
                description='Denied: no network_discovery_generate permission',
                success=False)
@@ -198,7 +209,7 @@ def revoke(request, org_id, location_id, token_id):
         NetworkDiscoveryToken, pk=token_id,
         organization=organization, location=location)
 
-    if not user_has_perm(request.user, 'network_discovery_generate'):
+    if not _may_generate(request, organization):
         messages.error(request, "You don't have permission to revoke tokens.")
         return redirect('network_discovery:home', org_id=org_id,
                         location_id=location_id)
@@ -350,7 +361,7 @@ def sites(request, org_id, location_id):
         'sites': DiscoverySite.objects.filter(
             organization=organization, location=location
         ).select_related('created_by'),
-        'can_generate': user_has_perm(request.user, 'network_discovery_generate'),
+        'can_generate': _may_generate(request, organization),
         'new_key': request.session.pop('nd_new_site_key', None),
         'new_key_site': request.session.pop('nd_new_site_id', None),
     })
@@ -361,7 +372,7 @@ def sites(request, org_id, location_id):
 def site_register(request, org_id, location_id):
     organization, location = _scope(request, org_id, location_id)
 
-    if not user_has_perm(request.user, 'network_discovery_generate'):
+    if not _may_generate(request, organization):
         messages.error(request, "You don't have permission to register collectors.")
         return redirect('network_discovery:sites', org_id=org_id,
                         location_id=location_id)
@@ -403,7 +414,7 @@ def site_rotate(request, org_id, location_id, site_id):
     site = get_object_or_404(DiscoverySite, pk=site_id,
                              organization=organization, location=location)
 
-    if not user_has_perm(request.user, 'network_discovery_generate'):
+    if not _may_generate(request, organization):
         messages.error(request, "You don't have permission to rotate keys.")
         return redirect('network_discovery:sites', org_id=org_id,
                         location_id=location_id)
@@ -429,7 +440,7 @@ def site_revoke(request, org_id, location_id, site_id):
     site = get_object_or_404(DiscoverySite, pk=site_id,
                              organization=organization, location=location)
 
-    if not user_has_perm(request.user, 'network_discovery_generate'):
+    if not _may_generate(request, organization):
         messages.error(request, "You don't have permission to revoke collectors.")
         return redirect('network_discovery:sites', org_id=org_id,
                         location_id=location_id)
@@ -626,6 +637,10 @@ def site_scan_now(request, org_id, location_id, site_id):
     organization, location = _scope(request, org_id, location_id)
     site = get_object_or_404(DiscoverySite, pk=site_id,
                              organization=organization, location=location)
+    if not _may_generate(request, organization):
+        messages.error(request, 'Your role does not allow running collectors here.')
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
 
     if not site.is_usable:
         messages.error(request, 'That collector is revoked or disabled.')

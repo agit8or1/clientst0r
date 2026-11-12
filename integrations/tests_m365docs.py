@@ -712,8 +712,10 @@ class LinkOpenTests(M365DocsBase):
         super().setUp()
         self.loc = self.location('folder')
         self.grant(self.editor)
+        # Written by the customer's editor: customer users only reach their
+        # own or client-visible articles (authz-tech).
         self.doc = Document.objects.create(organization=self.org, title='Runbook', slug='runbook',
-                                           body='x', content_type='html')
+                                           body='x', content_type='html', created_by=self.editor)
 
     def link(self, item='D1', parent='org', user=None):
         self.login(user or self.editor)

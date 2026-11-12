@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write
 from .models import RackResource, Rack
+from .access import monitoring_perm, owner
 import json
 
 
@@ -47,6 +48,7 @@ def patch_panel_detail(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create')
 def patch_panel_create(request):
     """Create new patch panel."""
     org = get_request_organization(request)
@@ -112,6 +114,7 @@ def patch_panel_create(request):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(RackResource, 'rack__organization_id'))
 def patch_panel_edit(request, pk):
     """Edit patch panel configuration."""
     org = get_request_organization(request)
@@ -153,6 +156,7 @@ def patch_panel_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(RackResource, 'rack__organization_id'))
 def patch_panel_delete(request, pk):
     """Delete patch panel."""
     org = get_request_organization(request)
@@ -204,6 +208,7 @@ def patch_panel_api_ports(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create')
 def patch_panel_quick_create(request):
     """Quick create multiple patch panels at once."""
     org = get_request_organization(request)

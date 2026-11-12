@@ -44,6 +44,16 @@ class APIKeyAuthentication(authentication.BaseAuthentication):
                     organization_id=api_key.organization_id, is_active=True).exists()):
             raise exceptions.AuthenticationFailed('Invalid API key')
 
+        # A key for an offboarded (deactivated) customer stops working, and
+        # the owner must still hold `api_access` in the key's customer now:
+        # removing the flag from a role (or demoting the owner) ends their
+        # keys on the next request.
+        from accounts.permission_utils import has_perm_for_org
+        if api_key.organization_id and not api_key.organization.is_active:
+            raise exceptions.AuthenticationFailed('Invalid API key')
+        if not has_perm_for_org(user, api_key.organization_id, 'api_access'):
+            raise exceptions.AuthenticationFailed('Invalid API key')
+
         # Update last used
         api_key.last_used_at = timezone.now()
         api_key.last_used_ip = self.get_client_ip(request)

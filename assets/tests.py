@@ -318,6 +318,24 @@ class WarrantyAlertCronTests(TestCase):
         self.assertNotIn('Already expired', msg.body)
         self.assertNotIn('No warranty data', msg.body)
 
+    def test_cron_skips_owner_who_lost_asset_access(self):
+        # authz-tech: rechecked at send time (active account, assets_view).
+        from django.core import mail
+        from django.core.management import call_command
+        from accounts.models import RoleTemplate
+        m = Membership.objects.get(user=self.owner, organization=self.org)
+        m.role_template = RoleTemplate.objects.create(name='warranty no assets', assets_view=False)
+        m.save()
+        mail.outbox = []
+        call_command('assets_warranty_alerts', verbosity=0)
+        self.assertEqual(len(mail.outbox), 0)
+        m.role_template = None
+        m.save()
+        self.owner.is_active = False
+        self.owner.save()
+        call_command('assets_warranty_alerts', verbosity=0)
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_cron_stamps_last_warranty_alert_sent_at(self):
         from django.core.management import call_command
         from django.utils import timezone as _tz

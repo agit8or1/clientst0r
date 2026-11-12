@@ -7,6 +7,7 @@ from django.contrib import messages
 from core.middleware import get_request_organization
 from core.decorators import require_write
 from .models import VLAN
+from .access import monitoring_perm, owner
 from .forms import VLANForm
 
 
@@ -38,6 +39,7 @@ def vlan_detail(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_create')
 def vlan_create(request):
     """Create new VLAN."""
     org = get_request_organization(request)
@@ -61,6 +63,7 @@ def vlan_create(request):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_edit', owner(VLAN))
 def vlan_edit(request, pk):
     """Edit existing VLAN."""
     org = get_request_organization(request)
@@ -84,6 +87,7 @@ def vlan_edit(request, pk):
 
 @login_required
 @require_write
+@monitoring_perm('monitoring_delete', owner(VLAN))
 def vlan_delete(request, pk):
     """Delete VLAN."""
     org = get_request_organization(request)

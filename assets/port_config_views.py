@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write
 from core.tenancy import get_org_object_or_404
+from monitoring.access import org_flag_required, owner
 from .models import Asset, NetworkPortConfiguration, EquipmentModel
 import json
 
@@ -42,6 +43,7 @@ def port_config_detail(request, pk):
 
 @login_required
 @require_write
+@org_flag_required('assets_create')
 def port_config_create(request):
     """Create new port configuration."""
     org = get_request_organization(request)
@@ -102,6 +104,7 @@ def port_config_create(request):
 
 @login_required
 @require_write
+@org_flag_required('assets_edit', owner('assets.NetworkPortConfiguration'))
 def port_config_edit(request, pk):
     """Edit existing port configuration."""
     org = get_request_organization(request)
@@ -139,6 +142,7 @@ def port_config_edit(request, pk):
 
 @login_required
 @require_write
+@org_flag_required('assets_delete', owner('assets.NetworkPortConfiguration'))
 def port_config_delete(request, pk):
     """Delete port configuration."""
     org = get_request_organization(request)
@@ -156,6 +160,7 @@ def port_config_delete(request, pk):
 
 
 @login_required
+@org_flag_required({'POST': 'assets_edit'}, owner('assets.NetworkPortConfiguration'), json=True)
 def port_config_api_ports(request, pk):
     """API endpoint to get/update ports for a configuration."""
     org = get_request_organization(request)

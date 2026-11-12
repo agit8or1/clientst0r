@@ -12,9 +12,9 @@
     </h1>
     <div>
         {% if wan.monitoring_enabled %}
-        <a href="{% url 'locations:wan_check_status' location.id wan.id %}" class="btn btn-info me-2">
+        <form method="post" action="{% url 'locations:wan_check_status' location.id wan.id %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-info me-2">
             <i class="fas fa-check-circle"></i> Check Status
-        </a>
+        </button></form>
         {% endif %}
         <a href="{% url 'locations:wan_edit' location.id wan.id %}" class="btn btn-warning me-2">
             <i class="fas fa-edit"></i> Edit

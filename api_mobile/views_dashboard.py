@@ -56,9 +56,12 @@ def dashboard_view(request):
     try:
         from psa.models import Ticket  # noqa: WPS433 — soft import: PSA may be uninstalled
         from .views_tickets import _serialize_ticket
-        open_qs = Ticket.objects.filter(
+        from psa.visibility import customer_visible_tickets
+        # Customer users count and see only tickets shared with the client,
+        # the same rule as the ticket list.
+        open_qs = customer_visible_tickets(Ticket.objects.filter(
             organization_id__in=org_ids, status__is_terminal=False,
-        )
+        ), request.user)
         open_tickets = open_qs.count()
         critical_tickets = open_qs.filter(priority__code='P1').count()
         my_open_tickets = open_qs.filter(assigned_to=request.user).count()
@@ -115,9 +118,17 @@ def dashboard_view(request):
     }
     try:
         from security_alerts.models import SecurityAlert  # noqa: WPS433
+        from accounts.permission_utils import filter_by_org_perm
+        from psa.visibility import is_msp_staff
+        # /security/ is MSP-staff only; the mobile block follows the same
+        # rule and the security_alerts_view flag per customer.
         open_alerts = SecurityAlert.objects.filter(
             organization_id__in=org_ids, status='open',
         )
+        if not is_msp_staff(request.user):
+            open_alerts = open_alerts.none()
+        else:
+            open_alerts = filter_by_org_perm(open_alerts, request.user, 'security_alerts_view')
         security['open_alert_count'] = open_alerts.count()
         for sev in ('critical', 'high', 'medium', 'low'):
             security[f'{sev}_alert_count'] = open_alerts.filter(severity=sev).count()

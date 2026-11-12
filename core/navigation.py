@@ -237,7 +237,7 @@ SECTIONS = (
     Section('ops_workflows', 'ops', _('Workflows'), gate=_flag('workflows_enabled'), tabs=(
         Tab(_('Workflows'), 'processes:process_list', 'fa-tasks'),
     )),
-    Section('ops_inventory', 'ops', _('Inventory'), gate=_flag('inventory_enabled'), tabs=(
+    Section('ops_inventory', 'ops', _('Inventory'), gate=_all(_flag('inventory_enabled'), _staff_user_or_superuser), tabs=(
         Tab(_('Dashboard'), 'inventory:inventory_dashboard', 'fa-tachometer-alt'),
         Tab(_('All Items'), 'inventory:item_list', 'fa-boxes'),
         Tab(_('Low Stock'), 'inventory:low_stock_report', 'fa-exclamation-triangle'),

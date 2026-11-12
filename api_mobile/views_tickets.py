@@ -12,7 +12,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permission_utils import user_has_perm
+from accounts.permission_utils import user_has_org_perm, user_has_perm
 from psa.visibility import (
     customer_visible_tickets, is_msp_staff, msp_technicians, visible_comments,
 )
@@ -145,6 +145,13 @@ def ticket_list_view(request):
             return Response({'detail': 'organization_id must be an integer'}, status=400)
         if not org_id or org_id not in org_ids:
             return Response({'detail': 'organization_id required + must be accessible'}, status=403)
+        # The flag must be held in the customer the ticket is filed for,
+        # not merely in some other membership.
+        if not user_has_org_perm(request.user, org_id, 'tickets_create'):
+            return Response(
+                {'detail': "You don't have permission to file tickets for this customer."},
+                status=403,
+            )
 
         subject = (data.get('subject') or '').strip()
         if not subject:
@@ -292,7 +299,7 @@ def ticket_detail_view(request, pk: int):
     data = request.data or {}
     prior_status = ticket.status
     if any(k in data for k in ('status_id', 'status', 'priority_id', 'priority')):
-        if not user_has_perm(request.user, 'tickets_edit'):
+        if not user_has_org_perm(request.user, ticket.organization_id, 'tickets_edit'):
             return Response(
                 {'detail': "You don't have permission to edit tickets."},
                 status=403,
@@ -349,7 +356,7 @@ def ticket_detail_view(request, pk: int):
     # mobile. Pass `null` / empty to clear. ISO 8601 input; gated on
     # tickets_edit.
     if 'resolution_due_at' in data or 'due_at' in data:
-        if not user_has_perm(request.user, 'tickets_edit'):
+        if not user_has_org_perm(request.user, ticket.organization_id, 'tickets_edit'):
             return Response(
                 {'detail': "You don't have permission to edit tickets."},
                 status=403,
@@ -387,7 +394,7 @@ def ticket_detail_view(request, pk: int):
         is_unassign = target_id is None
         if not (is_self_claim or is_unassign):
             if not (is_msp_staff(request.user)
-                    and user_has_perm(request.user, 'tickets_assign')):
+                    and user_has_org_perm(request.user, ticket.organization_id, 'tickets_assign')):
                 return Response(
                     {'detail': "You don't have permission to reassign tickets."},
                     status=403,
@@ -508,6 +515,17 @@ def ticket_time_view(request, pk: int):
     except Ticket.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 
+    # Time entries are MSP-internal (technician notes, billable minutes):
+    # customer users neither read nor log them, as on the web, where
+    # time_entry_manual needs a staff write role. Logging needs tickets_edit
+    # in the ticket's customer.
+    if not is_msp_staff(request.user):
+        return Response({'detail': 'Time entries are available to MSP staff only.'}, status=403)
+    if request.method == 'POST' and not user_has_org_perm(
+            request.user, ticket.organization_id, 'tickets_edit'):
+        return Response({'detail': "You don't have permission to log time on this ticket."},
+                        status=403)
+
     if request.method == 'GET':
         entries = (TicketTimeEntry.objects
                    .filter(ticket=ticket)
@@ -558,6 +576,9 @@ def ticket_time_view(request, pk: int):
             ended_at = now
     if duration_minutes is None:
         duration_minutes = max(0, int((ended_at - started_at).total_seconds() // 60))
+    # Same cap as the web manual entry: one entry is at most a day.
+    if duration_minutes > 1440 or ended_at < started_at:
+        return Response({'detail': 'A time entry must be between 0 and 1440 minutes.'}, status=400)
 
     is_billable = bool(data.get('is_billable', True))
     notes = (data.get('notes') or '').strip()[:2000]

@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from core.middleware import get_request_organization
 from core.tenancy import get_org_object_or_404
 from .models import Rack, RackDevice, RackResource, RackConnection
+from .access import monitoring_perm, owner
 
 logger = logging.getLogger('monitoring')
 
@@ -77,6 +78,7 @@ def _device_payload(device):
 
 @login_required
 @require_http_methods(["GET"])
+@monitoring_perm(None, json=True)
 def rack_devices_list(request, pk):
     """
     GET /api/racks/<id>/devices/
@@ -103,6 +105,7 @@ def rack_devices_list(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
+@monitoring_perm('monitoring_edit', owner(RackDevice, 'rack__organization_id'), json=True)
 def update_rack_device_position(request, pk):
     """
     POST /api/rack-devices/<id>/update-position/
@@ -194,6 +197,7 @@ def update_rack_device_position(request, pk):
 
 @login_required
 @require_http_methods(["PATCH", "DELETE"])
+@monitoring_perm({'PATCH': 'monitoring_edit', 'DELETE': 'monitoring_delete'}, owner(RackDevice, 'rack__organization_id'), json=True)
 def rack_device_detail(request, pk):
     """
     PATCH  /api/rack-devices/<id>/  — partial update
@@ -264,6 +268,7 @@ def rack_device_detail(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
+@monitoring_perm('monitoring_create', owner(Rack), json=True)
 def create_rack_device(request, pk):
     """
     POST /api/racks/<id>/devices/create/
@@ -363,6 +368,7 @@ def create_rack_device(request, pk):
 
 @login_required
 @require_http_methods(["GET"])
+@monitoring_perm(None, json=True)
 def patch_panel_ports_list(request, pk):
     """
     GET /api/patch-panels/<id>/ports/
@@ -411,6 +417,7 @@ def patch_panel_ports_list(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
+@monitoring_perm('monitoring_edit', owner(RackResource, 'rack__organization_id'), json=True)
 def patch_panel_port_connect(request, pk, port_num):
     """
     POST /api/patch-panels/<id>/ports/<port_num>/connect/
@@ -495,6 +502,7 @@ def patch_panel_port_connect(request, pk, port_num):
 
 @login_required
 @require_http_methods(["POST"])
+@monitoring_perm('monitoring_edit', owner(RackResource, 'rack__organization_id'), json=True)
 def patch_panel_port_disconnect(request, pk, port_num):
     """
     POST /api/patch-panels/<id>/ports/<port_num>/disconnect/
@@ -560,6 +568,7 @@ def patch_panel_port_disconnect(request, pk, port_num):
 
 @login_required
 @require_http_methods(["PATCH"])
+@monitoring_perm('monitoring_edit', owner(RackResource, 'rack__organization_id'), json=True)
 def patch_panel_port_update(request, pk, port_num):
     """
     PATCH /api/patch-panels/<id>/ports/<port_num>/
@@ -630,6 +639,7 @@ def patch_panel_port_update(request, pk, port_num):
 
 @login_required
 @require_http_methods(["GET"])
+@monitoring_perm(None, json=True)
 def rack_device_ports_list(request, pk):
     """
     GET /api/rack-devices/<id>/ports/
@@ -667,6 +677,7 @@ def rack_device_ports_list(request, pk):
 
 @login_required
 @require_http_methods(["PATCH"])
+@monitoring_perm(('monitoring_edit', 'assets_edit'), owner(RackDevice, 'rack__organization_id'), json=True)
 def rack_device_port_update(request, pk, port_num):
     """
     PATCH /api/rack-devices/<id>/ports/<port_num>/
@@ -725,6 +736,7 @@ def rack_device_port_update(request, pk, port_num):
 
 @login_required
 @require_http_methods(["GET"])
+@monitoring_perm(None, json=True)
 def rack_resources_list(request, pk):
     """
     GET /api/racks/<id>/resources/
@@ -765,6 +777,7 @@ def rack_resources_list(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
+@monitoring_perm('monitoring_edit', owner(RackDevice, 'rack__organization_id'), json=True)
 def update_device_board_position(request, pk):
     """
     POST /api/rack-devices/<id>/update-board-position/
@@ -835,6 +848,7 @@ def update_device_board_position(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
+@monitoring_perm('monitoring_edit', owner(RackResource, 'rack__organization_id'), json=True)
 def update_resource_board_position(request, pk):
     """
     POST /api/rack-resources/<id>/update-board-position/
@@ -905,6 +919,7 @@ def update_resource_board_position(request, pk):
 
 
 @login_required
+@monitoring_perm(None, json=True)
 def rack_connections_list(request, pk):
     """
     GET /api/racks/<id>/connections/
@@ -939,6 +954,7 @@ def rack_connections_list(request, pk):
 
 
 @login_required
+@monitoring_perm(None, json=True)
 def device_connections_list(request, pk):
     """
     GET /api/rack-devices/<id>/connections/

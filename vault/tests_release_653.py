@@ -182,6 +182,9 @@ class OfflineCacheRestrictionTests(_Customers):
         cache.clear()
         self.wifi.set_password('synthetic-wifi-pass')
         self.wifi.save()
+        # The extension sync no longer hands out ciphertext the user may not
+        # reveal (authz-tech), so this technician needs reveal rights at A.
+        Membership.objects.filter(user=self.tech, organization=self.a).update(role_template=self.reveal)
         self.secret, _ = WebExtensionAuthToken.issue(user=self.tech, organization=self.a)
 
     def _sync(self):

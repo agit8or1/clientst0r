@@ -16,10 +16,55 @@ from core.tenancy import get_org_object_or_404
 from .models import Document, DocumentVersion, DocumentCategory, SearchQueryLog
 from .forms import DocumentForm
 from .permissions import (
-    apply_publish_rules, can_edit, can_publish, can_publish_in_org,
+    apply_publish_rules, body_html_for, can_create_in_org, can_delete, can_edit,
+    can_edit_in_org, can_publish, can_publish_in_org, customer_may_see,
+    may_see_full_source, visible_documents,
 )
-import os
-import mimetypes
+
+
+def _require_customer_visible(request, document):
+    """404 for a customer user on internal-only documentation (and on
+    global KB articles reached through their placeholder organization)."""
+    if not customer_may_see(request.user, document):
+        from django.http import Http404
+        raise Http404('No Document matches the given query.')
+    return document
+
+
+def _require_full_source(request, document):
+    """403 for a customer user on the raw source of an MSP-written article
+    (it can hold internal-only blocks)."""
+    _require_customer_visible(request, document)
+    if not may_see_full_source(request.user, document):
+        raise PermissionDenied('This document is maintained by your provider.')
+    return document
+
+
+import os  # noqa: E402
+import mimetypes  # noqa: E402
+
+
+def _docs_flag(action):
+    """Check the docs role flag for the selected customer. `@require_write`
+    alone passes any *_create flag (vault, assets, files, monitoring), so
+    until this release a role without docs_create / docs_edit /
+    docs_delete could still create, edit or delete documents, templates and
+    diagrams. Global View (no customer selected) is left to the view."""
+    def decorator(view_func):
+        from functools import wraps
+
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            org = get_request_organization(request)
+            if org is not None:
+                ok = (can_create_in_org(request.user, org) if action == 'create'
+                      else can_edit_in_org(request.user, org, action))
+                if not ok:
+                    raise PermissionDenied(
+                        f"Your role does not include the 'docs_{action}' permission for this customer.")
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def _uploaded_file_type(request, field_name, file_name=None):
@@ -69,6 +114,9 @@ def document_list(request):
             is_global=False,  # Exclude global KB articles
             is_template=False  # Exclude templates
         ).select_related('organization').prefetch_related('tags', 'category')
+
+    # Customer users never list internal-only documentation.
+    documents = visible_documents(documents, request.user)
 
     # Filter by category
     category_id = request.GET.get('category')
@@ -197,6 +245,7 @@ def document_detail(request, slug):
     else:
         # Organization view: filter by current org
         document = get_org_object_or_404(Document, org, slug=slug)
+    _require_customer_visible(request, document)
     _require_live_or_editor(request, document)
 
     # Get versions
@@ -223,7 +272,7 @@ def document_detail(request, slug):
     return render(request, 'docs/document_detail.html', {
         'document': document,
         'file_preview': file_preview,
-        'rendered_body': document.render_markdown(),
+        'rendered_body': body_html_for(request.user, document),
         'versions': versions,
         'version_total': version_total,
         'has_write_permission': has_write_permission,
@@ -331,6 +380,7 @@ def _prefill_from_query(request, org):
 @login_required
 @org_handoff
 @require_write
+@_docs_flag('create')
 @require_organization_context
 def document_create(request):
     """
@@ -448,6 +498,7 @@ def document_edit(request, slug):
             from django.http import Http404
             raise Http404("No Document matches the given query.")
 
+    _require_full_source(request, document)
     if not can_edit(request.user, document):
         raise PermissionDenied("Your role does not include the 'docs_edit' permission for this customer.")
     may_publish = can_publish(request.user, document)
@@ -496,6 +547,9 @@ def document_delete(request, slug):
     """
     org = get_request_organization(request)
     document = get_org_object_or_404(Document, org, slug=slug)
+    _require_customer_visible(request, document)
+    if not can_delete(request.user, document):
+        raise PermissionDenied("Your role does not include the 'docs_delete' permission for this customer.")
 
     if request.method == 'POST':
         title = document.title
@@ -515,6 +569,8 @@ def document_delete(request, slug):
 
 @login_required
 @require_write
+@_docs_flag('create')
+@require_organization_context
 @require_http_methods(["POST"])
 def document_upload(request):
     """
@@ -637,6 +693,7 @@ def _looks_like_html(text):
 
 @login_required
 @require_write
+@_docs_flag('create')
 @require_organization_context
 def document_import(request):
     """
@@ -776,6 +833,15 @@ def ai_review_import(request):
             document = Document.objects.get(id=document_id, organization=org)
         except (Document.DoesNotExist, ValueError, TypeError):
             return JsonResponse({'success': False, 'error': 'Document not found.'}, status=404)
+        # Overwriting the body is an edit of that document: docs_edit in its
+        # customer (and, for customer users, only documents they may see the
+        # source of). Before this any write-ish role could rewrite any
+        # document of the selected customer by id.
+        if not (customer_may_see(request.user, document)
+                and may_see_full_source(request.user, document)
+                and can_edit(request.user, document)):
+            return JsonResponse({'success': False, 'error': 'Document not found.'}, status=404)
+        was_live = document.is_live
 
         generator = AIDocumentationGenerator()
         result = generator.review_imported_document(
@@ -795,6 +861,8 @@ def ai_review_import(request):
         document.body = content
         document.content_type = content_type
         document.last_modified_by = request.user
+        # Approval-gated documents go back to draft, as for any edit.
+        apply_publish_rules(document, request.user, requested_publish=None, was_live=was_live)
         document.save()
 
         return JsonResponse({
@@ -1067,6 +1135,7 @@ def template_list(request):
 
 @login_required
 @require_write
+@_docs_flag('create')
 def template_create(request):
     """
     Create new document template.
@@ -1114,6 +1183,7 @@ def _editable_templates(request):
 
 @login_required
 @require_write
+@_docs_flag('edit')
 def template_edit(request, pk):
     """
     Edit document template.
@@ -1143,6 +1213,7 @@ def template_edit(request, pk):
 
 @login_required
 @require_write
+@_docs_flag('delete')
 def template_delete(request, pk):
     """
     Delete document template.
@@ -1256,6 +1327,15 @@ def diagram_detail(request, slug):
             Diagram.objects.filter(Q(organization=org) | Q(is_global=True)),
             slug=slug
         )
+        # Unpublished diagrams are hidden from the list; by slug they stay
+        # with MSP staff and people who may edit them (the stored PNG/SVG
+        # already followed that rule in core.media_views).
+        if not diagram.is_published:
+            from psa.visibility import is_msp_staff
+            if not (is_msp_staff(request.user)
+                    or can_edit_in_org(request.user, diagram.organization_id, 'edit')):
+                from django.http import Http404
+                raise Http404('No Diagram matches the given query.')
 
     # Get versions
     versions = diagram.versions.all()[:10]  # Last 10 versions
@@ -1270,6 +1350,7 @@ def diagram_detail(request, slug):
 
 @login_required
 @require_write
+@_docs_flag('create')
 def diagram_create(request):
     """
     Create new diagram, optionally from a template - redirects to editor.
@@ -1330,6 +1411,7 @@ def diagram_create(request):
 
 @login_required
 @require_write
+@_docs_flag('edit')
 def diagram_edit(request, slug):
     """
     Edit diagram with draw.io editor.
@@ -1348,6 +1430,7 @@ def diagram_edit(request, slug):
 
 @login_required
 @require_write
+@_docs_flag('edit')
 def diagram_save(request, pk):
     """
     AJAX endpoint to save diagram XML, PNG export, and metadata.
@@ -1423,6 +1506,7 @@ def diagram_save(request, pk):
 
 @login_required
 @require_write
+@_docs_flag('delete')
 def diagram_delete(request, slug):
     """
     Delete diagram.
@@ -1474,6 +1558,7 @@ def diagram_template_list(request):
 
 @login_required
 @require_write
+@_docs_flag('create')
 def diagram_template_create(request):
     """
     Create new diagram template.
@@ -1512,6 +1597,7 @@ def diagram_template_create(request):
 
 @login_required
 @require_write
+@_docs_flag('edit')
 def diagram_template_edit(request, pk):
     """
     Edit diagram template metadata (not the diagram itself).
@@ -1544,6 +1630,7 @@ def diagram_template_edit(request, pk):
 
 @login_required
 @require_write
+@_docs_flag('delete')
 def diagram_template_delete(request, pk):
     """
     Delete diagram template.
@@ -2028,6 +2115,7 @@ def _get_accessible_document(request, pk):
         raise Http404('No Document matches the given query.')
     org = get_request_organization(request)
     if org is not None and document.organization_id in descendant_org_ids(org):
+        _require_customer_visible(request, document)
         return _require_live_or_editor(request, document)
     raise Http404('No Document matches the given query.')
 
@@ -2169,6 +2257,7 @@ def _rendered(title, body, content_type):
 def document_versions(request, pk):
     from django.core.paginator import Paginator
     document = _get_accessible_document(request, pk)
+    _require_full_source(request, document)
     page = Paginator(document.versions.select_related('created_by'), 50).get_page(
         request.GET.get('page'))
     return render(request, 'docs/document_versions.html', {
@@ -2181,6 +2270,7 @@ def document_versions(request, pk):
 @login_required
 def document_version_detail(request, pk, number):
     document = _get_accessible_document(request, pk)
+    _require_full_source(request, document)
     version = get_object_or_404(document.versions.select_related('created_by'),
                                 version_number=number)
     return render(request, 'docs/document_version_detail.html', {
@@ -2196,6 +2286,7 @@ def document_version_diff(request, pk, number):
     """Diff a version against the current document (default) or against
     another version (`?against=<number>`)."""
     document = _get_accessible_document(request, pk)
+    _require_full_source(request, document)
     version = get_object_or_404(document.versions, version_number=number)
     against = (request.GET.get('against') or 'current').strip()
     if against != 'current' and against.isdigit():
@@ -2228,6 +2319,7 @@ def document_version_restore(request, pk, number):
     docs_edit (kb_edit_articles for global KB); publish rules apply as for
     any edit."""
     document = _get_accessible_document(request, pk)
+    _require_full_source(request, document)
     if not can_edit(request.user, document):
         raise PermissionDenied("Your role does not include the 'docs_edit' permission for this customer.")
     version = get_object_or_404(document.versions, version_number=number)
@@ -2268,6 +2360,7 @@ def _state_list_queryset(request):
         qs = Document.objects.filter(
             Q(pk__in=Document.objects.for_organization(org).filter(is_global=False).values('pk'))
             | (Q(is_global=True) if staff else Q(pk__in=[])))
+    qs = visible_documents(qs, request.user)
     return qs.filter(is_template=False).select_related('organization', 'owner'), org
 
 
@@ -2582,10 +2675,16 @@ def document_export(request, slug, fmt):
 
     # An uploaded blob (PDF/DOCX/image) has no body to re-render — hand the
     # original file back rather than exporting an empty shell.
+    _require_customer_visible(request, document)
     if document.content_type == 'file' and document.file:
         return redirect(document.file.url)
 
-    _customer_copy_or_404(request, document)
+    # Customer users always get the customer copy of an MSP-written article
+    # (internal-only blocks removed), whatever `?audience=` says.
+    if not may_see_full_source(request.user, document):
+        from .services.document_export import customer_copy
+        document = customer_copy(document)
+    document = _customer_copy_or_404(request, document) if _wants_customer_copy(request) else document
     try:
         payload, filename, content_type = export_document(document, fmt)
     except ValueError:
@@ -2656,7 +2755,14 @@ def document_export_bulk(request, fmt):
         is_global=False, is_template=False,
     )
     customer = _wants_customer_copy(request)
-    if customer:
+    from .permissions import is_customer_user
+    if is_customer_user(request.user):
+        # Customer users: only what they may read, and internal-only blocks
+        # removed. (Customer-authored documents carry no internal blocks of
+        # the provider's; stripping them is harmless.)
+        documents = visible_documents(documents, request.user)
+        customer = True
+    elif customer:
         # Customer copies: only portal-visible articles, internal blocks removed.
         documents = documents.filter(is_client_visible=True)
     if not in_global_view:

@@ -8,12 +8,14 @@ from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write
 from core.tenancy import get_org_object_or_404
+from monitoring.access import org_flag_required, owner
 from .models import Asset
 from monitoring.models import VLAN
 import json
 
 
 @login_required
+@org_flag_required(None)
 def asset_port_config(request, pk):
     """Configure ports for switches, routers, firewalls, patch panels."""
     org = get_request_organization(request)
@@ -50,6 +52,7 @@ def asset_port_config(request, pk):
 
 @login_required
 @require_write
+@org_flag_required('assets_edit', owner('assets.Asset'))
 def asset_port_config_save(request, pk):
     """Save port configuration via AJAX."""
     if request.method != 'POST':

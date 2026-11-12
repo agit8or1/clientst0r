@@ -76,7 +76,7 @@ def _post(client, url, token, payload=None):
                        HTTP_AUTHORIZATION=f'Token {token}')
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileProjectTests(TestCase):
     def setUp(self):
@@ -237,7 +237,7 @@ class MobileProjectTests(TestCase):
                       (401, 403))
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileNetconfigTests(TestCase):
     def setUp(self):

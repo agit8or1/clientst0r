@@ -27,7 +27,7 @@ def scan_resolve_view(request):
 
     Returns `{kind, id, name, organization_id?, organization_name?}` on
     a hit, or 404 if nothing matches. Search order:
-      1. `InventoryItem.qr_code` (exact)
+      1. `InventoryItem.qr_code` (exact; MSP staff only)
       2. `Asset.asset_tag` (exact, case-insensitive)
       3. `Asset.serial_number` (exact)
       4. `VehicleInventoryItem.qr_code` (exact, only items in vehicles
@@ -40,10 +40,11 @@ def scan_resolve_view(request):
 
     org_ids = list(accessible_org_ids(request.user))
 
-    # 1. Inventory by QR
+    # 1. Inventory by QR (MSP staff only: inventory is MSP-internal)
     try:
+        from inventory.access import is_inventory_staff
         from inventory.models import InventoryItem
-        item = (InventoryItem.objects
+        item = None if not is_inventory_staff(request.user) else (InventoryItem.objects
                 .filter(qr_code__iexact=code, organization_id__in=org_ids)
                 .select_related('organization')
                 .first())

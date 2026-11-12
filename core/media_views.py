@@ -113,14 +113,20 @@ def _ticket_attachment(user, att):
     """Staff: every ticket (as psa `_scoped_ticket_qs`). Customer users get
     what the portal shows them: a client-visible ticket of a customer they
     belong to, and never an internal attachment or one on an internal note."""
+    ticket = att.ticket
     if is_msp_staff(user):
-        return True
+        # tickets_view in the ticket's customer (a global role without it,
+        # or a restricted technician, no longer reads every attachment).
+        return _has_perm_for_org(user, ticket.organization_id, 'tickets_view')
     if att.is_internal:
         return False
     if att.comment_id and att.comment.is_internal:
         return False
-    ticket = att.ticket
-    if not ticket.client_can_view:
+    # The portal's ticket rule (psa.visibility), so a narrower customer rule
+    # there also applies to downloads.
+    from psa.models import Ticket
+    from psa.visibility import customer_visible_tickets
+    if not customer_visible_tickets(Ticket.objects.filter(pk=ticket.pk), user).exists():
         return False
     return ticket.organization_id in _membership_org_ids(user, include_descendants=False)
 
@@ -132,6 +138,18 @@ def _ticket_expense_receipt(user, expense):
 
 def _document(user, doc, *, template_preview=False):
     org_id = doc.organization_id
+    if doc.is_global and not doc.is_template:
+        # Global KB articles carry a placeholder organization; only
+        # every-customer reach (MSP staff) reads them, never a member of
+        # the placeholder customer.
+        if not (doc.is_published and not getattr(doc, 'is_draft', False)):
+            return is_msp_staff(user) and _has_perm_for_org(user, None, 'docs_view')
+        return _has_perm_for_org(user, None, 'docs_view')
+    if not doc.is_template:
+        # Customer users never get internal-only documentation's files.
+        from docs.permissions import customer_may_see
+        if not customer_may_see(user, doc):
+            return False
     if not doc.is_published or getattr(doc, 'is_draft', False):
         # Unpublished / draft content: staff with docs reach only.
         return is_msp_staff(user) and _has_perm_for_org(user, org_id, 'docs_view')
@@ -177,7 +195,11 @@ def _organization_logo(user, org):
 
 
 def _rack(user, rack):
-    return _can_reach_org(user, rack.organization_id)
+    """Racks live under /monitoring/ (SectionPermissionMiddleware gates it on
+    `monitoring_view`); the stored diagram/photos follow the same flag in
+    the rack's customer instead of bare membership."""
+    return (_can_reach_org(user, rack.organization_id)
+            and _has_perm_for_org(user, rack.organization_id, 'monitoring_view'))
 
 
 def _rack_child(user, obj):
@@ -189,16 +211,31 @@ def _files_attachment(user, att):
         return False
     if att.entity_type == 'password':
         return _has_perm_for_org(user, att.organization_id, 'vault_view')
+    if att.entity_type == 'document':
+        # An attachment is as private as its document: drafts stay with
+        # editors/staff and internal-only documentation stays with staff.
+        from docs.models import Document
+        doc = Document.objects.filter(pk=att.entity_id).first()
+        return doc is not None and doc.organization_id == att.organization_id and _document(user, doc)
     return True
 
 
 def _generated_report(user, report):
-    """Mirrors reports.views.generated_download."""
-    from accounts.permission_utils import user_has_perm
-    if not user_has_perm(user, 'reports_view_dashboards'):
-        return False
+    """Mirrors reports.views.generated_download, which lives under the
+    staff-only /reports/ section (accounts.middleware STAFF_ONLY_PREFIXES).
+
+    Before this rule was tightened a customer user holding
+    `reports_view_dashboards` in *any* membership could fetch the stored
+    file of a report generated for another customer they merely belonged to,
+    and customer users at all could read MSP report files the /reports/ pages
+    never show them. The flag is now checked in the report's own customer.
+    """
     if user.is_superuser:
         return True
+    if not is_msp_staff(user):
+        return False
+    if not _has_perm_for_org(user, report.organization_id, 'reports_view_dashboards'):
+        return False
     return report.organization_id in _membership_org_ids(user, include_descendants=False)
 
 

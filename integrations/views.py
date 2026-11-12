@@ -38,6 +38,22 @@ def _rem0te_summary(conn):
     return rem0te_health.summary(conn)
 
 
+def psa_staff_only(view_func):
+    """Synced PSA companies, contacts and tickets come from the MSP's own
+    PSA (owners, resources, agreements, billing fields; the raw provider
+    JSON is shown on the detail pages). MSP technician tooling, like RMM:
+    customer users got them until this release through integrations_view."""
+    from functools import wraps
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        from psa.visibility import is_msp_staff
+        if not is_msp_staff(request.user):
+            raise PermissionDenied('Synced PSA data is available to MSP staff only.')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 def rmm_staff_only(view_func):
     """RMM pages (devices, software, alerts, console links, connections,
     sync) are MSP technician tooling. Customer users get 403 on every one of
@@ -542,6 +558,7 @@ def integration_sync(request, pk):
 
 
 @login_required
+@psa_staff_only
 def psa_companies(request):
     """List synced PSA companies."""
     org = get_request_organization(request)
@@ -553,6 +570,7 @@ def psa_companies(request):
 
 
 @login_required
+@psa_staff_only
 def psa_tickets(request):
     """List synced PSA tickets."""
     org = get_request_organization(request)
@@ -564,6 +582,7 @@ def psa_tickets(request):
 
 
 @login_required
+@psa_staff_only
 def psa_company_detail(request, pk):
     """View PSA company details."""
     org = get_request_organization(request)
@@ -584,6 +603,7 @@ def psa_company_detail(request, pk):
 
 
 @login_required
+@psa_staff_only
 def psa_contacts(request):
     """List synced PSA contacts."""
     org = get_request_organization(request)
@@ -595,6 +615,7 @@ def psa_contacts(request):
 
 
 @login_required
+@psa_staff_only
 def psa_contact_detail(request, pk):
     """View PSA contact details."""
     org = get_request_organization(request)
@@ -611,6 +632,7 @@ def psa_contact_detail(request, pk):
 
 
 @login_required
+@psa_staff_only
 def psa_ticket_detail(request, pk):
     """View PSA ticket details."""
     org = get_request_organization(request)
@@ -1030,6 +1052,25 @@ def rmm_software(request):
     })
 
 
+def _refuse_blocked_device(request, device):
+    """The device pages and the console link follow rmm_permissions, as the
+    asset device workspace does: a technician under containment, an explicit
+    deny or a customer restriction at the device's customer gets 403. (Being
+    merely ungranted keeps working, as before Phase 8.)"""
+    from rmm_permissions.decision import audit_denial, can
+    decision = can(request.user, device.organization, 'device.view', device=device)
+    # Tenant scoping is the view's own lookup; rmm_permissions' tenant step
+    # treats a multi-customer connection owned by the MSP's organization as
+    # foreign (HELPER_ISSUES), so only the person-level blocks apply here.
+    if decision.blocked and decision.source != 'tenant':
+        try:
+            audit_denial(request.user, device.organization, 'device.view', decision.reason,
+                         device=device, request=request)
+        except Exception:
+            pass
+        raise PermissionDenied(decision.reason or 'Device access is blocked.')
+
+
 @login_required
 @rmm_staff_only
 def rmm_device_detail(request, pk):
@@ -1038,6 +1079,7 @@ def rmm_device_detail(request, pk):
     device = get_object_or_404(
         RMMDevice.objects.for_organization(org).filter(ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
         .select_related('connection', 'linked_asset'), pk=pk)
+    _refuse_blocked_device(request, device)
 
     # Get software for this device
     software = RMMSoftware.objects.filter(device=device).order_by('name')
@@ -1155,6 +1197,21 @@ def rmm_device_decide(request, pk):
     try:
         if action in ('assign_customer', 'map_customer'):
             target = get_object_or_404(Organization, pk=request.POST.get('organization'), is_active=True)
+            # A single-customer connection places devices within that
+            # customer (and its sub-customers) only; a multi-customer
+            # connection's devices go to customers where the decider may sync
+            # integrations. Before this any active organization id was
+            # accepted, so devices (and their auto-created assets) could be
+            # moved into an unrelated customer.
+            from core.utils import descendant_org_ids
+            from accounts.permission_utils import has_perm_for_org
+            conn = device.connection
+            if conn.is_single_customer:
+                if target.pk not in descendant_org_ids(conn.organization_id):
+                    raise PermissionDenied
+            elif not (request.user.is_superuser
+                      or has_perm_for_org(request.user, target, 'integrations_sync')):
+                raise PermissionDenied
             done = ra.assign_customer(device, target, request.user, map_all=(action == 'map_customer'))
             messages.success(request, f'{len(done)} device(s) assigned to {target.name}.')
         elif action == 'link_asset':
@@ -1190,6 +1247,7 @@ def rmm_device_open(request, pk):
     device = get_object_or_404(
         RMMDevice.objects.for_organization(org).filter(ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
         .select_related('connection'), pk=pk)
+    _refuse_blocked_device(request, device)
     provider = get_rmm_provider(device.connection)
     url = ''
     if getattr(provider, 'console_link_mode', 'none') == 'on_demand':
@@ -2122,7 +2180,18 @@ def _get_unifi_connection(request, pk, level='read'):
     one: those are managed from global view, under the platform rule."""
     org = get_request_organization(request)
     if org is not None and (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
-        return get_object_or_404(UnifiConnection.objects.filter(organization__isnull=False), pk=pk)
+        conn = get_object_or_404(UnifiConnection.objects.filter(organization__isnull=False), pk=pk)
+        if not request.user.is_superuser:
+            # The decorators only checked the *selected* customer; another
+            # customer's controller needs the flag for the level in its own
+            # customer (before this release staff needed nothing there).
+            from accounts.permission_utils import has_perm_for_org
+            flag = {'read': 'integrations_view', 'write': 'integrations_sync',
+                    'admin': 'integrations_configure'}.get(level, 'integrations_configure')
+            if not has_perm_for_org(request.user, conn.organization_id, flag):
+                from django.http import Http404
+                raise Http404('No UnifiConnection matches the given query.')
+        return conn
     return get_connection_or_404(request, UnifiConnection, pk, level)
 
 
@@ -2152,6 +2221,7 @@ def _is_staff_admin(request):
 
 @login_required
 @integration_access('write')
+@require_POST
 def unifi_test(request, pk):
     """Test UniFi connection."""
     connection = _get_unifi_connection(request, pk, 'write')
@@ -2167,6 +2237,7 @@ def unifi_test(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def unifi_sync(request, pk):
     """Sync UniFi data and regenerate documentation."""
     from django.utils import timezone
@@ -2780,6 +2851,7 @@ def omada_delete(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def omada_test(request, pk):
     """Test Omada connection."""
     from integrations.providers.omada import OmadaProvider
@@ -2803,6 +2875,7 @@ def omada_test(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def omada_sync(request, pk):
     """Sync Omada data and optionally import assets."""
     from django.utils import timezone
@@ -2956,6 +3029,7 @@ def grandstream_delete(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def grandstream_test(request, pk):
     """Test Grandstream connection."""
     from integrations.providers.grandstream import GrandstreamProvider
@@ -2978,6 +3052,7 @@ def grandstream_test(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def grandstream_sync(request, pk):
     """Sync Grandstream data and optionally import assets."""
     from django.utils import timezone
@@ -3132,6 +3207,7 @@ def m365_delete(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def m365_test(request, pk):
     """Test M365 connection."""
     from integrations.providers.m365 import M365Provider
@@ -3150,6 +3226,7 @@ def m365_test(request, pk):
 
 @login_required
 @integration_access('write')
+@require_POST
 def m365_sync(request, pk):
     """Sync M365 data and regenerate documentation."""
     from integrations.providers.m365 import M365Provider

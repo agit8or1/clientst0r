@@ -28,6 +28,18 @@ import logging
 logger = logging.getLogger('locations')
 
 
+def _require_location_perm(request, organization, *flags):
+    """Role flags are checked in the customer that owns the location (not
+    the selected one): an associated customer on a shared location, a
+    Read-Only member, or a technician whose role lacks the flag gets 403.
+    There are no locations_* flags; locations follow the assets_* flags."""
+    from django.core.exceptions import PermissionDenied
+    from accounts.permission_utils import has_perm_for_org
+    for flag in flags:
+        if not has_perm_for_org(request.user, organization, flag):
+            raise PermissionDenied(f'Your role does not allow this here ({flag}).')
+
+
 @login_required
 def location_list(request):
     """List all locations for current organization."""
@@ -95,6 +107,11 @@ def location_detail(request, location_id):
 
     # Get floor plans for this location
     floor_plans = location.floor_plans.all()
+    # A shared location carries every customer's circuits; show the
+    # selected customer's own.
+    wan_connections = location.wan_connections.all()
+    if not in_global_view:
+        wan_connections = wan_connections.filter(organization=org)
 
     # Get associated assets (if assets app has location FK)
     try:
@@ -113,6 +130,7 @@ def location_detail(request, location_id):
     context = {
         'location': location,
         'floor_plans': floor_plans,
+        'wan_connections': wan_connections,
         'assets': assets,
         'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         'property_appraiser': property_appraiser,
@@ -152,8 +170,10 @@ def location_create(request):
         messages.error(request, 'Organization context required to create locations.')
         return redirect('accounts:organization_list')
 
+    _require_location_perm(request, organization, 'assets_create')
+
     if request.method == 'POST':
-        form = LocationForm(request.POST, request.FILES, organization=organization)
+        form = LocationForm(request.POST, request.FILES, organization=organization, user=request.user)
 
         if form.is_valid():
             location = form.save(commit=False)
@@ -219,7 +239,7 @@ def location_create(request):
             messages.success(request, f"Location '{location.name}' created successfully")
             return redirect('locations:location_detail', location_id=location.id)
     else:
-        form = LocationForm(organization=organization)
+        form = LocationForm(organization=organization, user=request.user)
 
     context = {
         'form': form,
@@ -252,12 +272,15 @@ def location_edit(request, location_id):
         )
         effective_org = org
 
+    _require_location_perm(request, location.organization, 'assets_edit')
+
     if request.method == 'POST':
         form = LocationForm(
             request.POST,
             request.FILES,
             instance=location,
-            organization=effective_org
+            organization=effective_org,
+            user=request.user,
         )
 
         if form.is_valid():
@@ -265,7 +288,7 @@ def location_edit(request, location_id):
             messages.success(request, f"Location '{location.name}' updated successfully")
             return redirect('locations:location_detail', location_id=location.id)
     else:
-        form = LocationForm(instance=location, organization=effective_org)
+        form = LocationForm(instance=location, organization=effective_org, user=request.user)
 
     context = {
         'form': form,
@@ -299,6 +322,8 @@ def location_delete(request, location_id):
             id=location_id,
             organization=org
         )
+
+    _require_location_perm(request, location.organization, 'assets_delete')
 
     if request.method == 'POST':
         location_name = location.name
@@ -340,6 +365,8 @@ def generate_floor_plan(request, location_id):
         )
 
     if request.method == 'POST':
+        # A generated plan writes the location and a docs diagram.
+        _require_location_perm(request, location.organization, 'assets_edit', 'docs_edit')
         # The master switch first — generation used to start on the API key
         # alone, so turning AI off in Settings did not turn this off.
         from core.ai_gate import AI_DISABLED_MESSAGE, ai_features_enabled
@@ -562,6 +589,8 @@ def refresh_geocoding(request, location_id):
             id=location_id
         )
 
+    _require_location_perm(request, location.organization, 'assets_edit')
+
     try:
         geocoding = get_geocoding_service()
         geo_data = geocoding.geocode_address(location.full_address)
@@ -609,6 +638,8 @@ def refresh_property_data(request, location_id):
             Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
             id=location_id
         )
+
+    _require_location_perm(request, location.organization, 'assets_edit')
 
     try:
         property_service = get_property_service()
@@ -679,6 +710,8 @@ def import_property_from_url(request, location_id):
             Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)).distinct(),
             id=location_id
         )
+
+    _require_location_perm(request, location.organization, 'assets_edit')
 
     try:
         import json
@@ -786,6 +819,8 @@ def refresh_satellite_image(request, location_id):
             id=location_id
         )
 
+    _require_location_perm(request, location.organization, 'assets_edit')
+
     if not location.has_coordinates:
         return JsonResponse({
             'success': False,
@@ -836,6 +871,10 @@ def floor_plan_import(request):
     from imports.forms import ImportJobForm
 
     organization = request.current_organization
+    if not organization:
+        messages.error(request, 'Organization context required.')
+        return redirect('accounts:organization_list')
+    _require_location_perm(request, organization, 'assets_create')
 
     if request.method == 'POST':
         # Create import job form with MagicPlan pre-selected
@@ -996,6 +1035,8 @@ def send_navigation_link(request, location_id):
         return redirect('accounts:organization_list')
 
     if request.method == 'POST':
+        # Sends mail/SMS under the MSP's sender identity: not for Read-Only.
+        _require_location_perm(request, location.organization, 'assets_edit')
         form = SendNavigationLinkForm(request.POST)
         if form.is_valid():
             method = form.cleaned_data['method']

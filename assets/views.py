@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
@@ -14,6 +15,7 @@ from core.tenancy import get_org_object_or_404
 from .models import Asset, Contact, Relationship, ContactRating, ContactNote
 from .forms import AssetForm, ContactForm
 from .views_custom import can_manage_asset_catalog, require_catalog_manager
+from monitoring.access import org_flag_required, owner
 
 
 @login_required
@@ -306,6 +308,7 @@ def asset_detail(request, pk):
 @login_required
 @require_write
 @require_organization_context
+@org_flag_required('assets_create')
 def asset_create(request):
     """
     Create new asset.
@@ -363,6 +366,7 @@ def asset_create(request):
 @login_required
 @org_handoff
 @require_write
+@org_flag_required('assets_edit', owner(Asset))
 def asset_edit(request, pk):
     """
     Edit asset.
@@ -481,6 +485,7 @@ def contact_detail(request, pk):
 
 
 @login_required
+@org_flag_required('assets_edit', owner(Contact))
 def contact_add_rating(request, pk):
     """Submit a rating + feedback for a contact."""
     org = get_request_organization(request)
@@ -520,6 +525,7 @@ def contact_add_rating(request, pk):
 
 
 @login_required
+@org_flag_required('assets_edit', owner(Contact))
 def contact_add_note(request, pk):
     """Add or edit a note on a contact."""
     org = get_request_organization(request)
@@ -558,8 +564,11 @@ def contact_add_note(request, pk):
 
 
 @login_required
+@org_flag_required('assets_edit', owner(Contact))
 def contact_delete_note(request, pk, note_id):
     """Delete a note (author or superuser only)."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
     org = get_request_organization(request)
     contact = get_org_object_or_404(Contact, org, pk=pk)
     note = get_object_or_404(ContactNote, id=note_id, contact=contact)
@@ -575,6 +584,7 @@ def contact_delete_note(request, pk, note_id):
 @org_handoff
 @require_write
 @require_organization_context
+@org_flag_required('assets_create')
 def contact_create(request):
     """
     Create new contact. `?title=` (readiness "Add the contact") fills in the
@@ -603,6 +613,7 @@ def contact_create(request):
 
 @login_required
 @require_write
+@org_flag_required('assets_edit', owner(Contact))
 def contact_edit(request, pk):
     """
     Edit contact.
@@ -627,7 +638,9 @@ def contact_edit(request, pk):
 
 
 @login_required
+@require_POST
 @require_write
+@org_flag_required(('assets_view', 'docs_create', 'docs_edit'), owner(Asset))
 def asset_generate_profile(request, pk):
     """
     Generate (or regenerate) a profile document for an asset and link it.
@@ -845,6 +858,7 @@ def asset_generate_profile(request, pk):
 
 @login_required
 @require_write
+@org_flag_required(('assets_view', 'docs_create', 'docs_edit'), owner(Asset))
 def asset_ai_doc(request, pk):
     """
     Generate AI-powered documentation for an asset using a selected template.
@@ -1010,6 +1024,7 @@ def _asset_ai_doc_inner(request, pk):
 
 @login_required
 @require_write
+@org_flag_required('assets_delete', owner(Asset))
 def asset_delete(request, pk):
     """
     Delete asset.
@@ -1030,6 +1045,7 @@ def asset_delete(request, pk):
 
 @login_required
 @require_write
+@org_flag_required('assets_delete', owner(Contact))
 def contact_delete(request, pk):
     """
     Delete contact.
@@ -1050,6 +1066,7 @@ def contact_delete(request, pk):
 
 @csrf_exempt
 @login_required
+@org_flag_required({'GET': 'assets_view', 'PATCH': 'assets_edit'}, owner(Asset), json=True)
 def asset_api_detail(request, pk):  # noqa: write permission checked inline for PATCH
     """
     GET  /assets/api/assets/<pk>/  — return asset info as JSON
@@ -1475,6 +1492,7 @@ def network_scan_preview(request):
 @login_required
 @require_organization_context
 @require_write
+@org_flag_required(('assets_create', 'assets_edit'))
 def network_scan_apply(request):
     """
     Apply network scan import after user confirmation.
@@ -1777,6 +1795,7 @@ def rma_list(request):
 
 @login_required
 @require_write
+@org_flag_required('assets_create')
 def rma_create(request):
     """Create a new RMA. Vendor + reason are the only required fields."""
     from .models import RMAReturn, Vendor
@@ -1835,6 +1854,7 @@ def rma_detail(request, pk):
 
 @login_required
 @require_write
+@org_flag_required('assets_edit', owner('assets.RMAReturn'))
 def rma_transition(request, pk):
     """POST-only — transition RMA status. The form passes ?status=NEW
     plus optional fields specific to terminal states (replacement_serial,
@@ -1919,6 +1939,7 @@ def serial_search(request):
 
 @login_required
 @require_write
+@org_flag_required('assets_edit', owner(Asset))
 def asset_serial_event_add(request, pk):
     """POST: record a manual lifecycle event (returned / retired / disposed /
     note) for the asset's current serial."""

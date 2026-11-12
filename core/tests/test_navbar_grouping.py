@@ -68,7 +68,7 @@ STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
               'integrations:integration_list', 'core:mobile_apps_admin',
               'core:snyk_scans', 'accounts:access_management', 'core:webhook_list',
               'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts',
-              'assets:device_workspace_home']
+              'assets:device_workspace_home', 'inventory:inventory_dashboard']
 
 
 def urls(names):

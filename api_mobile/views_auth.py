@@ -162,6 +162,17 @@ def login_view(request):
         _audit(user, 'login', request, {'channel': 'mobile', 'stage': 'mfa_required'})
         return Response({'mfa_required': True, 'mfa_token': mfa_token})
 
+    # Two-factor is required but this account has not enrolled a device:
+    # the web forces enrollment before anything else (Enforce2FAMiddleware),
+    # so a mobile token on password alone would bypass the policy.
+    from core.security_policy import require_2fa
+    if require_2fa():
+        _audit(user, 'login_failed', request, {'reason': '2fa_enrollment_required', 'channel': 'mobile'})
+        return Response(
+            {'detail': 'Two-factor authentication is required. Set it up on the web, then sign in again.',
+             'mfa_enrollment_required': True},
+            status=status.HTTP_403_FORBIDDEN)
+
     token = _issue_token(user, request)
     _audit(user, 'login', request, {'channel': 'mobile', 'stage': 'token_issued'})
     return Response({'token': token, 'user': _user_payload(user)})

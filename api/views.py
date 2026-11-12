@@ -222,10 +222,36 @@ class DocumentViewSet(OrganizationScopedViewSet):
     ordering_fields = ['title', 'created_at', 'updated_at']
     ordering = ['-updated_at']
 
+    def get_queryset(self):
+        """Same reader rule as the web app and GraphQL: customer users never
+        get internal-only documentation, and drafts / pending-review rows
+        need edit rights in their customer (before this release every row the
+        caller could view was returned)."""
+        from django.db.models import Q
+        from docs.permissions import _django_staff_without_role, visible_documents
+        qs = visible_documents(super().get_queryset(), self.request.user)
+        user = self.request.user
+        if _django_staff_without_role(user):
+            return qs
+        live = Q(is_published=True, is_draft=False) | Q(is_template=True)
+        editable = orgs_with_perm(user, 'docs_edit')
+        publishable = orgs_with_perm(user, 'docs_publish')
+        if editable is None or publishable is None:
+            return qs
+        return qs.filter(live | Q(organization_id__in=set(editable) | set(publishable)))
+
+    def _require_source_access(self, document):
+        from docs.permissions import may_see_full_source
+        if not may_see_full_source(self.request.user, document):
+            raise PermissionDenied('This document is maintained by your provider.')
+
     def _require_publish_if_changed(self, serializer, current):
         """Publishing or unpublishing through the `is_published` field needs
-        `docs_publish`, like the publish action."""
+        `docs_publish`, like the publish action. On create a missing field
+        means the model default (published), so it counts as publishing."""
         wanted = serializer.validated_data.get('is_published')
+        if wanted is None and serializer.instance is None:
+            wanted = Document._meta.get_field('is_published').default
         if wanted is not None and wanted != current:
             org = (serializer.validated_data.get('organization')
                    or getattr(serializer.instance, 'organization', None)
@@ -237,7 +263,13 @@ class DocumentViewSet(OrganizationScopedViewSet):
         super().perform_create(serializer)
 
     def perform_update(self, serializer):
-        self._require_publish_if_changed(serializer, serializer.instance.is_published)
+        self._require_source_access(serializer.instance)
+        if serializer.instance.requires_approval and not serializer.instance.is_template:
+            # As on the web (docs.permissions.apply_publish_rules): every edit
+            # of an approval-gated document takes it offline into a draft.
+            serializer.validated_data['is_published'] = False
+        else:
+            self._require_publish_if_changed(serializer, serializer.instance.is_published)
         super().perform_update(serializer)
 
     @action(detail=True, methods=['post'])

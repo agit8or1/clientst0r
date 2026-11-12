@@ -53,6 +53,10 @@ def register_push_view(request):
     name = (data.get('name') or '')[:200]
     enabled = bool(data.get('enabled', True))
 
+    # device_id is client-supplied: a known id belonging to another user
+    # must not move that user's device row (and its pushes) to the caller.
+    if MobileDevice.objects.filter(device_id=device_id).exclude(user=request.user).exists():
+        device_id = uuid.uuid4()
     device, created = MobileDevice.objects.update_or_create(
         device_id=device_id,
         defaults={

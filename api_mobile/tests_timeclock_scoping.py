@@ -42,7 +42,7 @@ NO_THROTTLE_REST = {
 CLOCK_IN = '/api/mobile/v1/timeclock/clock-in/'
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class ClockInTenantScopingTests(TestCase):
 

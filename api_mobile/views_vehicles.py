@@ -157,6 +157,11 @@ def _my_vehicle_or_404(user, pk):
     """Return the ServiceVehicle if it exists. v3.17.477 — any authenticated
     user may access any vehicle (the fleet is shared)."""
     from vehicles.models import ServiceVehicle
+    from psa.visibility import is_msp_staff
+    # The fleet is the MSP's own (VINs, insurance, damage reports):
+    # customer users get nothing.
+    if not is_msp_staff(user):
+        return None
     try:
         return ServiceVehicle.objects.get(pk=pk)
     except ServiceVehicle.DoesNotExist:
@@ -174,6 +179,9 @@ def my_vehicles_view(request):
     authenticated user can see every vehicle (v3.17.477).
     """
     from vehicles.models import ServiceVehicle
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        return Response({'detail': 'The service fleet is available to MSP staff only.'}, status=403)
     qs = ServiceVehicle.objects.exclude(status='retired').order_by('name')
     return Response({
         'count': qs.count(),

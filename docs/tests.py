@@ -378,7 +378,10 @@ class KBReviewReminderCommandTests(TestCase):
     def setUpTestData(cls):
         from core.models import Organization
         cls.org = Organization.objects.create(name='ReminderCo', slug='kb-rem-co')
-        cls.owner = User.objects.create_user('rem-owner', 'remo@x.com', 'pw')
+        from psa.tests._base import _make_msp_tech
+        # An MSP technician: reminders now recheck that the owner can still
+        # read the article (authz-tech).
+        cls.owner = _make_msp_tech(User.objects.create_user('rem-owner', 'remo@x.com', 'pw'))
         Document.objects.create(
             organization=cls.org, title='Stale 1', body='...',
             is_published=True, owner=cls.owner,
@@ -411,6 +414,26 @@ class KBReviewReminderCommandTests(TestCase):
         self.assertIn('Stale 1', msg.body)
         self.assertIn('Stale 2', msg.body)
         self.assertNotIn('Fresh', msg.body)
+
+    def test_owner_who_lost_access_gets_no_reminder(self):
+        from django.core import mail
+        from django.core.management import call_command
+        self.owner.is_active = False
+        self.owner.save()
+        mail.outbox = []
+        call_command('kb_review_reminders', verbosity=0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_customer_owner_of_internal_article_gets_no_reminder(self):
+        from django.core import mail
+        from django.core.management import call_command
+        from accounts.models import Membership, Role
+        customer = User.objects.create_user('rem-customer', 'cust@x.com', 'pw')
+        Membership.objects.create(user=customer, organization=self.org, role=Role.EDITOR)
+        Document.objects.filter(owner=self.owner).update(owner=customer)
+        mail.outbox = []
+        call_command('kb_review_reminders', verbosity=0)
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_dry_run_does_not_send(self):
         from django.core import mail
@@ -1261,9 +1284,11 @@ class TemplateEditBoundaryTests(TestCase):
         cls.org_a = Organization.objects.create(name='TplCustA', slug='tpl-cust-a')
         cls.org_b = Organization.objects.create(name='TplCustB', slug='tpl-cust-b')
         cls.customer = User.objects.create_user('tpl-cust', 'tc@x.com', 'pw')
+        # Admin: deleting needs docs_delete, which the built-in Editor lacks
+        # (it passed before through "any *_create flag", authz-tech).
         Membership.objects.create(
             user=cls.customer, organization=cls.org_a,
-            role=Role.EDITOR, is_active=True,
+            role=Role.ADMIN, is_active=True,
         )
         cls.superuser = User.objects.create_user(
             'tpl-su', 'tsu@x.com', 'pw', is_staff=True, is_superuser=True,

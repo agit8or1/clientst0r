@@ -3,10 +3,11 @@ Phase 34.1 (v3.17.544) — config backup views.
 """
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from accounts.permission_utils import filter_by_org_perm
+from accounts.permission_utils import filter_by_org_perm, user_has_org_perm
 from assets.models import Asset
 from core.middleware import get_request_organization
 
@@ -63,6 +64,16 @@ def device_list(request):
     return render(request, 'netconfig/device_list.html', {'rows': rows})
 
 
+def _may_read_config(request, asset):
+    """Stored configurations carry secrets (enable hashes, SNMP communities,
+    VPN keys). MSP staff keep them; customer users need vault_view_password
+    in the device's customer, as for any other credential."""
+    from psa.visibility import is_msp_staff
+    if is_msp_staff(request.user):
+        return True
+    return user_has_org_perm(request.user, asset.organization, 'vault_view_password')
+
+
 @login_required
 def device_detail(request, asset_id):
     """Snapshot history for one device, newest first."""
@@ -73,7 +84,7 @@ def device_detail(request, asset_id):
     # rendered without being asked for.
     head_diff = []
     head_stats = {'added': 0, 'removed': 0}
-    if len(backups) >= 2:
+    if len(backups) >= 2 and _may_read_config(request, asset):
         head_diff = backups[0].diff_against(backups[1])
         head_stats = backups[0].diff_stats(backups[1])
 
@@ -102,6 +113,9 @@ def capture(request, asset_id):
     asset = get_object_or_404(_accessible_assets(request), pk=asset_id)
 
     if request.method == 'POST':
+        if not user_has_org_perm(request.user, asset.organization, 'assets_edit'):
+            messages.error(request, 'Storing a configuration needs permission to edit assets.')
+            return redirect('netconfig:device_detail', asset_id=asset.pk)
         body = request.POST.get('body') or ''
         uploaded = request.FILES.get('config_file')
         if uploaded is not None:
@@ -148,6 +162,8 @@ def capture(request, asset_id):
 def compare(request, asset_id):
     """Diff any two snapshots of one device."""
     asset = get_object_or_404(_accessible_assets(request), pk=asset_id)
+    if not _may_read_config(request, asset):
+        raise PermissionDenied('Reading stored configurations needs permission to view passwords.')
     backups = list(ConfigBackup.objects.filter(asset=asset).order_by('-captured_at'))
 
     left = right = None
@@ -179,6 +195,8 @@ def view_backup(request, backup_id):
         ConfigBackup.objects.select_related('asset', 'organization'), pk=backup_id)
     # Scope check via the same queryset the rest of the app uses.
     get_object_or_404(_accessible_assets(request), pk=backup.asset_id)
+    if not _may_read_config(request, backup.asset):
+        raise PermissionDenied('Reading stored configurations needs permission to view passwords.')
     return render(request, 'netconfig/view.html', {
         'backup': backup,
         'previous': backup.previous(),
@@ -201,6 +219,11 @@ def target_edit(request, asset_id):
         return _host_key_action(request, asset, target)
 
     if request.method == 'POST':
+        # Saving connection settings (host, credential) is an edit of the
+        # device: until this release assets_view was enough.
+        if not user_has_org_perm(request.user, asset.organization, 'assets_edit'):
+            messages.error(request, 'Changing how a device is reached needs permission to edit assets.')
+            return redirect('netconfig:device_detail', asset_id=asset.pk)
         if request.POST.get('action') == 'delete' and target:
             target.delete()
             messages.success(request, 'Connection settings removed.')
@@ -208,6 +231,7 @@ def target_edit(request, asset_id):
 
         if target is None:
             target = BackupTarget(asset=asset, organization=asset.organization)
+        prev_host, prev_port, prev_cred = target.host, target.port, target.credential_id
 
         target.host = (request.POST.get('host') or '').strip()[:255]
         target.username = (request.POST.get('username') or '').strip()[:150]
@@ -236,6 +260,21 @@ def target_edit(request, asset_id):
                     request,
                     'That vault entry is not available for this client.')
                 return redirect('netconfig:target_edit', asset_id=asset.pk)
+            # Linking a credential hands its plaintext to the collector, which
+            # sends it to whatever host is configured. That is a reveal: it
+            # needs the same gate (vault_view_password in the entry's
+            # customer, reveal approval, VaultAccessRule). vault_view alone
+            # let a user without reveal rights point the device at their own
+            # SSH server and receive the password.
+            # Re-pointing a linked credential at a new host or port counts too.
+            if (prev_cred != cred.pk or prev_host != target.host
+                    or prev_port != target.port):
+                from vault.permissions import RevealDenied, gate_reveal
+                try:
+                    gate_reveal(request, cred)
+                except RevealDenied as denial:
+                    messages.error(request, f'You may not use that vault entry here: {denial.detail}')
+                    return redirect('netconfig:target_edit', asset_id=asset.pk)
             target.credential = cred
         else:
             target.credential = None
@@ -244,6 +283,14 @@ def target_edit(request, asset_id):
             messages.error(request, 'A host is required.')
             return redirect('netconfig:target_edit', asset_id=asset.pk)
 
+        moved = target.pk and (prev_host != target.host or prev_port != target.port)
+        if moved and target.host_key:
+            # The approved key belongs to the old address; a new address must
+            # be approved again before credentials are sent to it.
+            target.host_key_type = target.host_key = target.host_key_fingerprint = ''
+            target.host_key_approved_at, target.host_key_approved_by = None, None
+            messages.info(request, 'The address changed, so the approved host key was removed. '
+                                   'Fetch and approve the new key before collecting.')
         target.save()
         messages.success(request, 'Connection settings saved.')
         return redirect('netconfig:device_detail', asset_id=asset.pk)
@@ -313,6 +360,11 @@ def collect_now(request, asset_id):
 
     if request.method != 'POST':
         return redirect('netconfig:device_detail', asset_id=asset.pk)
+    # Running a collection logs in to the device with the linked credential:
+    # an operational action on the device, not a read.
+    if not user_has_org_perm(request.user, asset.organization, 'assets_edit'):
+        messages.error(request, 'Collecting a configuration needs permission to edit assets.')
+        return redirect('netconfig:device_detail', asset_id=asset.pk)
 
     result = collect_target(target, user=request.user)
     if result['ok']:
@@ -329,6 +381,9 @@ def approve_baseline(request, backup_id):
     get_object_or_404(_accessible_assets(request), pk=backup.asset_id)
 
     if request.method != 'POST':
+        return redirect('netconfig:device_detail', asset_id=backup.asset_id)
+    if not user_has_org_perm(request.user, backup.asset.organization_id, 'assets_edit'):
+        messages.error(request, 'Approving a baseline needs permission to edit assets.')
         return redirect('netconfig:device_detail', asset_id=backup.asset_id)
 
     backup.approve_as_baseline()

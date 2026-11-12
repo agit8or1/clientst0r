@@ -59,12 +59,17 @@ class Command(BaseCommand):
 
         sent = 0
         for org, assets in per_org.items():
-            owners = list(
-                Membership.objects.filter(
+            # Active Owner accounts of the customer that can still see its
+            # assets (assets_view there); deactivated accounts and roles
+            # without asset access no longer receive asset names and serials.
+            from accounts.permission_utils import has_perm_for_org
+            owners = [
+                m.user.email for m in Membership.objects.filter(
                     organization=org, is_active=True, role=Role.OWNER,
-                ).select_related('user').values_list('user__email', flat=True)
-            )
-            owners = [e for e in owners if e]
+                    user__is_active=True,
+                ).select_related('user', 'role_template')
+                if m.user.email and has_perm_for_org(m.user, org, 'assets_view')
+            ]
             if not owners:
                 continue
 

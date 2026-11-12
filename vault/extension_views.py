@@ -392,8 +392,20 @@ def bulk_sync(request):
                     'online_only': len(online_only)},
     )
 
+    # Entries the user may not reveal (no vault_view_password there) carry no
+    # ciphertext either, the same as online-only entries. One lookup for the
+    # page (vault_* flags follow memberships for staff without a global role,
+    # as can_access_password does).
+    from accounts.permission_utils import orgs_with_perm
+    reveal_orgs = orgs_with_perm(request.user, 'vault_view_password')
+
+    def _may_reveal(pw):
+        if pw.is_personal:
+            return pw.personal_owner_id == request.user.pk
+        return reveal_orgs is None or pw.organization_id in reveal_orgs
+
     def row(pw):
-        restricted = pw.pk in online_only
+        restricted = pw.pk in online_only or not _may_reveal(pw)
         return {
             'id': pw.pk,
             'title': pw.title,

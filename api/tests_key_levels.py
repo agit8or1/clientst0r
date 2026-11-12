@@ -25,7 +25,7 @@ class _Base(TestCase):
         self.user = User.objects.create_user('kl-user', password='pw')
         self.asset = Asset.objects.create(organization=self.org, name='a1', asset_type='server')
         self.doc = Document.objects.create(organization=self.org, title='d1', slug='d1',
-                                           is_published=False)
+                                           is_published=False, created_by=self.user)
         self.pw = _password(self.org, 'pw1')
 
     def _member(self, role=Role.OWNER, template=None):

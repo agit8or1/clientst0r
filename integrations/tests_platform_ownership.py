@@ -430,21 +430,17 @@ class UnmappedDataIsolationTests(_Base):
         self.ticket_b = PSATicket.objects.create(connection=self.psa, organization=self.b, company=self.co_b,
                                                  external_id='t2', ticket_number='T-2', subject='Zeta B ticket')
 
-    def test_customer_lists_show_only_own_mapped_rows(self):
+    def test_customer_users_get_no_synced_psa_pages(self):
+        # Synced PSA rows (raw provider JSON included) are MSP-staff tooling
+        # since authz-tech; before, a customer saw its own mapped rows.
         c = self.client_for(self.org_admin, self.a)
-        body = c.get(_url('psa_companies')).content.decode()
-        self.assertIn('Zeta Mapped A', body)
-        self.assertNotIn('Zeta Mapped B', body)
-        self.assertNotIn('Zeta Pending', body)
-        self.assertNotIn('Zeta Person', c.get(_url('psa_contacts')).content.decode())
-        self.assertNotIn('Zeta B ticket', c.get(_url('psa_tickets')).content.decode())
-
-    def test_customer_cannot_open_pending_or_other_customers_rows(self):
-        c = self.client_for(self.org_admin, self.a)
-        self.assertEqual(c.get(_url('psa_company_detail', self.co_none.pk)).status_code, 404)
-        self.assertEqual(c.get(_url('psa_company_detail', self.co_b.pk)).status_code, 404)
-        self.assertEqual(c.get(_url('psa_contact_detail', self.contact_none.pk)).status_code, 404)
-        self.assertEqual(c.get(_url('psa_ticket_detail', self.ticket_b.pk)).status_code, 404)
+        for url in (_url('psa_companies'), _url('psa_contacts'), _url('psa_tickets'),
+                    _url('psa_company_detail', self.co_none.pk),
+                    _url('psa_company_detail', self.co_b.pk),
+                    _url('psa_contact_detail', self.contact_none.pk),
+                    _url('psa_ticket_detail', self.ticket_b.pk)):
+            with self.subTest(url):
+                self.assertEqual(c.get(url).status_code, 403)
 
     def test_company_detail_hides_other_customers_tickets(self):
         # Same external company, but a ticket filed under another customer.
