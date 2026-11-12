@@ -7,7 +7,8 @@ export) with ``object_type`` ``office.<kind>`` and the specific event in
     create, open, session_start, session_end, session_revoked, save,
     save_failed, quarantine, export, restore, rename, copy, convert,
     settings_change, policy_change, diagnostics_run, round_trip, health_check,
-    template_upload, template_delete, quarantine_download, quarantine_restore
+    template_upload, template_delete, quarantine_download, quarantine_restore,
+    managed_operation (Managed Local ONLYOFFICE lifecycle, office.managed.jobs)
 
 Never logged: tokens, secrets, document content, document keys, URLs with
 query strings. Only ids, names, sizes, revision numbers and SHA-256 digests.
