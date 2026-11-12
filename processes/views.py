@@ -893,7 +893,7 @@ def execution_audit_log(request, pk):
     # Group by date for better visualization
     logs_by_date = {}
     for log in audit_logs:
-        date_key = log.created_at.date()
+        date_key = timezone.localtime(log.created_at).date()
         if date_key not in logs_by_date:
             logs_by_date[date_key] = []
         logs_by_date[date_key].append(log)
@@ -1138,7 +1138,7 @@ def process_clone_template(request, slug):
         messages.error(request, 'Pick an organization context first.')
         return redirect('processes:process_list')
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     new_title = f'[{today.isoformat()}] {src.title}'
     base_slug = slugify(new_title)[:240] or 'runbook-run'
     candidate_slug = base_slug
