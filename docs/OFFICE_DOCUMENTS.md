@@ -525,3 +525,5 @@ stubs. A connector must:
 by the tests: structure, content types and relationship targets.
 python-docx and python-pptx load and resave them. They have not been opened in
 Microsoft Office, ONLYOFFICE or Collabora.
+
+Microsoft 365 documents (SharePoint / OneDrive: link, open, create, import and export copies): see [office/MICROSOFT_365.md](office/MICROSOFT_365.md).
