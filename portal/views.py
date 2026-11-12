@@ -83,7 +83,9 @@ def portal_required(view_func):
     @wraps(view_func)
     def wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect('/account/login/?next=' + request.path)
+            from django.contrib.auth.views import redirect_to_login
+            from django.urls import reverse
+            return redirect_to_login(request.get_full_path(), reverse('portal_auth:login'))
         if not is_psa_enabled():
             raise Http404('Portal is unavailable')
         m = _portal_membership(request)

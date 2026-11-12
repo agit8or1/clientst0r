@@ -5782,8 +5782,9 @@ def quote_pdf(request, pk):
     if org is not None:
         qs = qs.filter(organization=org)
     quote = get_object_or_404(qs.select_related('client_org', 'organization'), pk=pk)
-    sign_url = request.build_absolute_uri(
-        f'/portal/quote/{quote.customer_token}/sign/'
+    from core.portal_surface import portal_absolute_url
+    sign_url = portal_absolute_url(
+        f'/portal/quote/{quote.customer_token}/sign/', request
     ) if quote.customer_token and quote.status not in ('accepted', 'rejected') else ''
     pdf_bytes = render_quote_pdf(quote, sign_url=sign_url)
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
@@ -6309,11 +6310,14 @@ def portal_invite(request, org_id):
         # Build one-time password-set link
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
-        path = reverse('accounts:portal_set_password',
+        # Both links are on the customer portal (its own host name when one
+        # is configured), never on the staff sign-in.
+        from core.portal_surface import portal_absolute_url, portal_login_path
+        path = reverse('portal_auth:set_password',
                        kwargs={'uidb64': uid, 'token': token})
-        link = request.build_absolute_uri(path)
+        link = portal_absolute_url(path, request)
 
-        portal_url = request.build_absolute_uri('/portal/')
+        portal_url = portal_absolute_url(portal_login_path(), request)
         subject = f'Your support portal account for {org.name}'
         text = (
             f'Hello{(" " + first) if first else ""},\n\n'

@@ -1,0 +1,17 @@
+{% extends "portal/base.html" %}
+{% block title %}Two-factor sign-in is on{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <h1 class="portal-page-title">Two-factor sign-in is on</h1>
+    <div class="card mt-3"><div class="card-body p-4">
+      <p>From now on you will be asked for a code from your authenticator app when you sign in.</p>
+      <p>Save some backup codes in case you lose your phone.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{% url 'portal_auth:two_factor_backup_tokens' %}">Get backup codes</a>
+        <a class="btn btn-outline-secondary" href="{% url 'portal:ticket_list' %}">Back to the portal</a>
+      </div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

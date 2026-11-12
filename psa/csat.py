@@ -70,6 +70,10 @@ def maybe_send_csat(ticket, *, base_url=''):
         path = reverse('psa:csat_respond', kwargs={'token': raw})
     except Exception:
         return survey
+    if not base_url:
+        # Customer-facing: the portal host when one is set, else Site URL.
+        from core.portal_surface import portal_site_url
+        base_url = portal_site_url()
     link = f'{base_url}{path}' if base_url else path
 
     subject = f'How did we do? Quick rating for {ticket.ticket_number}'

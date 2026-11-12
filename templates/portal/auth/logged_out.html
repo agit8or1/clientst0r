@@ -1,0 +1,6 @@
+{% extends "portal/auth/_base.html" %}
+{% block title %}Signed out{% endblock %}
+{% block heading %}You are signed out{% endblock %}
+{% block content %}
+  <a class="btn btn-primary" href="{% url 'portal_auth:login' %}">Sign in again</a>
+{% endblock %}

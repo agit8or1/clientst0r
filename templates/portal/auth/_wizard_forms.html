@@ -1,0 +1,15 @@
+{{ wizard.management_form }}
+{{ wizard.form.non_field_errors }}
+{% for field in wizard.form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in wizard.form.visible_fields %}
+<div class="portal-field">
+    {% if field.widget_type == 'checkbox' %}
+    <div class="form-check mb-2">{{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+    {% else %}
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field.errors }}
+    {{ field }}
+    {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+    {% endif %}
+</div>
+{% endfor %}

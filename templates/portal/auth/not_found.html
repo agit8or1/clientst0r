@@ -1,0 +1,8 @@
+{% extends "portal/auth/_base.html" %}
+{% block title %}Page not found{% endblock %}
+{% block heading %}Page not found{% endblock %}
+{% block lead %}{% endblock %}
+{% block content %}
+  <p>This address is not part of the customer portal.</p>
+  <a class="btn btn-primary" href="{% url 'portal:ticket_list' %}">Go to the portal</a>
+{% endblock %}

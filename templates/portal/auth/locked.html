@@ -1,0 +1,10 @@
+{% extends "portal/auth/_base.html" %}
+{% block title %}Sign-in paused{% endblock %}
+{% block heading %}Too many sign-in attempts{% endblock %}
+{% block lead %}{% endblock %}
+{% block content %}
+  <p>For your security, sign-in for this account is paused after {{ failure_limit }} unsuccessful attempts. Try again in {{ cooloff_display }}.</p>
+  <p class="text-muted small">Forgot your password? You can reset it instead of waiting.</p>
+  <a class="btn btn-primary" href="{% url 'portal_auth:password_reset' %}">Reset password</a>
+  <div class="portal-auth-links"><a href="{% url 'portal_auth:login' %}">Back to sign in</a></div>
+{% endblock %}

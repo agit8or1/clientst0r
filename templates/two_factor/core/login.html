@@ -117,6 +117,10 @@
     {% endif %}
   {% endblock %}
 
+  <p class="text-center small mt-3 mb-0">
+    <a href="{% url 'portal_auth:login' %}">Customer? Sign in to the customer portal</a>
+  </p>
+
   <script nonce="{{ csp_nonce }}">
     // Submit each sign-in form once. Signing in replaces the CSRF token, so
     // a second submit (double click, Enter twice, a password manager) is

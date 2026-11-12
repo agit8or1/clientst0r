@@ -214,10 +214,15 @@ class NamedApproverConfigTests(_Base):
         from psa.models import ServiceRequestApprover
         for user in (self.user, self.approver, self.dana):
             c = self.login(user)
-            self.assertEqual(c.get(self.url()).status_code, 404)
-            r = c.post(self.url(), {'organization_id': self.org.pk,
-                                    'approver_user_ids': [user.pk]})
-            self.assertEqual(r.status_code, 404)
+            # Customer portal users never reach staff pages: they are sent to
+            # the portal (core.portal_surface.PortalUserGuardMiddleware).
+            for r in (c.get(self.url()),
+                      c.post(self.url(), {'organization_id': self.org.pk,
+                                          'approver_user_ids': [user.pk]})):
+                if r.status_code == 302:
+                    self.assertEqual(r['Location'], '/portal/')
+                else:
+                    self.assertEqual(r.status_code, 404)
         self.assertFalse(ServiceRequestApprover.objects.exists())
 
     def test_msp_tech_can_configure(self):

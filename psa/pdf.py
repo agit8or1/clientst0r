@@ -375,8 +375,9 @@ def email_quote(quote, *, recipient: str, subject: str = '', body: str = '',
     from django.core.mail import EmailMessage
     sign_url = ''
     if request and quote.customer_token:
-        sign_url = request.build_absolute_uri(
-            f'/portal/quote/{quote.customer_token}/sign/'
+        from core.portal_surface import portal_absolute_url
+        sign_url = portal_absolute_url(
+            f'/portal/quote/{quote.customer_token}/sign/', request
         )
     pdf_bytes = render_quote_pdf(quote, sign_url=sign_url)
 

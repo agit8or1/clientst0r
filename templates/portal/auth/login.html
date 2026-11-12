@@ -1,0 +1,42 @@
+{% extends "portal/auth/_base.html" %}
+{% load i18n two_factor_tags %}
+{% block title %}Sign in{% endblock %}
+{% block heading %}Sign in to your support portal{% endblock %}
+{% block content %}
+  {% if wizard.steps.current == 'auth' %}
+    <p class="text-muted small mb-3">Use the email address and password for your customer account.</p>
+  {% elif wizard.steps.current == 'token' %}
+    <p class="text-muted small mb-3">{{ device|as_verbose_action }}</p>
+  {% elif wizard.steps.current == 'backup' %}
+    <p class="text-muted small mb-3">Enter one of the backup codes you saved when you set up two-factor sign-in. Each code works once.</p>
+  {% endif %}
+
+  {% if show_timeout_error %}
+    <div class="alert alert-warning" role="alert">Your sign-in took too long. Please start again.</div>
+  {% endif %}
+
+  <form action="" method="post" data-portal-once novalidate>
+    {% csrf_token %}
+    {% include "portal/auth/_wizard_forms.html" %}
+    <input type="submit" value="" hidden>
+    {% if other_devices %}
+      <p class="small text-muted mt-2">Or use another method:</p>
+      {% for other in other_devices %}
+        <button name="challenge_device" value="{{ other.persistent_id }}" class="btn btn-outline-secondary w-100 mb-2" type="submit">{{ other|as_action }}</button>
+      {% endfor %}
+    {% endif %}
+    <button type="submit" class="btn btn-primary">{% if wizard.steps.current == 'auth' %}Sign in{% else %}Continue{% endif %}</button>
+  </form>
+
+  {% if backup_tokens %}
+  <form action="" method="post" class="mt-2">
+    {% csrf_token %}
+    <button name="wizard_goto_step" type="submit" value="backup" class="btn btn-link w-100">Use a backup code instead</button>
+  </form>
+  {% endif %}
+
+  <div class="portal-auth-links">
+    <a href="{% url 'portal_auth:password_reset' %}">Forgot your password?</a>
+  </div>
+  <p class="portal-auth-note">This sign-in is for customer accounts. Staff accounts use the staff sign-in page.</p>
+{% endblock %}

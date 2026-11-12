@@ -502,7 +502,9 @@ def send_reminders(*, now=None, dry_run=False, stdout=None) -> dict:
         counts['skipped'] = 'smtp not configured'
         return counts
     from_email = mailer.default_from_email(settings)
-    base = mailer.site_url(settings)
+    # Customer-facing links: the portal host when one is set, else Site URL.
+    from core.portal_surface import portal_site_url
+    base = portal_site_url(settings)
     brand = mailer.brand_name(settings)
     qs = (Agreement.objects.filter(is_active=True, reminders_enabled=True, document__isnull=False)
           .select_related('organization'))
