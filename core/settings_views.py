@@ -121,6 +121,10 @@ def security_dashboard(request):
         'trend_direction': trend_direction,
         'snyk_enabled': settings.snyk_enabled,
         'snyk_configured': bool(settings.snyk_api_token),
+        # Stored by the daily snyk_cli_update_check task / Settings -> Snyk.
+        'snyk_cli_update_available': settings.snyk_cli_update_available,
+        'snyk_cli_installed_version': settings.snyk_cli_installed_version,
+        'snyk_cli_latest_version': settings.snyk_cli_latest_version,
     }
 
     # Get automated security scan task
@@ -1510,265 +1514,97 @@ def settings_snyk(request):
         'current_tab': 'snyk',
         'has_token': has_token,
         'vuln_stats': vuln_stats,
+        'snyk_cli_update_available': settings.snyk_cli_update_available,
     })
 
 
 @login_required
 @user_passes_test(is_superuser)
+@require_POST
 def check_snyk_version(request):
-    """Check current and latest Snyk CLI version."""
+    """Run a fresh Snyk CLI version check, store it, and return it as JSON.
+
+    The same check runs daily from the scheduler (core.snyk_cli); the settings
+    page shows the stored result on load, so this is only the "check now"
+    button.
+    """
     from django.http import JsonResponse
-    import subprocess
-    import re
-    import os
+    from core import snyk_cli
 
-    def find_command(cmd):
-        """Find command in common locations."""
-        import glob
-
-        # Check nvm installations (any node version)
-        nvm_pattern = f'{get_project_home()}/.nvm/versions/node/*/bin/{cmd}'
-        nvm_matches = glob.glob(nvm_pattern)
-        if nvm_matches:
-            # Use the first match (or could sort and use latest version)
-            for path in nvm_matches:
-                if os.path.isfile(path) and os.access(path, os.X_OK):
-                    return path
-
-        # Common paths to check
-        paths = [
-            f'/usr/local/bin/{cmd}',
-            f'/usr/bin/{cmd}',
-            f'{get_project_home()}/.local/bin/{cmd}',
-            f'/opt/homebrew/bin/{cmd}',  # macOS homebrew
-        ]
-
-        # Also check PATH
-        path_env = os.environ.get('PATH', '')
-        for path_dir in path_env.split(':'):
-            if path_dir:  # Skip empty strings
-                full_path = os.path.join(path_dir, cmd)
-                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                    return full_path
-
-        # Check our predefined paths
-        for path in paths:
-            if os.path.isfile(path) and os.access(path, os.X_OK):
-                return path
-
-        return None
-
-    try:
-        # Find npm and snyk binaries
-        snyk_path = find_command('snyk')
-        npm_path = find_command('npm')
-
-        # Check current installed version
-        current_version = None
-        snyk_error = None
-        if snyk_path:
-            try:
-                # Set up environment with nvm node bin directory in PATH
-                env = os.environ.copy()
-                node_bin_dir = os.path.dirname(snyk_path)  # Get the bin directory
-                system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-                existing_path = env.get('PATH', '')
-                env['PATH'] = f"{node_bin_dir}:{system_paths}:{existing_path}"
-
-                result = subprocess.run(
-                    [snyk_path, '--version'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                    env=env
-                )
-                if result.returncode == 0:
-                    # Parse version from output (e.g., "1.1234.0")
-                    version_match = re.search(r'(\d+\.\d+\.\d+)', result.stdout)
-                    current_version = version_match.group(1) if version_match else result.stdout.strip()
-                else:
-                    snyk_error = f"Exit code {result.returncode}: {result.stderr}"
-            except Exception as e:
-                snyk_error = str(e)
-
-        # Check latest version from npm
-        latest_version = None
-        npm_error = None
-        if npm_path:
-            try:
-                # Set up environment with nvm node bin directory in PATH
-                env = os.environ.copy()
-                node_bin_dir = os.path.dirname(npm_path)  # Get the bin directory
-                system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-                existing_path = env.get('PATH', '')
-                env['PATH'] = f"{node_bin_dir}:{system_paths}:{existing_path}"
-
-                result = subprocess.run(
-                    [npm_path, 'view', 'snyk', 'version'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                    env=env
-                )
-                if result.returncode == 0:
-                    latest_version = result.stdout.strip()
-                else:
-                    npm_error = f"Exit code {result.returncode}: {result.stderr}"
-            except Exception as e:
-                npm_error = str(e)
-
-        # Determine if update is available
-        update_available = False
-        if current_version and latest_version:
-            try:
-                from packaging import version
-                update_available = version.parse(latest_version) > version.parse(current_version)
-            except (ImportError, ValueError, TypeError) as e:
-                # FIX: Catch specific exceptions instead of bare except
-                # Fallback to string comparison if version parsing fails
-                update_available = latest_version != current_version
-
-        # Debug info
-        import glob
-        nvm_snyk_matches = glob.glob(f'{get_project_home()}/.nvm/versions/node/*/bin/snyk')
-        nvm_npm_matches = glob.glob(f'{get_project_home()}/.nvm/versions/node/*/bin/npm')
-
-        return JsonResponse({
-            'success': True,
-            'current_version': current_version,
-            'latest_version': latest_version,
-            'update_available': update_available,
-            'snyk_path': snyk_path,
-            'npm_path': npm_path,
-            'debug': {
-                'nvm_snyk_matches': nvm_snyk_matches,
-                'nvm_npm_matches': nvm_npm_matches,
-                'snyk_exists': os.path.exists(snyk_path) if snyk_path else False,
-                'npm_exists': os.path.exists(npm_path) if npm_path else False,
-                'snyk_error': snyk_error,
-                'npm_error': npm_error,
-            }
-        })
-
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        })
+    settings = SystemSetting.get_settings()
+    result = snyk_cli.check_versions(settings=settings)
+    checked_at = result['checked_at']
+    return JsonResponse({
+        'success': True,
+        'current_version': result['installed_version'],
+        'latest_version': result['latest_version'] or settings.snyk_cli_latest_version or None,
+        'update_available': settings.snyk_cli_update_available,
+        'snyk_path': result['snyk_path'],
+        'npm_path': result['npm_path'],
+        'checked_at': timezone.localtime(checked_at).strftime('%Y-%m-%d %H:%M') if checked_at else None,
+        'error': result['error'],
+    })
 
 
 @login_required
 @user_passes_test(is_superuser)
 @require_POST
 def upgrade_snyk_cli(request):
-    """Upgrade Snyk CLI to the latest version."""
+    """Install the Snyk CLI version the last check found.
+
+    Installs `snyk@<version>` for exactly the version shown on the page (never
+    `@latest`), after checking it is a plain MAJOR.MINOR.PATCH string. Nothing
+    installs automatically; this is the only upgrade path.
+    """
     from django.http import JsonResponse
     import subprocess
-    import os
+    from core import snyk_cli
 
-    def find_command(cmd):
-        """Find command in common locations."""
-        import glob
-
-        # Check nvm installations (any node version)
-        nvm_pattern = f'{get_project_home()}/.nvm/versions/node/*/bin/{cmd}'
-        nvm_matches = glob.glob(nvm_pattern)
-        if nvm_matches:
-            # Use the first match (or could sort and use latest version)
-            for path in nvm_matches:
-                if os.path.isfile(path) and os.access(path, os.X_OK):
-                    return path
-
-        # Common paths to check
-        paths = [
-            f'/usr/local/bin/{cmd}',
-            f'/usr/bin/{cmd}',
-            f'{get_project_home()}/.local/bin/{cmd}',
-            f'/opt/homebrew/bin/{cmd}',  # macOS homebrew
-        ]
-
-        # Also check PATH
-        path_env = os.environ.get('PATH', '')
-        for path_dir in path_env.split(':'):
-            if path_dir:  # Skip empty strings
-                full_path = os.path.join(path_dir, cmd)
-                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                    return full_path
-
-        # Check our predefined paths
-        for path in paths:
-            if os.path.isfile(path) and os.access(path, os.X_OK):
-                return path
-
-        return None
+    settings = SystemSetting.get_settings()
+    target = settings.snyk_cli_latest_version
+    if not target:
+        return JsonResponse({
+            'success': False,
+            'message': 'No Snyk CLI version to install yet. Click "Check for Updates" first.',
+        })
+    if not snyk_cli.is_valid_version(target):
+        return JsonResponse({
+            'success': False,
+            'message': 'The stored Snyk CLI version is not a valid version number. '
+                       'Click "Check for Updates" again.',
+        }, status=400)
 
     try:
-        # Find npm and snyk binaries
-        npm_path = find_command('npm')
-        snyk_path = find_command('snyk')
-
+        npm_path = snyk_cli.find_command('npm')
         if not npm_path:
             return JsonResponse({
                 'success': False,
                 'message': 'npm command not found. Please ensure Node.js and npm are installed.'
             })
 
-        # Set up environment with nvm node bin directory in PATH
-        # Also include common system paths for shell utilities
-        env = os.environ.copy()
-        node_bin_dir = os.path.dirname(npm_path)  # Get the bin directory
-
-        # Ensure essential system paths are included
-        system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-        existing_path = env.get('PATH', '')
-        env['PATH'] = f"{node_bin_dir}:{system_paths}:{existing_path}"
-
-        # Run npm install -g snyk@latest
         result = subprocess.run(
-            [npm_path, 'install', '-g', 'snyk@latest'],
+            [npm_path, 'install', '-g', f'snyk@{target}'],
             capture_output=True,
             text=True,
             timeout=120,  # 2 minute timeout
-            env=env
+            env=snyk_cli.command_env(npm_path),
         )
 
         if result.returncode == 0:
-            # Get new version - refresh the snyk path in case it changed
-            snyk_path = find_command('snyk')
-            if snyk_path:
-                # Set up environment with nvm node bin directory in PATH
-                version_env = os.environ.copy()
-                version_node_bin_dir = os.path.dirname(snyk_path)
-                system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-                existing_path = version_env.get('PATH', '')
-                version_env['PATH'] = f"{version_node_bin_dir}:{system_paths}:{existing_path}"
-
-                version_result = subprocess.run(
-                    [snyk_path, '--version'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                    env=version_env
-                )
-
-                import re
-                version_match = re.search(r'(\d+\.\d+\.\d+)', version_result.stdout)
-                new_version = version_match.group(1) if version_match else 'latest'
-            else:
-                new_version = 'latest'
-
+            # Refresh the stored versions so the page and the daily alert see
+            # the new install.
+            check = snyk_cli.check_versions(settings=settings)
             return JsonResponse({
                 'success': True,
                 'message': 'Snyk CLI upgraded successfully',
-                'new_version': new_version,
+                'new_version': check['installed_version'] or target,
                 'output': result.stdout + result.stderr
             })
-        else:
-            return JsonResponse({
-                'success': False,
-                'message': 'Failed to upgrade Snyk CLI',
-                'output': result.stdout + result.stderr
-            })
+        return JsonResponse({
+            'success': False,
+            'message': 'Failed to upgrade Snyk CLI',
+            'output': result.stdout + result.stderr
+        })
 
     except subprocess.TimeoutExpired:
         return JsonResponse({

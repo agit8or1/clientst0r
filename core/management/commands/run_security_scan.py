@@ -7,13 +7,11 @@ import logging
 import uuid
 from datetime import timedelta
 
-from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 logger = logging.getLogger('core')
-User = get_user_model()
 
 
 class Command(BaseCommand):
@@ -132,36 +130,8 @@ class Command(BaseCommand):
 
     def _send_alerts(self, settings, findings):
         """Email all superusers about the findings. Returns number of emails sent."""
-        from django.core.mail import send_mail, get_connection
+        from core.superuser_alerts import email_superusers
 
-        if not settings.smtp_enabled or not settings.smtp_host:
-            logger.warning('[run_security_scan] SMTP not configured — cannot send alerts')
-            return 0
-
-        # Build SMTP connection
-        # EncryptedTextField: the attribute is already the plaintext.
-        password = settings.smtp_password or ''
-
-        try:
-            connection = get_connection(
-                backend='django.core.mail.backends.smtp.EmailBackend',
-                host=settings.smtp_host,
-                port=settings.smtp_port,
-                username=settings.smtp_username,
-                password=password,
-                use_tls=settings.smtp_use_tls,
-                use_ssl=settings.smtp_use_ssl,
-                timeout=15,
-            )
-        except Exception as e:
-            logger.error(f'[run_security_scan] SMTP connection failed: {e}')
-            return 0
-
-        from_email = (
-            f"{settings.smtp_from_name} <{settings.smtp_from_email}>"
-            if settings.smtp_from_name and settings.smtp_from_email
-            else settings.smtp_from_email or settings.smtp_username
-        )
         site_name = settings.site_name or 'Client St0r'
         site_url = (settings.site_url or '').rstrip('/')
         dashboard_url = f"{site_url}/core/security/" if site_url else ''
@@ -189,22 +159,7 @@ class Command(BaseCommand):
         ]
         body = '\n'.join(lines)
 
-        superusers = User.objects.filter(is_superuser=True, is_active=True, email__isnull=False).exclude(email='')
-        sent = 0
-        for user in superusers:
-            try:
-                send_mail(
-                    subject=subject,
-                    message=body,
-                    from_email=from_email,
-                    recipient_list=[user.email],
-                    connection=connection,
-                    fail_silently=False,
-                )
-                sent += 1
-                self.stdout.write(f'    Sent to {user.email}')
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f'    Failed to send to {user.email}: {e}'))
-                logger.error(f'[run_security_scan] Email to {user.email} failed: {e}')
-
-        return sent
+        return email_superusers(
+            subject, body, settings=settings, log_prefix='run_security_scan',
+            write=self.stdout.write,
+        )

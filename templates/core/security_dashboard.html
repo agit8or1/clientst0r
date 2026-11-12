@@ -63,6 +63,13 @@
     <span>Snyk is configured but disabled. <a href="{% url 'core:settings_snyk' %}" class="alert-link">Enable it</a> to run scans.</span>
 </div>
 {% endif %}
+{% if snyk_cli_update_available %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4" id="snykCliUpdateNotice">
+    <i class="fas fa-arrow-circle-up"></i>
+    <span><strong>Snyk CLI update available: {{ snyk_cli_installed_version }} → {{ snyk_cli_latest_version }}</strong>
+    — <a href="{% url 'core:settings_snyk' %}" class="alert-link">upgrade it in Settings → Snyk</a>.</span>
+</div>
+{% endif %}
 
 <!-- ═══════════════════════════════════════════════════════════
      SYSTEM WARNINGS — unified admin warning panel
