@@ -1787,6 +1787,51 @@ class MobileDispatchCalendarTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST,
+                   TIME_ZONE='America/New_York')
+class MobileDispatchLocalDayTests(TestCase):
+    """Calendar and upcoming buckets are the installation's local days. A task
+    due at 23:30 Eastern is already the next day in UTC, so it used to be
+    listed under tomorrow (or next month, on the last evening of a month)."""
+
+    def setUp(self):
+        _clear_throttle_cache()
+        self.org = Organization.objects.create(name='OrgEve', slug='org-eve')
+        self.user = User.objects.create_user('eveuser', password='hunter2')
+        Membership.objects.create(user=self.user, organization=self.org, role=Role.OWNER, is_active=True)
+        self.client = Client()
+
+    def _task(self, due):
+        from scheduling.models import ScheduledTask, TaskAssignment
+        t = ScheduledTask.objects.create(organization=self.org, title='Late job', due_date=due)
+        TaskAssignment.objects.create(task=t, user=self.user)
+
+    def _get(self, now, url):
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        with mock.patch('django.utils.timezone.now', return_value=now.astimezone(ZoneInfo('UTC'))):
+            token = _post(self.client, '/api/mobile/v1/auth/login/', {
+                'username': 'eveuser', 'password': 'hunter2'}).json()['token']
+            return self.client.get(url, HTTP_AUTHORIZATION=f'Token {token}').json()
+
+    def test_upcoming_lists_tonight_under_today(self):
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        self._task(evening + timedelta(minutes=30))
+        body = self._get(evening, '/api/mobile/v1/dispatch/upcoming/?days=2')
+        self.assertEqual(body['today'], '2026-11-11')
+        self.assertEqual([len(d['items']) for d in body['days']], [1, 0])
+
+    def test_calendar_keeps_last_evening_of_month_in_the_month(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        due = datetime(2026, 5, 31, 22, 0, tzinfo=ZoneInfo('America/New_York'))
+        self._task(due)
+        body = self._get(due, '/api/mobile/v1/dispatch/calendar/?month=2026-05')
+        self.assertEqual(list(body['days']), ['2026-05-31'])
+
+
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileNotificationRegisterTests(TestCase):
     """v3.17.463 — push token registration + deregistration."""

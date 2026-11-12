@@ -144,10 +144,9 @@ class ExpirationType(DjangoObjectType):
         )
 
     def resolve_days_until_expiry(self, info):
-        from datetime import date
         from django.utils import timezone
         if self.expires_at:
-            delta = self.expires_at.date() - date.today()
+            delta = timezone.localtime(self.expires_at).date() - timezone.localdate()
             return delta.days
         return None
 
