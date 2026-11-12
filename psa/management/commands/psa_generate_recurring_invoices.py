@@ -278,10 +278,8 @@ class Command(BaseCommand):
         # Pinned connection wins, else first sync-enabled on the org
         conn = invoice.target_connection
         if conn is None or not (conn.is_active and conn.sync_enabled):
-            conn = AccountingConnection.objects.filter(
-                organization=invoice.organization,
-                is_active=True, sync_enabled=True,
-            ).first()
+            from integrations.ownership import accounting_connection_for
+            conn = accounting_connection_for(invoice.organization)
         if conn is None:
             self.stdout.write(self.style.WARNING(
                 f'  no sync-enabled connection for {invoice.organization.name}; '

@@ -5739,10 +5739,12 @@ def invoice_push_to_accounting(request, pk):
         )
         return redirect('psa:invoice_detail', pk=invoice.pk)
     if conn is None:
-        conn = AccountingConnection.objects.filter(
-            organization=invoice.organization,
-            is_active=True, sync_enabled=True,
-        ).first()
+        # The customer's own connection, else the platform's — the platform
+        # books only for MSP staff, never a customer's own admins.
+        from integrations.ownership import accounting_connection_for
+        from .visibility import is_msp_staff
+        conn = accounting_connection_for(invoice.organization,
+                                         platform_fallback=is_msp_staff(request.user))
     if conn is None:
         messages.error(request, 'No active accounting connection with sync enabled. Configure one in Integrations.')
         return redirect('psa:invoice_detail', pk=invoice.pk)

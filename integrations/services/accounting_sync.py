@@ -110,8 +110,8 @@ def sync_payments(connection, provider, *, since=None, limit=500,
             continue
 
         invoice_ids = row.get('invoice_external_ids') or []
-        invoices = list(Invoice.objects.filter(
-            organization=connection.organization,
+        from integrations.ownership import invoices_for_connection
+        invoices = list(invoices_for_connection(connection).filter(
             accounting_provider=provider.provider_type,
             accounting_external_id__in=invoice_ids,
         )) if invoice_ids else []
@@ -204,8 +204,8 @@ def sync_invoice_state(connection, provider, *, limit=200,
     from psa.models import Invoice
 
     result = SyncResult()
-    invoices = Invoice.objects.filter(
-        organization=connection.organization,
+    from integrations.ownership import invoices_for_connection
+    invoices = invoices_for_connection(connection).filter(
         accounting_provider=provider.provider_type,
     ).exclude(accounting_external_id='').exclude(status='void')[:limit]
 

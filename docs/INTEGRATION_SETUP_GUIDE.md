@@ -4,6 +4,59 @@ Complete guide for connecting PSA and RMM platforms to Client St0r with exact co
 
 ---
 
+## Who owns a connection
+
+Integrations belong to the platform owner (the MSP). Add them from **global
+view** (no customer selected) under **Integrations**: a new connection is
+**platform-owned** by default. Its data reaches customers only through the
+connection's mapping:
+
+| Type | How data is assigned to a customer |
+|---|---|
+| PSA | Each PSA company is mapped to a customer (**Integrations → connection → Map organizations**); its contacts and tickets follow the company |
+| RMM | Each RMM customer (client) is mapped or imported as a customer; devices whose customer is not settled wait in **Review** |
+| UniFi, Omada, Grandstream | Each controller site is mapped to a customer on the connection page; unmapped sites are skipped by imports |
+| Accounting | Invoices belong to the customer billed; a platform connection handles every customer without its own connection |
+| Distributor, payment, warranty, tax | Platform data with no per-customer split |
+
+Data that maps to no customer stays unassigned and is shown only to platform
+staff in global view. It is never filed under "some" customer.
+
+A connection can instead be owned by **one customer**, for example that
+customer's own Microsoft 365 tenant or on-site controller: pick the customer
+under **Owner** when you add it, or add it from inside that customer.
+Rem0te connections, and RMM connections paired for tickets, are always a
+customer's own.
+
+Who may manage what:
+
+| Who | Platform-owned connections | A customer's own connections |
+|---|---|---|
+| Superuser, Django staff | Everything, from global view | Everything |
+| MSP technician whose global role grants `integrations_configure` | Add, edit, delete, test, mappings, "Make platform-owned" | As today (per-customer role) |
+| MSP technician whose global role grants `integrations_sync` | Sync and import | As today |
+| MSP technician whose global role grants `integrations_view` | View, including unassigned data | As today |
+| MSP technician without a global role | Nothing | As today |
+| A customer's Owner or Admin | Nothing: not listed, not reachable, no credentials | Their own customer's connections, as before |
+| Customer portal users | Nothing | Nothing beyond what they had before |
+
+Inside a customer, the Integrations page lists only that customer's own
+connections, plus a read-only note naming the platform integrations that
+supply its mapped data (customer users see only the kind of integration).
+
+**Moving an existing connection to the platform.** Connections created before
+platform ownership keep their customer. In global view, platform
+administrators see a **Make platform-owned** button on each customer-owned
+connection (or run `python manage.py integrations_ownership --make-platform
+<type> <id>`; `--list` shows every connection's owner). Everything the
+connection already assigned keeps its customer, and the mapping it used
+implicitly is written out (RMM customers, a controller's sites). From then on,
+new data that maps to no customer waits for platform staff instead of going to
+the former owner. The change is audit-logged under both the former owner and
+the platform.
+
+---
+
 ## PSA Integrations
 
 ### ConnectWise Manage
@@ -244,15 +297,16 @@ https://your-server.com:8443/api/v1 (Self-Hosted)
 ### Customers, sites and device links
 
 Each RMM connection is either **single customer** (every device belongs to the
-organization that owns the connection) or **multiple customers** (each device is
+customer that owns the connection) or **multiple customers** (each device is
 filed under the customer the RMM reports for it). Set this under **Customers** on
-the connection form.
+the connection form. A platform-owned connection is always multiple customers.
 
 On a multiple-customer connection a device is only shown on a customer's assets,
 tickets, alerts and reports once its customer is settled: by an imported or mapped
 RMM customer ID, or by a technician in **Integrations → (connection) → Review**.
 A device the RMM moves to another customer is hidden until a technician confirms
 the move. Devices are never filed under the connection owner as a fallback.
+Review for a platform-owned connection is in global view.
 
 | RMM | Customer | Site | Alerts tied to a device by | Open the device in the RMM | How verified |
 |---|---|---|---|---|---|

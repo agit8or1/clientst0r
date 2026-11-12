@@ -11,7 +11,37 @@ from core.utils import OrganizationManager
 from vault.secret_fields import EncryptedTextField, SealedTextField, hash_token
 
 
-class PSAConnection(BaseModel):
+OWNER_HELP = ("Empty: platform-owned (the MSP's own connection; its data is assigned to "
+              "customers through mappings). Set: this customer's own connection.")
+
+
+class ConnectionOwnership:
+    """Who a connection belongs to.
+
+    A connection with no organization is platform-owned: the MSP runs it, and
+    the data it brings in (devices, alerts, sites, companies, tickets) is
+    assigned to customers through each type's mapping. Anything unmapped stays
+    unassigned and is shown only to platform staff in global view. A
+    connection with an organization is that customer's own (their Microsoft
+    365 tenant, their on-site controller) and keeps the per-customer rules.
+    """
+    PLATFORM_LABEL = 'Platform'
+
+    @property
+    def is_platform_owned(self):
+        return self.organization_id is None
+
+    @property
+    def owner_label(self):
+        return self.PLATFORM_LABEL if self.organization_id is None else self.organization.name
+
+    @property
+    def owner_slug(self):
+        return 'platform' if self.organization_id is None else self.organization.slug
+
+
+
+class PSAConnection(ConnectionOwnership, BaseModel):
     """
     PSA provider connection configuration per organization.
     Credentials and tokens are encrypted at rest.
@@ -29,7 +59,8 @@ class PSAConnection(BaseModel):
         ('zendesk', 'Zendesk'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_connections')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     provider_type = models.CharField(max_length=50, choices=PROVIDER_TYPES)
     name = models.CharField(max_length=255, help_text="Friendly name for this connection")
 
@@ -70,7 +101,7 @@ class PSAConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name} ({self.get_provider_type_display()})"
+        return f"{self.owner_slug}:{self.name} ({self.get_provider_type_display()})"
 
     def set_credentials(self, credentials_dict):
         """
@@ -97,14 +128,28 @@ class PSAConnection(BaseModel):
         """
         from audit.models import AuditLog
 
-        # Find all organizations imported from this connection
+        # Find all organizations imported from this connection. A
+        # platform-owned connection's mapped organizations are the platform's
+        # customers, not imports of this connection: they are never deleted.
+        from django.contrib.contenttypes.models import ContentType
         imported_orgs = set()
-        for mapping in self.object_maps.filter(local_type='organization'):
+        mappings = ExternalObjectMap.objects.filter(
+            connection_type=ContentType.objects.get_for_model(type(self)), connection_id=self.pk,
+            local_type='organization')
+        for mapping in (mappings if self.organization_id is not None else mappings.none()):
             try:
                 org = Organization.objects.get(id=mapping.local_id)
-                imported_orgs.add(org)
             except Organization.DoesNotExist:
-                pass
+                continue
+            if org.id == self.organization_id:
+                continue
+            # Same guard as RMMConnection.delete: only a pure import (nothing
+            # but synced PSA rows) goes with the connection.
+            has_other_data = (org.passwords.exists() or org.assets.exists() or org.documents.exists()
+                              or org.processes.exists() or org.contacts.exists()
+                              or org.website_monitors.exists())
+            if not has_other_data:
+                imported_orgs.add(org)
 
         # Log the cleanup
         if imported_orgs:
@@ -137,7 +182,8 @@ class ExternalObjectMap(BaseModel):
     Mapping table between external PSA/RMM objects and local objects.
     Uses GenericForeignKey to support both PSAConnection and RMMConnection.
     """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='external_object_maps')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='external_object_maps',
+                                     null=True, blank=True)
 
     # Generic connection field (supports PSAConnection or RMMConnection)
     connection_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -174,7 +220,8 @@ class PSACompany(BaseModel):
     """
     Synced company from PSA.
     """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_companies')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_companies',
+                                     null=True, blank=True)
     connection = models.ForeignKey(PSAConnection, on_delete=models.CASCADE, related_name='companies')
 
     external_id = models.CharField(max_length=255)
@@ -206,7 +253,8 @@ class PSAContact(BaseModel):
     """
     Synced contact from PSA.
     """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_contacts')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_contacts',
+                                     null=True, blank=True)
     connection = models.ForeignKey(PSAConnection, on_delete=models.CASCADE, related_name='contacts')
     company = models.ForeignKey(PSACompany, on_delete=models.SET_NULL, null=True, blank=True, related_name='contacts')
 
@@ -257,7 +305,8 @@ class PSATicket(BaseModel):
         ('urgent', 'Urgent'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_tickets')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_tickets',
+                                     null=True, blank=True)
     connection = models.ForeignKey(PSAConnection, on_delete=models.CASCADE, related_name='tickets')
     company = models.ForeignKey(PSACompany, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
     contact = models.ForeignKey(PSAContact, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
@@ -294,7 +343,7 @@ class PSATicket(BaseModel):
 # RMM Integration Models
 # ============================================================================
 
-class RMMConnection(BaseModel):
+class RMMConnection(ConnectionOwnership, BaseModel):
     """
     RMM provider connection configuration per organization.
     Credentials and tokens are encrypted at rest.
@@ -308,7 +357,8 @@ class RMMConnection(BaseModel):
         ('tactical_rmm', 'Tactical RMM'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_connections')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     provider_type = models.CharField(max_length=50, choices=PROVIDER_TYPES)
     name = models.CharField(max_length=255, help_text="Friendly name for this connection")
 
@@ -378,7 +428,8 @@ class RMMConnection(BaseModel):
 
     @property
     def is_single_customer(self):
-        return self.customer_scope == self.CUSTOMER_SCOPE_SINGLE
+        # Only a customer's own connection can be single-customer.
+        return self.customer_scope == self.CUSTOMER_SCOPE_SINGLE and self.organization_id is not None
 
     class Meta:
         db_table = 'rmm_connections'
@@ -386,7 +437,7 @@ class RMMConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name} ({self.get_provider_type_display()})"
+        return f"{self.owner_slug}:{self.name} ({self.get_provider_type_display()})"
 
     def set_credentials(self, credentials_dict):
         """
@@ -413,10 +464,13 @@ class RMMConnection(BaseModel):
         """
         from audit.models import AuditLog
 
-        # Find organizations that match the import criteria
+        # Find organizations that match the import criteria. A platform-owned
+        # connection's customers are the platform's, never deleted with it.
         imported_orgs = []
 
-        if self.org_name_prefix:
+        if self.organization_id is None:
+            potential_orgs = Organization.objects.none()
+        elif self.org_name_prefix:
             # Find orgs with the RMM prefix
             potential_orgs = Organization.objects.filter(name__startswith=self.org_name_prefix)
         else:
@@ -428,7 +482,7 @@ class RMMConnection(BaseModel):
         # For each potential org, check if it should be deleted
         for org in potential_orgs:
             # Skip the parent organization (the one that owns this connection)
-            if org.id == self.organization.id:
+            if org.id == self.organization_id:
                 continue
 
             # Check if org only has RMM devices and no other data
@@ -731,7 +785,7 @@ class RMMDeviceSnapshot(BaseModel):
 # UniFi Integration Models
 # ============================================================================
 
-class UnifiConnection(BaseModel):
+class UnifiConnection(ConnectionOwnership, BaseModel):
     """
     UniFi Network Application connection per organization.
     Pulls network topology data for documentation generation.
@@ -745,7 +799,8 @@ class UnifiConnection(BaseModel):
         (MODE_CLOUD, 'Cloud (UniFi Site Manager / ui.com)'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='unifi_connections')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='unifi_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     name = models.CharField(max_length=255, help_text="Friendly name for this connection")
     mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_SELF_HOSTED,
                             help_text="Self-hosted controller or UniFi Site Manager cloud API")
@@ -782,7 +837,7 @@ class UnifiConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name}"
+        return f"{self.owner_slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -799,12 +854,13 @@ class UnifiConnection(BaseModel):
 # Omada Integration Models
 # ============================================================================
 
-class OmadaConnection(models.Model):
+class OmadaConnection(ConnectionOwnership, models.Model):
     """
     TP-Link Omada SDN Controller connection per organization.
     Pulls network device data for documentation and asset import.
     """
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='omada_connections')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='omada_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     name = models.CharField(max_length=200)
     host = models.URLField(help_text='Omada controller URL, e.g. https://192.168.1.1:8043')
     verify_ssl = models.BooleanField(default=False)
@@ -822,6 +878,12 @@ class OmadaConnection(models.Model):
     auto_sync_assets = models.BooleanField(default=False, help_text='Automatically import devices to asset registry on each sync')
     sync_interval_minutes = models.PositiveIntegerField(default=720, help_text='Auto-sync interval in minutes (0=disabled)')
     last_asset_sync_at = models.DateTimeField(null=True, blank=True)
+    # Controller site id (or name) → customer organization id. Used when the
+    # connection is platform-owned; a customer's own controller imports every
+    # site into that customer.
+    site_org_map = models.JSONField(default=dict, blank=True,
+                                    help_text='Maps controller site id (or name) to a customer organization ID '
+                                              '(platform-owned connections)')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -834,7 +896,7 @@ class OmadaConnection(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name}"
+        return f"{self.owner_slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -851,12 +913,13 @@ class OmadaConnection(models.Model):
 # Grandstream Integration Models
 # ============================================================================
 
-class GrandstreamConnection(models.Model):
+class GrandstreamConnection(ConnectionOwnership, models.Model):
     """
     Grandstream GWN Manager (WiFi controller) connection per organization.
     Supports cloud (gwn.cloud) and self-hosted deployments.
     """
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='grandstream_connections')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='grandstream_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     name = models.CharField(max_length=200)
     host = models.URLField(default='https://gwn.cloud', help_text='GWN Manager URL, e.g. https://gwn.cloud or self-hosted URL')
     verify_ssl = models.BooleanField(default=False)
@@ -874,6 +937,12 @@ class GrandstreamConnection(models.Model):
     auto_sync_assets = models.BooleanField(default=False, help_text='Automatically import devices to asset registry on each sync')
     sync_interval_minutes = models.PositiveIntegerField(default=720, help_text='Auto-sync interval in minutes (0=disabled)')
     last_asset_sync_at = models.DateTimeField(null=True, blank=True)
+    # Controller site id (or name) → customer organization id. Used when the
+    # connection is platform-owned; a customer's own controller imports every
+    # site into that customer.
+    site_org_map = models.JSONField(default=dict, blank=True,
+                                    help_text='Maps controller site id (or name) to a customer organization ID '
+                                              '(platform-owned connections)')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -886,7 +955,7 @@ class GrandstreamConnection(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name}"
+        return f"{self.owner_slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -903,13 +972,14 @@ class GrandstreamConnection(models.Model):
 # Microsoft 365 Integration Models
 # ============================================================================
 
-class M365Connection(BaseModel):
+class M365Connection(ConnectionOwnership, BaseModel):
     """
     Microsoft 365 tenant connection per organization.
     Uses Azure AD app registration (client credentials flow) to read tenant data via Graph API.
     Credentials are encrypted at rest.
     """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='m365_connections')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='m365_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     name = models.CharField(max_length=255, help_text="Friendly name for this connection")
     tenant_id = models.CharField(max_length=255, help_text="Azure AD tenant ID (Directory ID)")
 
@@ -933,7 +1003,7 @@ class M365Connection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name}"
+        return f"{self.owner_slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -950,7 +1020,7 @@ class M365Connection(BaseModel):
 # Distributor connections (Workstream 8)
 # ---------------------------------------------------------------------------
 
-class DistributorConnection(BaseModel):
+class DistributorConnection(ConnectionOwnership, BaseModel):
     """
     Distributor catalog/pricing connection per organization. Distinct
     from PSAConnection (different methods — distributors return product
@@ -967,7 +1037,8 @@ class DistributorConnection(BaseModel):
     ]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
-                                     related_name='distributor_connections')
+                                     related_name='distributor_connections',
+                                     null=True, blank=True, help_text=OWNER_HELP)
     provider_type = models.CharField(max_length=50, choices=PROVIDER_TYPES)
     name = models.CharField(max_length=255)
 
@@ -1005,7 +1076,7 @@ class DistributorConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
+        return f'{self.owner_slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -1091,7 +1162,7 @@ class DistributorWebhookEvent(BaseModel):
 # Accounting integrations — push invoices to QuickBooks Online / Xero / etc.
 # ---------------------------------------------------------------------------
 
-class AccountingConnection(BaseModel):
+class AccountingConnection(ConnectionOwnership, BaseModel):
     """
     Per-organization OAuth2 connection to an accounting system. Distinct
     from PSAConnection (third-party PSAs) and DistributorConnection
@@ -1111,6 +1182,7 @@ class AccountingConnection(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE,
         related_name='accounting_connections',
+        null=True, blank=True, help_text=OWNER_HELP,
     )
     provider_type = models.CharField(max_length=50, choices=PROVIDER_TYPES)
     name = models.CharField(max_length=255)
@@ -1142,7 +1214,7 @@ class AccountingConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
+        return f'{self.owner_slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -1189,6 +1261,7 @@ class AccountingAuditLog(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE,
         related_name='accounting_audit_logs',
+        null=True, blank=True,
     )
     connection = models.ForeignKey(
         AccountingConnection, on_delete=models.CASCADE,
@@ -1246,7 +1319,8 @@ class AccountingCustomerLink(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE,
         related_name='accounting_customer_links',
-        help_text='The tenant that owns the connection.',
+        null=True, blank=True,
+        help_text='The customer that owns the connection; empty for a platform-owned one.',
     )
     connection = models.ForeignKey(
         AccountingConnection, on_delete=models.CASCADE,
@@ -1293,7 +1367,7 @@ class AccountingCustomerLink(BaseModel):
 # Phase 15 v8 (v3.17.296) — ACH / payment processor connections.
 # ---------------------------------------------------------------------------
 
-class PaymentConnection(BaseModel):
+class PaymentConnection(ConnectionOwnership, BaseModel):
     """Per-organization OAuth2 / API-key connection to an ACH / card
     processor. Adapter stubs for Stripe + GoCardless ship today;
     completing the OAuth dance + live `charge()` calls happens when
@@ -1308,6 +1382,7 @@ class PaymentConnection(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE,
         related_name='payment_connections',
+        null=True, blank=True, help_text=OWNER_HELP,
     )
     provider_type = models.CharField(max_length=40, choices=PROVIDER_TYPES,
                                       default='manual')
@@ -1328,7 +1403,7 @@ class PaymentConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
+        return f'{self.owner_slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -1353,7 +1428,7 @@ class PaymentConnection(BaseModel):
 # Phase 17 v5 (v3.17.309) — Vendor warranty lookup connections.
 # ---------------------------------------------------------------------------
 
-class WarrantyConnection(BaseModel):
+class WarrantyConnection(ConnectionOwnership, BaseModel):
     """Per-org connection to a hardware vendor's warranty-lookup API.
     Adapter stubs for Dell + HPE + Lenovo ship today; live
     `lookup_warranty()` calls land when an MSP wires up real
@@ -1368,6 +1443,7 @@ class WarrantyConnection(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE,
         related_name='warranty_connections',
+        null=True, blank=True, help_text=OWNER_HELP,
     )
     provider_type = models.CharField(max_length=40, choices=PROVIDER_TYPES,
                                       default='manual')
@@ -1386,7 +1462,7 @@ class WarrantyConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
+        return f'{self.owner_slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(
@@ -1411,7 +1487,7 @@ class WarrantyConnection(BaseModel):
 # Phase 15 v12 (v3.17.297) — Tax compute connections (Avalara / TaxJar).
 # ---------------------------------------------------------------------------
 
-class TaxConnection(BaseModel):
+class TaxConnection(ConnectionOwnership, BaseModel):
     """Per-organization connection to a sales-tax compute service.
     Adapter stubs for Avalara + TaxJar ship today; live `compute_tax()`
     lands when an MSP wires up a real account."""
@@ -1424,6 +1500,7 @@ class TaxConnection(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE,
         related_name='tax_connections',
+        null=True, blank=True, help_text=OWNER_HELP,
     )
     provider_type = models.CharField(max_length=40, choices=PROVIDER_TYPES,
                                       default='manual')
@@ -1442,7 +1519,7 @@ class TaxConnection(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
+        return f'{self.owner_slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
         self.encrypted_credentials = self._meta.get_field(

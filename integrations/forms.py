@@ -47,7 +47,82 @@ class KeepStoredSecretsMixin:
                 self.errors.pop(name, None)
 
 
-class PSAConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
+class OwnerFieldMixin:
+    """Owner: Platform / a specific customer.
+
+    A connection created in global view gets an Owner choice (platform admins
+    only — the view decides who reaches it): the platform, which is the
+    default, or one customer. Inside a customer the owner is that customer.
+    An existing connection's owner is shown, never edited here: the only way
+    to change it is the audited "Make platform-owned" action.
+    """
+    OWNER_HELP = ("Platform: the MSP's own connection; what it syncs is assigned to customers "
+                  "through its mappings and anything unmapped waits for platform staff. "
+                  "A customer: that customer's own connection (e.g. their Microsoft 365 tenant "
+                  "or on-site controller).")
+
+    def _init_owner(self, organization, owner_choices=None):
+        self.organization = organization
+        self._owner_choices = list(owner_choices or [])
+        self._owner = organization
+        if self.instance is not None and self.instance.pk:
+            self._owner = self.instance.organization
+            return
+        if organization is None and self._owner_choices:
+            self.fields['owner'] = forms.ChoiceField(
+                label='Owner', choices=self._owner_choices, required=False, initial='',
+                help_text=self.OWNER_HELP, widget=forms.Select(attrs={'class': 'form-select'}))
+
+    @property
+    def owner_display(self):
+        if self.instance is not None and self.instance.pk:
+            return self.instance.owner_label
+        if self.organization is not None:
+            return self.organization.name
+        return None if 'owner' in self.fields else 'Platform'
+
+    @property
+    def owner_is_platform(self):
+        if self.instance is not None and self.instance.pk:
+            return self.instance.organization_id is None
+        return self.organization is None
+
+    def clean(self):
+        cleaned_data = super().clean()
+        self._owner = self._resolve_owner(cleaned_data)
+        name = (cleaned_data.get('name') or '').strip()
+        if name:
+            model = self._meta.model
+            clash = model._default_manager.filter(organization=self._owner, name=name)
+            if self.instance is not None and self.instance.pk:
+                clash = clash.exclude(pk=self.instance.pk)
+            if clash.exists():
+                self.add_error('name', f'{"The platform" if self._owner is None else self._owner.name} '
+                                       f'already has a connection with this name.')
+        return cleaned_data
+
+    def _resolve_owner(self, cleaned_data):
+        if self.instance is not None and self.instance.pk:
+            return self.instance.organization
+        if self.organization is not None:
+            return self.organization
+        raw = cleaned_data.get('owner') or ''
+        if not raw:
+            return None
+        from core.models import Organization
+        allowed = {k for k, _ in self._owner_choices if k}
+        if raw not in allowed:
+            self.add_error('owner', 'Choose the platform or a customer you can assign.')
+            return None
+        return Organization.objects.filter(pk=int(raw), is_active=True).first()
+
+    def _apply_owner(self, instance):
+        if not instance.pk:
+            instance.organization = self._owner
+        return instance
+
+
+class PSAConnectionForm(OwnerFieldMixin, KeepStoredSecretsMixin, forms.ModelForm):
     SECRET_FIELDS = {
         'cw_private_key': ('connectwise_manage', 'private_key'),
         'at_secret': ('autotask', 'secret'),
@@ -222,8 +297,10 @@ class PSAConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        self.organization = kwargs.pop('organization', None)
+        organization = kwargs.pop('organization', None)
+        owner_choices = kwargs.pop('owner_choices', None)
         super().__init__(*args, **kwargs)
+        self._init_owner(organization, owner_choices)
 
         # If editing existing connection, populate credential fields
         if self.instance and self.instance.pk:
@@ -358,10 +435,7 @@ class PSAConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
 
     def save(self, commit=True):
         connection = super().save(commit=False)
-
-        # Set organization from form if provided
-        if self.organization:
-            connection.organization = self.organization
+        self._apply_owner(connection)
 
         # Build credentials dict based on provider type
         provider_type = self.cleaned_data.get('provider_type')
@@ -430,7 +504,7 @@ class PSAConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         return connection
 
 
-class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
+class RMMConnectionForm(OwnerFieldMixin, KeepStoredSecretsMixin, forms.ModelForm):
     """Form for creating/editing RMM connections."""
     SECRET_FIELDS = {
         'ninja_client_secret': ('ninjaone', 'client_secret'),
@@ -581,8 +655,10 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        self.organization = kwargs.pop('organization', None)
+        organization = kwargs.pop('organization', None)
+        owner_choices = kwargs.pop('owner_choices', None)
         super().__init__(*args, **kwargs)
+        self._init_owner(organization, owner_choices)
         self.pairing_request = None
         self._pairing_before = None
         if self.instance and self.instance.pk:
@@ -632,12 +708,14 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         provider_type = cleaned_data.get('provider_type')
         self._fill_blank_secrets_from_storage(cleaned_data)
 
-        # Validate that organization is provided (required for RMM connections)
-        if not self.organization:
-            raise forms.ValidationError(
-                "An organization must be selected before creating an RMM connection. "
-                "Please select an organization from the top navigation bar and try again."
-            )
+        # A platform-owned RMM serves many customers: each device's customer
+        # comes from the RMM's own customer identity, never from an owner.
+        platform = self._owner is None
+        if platform:
+            if provider_type == 'rem0te':
+                self.add_error('provider_type', "A Rem0te key belongs to one business, so a Rem0te connection is "
+                                                "always one customer's own. Choose that customer as the owner.")
+            cleaned_data['customer_scope'] = RMMConnection.CUSTOMER_SCOPE_MULTI
 
         # Validate that required credentials are provided for selected provider
         if provider_type == 'ninjaone':
@@ -697,7 +775,10 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         local = cleaned_data.get('ticket_rmm_location') == 'local'
         if url and not (url.startswith('https://') or (local and url.startswith('http://'))):
             self.add_error('ticket_rmm_url', 'Use https (plain http only for an on-premises RMM).')
-        if (cleaned_data.get('provider_type') != 'rem0te'
+        if self._owner is None:
+            self.add_error('ticket_rmm_enabled', "A ticket integration pairing serves one customer: pair a "
+                                                 "customer's own connection, not a platform-owned one.")
+        elif (cleaned_data.get('provider_type') != 'rem0te'
                 and cleaned_data.get('customer_scope') != RMMConnection.CUSTOMER_SCOPE_SINGLE):
             self.add_error('customer_scope', 'A ticket integration pairing serves one customer: choose '
                                              'Single customer to pair this connection.')
@@ -735,10 +816,7 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
 
     def save(self, commit=True):
         connection = super().save(commit=False)
-
-        # Set organization from form if provided
-        if self.organization:
-            connection.organization = self.organization
+        self._apply_owner(connection)
 
         # Build credentials dict based on provider type
         provider_type = self.cleaned_data.get('provider_type')
@@ -844,7 +922,7 @@ def _ticket_rmm_pairing_apply(self, connection, credentials):
 RMMConnectionForm._apply_pairing = _ticket_rmm_pairing_apply
 
 
-class UnifiConnectionForm(forms.ModelForm):
+class UnifiConnectionForm(OwnerFieldMixin, forms.ModelForm):
     """Form for creating/editing UniFi connections."""
 
     api_key = forms.CharField(
@@ -878,9 +956,9 @@ class UnifiConnectionForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def __init__(self, *args, organization=None, **kwargs):
+    def __init__(self, *args, organization=None, owner_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.organization = organization
+        self._init_owner(organization, owner_choices)
         if self.instance and self.instance.pk:
             self.fields['api_key'].required = False
             self.fields['api_key'].help_text += ' (leave blank to keep existing key)'
@@ -888,8 +966,7 @@ class UnifiConnectionForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.organization:
-            instance.organization = self.organization
+        self._apply_owner(instance)
         api_key = self.cleaned_data.get('api_key', '').strip()
         username = self.cleaned_data.get('username', '').strip()
         password = self.cleaned_data.get('password', '').strip()
@@ -909,7 +986,7 @@ class UnifiConnectionForm(forms.ModelForm):
         return instance
 
 
-class M365ConnectionForm(forms.ModelForm):
+class M365ConnectionForm(OwnerFieldMixin, forms.ModelForm):
     """Form for creating/editing M365 tenant connections."""
 
     client_id = forms.CharField(
@@ -937,9 +1014,9 @@ class M365ConnectionForm(forms.ModelForm):
             'tenant_id': 'Azure portal → Azure Active Directory → Overview → Directory (tenant) ID',
         }
 
-    def __init__(self, *args, organization=None, **kwargs):
+    def __init__(self, *args, organization=None, owner_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.organization = organization
+        self._init_owner(organization, owner_choices)
         if self.instance and self.instance.pk:
             self.fields['client_id'].required = False
             self.fields['client_secret'].required = False
@@ -948,8 +1025,7 @@ class M365ConnectionForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.organization:
-            instance.organization = self.organization
+        self._apply_owner(instance)
         client_id = self.cleaned_data.get('client_id', '').strip()
         client_secret = self.cleaned_data.get('client_secret', '').strip()
         if client_id and client_secret:
@@ -967,7 +1043,7 @@ class M365ConnectionForm(forms.ModelForm):
         return instance
 
 
-class OmadaConnectionForm(forms.ModelForm):
+class OmadaConnectionForm(OwnerFieldMixin, forms.ModelForm):
     """Form for creating/editing TP-Link Omada SDN Controller connections."""
 
     username = forms.CharField(
@@ -997,9 +1073,9 @@ class OmadaConnectionForm(forms.ModelForm):
             'sync_interval_minutes': 'Minutes between auto-syncs (0 = disabled)',
         }
 
-    def __init__(self, *args, organization=None, **kwargs):
+    def __init__(self, *args, organization=None, owner_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.organization = organization
+        self._init_owner(organization, owner_choices)
         if self.instance and self.instance.pk:
             creds = self.instance.get_credentials()
             self.fields['username'].initial = creds.get('username', '')
@@ -1008,8 +1084,7 @@ class OmadaConnectionForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.organization:
-            instance.organization = self.organization
+        self._apply_owner(instance)
         username = self.cleaned_data.get('username', '').strip()
         password = self.cleaned_data.get('password', '').strip()
         existing = instance.get_credentials() if instance.pk else {}
@@ -1025,7 +1100,7 @@ class OmadaConnectionForm(forms.ModelForm):
         return instance
 
 
-class GrandstreamConnectionForm(forms.ModelForm):
+class GrandstreamConnectionForm(OwnerFieldMixin, forms.ModelForm):
     """Form for creating/editing Grandstream GWN Manager connections."""
 
     api_key = forms.CharField(
@@ -1050,17 +1125,16 @@ class GrandstreamConnectionForm(forms.ModelForm):
             'sync_interval_minutes': 'Minutes between auto-syncs (0 = disabled)',
         }
 
-    def __init__(self, *args, organization=None, **kwargs):
+    def __init__(self, *args, organization=None, owner_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.organization = organization
+        self._init_owner(organization, owner_choices)
         if self.instance and self.instance.pk:
             self.fields['api_key'].required = False
             self.fields['api_key'].help_text = 'Leave blank to keep existing API key.'
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.organization:
-            instance.organization = self.organization
+        self._apply_owner(instance)
         api_key = self.cleaned_data.get('api_key', '').strip()
         existing = instance.get_credentials() if instance.pk else {}
         creds = dict(existing)

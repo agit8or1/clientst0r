@@ -14,6 +14,7 @@ urlpatterns = [
     path('<int:pk>/delete/', views.integration_delete, name='integration_delete'),
     path('<int:pk>/test/', views.integration_test, name='integration_test'),
     path('<int:pk>/sync/', views.integration_sync, name='integration_sync'),
+    path('<str:type_key>/<int:pk>/make-platform/', views.make_platform_owned_view, name='make_platform_owned'),
 
     # PSA Data Views
     path('companies/', views.psa_companies, name='psa_companies'),
@@ -80,6 +81,7 @@ urlpatterns = [
     path('omada/<int:pk>/test/', views.omada_test, name='omada_test'),
     path('omada/<int:pk>/sync/', views.omada_sync, name='omada_sync'),
     path('omada/<int:pk>/import-assets/', views.omada_import_assets, name='omada_import_assets'),
+    path('omada/<int:pk>/site-org/', views.omada_site_org, name='omada_site_org'),
 
     # Grandstream
     path('grandstream/create/', views.grandstream_create, name='grandstream_create'),
@@ -89,6 +91,7 @@ urlpatterns = [
     path('grandstream/<int:pk>/test/', views.grandstream_test, name='grandstream_test'),
     path('grandstream/<int:pk>/sync/', views.grandstream_sync, name='grandstream_sync'),
     path('grandstream/<int:pk>/import-assets/', views.grandstream_import_assets, name='grandstream_import_assets'),
+    path('grandstream/<int:pk>/site-org/', views.grandstream_site_org, name='grandstream_site_org'),
 
     # Distributors (Workstream 8) — catalog/pricing/stock/order/webhook
     path('distributors/', views.distributor_list, name='distributor_list'),

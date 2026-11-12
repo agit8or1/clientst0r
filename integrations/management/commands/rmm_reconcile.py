@@ -107,7 +107,8 @@ class Command(BaseCommand):
                 # The old sync put devices it couldn't place under the
                 # connection owner. Without a reported customer there's no
                 # telling, so hide them until a sync or a technician settles it.
-                if (device.organization_id == connection.organization_id
+                if (connection.organization_id is not None
+                        and device.organization_id == connection.organization_id
                         and not device.confirmed_customer_key
                         and device.ownership_status == RMMDevice.OWNERSHIP_RESOLVED):
                     device.organization = None

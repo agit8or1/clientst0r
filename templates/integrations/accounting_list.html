@@ -13,14 +13,14 @@
     <div class="card-body">
         <table class="table table-striped align-middle">
             <thead>
-                <tr><th>Name</th><th>Provider</th><th>Organization</th><th>OAuth</th><th>Sync</th><th>Last sync</th><th>Actions</th></tr>
+                <tr><th>Name</th><th>Provider</th><th>Owner</th><th>OAuth</th><th>Sync</th><th>Last sync</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 {% for conn in connections %}
                 <tr>
                     <td><strong>{{ conn.name }}</strong></td>
                     <td>{{ conn.get_provider_type_display }}</td>
-                    <td>{{ conn.organization.name }}</td>
+                    <td>{{ conn.owner_label }}</td>
                     <td>
                         {% if conn.encrypted_credentials %}
                         <span class="badge text-bg-success">Connected</span>

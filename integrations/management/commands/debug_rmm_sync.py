@@ -141,9 +141,9 @@ class Command(BaseCommand):
                         org_name = f"{connection.org_name_prefix}{client_name}" if connection.org_name_prefix else client_name
                         self.stdout.write(f'  → Would create/update organization: "{org_name}"')
                     else:
-                        self.stdout.write(self.style.WARNING(f'  → Would use connection org: {connection.organization.name}'))
+                        self.stdout.write(self.style.WARNING(f'  → Would use connection org: {connection.owner_label}'))
                 else:
-                    self.stdout.write(self.style.WARNING(f'  → Organization import disabled, would use: {connection.organization.name}'))
+                    self.stdout.write(self.style.WARNING(f'  → Organization import disabled, would use: {connection.owner_label}'))
 
             # Summary
             self.stdout.write('\n' + '=' * 80)
@@ -183,7 +183,7 @@ class Command(BaseCommand):
             elif devices_without_site > 0:
                 self.stdout.write(self.style.WARNING(f'⚠ {devices_without_site}/{len(devices)} devices missing site/client data'))
                 self.stdout.write('\nThese devices will use the connection\'s organization:')
-                self.stdout.write(f'  • {connection.organization.name}')
+                self.stdout.write(f'  • {connection.owner_label}')
             else:
                 self.stdout.write(self.style.SUCCESS('✓ All devices have site/client data!'))
                 if connection.import_organizations:
