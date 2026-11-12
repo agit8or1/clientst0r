@@ -1,0 +1,117 @@
+#!/usr/bin/python3
+"""Fake `docker` CLI for office/test_managed_helper.py.
+
+The helper runs docker with a fixed, minimal environment, so this fake reads
+its settings from fake-config.json next to itself (written by the test).
+Logs every argv (one JSON list per line) to FAKE_DOCKER_LOG and keeps a
+tiny world in FAKE_DOCKER_STATE: pulled images, the one container (from the
+compose file the helper wrote), its state and health. Behaviour switches:
+    FAKE_DOCKER_UNHEALTHY=<digest>   a container of this digest never gets healthy
+    FAKE_DOCKER_BAD_DIGEST=1         `image inspect` reports a different digest
+    FAKE_DOCKER_SHUTDOWN_RC=<n>      exit code of prepare4shutdown
+    FAKE_DOCKER_DOWN=1               the daemon is not running
+"""
+import json
+import os
+import re
+import sys
+
+args = sys.argv[1:]
+env = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fake-config.json')))
+os.environ.update(env)
+log = os.environ['FAKE_DOCKER_LOG']
+state_path = os.environ['FAKE_DOCKER_STATE']
+with open(log, 'a') as f:
+    f.write(json.dumps(args) + '\n')
+try:
+    world = json.load(open(state_path))
+except (OSError, ValueError):
+    world = {'images': [], 'container': None}
+
+
+def save():
+    json.dump(world, open(state_path, 'w'))
+
+
+def out(text='', rc=0, err=''):
+    if text:
+        sys.stdout.write(text + ('' if text.endswith('\n') else '\n'))
+    if err:
+        sys.stderr.write(err + '\n')
+    save()
+    sys.exit(rc)
+
+
+if os.environ.get('FAKE_DOCKER_DOWN'):
+    out(rc=1, err='Cannot connect to the Docker daemon at unix:///var/run/docker.sock.')
+
+if args[:1] == ['version']:
+    out('27.5.1')
+if args[:2] == ['compose', 'version']:
+    out('2.32.4')
+
+if args[:1] == ['compose']:
+    # compose --project-name P --file F <cmd> ...
+    assert args[1] == '--project-name' and args[3] == '--file', args
+    compose_file, cmd = args[4], args[5]
+    text = open(compose_file).read()
+    image = re.search(r'^    image: "(.+)"$', text, re.M).group(1)
+    rel = re.search(r'org\.clientst0r\.office\.release: "(.+)"$', text, re.M).group(1)
+    if cmd == 'up':
+        if image not in world['images']:
+            out(rc=1, err=f'pull access denied for {image} (not pulled; --pull never)')
+        digest = image.split('@', 1)[1]
+        healthy = digest != os.environ.get('FAKE_DOCKER_UNHEALTHY')
+        world['container'] = {'image': image, 'release': rel, 'running': True,
+                              'health': 'healthy' if healthy else 'unhealthy'}
+        out()
+    if cmd == 'stop':
+        if world['container']:
+            world['container'].update(running=False, health='none')
+        out()
+    if cmd == 'down':
+        world['container'] = None
+        out()
+    out(rc=1, err=f'fake compose: unsupported {cmd}')
+
+if args[:1] == ['inspect']:
+    c = world['container']
+    if not c:
+        out(rc=1, err='Error: No such container: clientst0r-office-ds')
+    out(json.dumps({'State': {'Status': 'running' if c['running'] else 'exited',
+                              'Running': c['running'], 'Health': {'Status': c['health']},
+                              'StartedAt': '2026-11-12T00:00:00Z', 'OOMKilled': False},
+                    'RestartCount': 0,
+                    'Config': {'Image': c['image'],
+                               'Labels': {'org.clientst0r.office.release': c['release']}}}))
+if args[:1] == ['stats']:
+    if not (world['container'] or {}).get('running'):
+        out(rc=1)
+    out(json.dumps({'CPUPerc': '1.5%', 'MemUsage': '900MiB / 4GiB', 'MemPerc': '22%', 'PIDs': '80'}))
+if args[:1] == ['pull']:
+    world['images'].append(args[1])
+    out(f'{args[1]}: Pulled')
+if args[:2] == ['image', 'inspect']:
+    ref = args[-1]
+    if ref not in world['images']:
+        out(rc=1, err='No such image')
+    digest = ref.split('@', 1)[1]
+    if os.environ.get('FAKE_DOCKER_BAD_DIGEST'):
+        digest = 'sha256:' + 'f' * 64
+    out(json.dumps([ref.split('@', 1)[0] + '@' + digest]))
+if args[:2] == ['image', 'rm']:
+    world['images'] = [i for i in world['images'] if i != args[2]]
+    out()
+if args[:1] == ['exec']:
+    assert args[1:] == ['clientst0r-office-ds', 'documentserver-prepare4shutdown'], args
+    out('shutdown prepared', rc=int(os.environ.get('FAKE_DOCKER_SHUTDOWN_RC', '0')))
+if args[:1] == ['logs']:
+    secret = os.environ.get('FAKE_DOCKER_LOG_SECRET', '')
+    out(f'2026-11-12T00:00:00Z [INFO] started with secret {secret}\n'
+        '2026-11-12T00:00:01Z GET /cache/files/x/output.docx?md5=abc123&expires=99 '
+        'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJwYXlsb2FkIjp7fX0.c2lnbmF0dXJlc2ln\n'
+        '2026-11-12T00:00:02Z callback https://docs.example/office/api/onlyoffice/file/1/?access_token=SECRETTOKEN')
+if args[:2] == ['rm', '--force']:
+    world['container'] = None
+    out()
+out(rc=1, err=f'fake docker: unsupported {args}')

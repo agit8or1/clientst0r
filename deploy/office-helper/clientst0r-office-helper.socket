@@ -1,0 +1,20 @@
+# clientst0r Office service helper socket (Managed Local ONLYOFFICE).
+# Installed DISABLED by deploy/root-helper/install-root-helper.sh; enabled only
+# by `scripts/office/install-editor.sh --mode managed-local` (run as root by a
+# deployment administrator). @APP_USER@ is replaced at install time.
+[Unit]
+Description=clientst0r Office service helper socket
+
+[Socket]
+ListenStream=/run/clientst0r-office/helper.sock
+# Only the app user (and root) may connect; the helper also checks SO_PEERCRED.
+SocketUser=@APP_USER@
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0755
+Accept=yes
+MaxConnections=8
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

@@ -1,0 +1,1522 @@
+#!/usr/bin/python3 -I
+"""
+clientst0r Office service helper: runs this deployment's one managed
+ONLYOFFICE Docs container ("Managed Local ONLYOFFICE").
+
+It is a separate root program from clientst0r-root-helper on purpose (see
+docs/office/MANAGED_LOCAL.md, "Why a separate helper"):
+
+* it is reached over a Unix socket that systemd owns
+  (clientst0r-office-helper.socket, SocketUser=<app user>, SocketMode=0600),
+  one short-lived process per connection (Accept=yes). The peer's uid is
+  checked with SO_PEERCRED as well;
+* the app sends ONE small JSON request: an operation name from a fixed list
+  and, for two operations, one validated scalar. It never sends images,
+  Compose YAML, paths, volume mounts, environment variables or commands.
+  Everything else comes from the root-owned configuration
+  /etc/clientst0r/office-service.conf and from the release list compiled
+  into this file;
+* long operations (install, update, ...) keep running in this process after
+  the reply, so a web-worker restart or an app deploy cannot cut them in
+  half; their journal lives in a root-owned state directory and an
+  interrupted one is detected and reported, never silently resumed;
+* it touches only its own Compose project, container, network, firewall
+  table and directories. It never installs, upgrades or reconfigures Docker
+  itself (scripts/office/install-editor.sh --mode managed-local does the
+  prerequisites, run by an administrator).
+
+Operations over the socket (the app's vocabulary, nothing else):
+
+    preflight            read-only host checks
+    status               state, health, versions, resources, last operation
+    releases             the tested release list and what is installed
+    install              create/converge the container (idempotent)
+    start | stop | restart
+    update  {"release": "<id from the release list>"}
+    rollback             back to the release before the last update, from
+                         the backup taken by that update
+    logs    {"lines": 1..500}   bounded, redacted container log
+    uninstall            remove the container; documents, editor data,
+                         secrets and backups are kept
+    secret               the JWT secret, to the app user only (for the
+                         ONLYOFFICE provider settings); never logged
+
+Administrator-only, from a root shell (never over the socket):
+
+    clientst0r-office-helper cli <operation> [...]   any of the above
+    clientst0r-office-helper cli purge --confirm <DEPLOYMENT_ID>
+    clientst0r-office-helper cli apply-firewall      (also run at boot)
+
+Files:
+    /etc/clientst0r/office-service.conf   root-owned settings (see the
+                                          .example next to this file)
+    /etc/clientst0r/office/               root-only secrets (0700)
+    /var/lib/clientst0r-office/           data, compose file, state, backups
+    /run/clientst0r-office/               socket and operation lock
+"""
+import datetime
+import fcntl
+import ipaddress
+import json
+import os
+import platform
+import pwd
+import re
+import secrets
+import shutil
+import signal
+import socket
+import struct
+import subprocess
+import sys
+import syslog
+import tarfile
+import time
+import urllib.request
+
+HELPER_VERSION = '1'
+
+# ---------------------------------------------------------------------------
+# Tested release list. The ONLY images this helper will ever run.
+#
+# digest = the multi-arch index digest from the registry, read 2026-11-12
+#          from registry-1.docker.io (Docker-Content-Digest of the manifest
+#          list) and cross-checked with the Docker Hub tag API.
+# tested = clientst0r's live checklist (docs/office/MANAGED_LOCAL.md §
+#          "Live verification") has passed for this exact digest. None has
+#          yet: install/update refuse an untested release unless the
+#          root-owned config sets ALLOW_UNTESTED_RELEASES=yes (for the
+#          disposable test VM that runs the checklist).
+# compat = editor data format group. A backup is restored only with an
+#          image of the release it was taken from.
+# ---------------------------------------------------------------------------
+PLACEHOLDER_DIGEST = 'sha256:' + '0' * 64
+RELEASES = [
+    {'id': '10.0.0-community', 'version': '10.0.0', 'edition': 'community',
+     'image': 'docker.io/onlyoffice/documentserver',
+     'digest': 'sha256:ca17889f10b11141cc6441836aebdd2835cf3e1b49681b2fd6e155c94b7850b3',
+     'compat': 'ds10-ce', 'tested': False, 'published': '2026-10-12'},
+    {'id': '10.0.0-enterprise', 'version': '10.0.0', 'edition': 'enterprise',
+     'image': 'docker.io/onlyoffice/documentserver-ee',
+     'digest': 'sha256:0c55eb69253012b37e1b0e6f1224e917cb9ba49f317017ac1ee2e52c4d53d666',
+     'compat': 'ds10-ee', 'tested': False, 'published': '2026-11-09'},
+    {'id': '10.0.2-enterprise', 'version': '10.0.2', 'edition': 'enterprise',
+     'image': 'docker.io/onlyoffice/documentserver-ee',
+     'digest': 'sha256:ca396233b27a2ad19bb2f1eaff32ff1efff9b95114564b4e716613e73e993c0f',
+     'compat': 'ds10-ee', 'tested': False, 'published': '2026-11-09'},
+]
+
+# Resource figures (docs/office/MANAGED_LOCAL.md, "Vendor facts"):
+# Docker image README "Recommended System Requirements": RAM 4 GB or more,
+# dual-core 2 GHz, swap at least 2 GB, 2 GB free disk. Linux install page
+# minimum: RAM 2 GB, HDD 40 GB, swap 4 GB.
+VENDOR_MIN_MEMORY_MB = 2048
+VENDOR_RECOMMENDED_MEMORY_MB = 4096
+VENDOR_MIN_CPUS = 2
+DISK_FAIL_GB = 10       # image + working data; below this nothing works
+DISK_WARN_GB = 40       # the Linux install page's figure
+DEFAULT_RESERVE_MB = 2048   # kept free for clientst0r, its database and Nginx
+
+# ---------------------------------------------------------------------------
+# Fixed names and paths
+# ---------------------------------------------------------------------------
+PROJECT = 'clientst0r-office'
+CONTAINER = 'clientst0r-office-ds'
+NETWORK = 'clientst0r-office-net'
+BRIDGE = 'cs0office0'                  # <= 15 characters (Linux interface name)
+NFT_TABLE = 'clientst0r_office'
+
+CONF_PATH = '/etc/clientst0r/office-service.conf'
+SECRETS_DIR = '/etc/clientst0r/office'
+JWT_FILE = SECRETS_DIR + '/jwt.secret'
+LINK_FILE = SECRETS_DIR + '/securelink.secret'
+ENV_FILE = SECRETS_DIR + '/ds.env'
+LICENSE_FILE = SECRETS_DIR + '/license.lic'          # enterprise only, placed by the admin
+CA_FILE = SECRETS_DIR + '/extra-ca-certs.pem'        # optional private CA (PEM)
+BASE_DIR = '/var/lib/clientst0r-office'
+DATA_DIR = BASE_DIR + '/data'
+COMPOSE_DIR = BASE_DIR + '/compose'
+COMPOSE_FILE = COMPOSE_DIR + '/compose.yaml'
+STATE_DIR = BASE_DIR + '/state'
+INSTALLED_FILE = STATE_DIR + '/installed.json'
+JOURNAL_FILE = STATE_DIR + '/operation.json'
+HISTORY_FILE = STATE_DIR + '/history.jsonl'
+BACKUP_DIR = BASE_DIR + '/backups'
+RUN_DIR = '/run/clientst0r-office'
+LOCK_FILE = RUN_DIR + '/operation.lock'
+
+# Editor volumes: (name under DATA_DIR, path in the container). The image
+# declares /var/log, /var/lib and /var/www/<company>/Data as volumes; the
+# Enterprise image also keeps PostgreSQL, RabbitMQ and Redis inside.
+VOLUMES_COMMON = [('data', '/var/www/onlyoffice/Data'), ('lib', '/var/lib/onlyoffice'),
+                  ('logs', '/var/log/onlyoffice')]
+VOLUMES_EE = [('db', '/var/lib/postgresql'), ('rabbitmq', '/var/lib/rabbitmq'),
+              ('redis', '/var/lib/redis')]
+BACKUP_EXCLUDE = ('logs',)
+KEEP_BACKUPS = 3
+
+SAFE_PATH = '/usr/sbin:/usr/bin:/sbin:/bin'
+# DOCKER_CONFIG: the unit sets ProtectHome, so the docker CLI keeps its
+# (empty) client config under our own state directory instead of /root.
+BASE_ENV = {'PATH': SAFE_PATH, 'HOME': '/root', 'LANG': 'C.UTF-8',
+            'DOCKER_CONFIG': '/var/lib/clientst0r-office/docker-cli'}
+
+MAX_REQUEST = 4096
+MAX_LOG_LINES = 500
+MAX_LOG_BYTES = 256 * 1024
+HEALTH_TIMEOUT = 600        # first start regenerates the font cache
+SHUTDOWN_TIMEOUT = 360      # README: prepare4shutdown "may take ... up to 5 minutes"
+STOP_GRACE = '6m'
+
+ASYNC_OPS = ('install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall')
+SYNC_OPS = ('preflight', 'status', 'releases', 'logs', 'secret')
+SOCKET_OPS = ASYNC_OPS + SYNC_OPS
+CLI_ONLY_OPS = ('purge', 'apply-firewall')
+
+ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]{2,31}$')
+USER_RE = re.compile(r'^[a-z_][a-z0-9_-]{0,31}$')
+HOST_RE = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$')
+RELEASE_RE = re.compile(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}-(community|enterprise)$')
+DIGEST_RE = re.compile(r'^sha256:[0-9a-f]{64}$')
+IMAGE_RE = re.compile(r'^docker\.io/onlyoffice/documentserver(-ee)?$')
+
+TEST_MODE = False
+TEST_ROOT = ''
+TEST_UID = None
+
+
+class HelperError(Exception):
+    """Refused or failed; the message is safe to show (no secrets)."""
+
+
+def _enable_test_mode():
+    """Honoured only for a non-root process (the test suite). Running as
+    root, the environment is ignored, so nothing here can redirect the real
+    helper."""
+    global TEST_MODE, TEST_ROOT, TEST_UID, BASE_ENV
+    root = os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_ROOT', '')
+    if os.geteuid() == 0 or not root:
+        return
+    TEST_MODE, TEST_ROOT, TEST_UID = True, root.rstrip('/'), os.getuid()
+    BASE_ENV = dict(BASE_ENV, PATH=os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_PATH', SAFE_PATH),
+                    HOME=TEST_ROOT, DOCKER_CONFIG=TEST_ROOT + '/docker-cli')
+
+
+def P(path):
+    return TEST_ROOT + path if TEST_MODE else path
+
+
+# ---------------------------------------------------------------------------
+# plumbing
+# ---------------------------------------------------------------------------
+
+def _log(msg):
+    if TEST_MODE:
+        return
+    try:
+        syslog.openlog('clientst0r-office-helper')
+        syslog.syslog(syslog.LOG_NOTICE, msg)
+    except Exception:
+        pass
+
+
+def now_iso():
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def run(argv, timeout=120, check=False, input_text=None):
+    """Run a fixed program. argv[0] is a bare name looked up in SAFE_PATH
+    only; arguments are never passed through a shell."""
+    try:
+        r = subprocess.run(argv, env=BASE_ENV, timeout=timeout, text=True, capture_output=True,
+                           stdin=subprocess.DEVNULL if input_text is None else None,
+                           input=input_text)
+    except FileNotFoundError:
+        raise HelperError(f'{argv[0]} is not installed')
+    except subprocess.TimeoutExpired:
+        raise HelperError(f'{argv[0]} {argv[1] if len(argv) > 1 else ""} timed out')
+    if check and r.returncode != 0:
+        raise HelperError(f'{" ".join(argv[:3])} failed: {redact(r.stderr.strip())[-400:]}')
+    return r
+
+
+def docker(*args, timeout=120, check=False):
+    return run(['docker', *args], timeout=timeout, check=check)
+
+
+def compose(*args, timeout=600, check=True):
+    return run(['docker', 'compose', '--project-name', PROJECT, '--file', P(COMPOSE_FILE),
+                *args], timeout=timeout, check=check)
+
+
+def _check_trusted(path, *, secret=False):
+    """Root-owned and not writable by group/other (secrets: no group/other
+    access at all)."""
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        raise HelperError(f'{path} is missing')
+    if TEST_MODE:
+        return st
+    if st.st_uid != 0 or st.st_mode & (0o077 if secret else 0o022):
+        raise HelperError(f'{path} must be owned by root and not writable by others'
+                          + (' (and not readable by others)' if secret else ''))
+    return st
+
+
+def write_atomic(path, content, mode=0o600):
+    directory = os.path.dirname(path)
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    tmp = os.path.join(directory, f'.tmp-{os.getpid()}-{secrets.token_hex(4)}')
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def read_json(path, default=None):
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return default
+
+
+# ---------------------------------------------------------------------------
+# configuration (root-owned)
+# ---------------------------------------------------------------------------
+
+def _meminfo():
+    out = {}
+    try:
+        with open(P('/proc/meminfo') if TEST_MODE and os.path.exists(P('/proc/meminfo'))
+                  else '/proc/meminfo', encoding='ascii') as f:
+            for line in f:
+                key, _, rest = line.partition(':')
+                out[key.strip()] = int(rest.split()[0]) // 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return out
+
+
+def _cpu_count():
+    if TEST_MODE and os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_CPUS'):
+        return int(os.environ['CLIENTST0R_OFFICE_HELPER_TEST_CPUS'])
+    return os.cpu_count() or 1
+
+
+def load_config():
+    path = P(CONF_PATH)
+    _check_trusted(path)
+    raw = {}
+    with open(path, encoding='utf-8') as f:
+        for n, line in enumerate(f, 1):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' not in line:
+                raise HelperError(f'{CONF_PATH}:{n}: expected KEY=VALUE')
+            key, value = line.split('=', 1)
+            raw[key.strip()] = value.strip()
+    return validate_config(raw)
+
+
+KNOWN_KEYS = {'DEPLOYMENT_ID', 'APP_USER', 'OFFICE_HOSTNAME', 'CLIENTSTOR_URL', 'BIND_PORT',
+              'EDITION', 'CPUS', 'MEMORY_MB', 'RESERVE_MB', 'NETWORK_SUBNET',
+              'ALLOW_UNTESTED_RELEASES', 'PRIVATE_CA', 'MAINTENANCE_UPDATES'}
+
+
+def validate_config(raw):
+    unknown = sorted(set(raw) - KNOWN_KEYS)
+    if unknown:
+        raise HelperError(f'{CONF_PATH}: unknown setting(s) {", ".join(unknown)}')
+    c = {}
+
+    def need(key, pattern, label):
+        value = raw.get(key, '')
+        if not pattern.match(value):
+            raise HelperError(f'{CONF_PATH}: {key} is missing or not {label}')
+        return value
+
+    c['deployment_id'] = need('DEPLOYMENT_ID', ID_RE, 'a short lower-case id')
+    c['app_user'] = need('APP_USER', USER_RE, 'a user name')
+    if c['app_user'] == 'root':
+        raise HelperError(f'{CONF_PATH}: APP_USER must not be root')
+    c['office_hostname'] = need('OFFICE_HOSTNAME', HOST_RE, 'a DNS host name').lower()
+
+    url = raw.get('CLIENTSTOR_URL', '')
+    m = re.match(r'^https://([a-z0-9.-]+)(:([0-9]{2,5}))?/?$', url.lower())
+    if not m or not HOST_RE.match(m.group(1)):
+        raise HelperError(f'{CONF_PATH}: CLIENTSTOR_URL must be https://<clientst0r host name>/ '
+                          '(no path, no IP address)')
+    c['clientstor_host'] = m.group(1)
+    c['clientstor_port'] = int(m.group(3) or 443)
+    if c['clientstor_port'] != 443:
+        # The firewall opens exactly gateway:443 to the container.
+        raise HelperError(f'{CONF_PATH}: CLIENTSTOR_URL must use port 443')
+    c['clientstor_url'] = f'https://{c["clientstor_host"]}/'
+    if c['clientstor_host'] == c['office_hostname']:
+        raise HelperError(f'{CONF_PATH}: OFFICE_HOSTNAME must differ from clientst0r\'s host name '
+                          '(the editor gets its own origin)')
+
+    try:
+        c['bind_port'] = int(raw.get('BIND_PORT', '8090'))
+    except ValueError:
+        raise HelperError(f'{CONF_PATH}: BIND_PORT must be a number')
+    if not 1024 <= c['bind_port'] <= 65535:
+        raise HelperError(f'{CONF_PATH}: BIND_PORT must be 1024-65535')
+
+    c['edition'] = raw.get('EDITION', 'community')
+    if c['edition'] not in ('community', 'enterprise'):
+        raise HelperError(f'{CONF_PATH}: EDITION must be community or enterprise')
+
+    try:
+        c['reserve_mb'] = int(raw.get('RESERVE_MB', str(DEFAULT_RESERVE_MB)))
+        c['memory_mb'] = int(raw.get('MEMORY_MB', str(VENDOR_RECOMMENDED_MEMORY_MB)))
+        c['cpus'] = float(raw.get('CPUS', '2'))
+    except ValueError:
+        raise HelperError(f'{CONF_PATH}: CPUS, MEMORY_MB and RESERVE_MB must be numbers')
+    if c['reserve_mb'] < 1024:
+        raise HelperError(f'{CONF_PATH}: RESERVE_MB must leave at least 1024 MB for clientst0r')
+    if c['memory_mb'] < VENDOR_MIN_MEMORY_MB:
+        raise HelperError(f'{CONF_PATH}: MEMORY_MB must be at least {VENDOR_MIN_MEMORY_MB} '
+                          '(ONLYOFFICE\'s published minimum)')
+    total = _meminfo().get('MemTotal', 0)
+    if total and c['memory_mb'] + c['reserve_mb'] > total:
+        raise HelperError(f'{CONF_PATH}: MEMORY_MB {c["memory_mb"]} + RESERVE_MB {c["reserve_mb"]} '
+                          f'is more than this host\'s {total} MB')
+    ncpu = _cpu_count()
+    if not (0.5 <= c['cpus'] <= max(0.5, ncpu - 1)) or round(c['cpus'], 2) != c['cpus']:
+        raise HelperError(f'{CONF_PATH}: CPUS must be 0.5-{max(0.5, ncpu - 1)} (one core stays '
+                          'for clientst0r), at most two decimals')
+
+    try:
+        net = ipaddress.ip_network(raw.get('NETWORK_SUBNET', '172.31.250.0/28'), strict=True)
+    except ValueError:
+        raise HelperError(f'{CONF_PATH}: NETWORK_SUBNET is not a network such as 172.31.250.0/28')
+    if net.version != 4 or not net.is_private or not 24 <= net.prefixlen <= 29 \
+            or net.overlaps(ipaddress.ip_network('169.254.0.0/16')) \
+            or net.overlaps(ipaddress.ip_network('127.0.0.0/8')):
+        raise HelperError(f'{CONF_PATH}: NETWORK_SUBNET must be a private IPv4 /24-/29')
+    c['subnet'] = str(net)
+    c['gateway'] = str(next(net.hosts()))
+
+    for key, name in (('ALLOW_UNTESTED_RELEASES', 'allow_untested'), ('PRIVATE_CA', 'private_ca'),
+                      ('MAINTENANCE_UPDATES', 'maintenance_updates')):
+        value = raw.get(key, 'no')
+        if value not in ('yes', 'no'):
+            raise HelperError(f'{CONF_PATH}: {key} must be yes or no')
+        c[name] = value == 'yes'
+
+    try:
+        c['app_uid'] = pwd.getpwnam(c['app_user']).pw_uid
+    except KeyError:
+        if not TEST_MODE:
+            raise HelperError(f'{CONF_PATH}: APP_USER {c["app_user"]} does not exist')
+        c['app_uid'] = TEST_UID
+    if TEST_MODE:
+        c['app_uid'] = TEST_UID
+    c['internal_url'] = f'http://127.0.0.1:{c["bind_port"]}/'
+    c['browser_url'] = f'https://{c["office_hostname"]}/'
+    return c
+
+
+def public_config(c):
+    """What status may show the app: no secrets, no paths."""
+    return {k: c[k] for k in ('deployment_id', 'office_hostname', 'clientstor_url', 'browser_url',
+                              'internal_url', 'bind_port', 'edition', 'cpus', 'memory_mb',
+                              'reserve_mb', 'subnet', 'allow_untested', 'private_ca',
+                              'maintenance_updates')}
+
+
+# ---------------------------------------------------------------------------
+# releases
+# ---------------------------------------------------------------------------
+
+def release(release_id):
+    for r in RELEASES:
+        if r['id'] == release_id:
+            return r
+    return None
+
+
+def release_problem(r, conf):
+    if r is None:
+        return 'not in the tested release list'
+    if not DIGEST_RE.match(r['digest']) or r['digest'] == PLACEHOLDER_DIGEST:
+        return 'has no pinned image digest (placeholder); this release cannot be installed'
+    if not IMAGE_RE.match(r['image']):
+        return 'names an image outside the official ONLYOFFICE repositories'
+    if r['edition'] != conf['edition']:
+        return f'is the {r["edition"]} edition; this deployment is configured for {conf["edition"]}'
+    if not r['tested'] and not conf['allow_untested']:
+        return ('has not passed clientst0r\'s live verification yet; set '
+                'ALLOW_UNTESTED_RELEASES=yes in office-service.conf only on a test VM')
+    return ''
+
+
+def version_key(r):
+    return tuple(int(x) for x in r['version'].split('.'))
+
+
+def default_release(conf):
+    usable = [r for r in RELEASES if not release_problem(r, conf)]
+    return max(usable, key=version_key) if usable else None
+
+
+def image_ref(r):
+    return f'{r["image"]}@{r["digest"]}'
+
+
+# ---------------------------------------------------------------------------
+# secrets
+# ---------------------------------------------------------------------------
+
+def _alnum_secret(n=48):
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    return ''.join(secrets.choice(alphabet) for _ in range(n))
+
+
+def ensure_secrets():
+    """Generate the JWT and secure-link secrets once (persistent, unique to
+    this deployment). Never regenerated: sessions and the app depend on them."""
+    os.makedirs(P(SECRETS_DIR), mode=0o700, exist_ok=True)
+    os.chmod(P(SECRETS_DIR), 0o700)
+    for path in (JWT_FILE, LINK_FILE):
+        if not os.path.exists(P(path)):
+            write_atomic(P(path), _alnum_secret() + '\n', 0o600)
+    jwt = read_secret(JWT_FILE)
+    link = read_secret(LINK_FILE)
+    write_atomic(P(ENV_FILE), f'JWT_SECRET={jwt}\nSECURE_LINK_SECRET={link}\n', 0o600)
+
+
+def read_secret(path):
+    _check_trusted(P(path), secret=True)
+    with open(P(path), encoding='ascii') as f:
+        value = f.read().strip()
+    if not re.match(r'^[A-Za-z0-9]{32,128}$', value):
+        raise HelperError(f'{path} does not hold a generated secret')
+    return value
+
+
+def known_secrets():
+    out = []
+    for path in (JWT_FILE, LINK_FILE):
+        try:
+            with open(P(path), encoding='ascii') as f:
+                v = f.read().strip()
+            if v:
+                out.append(v)
+        except OSError:
+            pass
+    return out
+
+
+JWT_LIKE = re.compile(r'eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}')
+QUERY_SECRETS = re.compile(r'((?:access_token|token|md5|shardkey|WOPISrc|filename)=)[^&\s"\']+', re.I)
+BEARER = re.compile(r'(Bearer\s+)[A-Za-z0-9._~+/=-]+', re.I)
+
+
+def redact(text):
+    if not text:
+        return text
+    for s in known_secrets():
+        text = text.replace(s, '[secret]')
+    text = JWT_LIKE.sub('[jwt]', text)
+    text = BEARER.sub(r'\1[redacted]', text)
+    text = QUERY_SECRETS.sub(r'\1[redacted]', text)
+    return text
+
+
+# ---------------------------------------------------------------------------
+# compose file (generated from validated values only)
+# ---------------------------------------------------------------------------
+
+def volumes(edition):
+    return VOLUMES_COMMON + (VOLUMES_EE if edition == 'enterprise' else [])
+
+
+def render_compose(conf, r):
+    def q(value):
+        return json.dumps(str(value))          # a JSON string is a valid YAML scalar
+
+    env = {
+        'JWT_ENABLED': 'true', 'JWT_HEADER': 'Authorization', 'JWT_IN_BODY': 'false',
+        'WOPI_ENABLED': 'false',
+        # The container may reach exactly one private address: the bridge
+        # gateway on 443, enforced by the nftables table below. Docs' own
+        # private-IP filter needs this switch for that one address
+        # (IP_FILTER_RULES takes no CIDR and does not cover downloads).
+        'ALLOW_PRIVATE_IP_ADDRESS': 'true', 'ALLOW_META_IP_ADDRESS': 'false',
+        'PLUGINS_ENABLED': 'false', 'WELCOME_PAGE_ENABLED': 'false', 'EXAMPLE_ENABLED': 'false',
+        'METRICS_ENABLED': 'false',
+    }
+    if r['edition'] == 'enterprise':
+        env['ADMINPANEL_ENABLED'] = 'false'
+    lines = [
+        '# Generated by clientst0r-office-helper. Do not edit: it is rewritten on',
+        '# every install, update and rollback from /etc/clientst0r/office-service.conf.',
+        f'name: {PROJECT}',
+        'services:',
+        '  documentserver:',
+        f'    image: {q(image_ref(r))}',
+        f'    container_name: {CONTAINER}',
+        '    restart: unless-stopped',
+        f'    stop_grace_period: {STOP_GRACE}',
+        '    env_file:',
+        f'      - {q(ENV_FILE)}',
+        '    environment:',
+    ]
+    lines += [f'      {k}: {q(v)}' for k, v in env.items()]
+    lines += [
+        '    ports:',
+        f'      - {q(f"127.0.0.1:{conf["bind_port"]}:80")}',
+        '    extra_hosts:',
+        f'      - {q(conf["clientstor_host"] + ":" + conf["gateway"])}',
+        '    volumes:',
+    ]
+    for name, inside in volumes(r['edition']):
+        lines.append(f'      - {q(DATA_DIR + "/" + name + ":" + inside)}')
+    lines += [
+        f'    cpus: {conf["cpus"]}',
+        f'    mem_limit: {conf["memory_mb"]}m',
+        f'    memswap_limit: {conf["memory_mb"] + 2048}m',
+        '    pids_limit: 4096',
+        '    security_opt:',
+        '      - "no-new-privileges:true"',
+        '    logging:',
+        '      driver: json-file',
+        '      options:',
+        '        max-size: "10m"',
+        '        max-file: "3"',
+        '    healthcheck:',
+        '      test: ["CMD-SHELL", "[ \\"$(curl -fs http://127.0.0.1/healthcheck)\\" = true ]"]',
+        '      interval: 30s',
+        '      timeout: 10s',
+        '      start_period: 120s',
+        '      retries: 5',
+        '    labels:',
+        f'      org.clientst0r.office.deployment: {q(conf["deployment_id"])}',
+        f'      org.clientst0r.office.release: {q(r["id"])}',
+        '    networks:',
+        '      - office',
+        'networks:',
+        '  office:',
+        f'    name: {NETWORK}',
+        '    driver: bridge',
+        '    driver_opts:',
+        f'      com.docker.network.bridge.name: {BRIDGE}',
+        '    ipam:',
+        '      config:',
+        f'        - subnet: {q(conf["subnet"])}',
+        f'          gateway: {q(conf["gateway"])}',
+        '',
+    ]
+    return '\n'.join(lines)
+
+
+def prepare_dirs(conf, r):
+    for d in (BASE_DIR, DATA_DIR, COMPOSE_DIR, STATE_DIR, BACKUP_DIR):
+        os.makedirs(P(d), mode=0o700 if d != DATA_DIR and d != BASE_DIR else 0o711, exist_ok=True)
+    for name, _inside in volumes(r['edition']):
+        os.makedirs(P(f'{DATA_DIR}/{name}'), mode=0o755, exist_ok=True)
+    if r['edition'] == 'enterprise':
+        if not os.path.exists(P(LICENSE_FILE)):
+            raise HelperError(f'The Enterprise edition needs its license file at {LICENSE_FILE} '
+                              '(root-owned). Without it the editor runs unlicensed.')
+        _check_trusted(P(LICENSE_FILE))
+        shutil.copyfile(P(LICENSE_FILE), P(f'{DATA_DIR}/data/license.lic'))
+    certs = P(f'{DATA_DIR}/data/certs')
+    if conf['private_ca']:
+        _check_trusted(P(CA_FILE))
+        os.makedirs(certs, mode=0o755, exist_ok=True)
+        # Path the image reads NODE_EXTRA_CA_CERTS from by default (README).
+        shutil.copyfile(P(CA_FILE), certs + '/extra-ca-certs.pem')
+    elif os.path.exists(certs + '/extra-ca-certs.pem'):
+        os.unlink(certs + '/extra-ca-certs.pem')
+
+
+def write_compose(conf, r):
+    ensure_secrets()
+    prepare_dirs(conf, r)
+    write_atomic(P(COMPOSE_FILE), render_compose(conf, r), 0o600)
+
+
+# ---------------------------------------------------------------------------
+# firewall: the container may reach the host gateway on 443, nothing else
+# ---------------------------------------------------------------------------
+
+def render_nft(conf):
+    gw = conf['gateway']
+    return f"""table inet {NFT_TABLE} {{
+    chain input {{
+        type filter hook input priority filter - 1; policy accept;
+        iifname "{BRIDGE}" ct state established,related accept
+        iifname "{BRIDGE}" ip daddr {gw} tcp dport 443 accept
+        iifname "{BRIDGE}" drop
+    }}
+    chain forward {{
+        type filter hook forward priority filter - 1; policy accept;
+        iifname "{BRIDGE}" ct state established,related accept
+        iifname "{BRIDGE}" drop
+    }}
+}}
+"""
+
+
+def apply_firewall(conf):
+    # Replace only our own table, atomically: flush+define in one nft run.
+    script = (f'table inet {NFT_TABLE}\ndelete table inet {NFT_TABLE}\n' + render_nft(conf))
+    run(['nft', '-f', '-'], input_text=script, timeout=30, check=True)
+    return 'firewall table applied'
+
+
+# ---------------------------------------------------------------------------
+# docker state
+# ---------------------------------------------------------------------------
+
+def docker_available():
+    r = docker('version', '--format', '{{.Server.Version}}', timeout=20)
+    if r.returncode != 0:
+        return False, '', redact(r.stderr.strip())[:300]
+    c = docker('compose', 'version', '--short', timeout=20)
+    if c.returncode != 0:
+        return False, r.stdout.strip(), 'Docker Compose v2 ("docker compose") is not available'
+    return True, r.stdout.strip(), c.stdout.strip()
+
+
+def container_state():
+    r = docker('inspect', '--type', 'container', '--format', '{{json .}}', CONTAINER, timeout=30)
+    if r.returncode != 0:
+        return {'exists': False}
+    try:
+        data = json.loads(r.stdout)
+    except ValueError:
+        return {'exists': True, 'state': 'unknown'}
+    state = data.get('State') or {}
+    labels = ((data.get('Config') or {}).get('Labels') or {})
+    return {
+        'exists': True,
+        'state': state.get('Status', 'unknown'),
+        'running': bool(state.get('Running')),
+        'health': ((state.get('Health') or {}).get('Status')) or 'none',
+        'started_at': state.get('StartedAt', ''),
+        'restart_count': data.get('RestartCount', 0),
+        'image': (data.get('Config') or {}).get('Image', ''),
+        'release_label': labels.get('org.clientst0r.office.release', ''),
+        'oom_killed': bool(state.get('OOMKilled')),
+    }
+
+
+def resources():
+    r = docker('stats', '--no-stream', '--format', '{{json .}}', CONTAINER, timeout=30)
+    if r.returncode != 0 or not r.stdout.strip():
+        return {}
+    try:
+        data = json.loads(r.stdout.strip().splitlines()[0])
+    except ValueError:
+        return {}
+    return {'cpu_percent': data.get('CPUPerc', ''), 'memory': data.get('MemUsage', ''),
+            'memory_percent': data.get('MemPerc', ''), 'pids': data.get('PIDs', '')}
+
+
+def dir_size(path):
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(root, name)).st_size
+            except OSError:
+                pass
+    return total
+
+
+def healthcheck_http(conf, timeout=5):
+    """GET http://127.0.0.1:<port>/healthcheck from the host; True on "true"."""
+    url = f'http://127.0.0.1:{conf["bind_port"]}/healthcheck'
+    if TEST_MODE and os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_HEALTH'):
+        return os.environ['CLIENTST0R_OFFICE_HELPER_TEST_HEALTH'] == 'true'
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(url, timeout=timeout) as resp:
+            return resp.status == 200 and resp.read(64).strip().lower() == b'true'
+    except Exception:
+        return False
+
+
+def wait_healthy(conf, progress, timeout=HEALTH_TIMEOUT):
+    deadline = time.monotonic() + (float(os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_WAIT', 0))
+                                   if TEST_MODE else timeout)
+    while True:
+        st = container_state()
+        if st.get('exists') and st.get('health') == 'healthy' and healthcheck_http(conf):
+            return True
+        if st.get('exists') and st.get('state') in ('exited', 'dead'):
+            return False
+        if time.monotonic() >= deadline:
+            return False
+        progress(f'waiting for the editor to report healthy (container {st.get("state", "missing")}, '
+                 f'health {st.get("health", "-")})')
+        time.sleep(0.05 if TEST_MODE else 5)
+
+
+def prepare_for_shutdown(progress):
+    """ONLYOFFICE's documented procedure before stopping Docs: disconnect
+    users and save what they edited (docker exec <container>
+    documentserver-prepare4shutdown)."""
+    st = container_state()
+    if not st.get('running'):
+        progress('editor not running: nothing to prepare')
+        return
+    progress('asking the editor to save open documents and disconnect users '
+             '(documentserver-prepare4shutdown; can take up to 5 minutes)')
+    r = docker('exec', CONTAINER, 'documentserver-prepare4shutdown', timeout=SHUTDOWN_TIMEOUT)
+    if r.returncode != 0:
+        raise HelperError('documentserver-prepare4shutdown failed; the editor was left running. '
+                          + redact(r.stderr.strip())[-300:])
+
+
+def pull(r, progress):
+    progress(f'downloading {r["image"]} {r["version"]} (pinned digest) before any downtime')
+    docker('pull', image_ref(r), timeout=3600, check=True)
+    out = docker('image', 'inspect', '--format', '{{json .RepoDigests}}', image_ref(r), timeout=30)
+    try:
+        digests = json.loads(out.stdout or '[]') or []
+    except ValueError:
+        digests = []
+    if not any(d.endswith('@' + r['digest']) for d in digests):
+        raise HelperError('the downloaded image does not carry the pinned digest; refusing to run it')
+
+
+def installed():
+    return read_json(P(INSTALLED_FILE), {}) or {}
+
+
+def save_installed(data):
+    write_atomic(P(INSTALLED_FILE), json.dumps(data, indent=1, sort_keys=True), 0o600)
+
+
+def history(event):
+    os.makedirs(P(STATE_DIR), mode=0o700, exist_ok=True)
+    with open(P(HISTORY_FILE), 'a', encoding='utf-8') as f:
+        f.write(json.dumps(dict(event, at=now_iso())) + '\n')
+
+
+# ---------------------------------------------------------------------------
+# backups (consistent: taken with the editor stopped)
+# ---------------------------------------------------------------------------
+
+def take_backup(conf, rel_id, reason, progress):
+    r = release(rel_id)
+    if r is None:
+        raise HelperError(f'cannot back up: installed release {rel_id!r} is unknown')
+    st = container_state()
+    if st.get('running'):
+        raise HelperError('internal: backups are taken only with the editor stopped')
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    bid = f'{stamp}-{rel_id}-{reason}'
+    target = P(f'{BACKUP_DIR}/{bid}')
+    os.makedirs(target, mode=0o700)
+    progress(f'backing up editor data and configuration ({bid})')
+    tar_path = target + '/state.tar'
+    with tarfile.open(tar_path, 'w') as tar:
+        for name, _inside in volumes(r['edition']):
+            if name in BACKUP_EXCLUDE:
+                continue
+            src = P(f'{DATA_DIR}/{name}')
+            if os.path.isdir(src):
+                tar.add(src, arcname=f'data/{name}')
+        for path, arc in ((COMPOSE_FILE, 'compose.yaml'), (INSTALLED_FILE, 'installed.json'),
+                          (JWT_FILE, 'secrets/jwt.secret'), (LINK_FILE, 'secrets/securelink.secret')):
+            if os.path.exists(P(path)):
+                tar.add(P(path), arcname=arc)
+    with open(tar_path, 'rb') as f:
+        os.fsync(f.fileno())
+    manifest = {'id': bid, 'release': rel_id, 'digest': r['digest'], 'compat': r['compat'],
+                'edition': r['edition'], 'reason': reason, 'created_at': now_iso(),
+                'size': os.path.getsize(tar_path), 'helper_version': HELPER_VERSION}
+    write_atomic(target + '/manifest.json', json.dumps(manifest, indent=1), 0o600)
+    history({'event': 'backup', 'backup': bid})
+    return manifest
+
+
+def list_backups():
+    out = []
+    base = P(BACKUP_DIR)
+    if not os.path.isdir(base):
+        return out
+    for name in sorted(os.listdir(base)):
+        m = read_json(os.path.join(base, name, 'manifest.json'))
+        if m and m.get('id') == name:
+            out.append(m)
+    return out
+
+
+def prune_backups(keep_ids):
+    backups = list_backups()
+    removable = [b for b in backups if b['id'] not in keep_ids]
+    for b in removable[:max(0, len(backups) - KEEP_BACKUPS)]:
+        shutil.rmtree(P(f'{BACKUP_DIR}/{b["id"]}'), ignore_errors=True)
+
+
+def restore_backup(manifest, progress):
+    progress(f'restoring editor data from backup {manifest["id"]}')
+    tar_path = P(f'{BACKUP_DIR}/{manifest["id"]}/state.tar')
+    if not os.path.exists(tar_path) or os.path.getsize(tar_path) != manifest.get('size'):
+        raise HelperError(f'backup {manifest["id"]} is missing or incomplete')
+    r = release(manifest['release'])
+    with tarfile.open(tar_path, 'r') as tar:
+        members = [m for m in tar.getmembers() if m.name.startswith('data/')]
+        for m in members:
+            parts = m.name.split('/')
+            bad_link = m.issym() and (m.linkname.startswith('/') or '..' in m.linkname.split('/'))
+            if '..' in parts or m.name.startswith('/') or bad_link \
+                    or not (m.isdir() or m.isfile() or m.issym()):
+                raise HelperError(f'backup {manifest["id"]} contains an unexpected entry')
+        for name, _inside in volumes(r['edition']):
+            if name in BACKUP_EXCLUDE:
+                continue
+            dest = P(f'{DATA_DIR}/{name}')
+            if os.path.isdir(dest):
+                shutil.rmtree(dest)
+        if hasattr(tarfile, 'tar_filter'):
+            tar.extractall(P(BASE_DIR), members=members, filter='tar')
+        else:   # Python without extraction filters: entries were checked above
+            tar.extractall(P(BASE_DIR), members=members)
+    history({'event': 'restore', 'backup': manifest['id']})
+
+
+# ---------------------------------------------------------------------------
+# operation journal + lock
+# ---------------------------------------------------------------------------
+
+def _boot_id():
+    try:
+        with open('/proc/sys/kernel/random/boot_id', encoding='ascii') as f:
+            return f.read().strip()
+    except OSError:
+        return ''
+
+
+def journal():
+    return read_json(P(JOURNAL_FILE), {}) or {}
+
+
+def write_journal(data):
+    write_atomic(P(JOURNAL_FILE), json.dumps(data, indent=1, sort_keys=True), 0o640)
+
+
+def acquire_lock():
+    os.makedirs(P(RUN_DIR), mode=0o755, exist_ok=True)
+    fd = os.open(P(LOCK_FILE), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return None
+    return fd
+
+
+def reconcile_journal():
+    """A journal that says 'running' while nobody holds the lock (process
+    killed, VM rebooted) is marked 'interrupted'. It is never resumed by
+    itself: the app (or an administrator) retries the operation, and every
+    operation converges from whatever state it finds."""
+    j = journal()
+    if j.get('state') != 'running':
+        return j
+    fd = acquire_lock()
+    if fd is None:
+        return j            # really running
+    try:
+        j = journal()
+        if j.get('state') == 'running':
+            j.update(state='interrupted', finished_at=now_iso(),
+                     error=f'interrupted during "{j.get("step", "?")}" '
+                           f'({"after a reboot" if j.get("boot_id") != _boot_id() else "process ended"})')
+            write_journal(j)
+            history({'event': 'interrupted', 'op': j.get('op'), 'id': j.get('id')})
+    finally:
+        os.close(fd)
+    return j
+
+
+# ---------------------------------------------------------------------------
+# operations
+# ---------------------------------------------------------------------------
+
+def op_preflight(conf, args):
+    checks = []
+
+    def add(key, status, detail):
+        checks.append({'key': key, 'status': status, 'detail': detail})
+
+    os_id = os_ver = ''
+    try:
+        with open(P('/etc/os-release') if TEST_MODE and os.path.exists(P('/etc/os-release'))
+                  else '/etc/os-release', encoding='utf-8') as f:
+            for line in f:
+                k, _, v = line.strip().partition('=')
+                if k == 'ID':
+                    os_id = v.strip('"')
+                elif k == 'VERSION_ID':
+                    os_ver = v.strip('"')
+    except OSError:
+        pass
+    if (os_id, os_ver) in (('ubuntu', '24.04'), ('ubuntu', '22.04'), ('debian', '12')):
+        add('os', 'pass', f'{os_id} {os_ver}')
+    else:
+        add('os', 'fail', f'{os_id or "unknown"} {os_ver}: supported are Ubuntu 22.04/24.04 and Debian 12')
+    arch = platform.machine()
+    if arch in ('x86_64', 'aarch64'):
+        add('arch', 'pass' if arch == 'x86_64' else 'warn',
+            arch + ('' if arch == 'x86_64' else ': the image is published for arm64; untested here'))
+    else:
+        add('arch', 'fail', f'{arch}: the ONLYOFFICE image is published for amd64 and arm64 only')
+
+    ok, version, detail = docker_available()
+    add('docker', 'pass' if ok else 'fail',
+        f'Docker {version}, Compose {detail}' if ok else
+        f'Docker is not usable: {detail}. Run scripts/office/install-editor.sh --mode managed-local '
+        '(it installs Docker only when none is present and never replaces an existing one).')
+    if run(['nft', '--version'], timeout=10).returncode == 0:
+        add('nftables', 'pass', 'nft available (container egress is restricted with it)')
+    else:
+        add('nftables', 'fail', 'nft is not installed; the container firewall cannot be applied')
+
+    mem = _meminfo()
+    total, avail, swap = mem.get('MemTotal', 0), mem.get('MemAvailable', 0), mem.get('SwapTotal', 0)
+    need = conf['memory_mb'] + conf['reserve_mb']
+    add('memory', 'pass' if total >= need else 'fail',
+        f'{total} MB RAM ({avail} MB available); the editor is limited to {conf["memory_mb"]} MB and '
+        f'{conf["reserve_mb"]} MB stay for clientst0r (needs {need} MB)')
+    if conf['memory_mb'] < VENDOR_RECOMMENDED_MEMORY_MB:
+        add('memory_limit', 'warn', f'MEMORY_MB {conf["memory_mb"]} is under ONLYOFFICE\'s recommended '
+                                    f'{VENDOR_RECOMMENDED_MEMORY_MB} MB for the Docker image')
+    if swap < 2048:
+        add('swap', 'warn', f'{swap} MB swap; ONLYOFFICE recommends at least 2 GB (Docker) / 4 GB (Linux)')
+    ncpu = _cpu_count()
+    add('cpu', 'pass' if ncpu >= VENDOR_MIN_CPUS + 1 else ('warn' if ncpu >= VENDOR_MIN_CPUS else 'fail'),
+        f'{ncpu} CPU(s); the editor is limited to {conf["cpus"]}, the rest stays for clientst0r '
+        '(ONLYOFFICE recommends dual-core 2 GHz or better)')
+    target = P(BASE_DIR) if os.path.isdir(P(BASE_DIR)) else (P('/var/lib') if os.path.isdir(P('/var/lib')) else '/')
+    st = os.statvfs(target)
+    free_gb = st.f_bavail * st.f_frsize // (1024 ** 3)
+    add('disk', 'fail' if free_gb < DISK_FAIL_GB else ('warn' if free_gb < DISK_WARN_GB else 'pass'),
+        f'{free_gb} GB free for {BASE_DIR} (fails under {DISK_FAIL_GB} GB; ONLYOFFICE\'s Linux page '
+        f'asks for {DISK_WARN_GB} GB)')
+
+    listeners = listening_ports()
+    cs = container_state()
+    if conf['bind_port'] in listeners and not cs.get('running'):
+        add('port', 'fail', f'127.0.0.1:{conf["bind_port"]} is already in use by another program')
+    else:
+        add('port', 'pass', f'port {conf["bind_port"]} is free (or used by this editor)')
+    if 443 in listeners:
+        add('proxy', 'pass', 'a web server listens on 443 (the container reaches clientst0r through it)')
+    else:
+        add('proxy', 'fail', 'nothing listens on 443: the reverse proxy for clientst0r and the office '
+                             'host name must run on this VM')
+
+    overlap = subnet_conflict(conf)
+    add('subnet', 'fail' if overlap else 'pass',
+        f'{conf["subnet"]} overlaps {overlap}; set NETWORK_SUBNET' if overlap else
+        f'{conf["subnet"]} does not overlap a local route')
+    for host, label in ((conf['office_hostname'], 'office host name'),
+                        (conf['clientstor_host'], 'clientst0r host name')):
+        try:
+            addrs = sorted({a[4][0] for a in socket.getaddrinfo(host, 443, 0, socket.SOCK_STREAM)})
+            add('dns', 'pass', f'{label} {host} resolves to {", ".join(addrs[:4])}')
+        except OSError:
+            add('dns', 'fail', f'{label} {host} does not resolve from this host')
+    r = default_release(conf)
+    add('release', 'pass' if r else 'fail',
+        f'will install {r["id"]}' if r else
+        'no release in the list can be installed: ' + '; '.join(
+            f'{x["id"]} {release_problem(x, conf)}' for x in RELEASES if x['edition'] == conf['edition']))
+    if conf['edition'] == 'enterprise' and not os.path.exists(P(LICENSE_FILE)):
+        add('license', 'fail', f'Enterprise edition: put the license file at {LICENSE_FILE}')
+    return {'checks': checks, 'passed': all(c['status'] != 'fail' for c in checks)}
+
+
+def listening_ports():
+    ports = set()
+    for name in ('/proc/net/tcp', '/proc/net/tcp6'):
+        path = P(name) if TEST_MODE and os.path.exists(P(name)) else name
+        try:
+            with open(path, encoding='ascii') as f:
+                next(f, None)
+                for line in f:
+                    parts = line.split()
+                    if len(parts) > 3 and parts[3] == '0A':
+                        ports.add(int(parts[1].rsplit(':', 1)[1], 16))
+        except OSError:
+            continue
+    return ports
+
+
+def subnet_conflict(conf):
+    net = ipaddress.ip_network(conf['subnet'])
+    r = run(['ip', '-j', 'route', 'show', 'table', 'all'], timeout=10)
+    try:
+        routes = json.loads(r.stdout or '[]') if r.returncode == 0 else []
+    except ValueError:
+        routes = []
+    for route in routes:
+        dst = route.get('dst', '')
+        if not dst or dst == 'default' or route.get('dev') == BRIDGE:
+            continue
+        try:
+            other = ipaddress.ip_network(dst, strict=False)
+        except ValueError:
+            continue
+        if other.version == 4 and other.prefixlen > 0 and other.overlaps(net):
+            return f'route {dst} on {route.get("dev", "?")}'
+    return ''
+
+
+def op_status(conf, args):
+    j = reconcile_journal()
+    ok, dver, cver = docker_available()
+    st = container_state() if ok else {'exists': False}
+    inst = installed()
+    rel = release(inst.get('release', ''))
+    newer = [r for r in RELEASES if r['edition'] == conf['edition'] and rel is not None
+             and version_key(r) > version_key(rel)]
+    return {
+        'helper_version': HELPER_VERSION,
+        'config': public_config(conf),
+        'docker': {'available': ok, 'version': dver, 'compose': cver if ok else '',
+                   'detail': '' if ok else cver},
+        'installed': {k: inst.get(k) for k in ('release', 'version', 'digest', 'edition',
+                                               'installed_at', 'previous_release', 'previous_backup',
+                                               'state')},
+        'container': st,
+        'resources': resources() if st.get('running') else {},
+        'data_bytes': dir_size(P(DATA_DIR)) if os.path.isdir(P(DATA_DIR)) else 0,
+        'operation': {k: j.get(k) for k in ('id', 'op', 'args', 'state', 'step', 'started_at',
+                                            'finished_at', 'error', 'result')} if j else {},
+        'update_available': [{'id': r['id'], 'version': r['version'],
+                              'installable': not release_problem(r, conf),
+                              'problem': release_problem(r, conf)} for r in newer],
+        'backups': [{k: b[k] for k in ('id', 'release', 'reason', 'created_at', 'size')}
+                    for b in list_backups()],
+        'secrets_present': os.path.exists(P(JWT_FILE)),
+    }
+
+
+def op_releases(conf, args):
+    return {'releases': [dict({k: r[k] for k in ('id', 'version', 'edition', 'image', 'digest',
+                                                 'compat', 'tested', 'published')},
+                              problem=release_problem(r, conf)) for r in RELEASES],
+            'installed': installed().get('release')}
+
+
+def op_logs(conf, args):
+    lines = args.get('lines', 200)
+    r = docker('logs', '--tail', str(lines), '--timestamps', CONTAINER, timeout=30)
+    if r.returncode != 0:
+        return {'log': '', 'detail': 'no container logs (is the editor installed?)'}
+    text = redact((r.stdout or '') + (r.stderr or ''))
+    if len(text.encode()) > MAX_LOG_BYTES:
+        text = text.encode()[-MAX_LOG_BYTES:].decode('utf-8', 'ignore')
+    return {'log': text, 'lines': lines}
+
+
+def op_secret(conf, args):
+    if not os.path.exists(P(JWT_FILE)):
+        raise HelperError('no secret yet: install first')
+    return {'jwt_secret': read_secret(JWT_FILE), 'header': 'Authorization'}
+
+
+def _up(conf, r, progress):
+    write_compose(conf, r)
+    apply_firewall(conf)
+    progress(f'starting {r["id"]}')
+    compose('up', '--detach', '--remove-orphans', '--pull', 'never', timeout=600)
+
+
+def op_install(conf, args, progress):
+    ok, _v, detail = docker_available()
+    if not ok:
+        raise HelperError(f'Docker is not usable: {detail}')
+    inst = installed()
+    r = release(inst.get('release', '')) if inst.get('release') else default_release(conf)
+    if r is None:
+        raise HelperError('no installable release: ' + '; '.join(
+            f'{x["id"]} {release_problem(x, conf)}' for x in RELEASES if x['edition'] == conf['edition']))
+    problem = release_problem(r, conf) if not inst.get('release') else ''
+    if problem:
+        raise HelperError(f'release {r["id"]} {problem}')
+    pull(r, progress)
+    save_installed(dict(inst, state='installing', release=r['id'], version=r['version'],
+                        digest=r['digest'], edition=r['edition'],
+                        installed_at=inst.get('installed_at') or now_iso()))
+    _up(conf, r, progress)
+    if not wait_healthy(conf, progress):
+        save_installed(dict(installed(), state='unhealthy'))
+        raise HelperError('the editor did not become healthy; see the logs')
+    save_installed(dict(installed(), state='installed'))
+    history({'event': 'install', 'release': r['id']})
+    return {'release': r['id'], 'healthy': True}
+
+
+def _require_installed():
+    inst = installed()
+    if not inst.get('release') or inst.get('state') == 'uninstalled':
+        raise HelperError('the editor is not installed')
+    r = release(inst['release'])
+    if r is None:
+        raise HelperError(f'installed release {inst["release"]} is no longer in the release list')
+    return inst, r
+
+
+def op_start(conf, args, progress):
+    inst, r = _require_installed()
+    if not os.path.exists(P(COMPOSE_FILE)):
+        write_compose(conf, r)
+    apply_firewall(conf)
+    compose('up', '--detach', '--pull', 'never', timeout=600)
+    if not wait_healthy(conf, progress):
+        raise HelperError('the editor started but did not become healthy; see the logs')
+    return {'healthy': True}
+
+
+def op_stop(conf, args, progress):
+    _require_installed()
+    prepare_for_shutdown(progress)
+    progress('stopping the editor')
+    compose('stop', '--timeout', '360', timeout=420)
+    return {'stopped': True}
+
+
+def op_restart(conf, args, progress):
+    op_stop(conf, args, progress)
+    return op_start(conf, args, progress)
+
+
+def op_update(conf, args, progress):
+    inst, current = _require_installed()
+    target = release(args['release'])
+    problem = release_problem(target, conf)
+    if problem:
+        raise HelperError(f'release {args["release"]} {problem}')
+    if target['id'] == current['id']:
+        st = container_state()
+        if st.get('running') and st.get('release_label') == target['id']:
+            return {'release': target['id'], 'changed': False}
+    if version_key(target) < version_key(current):
+        raise HelperError('that is an older release: use rollback, which restores the matching backup')
+    pull(target, progress)                      # before any downtime
+    prepare_for_shutdown(progress)
+    progress('stopping the editor')
+    compose('stop', '--timeout', '360', timeout=420, check=False)
+    backup = take_backup(conf, current['id'], 'pre-update', progress)
+    save_installed(dict(inst, state='updating', pending_release=target['id']))
+    try:
+        _up(conf, target, progress)
+        healthy = wait_healthy(conf, progress)
+    except HelperError:
+        healthy = False
+    if healthy:
+        save_installed({'state': 'installed', 'release': target['id'], 'version': target['version'],
+                        'digest': target['digest'], 'edition': target['edition'],
+                        'installed_at': now_iso(), 'previous_release': current['id'],
+                        'previous_backup': backup['id']})
+        prune_backups({backup['id']})
+        history({'event': 'update', 'from': current['id'], 'to': target['id'], 'backup': backup['id']})
+        return {'release': target['id'], 'previous_release': current['id'], 'backup': backup['id'],
+                'changed': True}
+    # Never became healthy, so nobody can have edited with it: put the old
+    # release back with the data exactly as it was before the update.
+    progress('the new release did not become healthy: restoring the previous release automatically')
+    compose('down', '--timeout', '60', timeout=180, check=False)
+    restore_backup(backup, progress)
+    _up(conf, current, progress)
+    back = wait_healthy(conf, progress)
+    save_installed(dict(inst, state='installed' if back else 'unhealthy'))
+    history({'event': 'update_failed', 'from': current['id'], 'to': target['id'],
+             'restored': back})
+    raise HelperError(f'update to {target["id"]} failed health checks; '
+                      f'{"the previous release is running again" if back else "the previous release did not come back either: see the logs"}')
+
+
+def op_rollback(conf, args, progress):
+    inst, current = _require_installed()
+    prev_id, backup_id = inst.get('previous_release'), inst.get('previous_backup')
+    if not prev_id or not backup_id:
+        raise HelperError('nothing to roll back to: no update with a backup was recorded')
+    prev = release(prev_id)
+    if prev is None:
+        raise HelperError(f'release {prev_id} is no longer in the release list')
+    manifest = next((b for b in list_backups() if b['id'] == backup_id), None)
+    if manifest is None or manifest['release'] != prev_id or manifest['digest'] != prev['digest']:
+        raise HelperError(f'backup {backup_id} is missing or was not taken from {prev_id}; '
+                          'rolling back without it could break the editor\'s data')
+    pull(prev, progress)
+    prepare_for_shutdown(progress)
+    compose('stop', '--timeout', '360', timeout=420, check=False)
+    # The editor data since the update is kept, never overwritten blindly.
+    safety = take_backup(conf, current['id'], 'pre-rollback', progress)
+    compose('down', '--timeout', '60', timeout=180, check=False)
+    restore_backup(manifest, progress)
+    _up(conf, prev, progress)
+    if not wait_healthy(conf, progress):
+        save_installed(dict(inst, state='unhealthy'))
+        raise HelperError(f'rolled back to {prev_id} but it did not become healthy; the data from '
+                          f'before the rollback is kept in backup {safety["id"]}')
+    save_installed({'state': 'installed', 'release': prev['id'], 'version': prev['version'],
+                    'digest': prev['digest'], 'edition': prev['edition'], 'installed_at': now_iso(),
+                    'previous_release': None, 'previous_backup': None,
+                    'rolled_back_from': current['id'], 'pre_rollback_backup': safety['id']})
+    prune_backups({safety['id'], manifest['id']})
+    history({'event': 'rollback', 'from': current['id'], 'to': prev['id'], 'kept': safety['id']})
+    return {'release': prev['id'], 'kept_backup': safety['id']}
+
+
+def op_uninstall(conf, args, progress):
+    inst = installed()
+    if os.path.exists(P(COMPOSE_FILE)):
+        prepare_for_shutdown(progress)
+        progress('removing the editor container (documents and editor data are kept)')
+        compose('down', '--timeout', '360', timeout=420, check=False)
+    else:
+        docker('rm', '--force', CONTAINER, timeout=60)
+    save_installed(dict(inst, state='uninstalled'))
+    history({'event': 'uninstall'})
+    return {'uninstalled': True, 'data_kept': BASE_DIR, 'secrets_kept': SECRETS_DIR}
+
+
+def op_purge(conf, args, progress):
+    if args.get('confirm') != conf['deployment_id']:
+        raise HelperError('purge needs --confirm <DEPLOYMENT_ID>')
+    if container_state().get('exists') or installed().get('state') not in (None, 'uninstalled'):
+        raise HelperError('uninstall first; purge only removes the data of an uninstalled editor')
+    for d in (DATA_DIR, BACKUP_DIR, COMPOSE_DIR, STATE_DIR, SECRETS_DIR):
+        shutil.rmtree(P(d), ignore_errors=True)
+    for r in RELEASES:
+        docker('image', 'rm', image_ref(r), timeout=120)
+    run(['nft', 'delete', 'table', 'inet', NFT_TABLE], timeout=30)
+    return {'purged': True}
+
+
+OPERATIONS = {
+    'preflight': op_preflight, 'status': op_status, 'releases': op_releases, 'logs': op_logs,
+    'secret': op_secret, 'install': op_install, 'start': op_start, 'stop': op_stop,
+    'restart': op_restart, 'update': op_update, 'rollback': op_rollback,
+    'uninstall': op_uninstall, 'purge': op_purge,
+}
+
+
+# ---------------------------------------------------------------------------
+# request validation
+# ---------------------------------------------------------------------------
+
+def validate_request(req, *, cli=False):
+    """(op, args) for a request, or HelperError. Nothing outside this
+    grammar is accepted, and no string the app sends reaches a command
+    line except a release id that equals one in RELEASES."""
+    if not isinstance(req, dict) or set(req) - {'op', 'args'}:
+        raise HelperError('a request is {"op": ..., "args": {...}}')
+    op = req.get('op')
+    args = req.get('args', {})
+    if not isinstance(op, str) or not isinstance(args, dict):
+        raise HelperError('bad request')
+    allowed = SOCKET_OPS + (('purge',) if cli else ())
+    if op not in allowed:
+        raise HelperError(f'unknown operation {op[:40]!r}' if op not in CLI_ONLY_OPS
+                          else f'{op} is only available from a root shell (clientst0r-office-helper cli {op})')
+    if op == 'update':
+        if set(args) != {'release'} or not isinstance(args['release'], str) \
+                or not RELEASE_RE.match(args['release']) or release(args['release']) is None:
+            raise HelperError('update needs {"release": "<id from the release list>"}')
+        return op, {'release': args['release']}
+    if op == 'logs':
+        if set(args) - {'lines'}:
+            raise HelperError('logs takes only "lines"')
+        lines = args.get('lines', 200)
+        if not isinstance(lines, int) or isinstance(lines, bool) or not 1 <= lines <= MAX_LOG_LINES:
+            raise HelperError(f'lines must be 1-{MAX_LOG_LINES}')
+        return op, {'lines': lines}
+    if op == 'purge':
+        if set(args) != {'confirm'} or not isinstance(args['confirm'], str) or not ID_RE.match(args['confirm']):
+            raise HelperError('purge needs --confirm <DEPLOYMENT_ID>')
+        return op, {'confirm': args['confirm']}
+    if args:
+        raise HelperError(f'{op} takes no arguments')
+    return op, {}
+
+
+# ---------------------------------------------------------------------------
+# execution
+# ---------------------------------------------------------------------------
+
+def run_async(conf, op, args, reply):
+    """Take the lock, journal the operation, reply 'accepted', then run it
+    to the end in this process (the caller may disconnect)."""
+    reconcile_journal()
+    fd = acquire_lock()
+    if fd is None:
+        j = journal()
+        reply({'ok': False, 'busy': True,
+               'error': f'another operation is running ({j.get("op", "?")}, {j.get("step", "")})'})
+        return 0
+    op_id = f'{datetime.datetime.now(datetime.timezone.utc):%Y%m%dT%H%M%S}-{secrets.token_hex(3)}'
+    j = {'id': op_id, 'op': op, 'args': args, 'state': 'running', 'step': 'starting',
+         'started_at': now_iso(), 'finished_at': None, 'error': '', 'result': None,
+         'pid': os.getpid(), 'boot_id': _boot_id()}
+    write_journal(j)
+    _log(f'{op} {json.dumps(args)} accepted ({op_id})')
+    reply({'ok': True, 'accepted': True, 'operation': {'id': op_id, 'op': op, 'state': 'running'}})
+
+    def progress(step):
+        j['step'] = redact(step)[:300]
+        write_journal(j)
+
+    try:
+        result = OPERATIONS[op](conf, args, progress)
+        j.update(state='succeeded', result=result, finished_at=now_iso(), step='done')
+    except HelperError as e:
+        j.update(state='failed', error=redact(str(e))[:1000], finished_at=now_iso())
+    except Exception as e:      # report, never leave "running" behind
+        j.update(state='failed', error=f'internal error: {type(e).__name__}: {redact(str(e))[:300]}',
+                 finished_at=now_iso())
+    write_journal(j)
+    history({'event': 'operation', 'op': op, 'id': op_id, 'state': j['state']})
+    _log(f'{op} {op_id} {j["state"]} {j.get("error", "")}')
+    os.close(fd)
+    return 0 if j['state'] == 'succeeded' else 1
+
+
+def peer_uid(sock):
+    creds = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize('3i'))
+    _pid, uid, _gid = struct.unpack('3i', creds)
+    return uid
+
+
+def serve():
+    """One request on the systemd-passed connection (fd 0)."""
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+    sock = socket.socket(fileno=os.dup(0))
+    out = {'sent': False}
+
+    def reply(obj):
+        if out['sent']:
+            return
+        out['sent'] = True
+        try:
+            sock.sendall((json.dumps(obj) + '\n').encode())
+            sock.shutdown(socket.SHUT_WR)
+            sock.settimeout(1)
+            while sock.recv(4096):      # discard the rest of an oversized request
+                pass
+        except OSError:
+            pass
+        sock.close()
+        for fd in (0, 1):       # release the connection; long work continues
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+    try:
+        # Read the (small, bounded) request first so that any refusal below
+        # is a clean reply rather than a reset connection.
+        sock.settimeout(10)
+        data = b''
+        while not data.endswith(b'\n'):
+            chunk = sock.recv(1024)
+            if not chunk:
+                break
+            data += chunk
+            if len(data) > MAX_REQUEST:
+                raise HelperError('request too large')
+        conf = load_config()
+        uid = peer_uid(sock)
+        if uid not in (0, conf['app_uid']):
+            _log(f'refused connection from uid {uid}')
+            reply({'ok': False, 'error': 'not allowed'})
+            return 1
+        try:
+            req = json.loads(data.decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            raise HelperError('the request is not JSON')
+        op, args = validate_request(req)
+        if op in ASYNC_OPS:
+            return run_async(conf, op, args, reply)
+        result = OPERATIONS[op](conf, args)
+        reply({'ok': True, 'result': result})
+        return 0
+    except HelperError as e:
+        _log(f'refused: {e}')
+        reply({'ok': False, 'error': redact(str(e))[:1000]})
+        return 1
+    except Exception as e:
+        reply({'ok': False, 'error': f'internal error: {type(e).__name__}'})
+        return 1
+
+
+def cli(argv):
+    if not TEST_MODE and os.geteuid() != 0:
+        print('clientst0r-office-helper cli must run as root', file=sys.stderr)
+        return 2
+    if not argv:
+        print(__doc__, file=sys.stderr)
+        return 2
+    op, rest = argv[0], argv[1:]
+    try:
+        conf = load_config()
+        if op == 'apply-firewall':
+            print(apply_firewall(conf))
+            return 0
+        args = {}
+        if op == 'update' and len(rest) == 1:
+            args = {'release': rest[0]}
+        elif op == 'logs' and len(rest) == 1 and rest[0].isdigit():
+            args = {'lines': int(rest[0])}
+        elif op == 'purge' and len(rest) == 2 and rest[0] == '--confirm':
+            args = {'confirm': rest[1]}
+        elif rest:
+            raise HelperError(f'unexpected arguments for {op}')
+        op, args = validate_request({'op': op, 'args': args}, cli=True)
+        if op in ASYNC_OPS:
+            def reply(obj):
+                print(json.dumps(obj))
+            rc = run_async(conf, op, args, reply)
+            print(json.dumps(journal(), indent=1))
+            return rc
+        result = OPERATIONS[op](conf, args) if op != 'purge' else \
+            OPERATIONS[op](conf, args, lambda s: print(s))
+        print(json.dumps(result, indent=1))
+        return 0
+    except HelperError as e:
+        print(f'clientst0r-office-helper: {e}', file=sys.stderr)
+        return 1
+
+
+def main(argv):
+    _enable_test_mode()
+    os.umask(0o077)
+    if argv[:1] == ['serve']:
+        if not TEST_MODE and os.geteuid() != 0:
+            return 2
+        return serve()
+    if argv[:1] == ['cli']:
+        return cli(argv[1:])
+    if argv[:1] == ['version']:
+        print(HELPER_VERSION)
+        return 0
+    print(__doc__, file=sys.stderr)
+    return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

@@ -1,0 +1,36 @@
+# /etc/clientst0r/office-service.conf  (root:root 0644)
+# Read by /usr/local/sbin/clientst0r-office-helper. The web app cannot change
+# it; scripts/office/install-editor.sh --mode managed-local writes it.
+#
+# Short id of this deployment (one VM = one customer = one editor).
+DEPLOYMENT_ID=acme-prod
+# The account clientst0r runs as; the only one allowed on the helper socket.
+APP_USER=clientstor
+# Dedicated HTTPS host name of the editor (browser-facing). Must differ from
+# clientst0r's own host name. The host's Nginx proxies it to 127.0.0.1:BIND_PORT.
+OFFICE_HOSTNAME=office.acme.example
+# clientst0r's own address, as the editor container must reach it for
+# document downloads and save callbacks (https, port 443, no path).
+CLIENTSTOR_URL=https://docs.acme.example/
+# Loopback port the container is published on (never on other interfaces).
+BIND_PORT=8090
+# community (AGPL, ONLYOFFICE Docs Community) or enterprise (needs
+# /etc/clientst0r/office/license.lic from ONLYOFFICE).
+EDITION=community
+# Limits for the container. MEMORY_MB + RESERVE_MB must fit in the host's RAM,
+# CPUS must leave at least one core for clientst0r.
+CPUS=2
+MEMORY_MB=4096
+RESERVE_MB=2048
+# Private IPv4 network for the container bridge (cs0office0). Its first
+# address is the gateway the container uses to reach clientst0r on 443.
+NETWORK_SUBNET=172.31.250.0/28
+# yes only on a disposable test VM running the live checklist: installs a
+# release that clientst0r has not verified yet.
+ALLOW_UNTESTED_RELEASES=no
+# yes when clientst0r's certificate comes from a private CA: put the CA PEM at
+# /etc/clientst0r/office/extra-ca-certs.pem (root, 0600).
+PRIVATE_CA=no
+# yes allows clientst0r's maintenance window (Settings) to start updates.
+# Even then the app only starts one inside the window it is configured with.
+MAINTENANCE_UPDATES=no

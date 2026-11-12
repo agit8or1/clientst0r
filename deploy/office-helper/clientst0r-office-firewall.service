@@ -1,0 +1,15 @@
+# Re-applies the container egress rules (nftables table inet clientst0r_office)
+# at boot, before Docker starts the editor container again.
+[Unit]
+Description=clientst0r Office editor container firewall
+Before=docker.service
+After=nftables.service
+ConditionPathExists=/etc/clientst0r/office-service.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/clientst0r-office-helper cli apply-firewall
+
+[Install]
+WantedBy=multi-user.target

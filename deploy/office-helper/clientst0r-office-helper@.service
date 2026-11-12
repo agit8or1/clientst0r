@@ -1,0 +1,28 @@
+# One process per connection (Accept=yes). Long operations keep running after
+# the reply; the caller may disconnect.
+[Unit]
+Description=clientst0r Office service helper (connection %i)
+After=docker.service
+Requires=clientst0r-office-helper.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/clientst0r-office-helper serve
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+User=root
+# Long enough for update = pull + prepare4shutdown (up to 5 min) + backup +
+# first start (font generation).
+RuntimeMaxSec=3h
+KillMode=process
+TimeoutStopSec=420
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ReadWritePaths=/var/lib/clientst0r-office /etc/clientst0r/office /run
+ProtectControlGroups=no
+RestrictSUIDSGID=yes
+LockPersonality=yes
