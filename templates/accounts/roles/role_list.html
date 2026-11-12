@@ -6,327 +6,102 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:member_list' %}">Members</a></li>
         <li class="breadcrumb-item active">Role Management</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-user-shield"></i> Role Management</h2>
-    <a href="{% url 'accounts:role_create' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Create Custom Role
-    </a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0"><i class="fas fa-user-shield"></i> Roles</h2>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'accounts:permission_catalog' %}" class="btn btn-outline-secondary"><i class="fas fa-list"></i> Permission catalog</a>
+        <a href="{% url 'accounts:role_compare' %}" class="btn btn-outline-secondary"><i class="fas fa-columns"></i> Compare</a>
+        <a href="{% url 'accounts:access_explain' %}" class="btn btn-outline-secondary"><i class="fas fa-question-circle"></i> Why does someone have access?</a>
+        <a href="{% url 'accounts:portal_access' %}" class="btn btn-outline-secondary"><i class="fas fa-door-open"></i> Portal access</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'accounts:role_review' %}" class="btn btn-outline-warning"><i class="fas fa-clipboard-check"></i> Review{% if open_reviews %} <span class="badge bg-warning text-dark">{{ open_reviews }}</span>{% endif %}</a>
+        {% endif %}
+        {% if can_manage %}
+        <a href="{% url 'accounts:role_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Create custom role</a>
+        {% endif %}
+    </div>
 </div>
 
 <div class="alert alert-info">
-    <i class="fas fa-info-circle"></i> <strong>Role Templates:</strong> Define granular permissions for users. System templates cannot be modified. Create custom roles for your organization's specific needs.
+    <i class="fas fa-info-circle"></i>
+    Roles grant permissions; they never take any away. A member's permissions are the sum of the roles they
+    hold <strong>in this organization</strong>; a role in one organization gives nothing in another. Which
+    records a role applies to is the membership's record scope (and, for MSP staff, their client scope).
+    Built-in roles are starting points: clone one to customize it.
 </div>
 
-<!-- System Role Templates -->
+<p>
+    {% if show_archived %}
+    <a href="{% url 'accounts:role_list' %}">Hide archived roles</a>
+    {% else %}
+    <a href="{% url 'accounts:role_list' %}?archived=1">Show archived roles</a>
+    {% endif %}
+</p>
+
+
 <div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-shield-alt"></i> System Role Templates</h5>
-    </div>
-    <div class="card-body">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-shield-alt"></i> Built-in roles</h5></div>
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Role Name</th>
-                        <th>Description</th>
-                        <th style="width: 120px;">Actions</th>
-                    </tr>
-                </thead>
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Role</th><th>For</th><th>Status</th><th>Users</th><th>Description</th><th></th></tr></thead>
                 <tbody>
-                    {% for role in system_templates %}
-                    <tr>
-                        <td>
-                            <strong>{{ role.name }}</strong>
-                            <span class="badge bg-primary ms-2">System</span>
-                        </td>
-                        <td>{{ role.description }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#permissions-{{ role.id }}">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <a href="{% url 'accounts:role_create' %}?copy_from={{ role.id }}" class="btn btn-sm btn-outline-primary" title="Clone this role">
-                                <i class="fas fa-copy"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    <tr id="permissions-{{ role.id }}" class="collapse">
-                        <td colspan="3">
-                            <div class="p-3 bg-light">
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-key"></i> Vault</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.vault_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.vault_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.vault_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.vault_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li class="text-muted">{% if role.vault_export %}<i class="fas fa-check text-muted"></i>{% else %}<i class="fas fa-times text-muted"></i>{% endif %} Export <em>(not implemented)</em></li>
-                                            <li>{% if role.vault_view_password %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Passwords</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-server"></i> Assets</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.assets_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.assets_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.assets_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.assets_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-file-alt"></i> Documents</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.docs_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.docs_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.docs_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.docs_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li>{% if role.docs_publish %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Publish</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-chart-line"></i> Monitoring</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.monitoring_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.monitoring_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.monitoring_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.monitoring_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li>{% if role.monitoring_trigger %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Trigger Checks</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-plug"></i> Integrations</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.integrations_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.integrations_configure %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Configure</li>
-                                            <li>{% if role.integrations_sync %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Sync</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-users"></i> Organization</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.org_view_members %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Members</li>
-                                            <li>{% if role.org_invite_members %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Invite Members</li>
-                                            <li>{% if role.org_manage_members %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Members</li>
-                                            <li>{% if role.org_manage_settings %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Settings</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-code"></i> API</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.api_access %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Access</li>
-                                            <li>{% if role.api_keys_manage %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Keys</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-clipboard-list"></i> Audit</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.audit_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Logs</li>
-                                            <li>{% if role.audit_export %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Export Logs</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-book"></i> Knowledge Base</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.kb_view_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Articles</li>
-                                            <li>{% if role.kb_edit_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit Articles</li>
-                                            <li>{% if role.kb_move_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Move Articles</li>
-                                            <li>{% if role.kb_manage_categories %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Categories</li>
-                                            <li>{% if role.kb_publish_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Publish Articles</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                                <!-- v3.17.145 — Reports / Resourcing / Billing perm groups -->
-                                <div class="row mt-3">
-                                    <div class="col-md-4">
-                                        <h6><i class="fas fa-chart-bar"></i> Reports &amp; Dashboards</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.reports_view_dashboards %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Dashboards</li>
-                                            <li>{% if role.reports_view_financial %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Financial</li>
-                                            <li>{% if role.reports_view_sla %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View SLA</li>
-                                            <li>{% if role.reports_view_capacity %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Capacity</li>
-                                            <li>{% if role.reports_manage_dashboards %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Dashboards</li>
-                                            <li>{% if role.reports_manage_scheduled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Scheduled</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h6><i class="fas fa-user-clock"></i> Resource Management</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.resourcing_view_team %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Team Roster</li>
-                                            <li>{% if role.resourcing_manage_cost_rates %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Cost Rates</li>
-                                            <li>{% if role.resourcing_approve_leave %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Approve Leave</li>
-                                            <li>{% if role.resourcing_manage_holidays %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Holidays</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h6><i class="fas fa-file-invoice-dollar"></i> Billing &amp; Financial</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.billing_view_invoices %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Invoices</li>
-                                            <li>{% if role.billing_send_invoices %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Send Invoices</li>
-                                            <li>{% if role.billing_record_payments %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Record Payments</li>
-                                            <li>{% if role.billing_view_aging %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Aging Report</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                {% for row in builtin_rows %}
+                    {% include "accounts/roles/_role_row.html" %}
+                {% empty %}
+                    <tr><td colspan="6" class="text-muted text-center py-3">No built-in roles yet. Run <code>manage.py init_role_templates</code>.</td></tr>
+                {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Custom Role Templates -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-user-cog"></i> Custom Role Templates</h5>
-    </div>
-    <div class="card-body">
-        {% if custom_templates %}
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-user-cog"></i> Custom roles of {{ current_organization.name }}</h5></div>
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Role Name</th>
-                        <th>Description</th>
-                        <th style="width: 200px;">Actions</th>
-                    </tr>
-                </thead>
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Role</th><th>For</th><th>Status</th><th>Users</th><th>Description</th><th></th></tr></thead>
                 <tbody>
-                    {% for role in custom_templates %}
-                    <tr>
-                        <td>
-                            <strong>{{ role.name }}</strong>
-                            <span class="badge bg-secondary ms-2">Custom</span>
-                        </td>
-                        <td>{{ role.description }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#permissions-{{ role.id }}">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <a href="{% url 'accounts:role_edit' role.id %}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-edit"></i> Edit
-                            </a>
-                            <a href="{% url 'accounts:role_delete' role.id %}" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    <tr id="permissions-{{ role.id }}" class="collapse">
-                        <td colspan="3">
-                            <div class="p-3 bg-light">
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-key"></i> Vault</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.vault_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.vault_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.vault_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.vault_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li class="text-muted">{% if role.vault_export %}<i class="fas fa-check text-muted"></i>{% else %}<i class="fas fa-times text-muted"></i>{% endif %} Export <em>(not implemented)</em></li>
-                                            <li>{% if role.vault_view_password %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Passwords</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-server"></i> Assets</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.assets_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.assets_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.assets_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.assets_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-file-alt"></i> Documents</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.docs_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.docs_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.docs_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.docs_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li>{% if role.docs_publish %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Publish</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-chart-line"></i> Monitoring</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.monitoring_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.monitoring_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
-                                            <li>{% if role.monitoring_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
-                                            <li>{% if role.monitoring_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li>{% if role.monitoring_trigger %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Trigger Checks</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-plug"></i> Integrations</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.integrations_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View</li>
-                                            <li>{% if role.integrations_configure %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Configure</li>
-                                            <li>{% if role.integrations_sync %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Sync</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <h6><i class="fas fa-users"></i> Organization</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.org_view_members %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Members</li>
-                                            <li>{% if role.org_invite_members %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Invite Members</li>
-                                            <li>{% if role.org_manage_members %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Members</li>
-                                            <li>{% if role.org_manage_settings %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Settings</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-code"></i> API</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.api_access %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Access</li>
-                                            <li>{% if role.api_keys_manage %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Keys</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-clipboard-list"></i> Audit</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.audit_view %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Logs</li>
-                                            <li>{% if role.audit_export %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Export Logs</li>
-                                        </ul>
-                                        <h6 class="mt-3"><i class="fas fa-book"></i> Knowledge Base</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.kb_view_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Articles</li>
-                                            <li>{% if role.kb_edit_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit Articles</li>
-                                            <li>{% if role.kb_move_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Move Articles</li>
-                                            <li>{% if role.kb_manage_categories %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Categories</li>
-                                            <li>{% if role.kb_publish_articles %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Publish Articles</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                                <!-- v3.17.145 — Reports / Resourcing / Billing perm groups -->
-                                <div class="row mt-3">
-                                    <div class="col-md-4">
-                                        <h6><i class="fas fa-chart-bar"></i> Reports &amp; Dashboards</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.reports_view_dashboards %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Dashboards</li>
-                                            <li>{% if role.reports_view_financial %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Financial</li>
-                                            <li>{% if role.reports_view_sla %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View SLA</li>
-                                            <li>{% if role.reports_view_capacity %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Capacity</li>
-                                            <li>{% if role.reports_manage_dashboards %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Dashboards</li>
-                                            <li>{% if role.reports_manage_scheduled %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Scheduled</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h6><i class="fas fa-user-clock"></i> Resource Management</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.resourcing_view_team %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Team Roster</li>
-                                            <li>{% if role.resourcing_manage_cost_rates %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Cost Rates</li>
-                                            <li>{% if role.resourcing_approve_leave %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Approve Leave</li>
-                                            <li>{% if role.resourcing_manage_holidays %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Manage Holidays</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h6><i class="fas fa-file-invoice-dollar"></i> Billing &amp; Financial</h6>
-                                        <ul class="list-unstyled small">
-                                            <li>{% if role.billing_view_invoices %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Invoices</li>
-                                            <li>{% if role.billing_send_invoices %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Send Invoices</li>
-                                            <li>{% if role.billing_record_payments %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Record Payments</li>
-                                            <li>{% if role.billing_view_aging %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Aging Report</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                {% for row in custom_rows %}
+                    {% include "accounts/roles/_role_row.html" %}
+                {% empty %}
+                    <tr><td colspan="6" class="text-muted text-center py-3">No custom roles yet.</td></tr>
+                {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <p class="text-muted text-center py-4">
-            <i class="fas fa-info-circle"></i> No custom roles created yet. Click "Create Custom Role" to get started.
-        </p>
-        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Unused roles</h6></div>
+            <div class="card-body">
+                <p class="small text-muted">Roles nobody holds (as a primary role, an additional role or a global role).</p>
+                <ul class="mb-0">
+                {% for row in unused_rows %}<li><a href="{% url 'accounts:role_detail' row.role.pk %}">{{ row.role.name }}</a></li>{% empty %}<li class="text-muted">None</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Unassigned permissions</h6></div>
+            <div class="card-body">
+                <p class="small text-muted">Permissions no role in use grants (including the simple Owner / Admin / Editor / Read-Only roles).</p>
+                <ul class="mb-0 small">
+                {% for p in unassigned_permissions %}<li><code>{{ p.key }}</code> — {{ p.description }}</li>{% empty %}<li class="text-muted">None</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}Contract settings{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">Settings</li></ol></nav>
-<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+<div class="card card-body cd-page-head d-flex flex-row flex-wrap align-items-center gap-2 mb-3">
     <h2 class="h4 mb-0 me-auto">Contract settings — {% if org %}{{ org.name }}{% else %}deployment defaults{% endif %}</h2>
     <form method="get" class="d-flex gap-1"><label class="visually-hidden" for="s-org">Settings for</label>
         <select class="form-select form-select-sm" id="s-org" name="org" data-autosubmit>
@@ -37,7 +38,7 @@
         <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="require_email_verification" name="require_email_verification" {% if s.require_email_verification %}checked{% endif %}><label class="form-check-label" for="require_email_verification">Signers confirm a 6-digit e-mail code before signing</label></div>
         <div class="form-check"><input class="form-check-input" type="checkbox" id="require_countersignature" name="require_countersignature" {% if s.require_countersignature %}checked{% endif %}><label class="form-check-label" for="require_countersignature">Require an internal countersignature</label></div>
         <div class="form-check"><input class="form-check-input" type="checkbox" id="require_internal_approval" name="require_internal_approval" {% if s.require_internal_approval %}checked{% endif %}><label class="form-check-label" for="require_internal_approval">Require internal approval before sending</label></div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="allow_self_approval" name="allow_self_approval" {% if s.allow_self_approval %}checked{% endif %}><label class="form-check-label" for="allow_self_approval">Allow the author to approve their own contract</label></div></div>
+        <div class="form-text">A version is never approved by the person who wrote or submitted it.</div></div>
         <div class="col-12"><label class="form-label small" for="consent_text">Electronic-signature consent shown to signers</label><textarea class="form-control" id="consent_text" name="consent_text" rows="4">{{ s.consent_text }}</textarea></div>
         <div class="col-12"><label class="form-label small" for="intent_text">Intent statement</label><input class="form-control" id="intent_text" name="intent_text" value="{{ s.intent_text }}"></div>
         <p class="small text-body-secondary mb-0">Sample wording only: have it reviewed for your jurisdiction.</p>

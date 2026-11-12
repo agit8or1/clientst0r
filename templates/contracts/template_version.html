@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}{{ tpl.name }} v{{ tv.version_number }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:template_list' %}">Templates</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:template_edit' tpl.pk %}">{{ tpl.name }}</a></li><li class="breadcrumb-item active">v{{ tv.version_number }}</li></ol></nav>
-<h2 class="h4">{{ tpl.name }} — version {{ tv.version_number }}</h2>
+<h2 class="h4 card card-body cd-page-head mb-3">{{ tpl.name }} — version {{ tv.version_number }}</h2>
 <p class="small text-body-secondary">Saved {{ tv.created_at|date:"Y-m-d H:i" }}{% if tv.created_by %} by {{ tv.created_by.get_full_name|default:tv.created_by.username }}{% endif %}{% if tv.note %} — {{ tv.note }}{% endif %}. Read-only.</p>
 {% for s in sections %}<div class="card mb-2"><div class="card-header"><strong>{{ s.title|default:"(untitled)" }}</strong> <small class="text-body-secondary">{{ s.type }}{% if not s.include %} · left out by default{% endif %}</small></div><div class="card-body">{{ s.body|safe }}</div></div>{% endfor %}
 {% endblock %}

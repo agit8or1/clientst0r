@@ -3,7 +3,7 @@
 {% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet"><style>{{ doc_css|safe }}</style>{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Approval</li></ol></nav>
-<h2 class="h4">Internal approval — version {{ v.version_number }}</h2>
+<h2 class="h4 card card-body cd-page-head mb-3">Internal approval — version {{ v.version_number }}</h2>
 <p class="text-body-secondary small">Your decision is bound to this exact content (SHA-256 <code>{{ v.content_hash }}</code>). Any later change creates a new version that needs approval again.</p>
 <div class="row g-3">
     <div class="col-lg-8"><div class="card"><div class="card-body cd-paper">{{ v.rendered_html|safe }}</div></div></div>

@@ -129,6 +129,7 @@ def page(request, public_id):
         'sig': sig, 'attachments': attachments, 'signed_count': others, 'total': len(v.signer_specs),
         'final_ready': v.finalization_status == 'done', 'today': timezone.localdate(),
         'code_sent': bool(inv.code_sent_at and inv.code_expires_at and inv.code_expires_at > timezone.now()),
+        'signer_denial': signing.signer_denial(request, inv) if state == 'open' else '',
     })
 
 

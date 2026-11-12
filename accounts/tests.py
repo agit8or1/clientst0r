@@ -337,11 +337,15 @@ class MemberRoleAssignBoundaryTests(TestCase):
         cls.member_ms = Membership.objects.create(
             user=cls.member, organization=cls.org_a, role=Role.READONLY, is_active=True,
         )
+        # Customer roles: a customer owner assigns role templates made of
+        # customer-assignable permissions only (accounts.delegation).
+        customer_flags = {k: False for k in RoleTemplate.permission_field_names()}
+        customer_flags.update(tickets_view=True, tickets_create=True, docs_view=True)
         cls.system_tpl = RoleTemplate.objects.create(
-            name='Sys Role', organization=None, is_system_template=True,
+            name='Sys Role', organization=None, is_system_template=True, audience='customer', **customer_flags,
         )
         cls.own_tpl = RoleTemplate.objects.create(
-            name='Cust A Role', organization=cls.org_a,
+            name='Cust A Role', organization=cls.org_a, audience='customer', **customer_flags,
         )
         cls.foreign_tpl = RoleTemplate.objects.create(
             name='Cust B Role', organization=cls.org_b,

@@ -146,7 +146,7 @@ class FullFlowTests(ContractTestCase):
 class MultipleSignerTests(ContractTestCase):
 
     def test_sequential_clients_then_countersign(self):
-        bob = make_staff('bob')
+        bob = make_staff('bob', role={'contracts_view': True, 'contracts_countersign': True})
         c = self.new_contract(signing_order='sequential', require_countersignature=True, signers=[
             {'name': 'Ann First', 'email': 'ann@acme.test', 'order': 1},
             {'name': 'Ben Second', 'email': 'ben@acme.test', 'order': 2},

@@ -25,10 +25,17 @@ def make_org(name='Acme Dental', email='owner@acme.test'):
                                        primary_contact_email=email, primary_contact_title='Owner')
 
 
-def make_staff(username='tech', superuser=False, **extra):
+def make_staff(username='tech', superuser=False, role=None, **extra):
+    """An MSP technician. `role` = RoleTemplate flags for their global role
+    (a technician without a global role or membership holds no contract
+    permission)."""
     u = User.objects.create_user(username, f'{username}@msp.test', 'pw-Long-enough-123',
                                  first_name=username.title(), is_superuser=superuser, **extra)
     _make_msp_tech(u)
+    if role is not None:
+        from accounts.models import RoleTemplate
+        u.profile.global_role_template = RoleTemplate.objects.create(name=f'Global role for {username}', **role)
+        u.profile.save()
     return u
 
 

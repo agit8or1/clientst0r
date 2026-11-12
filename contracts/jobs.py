@@ -22,7 +22,7 @@ from datetime import timedelta
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from .models import ContractInvitation, ContractJob
+from .models import ContractDocument, ContractInvitation, ContractJob
 
 logger = logging.getLogger('contracts')
 
@@ -179,9 +179,28 @@ def _invitation_email(job, reminder=False):
                           '(this does not prove delivery)')
 
 
+def _still_allowed(job) -> bool:
+    """Delivery-time check (accounts.alert_access): the person must still be
+    allowed to see the contract when the queued e-mail goes out."""
+    from django.contrib.auth import get_user_model
+    from . import permissions as perms
+    uid = (job.payload or {}).get('user_id')
+    if job.contract_id is None:
+        return True
+    user = get_user_model().objects.filter(pk=uid).first() if uid else \
+        get_user_model().objects.filter(email__iexact=(job.payload or {}).get('to', ''), is_active=True).first()
+    if user is None:
+        return False
+    contract = ContractDocument.objects.get(pk=job.contract_id)
+    return bool(perms.alert_recipients([user], contract))
+
+
 def _staff_email(job):
     from . import mail
     p = job.payload
+    if not _still_allowed(job):
+        logger.info('contract staff e-mail %s dropped: the recipient may no longer see the contract', job.pk)
+        return
     mail.send_staff(p['to'], p['subject'], p['body'], p.get('link_path', ''))
 
 

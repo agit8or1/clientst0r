@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">{{ title }}</li></ol></nav>
-<h2 class="h4">{{ title }}</h2>
+<h2 class="h4 card card-body cd-page-head mb-3">{{ title }}</h2>
 <form method="post" class="card card-body" style="max-width: 40rem">{% csrf_token %}
 {% if action == 'void' %}
     <p>Voiding ends this contract for good. Every open signing link stops working, pending e-mails and reminders are cancelled, and the history, versions and any signatures are kept for the record.</p>

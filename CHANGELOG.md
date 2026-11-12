@@ -7,18 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Contract documents and digital signing (Phase 64). Built on the development branch, not yet released.
+### Added (roles and access, roles-core)
+- Permission registry (`accounts/permission_registry.py`): every role permission with its module, kind of action, sensitivity, customer assignability and a description. New permissions: privileged member management, role management, ownership, internal ticket notes, quotes (view, edit, send, approve discount), thirteen contract permissions, portal permissions (organization-wide tickets, filing and replying, request approval, coworkers' agreements, billing contact, contract reviewer, authorized contract signer) and operations permissions (fleet, wallboard, workflow rules, timesheets, payroll, report export, invoice approval, credit memos, charges, commissions), plus reveal approval, stored device configurations, synced PSA data and internal documentation for customers. All default to off.
+- Built-in internal and customer roles, seeded idempotently with a version and checksum. The existing Owner and RMM L1/L2/L3 templates are adopted, and customized roles are never overwritten.
+- Multiple roles per membership (additional roles), record scope (organization / assigned / own) on memberships and global roles, and client scope (all / assigned / selected) for MSP staff.
+- Helpers: per-organization `user_has_org_perm`, `scoped_queryset` / `can_access_object` (action and scope per grant), `portal_ticket_queryset`, `can_contract`, `may_receive_alert`, `explain_access`.
+- Delegation protection for member, role, quick-add and invitation forms: no self-promotion, the subset rule, privileged roles need `org_manage_privileged`, customer administrators assign customer roles only, last-owner protection, and an ownership transfer workflow (password and name confirmation, audited).
+- Role pages: detail, clone, archive, compare, "why does someone have access", permission catalog, customer portal access, review list. The role editor groups permissions by module, has search and shows a preview before saving.
+- Audit trail for role, membership, scope, account-status and ownership changes, with safe before and after values. Authorization decisions are cached per request and invalidated on every change.
+- Upgrade mapping (accounts 0046): existing roles keep what they could do, and ambiguous assignments are listed for review rather than granted. Commands: `manage.py roles_migration_report`, `seed_roles`, `roles_matrix`. Docs: `docs/ROLES_AND_ACCESS.md`.
 
-### Added
+### Changed (roles and access, roles-core)
+- `user_has_perm` now evaluates customer users at the organization they have selected; `user_has_perm_any_org` is the explicit cross-organization helper.
+- Staff-only permissions (internal notes, quotes, CRM, resourcing team data, AI and similar) never take effect for customer users.
+- These actions now authorize against the organization in the URL, not the selected one:
+  - organization edit and delete;
+  - member add, edit and remove.
+- Customer users can no longer create organizations.
+- Member suspend and reactivate are POST only and protect the last owner.
+- Ownership is no longer assignable through member or role forms.
+- A role template now decides administration even when the simple role says Owner or Admin.
+- `require_write` / `require_admin` / `require_owner` authorize at the organization in the URL when there is one (404 for a customer without a membership there).
+
+### Added (contract documents, Phase 65 — development branch, not yet released)
 - **Contract documents** (`/contracts/`, MSP staff only): build a contract from a template, a copy or a blank page, with a rich-text editor (headings, lists, tables, page breaks), reorderable and optional sections, one-time and recurring line items, signers, attachments, merge fields and autosave with a saved indicator and conflict warning.
 - **Seven starter templates and a clause library.** The wording is sample text and each template carries a review note that blocks sending until it is replaced. Templates are versioned; contracts keep the text they were created from.
 - **Built-in signing** under `/sign/`: personal links without an account, parallel or sequential signers, internal countersignature from the staff account, typed or drawn signatures, consent and intent statements, decline with a reason, optional e-mailed code, phone-friendly page using only local assets, and a downloadable copy. Signatures are bound to the exact version and its SHA-256.
 - **Open tracking that tells scanners from people:** link requests, likely human views and verified views are recorded separately; HEAD requests, prefetch and preview headers, scanner and bot user agents and configured scanner networks never count as views. Alerts are de-duplicated with a cooldown for repeat views.
 - **Statuses enforced on the server** (draft → pending approval → ready → sent → viewed → partially signed → signed, plus declined, expired, voided, superseded); revise, amend, renew, replace and void with a reason; internal approval bound to the exact version.
 - **Issued and final signed PDFs** with an audit certificate and an evidence package; e-mail, reminder and finalization jobs with retries and idempotency; scheduler tasks "Contract Jobs" (every minute) and "Contract Reminders and Expirations" (hourly).
-- **Dashboard, client-record card and settings** (deployment defaults and per-customer overrides); eight new role flags under "Contract Documents"; a signed contract can create a draft PSA billing contract.
+- **Dashboard, client-record card and settings** (deployment defaults and per-customer overrides); a signed contract can create a draft PSA billing contract.
+- **Contract permissions enforced** through `accounts.contract_access.can_contract` with a separate permission per action (view, view pricing, edit drafts, templates, submit for approval, approve, send, signing links, countersign, void, signed copies, audit evidence, settings). Nobody approves a version they wrote or submitted (the "allow self-approval" setting is gone). Lists, the dashboard and the client card follow client and record scope. Alert recipients are checked when an alert is created and again before its e-mail goes out. Internal countersignatures need a signed-in staff account with `contracts_countersign`; a signed-in customer account signs only with `portal_contract_sign`. The contract permissions and `portal_contract_sign` are now marked enforced in the registry.
+- **Page headings** of the contract pages sit on a card surface, so they stay readable over a custom (for example dark, starry) background image.
 
-### Changed
+### Changed (contract documents)
 - Security headers keep a view's stricter `Referrer-Policy: no-referrer`; the request audit log skips `/sign/` (contract events are audited on their own, without tokens).
 
 ## [3.17.668] - 2026-11-12

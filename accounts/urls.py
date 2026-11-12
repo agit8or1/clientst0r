@@ -55,6 +55,7 @@ urlpatterns = [
     path('organizations/<int:org_id>/service/<slug:service_slug>/', views.organization_service_info, name='organization_service_info'),
 
     # Member Management
+    path('organizations/<int:org_id>/transfer-ownership/', views.ownership_transfer, name='ownership_transfer'),
     path('organizations/<int:org_id>/members/add/', views.member_add, name='member_add'),
     path('organizations/<int:org_id>/members/<int:member_id>/edit/', views.member_edit, name='member_edit'),
     path('organizations/<int:org_id>/members/<int:member_id>/remove/', views.member_remove, name='member_remove'),
@@ -74,6 +75,14 @@ urlpatterns = [
     path('roles/create/', roles_views.role_create, name='role_create'),
     path('roles/<int:pk>/edit/', roles_views.role_edit, name='role_edit'),
     path('roles/<int:pk>/delete/', roles_views.role_delete, name='role_delete'),
+    path('roles/<int:pk>/', roles_views.role_detail, name='role_detail'),
+    path('roles/<int:pk>/clone/', roles_views.role_clone, name='role_clone'),
+    path('roles/<int:pk>/archive/', roles_views.role_archive, name='role_archive'),
+    path('roles/compare/', roles_views.role_compare, name='role_compare'),
+    path('roles/why/', roles_views.access_explain, name='access_explain'),
+    path('roles/catalog/', roles_views.permission_catalog, name='permission_catalog'),
+    path('roles/review/', roles_views.review_list, name='role_review'),
+    path('roles/portal-access/', roles_views.portal_access, name='portal_access'),
     path('members/', views.member_list, name='member_list'),
     path('members/<int:user_id>/assign-role/', roles_views.member_role_assign, name='member_role_assign'),
     path('members/<int:member_id>/suspend/', views.member_suspend, name='member_suspend'),

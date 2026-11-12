@@ -3,7 +3,7 @@
 {% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet"><style>{{ doc_css|safe }}</style>{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Preview</li></ol></nav>
-<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+<div class="card card-body cd-page-head d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
     <h2 class="h4 mb-0 me-auto">Preview{% if c.status == 'draft' %} of the draft{% endif %}</h2>
     {% if c.status == 'draft' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'contracts:edit' c.pk %}"><i class="fas fa-pen"></i> Back to editing</a>{% endif %}
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:preview_pdf' c.pk %}" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> PDF preview</a>

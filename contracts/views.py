@@ -50,6 +50,10 @@ def _contract(request, pk, perm=perms.VIEW):
     return c
 
 
+def _pricing(request, c):
+    return perms.has(request.user, perms.PRICING, c.organization_id)
+
+
 def _err(request, exc):
     if isinstance(exc, ContentError):
         for e in exc.errors:
@@ -101,25 +105,32 @@ def dashboard(request):
         except ValueError:
             messages.warning(request, 'Dates must be YYYY-MM-DD.')
     live = qs.exclude(status__in=[D.VOIDED, D.SUPERSEDED, D.DECLINED, D.EXPIRED])
-    sums = live.aggregate(one=Sum('one_time_total'), rec=Sum('recurring_total'))
-    signed_sums = live.filter(status=D.SIGNED).aggregate(one=Sum('one_time_total'), rec=Sum('recurring_total'))
+    priced = perms.scope(live, user, perms.PRICING)        # totals only from contracts whose pricing they see
+    sums = priced.aggregate(one=Sum('one_time_total'), rec=Sum('recurring_total'))
+    signed_sums = priced.filter(status=D.SIGNED).aggregate(one=Sum('one_time_total'), rec=Sum('recurring_total'))
     page = Paginator(qs.order_by('-updated_at'), 50).get_page(request.GET.get('page'))
+    priced_ids = set(perms.scope(D.objects.filter(pk__in=[c.pk for c in page.object_list]), user, perms.PRICING)
+                     .values_list('pk', flat=True))
+    for c in page.object_list:
+        c.show_price = c.pk in priced_ids
     now = timezone.now()
     today = timezone.localdate()
     follow_up = base.filter(status__in=D.OPEN_FOR_SIGNING, sent_at__lte=now - timedelta(days=3)).order_by('sent_at')[:8]
     recently_viewed = base.filter(last_viewed_at__isnull=False).order_by('-last_viewed_at')[:8]
-    awaiting_approval = base.filter(status=D.PENDING_APPROVAL).order_by('updated_at')[:8]
+    awaiting_approval = perms.scope(base, user, perms.APPROVE).filter(status=D.PENDING_APPROVAL).order_by('updated_at')[:8]
     awaiting_counter = base.filter(status=D.PARTIALLY_SIGNED, invitations__role='internal',
                                    invitations__status=ContractInvitation.ACTIVE).distinct()[:8]
     upcoming = base.filter(status=D.SIGNED, expiration_date__gte=today,
                            expiration_date__lte=today + timedelta(days=90)).order_by('expiration_date')[:8]
-    alerts = ContractNotification.objects.filter(user=user, read_at__isnull=True).select_related('contract')[:10]
+    alerts = ContractNotification.objects.filter(user=user, read_at__isnull=True,
+                                                 contract__in=perms.scope(D.objects.all(), user)
+                                                 ).select_related('contract')[:10]
     clients = _client_choices(request)
     return render(request, 'contracts/dashboard.html', {
         'page': page, 'f': f, 'statuses': D.STATUSES, 'sums': sums, 'signed_sums': signed_sums,
         'follow_up': follow_up, 'recently_viewed': recently_viewed, 'awaiting_approval': awaiting_approval,
         'awaiting_counter': awaiting_counter, 'upcoming': upcoming, 'alerts': alerts, 'clients': clients,
-        'owners': _owner_choices(),
+        'owners': _owner_choices(), 'can_see_pricing': perms.has_any(user, perms.PRICING),
         'can_create': perms.has_any(user, perms.EDIT), 'has_any': base.exists(),
     })
 
@@ -221,7 +232,8 @@ def contract_detail(request, pk):
         evs = evs.exclude(kind__in=['code_failed'])
     issue_errors = services.issue_errors(c) if c.status == D.DRAFT else []
     settings = services.settings_for(c)
-    can_countersign = [i for i in invitations if i.role == 'internal' and i.user_id == request.user.pk
+    can_countersign = [i for i in invitations if flags['countersign'] and i.role == 'internal'
+                       and i.user_id == request.user.pk
                        and i.status == ContractInvitation.ACTIVE and i.version_id == c.current_version_id]
     return render(request, 'contracts/detail.html', {
         'c': c, 'v': v, 'flags': flags, 'versions': versions, 'invitations': invitations,
@@ -244,7 +256,9 @@ def _builder_context(request, c, errors=None):
     clauses = perms.template_scope(ContractClause.objects.filter(is_active=True), request.user).filter(
         Q(organization__isnull=True) | Q(organization=c.organization)).order_by('category', 'title')
     staff = forms.staff_choices(c.organization)
+    countersigners = [u for u in staff if perms.has(u, perms.COUNTERSIGN, c.organization_id)]
     return {
+        'countersigners': countersigners, 'can_price': _pricing(request, c),
         'c': c, 'sections': normalize_sections(c.sections), 'line_items': c.line_items or [],
         'signers': list(c.signers.all()), 'staff': staff, 'kinds': KINDS, 'frequencies': BILLING_FREQUENCIES,
         'orders': SIGNING_ORDERS, 'section_types': SECTION_TYPES, 'line_kinds': LINE_KINDS,
@@ -267,7 +281,7 @@ def contract_edit(request, pk):
         messages.info(request, 'Only a draft can be edited. Use Revise to start a new version.')
         return redirect('contracts:detail', pk=c.pk)
     if request.method == 'POST':
-        data, errors = forms.parse_contract(request.POST, c)
+        data, errors = forms.parse_contract(request.POST, c, pricing=_pricing(request, c))
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -292,7 +306,8 @@ def contract_edit(request, pk):
 @require_POST
 def contract_autosave(request, pk):
     c = _contract(request, pk, perms.EDIT)
-    data, errors = forms.parse_contract(request.POST, c)
+    pricing = _pricing(request, c)
+    data, errors = forms.parse_contract(request.POST, c, pricing=pricing)
     if errors:
         return JsonResponse({'ok': False, 'errors': errors[:10]}, status=400)
     try:
@@ -301,14 +316,16 @@ def contract_autosave(request, pk):
     except ContractError as exc:
         return JsonResponse({'ok': False, 'errors': [str(exc)], 'conflict': True}, status=409)
     c.refresh_from_db()
-    return JsonResponse({'ok': True, 'revision': rev, 'saved_at': timezone.localtime(c.draft_saved_at).strftime(
-        '%H:%M:%S'), 'one_time_total': str(c.one_time_total), 'recurring_total': str(c.recurring_total)})
+    out = {'ok': True, 'revision': rev, 'saved_at': timezone.localtime(c.draft_saved_at).strftime('%H:%M:%S')}
+    if pricing:
+        out.update(one_time_total=str(c.one_time_total), recurring_total=str(c.recurring_total))
+    return JsonResponse(out)
 
 
 @staff_required
 @require_GET
 def contract_preview(request, pk):
-    c = _contract(request, pk)
+    c = _contract(request, pk, perms.PRICING)
     if c.status == D.DRAFT:
         content, body, unresolved = services.preview(c)
         errors = services.issue_errors(c)
@@ -323,7 +340,7 @@ def contract_preview(request, pk):
 @staff_required
 @require_GET
 def contract_preview_pdf(request, pk):
-    c = _contract(request, pk)
+    c = _contract(request, pk, perms.PRICING)
     content, _body, _unresolved = services.preview(c)
     pdf = build_pdf(content, draft=True)
     resp = HttpResponse(pdf, content_type='application/pdf')
@@ -337,7 +354,7 @@ def contract_preview_pdf(request, pk):
 @staff_required
 @require_POST
 def contract_submit(request, pk):
-    c = _contract(request, pk, perms.EDIT)
+    c = _contract(request, pk, perms.SUBMIT)
     try:
         v = services.submit(c, request.user, request=request)
     except (ContractError, ContentError) as exc:
@@ -538,11 +555,13 @@ def _version(request, pk):
 def version_pdf(request, pk, kind):
     v = _version(request, pk)
     if kind == 'signed':
+        perms.require(request.user, perms.DOWNLOAD, v.contract.organization_id)
         if not v.final_pdf:
             raise Http404('The signed PDF is not ready yet.')
         return _download(v.final_pdf, final_filename(v), 'application/pdf', inline=True)
     if not v.pdf:
         raise Http404('This version has no PDF.')
+    perms.require(request.user, perms.PRICING, v.contract.organization_id)
     return _download(v.pdf, issued_filename(v), 'application/pdf', inline=True)
 
 
@@ -550,6 +569,7 @@ def version_pdf(request, pk, kind):
 @require_GET
 def version_snapshot(request, pk):
     v = _version(request, pk)
+    perms.require(request.user, perms.PRICING, v.contract.organization_id)
     resp = HttpResponse(v.snapshot_html, content_type='text/html; charset=utf-8')
     resp['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
     resp['Cache-Control'] = 'private, no-store'
@@ -611,7 +631,7 @@ def invitation_resend(request, pk):
 @staff_required
 @require_POST
 def invitation_link(request, pk):
-    inv = _invitation(request, pk)
+    inv = _invitation(request, pk, perms.LINKS)
     try:
         link = services.copy_link(inv, request.user, request=request)
     except ContractError as exc:
@@ -625,7 +645,7 @@ def invitation_link(request, pk):
 @staff_required
 @require_POST
 def invitation_revoke(request, pk):
-    inv = _invitation(request, pk)
+    inv = _invitation(request, pk, perms.LINKS)
     services.revoke(inv, request.user, reason=plain_text(request.POST.get('reason'), 255) or 'Revoked by staff',
                     request=request)
     messages.success(request, f'The links sent to {inv.email} no longer work.')
@@ -635,7 +655,7 @@ def invitation_revoke(request, pk):
 @staff_required
 @require_http_methods(['GET', 'POST'])
 def invitation_replace(request, pk):
-    inv = _invitation(request, pk)
+    inv = _invitation(request, pk, perms.LINKS)
     if request.method == 'POST':
         from django.core.validators import validate_email
         from django.core.exceptions import ValidationError
@@ -662,7 +682,7 @@ def invitation_replace(request, pk):
 @require_GET
 def invitation_countersign(request, pk):
     """Open the signing page for the signed-in internal countersigner."""
-    inv = _invitation(request, pk, perms.VIEW)
+    inv = _invitation(request, pk, perms.COUNTERSIGN)
     if inv.role != 'internal' or inv.user_id != request.user.pk:
         raise PermissionDenied('Only the named countersigner can sign here.')
     signing.bind_session(request, inv, staff=True)
@@ -920,7 +940,7 @@ def _save_settings(request, row):
         row.brand_color = color
     for f in ('notify_owner', 'notify_account_manager', 'notify_in_app', 'notify_email', 'notify_repeat_views',
               'reminders_enabled', 'require_email_verification', 'require_countersignature',
-              'require_internal_approval', 'allow_self_approval'):
+              'require_internal_approval'):
         setattr(row, f, p.get(f) == 'on')
     limits = {'repeat_view_cooldown_minutes': (5, 10080), 'reminder_first_after_days': (1, 60),
               'reminder_interval_days': (1, 60), 'reminder_max': (0, 20), 'invitation_expiry_days': (1, 365),

@@ -1,11 +1,14 @@
-{% extends "base.html" %}{% load contracts_tags tz %}
+{% extends "base.html" %}{% load static contracts_tags tz %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}Contracts{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h2 class="mb-0"><i class="fas fa-file-signature me-2"></i>Contract Documents</h2>
-    {% if can_create %}<a href="{% url 'contracts:new' %}{% if f.client %}?client={{ f.client }}{% endif %}" class="btn btn-primary"><i class="fas fa-plus"></i> New contract</a>{% endif %}
+<div class="card card-body cd-page-head mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h2 class="mb-0"><i class="fas fa-file-signature me-2"></i>Contract Documents</h2>
+        {% if can_create %}<a href="{% url 'contracts:new' %}{% if f.client %}?client={{ f.client }}{% endif %}" class="btn btn-primary"><i class="fas fa-plus"></i> New contract</a>{% endif %}
+    </div>
+    <p class="cd-page-sub small mb-0 mt-1">Contracts your customers review and sign online. They are separate from PSA billing contracts; a signed contract can create a draft billing contract.</p>
 </div>
-<p class="text-body-secondary small">Contracts your customers review and sign online. They are separate from PSA billing contracts; a signed contract can create a draft billing contract.</p>
 
 {% if alerts %}
 <div class="card mb-3 border-primary-subtle">
@@ -19,8 +22,8 @@
 {% endif %}
 
 <div class="row g-3 mb-3">
-    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">One-time value (listed, open + signed)</div><div class="fs-4 fw-semibold">{{ sums.one|default:0|money }}</div><div class="small text-body-secondary">Signed: {{ signed_sums.one|default:0|money }}</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Recurring value per period</div><div class="fs-4 fw-semibold">{{ sums.rec|default:0|money }}</div><div class="small text-body-secondary">Signed: {{ signed_sums.rec|default:0|money }}</div></div></div></div>
+    {% if can_see_pricing %}<div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">One-time value (listed, open + signed)</div><div class="fs-4 fw-semibold">{{ sums.one|default:0|money }}</div><div class="small text-body-secondary">Signed: {{ signed_sums.one|default:0|money }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Recurring value per period</div><div class="fs-4 fw-semibold">{{ sums.rec|default:0|money }}</div><div class="small text-body-secondary">Signed: {{ signed_sums.rec|default:0|money }}</div></div></div></div>{% endif %}
     <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Awaiting approval / countersignature</div><div class="fs-4 fw-semibold">{{ awaiting_approval|length }} / {{ awaiting_counter|length }}</div></div></div></div>
     <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="small text-body-secondary">Unsigned, sent over 3 days ago</div><div class="fs-4 fw-semibold">{{ follow_up|length }}</div></div></div></div>
 </div>
@@ -60,7 +63,7 @@
         <tr><td><a href="{% url 'contracts:detail' c.pk %}"><strong>{{ c.reference }}</strong></a><br><small>{{ c.title|truncatechars:60 }}</small></td>
             <td>{{ c.client_name }}</td><td>{{ c.owner.get_full_name|default:c.owner.username|default:"—" }}</td>
             <td>{{ c|status_badge }}</td><td>{% if c.view_count %}{{ c.view_count }}{% else %}—{% endif %}</td>
-            <td class="text-end">{{ c.one_time_total|money:c.currency }}</td><td class="text-end">{{ c.recurring_total|money:c.currency }}</td>
+            {% if c.show_price %}<td class="text-end">{{ c.one_time_total|money:c.currency }}</td><td class="text-end">{{ c.recurring_total|money:c.currency }}</td>{% else %}<td class="text-end text-body-secondary" colspan="2" title="Your role does not include contract pricing">hidden</td>{% endif %}
             <td><span title="{{ c.updated_at|utc|date:'Y-m-d H:i' }} UTC">{{ c.updated_at|date:"Y-m-d" }}</span></td></tr>
         {% endfor %}</tbody></table></div>
     {% if page.has_other_pages %}<div class="card-footer d-flex gap-2">{% if page.has_previous %}<a href="?{{ request.GET.urlencode }}&page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?{{ request.GET.urlencode }}&page={{ page.next_page_number }}">Next</a>{% endif %}</div>{% endif %}

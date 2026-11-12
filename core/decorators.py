@@ -5,18 +5,23 @@ from functools import wraps
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from accounts.models import Membership
 
 
-def get_user_membership(request):
+def get_user_membership(request, org_id=None):
     """
-    Get the current user's membership for the active organization.
+    Get the current user's membership for the active organization - or, when
+    the URL names one (`org_id`), for that organization. A role held in the
+    selected organization never authorizes an action on a different
+    organization named in the URL.
     Returns None if no active organization or no membership.
     """
     if not request.user.is_authenticated:
         return None
 
-    org_id = request.session.get('current_organization_id')
+    if org_id is None:
+        org_id = request.session.get('current_organization_id')
     if not org_id:
         return None
 
@@ -28,6 +33,11 @@ def get_user_membership(request):
         )
     except Membership.DoesNotExist:
         return None
+
+
+def _is_msp_tech(user):
+    from accounts.permission_utils import is_msp_staff, staff_client_org_ids
+    return is_msp_staff(user) and staff_client_org_ids(user) is None
 
 
 def require_write(view_func):
@@ -42,9 +52,17 @@ def require_write(view_func):
         if request.user.is_superuser or request.user.is_staff:
             return view_func(request, *args, **kwargs)
 
-        membership = get_user_membership(request)
+        membership = get_user_membership(request, kwargs.get('org_id'))
+
+        if not membership and kwargs.get('org_id') is not None and _is_msp_tech(request.user):
+            # MSP technicians reach every client; their role comes from the
+            # organization they work in (unchanged behaviour).
+            membership = get_user_membership(request)
 
         if not membership:
+            if kwargs.get('org_id') is not None:
+                # The URL names an organization this user is not a member of.
+                raise Http404
             messages.error(request, "Please select an organization first.")
             return redirect('home')
 
@@ -69,9 +87,17 @@ def require_admin(view_func):
         if request.user.is_superuser or request.user.is_staff:
             return view_func(request, *args, **kwargs)
 
-        membership = get_user_membership(request)
+        membership = get_user_membership(request, kwargs.get('org_id'))
+
+        if not membership and kwargs.get('org_id') is not None and _is_msp_tech(request.user):
+            # MSP technicians reach every client; their role comes from the
+            # organization they work in (unchanged behaviour).
+            membership = get_user_membership(request)
 
         if not membership:
+            if kwargs.get('org_id') is not None:
+                # The URL names an organization this user is not a member of.
+                raise Http404
             messages.error(request, "Please select an organization first.")
             return redirect('home')
 
@@ -96,9 +122,17 @@ def require_owner(view_func):
         if request.user.is_superuser or request.user.is_staff:
             return view_func(request, *args, **kwargs)
 
-        membership = get_user_membership(request)
+        membership = get_user_membership(request, kwargs.get('org_id'))
+
+        if not membership and kwargs.get('org_id') is not None and _is_msp_tech(request.user):
+            # MSP technicians reach every client; their role comes from the
+            # organization they work in (unchanged behaviour).
+            membership = get_user_membership(request)
 
         if not membership:
+            if kwargs.get('org_id') is not None:
+                # The URL names an organization this user is not a member of.
+                raise Http404
             messages.error(request, "Please select an organization first.")
             return redirect('home')
 

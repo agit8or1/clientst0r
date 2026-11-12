@@ -5,6 +5,12 @@ people, staff whose global role is one of the chosen roles) plus the people
 named on the contract. Only active MSP staff who may view the contract are
 told. E-mail follows each person's existing "e-mail notifications" profile
 switch.
+
+Every recipient list goes through `perms.alert_recipients`
+(accounts.alert_access.may_receive_alert + contracts_view on this customer,
+record scope included) when the alert is generated, and again when it is
+delivered: the e-mail job re-checks the person before sending and the
+dashboard only lists alerts for contracts the viewer can still open.
 """
 from __future__ import annotations
 
@@ -43,12 +49,13 @@ def recipients(contract, settings=None):
     if role_ids:
         for u in get_user_model().objects.filter(is_active=True, profile__global_role_template_id__in=role_ids):
             users[u.pk] = u
-    return [u for u in users.values() if u.is_active and perms.has(u, perms.VIEW, contract.organization_id)]
+    return perms.alert_recipients(users.values(), contract)
 
 
 def approvers(contract):
     from psa.visibility import msp_technicians
-    return [u for u in msp_technicians() if perms.has(u, perms.APPROVE, contract.organization_id)]
+    return [u for u in perms.alert_recipients(msp_technicians(), contract)
+            if perms.has(u, perms.APPROVE, contract.organization_id)]
 
 
 def raise_alert(contract, key, kind) -> bool:
@@ -65,7 +72,7 @@ def notify(contract, kind, message, dedup_key, *, users=None, subject=None, sett
     """Tell staff about something once per (person, dedup_key)."""
     from . import jobs
     settings = settings or ContractSettings.for_organization(contract.organization)
-    users = recipients(contract, settings) if users is None else users
+    users = recipients(contract, settings) if users is None else perms.alert_recipients(users, contract)
     told = 0
     for u in users:
         if settings.notify_in_app:
@@ -78,7 +85,7 @@ def notify(contract, kind, message, dedup_key, *, users=None, subject=None, sett
                 continue  # already told about this one
         if settings.notify_email and _wants_email(u):
             jobs.enqueue('staff_email', f'staff:{dedup_key}:{u.pk}', contract=contract, payload={
-                'to': u.email, 'subject': (subject or f'[{contract.reference}] {message}')[:200],
+                'to': u.email, 'user_id': u.pk, 'subject': (subject or f'[{contract.reference}] {message}')[:200],
                 'body': message, 'link_path': link_path or f'/contracts/{contract.pk}/'})
             told += 0 if settings.notify_in_app else 1
     return told

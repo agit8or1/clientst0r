@@ -32,6 +32,12 @@ def switch_organization(request, org_id):
     # Superusers and staff users can access any organization
     is_staff = hasattr(request.user, 'profile') and request.user.profile.is_staff_user()
 
+    if is_staff and not request.user.is_superuser:
+        from .permission_utils import staff_client_org_ids
+        scope = staff_client_org_ids(request.user)
+        if scope is not None and org.pk not in scope:
+            messages.error(request, "This organization is outside your client scope.")
+            return redirect('core:dashboard')
     if not (request.user.is_superuser or is_staff):
         # Verify regular user has membership
         membership = Membership.objects.filter(
@@ -96,6 +102,11 @@ def switch_to_global_view(request):
     if not (request.user.is_superuser or is_staff):
         messages.error(request, "You don't have permission to access global view.")
         return redirect('core:dashboard')
+    if not request.user.is_superuser:
+        from .permission_utils import staff_client_org_ids
+        if staff_client_org_ids(request.user) is not None:
+            messages.error(request, "Global View is not available with a limited client scope.")
+            return redirect('core:dashboard')
 
     # Clear organization context and enable global view mode
     if 'current_organization_id' in request.session:
@@ -605,9 +616,23 @@ def organization_create(request):
     Create new organization. User becomes owner automatically.
     Issue #56: Auto-create location option.
     """
+    # Customer (portal) users don't create organizations: a new organization
+    # with themselves as owner, possibly under another organization's
+    # hierarchy, is not theirs to make.
+    from .delegation import is_customer_actor
+    if is_customer_actor(request.user):
+        messages.error(request, "You don't have permission to create organizations.")
+        return redirect('core:dashboard')
     if request.method == 'POST':
         form = OrganizationForm(request.POST)
         if form.is_valid():
+            parent = form.cleaned_data.get('parent')
+            if parent is not None and not request.user.is_superuser:
+                from .permission_utils import user_has_org_perm
+                if not user_has_org_perm(request.user, parent, 'org_manage_settings'):
+                    messages.error(request, 'You need settings rights at the parent organization to create '
+                                            'an organization under it.')
+                    return redirect('accounts:organization_create')
             org = form.save()
 
             # Make creator the owner
@@ -738,14 +763,42 @@ def organization_detail(request, org_id):
 @require_owner
 def organization_edit(request, org_id):
     """
-    Edit organization details. Only owners can edit.
+    Edit organization details: org_manage_settings at THIS organization
+    (the URL's, not the selected one). Moving it under another parent - which
+    gives the parent's members sight of this organization - takes a
+    superuser or org_manage_settings at the new parent too.
     """
     org = get_object_or_404(Organization, id=org_id)
+    from .permission_utils import user_has_org_perm
+    from .role_audit import record_delegation_denied, record_denied
+    if not user_has_org_perm(request.user, org, 'org_manage_settings'):
+        record_denied(request, 'org_manage_settings', organization=org)
+        messages.error(request, "You don't have permission to change this organization's settings.")
+        return redirect('accounts:organization_detail', org_id=org.id)
+    old_parent_id = org.parent_id
+    old_active = org.is_active
 
     if request.method == 'POST':
         form = OrganizationForm(request.POST, instance=org)
         if form.is_valid():
+            new_parent = form.cleaned_data.get('parent')
+            if (getattr(new_parent, 'pk', None) != old_parent_id and not request.user.is_superuser
+                    and (new_parent is not None and not user_has_org_perm(request.user, new_parent,
+                                                                          'org_manage_settings')
+                         or old_parent_id is not None and not user_has_org_perm(request.user, old_parent_id,
+                                                                                'org_manage_settings'))):
+                record_delegation_denied(request, 'change organization parent',
+                                         'no org_manage_settings at the old or new parent', organization=org)
+                messages.error(request, 'Changing the parent organization needs settings rights at both the '
+                                        'old and the new parent.')
+                return redirect('accounts:organization_edit', org_id=org.id)
             org = form.save()
+            if org.parent_id != old_parent_id or org.is_active != old_active:
+                from .role_audit import record as audit_record
+                audit_record('organization.scope_changed', target_type='organization', target_id=org.pk,
+                             target_repr=org.name, organization=org, request=request,
+                             before={'parent_id': old_parent_id, 'is_active': old_active},
+                             after={'parent_id': org.parent_id, 'is_active': org.is_active})
 
             # #116: Support auto-creating a location from the edit form too
             auto_create = form.cleaned_data.get('auto_create_location', False)
@@ -799,10 +852,16 @@ def organization_edit(request, org_id):
 @require_owner
 def organization_delete(request, org_id):
     """
-    Delete organization. Only owners can delete.
+    Delete organization: an owner of THIS organization or a superuser.
     WARNING: This will cascade delete ALL data associated with the organization.
     """
     org = get_object_or_404(Organization, id=org_id)
+    own = Membership.objects.filter(user=request.user, organization=org, is_active=True).first()
+    if not (request.user.is_superuser or (own is not None and own.is_owner())):
+        from .role_audit import record_delegation_denied
+        record_delegation_denied(request, 'delete organization', 'not an owner of it', organization=org)
+        messages.error(request, 'Only an owner of this organization can delete it.')
+        return redirect('accounts:organization_detail', org_id=org.id)
 
     if request.method == 'POST':
         org_name = org.name
@@ -865,10 +924,13 @@ def member_list(request):
         organization=org
     ).select_related('user', 'role_template').order_by('-created_at')
 
+    from .permission_utils import user_has_org_perm
     return render(request, 'accounts/member_list.html', {
         'current_organization': org,
         'members': members,
         'current_membership': membership,
+        'can_manage_members': user_has_org_perm(request.user, org, 'org_manage_members'),
+        'is_owner': membership.is_owner() or request.user.is_superuser,
     })
 
 
@@ -882,10 +944,7 @@ def member_suspend(request, member_id):
         messages.error(request, 'No organization selected.')
         return redirect('accounts:organization_list')
 
-    # Check permissions
-    membership = request.user.memberships.filter(organization=org, is_active=True).first()
-    if not membership or not membership.can_manage_users():
-        messages.error(request, 'You do not have permission to suspend members.')
+    if request.method != 'POST':
         return redirect('accounts:member_list')
 
     # Get member to suspend
@@ -894,6 +953,16 @@ def member_suspend(request, member_id):
     # Cannot suspend yourself
     if member.user == request.user:
         messages.error(request, 'You cannot suspend yourself.')
+        return redirect('accounts:member_list')
+
+    from .delegation import can_manage_member, check_owner_change
+    from .role_audit import record_delegation_denied
+    verdict = can_manage_member(request.user, org, member)
+    if verdict:
+        verdict = check_owner_change(member, deactivate=True)
+    if not verdict:
+        record_delegation_denied(request, 'suspend member', verdict.reason, organization=org, target=member)
+        messages.error(request, verdict.reason)
         return redirect('accounts:member_list')
 
     # Suspend the member
@@ -914,14 +983,22 @@ def member_reactivate(request, member_id):
         messages.error(request, 'No organization selected.')
         return redirect('accounts:organization_list')
 
-    # Check permissions
-    membership = request.user.memberships.filter(organization=org, is_active=True).first()
-    if not membership or not membership.can_manage_users():
-        messages.error(request, 'You do not have permission to reactivate members.')
+    if request.method != 'POST':
         return redirect('accounts:member_list')
 
     # Get member to reactivate
     member = get_object_or_404(Membership, pk=member_id, organization=org)
+
+    # Reactivating restores everything the membership holds, so it takes the
+    # same authority as assigning that role.
+    from .delegation import can_assign_role
+    from .role_audit import record_delegation_denied
+    verdict = can_assign_role(request.user, org, member.role_template, simple_role=member.role,
+                              target_membership=member, additional_roles=list(member.additional_roles.all()))
+    if not verdict:
+        record_delegation_denied(request, 'reactivate member', verdict.reason, organization=org, target=member)
+        messages.error(request, verdict.reason)
+        return redirect('accounts:member_list')
 
     # Reactivate the member
     member.is_active = True
@@ -1144,16 +1221,35 @@ def send_member_welcome_email(membership, request=None, *, invited_by=None):
         return False
 
 
+def _member_admin_or_redirect(request, org, perm='org_manage_members'):
+    """The URL's organization decides, not the selected one: a role held at
+    one customer never manages another customer's members."""
+    from .permission_utils import user_has_org_perm
+    if user_has_org_perm(request.user, org, perm):
+        return None
+    if perm == 'org_manage_members' and user_has_org_perm(request.user, org, 'org_invite_members'):
+        return None
+    from .role_audit import record_denied
+    record_denied(request, perm, organization=org)
+    messages.error(request, "You don't have permission to manage members of this organization.")
+    return redirect('accounts:organization_detail', org_id=org.id)
+
+
 @login_required
 @require_owner
 def member_add(request, org_id):
     """
-    Add member to organization. Only owners can add members.
+    Add member to organization: needs org_invite_members (or
+    org_manage_members) at this organization, and the role must be within
+    the actor's delegation authority (accounts.delegation).
     """
     org = get_object_or_404(Organization, id=org_id)
+    denied = _member_admin_or_redirect(request, org)
+    if denied:
+        return denied
 
     if request.method == 'POST':
-        form = MembershipForm(request.POST, organization=org)
+        form = MembershipForm(request.POST, organization=org, actor=request.user)
         if form.is_valid():
             # Check if adding by email or selecting existing user
             email = form.cleaned_data.get('email')
@@ -1168,6 +1264,15 @@ def member_add(request, org_id):
                     return redirect('accounts:member_add', org_id=org.id)
 
             if user:
+                from .delegation import can_assign_role
+                verdict = can_assign_role(request.user, org, form.cleaned_data.get('role_template'),
+                                          simple_role=form.cleaned_data.get('role'), target_user=user,
+                                          additional_roles=list(form.cleaned_data.get('additional_roles') or []))
+                if not verdict:
+                    from .role_audit import record_delegation_denied
+                    record_delegation_denied(request, 'add member', verdict.reason, organization=org, target=user)
+                    messages.error(request, verdict.reason)
+                    return redirect('accounts:member_add', org_id=org.id)
                 # Check if already a member
                 existing = Membership.objects.filter(
                     user=user,
@@ -1184,6 +1289,12 @@ def member_add(request, org_id):
                     membership.is_active = True
                     membership.invited_by = request.user
                     membership.save()
+                    form.save_m2m()
+                    from .role_audit import record as audit_record
+                    audit_record('invite.sent', target_type='membership', target_id=membership.pk,
+                                 target_repr=f'{user.username} @ {org.name}', organization=org, request=request,
+                                 after={'role': membership.role,
+                                        'role_template': getattr(membership.role_template, 'name', None)})
                     sent = send_member_welcome_email(membership, request=request,
                                                      invited_by=request.user)
                     msg = f"Added {user.username} to {org.name} as {membership.get_role_display()}."
@@ -1195,7 +1306,7 @@ def member_add(request, org_id):
             else:
                 messages.error(request, "Please select a user or enter an email address.")
     else:
-        form = MembershipForm(organization=org)
+        form = MembershipForm(organization=org, actor=request.user)
 
     return render(request, 'accounts/member_form.html', {
         'form': form,
@@ -1208,19 +1319,32 @@ def member_add(request, org_id):
 @require_owner
 def member_edit(request, org_id, member_id):
     """
-    Edit member role. Only owners can edit members.
+    Edit a member's roles and scope. Delegation rules (no self-promotion,
+    subset of the actor's own permissions, privileged roles need
+    org_manage_privileged, last owner kept, ownership only by transfer) are
+    enforced by MembershipForm.clean().
     """
     org = get_object_or_404(Organization, id=org_id)
     membership = get_object_or_404(Membership, id=member_id, organization=org)
+    from .permission_utils import user_has_org_perm
+    if not user_has_org_perm(request.user, org, 'org_manage_members'):
+        from .role_audit import record_denied
+        record_denied(request, 'org_manage_members', organization=org)
+        messages.error(request, "You don't have permission to manage members of this organization.")
+        return redirect('accounts:organization_detail', org_id=org.id)
 
     if request.method == 'POST':
-        form = MembershipForm(request.POST, instance=membership, organization=org)
+        form = MembershipForm(request.POST, instance=membership, organization=org, actor=request.user)
         if form.is_valid():
             membership = form.save()
             messages.success(request, f"Updated {membership.user.username}'s role to {membership.get_role_display()}.")
             return redirect('accounts:organization_detail', org_id=org.id)
+        if form.non_field_errors():
+            from .role_audit import record_delegation_denied
+            record_delegation_denied(request, 'edit member', '; '.join(form.non_field_errors()),
+                                     organization=org, target=membership)
     else:
-        form = MembershipForm(instance=membership, organization=org)
+        form = MembershipForm(instance=membership, organization=org, actor=request.user)
 
     return render(request, 'accounts/member_form.html', {
         'form': form,
@@ -1234,22 +1358,22 @@ def member_edit(request, org_id, member_id):
 @require_owner
 def member_remove(request, org_id, member_id):
     """
-    Remove member from organization. Only owners can remove members.
+    Remove member from organization: org_manage_members at this
+    organization, the member's access within the actor's own, never the
+    last active owner.
     """
     org = get_object_or_404(Organization, id=org_id)
     membership = get_object_or_404(Membership, id=member_id, organization=org)
 
-    # Prevent removing the last owner
-    if membership.role == 'owner':
-        owner_count = Membership.objects.filter(
-            organization=org,
-            role='owner',
-            is_active=True
-        ).count()
-
-        if owner_count <= 1:
-            messages.error(request, "Cannot remove the last owner. Assign another owner first.")
-            return redirect('accounts:organization_detail', org_id=org.id)
+    from .delegation import can_manage_member, check_owner_change
+    verdict = can_manage_member(request.user, org, membership)
+    if verdict:
+        verdict = check_owner_change(membership, deactivate=True)
+    if not verdict:
+        from .role_audit import record_delegation_denied
+        record_delegation_denied(request, 'remove member', verdict.reason, organization=org, target=membership)
+        messages.error(request, verdict.reason)
+        return redirect('accounts:organization_detail', org_id=org.id)
 
     if request.method == 'POST':
         username = membership.user.username
@@ -1261,6 +1385,39 @@ def member_remove(request, org_id, member_id):
     return render(request, 'accounts/member_confirm_remove.html', {
         'organization': org,
         'membership': membership,
+    })
+
+
+@login_required
+def ownership_transfer(request, org_id):
+    """Transfer ownership of an organization (accounts.ownership)."""
+    from .delegation import DelegationError
+    from .models import RoleTemplate
+    from .ownership import transfer_ownership
+    org = get_object_or_404(Organization, id=org_id)
+    own = Membership.objects.filter(user=request.user, organization=org, is_active=True).first()
+    if not (request.user.is_superuser or (own is not None and own.is_owner())):
+        messages.error(request, 'Only a current owner can transfer ownership.')
+        return redirect('accounts:organization_detail', org_id=org.id)
+    members = (Membership.objects.filter(organization=org, is_active=True, user__is_active=True)
+               .exclude(user=request.user).select_related('user').order_by('user__username'))
+    roles = [r for r in RoleTemplate.objects.filter(Q(organization__isnull=True) | Q(organization=org),
+                                                    is_archived=False, org_owner=False).order_by('name')]
+    if request.method == 'POST':
+        to_user = User.objects.filter(pk=request.POST.get('to_user') or 0).first()
+        keep = request.POST.get('previous_owner_role') or ''
+        keep_role = RoleTemplate.objects.filter(pk=keep).first() if keep.isdigit() else None
+        try:
+            transfer_ownership(request.user, org, to_user, password=request.POST.get('password', ''),
+                               confirm_name=request.POST.get('confirm_name', ''), previous_owner_role=keep_role,
+                               request=request)
+        except DelegationError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Ownership of {org.name} transferred to {to_user.username}.')
+            return redirect('accounts:organization_detail', org_id=org.id)
+    return render(request, 'accounts/ownership_transfer.html', {
+        'organization': org, 'members': members, 'roles': roles,
     })
 
 
@@ -1501,6 +1658,12 @@ def user_add_membership(request, user_id):
             return redirect('accounts:user_edit', user_id=user_id)
 
         organization = get_object_or_404(Organization, id=organization_id)
+        if role_template_id:
+            from .models import RoleTemplate
+            chosen = get_object_or_404(RoleTemplate, id=role_template_id)
+            if chosen.organization_id not in (None, organization.pk) or chosen.is_archived:
+                messages.error(request, "That role belongs to another organization or is archived.")
+                return redirect('accounts:user_edit', user_id=user_id)
 
         # Check if membership already exists
         existing = Membership.objects.filter(user=user, organization=organization).first()
@@ -1559,6 +1722,14 @@ def user_delete(request, user_id):
     if user.is_superuser:
         messages.error(request, "Cannot delete superuser accounts.")
         return redirect('accounts:user_list')
+
+    from .delegation import last_owner_orgs
+    stranded = last_owner_orgs(user)
+    if stranded:
+        messages.error(request, f"{user.username} is the last active owner of "
+                                + ', '.join(o.name for o in stranded[:5])
+                                + '. Transfer ownership first.')
+        return redirect('accounts:user_detail', user_id=user.id)
 
     if request.method == 'POST':
         username = user.username

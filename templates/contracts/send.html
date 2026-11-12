@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}Send {{ c.reference }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Send</li></ol></nav>
-<h2 class="h4">Send {{ c.reference }} v{{ v.version_number }} for signature</h2>
+<h2 class="h4 card card-body cd-page-head mb-3">Send {{ c.reference }} v{{ v.version_number }} for signature</h2>
 {% if signing.approval and not approval_ok %}<div class="alert alert-danger">This version still needs internal approval.</div>{% endif %}
 <form method="post" class="card card-body" style="max-width: 46rem">{% csrf_token %}
     <p class="mb-2">Signers, in the order they will be asked ({{ signing.order }}{% if signing.order == 'sequential' %}: each signer is invited after the one before signs{% else %}: every client signer is invited now{% endif %}; internal countersigners sign last):</p>

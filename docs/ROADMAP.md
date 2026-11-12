@@ -2427,7 +2427,62 @@ security levels) and Phase 52 (technician workspace).
 permissions; interoperability with Rem0te is claimed only for what both
 applications have passed end to end.
 
-## Phase 64 — Contract documents and digital signing **(L · sales)** [in progress]
+## Phase 64 — Roles, permission groups and access settings **(L · security)** [in progress]
+
+One permission model for MSP staff and customer users: every permission
+named and described in one registry, built-in roles for the usual jobs,
+roles that combine without widening each other, data scope per grant, and
+protection against handing out more access than you hold. Extends Phase 57
+(technician security levels) and the RMM tiers of Phase 63.
+
+- **64.1 Permission registry** *(in progress)* — every role permission with
+  its module, kind of action, sensitivity, whether a customer role may hold
+  it and a description; new sensitive permissions default to off. Adds
+  quotes, internal ticket notes, privileged member and role management,
+  ownership, contract (draft, approve, send, signing links, countersign,
+  void, signed copies, audit, settings), portal (organization-wide tickets,
+  filing and replying, request approval, coworkers' agreements, billing
+  contact, contract reviewer, authorized signer) and operations permissions.
+- **64.2 Built-in roles** *(in progress)* — Owner, Organization Administrator,
+  Service Manager, Level 1–3 Technician (the RMM tier roles), Sales
+  Representative and Manager, Billing / Finance, Internal Read-Only /
+  Auditor; Customer Administrator, Manager, Standard User and Read-Only, plus
+  add-on Billing Contact, Contract Reviewer, Authorized Contract Signer and
+  Request Approver. Seeded idempotently with a version and checksum so a
+  customized role is never overwritten.
+- **64.3 Scope** *(in progress)* — a technician's global role reaches all
+  clients, assigned clients or selected clients; memberships and global
+  roles cover the organization, assigned records or own records. Every
+  check evaluates one organization; permissions from different grants never
+  combine into a wider one.
+- **64.4 Delegation protection** *(in progress)* — no self-promotion,
+  the subset rule, privileged roles need their own permission, customer
+  administrators assign customer roles only, the organization in the URL is
+  the one authorized, last-owner protection and an explicit ownership
+  transfer with password and name confirmation.
+- **64.5 Role management pages** *(in progress)* — create, clone, rename,
+  archive, permissions by module with search, preview before saving,
+  compare roles, "why does someone have access", permission catalog,
+  customer portal access, multiple roles per member and a review list.
+- **64.6 Upgrade mapping and review list** *(in progress)* — existing roles
+  keep what they could do; anything ambiguous is listed for review, never
+  granted. `manage.py roles_migration_report`.
+- **64.7 Audit and cache** *(in progress)* — role, membership, scope,
+  account and ownership changes audited with safe before / after values;
+  authorization decisions cached per request and invalidated on change.
+- **64.8 Enforcement across modules** *(in progress)* — PSA, sales,
+  reports, portal, assets, documentation, vault, integrations and the API
+  read these permissions per organization and per record. Operations
+  permissions (fleet, wallboard, workflow rules, timesheets, payroll,
+  report export, billing approvals) are defined; their call sites are
+  planned.
+
+See [ROLES_AND_ACCESS.md](ROLES_AND_ACCESS.md) for the role matrix.
+
+**Sizing:** **L** — registry, roles and helpers, then enforcement module by
+module.
+
+## Phase 65 — Contract documents and digital signing **(L · sales)** [in progress]
 
 Write a contract for a client, get internal approval, send it for signature
 and keep the signed result with its evidence. Separate from PSA billing
@@ -2435,7 +2490,7 @@ contracts (which a signed contract can start) and from the existing client
 agreements and quote acceptance. Everything below was **built on the
 development branch, not yet released**.
 
-- **64.1 Builder** *(built on the development branch, not yet released)* —
+- **65.1 Builder** *(built on the development branch, not yet released)* —
   start from a template, a copy of an earlier contract or a blank page;
   client, title, number, type, owner, account manager, dates, duration,
   renewal and notice terms, billing frequency, payment terms, currency, tax,
@@ -2443,51 +2498,58 @@ development branch, not yet released**.
   headings, lists, tables and page breaks; every section can be renamed,
   reordered, left out or removed; autosave with a visible saved state and a
   conflict warning when the draft changed elsewhere.
-- **64.2 Templates and clauses** *(built on the development branch, not yet released)* —
+- **65.2 Templates and clauses** *(built on the development branch, not yet released)* —
   seven starter templates (managed IT services, project statement of work,
   recurring support, backup and disaster recovery, security services,
   renewal, amendment or addendum), each marked as sample wording with a review note
   that blocks sending until it is replaced. Customer-only templates,
   template versions (contracts keep the text they were created with), a
   clause library, merge fields and placeholder checks.
-- **64.3 Built-in signing** *(built on the development branch, not yet released)* —
+- **65.3 Built-in signing** *(built on the development branch, not yet released)* —
   personal links that need no account, several signers in parallel or in
   order, internal countersignature from the signed-in staff account, typed
   or drawn signatures, consent and intent statements, decline with a
   reason, optional e-mailed 6-digit code, a phone-friendly page with no
   third-party assets, and a downloadable copy. Each signature is bound to
   the exact version and its SHA-256.
-- **64.4 Open tracking and alerts** *(built on the development branch, not yet released)* —
+- **65.4 Open tracking and alerts** *(built on the development branch, not yet released)* —
   link requests, likely human views (interaction beacon with a one-use
   nonce) and verified views are kept apart; mail scanners, previewers and
   prefetchers are recognised by a heuristic and never count as views; alerts
   are de-duplicated and repeat-view alerts have a cooldown. Wording never
   claims who opened a link unless the signer verified.
-- **64.5 Delivery and reminders** *(built on the development branch, not yet released)* —
+- **65.5 Delivery and reminders** *(built on the development branch, not yet released)* —
   e-mail with retries ("accepted by the mail server", not "delivered"),
   copy-link, resend, revoke, replace a signer, link expiry, acceptance
   deadline and automatic reminders that stop when the signer signs or the
   contract closes.
-- **64.6 Statuses and versions** *(built on the development branch, not yet released)* —
+- **65.6 Statuses and versions** *(built on the development branch, not yet released)* —
   draft, pending approval, ready to send, sent, viewed, partially signed,
   signed, declined, expired, voided and superseded, enforced on the server;
   frozen versions, revise, amend, renew, replace and void with a reason;
   approval bound to the exact version and required again after a change.
-- **64.7 PDFs and evidence** *(built on the development branch, not yet released)* —
+- **65.7 PDFs and evidence** *(built on the development branch, not yet released)* —
   an issued PDF per version and a final signed PDF with an audit
   certificate, made without fetching remote resources; an append-only
   timeline; an evidence package with SHA-256 sums.
-- **64.8 Dashboard, client record and settings** *(built on the development branch, not yet released)* —
+- **65.8 Dashboard, client record and settings** *(built on the development branch, not yet released)* —
   search and filters, follow-up, recently viewed, awaiting approval or
   countersignature and upcoming renewals, one-time and recurring values
   shown separately; a Contracts card on the client record; deployment and
   per-customer settings for branding, alerts, reminders, expiry, signing
   rules, e-mail wording and access-log retention.
-- **64.9 Permissions** *(built on the development branch, not yet released)* —
-  eight role flags (view, edit, manage templates, approve, send, void, view
-  audit, manage settings); MSP staff only; signers use the pages under
+- **65.9 Permissions** *(built on the development branch, not yet released)* —
+  uses the contract permissions of Phase 64 (64.1) through one helper per
+  customer: view, view pricing, edit drafts, manage templates, submit for
+  approval, approve (never the version's own author or submitter), send,
+  manage signing links, countersign, void, download signed copies, view
+  audit evidence and settings. Lists follow the technician's client and
+  record scope; alerts are re-checked when they are created and again when
+  they are delivered. Internal countersignatures need a signed-in staff
+  account with the countersign permission; a customer account signs only as
+  an authorized contract signer. External signers use the pages under
   `/sign/`.
-- **64.10 Reviewed legal wording** *(planned)* — the starter wording is sample
+- **65.10 Reviewed legal wording** *(planned)* — the starter wording is sample
   text; per-jurisdiction reviewed templates are not included.
 
 **Sizing:** **L** — a new app with its own models, background jobs, PDFs and
@@ -2558,7 +2620,8 @@ mail settings and roles.
 | 61 — One-customer migration rehearsals | M | shipped v3.17.664 | extends the IT Glue / Hudu importers and import rollback; scheduler |
 | 62 — Pluggable document editors | L | in progress — framework, ONLYOFFICE, Collabora, Microsoft 365 documents, installer and Managed Local ONLYOFFICE (untested) shipped v3.17.668; not yet tested against real editors; Google Docs planned | documents and file attachments; optional Microsoft 365 / Google connectors |
 | 63 — RMM integration and technician workspace | XL | in progress — 63.1–63.10 v3.17.664; Rem0te revision 2 tested against Rem0te 0.30.1 (99/102), restart case pending | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
-| 64 — Contract documents and digital signing | L | in progress — 64.1–64.9 built on the development branch, not yet released; reviewed legal wording planned | PSA billing contracts, scheduler, mail settings, roles |
+| 64 — Roles, permission groups and access settings | L | in progress — registry, built-in roles, scope, delegation protection, role pages, upgrade review list | Phases 57 and 63 (RMM tiers); every module reads the permissions |
+| 65 — Contract documents and digital signing | L | in progress — 65.1–65.9 built on the development branch, not yet released; reviewed legal wording planned | PSA billing contracts, scheduler, mail settings, Phase 64 roles and permissions |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

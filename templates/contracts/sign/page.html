@@ -24,7 +24,7 @@
 
     <div class="d-flex flex-wrap gap-2 mb-3">
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'contract_sign:download' inv.public_id %}">{% if final_ready and state == 'signed' %}Download the signed copy (PDF){% else %}Download a copy (PDF){% endif %}</a>
-        {% if state == 'open' %}<a class="btn btn-sm btn-primary" href="#cs-sign">Go to signing</a>{% endif %}
+        {% if state == 'open' and not signer_denial %}<a class="btn btn-sm btn-primary" href="#cs-sign">Go to signing</a>{% endif %}
     </div>
 
     <article class="card cs-card mb-3"><div class="card-body cs-doc">{{ v.rendered_html|safe }}</div></article>
@@ -34,7 +34,9 @@
         <ul class="mb-0">{% for a in attachments %}<li><a href="{% url 'contract_sign:attachment' inv.public_id a.id %}">{{ a.name }}</a> <span class="small text-body-secondary">({{ a.size|filesizeformat }})</span></li>{% endfor %}</ul>
     </div></div>{% endif %}
 
-    {% if state == 'open' %}
+    {% if state == 'open' and signer_denial %}
+    <div class="alert alert-warning" id="cs-sign">{{ signer_denial }}</div>
+    {% elif state == 'open' %}
     <section id="cs-sign" class="card cs-card mb-3"><div class="card-body">
         <h2 class="h5">Sign</h2>
         {% if needs_code %}

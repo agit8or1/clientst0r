@@ -45,6 +45,7 @@ def org_contracts(context, organization):
     user = getattr(request, 'user', None)
     if user is None or organization is None or not perms.has(user, perms.VIEW, organization.pk):
         return {'show': False}
-    qs = ContractDocument.objects.filter(organization=organization).order_by('-updated_at')
+    qs = perms.scope(ContractDocument.objects.filter(organization=organization), user).order_by('-updated_at')
     return {'show': True, 'organization': organization, 'contracts': qs[:8], 'count': qs.count(),
-            'can_create': perms.has(user, perms.EDIT, organization.pk)}
+            'can_create': perms.has(user, perms.EDIT, organization.pk),
+            'show_price': perms.has(user, perms.PRICING, organization.pk)}

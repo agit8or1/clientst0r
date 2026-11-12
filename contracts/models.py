@@ -156,7 +156,6 @@ class ContractSettings(models.Model):
     require_countersignature = models.BooleanField(default=False)
     signing_order = models.CharField(max_length=12, choices=SIGNING_ORDERS, default=PARALLEL)
     require_internal_approval = models.BooleanField(default=False)
-    allow_self_approval = models.BooleanField(default=False)
     # Renewal / expiration alerts (days before the contract's expiration date)
     renewal_alert_days = models.PositiveSmallIntegerField(default=60)
     expiration_alert_days = models.PositiveSmallIntegerField(default=14)
@@ -183,7 +182,7 @@ class ContractSettings(models.Model):
         'notify_in_app', 'notify_email', 'notify_repeat_views', 'repeat_view_cooldown_minutes',
         'reminders_enabled', 'reminder_first_after_days', 'reminder_interval_days', 'reminder_max',
         'invitation_expiry_days', 'acceptance_deadline_days', 'require_email_verification',
-        'require_countersignature', 'signing_order', 'require_internal_approval', 'allow_self_approval',
+        'require_countersignature', 'signing_order', 'require_internal_approval',
         'renewal_alert_days', 'expiration_alert_days', 'access_log_retention_days', 'consent_text',
         'intent_text', 'invitation_subject', 'invitation_body', 'reminder_subject', 'reminder_body',
         'completed_subject', 'completed_body',

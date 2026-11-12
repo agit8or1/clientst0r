@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('accounts', '0045_roletemplate_contracts_permissions'),
+        ('accounts', '0046_roles_access_seed_and_review'),
         ('core', '0095_scheduledtask_contracts'),
         ('psa', '0083_remove_unused_client_surface_switches'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -260,7 +260,6 @@ class Migration(migrations.Migration):
                 ('require_countersignature', models.BooleanField(default=False)),
                 ('signing_order', models.CharField(choices=[('parallel', 'Parallel — every client signer at once'), ('sequential', 'Sequential — client signers one after another')], default='parallel', max_length=12)),
                 ('require_internal_approval', models.BooleanField(default=False)),
-                ('allow_self_approval', models.BooleanField(default=False)),
                 ('renewal_alert_days', models.PositiveSmallIntegerField(default=60)),
                 ('expiration_alert_days', models.PositiveSmallIntegerField(default=14)),
                 ('access_log_retention_days', models.PositiveIntegerField(default=365, help_text='Days to keep IP address and browser of link and view events (0: keep). Signature evidence keeps them for as long as the contract exists.')),

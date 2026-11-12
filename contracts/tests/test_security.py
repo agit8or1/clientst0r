@@ -48,7 +48,7 @@ class IsolationTests(ContractTestCase):
         self.assertFalse(perms.has(cust, perms.VIEW, self.org))
 
     def test_scoped_staff_only_reach_their_customer(self):
-        u = self._scoped_staff(view=True, edit=True)
+        u = self._scoped_staff(view=True, edit_draft=True)
         cl = Client()
         cl.force_login(u)
         self.assertEqual(cl.get(f'/contracts/{self.c_mine.pk}/').status_code, 200)
@@ -63,6 +63,8 @@ class IsolationTests(ContractTestCase):
         services.submit(self.c_mine, self.staff)
         r = cl.post(f'/contracts/{self.c_mine.pk}/send/')
         self.assertEqual(r.status_code, 403)
+        # no submit permission either (edit_draft alone does not freeze)
+        self.assertEqual(cl.post(f'/contracts/{self.c_mine.pk}/submit/').status_code, 403)
         # no void / audit / settings
         self.assertEqual(cl.get(f'/contracts/{self.c_mine.pk}/void/').status_code, 403)
         self.assertEqual(cl.get(f'/contracts/settings/?org={self.org.pk}').status_code, 403)
@@ -70,13 +72,17 @@ class IsolationTests(ContractTestCase):
         self.assertEqual(cl.get(f'/contracts/versions/{v.pk}/evidence/').status_code, 403)
 
     def test_each_permission_is_separate(self):
-        flags = ['view', 'edit', 'manage_templates', 'approve', 'send', 'void', 'view_audit', 'manage_settings']
+        flags = ['view_pricing', 'edit_draft', 'submit_approval', 'approve', 'send', 'manage_links', 'countersign',
+                 'void', 'download_signed', 'view_audit']
         for f in flags:
-            u = self._scoped_staff(**{f: True})
-            got = {k for k, v in perms.flags_for(u, self.c_mine).items() if v}
-            self.assertEqual(got, {f}, f)
+            u = self._scoped_staff(view=True, **{f: True})
+            got = {k for k, v in perms.flags_for(u, self.c_mine).items() if v} - {'may_approve'}
+            self.assertEqual(got, {'view', f}, f)
             self.assertFalse(any(perms.flags_for(u, self.c_other).values()))
             u.delete()
+        # every action flag needs contracts_view as well
+        u = self._scoped_staff(send=True, void=True)
+        self.assertFalse(any(perms.flags_for(u, self.c_mine).values()))
 
     def test_staff_global_role_without_contracts_view(self):
         u = make_staff('limited')

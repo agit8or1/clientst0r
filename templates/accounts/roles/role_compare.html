@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Compare roles - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">Compare</li>
+    </ol>
+</nav>
+<h2><i class="fas fa-columns"></i> Compare two roles</h2>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-md-4">
+        <label class="form-label" for="a">Role A</label>
+        <select class="form-select" name="a" id="a">
+            {% for r in roles %}<option value="{{ r.pk }}" {% if a and r.pk == a.pk %}selected{% endif %}>{{ r.name }}{% if r.organization_id %} (custom){% endif %}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label" for="b">Role B</label>
+        <select class="form-select" name="b" id="b">
+            {% for r in roles %}<option value="{{ r.pk }}" {% if b and r.pk == b.pk %}selected{% endif %}>{{ r.name }}{% if r.organization_id %} (custom){% endif %}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-md-2">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="diff" value="1" id="diff" {% if only_diff %}checked{% endif %}>
+            <label class="form-check-label" for="diff">Differences only</label>
+        </div>
+    </div>
+    <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Compare</button></div>
+</form>
+
+{% if a and b %}
+<div class="table-responsive">
+<table class="table table-sm table-hover">
+    <thead><tr><th>Module</th><th>Permission</th><th class="text-center">{{ a.name }}</th><th class="text-center">{{ b.name }}</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr {% if row.a != row.b %}class="table-warning"{% endif %}>
+        <td class="small text-muted">{{ row.module }}</td>
+        <td>{{ row.perm.description }} <code class="small">{{ row.perm.key }}</code></td>
+        <td class="text-center">{% if row.a %}<i class="fas fa-check text-success" title="granted"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-center">{% if row.b %}<i class="fas fa-check text-success" title="granted"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-muted text-center">The two roles grant the same permissions.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

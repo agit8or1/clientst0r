@@ -19,3 +19,8 @@
 .cd-section-card > .card-header .cd-order { width: 4.5rem; flex: 0 0 4.5rem; }
 .cd-section-card > .card-header input[name$="-title"] { flex: 1 1 14rem; min-width: 10rem; }
 .cd-heading { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: .375rem; padding: .5rem .75rem; }
+/* Page headings sit on a card surface: a custom background image (e.g. a
+   dark starry photo) must never be the backdrop of the title text. */
+.cd-page-head { background: var(--bs-body-bg); color: var(--bs-body-color); }
+.cd-page-head h2, .cd-page-head.h4, h2.cd-page-head { color: var(--bs-emphasis-color); }
+.cd-page-head .cd-page-sub { color: var(--bs-secondary-color); }

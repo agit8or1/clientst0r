@@ -93,8 +93,51 @@ def session_allows(request, inv) -> bool:
         return False
     if entry.get('staff'):
         user = getattr(request, 'user', None)
-        return bool(user is not None and user.is_authenticated and inv.user_id == user.pk)
+        return bool(user is not None and user.is_authenticated and inv.user_id == user.pk
+                    and inv.role == 'internal' and _countersigner_ok(user, inv))
     return ContractAccessToken.objects.filter(pk=entry.get('tok'), invitation=inv, revoked_at__isnull=True).exists()
+
+
+def _countersigner_ok(user, inv) -> bool:
+    from . import permissions as perms
+    return perms.has(user, perms.COUNTERSIGN, inv.contract.organization_id)
+
+
+def signer_denial(request, inv) -> str:
+    """'' when the person in this browser may sign `inv`, else why not.
+
+    * Internal (provider) countersignatures are made from a signed-in MSP
+      staff account that is the named countersigner (or, when none is named,
+      whose e-mail is the invitation's) and whose role holds
+      contracts_countersign for this customer. A link alone never
+      countersigns, and a customer account never does.
+    * A client signer signs with their personal link. When they are signed
+      in to the customer portal as themselves, that account must be an
+      authorized contract signer (portal_contract_sign) at this customer:
+      being the customer's administrator is not enough."""
+    from accounts.contract_access import can_contract
+    from accounts.permission_utils import is_msp_staff
+    user = getattr(request, 'user', None)
+    signed_in = bool(user is not None and user.is_authenticated)
+    if inv.role == 'internal':
+        if not signed_in:
+            return 'Sign in to your staff account to countersign this contract.'
+        if user.is_superuser or is_msp_staff(user):
+            named = inv.user_id == user.pk if inv.user_id else (
+                bool(user.email) and user.email.lower() == (inv.email or '').lower())
+            if not named:
+                return 'Only the named countersigner can sign here.'
+            if not _countersigner_ok(user, inv):
+                return 'Your role does not include countersigning contracts for this customer.'
+            return ''
+        return 'A provider countersignature is signed from a staff account.'
+    if signed_in and not (user.is_superuser or is_msp_staff(user)) and user.email \
+            and user.email.lower() == (inv.email or '').lower() \
+            and not can_contract(user, inv.contract.organization_id, 'portal_sign'):
+        return ('Your customer account is not an authorized contract signer for this organization. Ask your '
+                'administrator to add the Authorized Contract Signer role, or ask the sender to invite the '
+                'person who signs.')
+    return ''
 
 
 def verification_level(request, inv) -> str:
@@ -246,6 +289,9 @@ def sign(request, inv, post, now=None):
         image = clean_signature_image((post.get('signature_data') or '').strip())
     else:
         raise SigningError('Choose to type or draw your signature.')
+    why = signer_denial(request, inv)
+    if why:
+        raise SigningError(why)
     level = verification_level(request, inv)
     from .events import request_meta
     ip, ua = request_meta(request)

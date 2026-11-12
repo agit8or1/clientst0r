@@ -53,8 +53,8 @@ class EmailJobTests(ContractTestCase):
 
     def test_idempotent_enqueue_and_claim(self):
         c = self.new_contract()
-        j1, created1 = jobs.enqueue('staff_email', 'same-key', contract=c, payload={'to': 'a@x.test', 'subject': 's',
-                                                                                 'body': 'b'})
+        j1, created1 = jobs.enqueue('staff_email', 'same-key', contract=c, payload={
+            'to': self.staff.email, 'user_id': self.staff.pk, 'subject': 's', 'body': 'b'})
         j2, created2 = jobs.enqueue('staff_email', 'same-key', contract=c)
         self.assertEqual((j1.pk, created1, created2), (j2.pk, True, False))
         self.assertEqual(jobs.run_job(j1), 'done')

@@ -77,6 +77,26 @@ class Membership(BaseModel):
         related_name='memberships',
         help_text='LDAP group mapping that manages this membership, if any')
 
+    # Additional roles held in this same membership. Their permissions add to
+    # the primary role's (additive grants, no deny); they share this
+    # membership's organization and record scope, so they never carry a
+    # permission into another organization or a wider scope.
+    additional_roles = models.ManyToManyField(
+        'RoleTemplate', blank=True, related_name='additional_memberships',
+        help_text='Extra roles in this organization; permissions add up.')
+
+    # Record scope: which of the organization's records the roles above
+    # apply to (accounts.scope). 'organization' is every record, as before.
+    SCOPE_ORGANIZATION, SCOPE_OWN, SCOPE_ASSIGNED = 'organization', 'own', 'assigned'
+    RECORD_SCOPE_CHOICES = [
+        (SCOPE_ORGANIZATION, 'Every record of the organization'),
+        (SCOPE_ASSIGNED, 'Records assigned to the user'),
+        (SCOPE_OWN, 'Records the user created or requested'),
+    ]
+    record_scope = models.CharField(max_length=20, choices=RECORD_SCOPE_CHOICES,
+                                    default=SCOPE_ORGANIZATION,
+                                    help_text='Which records of this organization the roles apply to.')
+
     class Meta:
         db_table = 'memberships'
         unique_together = [['user', 'organization']]
@@ -88,14 +108,49 @@ class Membership(BaseModel):
         return f"{self.user.username} - {self.organization.name} ({self.get_role_display()})"
 
     def get_permissions(self):
-        """Get permissions object (RoleTemplate or create on-the-fly from simple role)."""
+        """Permissions object for this membership.
+
+        The primary role (role template, or the built-in flags of the simple
+        role when no template is set) plus any additional roles of this same
+        membership, added together. Never anything from another membership.
+        """
+        primary = self._primary_permissions()
+        extras = self._additional_role_list()
+        if not extras:
+            return primary
+        from .permission_utils import CombinedPermissions
+        return CombinedPermissions(primary, extras)
+
+    def _additional_role_list(self):
+        if not self.pk:
+            return []
+        cache = getattr(self, '_prefetched_objects_cache', {}) or {}
+        if 'additional_roles' in cache:
+            return list(cache['additional_roles'])
+        if not hasattr(self, '_additional_roles_memo'):
+            self._additional_roles_memo = list(self.additional_roles.all())
+        return self._additional_roles_memo
+
+    def is_owner(self):
+        """Organization owner: a template with `org_owner`, or the simple
+        Owner role when no template is set."""
+        if not self.is_active:
+            return False
+        if self.role_template_id:
+            return bool(self.role_template.org_owner)
+        return self.role == Role.OWNER
+
+    def _primary_permissions(self):
         if self.role_template:
             return self.role_template
+        return derive_legacy_flags(self._legacy_namespace(), self.role)
 
+    def _legacy_namespace(self):
         # Fall back to simple role - create temporary permission object
         from types import SimpleNamespace
+        extra = LEGACY_ROLE_EXTRA_FLAGS.get(self.role, LEGACY_ROLE_EXTRA_FLAGS[Role.READONLY])
         if self.role == Role.OWNER:
-            return SimpleNamespace(
+            return SimpleNamespace(**extra,
                 vault_view=True, vault_create=True, vault_edit=True, vault_delete=True,
                 vault_export=True, vault_view_password=True,
                 vault_manage_access_rules=True,
@@ -142,12 +197,9 @@ class Membership(BaseModel):
                 tickets_view=True, tickets_create=True, tickets_edit=True,
                 tickets_assign=True, tickets_view_all=True,
                 tickets_close=True, tickets_delete=True,
-                contracts_view=True, contracts_edit=True, contracts_manage_templates=True,
-                contracts_approve=True, contracts_send=True, contracts_void=True,
-                contracts_view_audit=True, contracts_manage_settings=True,
             )
         elif self.role == Role.ADMIN:
-            return SimpleNamespace(
+            return SimpleNamespace(**extra,
                 vault_view=True, vault_create=True, vault_edit=True, vault_delete=True,
                 vault_export=True, vault_view_password=True,
                 vault_manage_access_rules=True,
@@ -195,12 +247,9 @@ class Membership(BaseModel):
                 tickets_view=True, tickets_create=True, tickets_edit=True,
                 tickets_assign=True, tickets_view_all=True,
                 tickets_close=True, tickets_delete=True,
-                contracts_view=True, contracts_edit=True, contracts_manage_templates=True,
-                contracts_approve=True, contracts_send=True, contracts_void=True,
-                contracts_view_audit=True, contracts_manage_settings=True,
             )
         elif self.role == Role.EDITOR:
-            return SimpleNamespace(
+            return SimpleNamespace(**extra,
                 vault_view=True, vault_create=True, vault_edit=True, vault_delete=False,
                 vault_export=False, vault_view_password=True,
                 vault_manage_access_rules=False,
@@ -253,7 +302,7 @@ class Membership(BaseModel):
                 tickets_close=True, tickets_delete=False,
             )
         else:  # READONLY
-            return SimpleNamespace(
+            return SimpleNamespace(**extra,
                 vault_view=True, vault_create=False, vault_edit=False, vault_delete=False,
                 vault_export=False, vault_view_password=False,
                 vault_manage_access_rules=False,
@@ -315,13 +364,17 @@ class Membership(BaseModel):
         ])
 
     def can_admin(self):
-        """Check if user has admin privileges (can manage roles and organization settings)."""
-        # OWNER and ADMIN roles always have admin privileges
-        if self.role in [Role.OWNER, Role.ADMIN]:
+        """Check if user has admin privileges (can manage roles and organization settings).
+
+        The simple Owner / Admin role counts only when no role template is
+        set: a template overrides the simple role (its help text always said
+        so), so a membership saved as Owner with the Read-Only template is
+        not an administrator.
+        """
+        if not self.role_template_id and self.role in [Role.OWNER, Role.ADMIN]:
             return True
-        # Otherwise check granular permissions
         perms = self.get_permissions()
-        return perms.org_manage_settings
+        return bool(getattr(perms, 'org_manage_settings', False) or getattr(perms, 'roles_manage', False))
 
     def can_manage_users(self):
         perms = self.get_permissions()
@@ -335,6 +388,64 @@ class Membership(BaseModel):
         """Check if user has a specific permission."""
         perms = self.get_permissions()
         return getattr(perms, permission_name, False)
+
+
+# Permissions added by the roles & access program, for memberships without
+# a role template (the simple Owner / Admin / Editor / Read-Only role). They
+# keep what each simple role could already do once the new flags are
+# checked: Owner and Admin managed roles (can_admin), Owner managed members
+# and is the owner; every staff member saw internal notes; writers could
+# work quotes. Contract and customer-portal extras (billing contact, contract
+# reviewer / signer, request approver) stay off: they are new.
+LEGACY_ROLE_EXTRA_FLAGS = {
+    Role.OWNER: dict(org_owner=True, org_manage_privileged=True, roles_manage=True,
+                     tickets_view_internal=True, quotes_view=True, quotes_edit=True, quotes_send=True,
+                     quotes_approve_discount=True, portal_tickets_view_org=True,
+                     contracts_view=True, contracts_view_pricing=True, contracts_edit_draft=True,
+                     contracts_manage_templates=True, contracts_submit_approval=True,
+                     contracts_approve=True, contracts_send=True, contracts_manage_links=True,
+                     contracts_countersign=True, contracts_void=True, contracts_download_signed=True,
+                     contracts_view_audit=True, contracts_settings=True),
+    Role.ADMIN: dict(roles_manage=True, tickets_view_internal=True, quotes_view=True, quotes_edit=True,
+                     quotes_send=True, quotes_approve_discount=True, portal_tickets_view_org=True),
+    Role.EDITOR: dict(tickets_view_internal=True, quotes_view=True, quotes_edit=True, quotes_send=True,
+                      portal_tickets_view_org=True),
+    Role.READONLY: dict(tickets_view_internal=True, quotes_view=True, portal_tickets_view_org=True),
+}
+
+
+def derive_legacy_flags(ns, role):
+    """Permissions added after the simple roles were defined, derived from
+    what the simple role could already do (same rule accounts 0046 applies to
+    existing role templates), so simple-role members keep their access."""
+    g = lambda k: bool(getattr(ns, k, False))  # noqa: E731
+    owner = role == Role.OWNER
+    writer = any(g(k) for k in ('vault_create', 'assets_create', 'docs_create', 'files_upload',
+                                'monitoring_create'))
+    derived = {
+        # Portal behaviour every member had before these flags existed.
+        'portal_tickets_view_org': True, 'portal_tickets_create': True, 'portal_tickets_reply': True,
+        'portal_approve_requests': True, 'portal_agreements_view_org': True,
+        'billing_approve_invoices': g('billing_send_invoices'),
+        'billing_issue_credit': g('billing_send_invoices'),
+        'billing_manage_charges': g('billing_send_invoices'),
+        'crm_approve_commissions': g('crm_view_forecast'),
+        'timesheets_approve': g('resourcing_approve_leave'),
+        'reports_export': True,
+        'vehicles_view': True,
+        'vehicles_manage': writer,
+        'scheduling_manage_wallboard': g('org_manage_settings'),
+        'psa_manage_workflow_rules': g('org_manage_settings'),
+        'resourcing_view_payroll': owner,
+        'vault_approve_reveal': g('vault_view_password'),
+        'netconfig_view_configs': g('vault_view_password'),
+        'integrations_view_synced_psa': g('integrations_view'),
+        'docs_view_internal': False,
+    }
+    for k, v in derived.items():
+        if not hasattr(ns, k):
+            setattr(ns, k, v)
+    return ns
 
 
 class UserType(models.TextChoices):
@@ -368,6 +479,29 @@ class UserProfile(BaseModel):
         related_name='staff_users',
         help_text='For staff users: role template that applies globally across all organizations'
     )
+
+    # Client scope (MSP staff only): which customers the global role reaches.
+    # 'all' is every client, as before. 'assigned' is the customers where the
+    # technician holds a live technician access assignment; 'selected' the
+    # organizations listed in scope_organizations. Customer users are always
+    # bounded by their memberships instead.
+    CLIENT_SCOPE_ALL, CLIENT_SCOPE_ASSIGNED, CLIENT_SCOPE_SELECTED = 'all', 'assigned', 'selected'
+    CLIENT_SCOPE_CHOICES = [
+        (CLIENT_SCOPE_ALL, 'All clients'),
+        (CLIENT_SCOPE_ASSIGNED, 'Clients with a technician access assignment'),
+        (CLIENT_SCOPE_SELECTED, 'Selected organizations only'),
+    ]
+    client_scope = models.CharField(max_length=20, choices=CLIENT_SCOPE_CHOICES, default=CLIENT_SCOPE_ALL,
+                                    help_text='MSP staff: which clients the global role applies to.')
+    scope_organizations = models.ManyToManyField(
+        'core.Organization', blank=True, related_name='+',
+        help_text="MSP staff with 'Selected organizations only': the organizations they reach.")
+    # Record scope of the global role (MSP staff), like Membership.record_scope.
+    record_scope = models.CharField(max_length=20, choices=[
+        ('organization', 'Every record of the clients in scope'),
+        ('assigned', 'Records assigned to the user'),
+        ('own', 'Records the user created'),
+    ], default='organization', help_text='MSP staff: which records of in-scope clients the global role covers.')
 
     # Name fields
     phone = models.CharField(max_length=50, blank=True)
@@ -937,24 +1071,95 @@ class RoleTemplate(BaseModel):
     routing_override = models.BooleanField(default=False,
         help_text='Ticket routing: accept or reject routing suggestions.')
 
-    # Contract documents (build, approve, send, sign). MSP technicians only;
-    # the /contracts/ section is staff-only whatever a customer role says.
-    contracts_view = models.BooleanField(default=False,
-        help_text='Contract documents: view contracts, the dashboard and timelines.')
-    contracts_edit = models.BooleanField(default=False,
-        help_text='Contract documents: create and edit drafts, clone, amend and revise.')
+    # --- Roles & access program (accounts.permission_registry) ---------------
+    # Every flag below defaults to False: a new custom role holds none of
+    # them until an administrator ticks it. accounts 0046 gives existing
+    # roles the ones that keep the access they already had.
+    org_manage_privileged = models.BooleanField(default=False,
+        help_text='Assign or remove privileged roles (user, role, security or platform administration).')
+    roles_manage = models.BooleanField(default=False,
+        help_text='Create, clone, edit and archive custom roles.')
+    org_owner = models.BooleanField(default=False,
+        help_text='Organization owner. Given only through the ownership transfer workflow.')
+    tickets_view_internal = models.BooleanField(default=False,
+        help_text='See internal ticket notes and internal-only attachments (MSP staff only).')
+    quotes_view = models.BooleanField(default=False, help_text='View quotes and the priced service catalog.')
+    quotes_edit = models.BooleanField(default=False, help_text='Create and edit draft quotes.')
+    quotes_send = models.BooleanField(default=False, help_text='Send quotes to customers.')
+    quotes_approve_discount = models.BooleanField(default=False,
+        help_text='Approve discounts and pricing exceptions on quotes.')
+    docs_view_internal = models.BooleanField(default=False,
+        help_text='Customer users: see internal documentation.')
+    vault_approve_reveal = models.BooleanField(default=False,
+        help_text="Approve another technician's password reveal request.")
+    integrations_view_synced_psa = models.BooleanField(default=False,
+        help_text='View synced PSA companies, contacts and tickets.')
+    netconfig_view_configs = models.BooleanField(default=False,
+        help_text='Read stored device configurations.')
+    crm_approve_commissions = models.BooleanField(default=False, help_text='Decide and pay out commissions.')
+    billing_approve_invoices = models.BooleanField(default=False, help_text='Approve invoices.')
+    billing_issue_credit = models.BooleanField(default=False, help_text='Issue credit memos.')
+    billing_manage_charges = models.BooleanField(default=False,
+        help_text='Add charges, invoice tickets / projects, push invoices to accounting.')
+    reports_export = models.BooleanField(default=False, help_text='Export reports and report files.')
+    vehicles_view = models.BooleanField(default=False, help_text='View fleet vehicles.')
+    vehicles_manage = models.BooleanField(default=False, help_text='Create / edit / delete fleet records.')
+    scheduling_manage_wallboard = models.BooleanField(default=False,
+        help_text='Configure the scheduling wallboard.')
+    psa_manage_workflow_rules = models.BooleanField(default=False,
+        help_text='Manage workflow rules and templates.')
+    timesheets_approve = models.BooleanField(default=False, help_text='Approve timesheets.')
+    resourcing_view_payroll = models.BooleanField(default=False,
+        help_text='Timeclock dashboard and payroll export.')
+    contracts_view = models.BooleanField(default=False, help_text='View contracts.')
+    contracts_view_pricing = models.BooleanField(default=False, help_text='View contract pricing.')
+    contracts_edit_draft = models.BooleanField(default=False, help_text='Create / edit contract drafts.')
     contracts_manage_templates = models.BooleanField(default=False,
-        help_text='Contract documents: manage templates and reusable clauses.')
-    contracts_approve = models.BooleanField(default=False,
-        help_text='Contract documents: give internal approval before sending.')
-    contracts_send = models.BooleanField(default=False,
-        help_text='Contract documents: send, resend, copy signing links, revoke invitations.')
-    contracts_void = models.BooleanField(default=False,
-        help_text='Contract documents: void a contract (with a reason).')
-    contracts_view_audit = models.BooleanField(default=False,
-        help_text='Contract documents: see IP addresses, browsers and download evidence.')
-    contracts_manage_settings = models.BooleanField(default=False,
-        help_text='Contract documents: change contract settings.')
+        help_text='Manage contract templates and clauses.')
+    contracts_submit_approval = models.BooleanField(default=False,
+        help_text='Submit a contract for internal approval.')
+    contracts_approve = models.BooleanField(default=False, help_text='Approve a contract version.')
+    contracts_send = models.BooleanField(default=False, help_text='Send / resend signing invitations.')
+    contracts_manage_links = models.BooleanField(default=False, help_text='Generate / revoke signing links.')
+    contracts_countersign = models.BooleanField(default=False, help_text='Countersign contracts.')
+    contracts_void = models.BooleanField(default=False, help_text='Void / supersede contracts.')
+    contracts_download_signed = models.BooleanField(default=False, help_text='Download signed agreements.')
+    contracts_view_audit = models.BooleanField(default=False, help_text='View signing audit evidence.')
+    contracts_settings = models.BooleanField(default=False,
+        help_text='Configure signing and contract notification settings.')
+    portal_tickets_view_org = models.BooleanField(default=False,
+        help_text="Portal: see every shared ticket of the customer, not only the user's own.")
+    portal_tickets_create = models.BooleanField(default=False,
+        help_text='Portal: file tickets and service requests.')
+    portal_tickets_reply = models.BooleanField(default=False,
+        help_text='Portal: reply, secure reply, escalate and vote on visible tickets.')
+    portal_approve_requests = models.BooleanField(default=False,
+        help_text='Portal: request approver (decide client approvals).')
+    portal_agreements_view_org = models.BooleanField(default=False,
+        help_text="Portal: see coworkers' agreement signatures and evidence.")
+    portal_billing_contact = models.BooleanField(default=False,
+        help_text='Portal: billing contact (invoices and billing notices).')
+    portal_contract_review = models.BooleanField(default=False,
+        help_text='Portal: contract reviewer.')
+    portal_contract_sign = models.BooleanField(default=False,
+        help_text='Portal: authorized contract signer.')
+
+    # --- role lifecycle --------------------------------------------------------
+    AUDIENCE_CHOICES = [('internal', 'Internal (MSP staff)'), ('customer', 'Customer portal'),
+                        ('any', 'Any')]
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default='any',
+        help_text='Who the role is meant for. Customer roles may hold customer-assignable permissions only.')
+    seed_key = models.SlugField(max_length=40, blank=True, default='',
+        help_text='Set on built-in templates: the stable key the seeder recognizes them by.')
+    seed_version = models.PositiveIntegerField(default=0,
+        help_text='Version of the built-in definition last applied.')
+    seed_checksum = models.CharField(max_length=64, blank=True, default='',
+        help_text='Checksum of the permissions as last seeded. Differs once the role is customized.')
+    is_archived = models.BooleanField(default=False,
+        help_text='Archived roles cannot be newly assigned; existing assignments keep working.')
+    archived_at = models.DateTimeField(null=True, blank=True)
+    cloned_from = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='clones')
 
     # RMM role tier (Phase 8). Read by rmm_permissions from a technician's
     # global role template only; '' (every pre-existing template) means
@@ -976,17 +1181,44 @@ class RoleTemplate(BaseModel):
             return f"{self.name} ({self.organization.name})"
         return f"{self.name} (System)"
 
+    # Fields that are not permissions (excluded from checksums and copies).
+    NON_PERMISSION_BOOLEANS = frozenset({'is_system_template', 'is_archived'})
+
+    @classmethod
+    def permission_field_names(cls):
+        return [f.name for f in cls._meta.get_fields()
+                if isinstance(f, models.BooleanField) and f.name not in cls.NON_PERMISSION_BOOLEANS]
+
+    def permission_values(self):
+        return {name: bool(getattr(self, name)) for name in self.permission_field_names()}
+
+    def compute_checksum(self):
+        from .role_seeds import checksum
+        return checksum(self.permission_values(), self.rmm_tier)
+
+    @property
+    def is_builtin(self):
+        return bool(self.seed_key) or self.is_system_template
+
+    @property
+    def is_customized(self):
+        """A built-in whose permissions no longer match what was seeded."""
+        if not self.seed_key or not self.seed_checksum:
+            return False
+        return self.compute_checksum() != self.seed_checksum
+
+    @property
+    def is_privileged(self):
+        from .permission_registry import is_privileged_role
+        return is_privileged_role(self)
+
     @classmethod
     def get_or_create_system_templates(cls):
         """Create default system role templates."""
         # Build "all booleans default False" base, then override per role.
         # When new RoleTemplate booleans are added later, they default to
         # False for these sample roles automatically — no maintenance.
-        ALL_FALSE = {
-            f.name: False
-            for f in cls._meta.get_fields()
-            if isinstance(f, models.BooleanField) and f.name != 'is_system_template'
-        }
+        ALL_FALSE = {name: False for name in cls.permission_field_names()}
 
         def _build(name, description, **overrides):
             data = dict(ALL_FALSE)
@@ -1115,15 +1347,6 @@ class RoleTemplate(BaseModel):
                 'routing_manage_rules': True,
                 'routing_test': True,
                 'routing_override': True,
-                # Contract documents
-                'contracts_view': True,
-                'contracts_edit': True,
-                'contracts_manage_templates': True,
-                'contracts_approve': True,
-                'contracts_send': True,
-                'contracts_void': True,
-                'contracts_view_audit': True,
-                'contracts_manage_settings': True,
             },
             {
                 'name': 'Administrator',
@@ -1244,15 +1467,6 @@ class RoleTemplate(BaseModel):
                 'routing_manage_rules': True,
                 'routing_test': True,
                 'routing_override': True,
-                # Contract documents
-                'contracts_view': True,
-                'contracts_edit': True,
-                'contracts_manage_templates': True,
-                'contracts_approve': True,
-                'contracts_send': True,
-                'contracts_void': True,
-                'contracts_view_audit': True,
-                'contracts_manage_settings': True,
             },
             {
                 'name': 'Editor',
@@ -1603,11 +1817,6 @@ class RoleTemplate(BaseModel):
                 'routing_manage_rules': True,
                 'routing_test': True,
                 'routing_override': True,
-                # Contract documents
-                'contracts_view': True,
-                'contracts_edit': True,
-                'contracts_approve': True,
-                'contracts_send': True,
             },
             {
                 'name': 'Documentation Writer',
@@ -2119,6 +2328,12 @@ class RoleTemplate(BaseModel):
             if created:
                 print(f"Created system role template: {template.name}")
 
+        # The roles & access program's built-in internal and customer roles
+        # (accounts.role_seeds): created when missing, upgraded only while
+        # never customized.
+        from .role_seeds import seed_builtin_roles
+        seed_builtin_roles(cls)
+
 
 def normalize_group_dn(dn):
     """Directory DNs compare case-insensitively; whitespace around the
@@ -2163,3 +2378,76 @@ class LDAPGroupMapping(BaseModel):
         self.group_dn = (self.group_dn or '').strip()
         self.group_dn_normalized = normalize_group_dn(self.group_dn)
         super().save(*args, **kwargs)
+
+
+class RoleReviewItem(models.Model):
+    """An assignment an administrator should look at: found by the roles &
+    access migration (accounts 0046) or by a later reseed. Listing one
+    changes nothing; it is a to-do, not a decision.
+
+    Shown at Access Management -> Roles -> Review and by
+    `manage.py roles_migration_report`."""
+    REASONS = [
+        ('staff_no_global_role', 'MSP staff without a global role (reach decided by memberships)'),
+        ('legacy_owner_role', 'Owner role without a template'),
+        ('legacy_admin_role', 'Admin role without a template'),
+        ('customer_internal_role', 'Customer user holds a role with internal-only permissions'),
+        ('customer_legacy_write_role', 'Customer user on a simple Editor / Admin / Owner role'),
+        ('template_overrides_role', 'Role template set together with a different simple role'),
+        ('no_active_owner', 'Organization without an active owner'),
+        ('builtin_customized', 'Built-in role customized; newer definition not applied'),
+        ('superuser_membership', 'Superuser with organization memberships'),
+        ('inactive_user_owner', 'Inactive user is an organization owner'),
+        ('other', 'Other'),
+    ]
+    OPEN, RESOLVED, DISMISSED = 'open', 'resolved', 'dismissed'
+    STATUSES = [(OPEN, 'Open'), (RESOLVED, 'Resolved'), (DISMISSED, 'Dismissed')]
+
+    reason = models.CharField(max_length=40, choices=REASONS)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='+')
+    membership = models.ForeignKey(Membership, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    role_template = models.ForeignKey(RoleTemplate, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='+')
+    detail = models.TextField(blank=True)
+    source = models.CharField(max_length=40, default='migration_0046')
+    status = models.CharField(max_length=12, choices=STATUSES, default=OPEN)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'role_review_items'
+        ordering = ['status', 'reason', 'pk']
+
+    def __str__(self):
+        return f'{self.get_reason_display()}: {self.detail[:60]}'
+
+
+class OwnershipTransfer(models.Model):
+    """Explicit ownership transfer of one organization (accounts.ownership).
+
+    The current owner names a new owner among the active members and
+    confirms with their password and the organization's name; the transfer
+    then applies at once: the new owner gets the Owner role, the previous
+    owner keeps the role they picked (or stays co-owner). Ownership never
+    moves through the generic member / user edit forms."""
+    PENDING, COMPLETED, CANCELLED = 'pending', 'completed', 'cancelled'
+    STATUSES = [(PENDING, 'Pending'), (COMPLETED, 'Completed'), (CANCELLED, 'Cancelled')]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='ownership_transfers')
+    from_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    to_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    previous_owner_role = models.ForeignKey(RoleTemplate, on_delete=models.SET_NULL, null=True, blank=True,
+                                            related_name='+',
+                                            help_text='Role the previous owner keeps; empty = stays co-owner.')
+    status = models.CharField(max_length=12, choices=STATUSES, default=PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'ownership_transfers'
+        ordering = ['-created_at']

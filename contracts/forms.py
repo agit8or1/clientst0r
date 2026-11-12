@@ -86,8 +86,10 @@ def staff_choices(organization):
     return [u for u in msp_technicians() if perms.has(u, perms.VIEW, getattr(organization, 'pk', organization))]
 
 
-def parse_contract(post, contract):
-    """(data, errors) for services.save_draft."""
+def parse_contract(post, contract, *, pricing=True):
+    """(data, errors) for services.save_draft. Without `pricing` (the editor's
+    role lacks contracts_view_pricing) line items are neither read nor
+    changed."""
     from .content import normalize_line_items
     errors = []
     data = {}
@@ -141,11 +143,12 @@ def parse_contract(post, contract):
     sections = parse_sections(post)
     if 'section-0-key' in post or sections or post.get('sections_present'):
         data['sections'] = sections
-    item_errors = []
-    items = parse_line_items(post)
-    normalize_line_items(items, item_errors)
-    errors += item_errors
-    data['line_items'] = items
+    if pricing:
+        item_errors = []
+        items = parse_line_items(post)
+        normalize_line_items(items, item_errors)
+        errors += item_errors
+        data['line_items'] = items
 
     signers = []
     for i in _indexes(post, 'signer'):
@@ -160,6 +163,10 @@ def parse_contract(post, contract):
         user = None
         if role == ContractSigner.INTERNAL and str(post.get(p + 'user') or '').isdigit():
             user = staff.get(int(post.get(p + 'user')))
+            if user is not None and not perms.has(user, perms.COUNTERSIGN, contract.organization_id):
+                errors.append(f'Signer "{user.get_full_name() or user.username}": their role cannot countersign '
+                              'for this customer.')
+                continue
             if user is not None:
                 name = name or (user.get_full_name() or user.username)
                 email = email or user.email

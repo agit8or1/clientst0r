@@ -417,7 +417,7 @@ def _issue(contract, by, *, requires_approval):
 
 def submit(contract, by, request=None):
     """Draft → pending approval (when approval is required) or ready to send."""
-    perms.require(by, perms.EDIT, contract.organization_id)
+    perms.require(by, perms.SUBMIT, contract.organization_id)
     with transaction.atomic():
         contract = ContractDocument.objects.select_for_update().get(pk=contract.pk)
         if contract.status != D.DRAFT:
@@ -444,7 +444,7 @@ def _pending_staff_jobs(contract):
 
 
 def decide(contract, by, *, approve, content_hash, comment='', request=None):
-    perms.require(by, perms.APPROVE, contract.organization_id)
+    perms.require(by, perms.APPROVE, contract.organization_id)    # holds the flag for this customer
     with transaction.atomic():
         contract = ContractDocument.objects.select_for_update().get(pk=contract.pk)
         v = contract.current_version
@@ -452,9 +452,10 @@ def decide(contract, by, *, approve, content_hash, comment='', request=None):
             raise InvalidTransition('This contract is not waiting for approval.')
         if content_hash != v.content_hash:
             raise ContractError('The contract changed since you opened it. Review the current version again.')
-        settings = settings_for(contract)
-        if approve and v.issued_by_id == by.pk and not settings.allow_self_approval:
-            raise ContractError('Someone other than the person who submitted it must approve this contract.')
+        if approve and not perms.has(by, perms.APPROVE, contract.organization_id,
+                                     perms.approval_subject(contract, v)):
+            # accounts.contract_access: nobody approves a version they wrote or submitted.
+            raise ContractError('Someone other than the person who wrote or submitted it must approve this contract.')
         ContractApproval.objects.create(version=v, decision='approved' if approve else 'rejected',
                                         content_hash=v.content_hash, decided_by=by,
                                         decided_by_name=by.get_full_name() or by.username, comment=comment[:2000])
@@ -606,7 +607,7 @@ def copy_link(inv, by, request=None) -> str:
     """Mint a link for staff to share by other means; shown once."""
     from django.urls import reverse
     from . import mail, signing
-    perms.require(by, perms.SEND, inv.contract.organization_id)
+    perms.require(by, perms.LINKS, inv.contract.organization_id)
     if inv.status != ContractInvitation.ACTIVE or inv.is_expired():
         raise ContractError('Only an active, unexpired invitation has a signing link.')
     raw, _token = signing.mint_token(inv, 'link', by)
@@ -623,7 +624,7 @@ def copy_link(inv, by, request=None) -> str:
 
 def revoke(inv, by, reason='', request=None, *, status=ContractInvitation.REVOKED, record=True):
     if by is not None:
-        perms.require(by, perms.SEND, inv.contract.organization_id)
+        perms.require(by, perms.LINKS, inv.contract.organization_id)
     now = timezone.now()
     n = ContractInvitation.objects.filter(pk=inv.pk, status__in=ContractInvitation.OPEN).update(
         status=status, revoked_at=now, revoke_reason=reason[:255])
@@ -641,7 +642,7 @@ def revoke(inv, by, reason='', request=None, *, status=ContractInvitation.REVOKE
 def replace_invitation(inv, by, *, name, email, title='', request=None):
     """Revoke an invitation and issue a new one for the same signer slot
     (e.g. a corrected address, or a fresh expiry)."""
-    perms.require(by, perms.SEND, inv.contract.organization_id)
+    perms.require(by, perms.LINKS, inv.contract.organization_id)
     contract = ContractDocument.objects.get(pk=inv.contract_id)
     if contract.status not in D.OPEN_FOR_SIGNING or contract.current_version_id != inv.version_id:
         raise ContractError('This contract is not open for signing.')

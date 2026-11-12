@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}New contract{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">New</li></ol></nav>
-<h2 class="mb-3">New contract</h2>
+<h2 class="h4 card card-body cd-page-head mb-3">New contract</h2>
 {% if not clients %}
 {% include "core/_empty_state.html" with title="No client to create a contract for" text="Your role does not allow creating contracts for any active client." %}
 {% else %}

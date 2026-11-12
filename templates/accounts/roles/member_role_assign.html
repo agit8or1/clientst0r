@@ -132,6 +132,19 @@
             </div>
             {% endif %}
 
+            {% if user_membership.role_template and user_membership.role_template.id not in assignable_ids %}
+            <div class="mb-4">
+                <div class="card border-warning"><div class="card-body">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="role_template_id" id="role_current"
+                               value="{{ user_membership.role_template.id }}" checked>
+                        <label class="form-check-label" for="role_current"><strong>Keep {{ user_membership.role_template.name }}</strong>
+                            <p class="small text-muted mb-0 mt-1">The current role is outside what you can assign; you can keep it.</p></label>
+                    </div>
+                </div></div>
+            </div>
+            {% endif %}
+
             <!-- No Role Template Option -->
             <div class="mb-4">
                 <div class="card border-secondary">
@@ -149,6 +162,22 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <h5 class="mb-2">Additional roles</h5>
+            <p class="small text-muted">Extra roles in {{ current_organization.name }}. Their permissions add to the
+                primary role's and share this membership's record scope; they never reach another organization.</p>
+            <div class="row mb-4">
+                {% for role in system_templates %}{% include "accounts/roles/_extra_role.html" %}{% endfor %}
+                {% for role in custom_templates %}{% include "accounts/roles/_extra_role.html" %}{% endfor %}
+            </div>
+
+            <h5 class="mb-2">Record scope</h5>
+            <div class="mb-4" style="max-width: 32rem">
+                <select class="form-select" name="record_scope" aria-label="Record scope">
+                    {% for value, label in scope_choices %}<option value="{{ value }}" {% if value == user_membership.record_scope %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+                <small class="text-muted">Which records of this organization the roles apply to. Applies to every role of this membership.</small>
             </div>
 
             <hr class="my-4">

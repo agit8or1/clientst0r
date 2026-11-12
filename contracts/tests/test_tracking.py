@@ -175,7 +175,7 @@ class ViewTrackingTests(ContractTestCase):
         self.assertEqual(ContractAlert.objects.filter(key='k:1').count(), 1)
 
     def test_notifications_go_to_owner_and_configured_people(self):
-        dave = make_staff('dave')
+        dave = make_staff('dave', role={'contracts_view': True})
         c, inv, token = self._sent()
         c.notify_users.add(dave)
         cl, page = self.signer_client(token)

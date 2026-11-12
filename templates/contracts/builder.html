@@ -48,7 +48,7 @@
 
             <h3 class="h6 cd-heading mb-2">Sections <small class="text-body-secondary fw-normal">— every heading and word is editable; reorder, remove or leave out any section</small></h3>
             {% include "contracts/_sections.html" %}
-            {% include "contracts/_line_items.html" %}
+            {% if can_price %}{% include "contracts/_line_items.html" %}{% else %}<div class="card mb-3"><div class="card-body small text-body-secondary">Line items and prices are hidden: your role does not include contract pricing. They are kept as they are when you save.</div></div>{% endif %}
         </div>
 
         <div class="col-xl-4">

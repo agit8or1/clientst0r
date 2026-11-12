@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}Contract templates{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">Templates</li></ol></nav>
-<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+<div class="card card-body cd-page-head d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
     <h2 class="h4 mb-0 me-auto">Contract templates</h2>
     <a class="btn btn-sm btn-outline-secondary" href="?show={% if show == 'all' %}active{% else %}all{% endif %}">{% if show == 'all' %}Hide inactive{% else %}Show inactive{% endif %}</a>
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:clause_list' %}">Clause library</a>
