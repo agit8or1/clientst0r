@@ -768,3 +768,31 @@ class CRMStaffOnlyTests(TestCase):
         self.assertFalse(SalesActivity.objects.filter(lead=self.other_lead).exists())
         ok = reverse('crm:activity_add', kwargs={'scope': 'lead', 'pk': self.lead.pk})
         self.assertEqual(c.post(ok, {'subject': 'Call'}).status_code, 302)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+                   TIME_ZONE='America/New_York')
+class OpportunityCloseDateLocalDayTests(TestCase):
+    """The close date is the installation's local day. At 23:00 Eastern the
+    UTC date is already tomorrow, which used to stamp deals a day late."""
+
+    def test_close_date_is_local_today_in_the_evening(self):
+        from datetime import date, datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        from core.models import Organization
+        from crm.models import Opportunity
+        msp = Organization.objects.create(name='EveMSP', slug='evemsp')
+        client_org = Organization.objects.create(name='EveClient', slug='eveclient')
+        opp = Opportunity.objects.create(organization=msp, client_org=client_org, name='Deal',
+                                         estimated_value=Decimal('100'))
+        root = User.objects.create_user('eve-root', password='pw', is_superuser=True, is_staff=True)
+        c = Client()
+        c.force_login(root)
+        _bypass_2fa(c)
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        with mock.patch('django.utils.timezone.now', return_value=evening.astimezone(ZoneInfo('UTC'))):
+            resp = c.post(reverse('crm:opportunity_set_stage', args=[opp.pk]), {'stage': 'closed_won'})
+        self.assertEqual(resp.status_code, 200)
+        opp.refresh_from_db()
+        self.assertEqual(opp.actual_close_date, date(2026, 11, 11))

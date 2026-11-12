@@ -425,7 +425,7 @@ def opportunity_set_stage(request, pk):
     opp.stage = new_stage
     update_fields = ['stage', 'updated_at']
     if new_stage in ('closed_won', 'closed_lost') and not opp.actual_close_date:
-        opp.actual_close_date = timezone.now().date()
+        opp.actual_close_date = timezone.localdate()
         update_fields.append('actual_close_date')
     opp.save(update_fields=update_fields)
 
