@@ -294,10 +294,24 @@ def _vault_check(cursor, key_values, engine):
 # create
 # ---------------------------------------------------------------------------
 
-def create(*, reason='', target=None, out=None, code_sha=None, code_version=None) -> Path:
+def _phase(phase, name):
+    if phase:
+        try:
+            phase(name)
+        except Exception:
+            pass   # progress reporting never breaks a backup
+
+
+def create(*, reason='', target=None, out=None, code_sha=None, code_version=None,
+           phase=None) -> Path:
     """code_sha / code_version: the revision that matches the database, when
     the backup is taken by newer code that is already checked out (the update
-    script's legacy mode). Restoring puts that revision back."""
+    script's legacy mode). Restoring puts that revision back.
+
+    phase: optional callback, called with 'database' and 'media' as each part
+    starts (the Apply progress view). How long each part took is recorded
+    in the manifest (`timings`) so the next backup can estimate its own."""
+    t_start = time.monotonic()
     root = journal.ensure_private_dir(journal.backup_root())
     from config.version import VERSION as running_version
     VERSION = code_version or running_version
@@ -321,6 +335,7 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
             'files': {},
         }
         engine = db_engine()
+        _phase(phase, 'database')
         _out(out, f'Backing up the database ({engine})...')
         if engine == 'sqlite':
             src_path = str(_db()['NAME'])
@@ -382,6 +397,9 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
         else:
             raise SnapshotError(f'unsupported database engine {engine}')
 
+        t_db = time.monotonic()
+        db_bytes = dst_path.stat().st_size
+        _phase(phase, 'media')
         _out(out, 'Backing up uploaded files...')
         media_root = Path(settings.MEDIA_ROOT)
         count = size = 0
@@ -398,6 +416,7 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
         _private_file(snap / 'media.tar')
         manifest['media'] = {'root': str(media_root), 'files': count, 'bytes': size}
 
+        t_media = time.monotonic()
         _out(out, 'Saving the keys needed to read the data...')
         (snap / 'keys.env').write_text(_key_lines())
         _private_file(snap / 'keys.env')
@@ -418,6 +437,10 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
         for p in sorted(snap.iterdir()):
             if p.is_file() and p.name not in ('manifest.json', 'verification.json'):
                 manifest['files'][p.name] = {'sha256': _sha256(p), 'size': p.stat().st_size}
+        manifest['sizes'] = {'database_bytes': db_bytes, 'media_bytes': size}
+        manifest['timings'] = {'database_seconds': round(t_db - t_start, 2),
+                               'media_seconds': round(t_media - t_db, 2),
+                               'create_seconds': round(time.monotonic() - t_start, 2)}
         (snap / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True))
         _private_file(snap / 'manifest.json')
     except BaseException:
@@ -679,6 +702,7 @@ def _verify_mysql_structural(path, manifest, key_values, checks, reason):
 
 
 def verify(snap, *, out=None) -> dict:
+    t_start = time.monotonic()
     snap = Path(snap)
     manifest = load_manifest(snap)
     checks = []
@@ -705,6 +729,7 @@ def verify(snap, *, out=None) -> dict:
         'checks': [{'name': n, 'ok': o, 'detail': d} for n, o, d in checks],
         'verified_at': timezone.now().isoformat(),
         'manifest_sha256': _sha256(snap / 'manifest.json'),
+        'duration_seconds': round(time.monotonic() - t_start, 2),
     }
     path = snap / 'verification.json'
     path.write_text(json.dumps(report, indent=2))
@@ -752,6 +777,82 @@ def list_snapshots(quick=False):
                         'app_version': m.get('app_version'), 'git_sha': m.get('git_sha'),
                         'reason': m.get('reason'), 'verified': ok, 'detail': detail})
     return out
+
+
+# Assumed throughput (bytes/second) when no earlier backup recorded how long
+# it took: deliberately low, a slow disk is the common case.
+DEFAULT_RATES = {'database': 10e6, 'media': 10e6, 'verify': 8e6}
+
+
+def format_duration(seconds) -> str:
+    seconds = int(round(max(float(seconds or 0), 0)))
+    if seconds < 60:
+        return f'{seconds} s'
+    m, s = divmod(seconds, 60)
+    return f'{m} min {s:02d} s' if m < 10 else f'{m} min'
+
+
+def _previous_timings():
+    """The newest snapshot that recorded its timings: (manifest, verify seconds)."""
+    root = journal.backup_root()
+    if not root.is_dir():
+        return None
+    for p in sorted(root.glob('snapshot-*'), reverse=True):   # names sort by time
+        if p.is_symlink() or not (p / 'manifest.json').is_file():
+            continue
+        try:
+            m = load_manifest(p)
+        except SnapshotError:
+            continue
+        if not isinstance(m.get('timings'), dict) or not isinstance(m.get('sizes'), dict):
+            continue
+        vdur = None
+        try:
+            vdur = json.loads((p / 'verification.json').read_text()).get('duration_seconds')
+        except (OSError, ValueError, AttributeError):
+            pass
+        return m, vdur
+    return None
+
+
+def estimate(db_bytes, media_bytes) -> dict:
+    """How long a backup of this size should take, per part, in seconds.
+
+    Scaled from the previous backup's recorded durations when there is one
+    (same host, same disk), otherwise from DEFAULT_RATES."""
+    rates = dict(DEFAULT_RATES)
+    basis = 'estimated from the database and upload sizes'
+    prev = _previous_timings()
+    if prev:
+        m, vdur = prev
+        sizes, t = m['sizes'], m['timings']
+
+        def rate(nbytes, secs):
+            try:
+                nbytes, secs = float(nbytes), float(secs)
+            except (TypeError, ValueError):
+                return None
+            return nbytes / secs if nbytes > 0 and secs > 0 else None
+        used = False
+        for key, nbytes, secs in (
+                ('database', sizes.get('database_bytes'), t.get('database_seconds')),
+                ('media', sizes.get('media_bytes'), t.get('media_seconds')),
+                ('verify', (sizes.get('database_bytes') or 0) + (sizes.get('media_bytes') or 0), vdur)):
+            r = rate(nbytes, secs)
+            if r:
+                rates[key], used = r, True
+        if used:
+            took = (t.get('create_seconds') or 0) + (vdur or 0)
+            basis = (f"based on the previous backup (v{m.get('app_version') or '?'}, "
+                     f"took {format_duration(took)})")
+    db_bytes, media_bytes = max(int(db_bytes or 0), 0), max(int(media_bytes or 0), 0)
+    parts = {
+        'database': max(1, round(db_bytes / rates['database'])),
+        'media': max(1, round(media_bytes / rates['media'])),
+        'verify': max(1, round((db_bytes + media_bytes) / rates['verify'])),
+    }
+    return {**parts, 'total': sum(parts.values()), 'basis': basis,
+            'database_bytes': db_bytes, 'media_bytes': media_bytes}
 
 
 def prune(keep=None, out=None, **kwargs):

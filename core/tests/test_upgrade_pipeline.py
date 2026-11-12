@@ -183,6 +183,29 @@ class SnapshotTests(_TmpMixin, SimpleTestCase):
         self.assertEqual(snapshot.load_manifest(snap)['git_sha'], SHA1)
         self.assertTrue(snapshot.is_verified(snap)[0])
 
+    def test_backup_records_how_long_it_took_and_reports_its_parts(self):
+        """v3.17.667: the next backup's estimate comes from these."""
+        phases = []
+        snap = snapshot.create(reason='test', phase=phases.append)
+        report = snapshot.verify(snap)
+        self.assertEqual(phases, ['database', 'media'])
+        m = snapshot.load_manifest(snap)
+        self.assertEqual(set(m['timings']), {'database_seconds', 'media_seconds', 'create_seconds'})
+        self.assertEqual(m['sizes']['database_bytes'], (snap / 'database.sqlite3').stat().st_size)
+        self.assertEqual(m['sizes']['media_bytes'], len(b'hello attachment'))
+        self.assertGreaterEqual(report['duration_seconds'], 0)
+        saved = json.loads((snap / 'verification.json').read_text())
+        self.assertIn('duration_seconds', saved)
+        self.assertTrue(snapshot.is_verified(snap)[0])
+        est = snapshot.estimate(10_000_000, 20_000_000)
+        self.assertIn('previous backup', est['basis'])
+
+    def test_a_failing_progress_callback_does_not_break_the_backup(self):
+        def boom(name):
+            raise RuntimeError('progress view gone')
+        snap = snapshot.create(reason='test', phase=boom)
+        self.assertTrue(snapshot.verify(snap)['ok'])
+
     def test_backup_records_the_revision_that_matches_the_database(self):
         snap = snapshot.create(reason='legacy', code_sha=SHA2, code_version='3.17.640')
         m = snapshot.load_manifest(snap)

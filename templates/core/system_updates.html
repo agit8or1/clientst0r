@@ -901,6 +901,11 @@
                     </div>
                     <div class="step-item" data-step="backup">
                         <i class="fas fa-circle text-muted"></i> <span>Verified Backup</span>
+                        <div id="backupDetail" class="small text-muted ms-4" style="display: none;" aria-live="polite">
+                            <div id="backupPhase"></div>
+                            <div id="backupTiming"></div>
+                            <div id="backupBasis" class="text-muted"></div>
+                        </div>
                     </div>
                     <div class="step-item" data-step="git_pull">
                         <i class="fas fa-circle text-muted"></i> <span>Git Pull</span>
@@ -1083,8 +1088,12 @@ function pollProgress() {
     // finished. Nothing here runs longer than this.
     const POLL_CEILING_MS = 6 * 60 * 1000;
 
+    // A large backup can outlast the ceiling on its own: allow for twice
+    // its expected duration on top (v3.17.667).
+    let pollCeilingMs = POLL_CEILING_MS;
+
     const pollInterval = setInterval(function() {
-        if (Date.now() - pollStartedAt > POLL_CEILING_MS) {
+        if (Date.now() - pollStartedAt > pollCeilingMs) {
             clearInterval(pollInterval);
             finishUnverified('The update is taking longer to report back than '
                 + 'expected. It may already have finished.');
@@ -1101,6 +1110,10 @@ function pollProgress() {
             })
             .then(data => {
                 console.log('Progress:', data);
+                if (data.backup && data.backup.estimate_seconds) {
+                    pollCeilingMs = Math.max(pollCeilingMs,
+                        POLL_CEILING_MS + data.backup.estimate_seconds * 2000);
+                }
 
                 // Only update UI if we got real data (not idle state during restart)
                 if (data.status !== 'idle' || data.steps_completed.length > 0) {
@@ -1146,6 +1159,47 @@ function pollProgress() {
     }, 1000); // Poll every second
 }
 
+// "1:05" from seconds.
+function formatClock(seconds) {
+    seconds = Math.max(0, Math.round(seconds || 0));
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+// v3.17.667: what the backup step is doing, how long it has run, and how
+// long it should take. A large install spends minutes here.
+function updateBackupDetail(data) {
+    const box = document.getElementById('backupDetail');
+    if (!box) return '';
+    const b = data.backup;
+    if (!b || !b.started_at || data.current_step !== 'Verified Backup') {
+        box.style.display = 'none';
+        return '';
+    }
+    const now = data.now || (Date.now() / 1000);
+    const elapsed = now - b.started_at;
+    const total = (b.phases || []).length || 3;
+    const phaseLabel = b.phase_label || 'Preparing the backup';
+    const phaseText = phaseLabel + (b.phase_index ? ' (' + b.phase_index + ' of ' + total + ')' : '');
+    let timing = formatClock(elapsed) + ' elapsed';
+    if (b.estimate_seconds) {
+        timing += ' of about ' + formatClock(b.estimate_seconds);
+        if (elapsed > b.estimate_seconds * 1.25) {
+            timing += ' (taking longer than expected; still working)';
+        }
+    }
+    if (b.phase && b.phase_started_at && b.estimate && b.estimate[b.phase]) {
+        timing += '; this part ' + formatClock(now - b.phase_started_at)
+            + ' of about ' + formatClock(b.estimate[b.phase]);
+    }
+    document.getElementById('backupPhase').textContent = phaseText;
+    document.getElementById('backupTiming').textContent = timing;
+    document.getElementById('backupBasis').textContent = b.basis ? 'Estimate ' + b.basis + '.' : '';
+    box.style.display = 'block';
+    return 'Verified Backup: ' + phaseLabel + ' (' + formatClock(elapsed) + ')';
+}
+
 function updateProgressUI(data) {
     const logEl = document.getElementById('updateLog');
     if (logEl && data.logs) {
@@ -1159,8 +1213,9 @@ function updateProgressUI(data) {
     // Update progress bar
     const percent = (completed.length / totalSteps) * 100;
     document.getElementById('updateProgressBar').style.width = percent + '%';
+    const backupText = updateBackupDetail(data);
     document.getElementById('updateProgressText').textContent =
-        currentStep || `${completed.length} of ${totalSteps} steps complete`;
+        backupText || currentStep || `${completed.length} of ${totalSteps} steps complete`;
 
     // Update step icons
     const stepMap = {

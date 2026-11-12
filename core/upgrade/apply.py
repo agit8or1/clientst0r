@@ -101,6 +101,38 @@ class _Reporter:
         if self.progress:
             self.progress.step_complete(step)
 
+    def _progress(self, method, *args):
+        if self.progress and hasattr(self.progress, method):
+            try:
+                getattr(self.progress, method)(*args)
+            except Exception:
+                logger.exception('progress update failed')   # cosmetic; never fails a run
+
+    def backup_begin(self, est):
+        """est: snapshot.estimate(), or None when the sizes could not be
+        measured (the view then shows the parts and elapsed time only)."""
+        self.estimate = est
+        if not est:
+            self._progress('backup_begin', {})
+            return
+        self(f"Pre-upgrade backup: database {preflight._human(est['database_bytes'])}, uploads "
+             f"{preflight._human(est['media_bytes'])}; expected to take about "
+             f"{snapshot.format_duration(est['total'])} ({est['basis']}).")
+        self._progress('backup_begin', est)
+
+    def backup_phase(self, key):
+        from core.update_progress import BACKUP_PHASES
+        label = dict(BACKUP_PHASES).get(key)
+        if not label:
+            return
+        expected = (getattr(self, 'estimate', None) or {}).get(key)
+        self(f'Backup: {label}' + (f' (about {snapshot.format_duration(expected)})...'
+                                   if expected else '...'))
+        self._progress('backup_phase', key)
+
+    def backup_end(self):
+        self._progress('backup_end')
+
 
 def run(target: Target | None, *, user=None, progress=None, emit=None, resume=False,
         deps_check=True, allow_preview=False, env_extra=None) -> dict:
@@ -252,9 +284,19 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         say(f'Reusing the pre-upgrade backup {backup} ({detail})')
     else:
         try:
+            try:
+                say.backup_begin(snapshot.estimate(*preflight.measure_sizes()))
+            except Exception:
+                logger.exception('could not estimate the backup duration')
+                say.backup_begin(None)
             snap = snapshot.create(reason=f'before upgrade to {target.ref}', target=target.as_dict(),
-                                   out=say)
+                                   out=say, phase=say.backup_phase)
+            say.backup_phase('verify')
             report = snapshot.verify(snap, out=say)
+            say.backup_end()
+            took = _took(snap)
+            if took:
+                say(f'Backup took {snapshot.format_duration(took)}.')
         except Exception as e:
             journal.finish('aborted', error=f'backup failed: {e}')
             raise ApplyRefused(f'Could not take a verified backup, so nothing was changed: {e}')
@@ -314,6 +356,18 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     if data.get('status') != 'complete':
         journal.stage('complete')
     result['success'] = True
+
+
+def _took(snap):
+    """Seconds the backup took (creating + verifying), from what it recorded."""
+    try:
+        import json
+        m = snapshot.load_manifest(snap)
+        v = json.loads((snap / 'verification.json').read_text())
+        return float((m.get('timings') or {}).get('create_seconds') or 0) + \
+            float(v.get('duration_seconds') or 0)
+    except Exception:
+        return 0
 
 
 def _groom(say, user, when, reserve=0):

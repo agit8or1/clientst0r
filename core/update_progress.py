@@ -12,6 +12,15 @@ from django.conf import settings
 # Cap on retained log lines. Every write rewrites the whole file.
 MAX_LOG_LINES = 400
 
+# The parts of the pre-upgrade backup, in order, as the progress view names
+# them (v3.17.667). A large install spends minutes here; without these the
+# step looked stuck.
+BACKUP_PHASES = (
+    ('database', 'Copying the database'),
+    ('media', 'Archiving uploaded files'),
+    ('verify', 'Verifying (test restore)'),
+)
+
 
 class UpdateProgress:
     """Track and report update progress using file-based storage."""
@@ -172,6 +181,48 @@ class UpdateProgress:
                         progress['current_step'] = ''
                     break
         self.set_progress(progress)
+
+    def backup_begin(self, estimate):
+        """The backup step starts: record the expected durations per part
+        (seconds, from core.upgrade.snapshot.estimate)."""
+        progress = self.get_progress()
+        progress['backup'] = {
+            'started_at': time.time(),
+            'estimate': {k: estimate.get(k) for k in ('database', 'media', 'verify', 'total')},
+            'estimate_seconds': estimate.get('total'),
+            'basis': estimate.get('basis', ''),
+            'phases': [{'key': k, 'label': label} for k, label in BACKUP_PHASES],
+            'phase': '', 'phase_label': '', 'phase_index': 0, 'phase_started_at': None,
+            'done': {},
+        }
+        self.set_progress(progress)
+
+    def backup_phase(self, key):
+        """One part of the backup starts (database / media / verify)."""
+        labels = dict(BACKUP_PHASES)
+        if key not in labels:
+            return
+        progress = self.get_progress()
+        b = progress.get('backup')
+        if not isinstance(b, dict):
+            return
+        now = time.time()
+        if b.get('phase') and b.get('phase_started_at'):
+            b.setdefault('done', {})[b['phase']] = round(now - b['phase_started_at'], 1)
+        keys = [k for k, _ in BACKUP_PHASES]
+        b.update(phase=key, phase_label=labels[key], phase_index=keys.index(key) + 1,
+                 phase_started_at=now)
+        self.set_progress(progress)
+
+    def backup_end(self):
+        progress = self.get_progress()
+        b = progress.get('backup')
+        if isinstance(b, dict):
+            now = time.time()
+            if b.get('phase') and b.get('phase_started_at'):
+                b.setdefault('done', {})[b['phase']] = round(now - b['phase_started_at'], 1)
+            b.update(phase='', phase_label='', finished_at=now)
+            self.set_progress(progress)
 
     def finish(self, success=True, error=None):
         """Mark update as finished."""

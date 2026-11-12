@@ -1074,9 +1074,13 @@ def update_progress_api(request):
     API endpoint for checking update progress (for AJAX polling).
     Staff-only access.
     """
+    import time as _time
     from core.update_progress import UpdateProgress
-    progress = UpdateProgress()
-    return JsonResponse(progress.get_progress())
+    progress = UpdateProgress().get_progress()
+    # The page measures elapsed time against the server's clock, not the
+    # browser's (they need not agree).
+    progress['now'] = _time.time()
+    return JsonResponse(progress)
 
 
 @login_required
