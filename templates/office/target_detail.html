@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load office_tags %}
+{% load office_tags m365docs_tags %}
 {% block title %}{{ target.filename }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
@@ -22,6 +22,7 @@
 {% if file_error %}<div class="alert alert-warning">{{ file_error }} You can still download it.</div>{% endif %}
 
 {% office_file_actions target.obj %}
+<div class="mb-3">{% m365_export_button target %}</div>
 
 {% if can_edit_file %}
 <form method="post" action="{% url 'office:rename' target.code target.pk %}" class="row g-2 align-items-end mb-4" aria-label="Rename">

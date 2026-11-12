@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ location.display_name }} - Microsoft 365{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'integrations:m365docs_home' %}?for={{ for_param|urlencode }}{% if export_param %}&amp;export={{ export_param|urlencode }}{% endif %}">Microsoft 365</a></li>
+  <li class="breadcrumb-item">{% if folder %}<a href="?loc={{ location.pk }}&amp;for={{ for_param|urlencode }}{% if export_param %}&amp;export={{ export_param|urlencode }}{% endif %}">{{ location.display_name }}</a>{% else %}{{ location.display_name }}{% endif %}</li>
+  {% if folder and not at_top %}<li class="breadcrumb-item active" aria-current="page">{{ folder.name }}</li>{% endif %}
+</ol></nav>
+{% if parent.kind != 'org' %}<div class="alert alert-info py-2">Linking to {{ parent.label }}. <a href="{{ parent.url }}">Back</a></div>{% endif %}
+{% if export_target %}<div class="alert alert-info py-2">Exporting a copy of <strong>{{ export_target.filename }}</strong>. Open the destination folder and choose <em>Export here</em>.</div>{% endif %}
+
+{% if drives %}
+<h2 class="h4">Libraries</h2>
+<div class="list-group">{% for d in drives %}
+  <a class="list-group-item list-group-item-action" href="?loc={{ location.pk }}&amp;drive={{ d.id|urlencode }}&amp;for={{ for_param|urlencode }}{% if export_param %}&amp;export={{ export_param|urlencode }}{% endif %}"><i class="fas fa-book text-muted" aria-hidden="true"></i> {{ d.name }}</a>
+{% empty %}<p class="text-muted">No libraries you can reach.</p>{% endfor %}</div>
+{% else %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+  <h2 class="h4 mb-0"><i class="fas fa-folder-open text-warning" aria-hidden="true"></i> {{ folder.name }}</h2>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if can_export %}<a class="btn btn-primary" href="{% url 'integrations:m365docs_export' connection.pk %}?export={{ export_param|urlencode }}&amp;loc={{ location.pk }}&amp;drive={{ drive_id|urlencode }}&amp;folder={{ folder_id|urlencode }}">Export here…</a>{% endif %}
+    {% if can_create and can_link and not export_target %}
+    <div class="dropdown">
+      <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-plus" aria-hidden="true"></i> New file here</button>
+      <div class="dropdown-menu dropdown-menu-end p-3">
+        {% for fmt, label in formats %}
+        <form method="post" action="{% url 'integrations:m365docs_create' connection.pk %}" class="mb-2">{% csrf_token %}
+          <input type="hidden" name="loc" value="{{ location.pk }}"><input type="hidden" name="drive" value="{{ drive_id }}"><input type="hidden" name="folder" value="{{ folder_id }}"><input type="hidden" name="fmt" value="{{ fmt }}"><input type="hidden" name="for" value="{{ for_param }}">
+          <label class="form-label small mb-1" for="m365-new-{{ fmt }}">{{ label }} in “{{ folder.name }}”</label>
+          <div class="input-group input-group-sm"><input type="text" class="form-control" id="m365-new-{{ fmt }}" name="title" placeholder="Name" maxlength="200" required><button type="submit" class="btn btn-primary">Create .{{ fmt }}</button></div>
+        </form>
+        {% endfor %}
+        <p class="small text-muted mb-0">Created in Microsoft 365 and linked; an existing file with the same name is never replaced.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% if not at_top %}<p><a href="?loc={{ location.pk }}&amp;drive={{ drive_id|urlencode }}&amp;item={{ parent_folder_id|urlencode }}&amp;for={{ for_param|urlencode }}{% if export_param %}&amp;export={{ export_param|urlencode }}{% endif %}"><i class="fas fa-level-up-alt" aria-hidden="true"></i> Up</a></p>{% endif %}
+<ul class="list-group">
+  {% for c in folders %}
+  <li class="list-group-item"><a href="?loc={{ location.pk }}&amp;drive={{ drive_id|urlencode }}&amp;item={{ c.id|urlencode }}&amp;for={{ for_param|urlencode }}{% if export_param %}&amp;export={{ export_param|urlencode }}{% endif %}"><i class="fas fa-folder text-warning" aria-hidden="true"></i> {{ c.name }}</a></li>
+  {% endfor %}
+  {% for f in files %}
+  <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="text-break"><i class="fas fa-file text-muted" aria-hidden="true"></i> {{ f.name }} <small class="text-muted">{{ f.size|filesizeformat }}</small></span>
+    {% if not export_target %}<span class="d-flex gap-1">
+      {% if can_link %}<form method="post" action="{% url 'integrations:m365docs_link' connection.pk %}">{% csrf_token %}<input type="hidden" name="drive" value="{{ drive_id }}"><input type="hidden" name="item" value="{{ f.id }}"><input type="hidden" name="for" value="{{ for_param }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary">Link</button></form>{% endif %}
+      {% if can_import and f.is_office %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'integrations:m365docs_import' connection.pk %}?drive={{ drive_id|urlencode }}&amp;item={{ f.id|urlencode }}">Import a copy…</a>{% endif %}
+    </span>{% endif %}
+  </li>
+  {% endfor %}
+  {% if not folders and not files %}<li class="list-group-item text-muted">This folder is empty.</li>{% endif %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Documents - {{ connection.name }} - M365{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'integrations:m365_detail' connection.pk %}">{{ connection.name }}</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Documents (SharePoint/OneDrive)</li>
+</ol></nav>
+<h2><i class="fab fa-microsoft" aria-hidden="true"></i> Documents (SharePoint/OneDrive)</h2>
+<p class="text-muted">Lets people browse, link and open files in this tenant's OneDrive and SharePoint, and create, import or export copies when they ask to. Each person signs in to Microsoft separately, so Microsoft's own permissions apply to everything they do. The tenant-read and mail features of this connection keep their current permissions (<code>{{ tenant_read_scope }}</code>, client credentials); this section never changes them.</p>
+
+<div class="row g-3">
+<div class="col-lg-6">
+<div class="card mb-3">
+  <div class="card-header">Capability</div>
+  <div class="card-body">
+    <form method="post" action="{% url 'integrations:m365docs_settings' connection.pk %}">
+      {% csrf_token %}<input type="hidden" name="step" value="review">
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="docs_enabled" name="docs_enabled" {% if connection.docs_enabled %}checked{% endif %}>
+        <label class="form-check-label" for="docs_enabled">Enable documents for this connection</label>
+      </div>
+      <fieldset class="mb-3"><legend class="form-label fs-6">Access</legend>
+        {% for value, label in access_choices %}
+        <div class="form-check"><input class="form-check-input" type="radio" name="docs_access" id="acc-{{ value }}" value="{{ value }}" {% if connection.docs_access == value %}checked{% endif %}>
+          <label class="form-check-label" for="acc-{{ value }}">{{ label }}</label></div>
+        {% endfor %}
+      </fieldset>
+      <fieldset class="mb-3"><legend class="form-label fs-6">SharePoint</legend>
+        {% for value, label in sharepoint_choices %}
+        <div class="form-check"><input class="form-check-input" type="radio" name="docs_sharepoint" id="sp-{{ value }}" value="{{ value }}" {% if connection.docs_sharepoint == value %}checked{% endif %}>
+          <label class="form-check-label" for="sp-{{ value }}">{{ label }}</label></div>
+        {% endfor %}
+      </fieldset>
+      <div class="mb-3">
+        <label class="form-label" for="docs_sharepoint_host">SharePoint host</label>
+        <input class="form-control" id="docs_sharepoint_host" name="docs_sharepoint_host" value="{{ connection.docs_sharepoint_host }}" placeholder="contoso.sharepoint.com" maxlength="253">
+        <div class="form-text">Filled in from the first person's OneDrive address if left empty. Files are only opened or downloaded from this host and its <code>-my</code> OneDrive host.</div>
+      </div>
+      <button type="submit" class="btn btn-primary">Review and save</button>
+      <div class="form-text">When you turn documents on, the next page lists exactly which permissions people will be asked for, before anything is saved. Turning documents off deletes every stored sign-in for this connection.</div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Permissions people are asked for {% if not connection.docs_enabled %}<span class="badge bg-secondary">off</span>{% endif %}</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Permission</th><th>Type</th><th>Why</th></tr></thead>
+      <tbody>{% for p in permissions %}<tr><td><code>{{ p.scope }}</code>{% if p.admin_consent %} <span class="badge bg-warning text-dark">admin consent</span>{% endif %}</td><td>{{ p.type }}</td><td class="small">{{ p.why }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted">None of these needs administrator consent by Microsoft's rules, but your tenant may require it by policy; then an administrator consents once. <code>Files.Read.Selected</code> / <code>Files.ReadWrite.Selected</code> are never requested (Microsoft says not to use them for direct Graph calls).</div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">App registration</div>
+  <div class="card-body small">
+    <p>Add this <strong>Web</strong> redirect URI to the connection's app registration (Authentication → Platform configurations → Web):</p>
+    <p><code class="text-break">{{ redirect_uri }}</code></p>
+    {% if not redirect_configured %}<p class="text-muted">Taken from this request's host. Set <code>M365_DOCS_REDIRECT_URI</code> in settings to fix it explicitly.</p>{% endif %}
+    {% if connection.docs_sharepoint == 'selected' %}
+    <p class="mb-0"><strong>Sites.Selected:</strong> a SharePoint administrator must also grant this app on each site (<code>POST /sites/{site-id}/permissions</code>, which needs <code>Sites.FullControl.All</code>). See docs/office/MICROSOFT_365.md.</p>
+    {% endif %}
+  </div>
+</div>
+</div>
+
+<div class="col-lg-6">
+<div class="card mb-3">
+  <div class="card-header">Your Microsoft 365 sign-in</div>
+  <div class="card-body">
+    {% include "integrations/m365docs/_connect_status.html" with status=status connection=connection %}
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Allowed locations</div>
+  <div class="card-body">
+    <p class="small text-muted">Only these are browsable. Everything else in the tenant stays out of reach, even for people who can open it in Microsoft 365.</p>
+    {% if locations %}
+    <ul class="list-group mb-3">
+      {% for loc in locations %}
+      <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><span class="badge bg-light text-dark border">{{ loc.get_kind_display }}</span> {{ loc.display_name }}</span>
+        <form method="post" action="{% url 'integrations:m365docs_location_delete' connection.pk loc.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Remove</button></form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="text-muted">None yet: nothing can be browsed.</p>{% endif %}
+    {% if connection.docs_enabled %}
+    <form method="post" action="{% url 'integrations:m365docs_location_add' connection.pk %}" class="mb-2">{% csrf_token %}
+      <input type="hidden" name="kind" value="my_onedrive">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Allow each user's own OneDrive</button>
+    </form>
+    <form method="post" action="{% url 'integrations:m365docs_location_add' connection.pk %}" class="mb-2">{% csrf_token %}
+      <input type="hidden" name="kind" value="site_url">
+      <label class="form-label small mb-1" for="site_url">Allow a whole SharePoint site</label>
+      <div class="input-group input-group-sm">
+        <input type="url" class="form-control" id="site_url" name="site_url" placeholder="https://contoso.sharepoint.com/sites/Finance" required>
+        <button type="submit" class="btn btn-outline-primary">Allow site</button>
+      </div>
+    </form>
+    <form method="get" action="{% url 'integrations:m365docs_location_pick' connection.pk %}" class="mb-2">
+      <label class="form-label small mb-1" for="pick_site">Or pick one library or folder in a site (site ID from an allowed site, or <code>host,guid,guid</code>)</label>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control" id="pick_site" name="site" required maxlength="300">
+        <button type="submit" class="btn btn-outline-secondary">Choose library…</button>
+      </div>
+    </form>
+    {% for loc in locations %}{% if loc.kind == 'site' %}
+    <a class="btn btn-sm btn-link px-0" href="{% url 'integrations:m365docs_location_pick' connection.pk %}?site={{ loc.site_id|urlencode }}">Narrow {{ loc.display_name }} to one library or folder…</a><br>
+    {% endif %}{% endfor %}
+    <p class="small text-muted mt-2 mb-0">Site look-ups are made as you; if Microsoft refuses that, they use the connection's existing tenant-read app permission (Sites.Read.All). Choosing folders is always done as you, so you must connect first.</p>
+    {% endif %}
+  </div>
+</div>
+<p class="small text-muted">{{ grant_count }} user{{ grant_count|pluralize }} connected.</p>
+<div class="alert alert-secondary small"><strong>Editing local files in Microsoft 365 is not available.</strong> Opening files stored in clientst0r in Microsoft's own online editor requires Microsoft's Cloud Storage Partner Program, which is not open to self-hosted deployments. Use the ONLYOFFICE or Collabora editors for local files; Microsoft 365 files are opened where they live.</div>
+</div>
+</div>
+{% endblock %}

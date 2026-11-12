@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Choose a library or folder - {{ connection.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'integrations:m365docs_settings' connection.pk %}">Documents settings</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Choose</li>
+</ol></nav>
+{% if mode == 'drives' %}
+<h2>Libraries in this site</h2>
+{% if lookup == 'application' %}<p class="small text-muted">Listed with the connection's tenant-read app permission because Microsoft refused your delegated sign-in for site metadata.</p>{% endif %}
+<ul class="list-group">
+  {% for d in drives %}
+  <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span>{{ d.name }} <small class="text-muted">{{ d.driveType }}</small></span>
+    <span class="d-flex gap-2">
+      <a class="btn btn-sm btn-outline-secondary" href="?drive={{ d.id|urlencode }}">Choose a folder…</a>
+      <form method="post" action="{% url 'integrations:m365docs_location_add' connection.pk %}">{% csrf_token %}
+        <input type="hidden" name="kind" value="drive"><input type="hidden" name="drive_id" value="{{ d.id }}"><input type="hidden" name="site_id" value="{{ site_id }}">
+        <button type="submit" class="btn btn-sm btn-primary">Allow this library</button></form>
+    </span>
+  </li>
+  {% empty %}<li class="list-group-item text-muted">No libraries.</li>{% endfor %}
+</ul>
+{% else %}
+<h2>{{ folder.name }}</h2>
+<form method="post" action="{% url 'integrations:m365docs_location_add' connection.pk %}" class="mb-3">{% csrf_token %}
+  {% if item_id == 'root' %}<input type="hidden" name="kind" value="drive"><input type="hidden" name="drive_id" value="{{ drive_id }}">
+  <button type="submit" class="btn btn-primary">Allow this whole library</button>
+  {% else %}<input type="hidden" name="kind" value="folder"><input type="hidden" name="drive_id" value="{{ drive_id }}"><input type="hidden" name="item_id" value="{{ folder.id }}">
+  <button type="submit" class="btn btn-primary">Allow this folder</button>{% endif %}
+</form>
+{% if folder.parentReference.id %}<p><a href="?drive={{ drive_id|urlencode }}&amp;item={{ folder.parentReference.id|urlencode }}"><i class="fas fa-level-up-alt" aria-hidden="true"></i> Up</a></p>{% endif %}
+<ul class="list-group">
+  {% for c in children %}
+  <li class="list-group-item"><a href="?drive={{ drive_id|urlencode }}&amp;item={{ c.id|urlencode }}"><i class="fas fa-folder text-warning" aria-hidden="true"></i> {{ c.name }}</a></li>
+  {% empty %}<li class="list-group-item text-muted">No sub-folders.</li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

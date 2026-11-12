@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load office_tags %}
+{% load office_tags m365docs_tags %}
 
 {% block title %}Documents{% endblock %}
 
@@ -58,6 +58,8 @@
         </a>
     </div>
 </div>
+
+{% m365_source_tabs 'local' %}
 
 <form method="get" class="ui-filter-bar">
     <div class="ui-field ui-field--grow">

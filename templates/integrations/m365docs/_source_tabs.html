@@ -1,0 +1,6 @@
+{% if show %}
+<ul class="nav nav-tabs mb-3" aria-label="Document source">
+  <li class="nav-item"><a class="nav-link{% if active == 'local' %} active" aria-current="page{% endif %}" href="{% url 'docs:document_list' %}"><i class="fas fa-file-alt" aria-hidden="true"></i> clientst0r</a></li>
+  <li class="nav-item"><a class="nav-link{% if active == 'm365' %} active" aria-current="page{% endif %}" href="{% url 'integrations:m365docs_home' %}"><i class="fab fa-microsoft" aria-hidden="true"></i> Microsoft 365</a></li>
+</ul>
+{% endif %}

@@ -3,6 +3,7 @@ Integrations URL configuration
 """
 from django.urls import path
 from . import rem0te_views, views
+from .m365docs import views as m365docs_views
 
 app_name = 'integrations'
 
@@ -71,6 +72,28 @@ urlpatterns = [
     path('m365/<int:pk>/delete/', views.m365_delete, name='m365_delete'),
     path('m365/<int:pk>/test/', views.m365_test, name='m365_test'),
     path('m365/<int:pk>/sync/', views.m365_sync, name='m365_sync'),
+    # M365 documents (SharePoint / OneDrive) — integrations/m365docs/
+    path('m365/<int:pk>/documents/', m365docs_views.docs_settings, name='m365docs_settings'),
+    path('m365/<int:pk>/documents/locations/add/', m365docs_views.location_add,
+         name='m365docs_location_add'),
+    path('m365/<int:pk>/documents/locations/<int:lid>/delete/', m365docs_views.location_delete,
+         name='m365docs_location_delete'),
+    path('m365/<int:pk>/documents/locations/pick/', m365docs_views.location_pick,
+         name='m365docs_location_pick'),
+    path('m365/<int:pk>/documents/connect/', m365docs_views.connect, name='m365docs_connect'),
+    path('m365/<int:pk>/documents/disconnect/', m365docs_views.disconnect,
+         name='m365docs_disconnect'),
+    path('m365/<int:pk>/documents/browse/', m365docs_views.browse, name='m365docs_browse'),
+    path('m365/<int:pk>/documents/link/', m365docs_views.link_item, name='m365docs_link'),
+    path('m365/<int:pk>/documents/create/', m365docs_views.create_item, name='m365docs_create'),
+    path('m365/<int:pk>/documents/import/', m365docs_views.import_item, name='m365docs_import'),
+    path('m365/<int:pk>/documents/export/', m365docs_views.export_item, name='m365docs_export'),
+    path('m365/documents/', m365docs_views.home, name='m365docs_home'),
+    path('m365/documents/callback/', m365docs_views.callback, name='m365docs_callback'),
+    path('m365/documents/linked/<int:lid>/open/', m365docs_views.open_link,
+         name='m365docs_open'),
+    path('m365/documents/linked/<int:lid>/unlink/', m365docs_views.unlink_link,
+         name='m365docs_unlink'),
 
     # Omada
     path('omada/create/', views.omada_create, name='omada_create'),

@@ -1,0 +1,11 @@
+{% if show %}
+<div class="m365-linked mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <h6 class="mb-0"><i class="fab fa-microsoft" aria-hidden="true"></i> Microsoft 365 files ({{ links|length }})</h6>
+    {% if can_link %}<a class="btn btn-sm btn-outline-primary" href="{% url 'integrations:m365docs_home' %}?for={{ parent_param|urlencode }}">Link a Microsoft 365 file…</a>{% endif %}
+  </div>
+  {% if links %}
+  <ul class="list-group">{% for link in links %}{% include "integrations/m365docs/_link_row.html" with link=link can_import=can_import can_unlink=can_link %}{% endfor %}</ul>
+  {% else %}<p class="small text-muted mb-0">None linked. Linked files stay in Microsoft 365; clientst0r keeps only a reference.</p>{% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Export a copy - Microsoft 365{% endblock %}
+{% block content %}
+<h2>Export a copy to Microsoft 365?</h2>
+<dl class="row">
+  <dt class="col-sm-3">From clientst0r</dt><dd class="col-sm-9">{{ target.filename }} (current version)</dd>
+  <dt class="col-sm-3">To</dt><dd class="col-sm-9">{{ connection.name }} → {{ location.display_name }} → <strong>{{ folder.name }}</strong></dd>
+</dl>
+<p class="small text-muted">A new file is created in that folder. If a file with the same name already exists, nothing is replaced and you are asked for another name. The two copies are not kept in sync.</p>
+<form method="post" action="{% url 'integrations:m365docs_export' connection.pk %}">{% csrf_token %}
+  <input type="hidden" name="export" value="{{ export_param }}"><input type="hidden" name="loc" value="{{ location.pk }}"><input type="hidden" name="drive" value="{{ drive_id }}"><input type="hidden" name="folder" value="{{ folder_id }}">
+  <div class="mb-3"><label class="form-label" for="exp-name">File name in Microsoft 365</label><input class="form-control" id="exp-name" name="name" value="{{ name }}" maxlength="250" required></div>
+  <button type="submit" class="btn btn-primary">Export a copy</button>
+  <a class="btn btn-outline-secondary" href="{{ target.back_url }}">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Review document permissions - {{ connection.name }}{% endblock %}
+{% block content %}
+<h2>Turn on documents for {{ connection.name }}?</h2>
+<p><strong>Access:</strong> {{ access_label }}<br><strong>SharePoint:</strong> {{ sharepoint_label }}{% if docs_sharepoint_host %}<br><strong>SharePoint host:</strong> {{ docs_sharepoint_host }}{% endif %}</p>
+<p>Each person who clicks <em>Connect my Microsoft 365 documents</em> will be asked by Microsoft for exactly these delegated permissions, and nothing else:</p>
+<table class="table table-sm">
+  <thead><tr><th>Permission</th><th>Type</th><th>Admin consent required by Microsoft</th><th>Why</th></tr></thead>
+  <tbody>{% for p in permissions %}<tr><td><code>{{ p.scope }}</code></td><td>{{ p.type }}</td><td>{{ p.admin_consent|yesno:"Yes,No" }}</td><td class="small">{{ p.why }}</td></tr>{% endfor %}</tbody>
+</table>
+<ul class="small">
+  <li>The connection's tenant-read and mail token (<code>{{ tenant_read_scope }}</code>, client credentials) is not changed.</li>
+  <li>Your tenant may still require an administrator to consent if user consent is restricted.</li>
+  {% if docs_sharepoint == 'selected' %}<li>A SharePoint administrator must grant this app on each site with <code>POST /sites/{site-id}/permissions</code> (needs <code>Sites.FullControl.All</code>).</li>{% endif %}
+  <li>Register the redirect URI <code class="text-break">{{ redirect_uri }}</code> on the app registration.</li>
+  <li>Nothing can be browsed until you add allowed locations.</li>
+</ul>
+<form method="post" action="{% url 'integrations:m365docs_settings' connection.pk %}" class="d-flex gap-2">
+  {% csrf_token %}<input type="hidden" name="step" value="confirm"><input type="hidden" name="docs_enabled" value="on">
+  <input type="hidden" name="docs_access" value="{{ docs_access }}"><input type="hidden" name="docs_sharepoint" value="{{ docs_sharepoint }}"><input type="hidden" name="docs_sharepoint_host" value="{{ docs_sharepoint_host }}">
+  <button type="submit" class="btn btn-primary">Turn on with these permissions</button>
+  <a class="btn btn-outline-secondary" href="{% url 'integrations:m365docs_settings' connection.pk %}">Cancel</a>
+</form>
+{% endblock %}
