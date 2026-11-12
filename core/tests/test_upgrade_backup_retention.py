@@ -486,3 +486,108 @@ class UpgradeRunGroomsTests(_Root, TestCase):
         self.assertTrue(r['success'], r)
         self.assertEqual(self.seen['at_create'], 1)
         self.assertEqual(len(self._verified()), 1)
+
+
+# ---------------------------------------------------------------------------
+# Settings -> Updates
+# ---------------------------------------------------------------------------
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class BackupViewTests(_Root, TestCase):
+    def setUp(self):
+        super().setUp()
+        User = get_user_model()
+        self.su = User.objects.create_user('bk_su', 'su@x.invalid', 'pw', is_superuser=True,
+                                           is_staff=True)
+        self.staff = User.objects.create_user('bk_staff', 'st@x.invalid', 'pw', is_staff=True)
+        self.plain = User.objects.create_user('bk_plain', 'p@x.invalid', 'pw')
+        self.newest = make_snap(self.root, 1, version='3.17.666', size=4096)
+        self.older = make_snap(self.root, 5, version='3.17.660')
+        p = mock.patch('core.updater.UpdateService.check_for_updates', return_value={
+            'update_available': False, 'target': None, 'current_version': '1',
+            'latest_version': '1', 'channels': {}})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_page_lists_backups_with_size_total_and_free_space(self):
+        self.client.force_login(self.su)
+        html = self.client.get(reverse('core:system_updates')).content.decode()
+        self.assertIn('Pre-upgrade backups', html)
+        self.assertIn(self.newest.name, html)
+        self.assertIn('v3.17.660', html)
+        size = retention.summary()['backups'][0]['size_human']
+        self.assertIn('KB', size)
+        self.assertIn(size, html)
+        self.assertIn(retention.summary()['total_human'], html)
+        self.assertIn('Free disk space', html)
+        self.assertIn('Clean up now', html)
+        self.assertIn(reverse('core:upgrade_backup_delete'), html)
+        self.assertIn('data-confirm="Delete the backup', html)
+        self.assertNotIn('onclick=', html.split('id="preUpgradeBackups"', 1)[1].split('Debug Information')[0])
+
+    def test_save_retention(self):
+        self.client.force_login(self.su)
+        self.client.post(reverse('core:upgrade_backup_settings'), {'keep': '3', 'max_age_days': '45'})
+        s = SystemSetting.get_settings()
+        self.assertEqual((s.upgrade_backups_keep, s.upgrade_backups_max_age_days), (3, 45))
+        self.assertTrue(AuditLog.objects.filter(object_repr='Upgrade backup retention').exists())
+        self.client.post(reverse('core:upgrade_backup_settings'), {'keep': '', 'max_age_days': ''})
+        s = SystemSetting.get_settings()
+        self.assertEqual((s.upgrade_backups_keep, s.upgrade_backups_max_age_days), (None, None))
+
+    def test_invalid_retention_is_rejected(self):
+        self.client.force_login(self.su)
+        for data in ({'keep': '0'}, {'keep': 'abc'}, {'keep': '2', 'max_age_days': '0'}):
+            self.client.post(reverse('core:upgrade_backup_settings'), data)
+        self.assertIsNone(SystemSetting.get_settings().upgrade_backups_keep)
+
+    def test_delete_and_clean_up_now(self):
+        self.client.force_login(self.su)
+        r = self.client.post(reverse('core:upgrade_backup_delete'), {'name': self.older.name})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(names(self.root), [self.newest.name])
+        row = AuditLog.objects.get(object_type='upgrade_backup', action='delete',
+                                   object_repr=self.older.name)
+        self.assertEqual(row.user, self.su)
+        self.assertEqual(row.extra_data['trigger'], 'web')
+        # the newest verified one cannot be deleted
+        self.client.post(reverse('core:upgrade_backup_delete'), {'name': self.newest.name})
+        self.assertEqual(names(self.root), [self.newest.name])
+        make_snap(self.root, 9)
+        self.set_policy(keep=1)
+        self.client.post(reverse('core:upgrade_backups_prune'))
+        self.assertEqual(names(self.root), [self.newest.name])
+
+    def test_delete_refuses_traversal(self):
+        self.client.force_login(self.su)
+        victim = make_snap(self.tmp / 'elsewhere', 9, name='snapshot-victim')
+        for name in ('../elsewhere/snapshot-victim', str(victim), '..'):
+            self.client.post(reverse('core:upgrade_backup_delete'), {'name': name})
+        self.assertTrue(victim.is_dir())
+
+    def test_only_superusers(self):
+        for user in (self.staff, self.plain):
+            self.client.force_login(user)
+            for url, data in ((reverse('core:upgrade_backup_delete'), {'name': self.older.name}),
+                              (reverse('core:upgrade_backups_prune'), {}),
+                              (reverse('core:upgrade_backup_settings'), {'keep': '1'})):
+                r = self.client.post(url, data)
+                self.assertIn(r.status_code, (302, 403), (user.username, url))
+                if r.status_code == 302:
+                    self.assertIn('login', r['Location'])
+        self.assertEqual(len(names(self.root)), 2)
+        self.assertIsNone(SystemSetting.get_settings().upgrade_backups_keep)
+
+    def test_get_is_not_allowed(self):
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get(reverse('core:upgrade_backups_prune')).status_code, 405)
+        self.assertEqual(len(names(self.root)), 2)
+
+    def test_csrf_is_enforced(self):
+        c = Client(enforce_csrf_checks=True)
+        c.force_login(self.su)
+        r = c.post(reverse('core:upgrade_backup_delete'), {'name': self.older.name})
+        self.assertEqual(r.status_code, 403)
+        r = c.post(reverse('core:upgrade_backups_prune'))
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(len(names(self.root)), 2)
