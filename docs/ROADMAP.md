@@ -2314,12 +2314,11 @@ a time.
 View, edit and create Word, Excel and PowerPoint files attached to
 documentation, tickets and assets, through an editor the MSP chooses: on the
 clientst0r server, on a separate VM, or an existing editor service. Local files
-stay in clientst0r, which keeps every version. Built and tested against
+stay in clientst0r, which keeps every version. Shipped v3.17.668, built and tested against
 protocol-accurate fakes; **not yet verified against a real ONLYOFFICE,
-Collabora or Microsoft 365 service** (development branch `dev/office`, not
-released).
+Collabora or Microsoft 365 service**.
 
-- **62.1 Editor framework** *(in progress — built on the development branch, not yet released)* — binary
+- **62.1 Editor framework** *(shipped v3.17.668 — not yet verified against a real service)* — binary
   file versions with checksums, atomic saves, stale-save refusal and a
   quarantine for late or refused saves (30-day retention); edit sessions with
   scoped, expiring, revocable tokens; outbound requests only to approved editor
@@ -2333,17 +2332,17 @@ released).
   approved ones), diagnostics and an explicit round-trip test; every action
   audited, tokens redacted from logs. No malware scanner ships; a hook is
   provided.
-- **62.2 ONLYOFFICE Docs (self-hosted)** *(in progress — built on the development branch, not yet released)* — signed (JWT)
+- **62.2 ONLYOFFICE Docs (self-hosted)** *(shipped v3.17.668 — not yet verified against a real service)* — signed (JWT)
   editor configuration and callbacks, every callback status, force-save,
   per-save document keys, revocation drops the editor, PDF and legacy
   conversion via the conversion service. Requires ONLYOFFICE Docs 10.0 or
   later.
-- **62.3 Collabora Online (self-hosted)** *(in progress — built on the development branch, not yet released)* — WOPI host
+- **62.3 Collabora Online (self-hosted)** *(shipped v3.17.668 — not yet verified against a real service)* — WOPI host
   (CheckFileInfo, GetFile, PutFile, locks, rename), proof-key verification,
   timestamp and lock conflict handling, form-posted tokens with renewal,
   postMessage origin checks. CODE is labelled evaluation / development only;
   licensed Collabora Online is supported for production.
-- **62.4 Microsoft 365 documents** *(in progress — built on the development branch, not yet released)* — separately enabled
+- **62.4 Microsoft 365 documents** *(shipped v3.17.668 — not yet verified against a real service)* — separately enabled
   on the Microsoft 365 connection: per-user delegated sign-in for document
   scopes only, administrator-chosen libraries and folders, link and open
   SharePoint / OneDrive files in Microsoft 365, create in a chosen folder, and
@@ -2353,15 +2352,15 @@ released).
 - **62.5 Google Docs** *(planned)* — optional connector. Open a copy in
   Google Drive, then import the edited file back as a new version; files are
   never left shared in Drive.
-- **62.6 Permissions and customer boundaries** *(partial — staff side built on the development branch; customer portal editing planned)* — opening a file follows the same view and edit permissions as
+- **62.6 Permissions and customer boundaries** *(partial — staff side shipped v3.17.668; customer portal editing planned)* — opening a file follows the same view and edit permissions as
   its document, ticket or asset, rechecked on every save; tokens are limited
   to one file, one user and one session. Customer portal editing is planned.
-- **62.7 Installation and operations** *(in progress — built on the development branch, not yet released)* — editor installer
+- **62.7 Installation and operations** *(shipped v3.17.668 — not yet verified against a real service)* — editor installer
   for the same server or a separate VM (preflight, verified signing keys,
   pinned and held versions, secrets never on the command line), drain before
   editor upgrades or provider switches, uninstall that keeps every document,
   and clientst0r updates that never upgrade or restart an editor.
-- **62.8 Managed Local ONLYOFFICE** *(in progress — built on the development branch, not yet released; not yet run against a real container)* —
+- **62.8 Managed Local ONLYOFFICE** *(shipped v3.17.668 as **untested** — off by default; not yet run against a real container, and the helper refuses to install a release until it passes the live checklist)* —
   an optional, off-by-default mode in which a deployment runs one
   ONLYOFFICE Docs container on its own VM, pinned by image digest, managed
   from the Office settings page through a root-owned helper with a fixed set
@@ -2490,7 +2489,7 @@ applications have passed end to end.
 | 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals v3.17.664; LTS planned | updater, root helper (release signing key), Docker entrypoint |
 | 60 — Optional ticket routing | M | shipped v3.17.664 | extends the workflow engine (Phase 14), email routing rules, service catalog, dispatch |
 | 61 — One-customer migration rehearsals | M | shipped v3.17.664 | extends the IT Glue / Hudu importers and import rollback; scheduler |
-| 62 — Pluggable document editors | L | in progress — framework, ONLYOFFICE, Collabora, Microsoft 365 documents and installer built on a development branch; not yet tested against real editors; Google Docs planned | documents and file attachments; optional Microsoft 365 / Google connectors |
+| 62 — Pluggable document editors | L | in progress — framework, ONLYOFFICE, Collabora, Microsoft 365 documents, installer and Managed Local ONLYOFFICE (untested) shipped v3.17.668; not yet tested against real editors; Google Docs planned | documents and file attachments; optional Microsoft 365 / Google connectors |
 | 63 — RMM integration and technician workspace | XL | in progress — 63.1–63.10 v3.17.664; Rem0te revision 2 tested against Rem0te 0.30.1 (99/102), restart case pending | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.

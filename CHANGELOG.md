@@ -5,9 +5,9 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.17.668] - 2026-11-12
 
-On the development branch `dev/office`. Not released. Not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service.
+Office documents. Built and tested against protocol-accurate fakes; **not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service**. Managed Local ONLYOFFICE is **untested**: it has never run against a real container.
 
 ### Added
 - **Office documents (Phase 62).** View, edit and create Word, Excel and PowerPoint files on documents, tickets and assets.
@@ -20,7 +20,7 @@ On the development branch `dev/office`. Not released. Not yet tested against a r
 - **Microsoft 365 documents**, a separate switch on the Microsoft 365 connection: each user signs in for document access only; administrators choose the allowed libraries and folders; link, open in Microsoft 365, create in a chosen folder, and import / export copies. No sharing links and no automatic sync. Existing tenant-read and mail permissions are unchanged.
 - **Settings → Integrations → Office Documents**: editor instances (this server, a separate VM, or an existing service), shared or per organization, private CA support, diagnostics and an explicit round-trip test. Only superusers set addresses and secrets; organization admins choose among approved editors.
 - **Editor installer** `scripts/office/install-editor.sh` (ONLYOFFICE, CODE, licensed Collabora Online; same server or separate VM) with preflight checks, verified signing keys and pinned, held versions. `manage.py office_setup --import-secret` and `manage.py office_sessions --drain` for upgrades and provider switches.
-- **Managed Local ONLYOFFICE** (off by default): one ONLYOFFICE Docs container per deployment on its own VM, pinned by image digest, installed and managed from the Office settings page (setup checks, install, start, stop, restart, update, rollback, redacted diagnostics, uninstall that keeps data). Sessions are drained and saves verified before any restart; updates back up first and roll back automatically if the new release never becomes healthy. Not yet run against a real container; releases stay marked untested until they pass the live checklist in `docs/office/MANAGED_LOCAL.md`.
+- **Managed Local ONLYOFFICE — UNTESTED** (off by default): one ONLYOFFICE Docs container per deployment on its own VM, pinned by image digest, installed and managed from the Office settings page (setup checks, install, start, stop, restart, update, rollback, redacted diagnostics, uninstall that keeps data). Sessions are drained and saves verified before any restart; updates back up first and roll back automatically if the new release never becomes healthy. Not yet run against a real container; releases stay marked untested until they pass the live checklist in `docs/office/MANAGED_LOCAL.md`.
 
 ### Security
 - Office sessions use tokens limited to one file, one user and one session, which expire and are revoked when access is lost. Permission is rechecked on every save.
@@ -33,6 +33,8 @@ On the development branch `dev/office`. Not released. Not yet tested against a r
 - Nothing changes until a superuser adds an editor instance. Edit buttons stay disabled, with the reason, until a configured, healthy editor allows them.
 - No malware scanner ships with clientst0r. Uploaded and saved files pass through a hook (`OFFICE_SCAN_HOOK`) that does nothing until a scanner is configured.
 - ONLYOFFICE Docs Server is AGPL-licensed; keep it installed separately and unmodified, with its branding. See docs/office/ONLYOFFICE.md.
+- Managed Local ONLYOFFICE is untested. Every release in its list is marked untested, so its helper refuses to install one (except on a disposable test VM that sets `ALLOW_UNTESTED_RELEASES=yes`) until the live checklist in docs/office/MANAGED_LOCAL.md passes. Licensing questions in that document are flagged for review.
+- Migrations: `core.0092`–`0094` (two scheduled tasks), `integrations.0041` (Microsoft 365 documents) and the new `office` app (`0001`–`0003`). Schema only.
 
 ## [3.17.667] - 2026-11-12
 
