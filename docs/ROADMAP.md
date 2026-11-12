@@ -1957,6 +1957,20 @@ Collect what technicians need up front and show customers where things stand.
   Without names, or when the requester is the only one named, the customer's
   admins approve as before. Approvers are e-mailed and shown on the portal
   approvals list.
+- **54.7 Request types with dynamic forms** *(built on the development
+  branch, not yet released)* — the portal's New Ticket opens a "What do you
+  need help with?" picker, with general support always available.
+  - Form builder: drag-and-drop or move up/down, preview, and draft / publish /
+    archive with numbered form versions. Question types include text, choices,
+    date and time with time zone, files, contacts, locations and assets.
+    Show-if and required-if conditions; circular conditions are refused.
+  - Per-customer copies, an org-admins-only audience, and starter templates
+    (new employee, new phone, offboard, general support and more).
+  - Tickets keep structured answers, the form version and a snapshot of the
+    form. Subject patterns, a request-type filter and report, and audited
+    staff corrections.
+  - Routing rules can match request answers; the builder has a routing
+    preview. Pending approvals are not treated as approved work.
 
 ---
 

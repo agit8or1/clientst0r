@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+On the development branch `dev/request-forms`. Not released.
+
+### Added
+- **"What do you need help with?" in the customer portal.** New Ticket now opens a picker of request types grouped by category, with search; *General support* (the plain ticket form, which now takes attachments) is always there.
+- **Request types with their own forms.** PSA → Service Catalog → *Portal request types & forms* (`/psa/request-types/`):
+  - A form builder with drag-and-drop or move up/down, preview as a chosen customer, and draft / publish / archive. Each publish creates a numbered form version.
+  - Question types: short and long text, email, phone, number, date, date and time with time zone, single choice (list or buttons), multiple choice, yes/no, file upload, contact, location, asset, section heading and information text.
+  - Show-if and required-if conditions (equals, does not equal, is one of, is not one of, is answered, is not answered, contains; all or any of up to five). A hidden section hides its questions. Conditions can only use earlier questions, and circular conditions are refused.
+  - Duplicate, enable / disable, display order, per-customer copies that replace the shared request type for one customer only, an "organization admins only" audience, a confirmation message, and default queue, priority, type, team and technician.
+  - Starter templates (added as drafts): new employee, new phone, offboard employee, general support, change access, phone problem, new equipment, software access and network problem.
+- **Requests on the ticket.** Subject from a pattern such as `New user: {{who}} — starts {{start}}` (blank parts are dropped). The answers are kept as structured *Request details* next to the form version and a snapshot of the form, so later edits or archiving never change old tickets. The ticket list gains a *Request type* filter, and there is a requests-by-type report with CSV export (`/psa/request-types/report/`). Staff can correct an answer; every change is checked against the submitted form, noted internally and written to the audit log, and the original answers stay on record.
+- **Routing on request answers.** Ticket Routing rules can match up to five request answers. The builder shows the rules that use a request type and has a routing preview. See `docs/TICKET_ROUTING.md` for the order of precedence.
+- **Approvals.** A request that needs customer approval shows as pending and is not treated as approved work: a linked workflow starts only once it is approved. The requester is e-mailed the decision. Self-approval is refused unless the request type allows it.
+
+### Changed
+- If a form is republished while a customer is filling it in, their answers are kept and they are asked to check and resend (no ticket is created from the old version).
+- Catalog item names only need to be unique per customer, so customer copies can keep the shared name. The catalog editor now refuses a duplicate name with a message.
+
+### Security
+- Every submission is validated on the server against the published form version. Unknown fields, choices that are not on the form, hidden questions and forged contact, asset or location IDs are rejected or dropped. Lookups are limited to the signed-in customer: portal admins can search their contacts and assets by name (at least two characters, ten results, names only), and other users see only their own contact and devices.
+- Forms cannot ask for passwords, PINs, MFA or recovery codes. Answers marked sensitive are left out of the ticket description, and notification e-mails never include answers.
+- Submissions are idempotent: a double click or a browser retry returns the first ticket. Portal submissions and lookups are rate-limited.
+- Uploads use the existing file rules (extension, content check, 25 MB). SVG files are refused on portal forms. Nothing is provisioned automatically.
+
+### Upgrading
+- Migrations `psa.0084` and `psa.0085` are additive. Existing request types get form version 1, and existing guided-request tickets get a submission record, so they show up in the filter and report. Existing forms, links and tickets keep working unchanged.
+
+## [Unreleased]
+
 On the development branch `dev/office`. Not released. Not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service.
 
 ### Added
