@@ -571,6 +571,10 @@ function checkSnykVersion() {
             if (data.latest_version) {
                 upgradeBtn.dataset.version = data.latest_version;
             }
+            const checkErrorEl = document.getElementById('snykCheckError');
+            if (checkErrorEl && !data.error) {
+                checkErrorEl.style.display = 'none';
+            }
 
             const nodejsStatusEl = document.getElementById('nodejsStatus');
             const installNodejsBtn = document.getElementById('installNodejsBtn');
