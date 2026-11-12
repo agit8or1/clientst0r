@@ -14,6 +14,12 @@
           <select class="form-select" id="ig-mode" name="mode">{% for k, v in modes.items %}<option value="{{ k }}"{% if k == guidance.mode %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
         <div class="col-sm-4"><label class="form-label small" for="ig-host">Editor host name</label>
           <input class="form-control" id="ig-host" name="editor_host" value="{{ guidance.editor_host }}" placeholder="docs.example.com"></div>
+        <div class="col-sm-4"><label class="form-label small" for="ig-edition">Collabora edition</label>
+          <select class="form-select" id="ig-edition" name="edition">{% for k, v in editions.items %}<option value="{{ k }}"{% if k == guidance.edition %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-sm-4"><label class="form-label small" for="ig-tls">Editor TLS</label>
+          <select class="form-select" id="ig-tls" name="tls">{% for k, v in tls_modes.items %}<option value="{{ k }}"{% if k == guidance.tls %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-sm-4 form-check mt-4 ps-5"><input class="form-check-input" type="checkbox" id="ig-ca" name="private_ca" value="1"{% if guidance.private_ca %} checked{% endif %}>
+          <label class="form-check-label small" for="ig-ca">clientst0r's certificate is from a private CA</label></div>
         {% if instance %}<input type="hidden" name="instance" value="{{ instance.pk }}">{% endif %}
         <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Show</button></div>
       </form>
@@ -33,11 +39,11 @@
     {% if guidance.commands %}
     <div class="card mb-3"><div class="card-body">
       <h3 class="h6">Commands to run yourself</h3>
-      <p class="small text-muted">clientst0r never runs these. Copy them to a terminal on the machine named. No secret is part of any command: it goes in a root-only file.</p>
+      <p class="small text-muted">clientst0r never runs these. Copy them to a terminal on the machine named, in order. No secret is part of any command: the installer generates it into a root-only file. Full procedure, firewall rules, upgrades and uninstall: docs/office/INSTALL.md.</p>
       {% for title, cmd in guidance.commands %}
       <label class="form-label small mb-1" for="ig-cmd-{{ forloop.counter }}">{{ title }}</label>
       <div class="input-group mb-2">
-        <input type="text" readonly class="form-control font-monospace small" id="ig-cmd-{{ forloop.counter }}" value="{{ cmd }}" data-select-on-click>
+        <textarea readonly rows="3" class="form-control font-monospace small" id="ig-cmd-{{ forloop.counter }}" data-select-on-click>{{ cmd }}</textarea>
         <button class="btn btn-outline-secondary" type="button" data-copy-from="#ig-cmd-{{ forloop.counter }}" data-copied-text="Copied">Copy</button>
       </div>
       {% endfor %}
