@@ -54,7 +54,8 @@ class MobileWriteScopeTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertFalse(Asset.objects.filter(name='new').exists())
 
-    def test_readonly_member_cannot_adjust_stock(self):
+    def test_customer_member_cannot_adjust_stock(self):
+        # Inventory is MSP-staff only, whatever the customer role.
         from inventory.models import InventoryItem
         item = InventoryItem.objects.create(organization=self.b, name='Cable', quantity=5)
         resp = _auth(self.c, 'post', f'/api/mobile/v1/inventory/{item.pk}/transactions/', self.token,

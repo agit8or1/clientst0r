@@ -92,10 +92,12 @@ class ParentOrgReachesDescendantRowsTests(TestCase):
             reverse('vault:password_detail', kwargs={'pk': self.child_password.pk}))
         self.assertEqual(r.status_code, 200)
 
-    def test_a_descendants_inventory_item_opens(self):
+    def test_inventory_stays_msp_staff_only(self):
+        # Inventory (stock, unit cost) is MSP-internal: a customer admin of
+        # the parent gets 403 on a descendant's item too.
         r = self.client.get(
             reverse('inventory:item_detail', kwargs={'pk': self.child_item.pk}))
-        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.status_code, 403)
 
     # -- and no further ------------------------------------------------------
 

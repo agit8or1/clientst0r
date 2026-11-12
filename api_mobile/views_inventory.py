@@ -20,6 +20,15 @@ from rest_framework.response import Response
 from .scoping import accessible_org_ids
 
 
+def _staff_only(request):
+    """Inventory (stock, unit cost, reorder links) is MSP-internal: customer
+    users get 403, like the fleet (authz-tech)."""
+    from inventory.access import is_inventory_staff
+    if not is_inventory_staff(request.user):
+        return Response({'detail': 'Inventory is available to MSP staff only.'}, status=403)
+    return None
+
+
 def _serialize_item(it, *, detail: bool = False) -> dict:
     out = {
         'id': it.id,
@@ -75,6 +84,9 @@ def inventory_list_view(request):
     property). Search hits name / sku / manufacturer_part_number /
     qr_code.
     """
+    refused = _staff_only(request)
+    if refused is not None:
+        return refused
     from inventory.models import InventoryItem
     org_ids = list(accessible_org_ids(request.user))
     qs = (InventoryItem.objects
@@ -134,6 +146,9 @@ def inventory_list_view(request):
 @permission_classes([IsAuthenticated])
 def inventory_detail_view(request, pk: int):
     """GET /api/mobile/v1/inventory/<id>/  — 404 cross-org."""
+    refused = _staff_only(request)
+    if refused is not None:
+        return refused
     from inventory.models import InventoryItem
     org_ids = list(accessible_org_ids(request.user))
     try:
@@ -160,6 +175,9 @@ def inventory_transactions_view(request, pk: int):
     `adjustment` accepts whatever sign you provide. Updates the item's
     `quantity` atomically.
     """
+    refused = _staff_only(request)
+    if refused is not None:
+        return refused
     from django.db import transaction
     from inventory.models import InventoryItem, InventoryTransaction
 
@@ -176,17 +194,8 @@ def inventory_transactions_view(request, pk: int):
             'results': [_serialize_transaction(t) for t in rows],
         })
 
-    # Adjusting stock is a write: the web item_adjust needs @require_write.
-    # MSP staff pass; anyone else needs a write-capable membership in the
-    # item's own customer (Read-Only members could adjust stock until now).
-    from psa.visibility import is_msp_staff
-    if not is_msp_staff(request.user):
-        from accounts.models import Membership
-        m = (Membership.objects.filter(user=request.user, organization_id=item.organization_id,
-                                       is_active=True).select_related('role_template').first())
-        if m is None or not m.can_write():
-            return Response({'detail': "You don't have permission to adjust stock."}, status=403)
-
+    # Only MSP staff get here (_staff_only above); the web item_adjust is
+    # MSP-staff only too, so customer write roles no longer apply.
     data = request.data or {}
     ttype = (data.get('transaction_type') or '').strip()
     if ttype not in ('stock_in', 'stock_out', 'adjustment'):

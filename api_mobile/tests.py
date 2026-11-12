@@ -1555,7 +1555,7 @@ class MobileInventoryTests(TestCase):
         _clear_throttle_cache()
         self.org_a = Organization.objects.create(name='OrgA-Inv', slug='orga-inv')
         self.org_b = Organization.objects.create(name='OrgB-Inv', slug='orgb-inv')
-        self.user = User.objects.create_user('iuser', password='hunter2')
+        self.user = _make_msp_tech(User.objects.create_user('iuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org_a, role=Role.OWNER, is_active=True,
         )
@@ -1667,7 +1667,7 @@ class MobileScanTests(TestCase):
         _clear_throttle_cache()
         self.org_a = Organization.objects.create(name='OrgA-Scan', slug='orga-scan')
         self.org_b = Organization.objects.create(name='OrgB-Scan', slug='orgb-scan')
-        self.user = User.objects.create_user('suser', password='hunter2')
+        self.user = _make_msp_tech(User.objects.create_user('suser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org_a, role=Role.OWNER, is_active=True,
         )

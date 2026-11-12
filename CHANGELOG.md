@@ -21,6 +21,7 @@ Server-side checks now follow the role flags in the customer that owns each reco
 - **Integrations:** managing an integration needs integrations_configure, and testing or syncing needs integrations_sync. Synced PSA companies, contacts and tickets are MSP-staff only. RMM devices of a single-customer connection stay within that customer. Sync and test buttons are POST-only.
 - **Security alerts:** acknowledge, connection and rule actions check the flag in the alert's customer. Digests skip subscribers who were deactivated or removed.
 - **Scheduled jobs:** before acting, scheduled reports, KB review reminders, warranty alerts and queued Office operations recheck the person they act for. A scheduled report whose creator lost access is paused.
+- **Inventory is MSP-staff only:** every /inventory/ page (items with unit cost, stock adjustments, categories, storage locations, tools, transactions, low-stock report), the mobile inventory list, detail and transactions endpoints, and the inventory leg of the mobile code scan now require MSP staff (superuser or user type Staff), who stay limited to their own customers. The Inventory sidebar section is hidden for everyone else. **Who loses access:** customer users of every role, Owner and Admin included, lose the inventory pages, mobile inventory, inventory scan hits and the menu entry (customers were never meant to see unit cost). They get 403 on the web and mobile endpoints, and the scan falls through to their assets.
 
 ## [3.17.668] - 2026-11-12
 
