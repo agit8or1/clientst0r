@@ -316,9 +316,12 @@ def can(user, organization, action, device=None, ticket=None, now=None) -> Decis
         if oid != org_id:
             return no(f'That {what} belongs to a different customer.', 'tenant')
     conn = getattr(device, 'connection', None) if device is not None and hasattr(device, 'connection_id') else None
-    # A platform-owned connection (no organization) serves every customer;
-    # the device's own customer, checked above, decides.
-    if conn is not None and conn.organization_id is not None and conn.organization_id != org_id:
+    # A platform-owned connection (no organization), or a multi-customer
+    # connection owned by the MSP's organization, serves several customers:
+    # the device's own customer, checked above, decides. Only a
+    # single-customer connection must belong to that customer.
+    if (conn is not None and getattr(conn, 'is_single_customer', False)
+            and conn.organization_id != org_id):
         return no("That device's RMM connection belongs to a different customer.", 'tenant')
 
     # --- deny overrides ---

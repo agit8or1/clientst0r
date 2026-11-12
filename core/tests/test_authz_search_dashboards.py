@@ -73,12 +73,11 @@ def _tickets_fixture(cls):
     cls.other_t = t(cls.other, 'Zebra umbrella outage')
 
 
-def _own_only(membership, flag, default=False):
-    """Pretend every customer role is the own-tickets-only kind (the proposed
-    portal_tickets_view_org flag set to False)."""
-    if flag == 'portal_tickets_view_org':
-        return False
-    return bool(getattr(membership.get_permissions(), flag, default))
+def _own_only(membership):
+    """Pretend every customer role is the own-tickets-only kind
+    (portal_tickets_view_org off). Patched at accounts.scope, the one rule
+    psa.visibility.customer_ticket_q and the portal read."""
+    return False
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -101,7 +100,7 @@ class GlobalSearchTicketScopeTests(TestCase):
         self.assertEqual(found, {'Zebra alice printer', 'Zebra bob laptop'})
 
     def test_own_only_customer_role_finds_only_their_tickets(self):
-        with mock.patch('psa.visibility.membership_flag', _own_only):
+        with mock.patch('accounts.scope.portal_sees_org_tickets', _own_only):
             self.assertEqual(self._subjects(self.alice), {'Zebra alice printer'})
             self.assertEqual(self._subjects(self.bob), {'Zebra bob laptop'})
 
@@ -174,7 +173,7 @@ class DashboardScopeTests(TestCase):
         self.assertTrue(any('alice printer' in t for t in everything))
         self.assertTrue(any('bob laptop' in t for t in everything))
         self.assertFalse(any('internal only' in t for t in everything))
-        with mock.patch('psa.visibility.membership_flag', _own_only):
+        with mock.patch('accounts.scope.portal_sees_org_tickets', _own_only):
             own = titles(self.alice)
         self.assertTrue(any('alice printer' in t for t in own))
         self.assertFalse(any('bob laptop' in t for t in own))
@@ -201,7 +200,7 @@ class DashboardScopeTests(TestCase):
         req = SimpleNamespace(user=self.alice)
         titles = {i.title for i in ops.sla_section(req, self.acme).items}
         self.assertTrue(any('bob laptop' in t for t in titles))
-        with mock.patch('psa.visibility.membership_flag', _own_only):
+        with mock.patch('accounts.scope.portal_sees_org_tickets', _own_only):
             titles = {i.title for i in ops.sla_section(req, self.acme).items}
         self.assertTrue(any('alice printer' in t for t in titles))
         self.assertFalse(any('bob laptop' in t for t in titles))

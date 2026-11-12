@@ -27,7 +27,7 @@ from .models import (
 )
 from .permissions import (
     PERM_MANAGE, PERM_OVERRIDE, PERM_TEST, can_manage, can_override, can_test,
-    require_routing_perm,
+    require_routing_org, require_routing_perm,
 )
 
 WEEKDAYS = [(0, 'Mon'), (1, 'Tue'), (2, 'Wed'), (3, 'Thu'), (4, 'Fri'), (5, 'Sat'), (6, 'Sun')]
@@ -200,6 +200,7 @@ def customer_settings(request, org_id):
     from core.models import Organization
     from psa.visibility import msp_technicians
     org = get_object_or_404(Organization, pk=org_id)
+    require_routing_org(request.user, org, PERM_MANAGE)
     cust = CustomerRoutingSettings.objects.filter(organization=org).first()
     if request.method == 'POST':
         mode = request.POST.get('mode') or 'inherit'
@@ -371,6 +372,8 @@ def publish(rule, payload, user, summary):
 @require_http_methods(['GET', 'POST'])
 def rule_form(request, pk=None):
     rule = get_object_or_404(RoutingRule, pk=pk) if pk else None
+    if rule is not None:
+        require_routing_org(request.user, rule.organization, PERM_MANAGE)
     if request.method == 'POST':
         step = request.POST.get('step') or 'review'
         if step == 'confirm':
@@ -383,6 +386,8 @@ def rule_form(request, pk=None):
                 messages.error(request, 'The review expired; please submit the form again.')
                 return redirect(request.path)
             result = _review(payload, rule.pk if rule else None)
+            # The customer the rule is saved for, too (not only the one it had).
+            require_routing_org(request.user, result['org'], PERM_MANAGE)
             if result['errors'] and not payload['name']:
                 messages.error(request, result['errors'][0])
                 return redirect(request.path)
@@ -487,6 +492,7 @@ def _normalise_payload(raw):
 @require_routing_perm(PERM_MANAGE)
 def rule_detail(request, pk):
     rule = get_object_or_404(RoutingRule.objects.select_related('organization', 'current_version'), pk=pk)
+    require_routing_org(request.user, rule.organization, PERM_MANAGE)
     errors, warnings = review.problems(rule.pk, rule.organization, rule.priority, rule.conditions,
                                        rule.destination, rule.fallback)
     return render(request, 'ticket_routing/rule_detail.html', {
@@ -504,6 +510,7 @@ def rule_detail(request, pk):
 @require_http_methods(['POST'])
 def rule_toggle(request, pk):
     rule = get_object_or_404(RoutingRule, pk=pk)
+    require_routing_org(request.user, rule.organization, PERM_MANAGE)
     activate = request.POST.get('activate') == '1'
     if activate:
         errors, _ = review.problems(rule.pk, rule.organization, rule.priority, rule.conditions,
@@ -527,6 +534,7 @@ def rule_toggle(request, pk):
 @require_http_methods(['POST'])
 def rule_delete(request, pk):
     rule = get_object_or_404(RoutingRule, pk=pk)
+    require_routing_org(request.user, rule.organization, PERM_MANAGE)
     name, org = rule.name, rule.organization
     rule.delete()
     _audit(request, 'delete', 'ticket_routing.RoutingRule', pk, name, f'Routing rule "{name}" deleted.', org=org)
@@ -733,7 +741,14 @@ def decide(request, pk):
     d = get_object_or_404(RoutingDecision.objects.select_related('ticket'), pk=pk)
     if not _ticket_in_scope(request.user, d.ticket):
         raise PermissionDenied('Not authorized for this customer.')
+    require_routing_org(request.user, d.ticket.organization_id, PERM_OVERRIDE)
     if request.POST.get('decision') == 'accept':
+        # Accepting reassigns the ticket: the same right as assigning it by hand.
+        from accounts.permission_utils import user_has_org_perm
+        if not (request.user.is_superuser
+                or user_has_org_perm(request.user, d.ticket.organization_id, 'tickets_assign')):
+            raise PermissionDenied("Accepting a suggestion assigns the ticket: you need 'tickets_assign' "
+                                   'for this customer.')
         d, msg = service.accept_suggestion(d.pk, request.user)
     else:
         d, msg = service.reject_suggestion(d.pk, request.user)

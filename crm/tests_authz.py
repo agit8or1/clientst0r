@@ -105,7 +105,11 @@ class LeadCaptureApiAuthzTests(TestCase):
         from api.models import APIKey
         from crm.models import Lead
         org = Organization.objects.create(name='Key Org 2', slug='authz-key-org2')
+        # CRM is MSP-internal (crm_create_lead is staff-only): the key belongs
+        # to an MSP staff member whose role there includes it.
         u = User.objects.create_user('key-owner', 'ko@x.test', 'pw')
+        u.profile.user_type = 'staff'
+        u.profile.save()
         Membership.objects.create(user=u, organization=org, role=Role.OWNER)
         _, key = APIKey.create_key(org, u, 'leads')
         r = self._post(key)

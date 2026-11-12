@@ -120,6 +120,13 @@ def _check_billing_reviewer(u, ctx):
     return _check_org_admin(u, ctx) and (u.is_superuser or _is_msp_staff(u))
 
 
+def _check_aging_reader(u, ctx):
+    # Same rule as psa.views.aging_report: billing_view_aging somewhere.
+    from accounts.permission_utils import orgs_with_perm
+    allowed = orgs_with_perm(u, 'billing_view_aging')
+    return allowed is None or bool(allowed)
+
+
 def _check_digest_reader(u, ctx):
     """security_alerts.views.digest_subscriptions: security_alerts_view."""
     from accounts.permission_utils import user_has_perm
@@ -138,6 +145,7 @@ _routing_manager = _view_check(_check_routing_manager)
 _org_admin = _view_check(_check_org_admin)
 _billing_reviewer = _view_check(_check_billing_reviewer)
 _digest_reader = _view_check(_check_digest_reader)
+_aging_reader = _view_check(_check_aging_reader)
 _rmm_policy_reader = _view_check(_check_rmm_policy_reader)
 
 
@@ -222,7 +230,7 @@ SECTIONS = (
         Tab(_('Contracts'), 'psa:contract_list', 'fa-file-contract'),
         Tab(_('Quotes'), 'psa:quote_list', 'fa-file-invoice-dollar'),
         Tab(_('Invoices'), 'psa:invoice_list', 'fa-file-invoice'),
-        Tab(_('Aging Report'), 'psa:aging_report', 'fa-chart-column'),
+        Tab(_('Aging Report'), 'psa:aging_report', 'fa-chart-column', gate=_aging_reader),
         Tab(_('Billing Review'), 'psa:billing_review', 'fa-list-check', gate=_billing_reviewer),
     )),
     # Purchasing carries vendor costs: MSP staff only (psa.views._msp_staff_only).

@@ -174,10 +174,13 @@ def reachable_org_ids(user, perm_name) -> Optional[Set[int]]:
 
 def portal_sees_org_tickets(membership) -> bool:
     """Whether a portal user sees every shared ticket of the customer or only
-    their own (created or requested by them)."""
-    if membership is None or not membership.is_active:
+    their own (created or requested by them): `portal_tickets_view_org` on
+    the membership's roles and record scope "organization". The one rule for
+    the portal, ticket pages, search, dashboards and alerts
+    (psa.visibility.customer_ticket_q uses it)."""
+    if membership is None or not getattr(membership, 'is_active', True):
         return False
-    if (membership.record_scope or ORGANIZATION) != ORGANIZATION:
+    if (getattr(membership, 'record_scope', None) or ORGANIZATION) != ORGANIZATION:
         return False
     return bool(getattr(membership.get_permissions(), 'portal_tickets_view_org', False))
 
@@ -185,13 +188,9 @@ def portal_sees_org_tickets(membership) -> bool:
 def portal_ticket_queryset(qs, membership, user):
     """Portal ticket rows for `membership`: client-visible tickets of the
     membership's customer only; all of them with portal_tickets_view_org,
-    otherwise the user's own. Internal-only tickets never appear."""
+    otherwise the user's own. Internal-only tickets never appear. Same rule
+    as psa.visibility.customer_ticket_q (which this delegates to)."""
     if membership is None:
         return qs.none()
-    qs = qs.filter(organization_id=membership.organization_id, client_can_view=True)
-    if portal_sees_org_tickets(membership):
-        return qs
-    own = Q(created_by=user)
-    if getattr(user, 'email', ''):
-        own |= Q(requester_email__iexact=user.email)
-    return qs.filter(own)
+    from psa.visibility import customer_ticket_q
+    return qs.filter(customer_ticket_q(user, [membership]))

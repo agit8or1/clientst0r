@@ -154,7 +154,8 @@ class CustomerOpsTests(TestCase):
         cls.limited = User.objects.create_user('ops_limited', 'l@x.com', 'pw')
         cls.limited_role = RoleTemplate.objects.create(
             name='Ops limited', tickets_view=True, assets_view=True, monitoring_view=True,
-            billing_view_invoices=False, reports_view_financial=False)
+            billing_view_invoices=False, reports_view_financial=False,
+            portal_tickets_view_org=True)   # sees every shared ticket, not only their own
         Membership.objects.create(user=cls.limited, organization=cls.a, role='readonly',
                                   role_template=cls.limited_role)
         cls.other = User.objects.create_user('ops_other', 'x@x.com', 'pw')

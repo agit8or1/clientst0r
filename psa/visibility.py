@@ -57,13 +57,11 @@ def visible_attachments(ticket, user):
 # Customer ticket audience: own tickets vs the whole customer organization.
 #
 # The spec's Customer Standard User sees only their own tickets; a customer
-# role that allows it sees every shared ticket of the organization. No
-# RoleTemplate flag expresses "org-wide" for customers yet (tickets_view_all
-# is the MSP-staff cross-customer flag), so the proposed flag
-# `portal_tickets_view_org` is read with a default of True: every existing
-# membership — including the Read-Only memberships the portal invite creates —
-# keeps the org-wide view it has today until a role sets the flag to False.
-# Listed in NEEDED_PERMISSIONS.md for roles-core.
+# role that allows it (`portal_tickets_view_org`, with record scope
+# "organization": accounts.scope.portal_sees_org_tickets) sees every shared
+# ticket of the organization. accounts 0046 switched it on for every role
+# and simple role that existed before, so nobody lost the org-wide view; new
+# roles start without it (Customer Standard User sees only their own).
 # ---------------------------------------------------------------------------
 
 CUSTOMER_ORG_TICKETS_FLAG = 'portal_tickets_view_org'
@@ -88,6 +86,11 @@ def own_tickets_q(user, prefix=''):
     return q
 
 
+def portal_sees_org_tickets(membership):
+    from accounts.scope import portal_sees_org_tickets as _rule
+    return _rule(membership)
+
+
 def customer_ticket_q(user, memberships, prefix=''):
     """Q matching the tickets a customer user may see through `memberships`:
     shared with the client, in one of those organizations, and either any
@@ -95,8 +98,7 @@ def customer_ticket_q(user, memberships, prefix=''):
     from django.db.models import Q
     org_wide, own_only = [], []
     for m in memberships:
-        (org_wide if membership_flag(m, CUSTOMER_ORG_TICKETS_FLAG, True)
-         else own_only).append(m.organization_id)
+        (org_wide if portal_sees_org_tickets(m) else own_only).append(m.organization_id)
     q = Q(pk__in=[])
     if org_wide:
         q |= Q(**{f'{prefix}organization_id__in': org_wide})

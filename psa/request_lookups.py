@@ -8,10 +8,16 @@ and is limited to what that person may see:
 
 * location — the customer's own active sites (the same list the general
   portal ticket form offers).
-* contact  — the customer's portal admins can search the customer's
-  contacts by name; everyone else only sees their own contact record.
-* asset    — portal admins can search the customer's assets; everyone else
-  only sees devices where they are the primary contact.
+* contact  — the customer's portal admins whose role holds
+  `org_view_members` can search the customer's contacts by name; everyone
+  else only sees their own contact record.
+* asset    — portal admins whose role holds `assets_view` can search the
+  customer's assets; everyone else only sees devices where they are the
+  primary contact.
+
+A portal admin is an active, non-MSP-staff membership of the request's
+organization with `is_org_admin`; the flag checks read that membership's
+own roles (Membership.get_permissions), never another membership's.
 
 Searches need at least two characters and return at most MAX_RESULTS
 names, so a lookup can't be used to page through a whole directory.
@@ -30,8 +36,31 @@ MIN_QUERY = 2
 
 def _is_portal_admin(ctx):
     m = getattr(ctx, 'membership', None)
-    return bool(m is not None and m.is_active and m.is_org_admin
-                and m.organization_id == getattr(ctx.organization, 'pk', None))
+    if not (m is not None and m.is_active and m.is_org_admin
+            and m.organization_id == getattr(ctx.organization, 'pk', None)):
+        return False
+    from accounts.permission_utils import is_msp_staff
+    return not is_msp_staff(getattr(ctx, 'user', None) or m.user)
+
+
+# Flag a portal admin's own role must hold to search each directory.
+SEARCH_FLAG = {'contact': 'org_view_members', 'asset': 'assets_view'}
+
+
+def _can_search(ctx, field_type):
+    """Portal admin whose membership role holds the directory's view flag."""
+    if not _is_portal_admin(ctx):
+        return False
+    flag = SEARCH_FLAG.get(field_type)
+    if flag is None:
+        return False
+    return bool(getattr(ctx.membership.get_permissions(), flag, False))
+
+
+def can_search(field, ctx):
+    """Whether the person gets a type-ahead search for `field` (the portal
+    form uses this; search()/resolve() apply the same rule)."""
+    return ctx is not None and _can_search(ctx, field.get('type'))
 
 
 def _own_contacts(ctx):
@@ -57,7 +86,7 @@ def scope_note(field, ctx):
     t = field['type']
     if t == 'location':
         return ''
-    if _is_portal_admin(ctx):
+    if _can_search(ctx, t):
         return 'Start typing a name to search.'
     if t == 'contact':
         return 'You can pick yourself, or type the person\'s name.'
@@ -76,7 +105,7 @@ def _contact_qs(ctx):
     from assets.models import Contact
     if ctx is None or ctx.organization is None:
         return Contact.objects.none()
-    if _is_portal_admin(ctx):
+    if _can_search(ctx, 'contact'):
         return Contact.objects.filter(organization_id=ctx.organization.pk)
     return _own_contacts(ctx)
 
@@ -86,7 +115,7 @@ def _asset_qs(ctx):
     if ctx is None or ctx.organization is None:
         return Asset.objects.none()
     qs = Asset.objects.filter(organization_id=ctx.organization.pk)
-    if _is_portal_admin(ctx):
+    if _can_search(ctx, 'asset'):
         return qs
     own = list(_own_contacts(ctx).values_list('pk', flat=True))
     return qs.filter(primary_contact_id__in=own) if own else Asset.objects.none()
@@ -103,7 +132,7 @@ def search(field, query, ctx):
         if q:
             opts = [o for o in opts if q.casefold() in o[1].casefold()]
         return [{'id': i, 'label': label} for i, label in opts[:MAX_RESULTS * 5]]
-    admin = _is_portal_admin(ctx)
+    admin = _can_search(ctx, t)
     if admin and len(q) < MIN_QUERY:
         return []
     if t == 'contact':

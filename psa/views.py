@@ -6528,6 +6528,29 @@ def portal_invite(request, org_id):
             user=user).exclude(organization=org).exists())
 
         is_org_admin = request.POST.get('is_org_admin') == 'on'
+        # Delegation (accounts.delegation): a new member needs invite rights
+        # here and gets Read-Only; re-inviting an existing member (which
+        # reactivates a suspended one) is managing that member, so the
+        # inviter may not exceed or undo what they could not change
+        # directly; nobody re-invites themselves.
+        from accounts.delegation import can_assign_role, can_manage_member
+        existing_m = Membership.objects.filter(user=user, organization=org).first()
+        if existing_m is None:
+            verdict = can_assign_role(request.user, org, None, simple_role=Role.READONLY, target_user=user)
+        else:
+            verdict = can_manage_member(request.user, org, existing_m)
+        if verdict and is_org_admin and not request.user.is_superuser:
+            from accounts.permission_utils import user_has_org_perm
+            if not user_has_org_perm(request.user, org, 'org_manage_members'):
+                from accounts.delegation import Verdict
+                verdict = Verdict(False, "Making someone a portal administrator needs 'org_manage_members'.")
+        if not verdict:
+            from accounts.role_audit import record_delegation_denied
+            record_delegation_denied(request, 'portal invite', verdict.reason, organization=org, target=user)
+            if existing is None:
+                user.delete()
+            messages.error(request, verdict.reason)
+            return redirect(request.path)
         membership, m_created = Membership.objects.get_or_create(
             user=user, organization=org,
             defaults={'role': Role.READONLY, 'is_active': True,

@@ -270,6 +270,24 @@ def require_perm(perm_name):
     return decorator
 
 
+def require_perm_any_org(perm_name):
+    """Decorator: the user holds `perm_name` in at least one organization
+    (user_has_perm_any_org). Only for views that then check EVERY record
+    against its own organization (orgs_with_perm / has_perm_for_org) and
+    offer only those organizations - e.g. a list of several customers'
+    holidays. Never the only check on a record."""
+    def decorator(view_fn):
+        @wraps(view_fn)
+        def _wrapped(request, *args, **kwargs):
+            if not user_has_perm_any_org(request.user, perm_name):
+                from .role_audit import record_denied
+                record_denied(request, perm_name)
+                raise PermissionDenied(f"You don't have the '{perm_name}' permission.")
+            return view_fn(request, *args, **kwargs)
+        return _wrapped
+    return decorator
+
+
 def require_org_perm(perm_name, org_kwarg='org_id', org_getter=None):
     """Decorator: the permission at the organization named by the URL
     (`org_kwarg`), or returned by `org_getter(request, *args, **kwargs)`

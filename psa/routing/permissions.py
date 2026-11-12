@@ -17,7 +17,11 @@ PERM_TEST = 'routing_test'
 PERM_OVERRIDE = 'routing_override'
 
 
-def has_routing_perm(user, perm) -> bool:
+def has_routing_perm(user, perm, organization=None) -> bool:
+    """`perm` for an MSP technician. With `organization` (a customer, or its
+    pk) the permission must hold AT that customer, inside the technician's
+    client scope (accounts.permission_utils.user_has_org_perm); without one
+    it is the page-level capability."""
     from psa.visibility import is_msp_staff
     if not user or not getattr(user, 'is_authenticated', False) or not user.is_active:
         return False
@@ -25,8 +29,18 @@ def has_routing_perm(user, perm) -> bool:
         return False
     if user.is_superuser:
         return True
+    if organization is not None:
+        from accounts.permission_utils import user_has_org_perm
+        return user_has_org_perm(user, organization, perm)
     from accounts.permission_utils import user_has_perm
     return user_has_perm(user, perm)
+
+
+def require_routing_org(user, organization, perm):
+    """PermissionDenied unless `perm` holds for this customer's routing
+    (an MSP-wide object, organization None, needs the capability only)."""
+    if not has_routing_perm(user, perm, organization):
+        raise PermissionDenied(f"You don't have the '{perm}' permission for this customer.")
 
 
 def can_manage(user):

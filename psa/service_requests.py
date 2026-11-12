@@ -1132,16 +1132,30 @@ SOURCE_REQUESTER_ONLY = 'requester_only'  # the requester is the only named
                                           # approver: org admins instead
 
 
+APPROVE_FLAG = 'portal_approve_requests'
+
+
+def _holds_approve_flag(membership):
+    return bool(getattr(membership.get_permissions(), APPROVE_FLAG, False))
+
+
 def eligible_approver_memberships(organization):
     """Active memberships of `organization` whose people may be named as
-    approvers: active users who are customer people, not MSP staff."""
+    approvers: active users who are customer people, not MSP staff, and
+    whose role on that membership holds `portal_approve_requests` (the
+    Request Approver permission; customer read-only and standard user roles
+    don't carry it)."""
     from accounts.models import Membership
     if organization is None:
         return Membership.objects.none()
     staff_ids = _msp_staff_ids()
-    return (Membership.objects
+    base = (Membership.objects
             .filter(organization=organization, is_active=True, user__is_active=True)
             .exclude(user_id__in=staff_ids)
+            .select_related('role_template')
+            .prefetch_related('additional_roles'))
+    ok = [m.pk for m in base if _holds_approve_flag(m)]
+    return (Membership.objects.filter(pk__in=ok)
             .select_related('user')
             .order_by('user__first_name', 'user__last_name', 'user__username'))
 
@@ -1155,7 +1169,8 @@ def _msp_staff_ids():
 def named_approver_rows(item, organization):
     """(current_users, departed_rows) for the item's named approvers at
     `organization`. Departed rows name someone who is no longer an active
-    customer member there (left, deactivated, or now MSP staff); they are
+    customer member there (left, deactivated, now MSP staff, or their role no
+    longer holds portal_approve_requests); they are
     ignored for approval and flagged in the staff UI."""
     from psa.models import ServiceRequestApprover
     if item is None or getattr(item, 'pk', None) is None or organization is None:
@@ -1173,11 +1188,19 @@ def named_approver_rows(item, organization):
 
 
 def _org_admins(organization):
-    from django.contrib.auth.models import User
-    return list(User.objects.filter(
-        memberships__organization=organization, memberships__is_active=True,
-        memberships__is_org_admin=True, is_active=True,
-    ).distinct().order_by('first_name', 'last_name', 'username'))
+    """Default approvers when a request type names nobody (current): the
+    customer's people who hold `portal_approve_requests` on their own
+    membership AND are either the customer's portal admins (is_org_admin)
+    or were given it explicitly through an additional role such as the
+    Request Approver add-on. MSP staff never approve on a customer's
+    behalf. (Every existing role kept `portal_approve_requests` in accounts
+    0046, so the admin requirement keeps the original "org admins approve"
+    rule from widening to every member.)"""
+    out = []
+    for m in eligible_approver_memberships(organization).prefetch_related('additional_roles'):
+        if m.is_org_admin or any(getattr(r, APPROVE_FLAG, False) for r in m._additional_role_list()):
+            out.append(m.user)
+    return out
 
 
 def approvers_for(item, organization, requester=None):
@@ -1188,9 +1211,14 @@ def approvers_for(item, organization, requester=None):
     * Named approvers who are still active customer members there, minus
       the requester — any one of them approves.
     * If names are set but the requester is the only current one, the
-      customer's org admins (minus the requester) approve instead.
-    * No names (or everyone named has left): the customer's org admins,
-      minus the requester — the original rule.
+      customer's default approvers (minus the requester) approve instead.
+    * No names (or everyone named has left): the default approvers
+      (`_org_admins`: portal admins and Request Approver add-on holders
+      whose role holds `portal_approve_requests`), minus the requester.
+
+    Named approvers must still hold `portal_approve_requests`
+    (eligible_approver_memberships); one whose role lost it is listed as
+    departed.
 
     When the request type explicitly allows self-approval
     (`approval_allow_self`), a requester who is otherwise eligible stays

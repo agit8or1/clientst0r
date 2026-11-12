@@ -34,8 +34,10 @@ class TicketVaultSidebarTests(TestCase):
         cls.tech = User.objects.create_user('sb_tech', 't@x.test', 'pw-sb-123')
         Membership.objects.create(user=cls.tech, organization=cls.org,
                                   role=Role.EDITOR, is_active=True)
+        # The role sees the customer's shared tickets (a new role sees only
+        # the user's own unless portal_tickets_view_org is set) but no vault.
         no_vault = RoleTemplate.objects.create(
-            name='No vault', organization=cls.org, vault_view=False)
+            name='No vault', organization=cls.org, vault_view=False, portal_tickets_view_org=True)
         cls.no_vault_user = User.objects.create_user('sb_novault', 'n@x.test', 'pw-sb-123')
         Membership.objects.create(user=cls.no_vault_user, organization=cls.org,
                                   role=Role.EDITOR, role_template=no_vault, is_active=True)

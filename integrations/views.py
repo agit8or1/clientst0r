@@ -1059,10 +1059,9 @@ def _refuse_blocked_device(request, device):
     merely ungranted keeps working, as before Phase 8.)"""
     from rmm_permissions.decision import audit_denial, can
     decision = can(request.user, device.organization, 'device.view', device=device)
-    # Tenant scoping is the view's own lookup; rmm_permissions' tenant step
-    # treats a multi-customer connection owned by the MSP's organization as
-    # foreign (HELPER_ISSUES), so only the person-level blocks apply here.
-    if decision.blocked and decision.source != 'tenant':
+    # rmm_permissions' tenant step accepts a multi-customer connection
+    # owned by the MSP's organization (the device's customer decides).
+    if decision.blocked:
         try:
             audit_denial(request.user, device.organization, 'device.view', decision.reason,
                          device=device, request=request)

@@ -594,7 +594,7 @@ Invoices, payments, aging.
 | `billing_view_invoices` | View / list | sensitive | no | enforced | View invoices |
 | `billing_send_invoices` | Send / publish | sensitive | no | enforced | Send invoices |
 | `billing_record_payments` | Edit | sensitive | no | enforced | Record payments |
-| `billing_view_aging` | View / list | sensitive | staff only | enforced | See the cross-client aging report |
+| `billing_view_aging` | View / list | sensitive | no | enforced | See the aging report (MSP staff: every client; customer users: their own account) |
 | `billing_approve_invoices` | Approve | sensitive | staff only | pending | Approve invoices through the approval gate |
 | `billing_issue_credit` | Edit | sensitive | staff only | pending | Issue credit memos |
 | `billing_manage_charges` | Edit | sensitive | staff only | pending | Add charges, invoice tickets / projects and push invoices to accounting |

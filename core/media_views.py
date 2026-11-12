@@ -122,11 +122,11 @@ def _ticket_attachment(user, att):
         return False
     if att.comment_id and att.comment.is_internal:
         return False
-    # The portal's ticket rule (psa.visibility), so a narrower customer rule
-    # there also applies to downloads.
-    from psa.models import Ticket
-    from psa.visibility import customer_visible_tickets
-    if not customer_visible_tickets(Ticket.objects.filter(pk=ticket.pk), user).exists():
+    # The ticket pages' rule (psa.visibility.user_can_view_ticket: tickets_view
+    # in that customer, shared tickets only, and only their own unless the
+    # role sees the organization's - accounts.scope.portal_sees_org_tickets).
+    from psa.visibility import user_can_view_ticket
+    if not user_can_view_ticket(user, ticket):
         return False
     return ticket.organization_id in _membership_org_ids(user, include_descendants=False)
 

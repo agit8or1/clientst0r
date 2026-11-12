@@ -325,9 +325,18 @@ class TenantTests(Base):
         self.assertFalse(can(u, self.a, 'device.view', device=dev_b).allowed)
         self.assertFalse(can(u, self.a, 'diagnostics.run', ticket=make_ticket(self.b, assigned_to=u)).allowed)
         crossed = self.device(self.a, conn_org=self.b, name='X')
+        # B's single-customer connection can not carry a device of A.
+        crossed.connection.customer_scope = crossed.connection.CUSTOMER_SCOPE_SINGLE
+        crossed.connection.save()
         d = can(u, self.a, 'device.view', device=crossed)
         self.assertFalse(d.allowed)
         self.assertEqual(d.source, 'tenant')
+        # A multi-customer connection owned by the MSP's organization serves
+        # A's device: the device's customer decides.
+        msp_conn = self.device(self.a, conn_org=self.b, name='Y')
+        msp_conn.connection.customer_scope = msp_conn.connection.CUSTOMER_SCOPE_MULTI
+        msp_conn.connection.save()
+        self.assertNotEqual(can(u, self.a, 'device.view', device=msp_conn).source, 'tenant')
         crossed.organization = None
         crossed.save()
         self.assertFalse(can(u, self.a, 'device.view', device=crossed).allowed)

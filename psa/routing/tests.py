@@ -465,7 +465,8 @@ class SuggestAndPermissionTests(RoutingFixture, TestCase):
     def setUpTestData(cls):
         cls.build()
         cls.dispatcher = _tech('dispatcher')
-        role = RoleTemplate.objects.create(name='Dispatcher', routing_override=True, tickets_view=True)
+        role = RoleTemplate.objects.create(name='Dispatcher', routing_override=True, tickets_view=True,
+                                           tickets_assign=True)
         cls.dispatcher.profile.global_role_template = role
         cls.dispatcher.profile.save()
         cls.tester = _tech('tester')
@@ -513,6 +514,54 @@ class SuggestAndPermissionTests(RoutingFixture, TestCase):
         t.refresh_from_db()
         self.assertEqual(d.status, 'rejected')
         self.assertIsNone(t.assigned_to_id)
+
+    def test_accept_needs_tickets_assign(self):
+        # Accepting a suggestion assigns the ticket: routing_override alone
+        # is not enough.
+        t = self.portal_ticket(self.portal_a, subject='Assign rights')
+        d = t.routing_decisions.get()
+        u = _tech('override-only')
+        u.profile.global_role_template = RoleTemplate.objects.create(
+            name='Override only', routing_override=True, tickets_view=True)
+        u.profile.save()
+        c = Client()
+        _login(c, u)
+        self.assertEqual(c.post(reverse('ticket_routing:decide', args=[d.pk]),
+                                {'decision': 'accept'}).status_code, 403)
+        t.refresh_from_db()
+        d.refresh_from_db()
+        self.assertIsNone(t.assigned_to_id)
+        self.assertEqual(d.status, 'suggested')
+
+    def test_decide_respects_client_scope(self):
+        # A dispatcher whose client scope leaves out the ticket's customer
+        # cannot accept or reject its routing suggestion.
+        t = self.portal_ticket(self.portal_a, subject='Out of scope')
+        d = t.routing_decisions.get()
+        p = self.dispatcher.profile
+        p.client_scope = 'selected'
+        p.save()
+        p.scope_organizations.set([self.cust_b])
+        c = Client()
+        _login(c, self.dispatcher)
+        for decision in ('accept', 'reject'):
+            self.assertEqual(c.post(reverse('ticket_routing:decide', args=[d.pk]),
+                                    {'decision': decision}).status_code, 403)
+        d.refresh_from_db()
+        self.assertEqual(d.status, 'suggested')
+
+    def test_rule_pages_respect_client_scope(self):
+        mgr = _tech('rule-mgr')
+        mgr.profile.global_role_template = RoleTemplate.objects.create(
+            name='Rule manager', routing_manage_rules=True, tickets_view=True)
+        mgr.profile.client_scope = 'selected'
+        mgr.profile.save()
+        mgr.profile.scope_organizations.set([self.cust_b])
+        c = Client()
+        _login(c, mgr)
+        self.assertEqual(c.post(reverse('ticket_routing:rule_toggle', args=[self.rr_rule.pk])).status_code, 403)
+        self.assertEqual(c.post(reverse('ticket_routing:rule_delete', args=[self.rr_rule.pk])).status_code, 403)
+        self.assertTrue(type(self.rr_rule).objects.filter(pk=self.rr_rule.pk).exists())
 
     def test_routing_history_never_in_portal(self):
         t = self.portal_ticket(self.portal_a, subject='Portal view')

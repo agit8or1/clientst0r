@@ -23,7 +23,7 @@ from core.tenancy import get_scoped_object_or_404, scope_to_request
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.permission_utils import require_perm, user_has_perm
+from accounts.permission_utils import require_perm, require_perm_any_org, user_has_perm
 from .forms import (
     BillableTargetForm, HolidayForm, LeaveRequestForm, TechCostRateForm,
     UserCertificationForm, UserSkillForm, WorkingHoursForm,
@@ -381,7 +381,7 @@ def _require_holiday_org(request, instance):
 
 
 @login_required
-@require_perm('resourcing_manage_holidays')
+@require_perm_any_org('resourcing_manage_holidays')
 def holiday_list(request):
     # Holidays with a NULL organization are national ones shared by every
     # tenant, so they stay visible; everything else is bounded by membership.
@@ -395,7 +395,7 @@ def holiday_list(request):
 
 
 @login_required
-@require_perm('resourcing_manage_holidays')
+@require_perm_any_org('resourcing_manage_holidays')
 def holiday_add(request):
     if request.method == 'POST':
         form = HolidayForm(request.POST, request=request)
@@ -411,7 +411,7 @@ def holiday_add(request):
 
 
 @login_required
-@require_perm('resourcing_manage_holidays')
+@require_perm_any_org('resourcing_manage_holidays')
 def holiday_edit(request, pk):
     # Strict scoping on the write path: a member of one tenant must not reach
     # another tenant's holiday by id, nor edit a shared national holiday,
@@ -432,7 +432,7 @@ def holiday_edit(request, pk):
 
 
 @login_required
-@require_perm('resourcing_manage_holidays')
+@require_perm_any_org('resourcing_manage_holidays')
 def holiday_delete(request, pk):
     instance = get_scoped_object_or_404(Holiday, request, pk=pk)
     _require_holiday_org(request, instance)

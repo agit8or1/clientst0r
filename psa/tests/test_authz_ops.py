@@ -174,6 +174,33 @@ class TicketScopeTests(AuthzOpsBase):
         self.assertIsNone(t.closed_at)
 
 
+class TicketAttachmentRuleTests(AuthzOpsBase):
+    """Attachment downloads follow the ticket pages' customer rule: a portal
+    user whose role sees only their own tickets doesn't get files from a
+    coworker's ticket (core.media_views._ticket_attachment)."""
+
+    def _att(self, ticket):
+        from psa.models import TicketAttachment
+        return TicketAttachment.objects.create(ticket=ticket, file='psa/x.txt', filename='x.txt')
+
+    def test_own_only_role_gets_own_ticket_files_only(self):
+        from core.media_views import _ticket_attachment
+        own_only = RoleTemplate.objects.create(name='Own tickets only', tickets_view=True)
+        u = User.objects.create_user('az_own', 'own@a.test', 'pw-az-123')
+        Membership.objects.create(user=u, organization=self.a, role_template=own_only, is_active=True)
+        mine = self._att(self._ticket(self.a, 'Mine', created_by=u))
+        theirs = self._att(self._ticket(self.a, 'Theirs', created_by=self.editor_a))
+        self.assertTrue(_ticket_attachment(u, mine))
+        self.assertFalse(_ticket_attachment(u, theirs))
+
+    def test_org_wide_role_and_other_customer(self):
+        from core.media_views import _ticket_attachment
+        theirs = self._att(self._ticket(self.a, 'Shared', created_by=self.owner_a))
+        self.assertTrue(_ticket_attachment(self.editor_a, theirs))
+        other = self._att(self._ticket(self.b, 'B only'))
+        self.assertFalse(_ticket_attachment(self.editor_a, other))
+
+
 class NotificationRecipientTests(AuthzOpsBase):
 
     def _smtp_on(self):
@@ -401,6 +428,30 @@ class PortalInviteTests(AuthzOpsBase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertTrue(Membership.objects.filter(user__email='new.person@a.test',
                                                   organization=self.a).exists())
+
+
+    def test_reinvite_of_suspended_owner_needs_member_management(self):
+        # Re-inviting reactivates a suspended member: that is managing them,
+        # so an editor cannot bring back an owner they could not edit.
+        gone = User.objects.create_user('az_gone', 'gone@a.test', 'pw-az-123')
+        Membership.objects.create(user=gone, organization=self.a, role=Role.OWNER, is_active=False)
+        self._c(self.editor_a, self.a).post(f'/psa/clients/{self.a.pk}/invite-portal/',
+                                            {'email': 'gone@a.test'})
+        self.assertFalse(Membership.objects.get(user=gone, organization=self.a).is_active)
+
+    def test_nobody_reinvites_themselves(self):
+        Membership.objects.filter(user=self.editor_a, organization=self.a).update(is_org_admin=False)
+        self._c(self.editor_a, self.a).post(f'/psa/clients/{self.a.pk}/invite-portal/',
+                                            {'email': 'editor@a.test', 'is_org_admin': 'on'})
+        self.assertFalse(Membership.objects.get(user=self.editor_a, organization=self.a).is_org_admin)
+
+    def test_denied_new_invite_leaves_no_account_behind(self):
+        ro = User.objects.create_user('az_ro', 'ro@a.test', 'pw-az-123')
+        Membership.objects.create(user=ro, organization=self.a, role=Role.READONLY, is_active=True)
+        self._c(ro, self.a).post(f'/psa/clients/{self.a.pk}/invite-portal/',
+                                 {'email': 'stranger@a.test'})
+        self.assertFalse(User.objects.filter(email='stranger@a.test').exists())
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class PartnerWebhookTests(AuthzOpsBase):

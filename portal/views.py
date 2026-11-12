@@ -1075,9 +1075,9 @@ def _visible_approvals_q(request):
     """Client approvals this portal user may see listed: their own requests,
     approvals on tickets they can see, and — when the role shows the whole
     organization's tickets — approvals not tied to a ticket."""
-    from psa.visibility import CUSTOMER_ORG_TICKETS_FLAG, membership_flag
+    from psa.visibility import portal_sees_org_tickets
     q = Q(requested_by=request.user) | Q(related_ticket__in=portal_tickets(request).values('pk'))
-    if membership_flag(request.portal_membership, CUSTOMER_ORG_TICKETS_FLAG, True):
+    if portal_sees_org_tickets(request.portal_membership):
         q |= Q(related_ticket__isnull=True)
     return q
 

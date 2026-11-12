@@ -232,3 +232,111 @@ class NamedApproverConfigTests(_Base):
         Membership.objects.filter(user=self.dana).update(is_active=False)
         r = self.login(self.staff).get(self.url() + f'?org={self.org.pk}')
         self.assertContains(r, 'no longer active people')
+
+
+class ApproverFlagTests(_Base):
+    """Approver resolution reads `portal_approve_requests` on the person's own
+    membership: the Request Approver add-on makes someone a default approver,
+    a role without the flag removes them, and MSP staff never approve."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.item.approval_policy = 'customer'
+        cls.item.save()
+
+    def _template(self, name, **flags):
+        from accounts.models import RoleTemplate
+        return RoleTemplate.objects.create(name=name, **flags)
+
+    def _member(self, username, **kw):
+        from accounts.models import Membership, Role
+        u = User.objects.create_user(username, f'{username}@x.com', 'pw')
+        kw.setdefault('role', Role.READONLY)
+        m = Membership.objects.create(user=u, organization=self.org, is_active=True, **kw)
+        return u, m
+
+    def _approvers(self, requester=None):
+        from psa.service_requests import approvers_for
+        return {u.pk for u in approvers_for(self.item, self.org, requester or self.user)['users']}
+
+    def test_admin_still_default_approver(self):
+        self.assertIn(self.approver.pk, self._approvers())
+
+    def test_plain_member_is_not_a_default_approver(self):
+        u, _ = self._member('af-plain')
+        self.assertNotIn(u.pk, self._approvers())
+
+    def test_request_approver_add_on_makes_default_approver(self):
+        from accounts.models import RoleTemplate
+        # The built-in add-on (seeded by accounts 0046; a TransactionTestCase
+        # flush can remove seeded rows, so recreate it when missing).
+        addon = (RoleTemplate.objects.filter(seed_key='customer_request_approver').first()
+                 or RoleTemplate.objects.create(name='Request Approver (test)', portal_approve_requests=True))
+        u, m = self._member('af-addon', role_template=self._template('Plain user', tickets_view=True))
+        self.assertNotIn(u.pk, self._approvers())
+        m.additional_roles.add(addon)
+        self.assertIn(u.pk, self._approvers())
+
+    def test_admin_whose_role_withholds_flag_is_not_an_approver(self):
+        u, _ = self._member('af-noflag', is_org_admin=True,
+                            role_template=self._template('Admin no approvals', tickets_view=True))
+        self.assertNotIn(u.pk, self._approvers())
+
+    def test_named_approver_without_flag_counts_as_departed(self):
+        from psa.models import ServiceRequestApprover
+        from psa.service_requests import approvers_for
+        u, _ = self._member('af-named', role_template=self._template('Viewer', tickets_view=True))
+        ServiceRequestApprover.objects.create(catalog_item=self.item, organization=self.org, user=u)
+        info = approvers_for(self.item, self.org, self.user)
+        self.assertNotIn(u.pk, {x.pk for x in info['users']})
+        self.assertEqual([r.user_id for r in info['departed']], [u.pk])
+
+    def test_msp_staff_admin_membership_never_approves(self):
+        from psa.tests._base import _make_msp_tech
+        u, _ = self._member('af-tech', is_org_admin=True)
+        _make_msp_tech(u)
+        self.assertNotIn(u.pk, self._approvers())
+
+
+class LookupSearchScopeTests(_Base):
+    """Request-form type-ahead: only a customer portal admin whose own role
+    holds the directory's view flag may search the whole directory."""
+
+    def _ctx(self, user):
+        from accounts.models import Membership
+        from psa.service_requests import FormContext
+        m = Membership.objects.get(user=user, organization=self.org)
+        return FormContext(organization=self.org, user=user, membership=m)
+
+    def test_admin_with_flags_can_search(self):
+        from accounts.models import Membership
+        from psa.request_lookups import can_search
+        m = Membership.objects.get(user=self.approver, organization=self.org)
+        perms = m.get_permissions()
+        ctx = self._ctx(self.approver)
+        self.assertEqual(can_search({'type': 'asset'}, ctx), bool(perms.assets_view))
+        self.assertEqual(can_search({'type': 'contact'}, ctx), bool(perms.org_view_members))
+
+    def test_non_admin_cannot_search(self):
+        from psa.request_lookups import can_search
+        ctx = self._ctx(self.user)
+        self.assertFalse(can_search({'type': 'asset'}, ctx))
+        self.assertFalse(can_search({'type': 'contact'}, ctx))
+
+    def test_admin_whose_role_lacks_assets_view_gets_own_devices_only(self):
+        from accounts.models import Membership, RoleTemplate
+        from assets.models import Asset
+        from psa.request_lookups import can_search, resolve
+        t = RoleTemplate.objects.create(name='Admin without assets', tickets_view=True, assets_view=False)
+        Membership.objects.filter(user=self.approver, organization=self.org).update(role_template=t)
+        a = Asset.objects.create(organization=self.org, name='Server-01')
+        ctx = self._ctx(self.approver)
+        self.assertFalse(can_search({'type': 'asset'}, ctx))
+        self.assertIsNone(resolve({'type': 'asset'}, a.pk, ctx))
+
+    def test_msp_staff_admin_membership_is_not_a_portal_admin(self):
+        from psa.request_lookups import _is_portal_admin
+        from psa.tests._base import _make_msp_tech
+        _make_msp_tech(self.approver)
+        self.assertFalse(_is_portal_admin(self._ctx(self.approver)))

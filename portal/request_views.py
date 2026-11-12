@@ -181,10 +181,9 @@ def build_fields(schema, values, ctx, field_errors=None, *, preview=False):
                 if not found:
                     fd['current_id'] = ''
             fd['scope_note'] = request_lookups.scope_note(f, ctx) if ctx is not None else ''
-            fd['searchable'] = (not preview and ctx is not None
-                                and request_lookups._is_portal_admin(ctx))
+            fd['searchable'] = (not preview and request_lookups.can_search(f, ctx))
             fd['own_options'] = ([] if preview or ctx is None or
-                                 request_lookups._is_portal_admin(ctx)
+                                 request_lookups.can_search(f, ctx)
                                  else request_lookups.search(f, '', ctx))
         elif f['type'] == 'location':
             fd['current'] = str((cur.get('id') if isinstance(cur, dict) else cur) or '')
