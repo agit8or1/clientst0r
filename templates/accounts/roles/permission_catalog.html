@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Permission catalog - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">Permission catalog</li>
+    </ol>
+</nav>
+<h2><i class="fas fa-list"></i> Permission catalog</h2>
+<p class="text-muted">Every role permission, its module, kind of action and sensitivity. <em>Critical</em>
+    permissions make a role privileged; <em>customer</em> marks permissions a customer role may hold;
+    <em>staff only</em> permissions never take effect for a customer user.</p>
+
+<h4 class="mt-4">Built-in role matrix</h4>
+<div class="table-responsive mb-4">
+<table class="table table-sm table-bordered small">
+    <thead><tr><th>Permission</th>{% for r in builtins %}<th class="text-center" title="{{ r.description }}">{{ r.name }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for label, rows in matrix %}
+    <tr class="table-light"><th colspan="{{ builtins|length|add:1 }}">{{ label }}</th></tr>
+    {% for p, cells in rows %}
+    <tr><td><code>{{ p.key }}</code></td>{% for c in cells %}<td class="text-center">{% if c %}&#10003;{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<h4>Role permissions</h4>
+{% for mkey, label, desc, perms in groups %}
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>{{ label }}</strong> <span class="small text-muted">{{ desc }}</span></div>
+    <div class="table-responsive">
+    <table class="table table-sm mb-0">
+        <thead><tr><th>Key</th><th>Description</th><th>Action</th><th>Sensitivity</th><th>Customer</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for p in perms %}
+        <tr>
+            <td><code>{{ p.key }}</code></td><td>{{ p.description }}</td><td>{{ p.action_label }}</td>
+            <td>{{ p.sensitivity }}</td>
+            <td>{% if p.customer_assignable %}yes{% elif p.staff_only %}staff only{% else %}no{% endif %}</td>
+            <td>{% if p.status == 'enforced' %}enforced{% else %}<span class="badge bg-secondary">{{ p.status }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endfor %}
+
+<h4 class="mt-4">Decided per customer, outside roles</h4>
+<p class="text-muted small">Ticket AI, RMM and remote-access capabilities come from technician access assignments
+    (one customer each, with expiry) and the RMM tier of the technician's global role. Locked entries can never be
+    switched on.</p>
+<div class="table-responsive">
+<table class="table table-sm small">
+    <thead><tr><th>Source</th><th>Key</th><th>Group</th><th>Description</th></tr></thead>
+    <tbody>
+    {% for row in external %}
+    <tr {% if row.locked %}class="text-muted"{% endif %}><td>{{ row.source }}</td><td><code>{{ row.key }}</code></td><td>{{ row.group }}</td><td>{{ row.label }} — {{ row.description }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

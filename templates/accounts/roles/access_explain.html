@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Why does someone have access? - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">Why does someone have access?</li>
+    </ol>
+</nav>
+<h2><i class="fas fa-question-circle"></i> Why does someone have access?</h2>
+<p class="text-muted">At <strong>{{ current_organization.name }}</strong>. The verdict is the same check the application
+    makes; the sources show which role and scope are responsible. Technician access (ticket AI, RMM, remote) is
+    explained under Settings → Security → Technician Access.</p>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-md-4">
+        <label class="form-label" for="user">Person</label>
+        <select class="form-select" name="user" id="user">
+            <option value="">—</option>
+            {% for u in members %}<option value="{{ u.pk }}" {% if target and u.pk == target.pk %}selected{% endif %}>{{ u.username }}{% if u.get_full_name %} ({{ u.get_full_name }}){% endif %}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-md-5">
+        <label class="form-label" for="perm">Permission (empty = show everything they hold here)</label>
+        <select class="form-select" name="perm" id="perm">
+            <option value="">— all permissions —</option>
+            {% for p in permissions %}<option value="{{ p.key }}" {% if p.key == perm_key %}selected{% endif %}>{{ p.module_label }}: {{ p.description }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3"><button class="btn btn-primary w-100" type="submit">Explain</button></div>
+</form>
+
+{% if result %}
+<div class="card mb-4">
+    <div class="card-header">
+        <strong>{{ target.username }}</strong> — <code>{{ perm.key }}</code> {{ perm.description }}:
+        {% if result.allowed %}<span class="badge bg-success">Allowed</span>{% else %}<span class="badge bg-secondary">Not allowed</span>{% endif %}
+    </div>
+    <div class="card-body">
+        <table class="table table-sm mb-2">
+            <thead><tr><th>Source</th><th>Grants it?</th><th>Scope</th><th></th></tr></thead>
+            <tbody>
+            {% for s in result.sources %}
+            <tr><td>{{ s.label }}</td><td>{% if s.grants %}<span class="text-success">yes</span>{% else %}no{% endif %}</td><td class="small">{{ s.scope }}</td><td class="small text-muted">{{ s.note }}</td></tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted">No role applies.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% for n in result.notes %}<div class="small text-muted"><i class="fas fa-info-circle"></i> {{ n }}</div>{% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if effective %}
+<h5>Everything {{ target.username }} holds at {{ current_organization.name }}</h5>
+<div class="row">
+{% for label, rows in effective %}
+    <div class="col-lg-4 col-md-6 mb-3">
+        <div class="card h-100"><div class="card-header py-1"><strong>{{ label }}</strong></div>
+        <ul class="list-group list-group-flush small">
+            {% for p, ok in rows %}<li class="list-group-item py-1 {% if not ok %}text-muted{% endif %}">{% if ok %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times"></i>{% endif %}
+                <a href="?user={{ target.pk }}&perm={{ p.key }}">{{ p.description }}</a></li>{% endfor %}
+        </ul></div>
+    </div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -33,9 +33,16 @@ SEARCH_PAGE_LIMIT = 50
 
 
 def has_all_client_access(request):
-    """Superusers and MSP staff reach every active client (and Global View)."""
+    """Superusers and MSP staff reach every active client (and Global View),
+    unless the staff member's client scope narrows it
+    (accounts.permission_utils.staff_client_org_ids)."""
     user = request.user
-    return bool(user.is_superuser or getattr(request, 'is_staff_user', False))
+    if user.is_superuser:
+        return True
+    if not getattr(request, 'is_staff_user', False):
+        return False
+    from accounts.permission_utils import staff_client_org_ids
+    return staff_client_org_ids(user) is None
 
 
 def authorized_organizations(request):
@@ -43,6 +50,9 @@ def authorized_organizations(request):
     qs = Organization.objects.filter(is_active=True)
     if has_all_client_access(request):
         return qs
+    if getattr(request, 'is_staff_user', False):
+        from accounts.permission_utils import staff_client_org_ids
+        return qs.filter(pk__in=staff_client_org_ids(request.user) or set())
     return qs.filter(
         memberships__user=request.user,
         memberships__is_active=True,

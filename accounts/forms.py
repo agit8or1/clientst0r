@@ -78,7 +78,14 @@ class OrganizationForm(forms.ModelForm):
 
 
 class MembershipForm(forms.ModelForm):
-    """Form for managing organization memberships."""
+    """Form for managing organization memberships.
+
+    Pass `actor` (the signed-in user): the role, template, additional-role
+    and record-scope choices are limited to what the actor may hand out at
+    this organization, and clean() re-checks the final combination with
+    accounts.delegation, so a hand-crafted POST can not do more than the
+    form offers. Ownership is never set here (Transfer ownership).
+    """
 
     email = forms.EmailField(
         required=False,
@@ -88,22 +95,28 @@ class MembershipForm(forms.ModelForm):
 
     class Meta:
         model = Membership
-        fields = ['user', 'role', 'role_template', 'is_active']
+        fields = ['user', 'role', 'role_template', 'additional_roles', 'record_scope', 'is_active']
         widgets = {
             'user': forms.Select(attrs={'class': 'form-control'}),
             'role': forms.Select(attrs={'class': 'form-control'}),
             'role_template': forms.Select(attrs={'class': 'form-select'}),
+            'additional_roles': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+            'record_scope': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         help_texts = {
             'role': 'Basic role (used if no role template is selected)',
             'role_template': 'Optional: Select a role template for granular permissions',
+            'additional_roles': 'Optional: more roles in this organization. Permissions add up.',
+            'record_scope': 'Which records of this organization the roles apply to.',
             'is_active': 'Uncheck to suspend this user',
         }
 
     def __init__(self, *args, **kwargs):
         organization = kwargs.pop('organization', None)
+        self.actor = kwargs.pop('actor', None)
         super().__init__(*args, **kwargs)
+        self.organization = organization
 
         # If editing existing membership, remove user field (can't change user)
         if self.instance and self.instance.pk:
@@ -121,8 +134,15 @@ class MembershipForm(forms.ModelForm):
                 ).values_list('user_id', flat=True).distinct()
 
                 # Show only users who aren't members of any organization
-                # This prevents adding users from other organizations
-                self.fields['user'].queryset = User.objects.exclude(id__in=all_member_ids).order_by('username')
+                # This prevents adding users from other organizations.
+                # Superusers and MSP staff are never offered to a customer.
+                qs = User.objects.exclude(id__in=all_member_ids).filter(is_active=True)
+                if self.actor is not None and not self.actor.is_superuser:
+                    qs = qs.exclude(is_superuser=True)
+                    from accounts.delegation import is_customer_actor
+                    if is_customer_actor(self.actor):
+                        qs = qs.exclude(is_staff=True).exclude(profile__user_type='staff')
+                self.fields['user'].queryset = qs.order_by('username')
                 self.fields['user'].label = 'Select User (unassigned users only)'
                 self.fields['user'].help_text = 'Only shows users not assigned to any organization'
                 self.fields['user'].required = False
@@ -132,10 +152,18 @@ class MembershipForm(forms.ModelForm):
 
         # Setup role template choices for both create and edit
         if organization and 'role_template' in self.fields:
-            # Get role templates (system + org custom)
-            system_templates = RoleTemplate.objects.filter(is_system_template=True)
-            org_templates = RoleTemplate.objects.filter(organization=organization, is_system_template=False)
-            all_templates = list(system_templates) + list(org_templates)
+            from django.db.models import Q
+            candidates = RoleTemplate.objects.filter(
+                Q(organization__isnull=True) | Q(organization=organization), is_archived=False)
+            current_id = self.instance.role_template_id if self.instance and self.instance.pk else None
+            if self.actor is not None:
+                from accounts.delegation import can_assign_role
+                allowed = [t for t in candidates if t.pk == current_id
+                           or can_assign_role(self.actor, organization, t)]
+            else:
+                allowed = list(candidates)
+            system_templates = [t for t in allowed if t.organization_id is None]
+            org_templates = [t for t in allowed if t.organization_id is not None]
 
             # Build choices with optgroups
             choices = [('', '--- Use Default Role ---')]
@@ -145,7 +173,61 @@ class MembershipForm(forms.ModelForm):
                 choices.append(('Custom Templates', [(t.id, t.name) for t in org_templates]))
 
             self.fields['role_template'].choices = choices
+            self.fields['role_template'].queryset = RoleTemplate.objects.filter(pk__in=[t.pk for t in allowed])
             self.fields['role_template'].required = False
+            if 'additional_roles' in self.fields:
+                current_extra = set(self.instance.additional_roles.values_list('pk', flat=True)) \
+                    if self.instance and self.instance.pk else set()
+                self.fields['additional_roles'].queryset = RoleTemplate.objects.filter(
+                    pk__in=[t.pk for t in allowed] + list(current_extra)).order_by('name')
+                self.fields['additional_roles'].required = False
+
+        if 'record_scope' in self.fields:
+            # Optional in a POST (older clients and API callers don't send
+            # it): missing keeps the current scope, 'organization' for new.
+            self.fields['record_scope'].required = False
+
+        if 'role' in self.fields and self.actor is not None and not self.actor.is_superuser:
+            from accounts.delegation import can_assign_role
+            current_role = self.instance.role if self.instance and self.instance.pk else None
+            self.fields['role'].choices = [
+                (value, label) for value, label in self.fields['role'].choices
+                if value == current_role or can_assign_role(self.actor, organization, None, simple_role=value)]
+
+    def clean(self):
+        cleaned = super().clean()
+        if 'record_scope' in self.fields and not cleaned.get('record_scope'):
+            cleaned['record_scope'] = (self.instance.record_scope if self.instance and self.instance.pk
+                                       else 'organization')
+        if self.actor is None or self.organization is None or self.errors:
+            return cleaned
+        from accounts.delegation import can_assign_role, check_owner_change
+        instance = self.instance if self.instance and self.instance.pk else None
+        target_user = instance.user if instance else cleaned.get('user')
+        template = cleaned.get('role_template')
+        role = cleaned.get('role') or (instance.role if instance else 'readonly')
+        extras = list(cleaned.get('additional_roles') or [])
+        changed = instance is None or any([
+            role != instance.role, getattr(template, 'pk', None) != instance.role_template_id,
+            set(r.pk for r in extras) != set(instance.additional_roles.values_list('pk', flat=True)),
+            cleaned.get('record_scope', instance.record_scope) != instance.record_scope,
+            cleaned.get('is_active', instance.is_active) != instance.is_active,
+        ])
+        if changed:
+            verdict = can_assign_role(self.actor, self.organization, template, simple_role=role,
+                                      target_user=target_user, target_membership=instance,
+                                      additional_roles=extras)
+            if not verdict:
+                raise forms.ValidationError(verdict.reason)
+        if instance is not None:
+            verdict = check_owner_change(instance, new_role=role, new_template=template, template_given=True,
+                                         deactivate=not cleaned.get('is_active', True))
+            if not verdict:
+                raise forms.ValidationError(verdict.reason)
+            if (not self.actor.is_superuser and not instance.is_owner()
+                    and ((template is not None and template.org_owner) or (template is None and role == 'owner'))):
+                raise forms.ValidationError('Ownership is given only through Transfer ownership.')
+        return cleaned
 
 
 class UserProfileForm(forms.ModelForm):
@@ -414,6 +496,15 @@ class UserCreateForm(forms.ModelForm):
         help_text='For staff users: role template that applies globally across all organizations'
     )
 
+    client_scope = forms.ChoiceField(
+        choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Staff users: which clients the global role reaches.')
+    scope_organizations = forms.ModelMultipleChoiceField(
+        queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+        help_text="Staff users with 'Selected organizations only': the organizations they reach.")
+    record_scope = forms.ChoiceField(
+        choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Staff users: which records of in-scope clients the global role covers.')
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'is_superuser']
@@ -436,6 +527,12 @@ class UserCreateForm(forms.ModelForm):
         from .models import UserType, RoleTemplate
         self.fields['user_type'].choices = UserType.choices
         self.fields['global_role_template'].queryset = RoleTemplate.objects.filter(is_system_template=True)
+        from core.models import Organization
+        self.fields['client_scope'].choices = UserProfile.CLIENT_SCOPE_CHOICES
+        self.fields['record_scope'].choices = UserProfile._meta.get_field('record_scope').choices
+        self.fields['scope_organizations'].queryset = Organization.objects.filter(is_active=True).order_by('name')
+        self.fields['global_role_template'].queryset = RoleTemplate.objects.filter(
+            is_system_template=True, is_archived=False).exclude(audience='customer')
 
     def clean_password2(self):
         password1 = self.cleaned_data.get('password1')
@@ -453,7 +550,15 @@ class UserCreateForm(forms.ModelForm):
             profile, created = UserProfile.objects.get_or_create(user=user)
             profile.user_type = self.cleaned_data['user_type']
             profile.global_role_template = self.cleaned_data.get('global_role_template')
+            # Scope fields only change when the form actually posted them, so
+            # an older form (or API client) never resets a narrowed scope.
+            if 'client_scope' in self.data:
+                profile.client_scope = self.cleaned_data.get('client_scope') or 'all'
+            if 'record_scope' in self.data:
+                profile.record_scope = self.cleaned_data.get('record_scope') or 'organization'
             profile.save()
+            if 'client_scope' in self.data:
+                profile.scope_organizations.set(self.cleaned_data.get('scope_organizations') or [])
         return user
 
 
@@ -473,6 +578,15 @@ class UserEditForm(forms.ModelForm):
         help_text='For staff users: role template that applies globally across all organizations'
     )
 
+    client_scope = forms.ChoiceField(
+        choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Staff users: which clients the global role reaches.')
+    scope_organizations = forms.ModelMultipleChoiceField(
+        queryset=None, required=False, widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+        help_text="Staff users with 'Selected organizations only': the organizations they reach.")
+    record_scope = forms.ChoiceField(
+        choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Staff users: which records of in-scope clients the global role covers.')
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff', 'is_superuser']
@@ -499,6 +613,12 @@ class UserEditForm(forms.ModelForm):
         from .models import UserType, RoleTemplate
         self.fields['user_type'].choices = UserType.choices
         self.fields['global_role_template'].queryset = RoleTemplate.objects.filter(is_system_template=True)
+        from core.models import Organization
+        self.fields['client_scope'].choices = UserProfile.CLIENT_SCOPE_CHOICES
+        self.fields['record_scope'].choices = UserProfile._meta.get_field('record_scope').choices
+        self.fields['scope_organizations'].queryset = Organization.objects.filter(is_active=True).order_by('name')
+        self.fields['global_role_template'].queryset = RoleTemplate.objects.filter(
+            is_system_template=True, is_archived=False).exclude(audience='customer')
 
         # Set initial values from profile
         if self.instance and self.instance.pk:
@@ -506,6 +626,21 @@ class UserEditForm(forms.ModelForm):
             if profile:
                 self.fields['user_type'].initial = profile.user_type
                 self.fields['global_role_template'].initial = profile.global_role_template
+                self.fields['client_scope'].initial = profile.client_scope
+                self.fields['record_scope'].initial = profile.record_scope
+                self.fields['scope_organizations'].initial = list(
+                    profile.scope_organizations.values_list('pk', flat=True))
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.instance and self.instance.pk and self.instance.is_active and cleaned.get('is_active') is False:
+            from .delegation import last_owner_orgs
+            stranded = last_owner_orgs(self.instance)
+            if stranded:
+                raise forms.ValidationError(
+                    f'{self.instance.username} is the last active owner of '
+                    + ', '.join(o.name for o in stranded[:5]) + '. Transfer ownership first.')
+        return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=commit)
@@ -514,7 +649,15 @@ class UserEditForm(forms.ModelForm):
             profile, created = UserProfile.objects.get_or_create(user=user)
             profile.user_type = self.cleaned_data['user_type']
             profile.global_role_template = self.cleaned_data.get('global_role_template')
+            # Scope fields only change when the form actually posted them, so
+            # an older form (or API client) never resets a narrowed scope.
+            if 'client_scope' in self.data:
+                profile.client_scope = self.cleaned_data.get('client_scope') or 'all'
+            if 'record_scope' in self.data:
+                profile.record_scope = self.cleaned_data.get('record_scope') or 'organization'
             profile.save()
+            if 'client_scope' in self.data:
+                profile.scope_organizations.set(self.cleaned_data.get('scope_organizations') or [])
         return user
 
 

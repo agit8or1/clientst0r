@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Customer portal access - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">Portal access</li>
+    </ol>
+</nav>
+<h2><i class="fas fa-door-open"></i> Customer portal access — {{ current_organization.name }}</h2>
+<p>Portal: {% if portal_enabled %}<span class="badge bg-success">enabled</span>{% elif portal_enabled is None %}<span class="badge bg-secondary">unknown</span>{% else %}<span class="badge bg-secondary">disabled</span>{% endif %}</p>
+
+<div class="alert alert-info small">
+    Customer users never see internal ticket notes, internal-only documentation, credentials they were not
+    given, provider cost or margin figures, or another customer's records — whatever their role.
+    A customer administrator is <strong>not</strong> a contract signer: add the <em>Authorized Contract Signer</em>
+    role for that. Additional customer roles (Billing Contact, Contract Reviewer, Authorized Contract Signer,
+    Request Approver) are added per person under <em>Assign role</em>.
+</div>
+
+<div class="table-responsive">
+<table class="table table-sm table-hover">
+    <thead><tr><th>User</th><th>Role</th><th>Additional roles</th><th>Tickets seen</th><th>Billing</th><th>Contract review</th><th>Signer</th><th>Request approver</th><th></th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr {% if not row.m.is_active %}class="text-muted"{% endif %}>
+        <td>{{ row.m.user.username }}{% if not row.m.is_active %} (suspended){% endif %}</td>
+        <td>{% if row.m.role_template %}{{ row.m.role_template.name }}{% else %}{{ row.m.get_role_display }} <span class="small text-muted">(simple role)</span>{% endif %}
+            {% if row.internal %}<div class="small text-warning">holds internal permissions: {{ row.internal|slice:":5"|join:", " }}{% if row.internal|length > 5 %}…{% endif %}</div>{% endif %}</td>
+        <td class="small">{% for r in row.m.additional_roles.all %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+        <td class="small">{% if row.org_tickets %}All shared tickets of the customer{% else %}Own tickets only{% endif %}</td>
+        <td>{% if row.billing %}&#10003;{% endif %}</td>
+        <td>{% if row.review %}&#10003;{% endif %}</td>
+        <td>{% if row.sign %}&#10003;{% endif %}</td>
+        <td>{% if row.approve %}&#10003;{% endif %}</td>
+        <td>{% if can_manage and row.m.user != request.user %}<a class="btn btn-sm btn-outline-primary" href="{% url 'accounts:member_role_assign' row.m.user.pk %}">Assign role</a>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="text-muted text-center">No customer users.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<h5 class="mt-4">Customer roles available</h5>
+<ul>{% for r in customer_roles %}<li><a href="{% url 'accounts:role_detail' r.pk %}">{{ r.name }}</a> — <span class="small text-muted">{{ r.description }}</span></li>{% empty %}<li class="text-muted">None</li>{% endfor %}</ul>
+{% endblock %}

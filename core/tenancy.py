@@ -30,7 +30,13 @@ def is_cross_tenant_user(request) -> bool:
     user = getattr(request, 'user', None)
     if user is None or not user.is_authenticated:
         return False
-    return bool(user.is_superuser or getattr(request, 'is_staff_user', False))
+    if user.is_superuser:
+        return True
+    if not getattr(request, 'is_staff_user', False):
+        return False
+    # A technician whose client scope is narrowed is bounded by it.
+    from accounts.permission_utils import staff_client_org_ids
+    return staff_client_org_ids(user) is None
 
 
 def accessible_org_ids(request) -> set[int] | None:
@@ -46,6 +52,12 @@ def accessible_org_ids(request) -> set[int] | None:
     user = getattr(request, 'user', None)
     if user is None or not user.is_authenticated or not hasattr(user, 'memberships'):
         return set()
+
+    if getattr(request, 'is_staff_user', False):
+        from accounts.permission_utils import staff_client_org_ids
+        scope = staff_client_org_ids(user)
+        if scope is not None:
+            return set(scope)
 
     ids: set[int] = set()
     for org_id in user.memberships.filter(is_active=True).values_list(

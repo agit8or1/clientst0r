@@ -35,6 +35,14 @@ def quick_user_add(request):
     if request.method == 'POST':
         form = QuickUserForm(request.POST)
         if form.is_valid():
+            from .delegation import can_assign_role
+            verdict = can_assign_role(request.user, org, None, simple_role=form.cleaned_data['role'])
+            if not verdict:
+                from .role_audit import record_delegation_denied
+                record_delegation_denied(request, 'quick add user', verdict.reason, organization=org)
+                messages.error(request, verdict.reason)
+                return render(request, 'accounts/quick_user_form.html', {
+                    'form': form, 'current_organization': org})
             try:
                 user = form.save(organization=org, created_by=request.user)
 

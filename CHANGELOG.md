@@ -37,6 +37,28 @@ Not released yet.
 ### Upgrading
 - Migrations `psa.0084` and `psa.0085` are additive. Existing request types get form version 1, and existing guided-request tickets get a submission record, so they show up in the filter and report. Existing forms, links and tickets keep working unchanged.
 
+### Added (roles and access, roles-core)
+- Permission registry (`accounts/permission_registry.py`): every role permission with its module, kind of action, sensitivity, customer assignability and a description. New permissions: privileged member management, role management, ownership, internal ticket notes, quotes (view, edit, send, approve discount), thirteen contract permissions, portal permissions (organization-wide tickets, filing and replying, request approval, coworkers' agreements, billing contact, contract reviewer, authorized contract signer) and operations permissions (fleet, wallboard, workflow rules, timesheets, payroll, report export, invoice approval, credit memos, charges, commissions), plus reveal approval, stored device configurations, synced PSA data and internal documentation for customers. All default to off.
+- Built-in internal and customer roles, seeded idempotently with a version and checksum. The existing Owner and RMM L1/L2/L3 templates are adopted, and customized roles are never overwritten.
+- Multiple roles per membership (additional roles), record scope (organization / assigned / own) on memberships and global roles, and client scope (all / assigned / selected) for MSP staff.
+- Helpers: per-organization `user_has_org_perm`, `scoped_queryset` / `can_access_object` (action and scope per grant), `portal_ticket_queryset`, `can_contract`, `may_receive_alert`, `explain_access`.
+- Delegation protection for member, role, quick-add and invitation forms: no self-promotion, the subset rule, privileged roles need `org_manage_privileged`, customer administrators assign customer roles only, last-owner protection, and an ownership transfer workflow (password and name confirmation, audited).
+- Role pages: detail, clone, archive, compare, "why does someone have access", permission catalog, customer portal access, review list. The role editor groups permissions by module, has search and shows a preview before saving.
+- Audit trail for role, membership, scope, account-status and ownership changes, with safe before and after values. Authorization decisions are cached per request and invalidated on every change.
+- Upgrade mapping (accounts 0046): existing roles keep what they could do, and ambiguous assignments are listed for review rather than granted. Commands: `manage.py roles_migration_report`, `seed_roles`, `roles_matrix`. Docs: `docs/ROLES_AND_ACCESS.md`.
+
+### Changed (roles and access, roles-core)
+- `user_has_perm` now evaluates customer users at the organization they have selected; `user_has_perm_any_org` is the explicit cross-organization helper.
+- Staff-only permissions (internal notes, quotes, CRM, resourcing team data, AI and similar) never take effect for customer users.
+- These actions now authorize against the organization in the URL, not the selected one:
+  - organization edit and delete;
+  - member add, edit and remove.
+- Customer users can no longer create organizations.
+- Member suspend and reactivate are POST only and protect the last owner.
+- Ownership is no longer assignable through member or role forms.
+- A role template now decides administration even when the simple role says Owner or Admin.
+- `require_write` / `require_admin` / `require_owner` authorize at the organization in the URL when there is one (404 for a customer without a membership there).
+
 ## [3.17.668] - 2026-11-12
 
 Office documents. Built and tested against protocol-accurate fakes; **not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service**. Managed Local ONLYOFFICE is **untested**: it has never run against a real container.

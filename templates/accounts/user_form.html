@@ -117,6 +117,25 @@
                         <small class="form-text text-muted">{{ form.global_role_template.help_text }}</small>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.client_scope.id_for_label }}" class="form-label">Client scope</label>
+                            {{ form.client_scope }}
+                            {% if form.client_scope.errors %}<div class="invalid-feedback d-block">{{ form.client_scope.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">{{ form.client_scope.help_text }}</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.record_scope.id_for_label }}" class="form-label">Record scope</label>
+                            {{ form.record_scope }}
+                            <small class="form-text text-muted">{{ form.record_scope.help_text }}</small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.scope_organizations.id_for_label }}" class="form-label">Selected organizations</label>
+                        {{ form.scope_organizations }}
+                        <small class="form-text text-muted">{{ form.scope_organizations.help_text }}</small>
+                    </div>
+
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i> <strong>User Types:</strong><br>
                         <strong>Staff User (MSP Tech):</strong> Has global access to all organizations with assigned role template<br>
