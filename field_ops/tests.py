@@ -438,6 +438,23 @@ class TimeclockDashboardTests(TestCase):
         self.assertIn('tech-d', body)
         self.assertIn('Dash Org', body)
 
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_payroll_week_is_the_local_week(self):
+        # A Sunday-evening shift belongs to that week. In UTC it is already
+        # Monday, which used to file it under the next week.
+        from datetime import datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        eastern = ZoneInfo('America/New_York')
+        sunday = datetime(2026, 11, 15, 22, 0, tzinfo=eastern)
+        TimeclockEntry.objects.create(tech=self.tech, organization=self.org, source='web',
+                                      clocked_in_at=sunday, clocked_out_at=sunday + timedelta(hours=1))
+        self.client.force_login(self.staff)
+        later = datetime(2026, 11, 16, 9, 0, tzinfo=eastern).astimezone(ZoneInfo('UTC'))
+        with mock.patch('django.utils.timezone.now', return_value=later):
+            body = self.client.get('/field-ops/timeclock/payroll-export.csv').content.decode()
+        self.assertIn('tech-d,2026-11-09,', body)
+
 
 @override_settings(
     MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
