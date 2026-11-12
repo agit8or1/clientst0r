@@ -925,6 +925,31 @@ class M365Connection(BaseModel):
     # Link to generated doc
     doc = models.ForeignKey('docs.Document', on_delete=models.SET_NULL, null=True, blank=True, related_name='m365_connections')
 
+    # -- Documents (SharePoint / OneDrive) capability ----------------------
+    # Separate from the tenant-read / mail client-credentials app above: it
+    # uses delegated sign-in per user (integrations/m365docs/) and never
+    # changes the scopes or consent the connection already has.
+    DOCS_ACCESS_CHOICES = [
+        ('read', 'Read only (browse, link, open, import a copy)'),
+        ('readwrite', 'Read and write (also create files and export copies)'),
+    ]
+    DOCS_SHAREPOINT_CHOICES = [
+        ('none', "Users' own OneDrive only"),
+        ('all', 'SharePoint libraries the user can already reach (Files.*.All delegated)'),
+        ('selected', 'Only SharePoint sites granted to this app (Sites.Selected)'),
+    ]
+    docs_enabled = models.BooleanField(
+        default=False,
+        help_text='Documents (SharePoint/OneDrive): off by default. Uses separate, '
+                  'per-user delegated consent.')
+    docs_access = models.CharField(max_length=10, choices=DOCS_ACCESS_CHOICES, default='read')
+    docs_sharepoint = models.CharField(max_length=10, choices=DOCS_SHAREPOINT_CHOICES,
+                                       default='none')
+    docs_sharepoint_host = models.CharField(
+        max_length=253, blank=True,
+        help_text="The tenant's SharePoint host, e.g. contoso.sharepoint.com. Links and "
+                  'downloads are only followed to this host and its -my OneDrive host.')
+
     objects = OrganizationManager()
 
     class Meta:
@@ -944,6 +969,124 @@ class M365Connection(BaseModel):
             return {}
         return self._meta.get_field('encrypted_credentials').unseal_json(
             self.encrypted_credentials)
+
+
+class M365DocsGrant(models.Model):
+    """One clientst0r user's delegated Microsoft 365 sign-in for documents on
+    one connection. The refresh and access tokens are encrypted at rest
+    (vault.secret_fields envelope, AAD bound to the column)."""
+    connection = models.ForeignKey(M365Connection, on_delete=models.CASCADE,
+                                   related_name='docs_grants')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='m365_docs_grants')
+    refresh_token = EncryptedTextField(blank=True)
+    access_token = EncryptedTextField(blank=True)
+    access_expires_at = models.DateTimeField(null=True, blank=True)
+    scopes = models.TextField(blank=True, help_text='Space-separated scopes Microsoft granted')
+    ms_user_id = models.CharField(max_length=64, blank=True)
+    ms_display_name = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    refreshed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'm365_docs_grants'
+        constraints = [models.UniqueConstraint(fields=['connection', 'user'],
+                                               name='m365_docs_grant_unique')]
+
+    def __str__(self):
+        return f'{self.connection_id}:{self.user_id}'
+
+    @property
+    def scope_set(self):
+        return {s for s in (self.scopes or '').split() if s}
+
+
+class M365AllowedLocation(models.Model):
+    """A SharePoint site, document library (drive) or folder that an
+    organization's administrators permit for browsing. Nothing outside these
+    entries is listed, linked, created in, imported from or exported to."""
+    KIND_CHOICES = [
+        ('my_onedrive', "Each user's own OneDrive"),
+        ('site', 'SharePoint site (all its libraries)'),
+        ('drive', 'Document library / drive'),
+        ('folder', 'Folder'),
+    ]
+    connection = models.ForeignKey(M365Connection, on_delete=models.CASCADE,
+                                   related_name='docs_locations')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     related_name='m365_docs_locations')
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES)
+    site_id = models.CharField(max_length=300, blank=True)
+    drive_id = models.CharField(max_length=300, blank=True)
+    item_id = models.CharField(max_length=300, blank=True)
+    display_name = models.CharField(max_length=500)
+    web_url = models.URLField(max_length=2000, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'm365_docs_locations'
+        ordering = ['display_name']
+        constraints = [models.UniqueConstraint(
+            fields=['connection', 'kind', 'site_id', 'drive_id', 'item_id'],
+            name='m365_docs_location_unique')]
+
+    def __str__(self):
+        return f'{self.get_kind_display()}: {self.display_name}'
+
+
+class LinkedCloudDocument(models.Model):
+    """A file that lives in Microsoft 365 and is linked from clientst0r.
+
+    The file stays canonical in Microsoft 365: clientst0r stores only its
+    identifiers and the last metadata it saw, never its content, and never
+    syncs either way. The link belongs to one organization and, optionally,
+    one clientst0r object (a Document, a ticket or an asset); with none it is
+    listed in the organization's Documents → Microsoft 365 tab."""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     related_name='linked_cloud_documents')
+    connection = models.ForeignKey(M365Connection, on_delete=models.CASCADE,
+                                   related_name='linked_documents')
+    location = models.ForeignKey(M365AllowedLocation, on_delete=models.SET_NULL,
+                                 null=True, blank=True, related_name='linked_documents')
+    drive_id = models.CharField(max_length=300)
+    item_id = models.CharField(max_length=300)
+    name = models.CharField(max_length=500)
+    web_url = models.URLField(max_length=2000, blank=True)
+    etag = models.CharField(max_length=300, blank=True)
+    size = models.BigIntegerField(null=True, blank=True)
+    document = models.ForeignKey('docs.Document', on_delete=models.CASCADE, null=True,
+                                 blank=True, related_name='linked_cloud_documents')
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.CASCADE, null=True, blank=True,
+                               related_name='linked_cloud_documents')
+    asset = models.ForeignKey('assets.Asset', on_delete=models.CASCADE, null=True, blank=True,
+                              related_name='linked_cloud_documents')
+    linked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'linked_cloud_documents'
+        ordering = ['name']
+        constraints = [models.CheckConstraint(
+            condition=(models.Q(document__isnull=True, ticket__isnull=True)
+                       | models.Q(document__isnull=True, asset__isnull=True)
+                       | models.Q(ticket__isnull=True, asset__isnull=True)),
+            name='linked_cloud_document_one_parent')]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def parent_kind(self):
+        if self.document_id:
+            return 'doc'
+        if self.ticket_id:
+            return 'ticket'
+        if self.asset_id:
+            return 'asset'
+        return 'org'
 
 
 # ---------------------------------------------------------------------------
