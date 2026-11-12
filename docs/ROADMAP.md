@@ -2334,6 +2334,15 @@ released).
   pinned and held versions, secrets never on the command line), drain before
   editor upgrades or provider switches, uninstall that keeps every document,
   and clientst0r updates that never upgrade or restart an editor.
+- **62.8 Managed Local ONLYOFFICE** *(in progress — built on the development branch, not yet released; not yet run against a real container)* —
+  an optional, off-by-default mode in which a deployment runs one
+  ONLYOFFICE Docs container on its own VM, pinned by image digest, managed
+  from the Office settings page through a root-owned helper with a fixed set
+  of operations (install, status, start, stop, restart, update, rollback,
+  redacted logs, uninstall). Sessions are drained and saves verified before
+  any restart, backups are taken before updates, rollback uses a matching
+  backup, uninstall keeps documents and editor data, and the app never gets
+  Docker access.
 
 **Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
 Microsoft 365 and Google Docs 1–2 weeks each.

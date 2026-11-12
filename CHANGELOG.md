@@ -20,12 +20,14 @@ On the development branch `dev/office`. Not released. Not yet tested against a r
 - **Microsoft 365 documents**, a separate switch on the Microsoft 365 connection: each user signs in for document access only; administrators choose the allowed libraries and folders; link, open in Microsoft 365, create in a chosen folder, and import / export copies. No sharing links and no automatic sync. Existing tenant-read and mail permissions are unchanged.
 - **Settings → Integrations → Office Documents**: editor instances (this server, a separate VM, or an existing service), shared or per organization, private CA support, diagnostics and an explicit round-trip test. Only superusers set addresses and secrets; organization admins choose among approved editors.
 - **Editor installer** `scripts/office/install-editor.sh` (ONLYOFFICE, CODE, licensed Collabora Online; same server or separate VM) with preflight checks, verified signing keys and pinned, held versions. `manage.py office_setup --import-secret` and `manage.py office_sessions --drain` for upgrades and provider switches.
+- **Managed Local ONLYOFFICE** (off by default): one ONLYOFFICE Docs container per deployment on its own VM, pinned by image digest, installed and managed from the Office settings page (setup checks, install, start, stop, restart, update, rollback, redacted diagnostics, uninstall that keeps data). Sessions are drained and saves verified before any restart; updates back up first and roll back automatically if the new release never becomes healthy. Not yet run against a real container; releases stay marked untested until they pass the live checklist in `docs/office/MANAGED_LOCAL.md`.
 
 ### Security
 - Office sessions use tokens limited to one file, one user and one session, which expire and are revoked when access is lost. Permission is rechecked on every save.
 - Requests to editors go only to the approved editor hosts; cloud metadata addresses, redirects to other hosts and DNS rebinding are blocked, and TLS is always verified.
 - The request log no longer records sensitive form fields and query strings (an editor secret submitted in a form would have been logged).
 - clientst0r updates never upgrade or restart editor services; the root helper refuses editor packages.
+- Managed Local ONLYOFFICE runs through a separate root-owned helper on a local socket that accepts only fixed operations from the app user; the app never gets the Docker socket, the docker group or new sudo rules. The container is published on loopback only and a firewall rule lets it reach only clientst0r over HTTPS.
 
 ### Upgrade notes
 - Nothing changes until a superuser adds an editor instance. Edit buttons stay disabled, with the reason, until a configured, healthy editor allows them.
