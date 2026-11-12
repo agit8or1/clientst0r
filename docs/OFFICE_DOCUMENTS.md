@@ -525,3 +525,5 @@ stubs. A connector must:
 by the tests: structure, content types and relationship targets.
 python-docx and python-pptx load and resave them. They have not been opened in
 Microsoft Office, ONLYOFFICE or Collabora.
+
+Installing, upgrading, draining and uninstalling the editor: [docs/office/INSTALL.md](office/INSTALL.md).
