@@ -637,7 +637,10 @@ class SecureNote(BaseModel):
         from django.urls import reverse
         path = reverse('core:secure_note_view_link', kwargs={'token': token})
         if request:
-            return request.build_absolute_uri(path)
+            # Recipients open it on the customer portal surface (its own
+            # host name when one is configured).
+            from core.portal_surface import portal_absolute_url
+            return portal_absolute_url(path, request)
         return path
 
     def mark_as_read(self, user):
@@ -680,6 +683,15 @@ class SystemSetting(models.Model):
     # General Settings
     site_name = models.CharField(max_length=255, default='Client St0r')
     site_url = models.URLField(max_length=500, blank=True, help_text='Base URL for email links')
+    # Optional dedicated host name for the customer portal (core/portal_surface.py).
+    # Empty: portal and staff pages share one host and are told apart by path.
+    # Set: the portal and customer-facing links are served only on this host,
+    # staff pages there are a 404, and portal links on the staff host redirect
+    # here. The PORTAL_HOSTNAME environment variable, when set, overrides it.
+    portal_hostname = models.CharField(
+        max_length=253, blank=True, default='',
+        help_text='Dedicated host name for the customer portal, e.g. portal.example.com. '
+                  'Leave empty to serve the portal at /portal/ on the main host.')
     default_timezone = models.CharField(max_length=50, default='UTC', help_text='Default timezone for new users')
 
     # Whitelabeling Settings
@@ -2040,6 +2052,26 @@ class FirewallSettings(models.Model):
         help_text='GeoIP operation mode'
     )
 
+    # Country policy for the customer portal surface (portal pages, the
+    # portal sign-in and customer-facing links; core/portal_surface.py).
+    # 'inherit' applies the settings above, so an upgrade changes nothing
+    # until an administrator picks a separate policy. The fields above keep
+    # governing the staff backend.
+    PORTAL_GEOIP_INHERIT = 'inherit'
+    PORTAL_GEOIP_OFF = 'off'
+    PORTAL_GEOIP_MODES = [
+        (PORTAL_GEOIP_INHERIT, 'Same as the staff backend'),
+        (PORTAL_GEOIP_OFF, 'No country restriction'),
+        ('allowlist', 'Allow List (block all except the portal countries)'),
+        ('blocklist', 'Block List (allow all except the portal countries)'),
+    ]
+    portal_geoip_mode = models.CharField(
+        max_length=20,
+        default=PORTAL_GEOIP_INHERIT,
+        choices=PORTAL_GEOIP_MODES,
+        help_text='Country policy for the customer portal and customer-facing links'
+    )
+
     # Bypass settings
     bypass_for_staff = models.BooleanField(
         default=True,
@@ -2162,6 +2194,21 @@ class FirewallCountryRule(models.Model):
         max_length=100,
         help_text='Country name for display'
     )
+    SURFACE_STAFF = 'staff'
+    SURFACE_PORTAL = 'portal'
+    SURFACES = [
+        (SURFACE_STAFF, 'Staff backend'),
+        (SURFACE_PORTAL, 'Customer portal'),
+    ]
+    # Which country list the rule belongs to. Existing rules are the staff
+    # list. Portal rules are read only when FirewallSettings.portal_geoip_mode
+    # is an allow or block list of its own.
+    surface = models.CharField(
+        max_length=10,
+        choices=SURFACES,
+        default=SURFACE_STAFF,
+        help_text='Staff backend or customer portal country list'
+    )
     is_active = models.BooleanField(
         default=True,
         help_text='Enable/disable this rule'
@@ -2180,7 +2227,7 @@ class FirewallCountryRule(models.Model):
     class Meta:
         db_table = 'firewall_country_rules'
         ordering = ['country_name']
-        unique_together = [['country_code']]
+        unique_together = [['country_code', 'surface']]
         indexes = [
             models.Index(fields=['is_active', 'country_code']),
         ]
@@ -2209,6 +2256,9 @@ class FirewallLog(models.Model):
     request_path = models.CharField(max_length=500)
     request_method = models.CharField(max_length=10)
     user_agent = models.TextField(blank=True)
+    # 'staff' or 'portal': which country policy the request was judged by.
+    # Empty on entries logged before the portal policy existed.
+    surface = models.CharField(max_length=10, blank=True, default='')
     timestamp = models.DateTimeField(auto_now_add=True)
 
     # Optional user if authenticated

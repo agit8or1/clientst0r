@@ -163,6 +163,17 @@ def settings_general(request):
         # Update general settings
         settings.site_name = request.POST.get('site_name', settings.site_name)
         settings.site_url = request.POST.get('site_url', settings.site_url)
+
+        # Optional dedicated customer portal host (core/portal_surface.py).
+        # PORTAL_HOSTNAME in the environment overrides it; then it is read-only.
+        from core import portal_surface
+        if 'portal_hostname' in request.POST and not portal_surface.portal_hostname_env_locked():
+            host, error = portal_surface.validate_portal_hostname(
+                request.POST.get('portal_hostname'), request)
+            if error:
+                messages.error(request, f'Portal host name not saved: {error}')
+            else:
+                settings.portal_hostname = host
         settings.default_timezone = request.POST.get('default_timezone', settings.default_timezone)
 
         # Update whitelabeling settings
@@ -221,9 +232,11 @@ def settings_general(request):
     import pytz
     timezone_choices = [(tz, tz) for tz in pytz.common_timezones]
 
+    from core import portal_surface
     return render(request, 'core/settings_general.html', {
         'settings': settings,
         'timezone_choices': timezone_choices,
+        'portal_hostname_env': django_settings.PORTAL_HOSTNAME if portal_surface.portal_hostname_env_locked() else '',
         'current_tab': 'general',
     })
 

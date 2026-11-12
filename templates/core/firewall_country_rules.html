@@ -20,6 +20,30 @@
 
     <div class="col-md-9">
 
+<!-- Two country lists: the staff backend's and the customer portal's. -->
+<ul class="nav nav-tabs mb-3" aria-label="Country list">
+    <li class="nav-item">
+        <a class="nav-link {% if rule_surface != 'portal' %}active{% endif %}" {% if rule_surface != 'portal' %}aria-current="page"{% endif %}
+           href="{% url 'core:firewall_country_rules' %}"><i class="fas fa-user-shield"></i> Staff backend</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if rule_surface == 'portal' %}active{% endif %}" {% if rule_surface == 'portal' %}aria-current="page"{% endif %}
+           href="{% url 'core:firewall_country_rules' %}?surface=portal"><i class="fas fa-users"></i> Customer portal</a>
+    </li>
+</ul>
+{% if rule_surface == 'portal' %}
+<div class="alert {% if portal_geoip_mode == 'allowlist' or portal_geoip_mode == 'blocklist' %}alert-info{% else %}alert-warning{% endif %}">
+    <i class="fas fa-info-circle"></i>
+    Portal policy: <strong>{{ portal_geoip_mode_display }}</strong>.
+    {% if portal_geoip_mode == 'allowlist' or portal_geoip_mode == 'blocklist' %}
+    This list governs portal pages, the portal sign-in and customer links.
+    {% else %}
+    This list is not in use until the portal policy is set to an allow or block list in
+    <a href="{% url 'core:firewall_settings' %}#portal-geoip">Firewall Settings</a>.
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- v3.17.522 — click-to-select world map. Selecting countries here and saving
      reconciles the rule list below; the manual add form still works unchanged. -->
 <div class="card mb-4">
@@ -27,12 +51,14 @@
         <h6 class="mb-0"><i class="fas fa-map-marked-alt"></i> Select countries on the map</h6>
         <span class="badge bg-light text-dark">
             Mode: {% if firewall_mode == 'allowlist' %}Allow list — only selected countries may connect
-                  {% else %}Block list — selected countries are blocked{% endif %}
+                  {% elif firewall_mode == 'blocklist' %}Block list — selected countries are blocked
+                  {% else %}not in use{% endif %}
         </span>
     </div>
     <div class="card-body">
         <form method="post" id="geoip-map-form">
             {% csrf_token %}
+            <input type="hidden" name="surface" value="{{ rule_surface }}">
             {% include "core/_geoip_map.html" with map_id="firewall-geoip-map" height="460px" %}
             <input type="hidden" name="map_codes" id="id_map_codes"
                    value="{% for r in rules %}{% if r.is_active %}{{ r.country_code }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}">
@@ -105,6 +131,7 @@
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
+            <input type="hidden" name="surface" value="{{ rule_surface }}">
             <div class="row">
                 <div class="col-md-3">
                     <label for="country_code" class="form-label">Country Code *</label>
@@ -143,7 +170,7 @@
 <!-- Rules List -->
 <div class="card">
     <div class="card-header py-2">
-        <h6 class="mb-0"><i class="fas fa-list"></i> Country Rules ({{ rules.count }})</h6>
+        <h6 class="mb-0"><i class="fas fa-list"></i> {% if rule_surface == 'portal' %}Portal{% else %}Staff backend{% endif %} Country Rules ({{ rules.count }})</h6>
     </div>
     <div class="card-body">
         {% if rules %}

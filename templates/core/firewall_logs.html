@@ -139,6 +139,7 @@
                         <th>IP Address</th>
                         <th>Country</th>
                         <th>Block Reason</th>
+                        <th>Surface</th>
                         <th>Request</th>
                         <th>User</th>
                     </tr>
@@ -161,6 +162,11 @@
                         </td>
                         <td>
                             <span class="badge bg-danger">{{ log.get_block_reason_display }}</span>
+                        </td>
+                        <td>
+                            {% if log.surface == 'portal' %}<span class="badge bg-success">Portal</span>
+                            {% elif log.surface == 'staff' %}<span class="badge bg-secondary">Staff</span>
+                            {% else %}<span class="text-muted">-</span>{% endif %}
                         </td>
                         <td>
                             <small>
