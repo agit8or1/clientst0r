@@ -429,7 +429,10 @@ class AcceptanceTests(RoutingFixture, TestCase):
         t = self.portal_ticket(self.portal_a, subject='Slow burn')
         # Routed to tech1; make tech1 unavailable (leave) and push the SLA past 50%.
         from resourcing.models import LeaveRequest
-        today = timezone.localdate()
+        # Leave is checked in the technician's own time zone, which differs
+        # from the server's local date for part of every day.
+        from resourcing.shifts import user_tz
+        today = timezone.now().astimezone(user_tz(self.tech1)).date()
         LeaveRequest.objects.create(user=self.tech1, leave_type='vacation', start_date=today,
                                     end_date=today, status='approved')
         Ticket.objects.filter(pk=t.pk).update(created_at=timezone.now() - timedelta(hours=10),
