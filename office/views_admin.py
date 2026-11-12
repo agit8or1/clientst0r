@@ -165,10 +165,12 @@ def install_page(request):
         request.GET.get('provider') or (instance.provider if instance else 'onlyoffice'),
         request.GET.get('mode') or (instance.mode if instance else 'separate_server'),
         instance=instance, editor_host=request.GET.get('editor_host', ''),
-        app_url=request.build_absolute_uri('/'))
+        app_url=request.build_absolute_uri('/'), edition=request.GET.get('edition', ''),
+        tls=request.GET.get('tls', ''), private_ca=request.GET.get('private_ca') == '1')
     return render(request, 'office/settings/install.html', {
         'guidance': guidance, 'instance': instance, 'instances': EditorInstance.objects.all(),
         'providers': install_guidance.PROVIDERS, 'modes': install_guidance.MODES,
+        'editions': install_guidance.EDITIONS, 'tls_modes': install_guidance.TLS_MODES,
         'active_page': 'office_documents',
     })
 

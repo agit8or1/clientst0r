@@ -528,3 +528,4 @@ Microsoft Office, ONLYOFFICE or Collabora.
 
 ONLYOFFICE Docs connector: see [docs/office/ONLYOFFICE.md](office/ONLYOFFICE.md).
 Collabora Online connector (WOPI host): see [office/COLLABORA.md](office/COLLABORA.md).
+Installing, upgrading, draining and uninstalling the editor: [docs/office/INSTALL.md](office/INSTALL.md).

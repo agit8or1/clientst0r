@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Minimal stand-in with the structure of Collabora 26.04 coolwsd.xml (test fixture only). -->
+<config>
+    <ai desc="AI assistant configuration.">
+        <enabled type="bool" default="false">false</enabled>
+    </ai>
+    <net desc="Network settings">
+      <listen type="string" default="any">any</listen>
+      <post_allow desc="Allow/deny client IP address for POST(REST).">
+        <host desc="The IPv4 private 192.168.0.0/16 block.">192.168.0.0/16</host>
+        <host desc="The IPv4 loopback (localhost) address.">127.0.0.1/32</host>
+      </post_allow>
+      <lok_allow desc="Allowed hosts as an external data source inside edited files.">
+        <!-- example -->
+        <host desc="An intranet server, by name.">images\.intranet\.example\.com</host>
+      </lok_allow>
+      <content_security_policy desc="Customize the CSP header"></content_security_policy>
+    </net>
+    <ssl desc="SSL settings">
+        <enable type="bool" default="true">true</enable>
+        <termination type="bool" default="false">false</termination>
+    </ssl>
+    <security desc="Altering these defaults potentially opens you to significant risk">
+      <enable_macros_execution type="bool" default="false">false</enable_macros_execution>
+    </security>
+    <storage desc="Backend storage">
+        <filesystem allow="false" />
+        <wopi desc="Allow/deny wopi storage." allow="true">
+            <alias_groups desc="The WOPI hosts that may connect." mode="first">
+            <!-- More "group"s possible here -->
+            </alias_groups>
+        </wopi>
+        <ssl desc="SSL settings">
+            <ca_file_path type="path" relative="false"></ca_file_path>
+        </ssl>
+    </storage>
+    <admin_console desc="Web admin console settings.">
+        <enable type="bool" default="true">true</enable>
+    </admin_console>
+</config>

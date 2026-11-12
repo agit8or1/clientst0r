@@ -79,6 +79,11 @@ JAIL_RE = re.compile(r'^[A-Za-z0-9_.-]{1,64}$')
 # Debian package names, optionally with an :arch qualifier. Cannot start with
 # '-', so nothing here can be read by apt-get as an option.
 PKG_RE = re.compile(r'^[a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?$')
+# Office editor packages (scripts/office/install-editor.sh). They are pinned
+# and held there and upgraded only with `install-editor.sh --upgrade` after
+# the sessions are drained, so the app's package updates never name them.
+EDITOR_PKG_RE = re.compile(r'^(onlyoffice-documentserver(-ee|-de)?|coolwsd|code-brand|'
+                           r'collabora-online-brand|collaboraoffice[a-z0-9+.-]*)(:[a-z0-9-]{1,20})?$')
 
 
 class HelperError(Exception):
@@ -229,6 +234,10 @@ def apt_argv(args):
         bad = [p for p in packages if not PKG_RE.match(p)]
         if bad:
             raise HelperError(f'invalid package name(s): {bad[:5]}')
+        editor = [p for p in packages if EDITOR_PKG_RE.match(p)]
+        if editor:
+            raise HelperError(f'refusing to upgrade Office editor package(s) {editor[:5]}: '
+                              'use scripts/office/install-editor.sh --upgrade after draining sessions')
         return ['apt-get', *APT_OPTS, 'install', '--only-upgrade', *packages]
     raise HelperError('usage: apt update | upgrade | upgrade-packages PKG...')
 

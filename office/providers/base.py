@@ -179,6 +179,18 @@ class EditorProvider:
         Only called when capabilities().can_convert(src, target_ext)."""
         raise NotSupported('Conversion is not available.')
 
+    def force_save(self, session) -> bool:
+        """Ask the editor to save `session`'s document back to clientst0r now,
+        without ending the session (used by ``manage.py office_sessions
+        --drain`` before an editor upgrade or provider switch).
+
+        Return True when the editor accepted the request (or had nothing to
+        save); the save itself still arrives through the normal callback /
+        PutFile path. Raise NotSupported when the editor offers no
+        server-side way to request a save (the drain then waits for users to
+        close their editors), NotConfigured when the connector is missing."""
+        raise NotSupported('This editor cannot be asked to save from the server.')
+
     def on_session_revoked(self, session) -> None:
         """Called after commit when a session is revoked (permission lost,
         file deleted, admin action). Kick the user out of the editor if the
