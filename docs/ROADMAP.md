@@ -1713,6 +1713,10 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Local days everywhere "today" matters** *(shipped v3.17.666)*: reports,
+  PSA contracts and invoices, vehicles, resourcing, runbooks, payroll export,
+  the mobile calendar, notifications and AI triage limits use the
+  installation's time zone, so evening dates no longer roll over to tomorrow.
 - **Local days on the wall display and Schedule panel** *(shipped v3.17.665)*:
   both use the installation's time zone for "today", so the evening's tasks
   no longer disappear once the UTC date rolls over.
