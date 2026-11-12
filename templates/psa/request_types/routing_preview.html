@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}PSA — Routing preview: {{ item.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:request_type_list' %}">Portal request types</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:request_type_builder' item.pk %}">{{ item.name }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Routing preview</li>
+    </ol>
+</nav>
+<h2 class="mb-1"><i class="fas fa-route me-2"></i>Routing preview</h2>
+<p class="text-muted">A "{{ item.name }}" request from <strong>{{ organization.name }}</strong>{% if rows %} with {% for r in rows %}<code>{{ r.key }}={{ r.value }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}. Nothing is saved, no round-robin turn is used and nothing is sent.</p>
+<div class="card mb-3"><div class="card-body small">
+    <p class="mb-1"><strong>1. Request type defaults</strong> put it in queue <strong>{{ default_queue.name|default:"(first active queue)" }}</strong>{% if item.default_team %}, team <strong>{{ item.default_team.name }}</strong>{% endif %}{% if item.default_assignee %}, assigned to <strong>{{ item.default_assignee.get_username }}</strong> (if they may work for this customer — routing then keeps them){% endif %}.</p>
+    <p class="mb-1"><strong>2. Ticket Routing</strong> is <strong>{{ mode }}</strong> for {{ organization.name }}{% if mode == 'off' %} — the rules below are shown for reference but would not run{% endif %}.</p>
+    {% if result.matched %}
+    <p class="mb-1 text-success"><i class="fas fa-check me-1"></i>Winning rule: <a href="{% url 'ticket_routing:rule_detail' result.rule.pk %}">{{ result.version.name }}</a> v{{ result.version.number }}</p>
+    {% else %}
+    <p class="mb-1">No rule matches; the defaults stand.</p>
+    {% endif %}
+    <p class="mb-0 text-muted">{{ result.reason }}</p>
+</div></div>
+{% if result.considered %}
+<div class="card"><div class="card-header"><strong>Rules evaluated (in order)</strong></div>
+<ul class="list-group list-group-flush small">
+    {% for rule, version, failures in result.considered %}
+    <li class="list-group-item">
+        <strong>{{ version.name }}</strong> <span class="text-muted">priority {{ version.priority }}{% if rule.organization %}, {{ rule.organization.name }}{% else %}, all customers{% endif %}</span>
+        {% if failures %}<ul class="mb-0 text-muted">{% for f in failures %}<li>{{ f }}</li>{% endfor %}</ul>{% else %}<span class="badge bg-success ms-1">matches</span>{% endif %}
+    </li>
+    {% endfor %}
+</ul></div>
+{% endif %}
+<a class="btn btn-outline-secondary mt-3" href="{% url 'psa:request_type_builder' item.pk %}">Back</a>
+{% endblock %}

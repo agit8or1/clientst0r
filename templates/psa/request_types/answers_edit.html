@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}PSA — Edit request details {{ ticket.ticket_number }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit request details</li>
+    </ol>
+</nav>
+<h2 class="mb-1">Edit request details</h2>
+<p class="text-muted small">{{ record.catalog_item_name }}{% if record.form_version %} · form v{{ record.form_version }}{% endif %}. Values are checked against the form the customer submitted. The original answers are kept on the request record, and every change is written to the audit log and noted internally on the ticket.</p>
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        {% for f in fields %}
+        <div class="mb-3">
+            {% if f.type == 'checkbox' %}
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="e_{{ f.key }}" name="f_{{ f.key }}" value="on" {% if f.current %}checked{% endif %}><label class="form-check-label" for="e_{{ f.key }}">{{ f.label }}</label></div>
+            {% elif f.type == 'multiselect' %}
+            <fieldset><legend class="form-label fs-6">{{ f.label }}</legend>
+            {% for value, label in f.pairs %}<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="e_{{ f.key }}_{{ forloop.counter }}" name="f_{{ f.key }}" value="{{ value }}" {% if value in f.current %}checked{% endif %}><label class="form-check-label" for="e_{{ f.key }}_{{ forloop.counter }}">{{ label }}</label></div>{% endfor %}
+            </fieldset>
+            {% else %}
+            <label class="form-label" for="e_{{ f.key }}">{{ f.label }}</label>
+            {% if f.type == 'select' or f.type == 'radio' %}
+            <select class="form-select" id="e_{{ f.key }}" name="f_{{ f.key }}"><option value="">—</option>{% for value, label in f.pairs %}<option value="{{ value }}" {% if f.current == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            {% elif f.type == 'textarea' %}
+            <textarea class="form-control" id="e_{{ f.key }}" name="f_{{ f.key }}" rows="3">{{ f.current|default_if_none:'' }}</textarea>
+            {% else %}
+            <input class="form-control" id="e_{{ f.key }}" name="f_{{ f.key }}" type="{% if f.type == 'date' %}date{% elif f.type == 'number' %}number{% elif f.type == 'email' %}email{% else %}text{% endif %}" value="{{ f.current|default_if_none:'' }}" {% if f.type == 'number' %}step="any"{% endif %}>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-muted">No answers on this request can be edited here.</p>
+        {% endfor %}
+        {% if readonly_rows %}
+        <h3 class="h6 mt-3">Not editable here</h3>
+        <dl class="row small mb-0">{% for r in readonly_rows %}<dt class="col-sm-4 fw-normal text-muted">{{ r.label }}</dt><dd class="col-sm-8">{{ r.display|default:"—" }}</dd>{% endfor %}</dl>
+        {% endif %}
+    </div>
+    <div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-primary">Save changes</button><a class="btn btn-outline-secondary" href="{% url 'psa:ticket_detail' ticket.ticket_number %}">Cancel</a></div>
+</form>
+{% endblock %}

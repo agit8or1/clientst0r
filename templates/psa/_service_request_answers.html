@@ -1,23 +1,35 @@
-{# Staff view of a guided service request's answers. Reads the record stored on Ticket.custom_fields["service_request"] by psa/service_requests.py:submit_request. #}
+{# Staff view of a guided service request's answers. Reads the record stored on Ticket.custom_fields["service_request"] by psa/service_requests.py:submit_request (the immutable snapshot of labels and answers). #}
 {% with sr=ticket.custom_fields.service_request %}
 {% if sr %}
 <div class="card mb-3" id="service-request-answers">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <strong><i class="fas fa-clipboard-list me-1"></i>Service request: {{ sr.catalog_item_name }}</strong>
-        <span class="small text-muted">
-            {% if sr.expected_turnaround %}<i class="far fa-clock me-1"></i>{{ sr.expected_turnaround }}{% endif %}
-            {% if sr.approval_required %}<span class="badge bg-warning text-dark ms-2">Customer approval required</span>{% endif %}
-            {% if sr.process_execution_id %}<a class="ms-2" href="{% url 'processes:execution_detail' sr.process_execution_id %}">Workflow #{{ sr.process_execution_id }}</a>{% endif %}
+        <span class="small text-muted d-flex flex-wrap gap-2 align-items-center">
+            {% if sr.form_version %}<span title="The form version the customer filled in">Form v{{ sr.form_version }}</span>{% endif %}
+            {% if sr.expected_turnaround %}<span><i class="far fa-clock me-1"></i>{{ sr.expected_turnaround }}</span>{% endif %}
+            {% if sr.approval_required %}
+                {% if sr.approval_status == 'approved' %}<span class="badge bg-success">Customer approved</span>
+                {% elif sr.approval_status == 'denied' %}<span class="badge bg-danger">Customer declined — do not action</span>
+                {% else %}<span class="badge bg-warning text-dark">Customer approval required — pending, not approved work yet</span>{% endif %}
+            {% endif %}
+            {% if sr.process_deferred %}<span class="badge bg-secondary">Workflow starts on approval</span>{% endif %}
+            {% if sr.process_execution_id %}<a href="{% url 'processes:execution_detail' sr.process_execution_id %}">Workflow #{{ sr.process_execution_id }}</a>{% endif %}
+            {% if can_edit_request_answers %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:ticket_request_answers_edit' ticket.ticket_number %}"><i class="fas fa-pen me-1"></i>Edit answers</a>{% endif %}
         </span>
     </div>
     <div class="card-body">
         {% if sr.answers %}
         <dl class="row mb-0 small">
             {% for a in sr.answers %}
-            <dt class="col-sm-4 text-muted fw-normal">{{ a.label }}</dt>
+            {% if a.type == 'heading' %}
+            <dt class="col-12 mt-2 text-uppercase text-muted small fw-semibold">{{ a.label }}</dt>
+            {% else %}
+            <dt class="col-sm-4 text-muted fw-normal">{{ a.label }}{% if a.sensitive %} <i class="fas fa-user-shield text-muted" title="Personal detail: kept out of the description, subject and e-mails"></i>{% endif %}</dt>
             <dd class="col-sm-8" style="white-space: pre-wrap;">{{ a.display|default:"—" }}</dd>
+            {% endif %}
             {% endfor %}
         </dl>
+        {% if sr.edited_at %}<p class="small text-muted mt-2 mb-0">Answers edited {{ sr.edited_at }}; the original submission is kept in the audit log and on the request record.</p>{% endif %}
         {% else %}
         <em class="text-muted small">No answers were required.</em>
         {% endif %}

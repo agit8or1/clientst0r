@@ -2,6 +2,7 @@
 <input type="hidden" name="_guided" value="1">
 
 <h6 class="text-muted mt-2">Customer portal</h6>
+{% if item and item.pk %}<p class="small text-muted mb-2"><i class="fas fa-pen-ruler me-1"></i>Build this form with conditions, sections, lookups and file questions, preview it and publish versions in the <a href="{% url 'psa:request_type_builder' item.pk %}">form builder</a>.</p>{% endif %}
 <div class="row g-3">
     <div class="col-md-4 d-flex align-items-end">
         <div class="form-check form-switch">

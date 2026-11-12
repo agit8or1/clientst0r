@@ -27,6 +27,9 @@
             </a>
         </div>
         {% if is_catalog_admin %}
+        <a href="{% url 'psa:request_type_list' %}" class="btn btn-outline-primary">
+            <i class="fas fa-clipboard-list me-1"></i>Portal request types &amp; forms
+        </a>
         <a href="{% url 'psa:service_catalog_create' %}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i>New Catalog Item
         </a>

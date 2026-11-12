@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import requester_site_views, views
+from . import request_builder_views as _rb
 
 app_name = 'psa'
 
@@ -22,6 +23,19 @@ urlpatterns = [
     path('catalog/new/', views.service_catalog_form, name='service_catalog_create'),
     path('catalog/<int:pk>/edit/', views.service_catalog_form, name='service_catalog_edit'),
     path('catalog/<int:pk>/approvers/', views.service_catalog_approvers, name='service_catalog_approvers'),
+    # Portal request types + form builder (Phase 54.7).
+    path('request-types/', _rb.request_type_list, name='request_type_list'),
+    path('request-types/new/', _rb.request_type_new, name='request_type_new'),
+    path('request-types/starters/', _rb.request_type_starters, name='request_type_starters'),
+    path('request-types/report/', _rb.request_type_report, name='request_type_report'),
+    path('request-types/<int:pk>/', _rb.request_type_builder, name='request_type_builder'),
+    path('request-types/<int:pk>/preview/', _rb.request_type_preview, name='request_type_preview'),
+    path('request-types/<int:pk>/routing-preview/', _rb.request_type_routing_preview,
+         name='request_type_routing_preview'),
+    path('request-types/<int:pk>/action/', _rb.request_type_action, name='request_type_action'),
+    path('request-types/<int:pk>/move/', _rb.request_type_move, name='request_type_move'),
+    path('t/<str:ticket_number>/request-answers/', _rb.ticket_request_answers_edit,
+         name='ticket_request_answers_edit'),
     # Time entries
     # Phase 12: two-way secure messages.
     path('t/<str:ticket_number>/secure-replies/<int:pk>/reveal/', views.secure_reply_reveal,
