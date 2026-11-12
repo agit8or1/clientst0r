@@ -23,6 +23,9 @@ TEST_MIDDLEWARE = [
 ]
 
 
+# The acting users are customer members, who only see client-visible or
+# customer-written articles (authz-tech), so test articles are written by
+# the customer's editor unless a test says otherwise.
 class _Base(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -89,7 +92,7 @@ class PublishPermissionTests(_Base):
         self.assertEqual(doc.body, '<p>y</p>')
 
     def test_editor_cannot_approve_a_pending_draft(self):
-        doc = Document.objects.create(organization=self.org, title='Pending',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Pending',
                                       body='b', is_published=False, is_draft=True)
         self.client_for(self.editor).post(f'/docs/{doc.slug}/approve/', {'pk': doc.pk})
         doc.refresh_from_db()
@@ -99,7 +102,7 @@ class PublishPermissionTests(_Base):
     def test_editor_cannot_republish_pending_draft_through_form(self):
         """The audit case: is_published=on in the form must not leave a
         pending draft with is_draft=True and is_published=True."""
-        doc = Document.objects.create(organization=self.org, title='Pending two',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Pending two',
                                       body='b', is_published=False, is_draft=True)
         self.client_for(self.editor).post(f'/docs/{doc.slug}/edit/', {
             'title': 'Pending two', 'body': 'b2', 'content_type': 'html',
@@ -110,7 +113,7 @@ class PublishPermissionTests(_Base):
         self.assertFalse(doc.is_published)
 
     def test_editor_edit_keeps_live_document_live(self):
-        doc = Document.objects.create(organization=self.org, title='Live',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Live',
                                       body='b', is_published=True)
         self.client_for(self.editor).post(f'/docs/{doc.slug}/edit/', {
             'title': 'Live', 'body': 'changed', 'content_type': 'html',
@@ -140,7 +143,7 @@ class PublishPermissionTests(_Base):
 class RequiresApprovalTests(_Base):
 
     def test_requires_approval_goes_through_submit_then_approve(self):
-        doc = Document.objects.create(organization=self.org, title='Change policy',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Change policy',
                                       body='v1', is_published=True,
                                       requires_approval=True, owner=self.editor)
         # Even a publisher's edit takes it offline.
@@ -175,7 +178,7 @@ class RequiresApprovalTests(_Base):
         self.assertEqual(doc.body, 'v2')
 
     def test_outsider_publisher_cannot_approve_other_customers_doc(self):
-        doc = Document.objects.create(organization=self.org, title='Theirs',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Theirs',
                                       body='b', is_published=False, is_draft=True)
         self.client_for(self.outsider, org=self.other_org).post(
             f'/docs/{doc.slug}/approve/', {'pk': doc.pk})
@@ -258,7 +261,7 @@ class DraftVisibilityTests(_Base):
 class VersionHistoryTests(_Base):
 
     def setUp(self):
-        self.doc = Document.objects.create(organization=self.org, title='Runbook',
+        self.doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Runbook',
                                            body='<p>one</p>', is_published=True,
                                            last_modified_by=self.editor)
         self.doc.body = '<p>two</p>'
@@ -335,7 +338,7 @@ class VersionHistoryTests(_Base):
 class ArchiveTests(_Base):
 
     def test_archived_list_and_unarchive(self):
-        doc = Document.objects.create(organization=self.org, title='Old SOP',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Old SOP',
                                       body='b', is_archived=True)
         other = Document.objects.create(organization=self.other_org, title='Not mine',
                                         body='b', is_archived=True)
@@ -358,7 +361,7 @@ class ArchiveTests(_Base):
 class OwnershipTests(_Base):
 
     def test_owner_choices_are_staff_and_org_members(self):
-        doc = Document.objects.create(organization=self.org, title='Owned',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Owned',
                                       body='b', owner=self.editor)
         r = self.client_for(self.publisher).get(f'/docs/{doc.slug}/edit/')
         owners = set(r.context['form'].fields['owner'].queryset.values_list('username', flat=True))
@@ -367,7 +370,7 @@ class OwnershipTests(_Base):
         self.assertNotIn('lc-outsider', owners)
 
     def test_outsider_cannot_be_assigned_owner(self):
-        doc = Document.objects.create(organization=self.org, title='Owned2',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Owned2',
                                       body='b', owner=self.editor, is_published=True)
         r = self.client_for(self.publisher).post(f'/docs/{doc.slug}/edit/', {
             'title': 'Owned2', 'body': 'b', 'content_type': 'html',
@@ -379,7 +382,7 @@ class OwnershipTests(_Base):
         self.assertEqual(doc.owner, self.editor)
 
     def test_owner_and_review_interval_saved_and_shown(self):
-        doc = Document.objects.create(organization=self.org, title='Owned3',
+        doc = Document.objects.create(organization=self.org, created_by=self.editor, title='Owned3',
                                       body='b', owner=self.editor, is_published=True)
         self.client_for(self.publisher).post(f'/docs/{doc.slug}/edit/', {
             'title': 'Owned3', 'body': 'b', 'content_type': 'html',
@@ -482,7 +485,7 @@ class SearchLoggingTests(_Base):
         self.assertEqual(log.organization, self.org)
 
     def test_searches_with_results_are_not_logged(self):
-        Document.objects.create(organization=self.org, title='findable', body='b')
+        Document.objects.create(organization=self.org, created_by=self.editor, title='findable', body='b')
         self.client_for(self.staff).get(reverse('core:search'), {'q': 'findable'})
         self.assertFalse(SearchQueryLog.objects.exists())
 
@@ -519,9 +522,9 @@ class SearchLoggingTests(_Base):
 class AnalyticsTests(_Base):
 
     def test_staff_views_counted_and_analytics_page(self):
-        viewed = Document.objects.create(organization=self.org, title='Popular',
+        viewed = Document.objects.create(organization=self.org, created_by=self.editor, title='Popular',
                                          body='b', is_published=True)
-        Document.objects.create(organization=self.org, title='Lonely',
+        Document.objects.create(organization=self.org, created_by=self.editor, title='Lonely',
                                 body='b', is_published=True)
         Document.objects.create(
             organization=self.org, title='Stale one', body='b', is_published=True,

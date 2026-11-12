@@ -34,10 +34,13 @@ def _kb_queryset(user):
     if orgs_with_perm(user, 'docs_view') is None:
         visible |= Q(is_global=True)
     # published(): live only — not a draft, pending review or archived.
-    return Document.objects.published().filter(visible)
+    # Customer users: never internal-only documentation, nor global KB rows
+    # through their placeholder organization (docs.permissions).
+    from docs.permissions import visible_documents
+    return visible_documents(Document.objects.published().filter(visible), user)
 
 
-def _serialize_kb(doc, *, detail=False):
+def _serialize_kb(doc, *, detail=False, user=None):
     out = {
         'id': doc.id,
         'title': doc.title,
@@ -48,11 +51,13 @@ def _serialize_kb(doc, *, detail=False):
         'updated_at': doc.updated_at.isoformat() if doc.updated_at else None,
     }
     if detail:
-        out['body'] = doc.body
+        from docs.permissions import body_html_for, body_source_for
+        # Customer users get MSP-written articles without internal blocks.
+        out['body'] = body_source_for(user, doc) if user is not None else doc.body
         try:
-            out['body_html'] = doc.render_content()
+            out['body_html'] = body_html_for(user, doc) if user is not None else doc.render_content()
         except Exception:
-            out['body_html'] = doc.body
+            out['body_html'] = out['body']
     return out
 
 
@@ -117,4 +122,4 @@ def kb_detail_view(request, pk: int):
         doc = _kb_queryset(request.user).get(pk=pk)
     except Exception:
         return Response({'detail': 'Not found'}, status=404)
-    return Response(_serialize_kb(doc, detail=True))
+    return Response(_serialize_kb(doc, detail=True, user=request.user))

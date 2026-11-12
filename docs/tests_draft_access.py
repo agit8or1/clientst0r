@@ -17,17 +17,19 @@ TEST_MIDDLEWARE = [
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class DraftAccessTests(TestCase):
     def setUp(self):
+        # Acting users are customer members: articles are client-visible
+        # (internal-only articles are hidden from them, authz-tech).
         self.org = Organization.objects.create(name='DA', slug='da')
         self.live = Document.objects.create(
-            organization=self.org, title='Live', slug='live', body='LIVEBODY')
+            organization=self.org, is_client_visible=True, title='Live', slug='live', body='LIVEBODY')
         self.draft = Document.objects.create(
-            organization=self.org, title='Draft', slug='draft', body='DRAFTBODY',
+            organization=self.org, is_client_visible=True, title='Draft', slug='draft', body='DRAFTBODY',
             is_published=False)
         self.pending = Document.objects.create(
-            organization=self.org, title='Pending', slug='pending', body='PENDINGBODY',
+            organization=self.org, is_client_visible=True, title='Pending', slug='pending', body='PENDINGBODY',
             is_published=False, is_draft=True)
         self.archived = Document.objects.create(
-            organization=self.org, title='Old', slug='old', body='OLDBODY',
+            organization=self.org, is_client_visible=True, title='Old', slug='old', body='OLDBODY',
             is_archived=True)
 
     def _client(self, role):

@@ -151,7 +151,10 @@ class OfficeTestBase(TestCase):
         return Document.objects.create(
             organization=org, title=title, slug=f'{title.lower()}-{Document.objects.count()}',
             content_type='file', file=SimpleUploadedFile(f'{title}.{ext}', data),
-            file_size=len(data), file_type=formats.mime_for(f'x.{ext}'), created_by=self.su)
+            file_size=len(data), file_type=formats.mime_for(f'x.{ext}'), created_by=self.su,
+            # The acting users are customer members: MSP-written files they
+            # work on must be shared with the customer (authz-tech).
+            is_client_visible=True)
 
     def target(self, obj=None):
         return targets.target_for(obj or self.make_doc())

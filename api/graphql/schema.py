@@ -96,6 +96,11 @@ class DocumentType(DjangoObjectType):
             'is_client_visible', 'created_at', 'updated_at',
         )
 
+    def resolve_body(self, info):
+        # Customer users get MSP-written articles without internal blocks.
+        from docs.permissions import body_source_for
+        return body_source_for(info.context.user, self)
+
 
 class DiagramType(DjangoObjectType):
     class Meta:
@@ -256,8 +261,11 @@ def _live_or_editable(queryset, info, live):
 
 
 def _visible_documents(info, organization_id=None):
+    from docs.permissions import visible_documents
     qs = _scoped_global(Document.objects.all(), info, organization_id,
                         perm='docs_view')
+    # Customer users: never internal-only documentation (docs.permissions).
+    qs = visible_documents(qs, info.context.user)
     return _live_or_editable(
         qs, info, Q(is_published=True, is_draft=False))
 

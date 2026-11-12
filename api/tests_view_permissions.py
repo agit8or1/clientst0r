@@ -38,6 +38,8 @@ FULL = dict(
     vault_view_password=True,
     assets_view=True, assets_create=True, assets_edit=True, assets_delete=True,
     docs_view=True, docs_create=True, docs_edit=True, docs_delete=True,
+    # Keys stop working without API access in the key's customer (authz-tech).
+    api_access=True,
 )
 
 
@@ -67,8 +69,11 @@ class _Base(TestCase):
 
         self.pw_a = _password(self.org_a, 'pw-a')
         self.pw_b = _password(self.org_b, 'pw-b')
-        self.doc_a = Document.objects.create(organization=self.org_a, title='doc-a', slug='doc-a')
-        self.doc_b = Document.objects.create(organization=self.org_b, title='doc-b', slug='doc-b')
+        # Customer users only get client-visible articles (authz-tech).
+        self.doc_a = Document.objects.create(organization=self.org_a, title='doc-a', slug='doc-a',
+                                             is_client_visible=True)
+        self.doc_b = Document.objects.create(organization=self.org_b, title='doc-b', slug='doc-b',
+                                             is_client_visible=True)
         self.asset_a = Asset.objects.create(organization=self.org_a, name='asset-a', asset_type='server')
         self.asset_b = Asset.objects.create(organization=self.org_b, name='asset-b', asset_type='server')
         self.contact_a = Contact.objects.create(organization=self.org_a, first_name='Ann', last_name='A')
@@ -392,12 +397,14 @@ class GraphQLDraftTests(_Base):
     def setUp(self):
         super().setUp()
         self.draft = Document.objects.create(
-            organization=self.org_a, title='draft-a', slug='draft-a', is_published=False)
+            organization=self.org_a, title='draft-a', slug='draft-a', is_published=False,
+            is_client_visible=True)
         self.pending = Document.objects.create(
             organization=self.org_a, title='pending-a', slug='pending-a',
-            is_published=False, is_draft=True)
+            is_published=False, is_draft=True, is_client_visible=True)
         self.archived = Document.objects.create(
-            organization=self.org_a, title='archived-a', slug='archived-a', is_archived=True)
+            organization=self.org_a, title='archived-a', slug='archived-a', is_archived=True,
+            is_client_visible=True)
         self.dia_draft = Diagram.objects.create(
             organization=self.org_a, title='dia-draft', slug='dia-draft',
             diagram_xml='<mxfile/>', is_published=False)

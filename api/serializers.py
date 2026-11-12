@@ -116,6 +116,15 @@ class DocumentSerializer(OrganizationScopedSerializerMixin):
         read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'created_by',
                             'is_client_visible', 'is_featured_in_portal']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request is not None and 'body' in data:
+            # Customer users get MSP-written articles without internal blocks.
+            from docs.permissions import body_source_for
+            data['body'] = body_source_for(request.user, instance)
+        return data
+
 
 class PasswordListSerializer(serializers.ModelSerializer):
     """

@@ -115,3 +115,130 @@ def apply_publish_rules(document, user, *, requested_publish, was_live):
         return None
     return ('Saved as a draft. You do not have permission to publish — '
             'submit it for review when it is ready.')
+
+
+# ---------------------------------------------------------------------------
+# Customer users and internal documentation
+# ---------------------------------------------------------------------------
+# Organizations are the MSP's customers. MSP technicians (psa.visibility
+# .is_msp_staff) see every document their role reaches. Anyone else with a
+# membership is a *customer user*, and gets the same rule as the customer
+# portal and as tickets (v3.17.600): never internal-only documentation.
+#
+# For a customer user a document is visible when
+#   * staff marked it "Visible in customer portal" (`is_client_visible`), or
+#   * a customer-side user wrote it (`created_by` is not MSP staff) — their
+#     own organization's content was never internal to the MSP;
+# and never when it is a global KB article (the global KB is staff-only
+# since v3.17.625; its rows carry a placeholder organization). Internal
+# blocks inside a visible article are stripped (`body_html_for`).
+
+def is_customer_user(user):
+    from psa.visibility import is_msp_staff
+    return not is_msp_staff(user)
+
+
+def customer_document_q(prefix=''):
+    """Q for documents a customer user may see (see above)."""
+    from django.contrib.auth.models import User
+    from django.db.models import Q
+    from psa.visibility import msp_staff_q
+    staff_ids = User.objects.filter(msp_staff_q()).values('pk')
+    authored_by_customer = (Q(**{f'{prefix}created_by__isnull': False})
+                            & ~Q(**{f'{prefix}created_by__in': staff_ids}))
+    return ((Q(**{f'{prefix}is_client_visible': True}) | authored_by_customer)
+            & Q(**{f'{prefix}is_global': False}))
+
+
+def visible_documents(qs, user):
+    """Narrow a Document queryset to what `user` may see as a reader. MSP
+    staff are unchanged (their org / flag scoping is applied by the caller)."""
+    if not is_customer_user(user):
+        return qs
+    return qs.filter(customer_document_q())
+
+
+def customer_may_see(user, document):
+    """Single-row `visible_documents`."""
+    if not is_customer_user(user):
+        return True
+    if document.is_global:
+        return False
+    if document.is_client_visible:
+        return True
+    author = document.created_by
+    if author is None:
+        return False
+    from psa.visibility import is_msp_staff
+    return not is_msp_staff(author)
+
+
+def body_html_for(user, document):
+    """Rendered body for `user`: customers never get internal-only blocks."""
+    if is_customer_user(user):
+        return document.render_for_client()
+    return document.render_markdown()
+
+
+def can_delete(user, document):
+    """Delete `document`. Org documents need `docs_delete` in the document's
+    own customer (before this release `@require_write` — any *_create flag —
+    was the only gate, so Editors, whose role has docs_delete off, could
+    delete). Global KB articles are deleted by superusers only, as on the
+    global KB's own delete page."""
+    if not user or not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+    if document.is_global:
+        return False
+    if _django_staff_without_role(user):
+        return True
+    return has_perm_for_org(user, document.organization_id, 'docs_delete')
+
+
+def can_create_in_org(user, organization):
+    """Create, upload or import a document (or template, diagram) in
+    `organization`: `docs_create` there."""
+    if not user or not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser or _django_staff_without_role(user):
+        return True
+    return has_perm_for_org(user, organization, 'docs_create')
+
+
+def can_edit_in_org(user, organization, action='edit'):
+    """`docs_edit` / `docs_delete` in `organization`, for rows without the
+    publish life cycle (diagrams, templates)."""
+    if not user or not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser or _django_staff_without_role(user):
+        return True
+    return has_perm_for_org(user, organization, 'docs_delete' if action == 'delete' else 'docs_edit')
+
+
+def customer_authored(document):
+    author = document.created_by
+    if author is None:
+        return False
+    from psa.visibility import is_msp_staff
+    return not is_msp_staff(author)
+
+
+def may_see_full_source(user, document):
+    """The raw body (editor, version history, diffs, full exports) includes
+    internal-only blocks. Customer users get it only for documents a
+    customer-side user wrote; for MSP-written articles they get the
+    stripped, rendered copy."""
+    if not is_customer_user(user):
+        return True
+    return not document.is_global and customer_authored(document)
+
+
+def body_source_for(user, document):
+    """What the API returns as `body`: the raw source, or for a customer
+    user reading an MSP-written article the rendered customer copy (HTML,
+    internal-only blocks removed)."""
+    if may_see_full_source(user, document):
+        return document.body
+    return document.render_for_client()

@@ -44,6 +44,11 @@ class Command(BaseCommand):
         for doc in candidates:
             if not doc.owner or not doc.owner.email:
                 continue
+            # Rechecked at send time: the owner must still be active and
+            # still able to read the article (titles are not sent to someone
+            # whose access was removed since they were made owner).
+            if not _owner_may_read(doc.owner, doc):
+                continue
             if doc.is_review_overdue:
                 per_owner[doc.owner].append(doc)
 
@@ -90,3 +95,13 @@ class Command(BaseCommand):
             f'KB review reminder run @ {timezone.now().isoformat()}: '
             f'{len(per_owner)} owners, {sent} sent, dry_run={dry_run}'
         ))
+
+
+def _owner_may_read(owner, doc):
+    if not owner.is_active:
+        return False
+    from accounts.permission_utils import has_perm_for_org
+    from docs.permissions import customer_may_see
+    if not customer_may_see(owner, doc):
+        return False
+    return has_perm_for_org(owner, None if doc.is_global else doc.organization_id, 'docs_view')
