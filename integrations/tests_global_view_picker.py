@@ -1,9 +1,9 @@
 """
 Integrations page in global view (no organization selected).
 
-The RMM, UniFi, Microsoft 365, Omada and Grandstream connections belong to an
-organization, so their Add pages send a user without one back to the list.
-The list explains that and offers an organization picker that returns to it.
+Integrations belong to the platform: global view lists platform connections
+and offers Add buttons directly. The note explains how their data reaches
+customers and offers a picker to open one customer's page.
 """
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
@@ -32,7 +32,8 @@ class GlobalViewPickerTests(TestCase):
     def test_global_view_shows_picker(self):
         self._global()
         body = self.c.get('/integrations/').content.decode()
-        self.assertIn('You are in global view', body)
+        self.assertIn('Integrations belong to the platform', body)
+        self.assertNotIn('choose one to see and add', body)
         self.assertIn('/accounts/switch/%d/?next=/integrations/' % self.a.id, body)
         self.assertIn('Bolt Picker', body)
 
@@ -41,7 +42,7 @@ class GlobalViewPickerTests(TestCase):
         s['current_organization_id'] = self.a.id
         s.save()
         body = self.c.get('/integrations/').content.decode()
-        self.assertNotIn('You are in global view', body)
+        self.assertNotIn('Integrations belong to the platform', body)
 
     def test_member_sees_only_own_orgs(self):
         u = User.objects.create_user('picker_member', 'm@x.test', 'pw')
