@@ -5,6 +5,28 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Built on the development branch (`dev/portal-login`), not yet released.
+
+### Added
+- **Customer portal sign-in at its own address**: `/portal/login/`, with portal sign-out, self-service password reset (`/portal/password-reset/`), first-password page for invitations (`/portal/set-password/…`), two-factor enrolment and backup codes (`/portal/account/two-factor/…`) and a lockout page (`/portal/locked/`). The same lockout counting (django-axes), password rules and two-factor sign-in apply as on the staff side.
+- **Portal country policy** in Settings → Firewall: "Same as the staff backend" (default), "No country restriction", or an allow / block list of its own, edited on the Country Rules page under the "Customer portal" tab. It covers portal pages, the portal sign-in and the links sent to customers (quote signing, satisfaction surveys, secure replies and secure notes, public status pages, agreement and security-digest unsubscribe links). The existing rules keep governing the staff backend, so the backend can be limited to fewer countries. Paths that are not recognised count as staff. The firewall log shows which policy blocked a request.
+- **Optional portal host name** (Settings → General, or `PORTAL_HOSTNAME` in the environment): the portal and customer links are then served only on that host, staff pages there return 404, portal links on the staff host redirect to it, and emails to customers link to it. The name must be in `ALLOWED_HOSTS` (it is added automatically when set in the environment).
+- **New portal look**: the portal, its sign-in pages and the pages customers reach from emailed links have their own layout and stylesheet (`static/css/portal.css`) with the customer's logo and portal colour, responsive navigation, and light and dark modes.
+
+### Changed
+- **The staff sign-in refuses customer portal accounts** (non-staff users with an active membership of a customer that has the portal on, while PSA is on) and points them to the portal sign-in. **The portal sign-in refuses MSP staff and superusers** with the same message as a wrong password. Customer users of customers without the portal keep the staff sign-in.
+- **Customer portal users are sent to the portal** when they open a staff page. Before, they could also use staff pages for their own customer. MSP technicians who are set up as plain customer members must be switched to User Type "Staff" to keep the staff side.
+- Invitation emails, password-reset emails, quote signing links, satisfaction surveys, agreement reminders, security digests and secure-note links point at the portal (its host name when one is set). Invitation links sent before this change still work and redirect.
+- Satisfaction survey emails now carry an absolute link (they had a relative one).
+
+### Security
+- An invitation link can no longer set the password of an MSP staff account.
+
+### Upgrade notes
+- Migration `core.0095_portal_surface` adds the portal host name, the portal country policy (default "Same as the staff backend"), a staff / portal list for each country rule (existing rules become staff rules) and the surface on firewall log entries. Nothing changes for visitors until an administrator sets a portal policy or host name.
+
 ## [3.17.668] - 2026-11-12
 
 Office documents. Built and tested against protocol-accurate fakes; **not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service**. Managed Local ONLYOFFICE is **untested**: it has never run against a real container.
