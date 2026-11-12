@@ -1949,6 +1949,9 @@ class QuoteApprovalRoutingTests(TestCase):
         # Make user able to view this org
         Membership.objects.create(user=self.user, organization=self.org,
                                    role=Role.OWNER, is_active=True)
+        # Quotes are written by the MSP: a customer Owner can't route one.
+        from psa.tests._base import _make_msp_tech
+        _make_msp_tech(self.user)
         c = Client()
         c.force_login(self.user)
         s = c.session
@@ -2203,6 +2206,9 @@ class WorkflowEnforcementTests(TestCase):
         ss.save()
         Membership.objects.create(user=self.user, organization=self.org,
                                    role=Role.OWNER, is_active=True)
+        # Quotes are written by the MSP: a customer Owner can't route one.
+        from psa.tests._base import _make_msp_tech
+        _make_msp_tech(self.user)
         c = Client()
         c.force_login(self.user)
         s = c.session

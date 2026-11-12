@@ -113,23 +113,95 @@ def _scoped_ticket_qs(request):
     """
     Tickets visible to the current request — PSA is now a global tool.
 
-      * superuser / staff_user → every ticket across every client
-      * org user               → only tickets for orgs they're a member of
-        (regardless of which org they have currently "selected" — the PSA
-        page is global, internal filtering replaces per-page client scoping)
+      * superuser / staff_user → every ticket of every client whose role
+        (global role template) includes `tickets_view`; staff without a
+        global role keep every client (accounts.permission_utils.orgs_with_perm)
+      * org user               → only shared (`client_can_view`) tickets of
+        orgs they're a member of with `tickets_view`, and of those only their
+        own unless the role lets them see the whole organization's
+        (psa.visibility.customer_ticket_q). Regardless of which org they have
+        currently "selected" — the PSA page is global.
     """
+    from accounts.permission_utils import filter_by_org_perm
+    from .visibility import customer_ticket_q, membership_flag
     qs = Ticket.objects.select_related(
         'organization', 'status', 'priority', 'queue', 'ticket_type', 'assigned_to'
     )
     if request.user.is_superuser or getattr(request, 'is_staff_user', False):
-        return qs
+        return filter_by_org_perm(qs, request.user, 'tickets_view')
     if hasattr(request.user, 'memberships'):
-        org_ids = list(
-            request.user.memberships.filter(is_active=True).values_list('organization_id', flat=True)
-        )
+        memberships = [
+            m for m in request.user.memberships.filter(is_active=True).select_related('role_template')
+            if membership_flag(m, 'tickets_view', True)
+        ]
         # Customer users see what the portal shows them: shared tickets only.
-        return qs.filter(organization_id__in=org_ids, client_can_view=True)
+        return qs.filter(customer_ticket_q(request.user, memberships))
     return qs.none()
+
+
+def _org_perm(request, org, flag):
+    """`flag` on this customer (`org` instance, id or None for global view).
+    Superusers, and MSP staff without a global role, keep every customer."""
+    from accounts.permission_utils import has_perm_for_org
+    return _django_staff_without_role(request.user) or has_perm_for_org(request.user, org, flag)
+
+
+def _django_staff_without_role(user):
+    """Django-staff accounts (is_staff) that aren't User Type Staff.
+
+    The PSA treats them as MSP staff (psa.visibility.is_msp_staff), but the
+    role helpers only know User Type Staff, so they'd be judged by whatever
+    customer membership they happen to hold. Give them what User Type Staff
+    without a global role gets: every customer. (HELPER_ISSUES.md)"""
+    if not user.is_authenticated or not user.is_active or not user.is_staff or user.is_superuser:
+        return False
+    profile = getattr(user, 'profile', None)
+    return not (profile is not None and profile.is_staff_user())
+
+
+def _require_org_perm(request, org, flag):
+    """403 unless the user holds `flag` for `org` (never a flag held only in
+    some other customer)."""
+    if not _org_perm(request, org, flag):
+        raise PermissionDenied(f"Your role does not include '{flag}' for this customer.")
+
+
+def _require_ticket_perm(request, ticket, flag):
+    _require_org_perm(request, ticket.organization_id, flag)
+
+
+def _may_see_margin(request, org):
+    """Provider cost and margin (project / contract profitability): MSP
+    staff holding reports_view_financial for the customer. Customer users
+    never, whatever their role says."""
+    return _is_msp_staff(request) and _org_perm(request, org, 'reports_view_financial')
+
+
+def _usable_m365_connections(request, item_org=None):
+    """Active M365 connections this user may point a mailbox config at:
+    connections of customers whose role includes integrations_configure. A
+    customer user additionally only gets their mailbox config's own
+    customer's connection (`item_org`, when known)."""
+    from accounts.permission_utils import filter_by_org_perm
+    from integrations.models import M365Connection
+    qs = filter_by_org_perm(M365Connection.objects.filter(is_active=True),
+                            request.user, 'integrations_configure')
+    if not _is_msp_staff(request):
+        qs = qs.filter(organization_id__in=_member_org_ids(request))
+        if item_org is not None:
+            qs = qs.filter(organization=item_org)
+    return qs
+
+
+def _require_quote_writer(request):
+    """Quotes are the MSP's offers to a customer. A customer user reads the
+    quotes addressed to them and accepts one by signing it in the portal;
+    only MSP staff write, send, route or accept them here. Before this a
+    customer user with any write role could change their own quote's prices
+    and mark it accepted, bypassing the signature. MSP staff also need
+    crm_manage_pipeline for the quote's customer (checked per quote)."""
+    if not _is_msp_staff(request):
+        raise PermissionDenied('Only MSP staff can change quotes.')
 
 
 @login_required
@@ -485,6 +557,10 @@ def ticket_conversation(request, ticket_number):
     """
     from .models import EmailMessage
 
+    # The raw mail log holds every captured message — mail with vendors and
+    # Cc'd third parties, and inbound mail never posted as a reply — so it is
+    # technician material. Customers read the conversation on the ticket page.
+    _staff_or_403(request)
     org = get_request_organization(request)
     qs = _scoped_ticket_qs(request)
     ticket = get_object_or_404(qs, ticket_number=ticket_number)
@@ -574,6 +650,7 @@ def ticket_create(request):
         except Exception:
             messages.error(request, 'That client is not eligible for native PSA tickets.')
             return redirect(reverse('psa:ticket_create'))
+        _require_org_perm(request, org, 'tickets_create')
 
         try:
             queue = queues.get(pk=request.POST.get('queue'))
@@ -648,7 +725,10 @@ def ticket_create(request):
                     Process, ProcessExecution, ProcessStageCompletion,
                     ProcessExecutionAuditLog,
                 )
+                # The ticket's own customer's workflows or global ones; a
+                # posted id from another customer is ignored.
                 process = Process.objects.filter(
+                    models.Q(organization=org) | models.Q(is_global=True),
                     pk=int(workflow_id), is_published=True, is_archived=False,
                 ).first()
                 if process is not None:
@@ -743,8 +823,13 @@ def ticket_create(request):
     available_workflows = []
     try:
         from processes.models import Process
+        wf_qs = Process.objects.filter(is_published=True, is_archived=False)
+        if not is_msp_staff(request.user):
+            # Customer users see their own customers' workflows (and global
+            # ones), never other customers' names and process titles.
+            wf_qs = wf_qs.filter(models.Q(organization__in=eligible_clients) | models.Q(is_global=True))
         available_workflows = list(
-            Process.objects.filter(is_published=True, is_archived=False)
+            wf_qs
             .order_by('organization__name', 'title')
             .values('pk', 'title', 'organization_id', 'organization__name')
         )
@@ -1124,6 +1209,7 @@ def ticket_post_comment(request, ticket_number):
     from .visibility import is_msp_staff
 
     ticket = _scoped_ticket_for_write(request, ticket_number)
+    _require_ticket_perm(request, ticket, 'tickets_edit')
     detail_url = reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number})
     body = (request.POST.get('body') or '').strip()
     if not body:
@@ -1417,10 +1503,15 @@ def _process_mentions(ticket, comment, actor):
         return 0
     qs = User.objects.filter(username__in=usernames, is_active=True)
     notified = 0
+    from .visibility import user_can_see_comment
     for u in qs:
         # Tenant-scope: only staff/superuser can be mentioned cross-tenant;
         # everyone else must be a member of the ticket's org.
         if not (u.is_superuser or _user_is_org_member(u, ticket.organization_id)):
+            continue
+        # Only people who may read this comment on this ticket: an internal
+        # note never mentions (and e-mails) a customer user.
+        if not user_can_see_comment(u, ticket, comment):
             continue
         TicketWatcher.objects.get_or_create(ticket=ticket, user=u)
         if u.email and u != actor:
@@ -1450,10 +1541,13 @@ def _can_assign(request, org):
     Assigning is the MSP's job: only MSP staff (superusers, Django staff,
     User Type Staff) can, on any customer. A customer's own users — even an
     organization admin or owner — can't; they'd be choosing from the MSP's
-    technician roster, which customer users don't see. `org` is kept for
-    callers' signatures.
+    technician roster, which customer users don't see.
+
+    Reassigning also needs the `tickets_assign` role flag for `org` (None =
+    global view). MSP staff without a global role keep it everywhere, as
+    before; a global role without `tickets_assign` leaves "Assign to me".
     """
-    return is_msp_staff(request.user)
+    return is_msp_staff(request.user) and _org_perm(request, org, 'tickets_assign')
 
 
 def _eligible_assignees(org):
@@ -1529,6 +1623,7 @@ def ticket_merge(request, ticket_number):
     """
     _staff_or_403(request)  # technician operation; customers use the portal
     source = _scoped_ticket_for_write(request, ticket_number)
+    _require_ticket_perm(request, source, 'tickets_close')
     target_number = (request.POST.get('target') or '').strip()
     if not target_number or target_number == source.ticket_number:
         messages.error(request, 'Pick a different target ticket to merge into.')
@@ -1614,6 +1709,7 @@ def ticket_merge(request, ticket_number):
 def ticket_attach(request, ticket_number):
     """Upload a file. Enforces size, MIME allowlist, tenant-scoped storage."""
     ticket = _scoped_ticket_for_write(request, ticket_number)
+    _require_ticket_perm(request, ticket, 'tickets_edit')
     f = request.FILES.get('file')
     if not f:
         messages.error(request, 'No file selected.')
@@ -1765,6 +1861,18 @@ def ticket_quick_action(request, ticket_number):
 def _ticket_quick_action(request, ticket_number):
     ticket = _scoped_ticket_for_write(request, ticket_number)
     action = request.POST.get('action') or ''
+    # Role flags per action, on the ticket's own customer: closing (and any
+    # move into a terminal status) needs tickets_close, reassignment
+    # tickets_assign (checked in _can_assign), everything else tickets_edit.
+    if action == 'close':
+        _require_ticket_perm(request, ticket, 'tickets_close')
+    elif action == 'set_status':
+        target_status = TicketStatus.objects.filter(
+            pk=request.POST.get('status') if str(request.POST.get('status') or '').isdigit() else 0).first()
+        _require_ticket_perm(request, ticket, 'tickets_close' if (
+            target_status is not None and target_status.is_terminal) else 'tickets_edit')
+    elif action != 'set_assignee':
+        _require_ticket_perm(request, ticket, 'tickets_edit')
     now = timezone.now()
     audit_extra = {'action': action}
     description = ''
@@ -1995,8 +2103,13 @@ def _notify_watchers(ticket, comment, actor):
     if not settings.smtp_enabled or not settings.smtp_host:
         return 0
 
+    # Re-checked at send time: a watcher whose access was revoked, or a
+    # customer user watching the ticket, never receives an internal note (or
+    # anything the ticket pages would no longer show them).
+    from .visibility import user_can_see_comment
     watchers = TicketWatcher.objects.filter(ticket=ticket).exclude(user=actor).select_related('user')
-    recipients = [w.user.email for w in watchers if w.user.email]
+    recipients = [w.user.email for w in watchers
+                  if w.user.email and user_can_see_comment(w.user, ticket, comment)]
     if not recipients:
         return 0
 
@@ -2078,6 +2191,7 @@ def ticket_cc_update(request, ticket_number):
     from .ticket_secure import parse_addresses
     _staff_or_403(request)
     ticket = _scoped_ticket_for_write(request, ticket_number)
+    _require_ticket_perm(request, ticket, 'tickets_edit')
     detail_url = reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number})
     valid, invalid = parse_addresses(request.POST.get('cc') or '')
     if invalid:
@@ -2250,7 +2364,11 @@ def canned_reply_edit(request, pk):
 def timer_start(request, ticket_number):
     """Start a running timer for the current user on this ticket. Idempotent
     — if a running timer already exists, it's returned unchanged."""
+    # Time is technician working data (customers never see it on the
+    # ticket); a customer user must not log billable time on their tickets.
+    _staff_or_403(request)
     ticket = _scoped_ticket_for_write(request, ticket_number)
+    _require_ticket_perm(request, ticket, 'tickets_edit')
     existing = TicketTimeEntry.objects.filter(
         ticket=ticket, user=request.user, ended_at__isnull=True,
     ).first()
@@ -2281,6 +2399,7 @@ def timer_start(request, ticket_number):
 @require_http_methods(['POST'])
 def timer_stop(request, ticket_number):
     """Stop the user's running timer on this ticket and finalise duration."""
+    _staff_or_403(request)
     ticket = _scoped_ticket_for_write(request, ticket_number)
     entry = TicketTimeEntry.objects.filter(
         ticket=ticket, user=request.user, ended_at__isnull=True,
@@ -2316,7 +2435,9 @@ def timer_stop(request, ticket_number):
 @require_http_methods(['POST'])
 def time_entry_manual(request, ticket_number):
     """Add a manual time entry (e.g. for offline work). POST: minutes, is_billable, notes."""
+    _staff_or_403(request)
     ticket = _scoped_ticket_for_write(request, ticket_number)
+    _require_ticket_perm(request, ticket, 'tickets_edit')
     try:
         minutes = int(request.POST.get('minutes') or 0)
     except ValueError:
@@ -2788,8 +2909,10 @@ def project_detail(request, pk):
         'project_templates': templates,
         # Phase 35.2 (v3.17.549) — budget vs actuals.
         'budget': item.budget_summary(),
-        # Phase 35.3 (v3.17.553) — revenue, cost and margin.
-        'profit': item.profitability(),
+        # Phase 35.3 (v3.17.553) — revenue, cost and margin: provider cost
+        # data, so MSP staff whose role includes reports_view_financial for
+        # this customer only — never a customer user.
+        'profit': item.profitability() if _may_see_margin(request, item.organization_id) else None,
         # Phase 35.6 (v3.17.555) — what is waiting to be billed.
         'billable': item.billable_summary(),
         'billing_types': Project.BILLING_TYPES,
@@ -3244,6 +3367,15 @@ def approval_decide(request, pk):
     if decision not in {'approve', 'deny'}:
         messages.error(request, 'Pick approve or deny.')
         return redirect('psa:approval_list')
+    if (decision == 'approve' and approval.requested_by_id == request.user.pk
+            and not request.user.is_superuser):
+        # An approval is a second person's sign-off; approving your own
+        # request (expense, quote, AI action...) would make it a formality.
+        messages.error(request, 'You requested this approval, so someone else has to approve it.')
+        return redirect('psa:approval_list')
+    if approval.kind == 'action':
+        # AI actions: the AI approval capability for that customer.
+        _require_org_perm(request, approval.organization_id, 'psa_ai_approve_action')
 
     approval.decide(user=request.user, approved=(decision == 'approve'), comment=comment)
     # Phase 20 v6 (v3.17.274): the model's decide() now writes the
@@ -3540,7 +3672,8 @@ def contract_detail(request, pk):
     item = get_object_or_404(qs, pk=pk)
 
     bundle_items = item.bundle_items.all()
-    snapshot = item.profitability_snapshot()
+    # Revenue / cost / margin are the MSP's numbers (see _may_see_margin).
+    snapshot = item.profitability_snapshot() if _may_see_margin(request, item.organization_id) else None
 
     # Pull priority list so we can render the SLA-matrix preview with
     # human labels alongside any per-priority overrides.
@@ -3559,12 +3692,15 @@ def contract_detail(request, pk):
 @login_required
 @require_psa_enabled
 def email_config_list(request):
+    from accounts.permission_utils import filter_by_org_perm
     org = get_request_organization(request)
     qs = EmailIngestionConfig.objects.select_related('default_queue', 'default_priority', 'default_type')
     if org is not None:
         qs = qs.filter(organization=org)
     elif not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         qs = qs.none()
+    # Mailbox connections are integration settings.
+    qs = filter_by_org_perm(qs, request.user, 'integrations_view')
     return render(request, 'psa/email_config_list.html', {
         'configs': qs.order_by('name')[:100],
     })
@@ -3580,6 +3716,7 @@ def email_config_form(request, pk=None):
     if pk:
         item = get_object_or_404(_for_customer(request, EmailIngestionConfig.objects.all()), pk=pk)
         org = item.organization
+        _require_org_perm(request, item.organization_id, 'integrations_configure')
     else:
         item = None
         org = get_request_organization(request)
@@ -3589,8 +3726,11 @@ def email_config_form(request, pk=None):
     types = TicketType.objects.all()
     client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
     # Issue #142 — M365 Graph mailbox source reuses an existing M365 connection's
-    # app-registration credentials.
-    m365_connections = M365Connection.objects.filter(is_active=True).select_related(
+    # app-registration credentials. Only connections the user may configure:
+    # a connection's app registration can read and send as any mailbox in
+    # its tenant, so offering another customer's (or the MSP's own) would let
+    # a mailbox config read that tenant's mail into tickets here.
+    m365_connections = _usable_m365_connections(request).select_related(
         'organization').order_by('organization__name', 'name')
 
     def _render(selected_org_id=None):
@@ -3617,6 +3757,7 @@ def email_config_form(request, pk=None):
         if item_org is None:
             messages.error(request, 'Please choose a client for this email config.')
             return _render()
+        _require_org_perm(request, item_org, 'integrations_configure')
 
         source = (request.POST.get('source') or 'imap').strip()
         if source not in ('imap', 'graph'):
@@ -3640,8 +3781,8 @@ def email_config_form(request, pk=None):
         needs_graph = (source == 'graph') or (outbound_method == 'graph')
         if needs_graph:
             try:
-                m365_conn = M365Connection.objects.get(
-                    pk=request.POST.get('m365_connection'), is_active=True)
+                m365_conn = _usable_m365_connections(request, item_org).get(
+                    pk=request.POST.get('m365_connection'))
             except (M365Connection.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Select an active Microsoft 365 connection for Graph.')
                 return _render(selected_org_id=item_org.pk)
@@ -3716,6 +3857,7 @@ def email_graph_readiness(request, pk):
     tokens, secrets, or raw auth headers — only Graph error messages."""
     from django.http import JsonResponse
     config = get_object_or_404(_for_customer(request, EmailIngestionConfig.objects.all()), pk=pk)
+    _require_org_perm(request, config.organization_id, 'integrations_configure')
     conn = config.m365_connection
     result = {
         'connection_active': bool(conn and conn.is_active),
@@ -3776,6 +3918,7 @@ def email_graph_test_send(request, pk):
     from django.utils import timezone
     import json
     config = get_object_or_404(_for_customer(request, EmailIngestionConfig.objects.all()), pk=pk)
+    _require_org_perm(request, config.organization_id, 'integrations_configure')
 
     try:
         data = json.loads(request.body or '{}')
@@ -3862,9 +4005,11 @@ def quote_list(request):
 @require_http_methods(['GET', 'POST'])
 def quote_form(request, pk=None):
     from core.models import Organization, SystemSetting
+    _require_quote_writer(request)
     if pk:
         item = get_object_or_404(_for_customer(request, Quote.objects.all()), pk=pk)
         org = item.organization
+        _require_org_perm(request, item.organization_id, 'crm_manage_pipeline')
         if item.is_signature_locked:
             # The signature is bound to this exact content (lines, totals,
             # terms): changing it would make the signature describe a quote
@@ -3905,6 +4050,7 @@ def quote_form(request, pk=None):
         if item_org is None:
             messages.error(request, 'Please choose a client for this quote.')
             return _render()
+        _require_org_perm(request, item_org, 'crm_manage_pipeline')
 
         # On an edit, a POST that does not carry the title or client keeps
         # the saved ones; posting either blank is still refused.
@@ -3987,11 +4133,13 @@ def quote_form(request, pk=None):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def quote_accept(request, pk):
+    _require_quote_writer(request)
     org = get_request_organization(request)
     qs = Quote.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
     item = get_object_or_404(qs, pk=pk)
+    _require_org_perm(request, item.organization_id, 'crm_manage_pipeline')
     # Phase 20 v7 (v3.17.275): block acceptance while approvals are open.
     if item.has_open_approvals:
         messages.error(
@@ -4093,11 +4241,13 @@ def quote_send_for_approval(request, pk):
                    Empty / 0 means single stage regardless of total.
     """
     from core.models import SystemSetting
+    _require_quote_writer(request)
     org = get_request_organization(request)
     qs = Quote.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
     item = get_object_or_404(qs, pk=pk)
+    _require_org_perm(request, item.organization_id, 'crm_manage_pipeline')
 
     threshold_raw = (request.POST.get('threshold') or '').strip()
     threshold = None
@@ -4300,6 +4450,7 @@ def project_task_delete(request, task_pk):
 def workflow_rule_list(request):
     """Workflow rules are MSP-level config — they apply to ANY ticket. No
     client filter, even when a client is currently in scope."""
+    _staff_or_403(request)  # MSP-wide automation: technicians only
     from .models import WorkflowRule
     qs = WorkflowRule.objects.select_related('organization').order_by('sort_order', 'name')
     return render(request, 'psa/workflow_rule_list.html', {
@@ -4312,6 +4463,8 @@ def workflow_rule_list(request):
 def workflow_template_list(request):
     """Phase 14 v9 (v3.17.288): list workflow rule templates and offer
     one-click instantiation against the active org."""
+    # Lists every customer by name and creates MSP-wide rules.
+    _staff_or_403(request)
     from .models import WorkflowRuleTemplate
     from core.models import Organization
     qs = WorkflowRuleTemplate.objects.order_by('category', 'name')
@@ -4332,6 +4485,9 @@ def workflow_template_instantiate(request, pk):
     specific client; blank = MSP-wide."""
     from .models import WorkflowRuleTemplate
     from core.models import Organization
+    # @require_admin alone let a customer's Owner/Admin (admin of their own
+    # selected organization) create a rule for every customer's tickets.
+    _staff_or_403(request)
     template = get_object_or_404(WorkflowRuleTemplate, pk=pk)
 
     org = None
@@ -4398,6 +4554,7 @@ def workflow_suggestion_decide(request, pk):
     if not getattr(ss, 'psa_ai_enabled', False):
         messages.error(request, 'AI features are disabled in System Settings.')
         return redirect('psa:workflow_suggestion_list')
+    _staff_or_403(request)
     s = get_scoped_object_or_404(WorkflowSuggestion, request, pk=pk)
     from psa_ai.permissions import has_capability
     if not has_capability(request.user, s.organization, 'create_workflow'):
@@ -4441,6 +4598,9 @@ def workflow_rule_form(request, pk=None):
     from core.models import Organization
     from . import workflow_graph
     import json as _json
+    # Rules run on every customer's tickets; a customer admin (who passes
+    # @require_admin for their own organization) must not write them.
+    _staff_or_403(request)
     item = get_object_or_404(WorkflowRule, pk=pk) if pk else None
 
     if request.method == 'POST':
@@ -4561,6 +4721,7 @@ def workflow_rule_flow(request, pk=None):
     """Phase 14: the visual flow of one rule (pk) or of every rule, with
     the rules each one chains to drawn inline and problems (missing
     targets, loops) flagged."""
+    _staff_or_403(request)
     from .models import WorkflowRule
     from . import workflow_graph
     if pk:
@@ -4584,6 +4745,7 @@ def workflow_rule_flow(request, pk=None):
 @require_http_methods(['POST'])
 def workflow_rule_delete(request, pk):
     from .models import WorkflowRule
+    _staff_or_403(request)
     org = get_request_organization(request)
     qs = WorkflowRule.objects.all()
     if org is not None:
@@ -4795,7 +4957,11 @@ def dispatch_board(request):
         not yet overdue. Surfaced above the grid alongside `overdue`.
       - All cells (assigned, unassigned-by-day, overdue, sla_burn) are
         sorted by priority + SLA proximity instead of creation order.
+
+    Technicians only: it lists every ticket of the customer (internal ones
+    too) and the technicians' workload.
     """
+    _staff_or_403(request)
     from datetime import date, timedelta
 
     org = get_request_organization(request)
@@ -5407,6 +5573,11 @@ def invoice_from_ticket(request, ticket_number):
     if org is not None:
         qs = qs.filter(organization=org)
     ticket = get_object_or_404(qs, ticket_number=ticket_number)
+    # Same flag as creating an invoice by hand (invoice_form); this path
+    # checked none, so any write role could raise invoices.
+    _require_org_perm(request, ticket.organization_id, 'billing_send_invoices')
+    if org is not None and org.pk != ticket.organization_id:
+        _require_org_perm(request, org, 'billing_send_invoices')
 
     with transaction.atomic():
         # Serialise concurrent clicks on the same ticket so both cannot read
@@ -5493,7 +5664,8 @@ def invoice_approve(request, pk):
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    item = get_object_or_404(qs, pk=pk)
+    item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    _require_invoice_flag(request, item, 'billing_send_invoices')
     if not item.requires_approval:
         messages.info(request, f'Invoice {item.invoice_number} does not require approval.')
         return redirect('psa:invoice_detail', pk=item.pk)
@@ -5532,6 +5704,7 @@ def billing_review(request):
     from . import billing_review as br
     if not (request.user.is_superuser or is_msp_staff(request.user)):
         raise Http404
+    _require_org_perm(request, get_request_organization(request), 'billing_view_invoices')
     start, end = br.parse_cycle(request.GET.get('period'))
     rows = br.build_rows(br.contracts_for_cycle(_billing_review_contracts(request), start, end), start, end)
     state = request.GET.get('state') or ''
@@ -5561,6 +5734,7 @@ def billing_review_decide(request, pk):
     contract_ids = _billing_review_contracts(request).values_list('pk', flat=True)
     invoice = get_object_or_404(Invoice.objects.filter(source_contract_id__in=contract_ids,
                                                        is_credit_memo=False), pk=pk)
+    _require_invoice_flag(request, invoice, 'billing_send_invoices')
     decision = request.POST.get('decision') or ''
     note = (request.POST.get('note') or '').strip()[:150]
     if invoice.status != 'draft':
@@ -5604,7 +5778,8 @@ def invoice_request_approval(request, pk):
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    item = get_object_or_404(qs, pk=pk)
+    item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    _require_invoice_flag(request, item, 'billing_send_invoices')
     reason = (request.POST.get('reason') or 'Manual hold').strip()[:200]
     item.requires_approval = True
     item.approval_reason = reason
@@ -5644,7 +5819,8 @@ def invoice_credit_memo(request, pk):
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs, pk=pk)
+    invoice = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    _require_invoice_flag(request, invoice, 'billing_send_invoices')
 
     reason = (request.POST.get('reason') or '').strip()[:500]
     amount_raw = (request.POST.get('amount') or '').strip()
@@ -5690,7 +5866,8 @@ def invoice_push_to_accounting(request, pk):
     qs = Invoice.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    invoice = get_object_or_404(qs, pk=pk)
+    invoice = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    _require_invoice_flag(request, invoice, 'billing_send_invoices')
 
     # Phase 36 v2: block pushes when the approval gate is set.
     if invoice.requires_approval:
@@ -5820,11 +5997,13 @@ def invoice_pdf(request, pk):
 @require_http_methods(['POST'])
 def quote_email(request, pk):
     from .pdf import email_quote
+    _require_quote_writer(request)
     org = get_request_organization(request)
     qs = Quote.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
     quote = get_object_or_404(qs.select_related('client_org', 'organization'), pk=pk)
+    _require_org_perm(request, quote.organization_id, 'crm_manage_pipeline')
     recipient = (request.POST.get('recipient') or '').strip()
     subject = (request.POST.get('subject') or '').strip()
     body = (request.POST.get('body') or '').strip()
@@ -6042,6 +6221,9 @@ def charge_add(request, org_id):
     from datetime import date as _date
     org = get_request_organization(request)
     client = get_object_or_404(_customer_orgs(request), pk=org_id)
+    # Charges become invoice lines: the invoice-writing flag, which this
+    # path never checked.
+    _require_org_perm(request, client, 'billing_send_invoices')
 
     description = (request.POST.get('description') or '').strip()
     if not description:
@@ -6092,6 +6274,7 @@ def charge_invoice(request, org_id):
     from datetime import date as _date
     org = get_request_organization(request)
     client = get_object_or_404(_customer_orgs(request), pk=org_id)
+    _require_org_perm(request, client, 'billing_send_invoices')
     qs = Charge.objects.filter(client_org=client, invoiced=False)
     if org is not None:
         qs = qs.filter(organization=org)
@@ -6135,13 +6318,25 @@ def aging_report(request):
     bucketed by 0-30 / 31-60 / 61-90 / 90+ days past due_date."""
     from .models import Invoice, get_psa_balance
     from core.models import Organization
+    from accounts.permission_utils import orgs_with_perm
     org = get_request_organization(request)
+    # AR aging had no permission check: any signed-in user (a customer user
+    # included) read it. It needs billing_view_aging, and lists only the
+    # customers the user holds it for (customer users: their own).
+    allowed = orgs_with_perm(request.user, 'billing_view_aging')
+    if allowed is not None and not allowed:
+        raise PermissionDenied("You don't have the 'billing_view_aging' permission.")
 
     # Find every client that has at least one non-void invoice
     client_ids = Invoice.objects.exclude(status='void').values_list('client_org', flat=True)
     if org is not None:
         client_ids = Invoice.objects.filter(organization=org).exclude(status='void').values_list('client_org', flat=True)
-    client_ids = list(set(client_ids))
+    client_ids = set(client_ids)
+    if allowed is not None:
+        client_ids &= allowed
+    if not _is_msp_staff(request):
+        client_ids &= set(_member_org_ids(request))
+    client_ids = list(client_ids)
     rows = []
     totals = {'outstanding': 0, '0_30': 0, '31_60': 0, '61_90': 0, '90_plus': 0,
               'credit_total': 0, 'invoice_credits': 0, 'net_balance': 0}
@@ -6285,26 +6480,55 @@ def portal_invite(request, org_id):
             messages.info(request, f'Enabled the customer portal for {org.name}.')
 
         first, _, last = full_name.partition(' ')
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={'username': email[:150], 'first_name': first[:30],
-                      'last_name': last[:150], 'is_active': True},
-        )
-        if created:
+        existing = User.objects.filter(email__iexact=email).order_by('pk').first()
+        if existing is not None and (
+                existing.is_superuser or existing.is_staff or is_msp_staff(existing)):
+            # A portal invite would mint a set-password link for this account
+            # (shown on screen when mail fails) and attach it to a customer:
+            # never for an MSP account.
+            messages.error(request, f'{email} belongs to an MSP staff account and cannot be '
+                                    f'invited to a customer portal.')
+            return redirect(request.path)
+        if existing is None:
+            user = User.objects.create(
+                username=email[:150], email=email, first_name=first[:30],
+                last_name=last[:150], is_active=True)
             user.set_unusable_password()
             user.save()
-        # Force username sync if the User existed but had no email match
-        if not user.username:
-            user.username = email[:150]
-            user.save(update_fields=['username'])
+        else:
+            user = existing
+        # An account that already has a password, or belongs to another
+        # customer, is added without a set-password link: the link resets the
+        # password, and handing it to whoever sent the invite would let them
+        # take over somebody else's account.
+        fresh_account = (not user.has_usable_password() and not Membership.objects.filter(
+            user=user).exclude(organization=org).exists())
 
         is_org_admin = request.POST.get('is_org_admin') == 'on'
-        Membership.objects.update_or_create(
+        membership, m_created = Membership.objects.get_or_create(
             user=user, organization=org,
             defaults={'role': Role.READONLY, 'is_active': True,
                       'is_org_admin': is_org_admin,
                       'invited_by': request.user},
         )
+        if not m_created:
+            # Re-inviting someone reactivates them; it never changes the
+            # role they already hold (it used to reset it to Read-Only).
+            membership.is_active = True
+            membership.is_org_admin = membership.is_org_admin or is_org_admin
+            membership.save(update_fields=['is_active', 'is_org_admin', 'updated_at'])
+
+        if not fresh_account:
+            AuditLog.log(
+                user=request.user, action='update', organization=org,
+                object_type='auth.User', object_id=user.pk,
+                object_repr=f'portal user {email}',
+                description=f'Added existing account {email} to {org.name} portal (no password link)',
+                ip_address=_client_ip(request), path=request.path,
+            )
+            messages.success(request, f'{email} already has an account; they can sign in at '
+                                      f'{request.build_absolute_uri("/portal/")} to reach {org.name}.')
+            return redirect('psa:client_account', org_id=org.pk)
 
         # Build one-time password-set link
         uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -6438,6 +6662,7 @@ def dispatch_heatmap(request):
     Tenant scope: same as ``dispatch_board`` — current org only, all
     tickets when superuser/staff in global view.
     """
+    _staff_or_403(request)  # technician workload; never shown to customers
     from datetime import date, timedelta
     from psa.visibility import is_msp_staff
 
@@ -6509,6 +6734,23 @@ def dispatch_heatmap(request):
 from accounts.permission_utils import require_perm, user_has_perm  # noqa: E402
 
 
+def _msp_staff_only(view_fn):
+    """Procurement is the MSP's purchasing: requisitions, purchase orders,
+    vendors and receiving carry vendor costs (the MSP's cost of what it sells
+    on). Customer users never reach it, whatever their role's procurement_*
+    flags say; customer roles granted procurement_view and
+    procurement_create_pr by default, so until this a customer user could
+    read their purchase orders' unit costs."""
+    from functools import wraps
+
+    @wraps(view_fn)
+    def _wrapped(request, *args, **kwargs):
+        _staff_or_403(request)
+        return view_fn(request, *args, **kwargs)
+    return _wrapped
+
+
+
 def _procurement_save_lines(item, line_model, request):
     """Replace line_items on a PR/PO from POSTed lists.
 
@@ -6560,6 +6802,7 @@ def _procurement_save_lines(item, line_model, request):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def requisition_list(request):
     from .models import PurchaseRequisition
@@ -6595,6 +6838,7 @@ def requisition_list(request):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def requisition_detail(request, pk):
     from .models import PurchaseRequisition
@@ -6617,6 +6861,7 @@ def requisition_detail(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_create_pr')
 @require_http_methods(['GET', 'POST'])
 def requisition_form(request, pk=None):
@@ -6717,6 +6962,7 @@ def requisition_form(request, pk=None):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_create_pr')
 @require_http_methods(['POST'])
 def requisition_submit(request, pk):
@@ -6745,6 +6991,7 @@ def requisition_submit(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_approve_pr')
 @require_http_methods(['POST'])
 def requisition_decide(request, pk):
@@ -6787,6 +7034,7 @@ def requisition_decide(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_http_methods(['POST'])
 def requisition_to_po(request, pk):
     """Convert an approved PR into a draft PO with the same line items.
@@ -6862,6 +7110,7 @@ def requisition_to_po(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def po_list(request):
     from .models import PurchaseOrder
@@ -6882,6 +7131,7 @@ def po_list(request):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def po_detail(request, pk):
     from .models import PurchaseOrder
@@ -6906,6 +7156,7 @@ def po_detail(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_create_po')
 @require_http_methods(['GET', 'POST'])
 def po_form(request, pk=None):
@@ -7053,6 +7304,7 @@ def po_form(request, pk=None):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def po_pdf(request, pk):
     from django.http import HttpResponse
@@ -7074,6 +7326,7 @@ def po_pdf(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_send_po')
 @require_http_methods(['POST'])
 def po_send(request, pk):
@@ -7175,6 +7428,7 @@ def _maybe_create_assets_from_serials(line, serials, receipt, user):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 @require_http_methods(['GET', 'POST'])
 def po_receive(request, pk):
@@ -7295,6 +7549,7 @@ def po_receive(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def back_order_list(request):
     from .models import POBackOrder
@@ -7317,6 +7572,7 @@ def back_order_list(request):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_create_po')
 @require_http_methods(['POST'])
 def back_order_cancel(request, pk):
@@ -7353,6 +7609,7 @@ def back_order_cancel(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def vendor_list(request):
     """List all procurement vendors with key metadata + open POs counts."""
@@ -7388,6 +7645,7 @@ def vendor_list(request):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_view')
 def vendor_detail(request, pk):
     """Vendor detail: metadata header, open POs, recent POs, 90d spend."""
@@ -7424,6 +7682,7 @@ def vendor_detail(request, pk):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_create_po')
 @require_http_methods(['GET', 'POST'])
 def vendor_form(request, pk=None):
@@ -7507,6 +7766,7 @@ def vendor_form(request, pk=None):
 
 @login_required
 @require_psa_enabled
+@_msp_staff_only
 @require_perm('procurement_create_po')
 def quote_to_po(request, pk):
     """
@@ -7674,6 +7934,7 @@ def change_request_detail(request, ticket_number):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied("You don't have the 'change_view' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_view')
     user_is_required_approver = cr.required_approvers.filter(pk=request.user.pk).exists()
     user_vote = cr.cab_votes.filter(user=request.user).first()
     return render(request, 'psa/change_request_detail.html', {
@@ -7704,6 +7965,7 @@ def change_request_form(request, ticket_number):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied("You don't have the 'change_create' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_create')
     if cr.implementation_status not in {'draft', 'rejected'}:
         messages.error(request, f'Cannot edit — change is {cr.get_implementation_status_display()}.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
@@ -7763,6 +8025,7 @@ def change_request_submit(request, ticket_number):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied("You don't have the 'change_create' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_create')
     if cr.implementation_status not in {'draft', 'rejected'}:
         messages.error(request, f'Cannot submit — change is {cr.get_implementation_status_display()}.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
@@ -7801,6 +8064,7 @@ def change_request_vote(request, ticket_number):
     if not user_has_perm(request.user, 'change_approve_cab'):
         raise PermissionDenied("You don't have the 'change_approve_cab' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_approve_cab')
     if not cr.required_approvers.filter(pk=request.user.pk).exists():
         raise PermissionDenied('You are not a required approver for this change.')
     if cr.implementation_status not in {'pending_cab', 'approved', 'rejected'}:
@@ -7852,6 +8116,7 @@ def change_request_implement(request, ticket_number):
     if not user_has_perm(request.user, 'change_implement'):
         raise PermissionDenied("You don't have the 'change_implement' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_implement')
     if not cr.can_implement():
         messages.error(request, 'Change is not yet approved by all CAB members.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
@@ -7891,6 +8156,7 @@ def change_request_verify(request, ticket_number):
     if not user_has_perm(request.user, 'change_implement'):
         raise PermissionDenied("You don't have the 'change_implement' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_implement')
     if cr.implementation_status != 'implementing':
         messages.error(request, 'Change must be in Implementing state to verify.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
@@ -7953,6 +8219,7 @@ def change_request_fail(request, ticket_number):
     if not user_has_perm(request.user, 'change_implement'):
         raise PermissionDenied("You don't have the 'change_implement' permission.")
     ticket, cr = _get_change_for_ticket(request, ticket_number)
+    _require_org_perm(request, cr.organization_id, 'change_implement')
     if cr.implementation_status != 'implementing':
         messages.error(request, 'Change must be in Implementing state to fail.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
@@ -8094,6 +8361,7 @@ def problem_form(request, pk=None):
     problem = None
     if is_edit:
         problem = get_object_or_404(_scoped_problem_qs(request), pk=pk)
+        _require_org_perm(request, problem.organization_id, 'problem_create')
 
     if request.method == 'POST':
         title = (request.POST.get('title') or '').strip()
@@ -8266,6 +8534,7 @@ def problem_detail(request, pk):
     if not user_has_perm(request.user, 'problem_view'):
         raise PermissionDenied("You don't have the 'problem_view' permission.")
     problem = get_object_or_404(_scoped_problem_qs(request), pk=pk)
+    _require_org_perm(request, problem.organization_id, 'problem_view')
     notes = problem.notes.select_related('user').order_by('-created_at')[:100]
     related_tickets = problem.related_tickets.select_related(
         'organization', 'status', 'priority', 'assigned_to'
@@ -8292,6 +8561,7 @@ def problem_link_ticket(request, pk):
     if not user_has_perm(request.user, 'problem_create'):
         raise PermissionDenied("You don't have the 'problem_create' permission.")
     problem = get_object_or_404(_scoped_problem_qs(request), pk=pk)
+    _require_org_perm(request, problem.organization_id, 'problem_create')
     ticket_number = (request.POST.get('ticket_number') or '').strip()
     if not ticket_number:
         messages.error(request, 'Ticket number is required.')
@@ -8332,6 +8602,7 @@ def problem_unlink_ticket(request, pk, ticket_pk):
     if not user_has_perm(request.user, 'problem_create'):
         raise PermissionDenied("You don't have the 'problem_create' permission.")
     problem = get_object_or_404(_scoped_problem_qs(request), pk=pk)
+    _require_org_perm(request, problem.organization_id, 'problem_create')
     ticket = problem.related_tickets.filter(pk=ticket_pk).first()
     if not ticket:
         messages.info(request, 'That ticket is not linked.')
@@ -8361,6 +8632,7 @@ def problem_add_note(request, pk):
     if not user_has_perm(request.user, 'problem_create'):
         raise PermissionDenied("You don't have the 'problem_create' permission.")
     problem = get_object_or_404(_scoped_problem_qs(request), pk=pk)
+    _require_org_perm(request, problem.organization_id, 'problem_create')
     body = (request.POST.get('body') or '').strip()
     is_breakthrough = (request.POST.get('is_breakthrough') or '').lower() in ('on', '1', 'true', 'yes')
     if not body:
@@ -8394,6 +8666,7 @@ def problem_advance_status(request, pk):
     if not user_has_perm(request.user, 'problem_resolve'):
         raise PermissionDenied("You don't have the 'problem_resolve' permission.")
     problem = get_object_or_404(_scoped_problem_qs(request), pk=pk)
+    _require_org_perm(request, problem.organization_id, 'problem_resolve')
     new_status = (request.POST.get('status') or '').strip()
     valid = {s for s, _ in Problem.STATUS_CHOICES}
     if new_status not in valid:
@@ -8502,6 +8775,7 @@ def release_form(request, pk=None):
     release = None
     if is_edit:
         release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+        _require_org_perm(request, release.organization_id, 'release_manage')
         if release.is_frozen or release.status in {'completed', 'rolled_back', 'cancelled'}:
             messages.error(request, f'Cannot edit — release is {release.get_status_display()}.')
             return redirect('psa:release_detail', pk=release.pk)
@@ -8609,6 +8883,7 @@ def release_detail(request, pk):
     if not user_has_perm(request.user, 'release_view'):
         raise PermissionDenied("You don't have the 'release_view' permission.")
     release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+    _require_org_perm(request, release.organization_id, 'release_view')
     bundled_changes = release.changes.select_related(
         'organization', 'ticket', 'ticket__ticket_type', 'ticket__status',
     ).order_by('-created_at')
@@ -8637,6 +8912,7 @@ def release_add_change(request, pk):
     if not user_has_perm(request.user, 'release_manage'):
         raise PermissionDenied("You don't have the 'release_manage' permission.")
     release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+    _require_org_perm(request, release.organization_id, 'release_manage')
     if release.is_frozen or release.status in {'completed', 'rolled_back', 'cancelled'}:
         messages.error(request, f'Cannot add changes — release is {release.get_status_display()}.')
         return redirect('psa:release_detail', pk=release.pk)
@@ -8688,6 +8964,7 @@ def release_remove_change(request, pk, change_pk):
     if not user_has_perm(request.user, 'release_manage'):
         raise PermissionDenied("You don't have the 'release_manage' permission.")
     release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+    _require_org_perm(request, release.organization_id, 'release_manage')
     if release.is_frozen or release.status in {'completed', 'rolled_back', 'cancelled'}:
         messages.error(request, f'Cannot remove changes — release is {release.get_status_display()}.')
         return redirect('psa:release_detail', pk=release.pk)
@@ -8719,6 +8996,7 @@ def release_freeze(request, pk):
     if not user_has_perm(request.user, 'release_freeze'):
         raise PermissionDenied("You don't have the 'release_freeze' permission.")
     release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+    _require_org_perm(request, release.organization_id, 'release_freeze')
     if not release.can_advance_to('frozen'):
         messages.error(
             request,
@@ -8753,6 +9031,7 @@ def release_complete(request, pk):
     if not user_has_perm(request.user, 'release_freeze'):
         raise PermissionDenied("You don't have the 'release_freeze' permission.")
     release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+    _require_org_perm(request, release.organization_id, 'release_freeze')
     if not release.can_advance_to('completed'):
         messages.error(
             request,
@@ -8785,6 +9064,7 @@ def release_rollback(request, pk):
     if not user_has_perm(request.user, 'release_freeze'):
         raise PermissionDenied("You don't have the 'release_freeze' permission.")
     release = get_object_or_404(_scoped_release_qs(request), pk=pk)
+    _require_org_perm(request, release.organization_id, 'release_freeze')
     if release.status in {'completed', 'rolled_back', 'cancelled'}:
         messages.error(
             request,
@@ -8851,6 +9131,9 @@ def catalog_propose_change(request, pk):
     from accounts.permission_utils import user_has_perm
     from django.core.exceptions import PermissionDenied
     from .models import ServiceCatalogChange
+    # The catalog is MSP-wide configuration (its editor is staff-only); a
+    # customer role's catalog_* flags never reach it.
+    _catalog_admin_or_404(request)
     if not user_has_perm(request.user, 'catalog_propose_change'):
         raise PermissionDenied("You don't have the 'catalog_propose_change' permission.")
     item = get_object_or_404(ServiceCatalogItem, pk=pk)
@@ -8933,6 +9216,7 @@ def catalog_change_list(request):
     from accounts.permission_utils import user_has_perm
     from django.core.exceptions import PermissionDenied
     from .models import ServiceCatalogChange
+    _catalog_admin_or_404(request)
     if not user_has_perm(request.user, 'catalog_propose_change') \
             and not user_has_perm(request.user, 'catalog_approve_change'):
         raise PermissionDenied("You need catalog_propose_change or catalog_approve_change.")
@@ -8960,6 +9244,9 @@ def catalog_change_decide(request, pk):
     from accounts.permission_utils import user_has_perm
     from django.core.exceptions import PermissionDenied
     from .models import ServiceCatalogChange
+    # A customer Owner/Admin role grants catalog_approve_change, and this
+    # publishes into the catalog every customer sees: MSP staff only.
+    _catalog_admin_or_404(request)
     if not user_has_perm(request.user, 'catalog_approve_change'):
         raise PermissionDenied("You don't have the 'catalog_approve_change' permission.")
     change = get_object_or_404(
@@ -8972,6 +9259,10 @@ def catalog_change_decide(request, pk):
             return redirect('psa:catalog_change_list')
         action = (request.POST.get('action') or '').strip().lower()
         note = (request.POST.get('note') or '').strip()
+        if (action == 'approve' and change.proposed_by_id == request.user.pk
+                and not request.user.is_superuser):
+            messages.error(request, 'You proposed this change, so someone else has to approve it.')
+            return redirect('psa:catalog_change_list')
         if action == 'approve':
             change.decision_note = note
             change.apply(decided_by=request.user)
@@ -9190,8 +9481,12 @@ def ticket_partner_webhook(request, share_pk):
     raw_body = request.body or b''
     raw_body = raw_body[:128 * 1024]  # cap
     sig_header = request.headers.get('X-CST0R-Signature') or request.META.get('HTTP_X_CST0R_SIGNATURE') or ''
-    expected = _phase7_sign(share.partner_org.partner_secret or '', raw_body)
-    if not (sig_header and _phase7_hmac.compare_digest(sig_header, expected)):
+    secret = share.partner_org.partner_secret or ''
+    expected = _phase7_sign(secret, raw_body)
+    # No secret means no way to authenticate the partner: an HMAC keyed with
+    # the empty string is one anybody can compute. A recalled or declined share is closed.
+    if (not secret or share.status in ('recalled', 'declined')
+            or not (sig_header and _phase7_hmac.compare_digest(sig_header, expected))):
         AuditLog.log(
             user=None, action='access_denied', organization=share.ticket.organization,
             object_type='psa.TicketShare', object_id=share.pk,
@@ -9454,8 +9749,7 @@ def my_timesheet(request, year=None, week=None):
 def timesheet_approval_queue(request):
     """Staff queue of pending TimesheetSubmissions to approve/reject."""
     from .models import TimesheetSubmission
-    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
-    if not (request.user.is_superuser or is_staff):
+    if not _may_approve_timesheets(request):
         messages.error(request, 'Only staff/superuser can review timesheets.')
         return redirect('core:dashboard')
     pending = (TimesheetSubmission.objects.filter(status='pending')
@@ -9497,11 +9791,13 @@ def timesheet_approval_queue(request):
 def timesheet_decide(request, pk):
     """Staff approve / reject a TimesheetSubmission."""
     from .models import TimesheetSubmission
-    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
-    if not (request.user.is_superuser or is_staff):
+    if not _may_approve_timesheets(request):
         messages.error(request, 'Only staff can decide timesheets.')
         return redirect('core:dashboard')
     submission = get_object_or_404(TimesheetSubmission, pk=pk, status='pending')
+    if submission.user_id == request.user.pk and not request.user.is_superuser:
+        messages.error(request, 'Your own timesheet has to be decided by someone else.')
+        return redirect('psa:timesheet_approval_queue')
     decision = request.POST.get('decision') or ''
     notes = (request.POST.get('notes') or '').strip()[:5000]
     # Per-entry returns: `return_entry_ids` (multi) with `return_reason_<id>`
@@ -9554,8 +9850,7 @@ def timesheet_bulk_decide(request):
     Staff/superuser only.
     """
     from .models import TimesheetSubmission
-    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
-    if not (request.user.is_superuser or is_staff):
+    if not _may_approve_timesheets(request):
         messages.error(request, 'Only staff can decide timesheets.')
         return redirect('core:dashboard')
     decision = request.POST.get('decision') or ''
@@ -9564,6 +9859,8 @@ def timesheet_bulk_decide(request):
         return redirect('psa:timesheet_approval_queue')
     ids = request.POST.getlist('submission_ids')
     qs = TimesheetSubmission.objects.filter(pk__in=ids, status='pending')
+    if not request.user.is_superuser:
+        qs = qs.exclude(user=request.user)  # never your own (see timesheet_decide)
     notes = (request.POST.get('notes') or '').strip()[:5000]
     n = 0
     for sub in qs:
@@ -9578,6 +9875,19 @@ def timesheet_bulk_decide(request):
     else:
         messages.info(request, 'No pending submissions matched.')
     return redirect('psa:timesheet_approval_queue')
+
+
+def _may_approve_timesheets(request):
+    """Timesheet review: superusers, and MSP staff whose role holds the
+    approval flag everywhere. There is no timesheet flag yet; the closest is
+    resourcing_approve_leave (NEEDED_PERMISSIONS: timesheets_approve). Staff
+    without a global role keep the access they had."""
+    if request.user.is_superuser:
+        return True
+    if not getattr(request, 'is_staff_user', False):
+        return False
+    from accounts.permission_utils import orgs_with_perm
+    return orgs_with_perm(request.user, 'resourcing_approve_leave') is None
 
 
 def _can_see_time_entry_history(user, entry, request):
@@ -9670,6 +9980,11 @@ def timesheet_payroll_export(request):
     if not (request.user.is_superuser or is_staff):
         messages.error(request, 'Only staff can export payroll.')
         return redirect('core:dashboard')
+    # Every technician's hours: the team-view flag (MSP staff without a
+    # global role keep it, as before).
+    from accounts.permission_utils import orgs_with_perm
+    if orgs_with_perm(request.user, 'resourcing_view_team') is not None:
+        raise PermissionDenied("You don't have the 'resourcing_view_team' permission.")
 
     today = _date.today()
     try:
@@ -9985,6 +10300,7 @@ def project_task_to_ticket(request, task_pk):
 
     if request.method != 'POST':
         return redirect('psa:project_detail', pk=task.project_id)
+    _require_org_perm(request, task.project.organization_id, 'tickets_create')
 
     # One ticket per task. A second would split the time entries across two
     # records and quietly break the project's actual-hours figure.
@@ -10233,7 +10549,8 @@ def project_generate_invoice(request, pk):
     qs = Project.objects.all()
     if org is not None:
         qs = qs.filter(organization=org)
-    project = get_object_or_404(qs, pk=pk)
+    project = get_object_or_404(_for_customer(request, qs), pk=pk)
+    _require_org_perm(request, project.client_org_id or project.organization_id, 'billing_send_invoices')
 
     if request.method != 'POST':
         return redirect('psa:project_detail', pk=project.pk)

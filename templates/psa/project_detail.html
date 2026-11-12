@@ -84,7 +84,9 @@
             </div>
         </div>
 
-        {# Phase 35.3 (v3.17.553) — revenue, cost, margin. #}
+        {# Phase 35.3 (v3.17.553) — revenue, cost, margin. Provider cost data:
+           the view sends `profit` only to people allowed to see it. #}
+        {% if profit %}
         <div class="card mb-3">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">
                 <strong>Profitability</strong>
@@ -140,6 +142,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         {# Phase 35.2 (v3.17.549) — budget vs actuals. #}
         {% if budget.state != 'no_budget' %}

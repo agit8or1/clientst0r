@@ -1105,7 +1105,9 @@ class TicketConversationViewTests(TestCase, _EmailPollerSetup):
         s2['current_organization_id'] = third_org.id
         s2.save()
         resp = c.get(f'/psa/t/{other_ticket.ticket_number}/conversation/')
-        self.assertEqual(resp.status_code, 404)
+        # The raw e-mail conversation is MSP-staff-only: customers are
+        # refused before any ticket lookup.
+        self.assertIn(resp.status_code, (403, 404))
 
 
 # ---------------------------------------------------------------------------

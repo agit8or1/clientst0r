@@ -117,6 +117,7 @@
 </div>
 
 {# Profitability snapshot #}
+{% if snapshot %}
 <div class="card mt-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
         <strong><i class="fas fa-chart-line me-1"></i>Profitability snapshot</strong>
@@ -151,6 +152,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 {# Bundle items (read-only) #}
 <div class="card mt-3">

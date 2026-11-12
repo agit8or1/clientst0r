@@ -117,8 +117,9 @@ class ProcurementWorkflowTests(TestCase):
             procurement_approve_pr=True, procurement_create_po=True,
             procurement_send_po=True,
         )
-        self.approver = User.objects.create_user(
-            username='approver', password='pw', email='a@x.com')
+        # Procurement is MSP-only: these are MSP technicians.
+        self.approver = _make_msp_tech(User.objects.create_user(
+            username='approver', password='pw', email='a@x.com'))
         Membership.objects.create(
             user=self.approver, organization=self.org,
             role=Role.ADMIN, role_template=self.approver_role,
@@ -132,8 +133,9 @@ class ProcurementWorkflowTests(TestCase):
             procurement_approve_pr=False, procurement_create_po=False,
             procurement_send_po=False,
         )
-        self.tech = User.objects.create_user(
-            username='tech', password='pw', email='t@x.com')
+        # Procurement is MSP-only: these are MSP technicians.
+        self.tech = _make_msp_tech(User.objects.create_user(
+            username='tech', password='pw', email='t@x.com'))
         Membership.objects.create(
             user=self.tech, organization=self.org,
             role=Role.EDITOR, role_template=self.tech_role,
@@ -228,8 +230,9 @@ class POReceivingTests(TestCase):
             procurement_approve_pr=True, procurement_create_po=True,
             procurement_send_po=True,
         )
-        self.user = User.objects.create_user(
-            username='receiver', password='pw', email='r@x.com')
+        # Procurement is MSP-only: these are MSP technicians.
+        self.user = _make_msp_tech(User.objects.create_user(
+            username='receiver', password='pw', email='r@x.com'))
         Membership.objects.create(
             user=self.user, organization=self.org,
             role=Role.ADMIN, role_template=self.role,
@@ -525,8 +528,9 @@ class QuoteToPOTests(TestCase):
             procurement_approve_pr=True, procurement_create_po=True,
             procurement_send_po=True,
         )
-        self.creator = User.objects.create_user(
-            username='q2po_buyer', password='pw', email='c@x.com')
+        # Procurement is MSP-only: these are MSP technicians.
+        self.creator = _make_msp_tech(User.objects.create_user(
+            username='q2po_buyer', password='pw', email='c@x.com'))
         Membership.objects.create(
             user=self.creator, organization=self.org,
             role=Role.ADMIN, role_template=self.buyer_role,
@@ -540,8 +544,9 @@ class QuoteToPOTests(TestCase):
             procurement_approve_pr=False, procurement_create_po=False,
             procurement_send_po=False,
         )
-        self.tech = User.objects.create_user(
-            username='q2po_tech', password='pw', email='t@x.com')
+        # Procurement is MSP-only: these are MSP technicians.
+        self.tech = _make_msp_tech(User.objects.create_user(
+            username='q2po_tech', password='pw', email='t@x.com'))
         Membership.objects.create(
             user=self.tech, organization=self.org,
             role=Role.EDITOR, role_template=self.tech_role,

@@ -1133,7 +1133,9 @@ class Phase2cRemainderTests(TestCase):
         s = SystemSetting.get_settings(); s.psa_enabled = True; s.save()
         self.org = Organization.objects.create(name='ACME', slug='acme')
         self.alice = _make_msp_tech(User.objects.create_user('alice', password='pw', email='a@x.com'))
-        self.bob = User.objects.create_user('bob', password='pw', email='b@x.com')
+        # A technician: @mentions only reach people who can see the ticket
+        # (a customer user on an unshared ticket is skipped).
+        self.bob = _make_msp_tech(User.objects.create_user('bob', password='pw', email='b@x.com'))
         Membership.objects.update_or_create(
             user=self.alice, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},
