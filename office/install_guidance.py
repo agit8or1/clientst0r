@@ -299,3 +299,44 @@ def build(provider, mode, *, instance=None, editor_host='', app_url='', edition=
         'flows': flows, 'checklist': checklist, 'commands': commands, 'notes': notes,
         'editor_host': editor_host, 'edition': edition, 'tls': tls, 'private_ca': bool(private_ca),
     }
+
+
+MANAGED_COPY_DIR = '/root/clientst0r-office-managed'
+
+
+def managed_commands(*, app_url='', office_host='', deployment_id=''):
+    """Root setup for Managed Local ONLYOFFICE (docs/office/MANAGED_LOCAL.md).
+
+    The installer and the helper it installs as root are taken from this
+    release's signed tag into a root-owned directory, never run from the app
+    directory (the app user can write there)."""
+    base = Path(settings.BASE_DIR)
+    q = shlex.quote
+    tag = _release_tag()
+    origin = clean_origin_url(app_url) or 'https://clientst0r.example.com/'
+    host = clean_host(office_host) or 'office.example.com'
+    dep = deployment_id if re.match(r'^[a-z0-9][a-z0-9-]{1,40}$', deployment_id or '') else 'my-deployment'
+    app_user = _app_user()
+    args = ['--provider', 'onlyoffice', '--mode', 'managed-local', '--hostname', host,
+            '--clientstor-url', origin, '--deployment-id', dep, '--tls', 'existing-cert',
+            '--cert-file', f'/etc/ssl/certs/{host}.pem', '--key-file', f'/etc/ssl/private/{host}.key']
+    if app_user:
+        args += ['--app-user', app_user]
+    run_args = ' '.join(q(a) for a in args)
+    script = f'{MANAGED_COPY_DIR}/scripts/office/install-editor.sh'
+    commands = []
+    if tag:
+        commands.append((
+            "Copy the installer and the Office service helper from this release's signed tag",
+            f'git -C {q(str(base))} -c gpg.ssh.allowedSignersFile={ALLOWED_SIGNERS} verify-tag {q(tag)} '
+            f'&& sudo install -d -m 0700 {MANAGED_COPY_DIR} && git -C {q(str(base))} archive {q(tag)} '
+            f'scripts/office deploy/office-helper | sudo tar -x -C {MANAGED_COPY_DIR}'))
+    else:
+        commands.append(('Copy the installer and the Office service helper (not a release build)',
+                         f'sudo install -d -m 0700 {MANAGED_COPY_DIR} && sudo cp -r '
+                         f'{q(str(base / "scripts/office"))} {q(str(base / "deploy/office-helper"))} '
+                         f'{MANAGED_COPY_DIR}/  # then fix the layout to scripts/office + deploy/office-helper'))
+    commands.append(('Preflight only (changes nothing)', f'sudo bash {script} {run_args} --preflight-only'))
+    commands.append(('Dry run (prints every action)', f'sudo bash {script} {run_args} --dry-run'))
+    commands.append(('Set up (Docker only if absent: add --install-docker)', f'sudo bash {script} {run_args}'))
+    return commands

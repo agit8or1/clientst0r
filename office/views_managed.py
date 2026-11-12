@@ -12,6 +12,7 @@ only; document users see the editor as before.
 """
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
@@ -19,7 +20,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from . import audit, diagnostics, drain
+from . import audit, diagnostics, drain, install_guidance
 from .managed import checks as managed_checks
 from .managed import ipc, jobs
 from .managed.provision import managed_instance
@@ -53,7 +54,11 @@ def _context(service, *, status=None, preflight=None):
     instance = managed_instance()
     status = status if status is not None else (service.status or {})
     op = jobs.active()
+    conf = status.get('config') or {}
     return {
+        'setup_commands': install_guidance.managed_commands(
+            app_url=conf.get('clientstor_url') or getattr(settings, 'SITE_URL', ''),
+            office_host=conf.get('office_hostname', ''), deployment_id=conf.get('deployment_id', '')),
         'service': service, 'status': status, 'instance': instance,
         'operation': op, 'history': ManagedOfficeOperation.objects.select_related('requested_by')[:10],
         'sessions': _sessions_summary(instance), 'checks': preflight,

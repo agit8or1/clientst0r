@@ -8,6 +8,9 @@
 #
 #   install-editor.sh --provider onlyoffice|collabora-code|collabora-online
 #                     --mode same-server|separate-server
+#   install-editor.sh --mode managed-local ...  (ONLYOFFICE in a pinned Docker
+#                     container on the clientst0r server, run by clientst0r:
+#                     see install-managed-local.sh --help)
 #                     --hostname editor.example.com
 #                     --clientstor-url https://clientstor.example.com
 #                     [--clientstor-ip 192.0.2.10] [--ca-file /path/ca.pem]
@@ -122,7 +125,7 @@ say()  { printf '%s\n' "$*"; }
 info() { printf '  - %s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 p() { printf '%s%s' "$ROOT" "$1"; }
 dry() { [ "$DRY_RUN" -eq 1 ]; }
@@ -272,7 +275,7 @@ validate_install_args() {
     esac
     case "$MODE" in
         same-server|separate-server) ;;
-        "") die "--mode is required (same-server or separate-server)" ;;
+        "") die "--mode is required (same-server, separate-server or managed-local)" ;;
         *) die "Unknown --mode $MODE" ;;
     esac
     HOSTNAME_ARG="$(lower "$HOSTNAME_ARG")"
@@ -1407,6 +1410,14 @@ do_health() {
 }
 
 main() {
+    local a
+    for a in "$@"; do
+        if [ "$a" = managed-local ]; then
+            # A different install: no packages, a pinned container managed
+            # by the Office service helper (docs/office/MANAGED_LOCAL.md).
+            exec bash "$(dirname "$(realpath "$0")")/install-managed-local.sh" "$@"
+        fi
+    done
     parse_args "$@"
     case "$ACTION" in
         install) do_install ;;

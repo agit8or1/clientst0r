@@ -54,6 +54,15 @@
       {% endif %}
     </div>
 
+    <details class="card mb-4"{% if service.enabled and not service.helper_reachable %} open{% endif %}>
+      <summary class="card-header h6 mb-0">Server setup (one time, as root)</summary>
+      <div class="card-body small">
+        <p>Run these from a shell on this server as an administrator with sudo. They install Docker only when it is absent and you add <code>--install-docker</code>; an existing Docker is used as it is. Nothing is downloaded or started as a container until you click Install here.</p>
+        {% for title, cmd in setup_commands %}<p class="mb-1 fw-semibold">{{ forloop.counter }}. {{ title }}</p><pre class="border rounded p-2 text-break text-wrap">{{ cmd }}</pre>{% endfor %}
+        <p class="mb-0 text-muted">Replace the host name, certificate paths and deployment id with yours. Details, Enterprise license, private CA and removal: docs/office/MANAGED_LOCAL.md.</p>
+      </div>
+    </details>
+
     {% if service.enabled %}
     <div class="card mb-4" id="managed-progress" data-progress-url="{% url 'office:managed_progress' %}">
       <div class="card-header"><h2 class="h6 mb-0">Operation progress</h2></div>
