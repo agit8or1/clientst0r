@@ -294,7 +294,9 @@
         list.textContent = '';
         fields.forEach(function (f, i) {
             var card = el('div', {'class': 'card mb-2 rb-field' + (f.type === 'heading' ? ' border-primary' : ''), 'data-index': i});
-            var head = el('div', {'class': 'card-header d-flex align-items-center gap-2 py-1 flex-wrap'});
+            var head = el('div', {'class': 'card-header py-1 d-block'});
+            var top = el('div', {'class': 'd-flex align-items-center gap-2 flex-wrap'});
+            var tools = el('div', {'class': 'd-flex flex-wrap align-items-center gap-1 mt-1'});
             var handle = el('span', {'class': 'rb-handle text-muted', draggable: 'true', title: 'Drag to reorder', 'aria-hidden': 'true'});
             handle.appendChild(el('i', {'class': 'fas fa-grip-vertical'}));
             handle.addEventListener('dragstart', function (e) { dragFrom = i; card.classList.add('opacity-50'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); });
@@ -302,31 +304,35 @@
             card.addEventListener('dragover', function (e) { if (dragFrom !== null) { e.preventDefault(); card.classList.add('border-info'); } });
             card.addEventListener('dragleave', function () { card.classList.remove('border-info'); });
             card.addEventListener('drop', function (e) { e.preventDefault(); card.classList.remove('border-info'); if (dragFrom !== null && dragFrom !== i) move(dragFrom, i); dragFrom = null; });
-            head.appendChild(handle);
-            head.appendChild(el('span', {'class': 'badge text-bg-light border'}, typeLabel[f.type] || f.type));
-            var title = el('strong', {'class': 'rb-title flex-grow-1 text-truncate'}, f.label || (f.type === 'info' ? (f.help || '').slice(0, 60) : '(no label)'));
-            head.appendChild(title);
-            if (f.required) head.appendChild(el('span', {'class': 'badge bg-danger-subtle text-danger-emphasis'}, 'required'));
-            if (f.show_if) head.appendChild(el('span', {'class': 'badge bg-info-subtle text-info-emphasis'}, 'conditional'));
-            if (f.required_if) head.appendChild(el('span', {'class': 'badge bg-warning-subtle text-warning-emphasis'}, 'required when'));
-            head.appendChild(el('code', {'class': 'small'}, f.key));
+            top.appendChild(handle);
+            top.appendChild(el('span', {'class': 'badge text-bg-light border'}, typeLabel[f.type] || f.type));
+            var title = el('strong', {'class': 'rb-title flex-grow-1'}, f.label || (f.type === 'info' ? (f.help || '').slice(0, 60) : '(no label)'));
+            top.appendChild(title);
+            if (f.required) top.appendChild(el('span', {'class': 'badge bg-danger-subtle text-danger-emphasis'}, 'required'));
+            if (f.show_if) top.appendChild(el('span', {'class': 'badge bg-info-subtle text-info-emphasis'}, 'conditional'));
+            if (f.required_if) top.appendChild(el('span', {'class': 'badge bg-warning-subtle text-warning-emphasis'}, 'required when'));
+            tools.appendChild(el('code', {'class': 'small me-auto text-break'}, f.key));
             var up = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-secondary rb-move-up', 'aria-label': 'Move "' + (f.label || f.key) + '" up', title: 'Move up', disabled: i === 0}, '↑');
             up.addEventListener('click', function () { move(i, i - 1); });
             var dn = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-secondary rb-move-down', 'aria-label': 'Move "' + (f.label || f.key) + '" down', title: 'Move down', disabled: i === fields.length - 1}, '↓');
             dn.addEventListener('click', function () { move(i, i + 1); });
             var ed = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-primary', 'aria-expanded': open[i] ? 'true' : 'false'}, open[i] ? 'Close' : 'Edit');
             ed.addEventListener('click', function () { open[i] = !open[i]; render(); });
-            var dup = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-secondary', 'aria-label': 'Duplicate "' + (f.label || f.key) + '"', title: 'Duplicate'}, '⧉');
+            var dup = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-secondary', 'aria-label': 'Duplicate "' + (f.label || f.key) + '"', title: 'Duplicate'});
+            dup.appendChild(el('i', {'class': 'fas fa-clone', 'aria-hidden': 'true'}));
             dup.addEventListener('click', function () {
                 var c = JSON.parse(JSON.stringify(f)); c.key = slugKey(f.label || f.key); c.label = (f.label || '') + ' (copy)';
                 fields.splice(i + 1, 0, c); open[i + 1] = true; dirty = true; sync(); render();
             });
-            var del = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-danger', 'aria-label': 'Remove "' + (f.label || f.key) + '"', title: 'Remove'}, '✕');
+            var del = el('button', {type: 'button', 'class': 'btn btn-sm btn-outline-danger', 'aria-label': 'Remove "' + (f.label || f.key) + '"', title: 'Remove'});
+            del.appendChild(el('i', {'class': 'fas fa-trash', 'aria-hidden': 'true'}));
             del.addEventListener('click', function () {
                 if (!window.confirm('Remove "' + (f.label || f.key) + '"? Tickets already submitted keep their answers.')) return;
                 fields.splice(i, 1); dirty = true; sync(); render(); announce('Removed.');
             });
-            [up, dn, ed, dup, del].forEach(function (b) { head.appendChild(b); });
+            [up, dn, ed, dup, del].forEach(function (b) { tools.appendChild(b); });
+            head.appendChild(top);
+            head.appendChild(tools);
             card.appendChild(head);
             if (open[i]) card.appendChild(editor(f, i));
             list.appendChild(card);

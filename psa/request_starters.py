@@ -126,9 +126,10 @@ STARTERS = [
         'name': 'Offboard an employee',
         'category': 'People',
         'icon': 'fas fa-user-minus',
-        'description': 'Remove access and recover equipment when someone leaves.',
+        'description': ('Remove access and recover equipment when someone leaves. Access is '
+                        'removed at the date and time you give.'),
         'subject': 'Offboard: {{employee}} — last day {{last_day}}',
-        'turnaround_text': 'By the disable time you give',
+        'turnaround_text': '',
         'approval': 'customer',
         'confirmation': ("Thanks. Nothing is disabled automatically: a technician schedules the "
                          "change for the date and time you gave, once the request is approved."),

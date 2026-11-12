@@ -15,7 +15,7 @@
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+<div class="card mb-3"><div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
         <h2 class="mb-1"><i class="{{ item.icon|default:'fas fa-clipboard-list' }} me-2 text-primary" aria-hidden="true"></i>{{ item.name }}</h2>
         <div class="d-flex flex-wrap gap-1 align-items-center small">
@@ -42,7 +42,7 @@
             {% endif %}
         </form>
     </div>
-</div>
+</div></div>
 
 <div class="row g-3">
 <div class="col-xl-8">
@@ -76,7 +76,7 @@
         </div>
         <div class="card-footer d-flex flex-wrap gap-2 align-items-center">
             <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary"><i class="fas fa-floppy-disk me-1"></i>Save draft</button>
-            <span class="d-inline-flex gap-1 align-items-center">
+            <span class="d-inline-flex flex-wrap gap-1 align-items-center">
                 <label for="rb-preview-org" class="visually-hidden">Preview as customer</label>
                 <select name="preview_org" id="rb-preview-org" class="form-select form-select-sm w-auto">
                     {% if item.organization %}<option value="{{ item.organization.pk }}">{{ item.organization.name }}</option>{% else %}
@@ -85,7 +85,7 @@
                 </select>
                 <button type="submit" name="action" value="preview" class="btn btn-outline-secondary" formtarget="_blank"><i class="fas fa-eye me-1"></i>Save &amp; preview</button>
             </span>
-            <span class="ms-auto d-inline-flex gap-1 align-items-center">
+            <span class="ms-auto d-inline-flex flex-wrap gap-1 align-items-center">
                 <label for="rb-note" class="visually-hidden">Change note</label>
                 <input type="text" name="note" id="rb-note" class="form-control form-control-sm" maxlength="300" placeholder="What changed (optional)">
                 <button type="submit" name="action" value="publish" class="btn btn-primary" data-confirm="Publish this form? Customers see it straight away; tickets already submitted keep their answers and labels."><i class="fas fa-upload me-1"></i>{% if can_publish_directly %}Publish{% else %}Propose for approval{% endif %}</button>
