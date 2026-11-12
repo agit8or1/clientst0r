@@ -252,3 +252,46 @@ def register():
     _register_scheduling_signals()
     _register_process_signals()
     _register_vault_signals()
+
+
+# ---------------------------------------------------------------------------
+# Token lifecycle: a new password ends every mobile session.
+# ---------------------------------------------------------------------------
+# Mobile tokens have no expiry by default. Before this, a password change or
+# an administrator's password reset after a compromise left a stolen phone
+# token working until someone revoked mobile sessions by hand. Deactivation
+# was already covered (MobileTokenAuthentication rejects inactive users).
+
+from django.contrib.auth import get_user_model as _get_user_model
+
+_PRESAVE_PASSWORD_ATTR = '_api_mobile_prev_password'
+
+
+@receiver(pre_save, sender=_get_user_model(), dispatch_uid='api_mobile_remember_password')
+def _remember_password(sender, instance, raw=False, **kwargs):
+    if raw or not instance.pk:
+        return
+    try:
+        prev = sender.objects.filter(pk=instance.pk).values_list('password', flat=True).first()
+    except Exception:
+        prev = None
+    setattr(instance, _PRESAVE_PASSWORD_ATTR, prev)
+
+
+@receiver(post_save, sender=_get_user_model(), dispatch_uid='api_mobile_revoke_on_password_change')
+def _revoke_on_password_change(sender, instance, created, raw=False, update_fields=None, **kwargs):
+    if raw or created:
+        return
+    # Django re-hashes an unchanged password on login when the hasher
+    # settings change, saving update_fields={'password'}; that is not a new
+    # password and must not sign the user out of their phone.
+    if update_fields is not None and set(update_fields) == {'password'}:
+        return
+    prev = getattr(instance, _PRESAVE_PASSWORD_ATTR, None)
+    if prev is None or prev == instance.password:
+        return
+    try:
+        from .models import MobileAuthToken
+        MobileAuthToken.revoke_all_for(instance)
+    except Exception:
+        logger.exception('Could not revoke mobile sessions after a password change')

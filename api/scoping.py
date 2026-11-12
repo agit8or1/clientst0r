@@ -78,7 +78,10 @@ def accessible_org_ids(request) -> list:
         if api_key.scope == APIKeyScope.SINGLE:
             return [api_key.organization_id]
         if api_key.scope == APIKeyScope.DESCENDANTS:
-            return list(descendant_org_ids(api_key.organization))
+            # Deactivated sub-customers drop out, as they do for ALL keys.
+            return list(Organization.objects.filter(
+                id__in=descendant_org_ids(api_key.organization), is_active=True,
+            ).values_list('id', flat=True))
         # APIKeyScope.ALL falls through to the owner's full reach.
 
     return _user_reach_ids(user)

@@ -35,7 +35,7 @@ def _template(org, name, **flags):
     )
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileViewPermissionTests(TestCase):
     """Customer A grants vault/docs/assets view; customer B denies all three."""
@@ -108,10 +108,10 @@ class MobileViewPermissionTests(TestCase):
 
         cls.doc_a = Document.objects.create(
             organization=cls.org_a, title='Doc-A', slug='doc-a', body='a',
-            content_type='markdown', is_published=True)
+            content_type='markdown', is_published=True, is_client_visible=True)
         cls.doc_b = Document.objects.create(
             organization=cls.org_b, title='Doc-B', slug='doc-b', body='b',
-            content_type='markdown', is_published=True)
+            content_type='markdown', is_published=True, is_client_visible=True)
         cls.doc_global = Document.objects.create(
             title='Doc-Global', slug='doc-global', body='g',
             content_type='markdown', is_global=True, is_published=True)

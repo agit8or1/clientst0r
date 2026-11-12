@@ -19,7 +19,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permission_utils import user_has_perm
+from accounts.permission_utils import user_has_org_perm
 
 from .scoping import perm_org_ids
 
@@ -189,7 +189,7 @@ def collect_view(request, pk: int):
     except Asset.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 
-    if not user_has_perm(request.user, 'assets_edit'):
+    if not user_has_org_perm(request.user, asset.organization_id, 'assets_edit'):
         return Response(
             {'detail': "You don't have permission to capture device configs."},
             status=403)

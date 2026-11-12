@@ -16,7 +16,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permission_utils import user_has_perm
+from accounts.permission_utils import user_has_org_perm
 
 from .scoping import accessible_org_ids
 
@@ -190,7 +190,7 @@ def project_task_view(request, pk: int):
     except ProjectTask.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 
-    if not user_has_perm(request.user, 'tickets_edit'):
+    if not user_has_org_perm(request.user, task.project.organization_id, 'tickets_edit'):
         return Response(
             {'detail': "You don't have permission to update project work."},
             status=403)

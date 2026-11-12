@@ -176,6 +176,17 @@ def inventory_transactions_view(request, pk: int):
             'results': [_serialize_transaction(t) for t in rows],
         })
 
+    # Adjusting stock is a write: the web item_adjust needs @require_write.
+    # MSP staff pass; anyone else needs a write-capable membership in the
+    # item's own customer (Read-Only members could adjust stock until now).
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        from accounts.models import Membership
+        m = (Membership.objects.filter(user=request.user, organization_id=item.organization_id,
+                                       is_active=True).select_related('role_template').first())
+        if m is None or not m.can_write():
+            return Response({'detail': "You don't have permission to adjust stock."}, status=403)
+
     data = request.data or {}
     ttype = (data.get('transaction_type') or '').strip()
     if ttype not in ('stock_in', 'stock_out', 'adjustment'):

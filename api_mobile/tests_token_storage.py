@@ -42,7 +42,7 @@ def _post(token, path):
                          HTTP_AUTHORIZATION=f'Token {token}')
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileTokenStorageTests(TestCase):
     def setUp(self):
@@ -123,7 +123,7 @@ class MobileTokenStorageTests(TestCase):
         self.assertFalse(MobileAuthToken.objects.filter(key_hash=new).exists())
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class WebRevokeMobileSessionsTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('web-user', password='pw')
@@ -167,7 +167,7 @@ class WebRevokeMobileSessionsTests(TestCase):
         self.assertEqual(c.get('/accounts/profile/mobile-sessions/revoke/').status_code, 405)
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+@override_settings(REQUIRE_2FA=False, MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class LegacyAuthtokenMigrationTests(TestCase):
     """api_mobile 0001/0002: raw DRF tokens become hashes; apps stay signed in."""
 

@@ -12,7 +12,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permission_utils import has_perm_for_org, user_has_perm
+from accounts.permission_utils import has_perm_for_org, user_has_org_perm, user_has_perm
 
 from .scoping import accessible_org_ids, perm_org_ids
 
@@ -250,7 +250,7 @@ def asset_detail_view(request, pk: int):
         return Response({'detail': 'Not found'}, status=404)
 
     if request.method == 'PATCH':
-        if not user_has_perm(request.user, 'assets_edit'):
+        if not user_has_org_perm(request.user, asset.organization_id, 'assets_edit'):
             return Response(
                 {'detail': "You don't have permission to edit assets."},
                 status=drf_status.HTTP_403_FORBIDDEN,
@@ -319,7 +319,7 @@ def asset_vault_link_view(request, pk: int):
     except Asset.DoesNotExist:
         return Response({'detail': 'Not found'},
                         status=drf_status.HTTP_404_NOT_FOUND)
-    if not user_has_perm(request.user, 'assets_edit'):
+    if not user_has_org_perm(request.user, asset.organization_id, 'assets_edit'):
         return Response(
             {'detail': "You don't have permission to edit assets."},
             status=drf_status.HTTP_403_FORBIDDEN,
@@ -399,6 +399,10 @@ def _create_asset(request):
                         status=drf_status.HTTP_403_FORBIDDEN)
     if not has_perm_for_org(request.user, org_id, 'assets_view'):
         return Response({'detail': 'Asset view permission required'},
+                        status=drf_status.HTTP_403_FORBIDDEN)
+    # Creating needs assets_create in that customer, as on the web and REST.
+    if not user_has_org_perm(request.user, org_id, 'assets_create'):
+        return Response({'detail': "You don't have permission to create assets."},
                         status=drf_status.HTTP_403_FORBIDDEN)
 
     # name required
