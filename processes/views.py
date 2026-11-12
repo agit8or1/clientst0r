@@ -23,6 +23,44 @@ def is_superuser(user):
     return user.is_superuser
 
 
+# ---------------------------------------------------------------------------
+# Role flags. Processes (workflows / runbooks) are documentation, so they
+# follow the docs_* flags of the organization that owns the record; running
+# one opens or works a ticket, so that follows the tickets_* flags. Until the
+# roles/permissions program every view only checked membership, so a
+# Read-Only member could edit, delete and run any of their client's runbooks.
+# ---------------------------------------------------------------------------
+
+def _has(request, org, flag):
+    from accounts.permission_utils import has_perm_for_org
+    return org is not None and has_perm_for_org(request.user, getattr(org, 'pk', org), flag)
+
+
+def _require(request, org, flag):
+    from django.core.exceptions import PermissionDenied
+    if not _has(request, org, flag):
+        raise PermissionDenied(f"Your role does not include '{flag}' for this organization.")
+
+
+def _may_work_execution(request, execution):
+    """The run's assignee, or anyone whose role edits tickets of its client."""
+    return (execution.assigned_to_id == request.user.id
+            or _has(request, execution.organization_id, 'tickets_edit'))
+
+
+def _launchable_orgs(request):
+    """Clients a workflow run (and the ticket it opens) may be filed under:
+    every active client for MSP staff, otherwise the caller's own
+    organizations. The launch form used to list, and accept, every client."""
+    from core.models import Organization
+    from core.tenancy import accessible_org_ids
+    qs = Organization.objects.filter(is_active=True).order_by('name')
+    allowed = accessible_org_ids(request)
+    if allowed is not None:
+        qs = qs.filter(pk__in=allowed)
+    return qs
+
+
 @login_required
 def process_list(request):
     """List all processes (org + global) or all processes across all orgs in global view"""
@@ -46,6 +84,7 @@ def process_list(request):
             'Switch to a specific organization first to see its workflows.')
         return redirect('accounts:organization_list')
     else:
+        _require(request, org, 'docs_view')
         # Organization view: get org processes + global processes
         processes = Process.objects.filter(
             Q(organization=org) | Q(is_global=True),
@@ -94,6 +133,7 @@ def process_detail(request, slug):
     if in_global_view:
         process = get_object_or_404(Process, slug=slug)
     else:
+        _require(request, org, 'docs_view')
         process = get_object_or_404(
             Process.objects.filter(Q(organization=org) | Q(is_global=True)),
             slug=slug
@@ -137,6 +177,8 @@ def process_generate_diagram(request, slug):
 
     org = get_request_organization(request)
     process = get_object_or_404(Process, slug=slug, organization=org)
+    if not _has(request, process.organization_id, 'docs_edit'):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
 
     try:
         # Generate diagram XML from workflow stages
@@ -318,6 +360,7 @@ def process_create(request):
             'needs_org_pick': True,
         })
 
+    _require(request, org, 'docs_create')
     if request.method == 'POST':
         form = ProcessForm(request.POST, organization=org)
         formset = ProcessStageFormSet(request.POST, form_kwargs={'organization': org, 'user': request.user})
@@ -368,6 +411,7 @@ def process_edit(request, slug):
             return redirect('accounts:organization_list')
     else:
         process = get_object_or_404(Process, slug=slug, organization=org)
+    _require(request, process.organization_id, 'docs_edit')
 
     if request.method == 'POST':
         form = ProcessForm(request.POST, instance=process, organization=org)
@@ -414,6 +458,7 @@ def process_delete(request, slug):
             return redirect('accounts:organization_list')
     else:
         process = get_object_or_404(Process, slug=slug, organization=org)
+    _require(request, process.organization_id, 'docs_delete')
 
     if request.method == 'POST':
         title = process.title
@@ -509,17 +554,7 @@ def execution_create(request, slug):
     needs_org_pick = False
     org_choices = None
     if not org:
-        is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
-        if request.user.is_superuser or is_staff:
-            org_choices = Organization.objects.filter(is_active=True).order_by('name')
-        else:
-            from accounts.models import Membership
-            org_ids = Membership.objects.filter(
-                user=request.user, is_active=True
-            ).values_list('organization_id', flat=True)
-            org_choices = Organization.objects.filter(
-                pk__in=org_ids, is_active=True
-            ).order_by('name')
+        org_choices = _launchable_orgs(request)
         if not org_choices.exists():
             messages.error(request,
                 'You must be a member of at least one organization to launch workflows.')
@@ -560,7 +595,7 @@ def execution_create(request, slug):
     )
 
     psa_enabled = bool(getattr(SystemSetting.get_settings(), 'psa_enabled', False))
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _launchable_orgs(request)
 
     if request.method == 'POST':
         form = ProcessExecutionForm(request.POST, organization=org)
@@ -592,7 +627,9 @@ def execution_create(request, slug):
                     })
                 try:
                     client_org = client_orgs.get(pk=client_org_id)
-                except Organization.DoesNotExist:
+                    if not _has(request, client_org, 'tickets_create'):
+                        raise Organization.DoesNotExist
+                except (Organization.DoesNotExist, ValueError, TypeError):
                     messages.error(request, 'That client is not available.')
                     return render(request, 'processes/execution_form.html', {
                         'form': form,
@@ -946,7 +983,7 @@ def stage_complete(request, pk):
 
     # Check permissions
     org = get_request_organization(request)
-    if completion.execution.organization != org:
+    if completion.execution.organization != org or not _may_work_execution(request, completion.execution):
         return JsonResponse({'error': 'Permission denied'}, status=403)
 
     # Store old state for audit
@@ -1062,7 +1099,7 @@ def stage_uncomplete(request, pk):
 
     # Check permissions
     org = get_request_organization(request)
-    if completion.execution.organization != org:
+    if completion.execution.organization != org or not _may_work_execution(request, completion.execution):
         return JsonResponse({'error': 'Permission denied'}, status=403)
 
     # Only allow uncompleting if execution is still in progress
@@ -1105,6 +1142,8 @@ def stage_reorder(request, slug):
 
     org = get_request_organization(request)
     process = get_object_or_404(Process, slug=slug, organization=org)
+    if not _has(request, process.organization_id, 'docs_edit'):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
 
     import json
     data = json.loads(request.body)
@@ -1137,6 +1176,14 @@ def process_clone_template(request, slug):
     if org is None:
         messages.error(request, 'Pick an organization context first.')
         return redirect('processes:process_list')
+    _require(request, org, 'docs_create')
+
+    def _own(obj):
+        """A global template's links point at its owner's records; the clone
+        keeps only links that belong to the organization it is created in."""
+        if obj is None:
+            return None
+        return obj if getattr(obj, 'organization_id', None) == org.pk else None
 
     today = timezone.localdate()
     new_title = f'[{today.isoformat()}] {src.title}'
@@ -1157,7 +1204,7 @@ def process_clone_template(request, slug):
         is_archived=False,
         is_global=False,
         category=src.category,
-        linked_diagram=src.linked_diagram,
+        linked_diagram=_own(src.linked_diagram),
         created_by=request.user,
         last_modified_by=request.user,
     )
@@ -1167,10 +1214,10 @@ def process_clone_template(request, slug):
             order=stage.order,
             title=stage.title,
             description=stage.description,
-            linked_document=stage.linked_document,
-            linked_password=stage.linked_password,
-            linked_secure_note=stage.linked_secure_note,
-            linked_asset=stage.linked_asset,
+            linked_document=_own(stage.linked_document),
+            linked_password=_own(stage.linked_password),
+            linked_secure_note=_own(stage.linked_secure_note),
+            linked_asset=_own(stage.linked_asset),
             requires_confirmation=stage.requires_confirmation,
             estimated_duration_minutes=stage.estimated_duration_minutes,
         )
@@ -1196,6 +1243,7 @@ def stage_spawn_ticket(request, execution_pk, stage_pk):
         qs = qs.none()
     execution = get_object_or_404(qs, pk=execution_pk)
     stage = get_object_or_404(ProcessStage, pk=stage_pk, process=execution.process)
+    _require(request, execution.organization_id, 'tickets_create')
 
     completion, _ = ProcessStageCompletion.objects.get_or_create(
         execution=execution, stage=stage,

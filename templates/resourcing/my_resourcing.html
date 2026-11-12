@@ -204,6 +204,7 @@
             <small class="text-muted">Used by Phase 3 utilization reporting.</small>
             {% endif %}
 
+            {% if show_cost_rate %}
             <hr class="my-3">
             <div class="d-flex justify-content-between align-items-center"
                  data-bs-toggle="tooltip"
@@ -225,6 +226,7 @@
                 </a>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

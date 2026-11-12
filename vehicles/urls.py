@@ -86,3 +86,27 @@ urlpatterns = [
     path('receipts/<int:pk>/edit/', views.receipt_edit, name='receipt_edit'),
     path('receipts/<int:pk>/delete/', views.receipt_delete, name='receipt_delete'),
 ]
+
+
+# Service vehicles are the MSP's own fleet (no customer FK): every page, the
+# receipts and the QR scan endpoints are MSP-technician-only. Until the
+# roles/permissions program any signed-in user, including a customer portal
+# user, could list, edit and delete the fleet by URL.
+def _msp_staff_only(view):
+    from functools import wraps
+
+    from django.core.exceptions import PermissionDenied
+
+    @wraps(view)
+    def _wrapped(request, *args, **kwargs):
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated:
+            from psa.visibility import is_msp_staff
+            if not (user.is_active and is_msp_staff(user)):
+                raise PermissionDenied('Service vehicles are available to MSP staff only.')
+        return view(request, *args, **kwargs)
+    return _wrapped
+
+
+for _pattern in urlpatterns:
+    _pattern.callback = _msp_staff_only(_pattern.callback)

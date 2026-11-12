@@ -256,6 +256,9 @@ class AutoDocumentFieldVisitsTests(TestCase):
             Queue, Ticket, TicketPriority, TicketStatus, TicketTimeEntry, TicketType,
         )
         self.user = User.objects.create_user(username='tech-eng', password='x')
+        # The engine acts for MSP technicians only (re-checked every run).
+        from psa.tests._base import _make_msp_tech
+        _make_msp_tech(self.user)
         self.org = Organization.objects.create(name='Eng Org')
         self.fence = ClientSiteGeofence.objects.create(
             organization=self.org, name='HQ', kind='radius',
