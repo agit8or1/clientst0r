@@ -5,6 +5,22 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Contract documents and digital signing (Phase 64). Built on the development branch, not yet released.
+
+### Added
+- **Contract documents** (`/contracts/`, MSP staff only): build a contract from a template, a copy or a blank page, with a rich-text editor (headings, lists, tables, page breaks), reorderable and optional sections, one-time and recurring line items, signers, attachments, merge fields and autosave with a saved indicator and conflict warning.
+- **Seven starter templates and a clause library.** The wording is sample text and each template carries a review note that blocks sending until it is replaced. Templates are versioned; contracts keep the text they were created from.
+- **Built-in signing** under `/sign/`: personal links without an account, parallel or sequential signers, internal countersignature from the staff account, typed or drawn signatures, consent and intent statements, decline with a reason, optional e-mailed code, phone-friendly page using only local assets, and a downloadable copy. Signatures are bound to the exact version and its SHA-256.
+- **Open tracking that tells scanners from people:** link requests, likely human views and verified views are recorded separately; HEAD requests, prefetch and preview headers, scanner and bot user agents and configured scanner networks never count as views. Alerts are de-duplicated with a cooldown for repeat views.
+- **Statuses enforced on the server** (draft → pending approval → ready → sent → viewed → partially signed → signed, plus declined, expired, voided, superseded); revise, amend, renew, replace and void with a reason; internal approval bound to the exact version.
+- **Issued and final signed PDFs** with an audit certificate and an evidence package; e-mail, reminder and finalization jobs with retries and idempotency; scheduler tasks "Contract Jobs" (every minute) and "Contract Reminders and Expirations" (hourly).
+- **Dashboard, client-record card and settings** (deployment defaults and per-customer overrides); eight new role flags under "Contract Documents"; a signed contract can create a draft PSA billing contract.
+
+### Changed
+- Security headers keep a view's stricter `Referrer-Policy: no-referrer`; the request audit log skips `/sign/` (contract events are audited on their own, without tokens).
+
 ## [3.17.668] - 2026-11-12
 
 Office documents. Built and tested against protocol-accurate fakes; **not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service**. Managed Local ONLYOFFICE is **untested**: it has never run against a real container.
