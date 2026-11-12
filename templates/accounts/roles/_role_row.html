@@ -1,0 +1,16 @@
+<tr>
+    <td><a href="{% url 'accounts:role_detail' row.role.pk %}"><strong>{{ row.role.name }}</strong></a></td>
+    <td>{{ row.role.get_audience_display }}</td>
+    <td>
+        {% if row.role.is_builtin %}<span class="badge bg-primary">Built-in</span>{% else %}<span class="badge bg-secondary">Custom</span>{% endif %}
+        {% if row.customized %}<span class="badge bg-warning text-dark">Customized</span>{% endif %}
+        {% if row.role.is_archived %}<span class="badge bg-dark">Archived</span>{% endif %}
+        {% if row.privileged %}<span class="badge bg-danger">Privileged</span>{% endif %}
+        {% if row.role.rmm_tier %}<span class="badge bg-info text-dark">{{ row.role.get_rmm_tier_display }}</span>{% endif %}
+    </td>
+    <td>{{ row.users }}</td>
+    <td class="small">{{ row.role.description|truncatechars:140 }}</td>
+    <td class="text-nowrap">
+        <a href="{% url 'accounts:role_detail' row.role.pk %}" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
+    </td>
+</tr>

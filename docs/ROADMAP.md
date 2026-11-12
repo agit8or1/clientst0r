@@ -2427,6 +2427,61 @@ security levels) and Phase 52 (technician workspace).
 permissions; interoperability with Rem0te is claimed only for what both
 applications have passed end to end.
 
+## Phase 64 — Roles, permission groups and access settings **(L · security)** [in progress]
+
+One permission model for MSP staff and customer users: every permission
+named and described in one registry, built-in roles for the usual jobs,
+roles that combine without widening each other, data scope per grant, and
+protection against handing out more access than you hold. Extends Phase 57
+(technician security levels) and the RMM tiers of Phase 63.
+
+- **64.1 Permission registry** *(in progress)* — every role permission with
+  its module, kind of action, sensitivity, whether a customer role may hold
+  it and a description; new sensitive permissions default to off. Adds
+  quotes, internal ticket notes, privileged member and role management,
+  ownership, contract (draft, approve, send, signing links, countersign,
+  void, signed copies, audit, settings), portal (organization-wide tickets,
+  filing and replying, request approval, coworkers' agreements, billing
+  contact, contract reviewer, authorized signer) and operations permissions.
+- **64.2 Built-in roles** *(in progress)* — Owner, Organization Administrator,
+  Service Manager, Level 1–3 Technician (the RMM tier roles), Sales
+  Representative and Manager, Billing / Finance, Internal Read-Only /
+  Auditor; Customer Administrator, Manager, Standard User and Read-Only, plus
+  add-on Billing Contact, Contract Reviewer, Authorized Contract Signer and
+  Request Approver. Seeded idempotently with a version and checksum so a
+  customized role is never overwritten.
+- **64.3 Scope** *(in progress)* — a technician's global role reaches all
+  clients, assigned clients or selected clients; memberships and global
+  roles cover the organization, assigned records or own records. Every
+  check evaluates one organization; permissions from different grants never
+  combine into a wider one.
+- **64.4 Delegation protection** *(in progress)* — no self-promotion,
+  the subset rule, privileged roles need their own permission, customer
+  administrators assign customer roles only, the organization in the URL is
+  the one authorized, last-owner protection and an explicit ownership
+  transfer with password and name confirmation.
+- **64.5 Role management pages** *(in progress)* — create, clone, rename,
+  archive, permissions by module with search, preview before saving,
+  compare roles, "why does someone have access", permission catalog,
+  customer portal access, multiple roles per member and a review list.
+- **64.6 Upgrade mapping and review list** *(in progress)* — existing roles
+  keep what they could do; anything ambiguous is listed for review, never
+  granted. `manage.py roles_migration_report`.
+- **64.7 Audit and cache** *(in progress)* — role, membership, scope,
+  account and ownership changes audited with safe before / after values;
+  authorization decisions cached per request and invalidated on change.
+- **64.8 Enforcement across modules** *(in progress)* — PSA, sales,
+  reports, portal, assets, documentation, vault, integrations and the API
+  read these permissions per organization and per record. Operations
+  permissions (fleet, wallboard, workflow rules, timesheets, payroll,
+  report export, billing approvals) are defined; their call sites are
+  planned.
+
+See [ROLES_AND_ACCESS.md](ROLES_AND_ACCESS.md) for the role matrix.
+
+**Sizing:** **L** — registry, roles and helpers, then enforcement module by
+module.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2491,6 +2546,7 @@ applications have passed end to end.
 | 61 — One-customer migration rehearsals | M | shipped v3.17.664 | extends the IT Glue / Hudu importers and import rollback; scheduler |
 | 62 — Pluggable document editors | L | in progress — framework, ONLYOFFICE, Collabora, Microsoft 365 documents, installer and Managed Local ONLYOFFICE (untested) shipped v3.17.668; not yet tested against real editors; Google Docs planned | documents and file attachments; optional Microsoft 365 / Google connectors |
 | 63 — RMM integration and technician workspace | XL | in progress — 63.1–63.10 v3.17.664; Rem0te revision 2 tested against Rem0te 0.30.1 (99/102), restart case pending | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
+| 64 — Roles, permission groups and access settings | L | in progress — registry, built-in roles, scope, delegation protection, role pages, upgrade review list | Phases 57 and 63 (RMM tiers); every module reads the permissions |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Role assignments to review - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">Review</li>
+    </ol>
+</nav>
+<h2><i class="fas fa-clipboard-check"></i> Assignments to review</h2>
+<p class="text-muted">Found by the roles &amp; access migration and by reseeding. Each row is a to-do: listing it
+    changed nothing, and marking it resolved changes nothing either — change the membership, role or profile
+    itself. Same list: <code>manage.py roles_migration_report</code>.</p>
+
+<ul class="nav nav-tabs mb-3">
+    {% for s, n in counts.items %}
+    <li class="nav-item"><a class="nav-link {% if s == status %}active{% endif %}" href="?status={{ s }}">{{ s|title }} <span class="badge bg-secondary">{{ n }}</span></a></li>
+    {% endfor %}
+</ul>
+
+<div class="table-responsive">
+<table class="table table-sm table-hover">
+    <thead><tr><th>Reason</th><th>Who</th><th>Organization</th><th>Role</th><th>Detail</th><th></th></tr></thead>
+    <tbody>
+    {% for item in items %}
+    <tr>
+        <td class="small">{{ item.get_reason_display }}</td>
+        <td>{% if item.user %}<a href="{% url 'accounts:user_detail' item.user.pk %}">{{ item.user.username }}</a>{% else %}—{% endif %}</td>
+        <td>{% if item.organization %}<a href="{% url 'accounts:organization_detail' item.organization.pk %}">{{ item.organization.name }}</a>{% else %}—{% endif %}</td>
+        <td>{% if item.role_template %}{{ item.role_template.name }}{% elif item.membership %}{{ item.membership.get_role_display }}{% else %}—{% endif %}</td>
+        <td class="small">{{ item.detail }}</td>
+        <td class="text-nowrap">
+            {% if item.status == 'open' %}
+            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="item" value="{{ item.pk }}"><button class="btn btn-sm btn-outline-success" name="status" value="resolved">Resolved</button></form>
+            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="item" value="{{ item.pk }}"><button class="btn btn-sm btn-outline-secondary" name="status" value="dismissed">Dismiss</button></form>
+            {% else %}
+            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="item" value="{{ item.pk }}"><button class="btn btn-sm btn-outline-warning" name="status" value="open">Reopen</button></form>
+            {% endif %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-muted text-center py-3">Nothing here.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

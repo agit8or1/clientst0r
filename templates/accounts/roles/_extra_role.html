@@ -1,0 +1,7 @@
+<div class="col-md-4 col-sm-6">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="additional_role_ids" value="{{ role.id }}" id="extra_{{ role.id }}"
+               {% if role.id in current_extra_ids %}checked{% endif %}>
+        <label class="form-check-label small" for="extra_{{ role.id }}">{{ role.name }}{% if role.audience == 'customer' %} <span class="badge bg-light text-dark border">customer</span>{% endif %}</label>
+    </div>
+</div>

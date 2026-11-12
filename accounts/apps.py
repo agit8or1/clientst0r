@@ -12,3 +12,6 @@ class AccountsConfig(AppConfig):
         # starting up would write 2FA secrets in plaintext.
         from .otp_storage import install
         install()
+        # Authorization memo invalidation + role audit trail on every change.
+        from . import signals
+        signals.connect_related()

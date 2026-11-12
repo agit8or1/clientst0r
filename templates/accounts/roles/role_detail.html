@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ role.name }} - Roles - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">{{ role.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+        <h2 class="mb-1"><i class="fas fa-user-shield"></i> {{ role.name }}</h2>
+        <div>
+            {% if role.is_builtin %}<span class="badge bg-primary">Built-in</span>{% else %}<span class="badge bg-secondary">Custom</span>{% endif %}
+            {% if role.is_customized %}<span class="badge bg-warning text-dark">Customized</span>{% endif %}
+            {% if role.is_archived %}<span class="badge bg-dark">Archived</span>{% endif %}
+            {% if role.is_privileged %}<span class="badge bg-danger">Privileged</span>{% endif %}
+            {% if role.rmm_tier %}<span class="badge bg-info text-dark">{{ role.get_rmm_tier_display }}</span>{% endif %}
+            <span class="badge bg-light text-dark border">{{ role.get_audience_display }}</span>
+            {% if role.cloned_from %}<span class="small text-muted ms-2">Cloned from {{ role.cloned_from.name }}</span>{% endif %}
+        </div>
+        <p class="text-muted mt-2 mb-0">{{ role.description }}</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if can_manage %}
+        <a href="{% url 'accounts:role_edit' role.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit</a>
+        <form method="post" action="{% url 'accounts:role_archive' role.pk %}" class="d-inline"
+              data-confirm="{% if role.is_archived %}Restore this role?{% else %}Archive this role? Existing assignments keep working; it can no longer be assigned.{% endif %}">
+            {% csrf_token %}
+            <button class="btn btn-outline-dark" type="submit"><i class="fas fa-archive"></i> {% if role.is_archived %}Restore{% else %}Archive{% endif %}</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{% url 'accounts:role_clone' role.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-outline-primary" type="submit"><i class="fas fa-copy"></i> Clone</button>
+        </form>
+        <a href="{% url 'accounts:role_compare' %}?a={{ role.pk }}" class="btn btn-outline-secondary"><i class="fas fa-columns"></i> Compare</a>
+        {% if can_manage and not role.is_system_template and role.organization_id %}
+        <a href="{% url 'accounts:role_delete' role.pk %}" class="btn btn-outline-danger"><i class="fas fa-trash"></i></a>
+        {% endif %}
+    </div>
+</div>
+
+{% if non_customer %}
+<div class="alert alert-warning">This customer role holds permissions customer roles should not hold: {{ non_customer|join:", " }}.
+    Staff-only permissions among them are never effective for customer users.</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <h5>Permissions <span class="badge bg-secondary">{{ granted_count }}</span></h5>
+        {% for mkey, label, desc, rows in groups %}
+        <div class="card mb-3">
+            <div class="card-header py-2"><strong>{{ label }}</strong> <span class="small text-muted">{{ desc }}</span></div>
+            <ul class="list-group list-group-flush">
+                {% for perm, checked, editable in rows %}
+                <li class="list-group-item py-1 d-flex justify-content-between align-items-center {% if not checked %}text-muted{% endif %}">
+                    <span>
+                        {% if checked %}<i class="fas fa-check text-success me-1"></i>{% else %}<i class="fas fa-times me-1"></i>{% endif %}
+                        {{ perm.description }} <code class="small">{{ perm.key }}</code>
+                    </span>
+                    <span>
+                        {% if perm.privileged %}<span class="badge bg-danger">critical</span>{% elif perm.sensitivity == 'sensitive' %}<span class="badge bg-warning text-dark">sensitive</span>{% endif %}
+                        {% if perm.status == 'unimplemented' %}<span class="badge bg-secondary">Not yet implemented</span>{% elif perm.status == 'pending' %}<span class="badge bg-secondary" title="Defined; the pages that use it are being wired up">being wired up</span>{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header"><h6 class="mb-0">Users affected</h6></div>
+            <div class="card-body small">
+                <p class="text-muted">Changing this role changes the access of everyone below.</p>
+                <strong>Primary role</strong>
+                <ul>{% for m in primary %}<li>{{ m.user.username }} @ {{ m.organization.name }}{% if not m.is_active %} (suspended){% endif %}</li>{% empty %}<li class="text-muted">None</li>{% endfor %}</ul>
+                <strong>Additional role</strong>
+                <ul>{% for m in additional %}<li>{{ m.user.username }} @ {{ m.organization.name }}</li>{% empty %}<li class="text-muted">None</li>{% endfor %}</ul>
+                {% if request.user.is_superuser %}
+                <strong>Global role (MSP staff)</strong>
+                <ul>{% for p in staff %}<li>{{ p.user.username }} ({{ p.get_client_scope_display }})</li>{% empty %}<li class="text-muted">None</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
