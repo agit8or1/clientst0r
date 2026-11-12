@@ -35,7 +35,7 @@ from .models import (
 )
 
 
-def _user_orgs(user):
+def _user_orgs(user, perm=None):
     """Orgs whose security data the user may see.
 
     Uses the same rule as the rest of the app: superusers and MSP staff whose
@@ -48,9 +48,28 @@ def _user_orgs(user):
     from accounts.permission_utils import orgs_with_perm
     from core.models import Organization
     allowed = orgs_with_perm(user, 'security_alerts_view')
+    if perm:
+        # Action views: the action flag must be held in the record's own
+        # customer. `require_perm` only asks "anywhere", so before this
+        # release a flag from one membership (e.g. acknowledge at customer
+        # A) applied to every customer the user could view.
+        acting = orgs_with_perm(user, perm)
+        if allowed is None:
+            allowed = acting
+        elif acting is not None:
+            allowed = set(allowed) & set(acting)
     if allowed is None:
         return Organization.objects.all()
     return Organization.objects.filter(pk__in=allowed)
+
+
+def _owner_org(user, orgs):
+    """Customer a new connection / rule / endpoint belongs to: the user's
+    first membership when they may act there, else the first allowed one."""
+    primary = _primary_org(user)
+    if primary is not None and orgs.filter(pk=primary.pk).exists():
+        return primary
+    return orgs.first()
 
 
 def _primary_org(user):
@@ -134,7 +153,7 @@ def alert_detail(request, pk):
 @require_POST
 def alert_decide(request, pk):
     """Acknowledge / dismiss / resolve / convert to ticket."""
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_acknowledge')
     alert = get_object_or_404(
         SecurityAlert.objects.select_related('connection'),
         pk=pk, organization__in=orgs,
@@ -195,7 +214,7 @@ def alert_decide(request, pk):
 @require_perm('security_alerts_acknowledge')
 @require_POST
 def alert_bulk_decide(request):
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_acknowledge')
     decision = (request.POST.get('decision') or '').lower()
     ids = request.POST.getlist('alert_ids')
     qs = SecurityAlert.objects.filter(pk__in=ids, organization__in=orgs)
@@ -236,7 +255,7 @@ def connection_list(request):
 @login_required
 @require_perm('security_alerts_manage_connections')
 def connection_form(request, pk=None):
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_manage_connections')
     instance = None
     if pk is not None:
         instance = get_object_or_404(
@@ -258,7 +277,7 @@ def connection_form(request, pk=None):
         if form.is_valid():
             obj = form.save(commit=False)
             if not instance:
-                obj.organization = _primary_org(request.user) or orgs.first()
+                obj.organization = _owner_org(request.user, orgs)
                 obj.created_by = request.user
             obj.save()
             issued = getattr(obj, 'issued_webhook_token', None)
@@ -283,7 +302,7 @@ def connection_form(request, pk=None):
 @require_perm('security_alerts_manage_connections')
 @require_POST
 def connection_test(request, pk):
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_manage_connections')
     conn = get_object_or_404(SecurityVendorConnection, pk=pk, organization__in=orgs)
     from integrations.sdk.registry import get as get_provider
     adapter = get_provider(f'security_{conn.provider}') or get_provider(conn.provider)
@@ -300,7 +319,7 @@ def connection_test(request, pk):
 @require_perm('security_alerts_manage_connections')
 @require_POST
 def connection_sync(request, pk):
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_manage_connections')
     conn = get_object_or_404(SecurityVendorConnection, pk=pk, organization__in=orgs)
     from integrations.sdk.registry import get as get_provider
     adapter = get_provider(f'security_{conn.provider}') or get_provider(conn.provider)
@@ -333,7 +352,7 @@ def rule_list(request):
 @login_required
 @require_perm('security_alerts_create_rules')
 def rule_form(request, pk=None):
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_create_rules')
     instance = None
     if pk is not None:
         instance = get_object_or_404(SecurityAlertRule, pk=pk, organization__in=orgs)
@@ -342,7 +361,7 @@ def rule_form(request, pk=None):
         if form.is_valid():
             obj = form.save(commit=False)
             if not instance:
-                obj.organization = _primary_org(request.user) or orgs.first()
+                obj.organization = _owner_org(request.user, orgs)
             obj.save()
             messages.success(request, 'Rule saved.')
             return redirect('security_alerts:rule_list')
@@ -460,7 +479,7 @@ def siem_endpoint_list(request):
 @login_required
 @require_perm('security_alerts_manage_connections')
 def siem_endpoint_form(request, pk=None):
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_manage_connections')
     instance = None
     if pk is not None:
         instance = get_object_or_404(
@@ -490,7 +509,7 @@ def siem_endpoint_form(request, pk=None):
         if form.is_valid():
             obj = form.save(commit=False)
             if not instance:
-                obj.organization = _primary_org(request.user) or orgs.first()
+                obj.organization = _owner_org(request.user, orgs)
                 obj.created_by = request.user
             obj.save()
             from audit.models import AuditLog
@@ -627,7 +646,7 @@ def incident_detail(request, pk):
 @require_POST
 def incident_decide(request, pk):
     """Status transitions + add note. POST decision=acknowledge|investigate|contain|resolve|close|note."""
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_acknowledge')
     incident = get_object_or_404(
         SecurityIncident, pk=pk, organization__in=orgs,
     )
@@ -683,7 +702,7 @@ def incident_ai_summarize(request, pk):
     """
     from .ai_summarizer import summarize_incident
 
-    orgs = _user_orgs(request.user)
+    orgs = _user_orgs(request.user, 'security_alerts_acknowledge')
     incident = get_object_or_404(
         SecurityIncident, pk=pk, organization__in=orgs,
     )

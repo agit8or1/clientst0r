@@ -5,12 +5,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fab fa-microsoft"></i> {{ connection.name }}</h2>
     <div class="btn-group">
-        <a href="{% url 'integrations:m365_sync' connection.pk %}" class="btn btn-success">
+        <form method="post" action="{% url 'integrations:m365_sync' connection.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-success">
             <i class="fas fa-sync"></i> Sync Now
-        </a>
-        <a href="{% url 'integrations:m365_test' connection.pk %}" class="btn btn-outline-info">
+        </button></form>
+        <form method="post" action="{% url 'integrations:m365_test' connection.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-outline-info">
             <i class="fas fa-plug"></i> Test
-        </a>
+        </button></form>
         <a href="{% url 'integrations:m365_edit' connection.pk %}" class="btn btn-outline-secondary">
             <i class="fas fa-edit"></i> Edit
         </a>

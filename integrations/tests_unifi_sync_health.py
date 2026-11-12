@@ -450,7 +450,7 @@ class HealthDiagnosticsAreRedactedTests(_Base):
         self.login(User.objects.create_superuser('su', 's@x.com', 'pw'))
         with mock.patch('integrations.network_assets.get_unifi_provider',
                         return_value=self.failing_provider()):
-            resp = self.client.get(reverse('integrations:unifi_sync', args=[self.conn.pk]), follow=True)
+            resp = self.client.post(reverse('integrations:unifi_sync', args=[self.conn.pk]), follow=True)
         body = resp.content.decode()
         self.assertIn('Sync failed', body)
         self.assertNotIn(PASSWORD, body)

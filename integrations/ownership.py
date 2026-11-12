@@ -96,22 +96,49 @@ def platform_allowed(user, level):
     return PLATFORM_CHECKS[level](user)
 
 
+# Inside a customer the role flag for the level is checked too. Before this
+# release only `require_admin` (role name Owner/Admin, or org_manage_settings)
+# and `require_write` (any *_create flag) were, so a role with
+# integrations_configure / integrations_sync turned off could still edit,
+# delete, test and sync that customer's connections.
+ORG_FLAGS = {'admin': 'integrations_configure', 'write': 'integrations_sync'}
+
+
+def _org_flag_allowed(user, org, flag):
+    if not _active(user):
+        return False
+    if user.is_superuser:
+        return True
+    profile = getattr(user, 'profile', None)
+    if user.is_staff and not (profile is not None and profile.is_staff_user()):
+        # Django staff accounts without a staff profile have no global role
+        # to consult; require_admin / require_write always passed them.
+        return True
+    from accounts.permission_utils import has_perm_for_org
+    return has_perm_for_org(user, org, flag)
+
+
 def integration_access(level):
     """View decorator: in global view, the platform rule for `level`
     ('admin', 'write' or 'read'); inside a customer, the existing
     per-organization decorator for that level, unchanged."""
     from core.decorators import require_admin, require_write
     per_org = {'admin': require_admin, 'write': require_write, 'read': None}[level]
+    org_flag = ORG_FLAGS.get(level)
 
     def decorator(view_func):
         org_view = per_org(view_func) if per_org else view_func
 
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if getattr(request, 'current_organization', None) is None:
+            org = getattr(request, 'current_organization', None)
+            if org is None:
                 if not platform_allowed(request.user, level):
                     raise PermissionDenied(_DENIED[level])
                 return view_func(request, *args, **kwargs)
+            if org_flag and not _org_flag_allowed(request.user, org, org_flag):
+                raise PermissionDenied(
+                    f"Your role does not include the '{org_flag}' permission for this customer.")
             return org_view(request, *args, **kwargs)
         return wrapper
     return decorator
