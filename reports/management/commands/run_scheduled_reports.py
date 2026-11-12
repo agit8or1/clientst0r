@@ -69,12 +69,30 @@ class Command(BaseCommand):
 
         output_format = (sched.output_format or 'pdf').lower()
 
+        # The schedule acts for whoever set it up, so that person's access is
+        # checked again now, not only when they saved the form: a role or
+        # membership change since then, or a deactivated account, stops the
+        # report instead of e-mailing data its creator may no longer see.
+        refusal, parameters = self._authorize(sched)
+        if refusal:
+            GeneratedReport.objects.create(
+                template=sched.template, scheduled_report=sched,
+                organization=sched.organization, generated_by=None,
+                format=self._normalize_format(output_format), status='failed',
+                parameters=parameters, error_message=refusal[:2000],
+            )
+            self.stderr.write(f'  ! {sched.name}: {refusal}')
+            sched.last_run = timezone.now()
+            sched.next_run = self._next_run(sched, sched.last_run)
+            sched.save(update_fields=['last_run', 'next_run'])
+            return
+
         # Generate the artifact (filename + bytes)
         filename, artifact_bytes = generate_report(
             template=sched.template,
             output_format=output_format,
             organization=sched.organization,
-            parameters=sched.parameters or {},
+            parameters=parameters,
         )
 
         # Save GeneratedReport row for audit trail. Persist the artifact
@@ -86,7 +104,7 @@ class Command(BaseCommand):
             generated_by=None,  # cron-generated
             format=self._normalize_format(output_format),
             status='completed',
-            parameters=sched.parameters or {},
+            parameters=parameters,
         )
         try:
             gen.file.save(filename, ContentFile(artifact_bytes), save=False)
@@ -117,6 +135,49 @@ class Command(BaseCommand):
         sched.last_run = timezone.now()
         sched.next_run = self._next_run(sched, sched.last_run)
         sched.save(update_fields=['last_run', 'next_run'])
+
+    # Report types whose data is sensitive enough that a schedule nobody
+    # owns (creator deleted, or added through the Django admin) won't run.
+    OWNERLESS_REFUSED_TYPES = ('password_audit', 'user_activity')
+
+    @classmethod
+    def _authorize(cls, sched):
+        """(refusal message or None, parameters to generate with).
+
+        With a creator: they must still be active, hold
+        reports_manage_scheduled, and hold the report type's view flag for
+        the schedule's customer; vault figures follow their vault_view.
+        Without one there is no person to check, so the report runs as a
+        restricted service identity: no vault figures, and the most
+        sensitive types are refused."""
+        from accounts.permission_utils import has_perm_for_org, user_has_org_perm
+        from reports.access import may_see_report_type, report_type_perm
+
+        params = dict(sched.parameters or {})
+        org = sched.organization
+        rtype = getattr(sched.template, 'report_type', '')
+        creator = sched.created_by
+        if creator is None:
+            params['include_vault'] = False
+            if rtype in cls.OWNERLESS_REFUSED_TYPES:
+                return ('Not run: this schedule has no owner, and a '
+                        f'"{rtype}" report needs a person whose access can be checked.'), params
+            return None, params
+        if not creator.is_active:
+            return f'Not run: {creator.username} is no longer active.', params
+
+        def holds(flag):
+            return (has_perm_for_org(creator, org, flag)
+                    or user_has_org_perm(creator, org, flag))
+
+        if not holds('reports_manage_scheduled'):
+            return (f"Not run: {creator.username} no longer has the "
+                    "'reports_manage_scheduled' permission for this customer."), params
+        if not may_see_report_type(creator, rtype, org):
+            return (f"Not run: {creator.username} no longer has the "
+                    f"'{report_type_perm(rtype)}' permission for this customer."), params
+        params['include_vault'] = holds('vault_view')
+        return None, params
 
     @staticmethod
     def _normalize_format(fmt):

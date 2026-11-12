@@ -92,6 +92,7 @@ def task_list(request):
 
 
 @login_required
+@require_write
 def task_create(request):
     """Create a new scheduled task and assign users."""
     org = get_request_organization(request)
@@ -425,8 +426,18 @@ def wallboard_public(request, token):
 @login_required
 @require_admin
 def wallboard_settings(request):
-    """Enable, disable, configure and rotate the board's link."""
+    """Enable, disable, configure and rotate the board's link.
+
+    MSP staff only. The board is one public page listing every client's
+    scheduled work, so it is not an organization setting: `require_admin`
+    alone let a customer Owner/Admin switch it on and read its public link.
+    """
     from django.shortcuts import render
+    from django.core.exceptions import PermissionDenied
+    from psa.visibility import is_msp_staff
+
+    if not is_msp_staff(request.user):
+        raise PermissionDenied('The scheduler wallboard is managed by MSP staff.')
 
     board = SchedulerWallboard.get_board(user=request.user)
 

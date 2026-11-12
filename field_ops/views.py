@@ -203,44 +203,51 @@ def my_location_delete_all(request):
 # Sub-phase 8.5 part 3 — Org admin retention/privacy UI (v3.17.416)
 # ---------------------------------------------------------------------------
 
+def _admin_org_ids(user):
+    """Organizations whose field-ops settings `user` may change: every one for
+    superusers and Django staff, otherwise those where an active membership
+    can administer the organization (`Membership.can_admin`: Owner/Admin or a
+    role with org_manage_settings), including that organization's
+    subsidiaries. None means every organization."""
+    if user.is_superuser or user.is_staff:
+        return None
+    from accounts.models import Membership
+    from core.utils import descendant_org_ids
+    ids = set()
+    for m in (Membership.objects.filter(user=user, is_active=True, organization__is_active=True)
+              .select_related('role_template')):
+        if m.can_admin():
+            ids |= descendant_org_ids(m.organization_id)
+    return ids
+
+
 def _org_admin_only(user):
-    """Org-admin gate: superuser, is_staff, or has any active OWNER/ADMIN
-    membership."""
+    """Org-admin gate: superuser, is_staff, or an organization the user can
+    administer."""
     if not user.is_authenticated:
         return False
-    if user.is_superuser or user.is_staff:
-        return True
-    try:
-        from accounts.models import Membership, Role
-        return Membership.objects.filter(
-            user=user, is_active=True,
-            role__in=[Role.OWNER, Role.ADMIN],
-        ).exists()
-    except Exception:
-        return False
+    allowed = _admin_org_ids(user)
+    return allowed is None or bool(allowed)
 
 
 def _picked_organization(request):
-    """Resolve the org the admin is editing settings for. Falls back to
-    the first OWNER-membership org for non-superusers."""
-    org_id = request.GET.get('org') or request.POST.get('organization_id')
+    """Resolve the org the admin is editing settings for, bounded to the
+    organizations they administer. Until the roles/permissions program
+    `?org=<id>` was honoured for anyone who was Owner/Admin *somewhere*, so a
+    customer administrator could change any other customer's GPS retention
+    and geofence settings."""
     from core.models import Organization
+    allowed = _admin_org_ids(request.user)
+    qs = Organization.objects.all()
+    if allowed is not None:
+        qs = qs.filter(pk__in=allowed)
+    org_id = request.GET.get('org') or request.POST.get('organization_id')
     if org_id:
         try:
-            return Organization.objects.get(pk=int(org_id))
-        except (Organization.DoesNotExist, ValueError):
+            return qs.get(pk=int(org_id))
+        except (Organization.DoesNotExist, ValueError, TypeError):
             return None
-    if request.user.is_superuser or request.user.is_staff:
-        return Organization.objects.order_by('id').first()
-    try:
-        from accounts.models import Membership, Role
-        m = Membership.objects.filter(
-            user=request.user, is_active=True,
-            role__in=[Role.OWNER, Role.ADMIN],
-        ).select_related('organization').first()
-        return m.organization if m else None
-    except Exception:
-        return None
+    return qs.order_by('id').first()
 
 
 @login_required

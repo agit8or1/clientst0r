@@ -51,3 +51,80 @@ def visible_attachments(ticket, user):
     if is_msp_staff(user):
         return qs
     return qs.filter(is_internal=False).exclude(comment__is_internal=True)
+
+
+# ---------------------------------------------------------------------------
+# Customer ticket audience: own tickets vs the whole customer organization.
+#
+# The spec's Customer Standard User sees only their own tickets; a customer
+# role that allows it sees every shared ticket of the organization. No
+# RoleTemplate flag expresses "org-wide" for customers yet (tickets_view_all
+# is the MSP-staff cross-customer flag), so the proposed flag
+# `portal_tickets_view_org` is read with a default of True: every existing
+# membership — including the Read-Only memberships the portal invite creates —
+# keeps the org-wide view it has today until a role sets the flag to False.
+# Listed in NEEDED_PERMISSIONS.md for roles-core.
+# ---------------------------------------------------------------------------
+
+CUSTOMER_ORG_TICKETS_FLAG = 'portal_tickets_view_org'
+
+
+def membership_flag(membership, flag, default=False):
+    """A role flag on one membership; `default` when the role doesn't define it."""
+    if membership is None:
+        return False
+    return bool(getattr(membership.get_permissions(), flag, default))
+
+
+def own_tickets_q(user, prefix=''):
+    """Q for tickets that belong to `user` as a customer: they filed it, or it
+    names them as the requester (by e-mail on the ticket or its contact)."""
+    from django.db.models import Q
+    q = Q(**{f'{prefix}created_by': user})
+    email = (getattr(user, 'email', '') or '').strip()
+    if email:
+        q |= Q(**{f'{prefix}requester_email__iexact': email})
+        q |= Q(**{f'{prefix}contact__email__iexact': email})
+    return q
+
+
+def customer_ticket_q(user, memberships, prefix=''):
+    """Q matching the tickets a customer user may see through `memberships`:
+    shared with the client, in one of those organizations, and either any
+    ticket there (role allows org-wide) or only their own."""
+    from django.db.models import Q
+    org_wide, own_only = [], []
+    for m in memberships:
+        (org_wide if membership_flag(m, CUSTOMER_ORG_TICKETS_FLAG, True)
+         else own_only).append(m.organization_id)
+    q = Q(pk__in=[])
+    if org_wide:
+        q |= Q(**{f'{prefix}organization_id__in': org_wide})
+    if own_only:
+        q |= Q(**{f'{prefix}organization_id__in': own_only}) & own_tickets_q(user, prefix)
+    return q & Q(**{f'{prefix}client_can_view': True})
+
+
+def user_can_view_ticket(user, ticket):
+    """Whether `user` may see `ticket` right now — the same rule as the
+    ticket pages (psa.views._scoped_ticket_qs), for one user and one ticket.
+    Used where something is sent to a user later (watcher and @mention
+    e-mails), so revoked access or a customer role never receives what the
+    pages would hide."""
+    if not user or not user.is_active:
+        return False
+    from accounts.permission_utils import has_perm_for_org
+    profile = getattr(user, 'profile', None)
+    if user.is_superuser or (profile is not None and profile.is_staff_user()):
+        return has_perm_for_org(user, ticket.organization_id, 'tickets_view')
+    memberships = [m for m in user.memberships.filter(is_active=True).select_related('role_template')
+                   if membership_flag(m, 'tickets_view', True)]
+    from psa.models import Ticket
+    return Ticket.objects.filter(pk=ticket.pk).filter(customer_ticket_q(user, memberships)).exists()
+
+
+def user_can_see_comment(user, ticket, comment):
+    """`user_can_view_ticket`, and internal notes only for MSP staff."""
+    if comment.is_internal and not is_msp_staff(user):
+        return False
+    return user_can_view_ticket(user, ticket)

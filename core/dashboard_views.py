@@ -168,10 +168,15 @@ def global_dashboard(request):
         document_count=Count('documents', distinct=True),
     ).order_by('-member_count')[:10]
 
-    # Recent global activity (last 20 actions)
-    global_activity = AuditLog.objects.select_related(
-        'user', 'organization'
-    ).order_by('-timestamp')[:20]
+    # Recent global activity (last 20 actions). The install-wide audit log
+    # is audit_view across every customer — not every technician's to read.
+    from reports.access import has_msp_wide_perm
+    if has_msp_wide_perm(request.user, 'audit_view', legacy='staff'):
+        global_activity = AuditLog.objects.select_related(
+            'user', 'organization'
+        ).order_by('-timestamp')[:20]
+    else:
+        global_activity = AuditLog.objects.none()
 
     # System health indicators
     now = timezone.now()

@@ -147,9 +147,16 @@ def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[Schedule
         if organization is not None:
             tickets = tickets.filter(organization=organization)
         if user is not None and getattr(user, 'is_authenticated', False):
-            # Customer users get the portal rule here too: shared tickets only.
-            from psa.visibility import customer_visible_tickets
-            tickets = customer_visible_tickets(tickets, user)
+            # Customer users get the portal rule here too: shared tickets
+            # only, and only their own unless their role sees the whole
+            # organization's. Everyone needs tickets_view for the customer.
+            from accounts.permission_utils import filter_by_org_perm
+            from psa.visibility import customer_ticket_q, customer_visible_tickets, is_msp_staff
+            tickets = filter_by_org_perm(customer_visible_tickets(tickets, user), user, 'tickets_view')
+            if not is_msp_staff(user):
+                tickets = tickets.filter(customer_ticket_q(
+                    user, user.memberships.filter(is_active=True, organization__is_active=True)
+                    .select_related('role_template')))
         for ticket in tickets.select_related('organization', 'priority').order_by(
                 'resolution_due_at')[:60]:
             bucket_for(timezone.localtime(ticket.resolution_due_at).date()).items.append({

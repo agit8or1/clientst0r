@@ -23,6 +23,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import Http404, HttpResponseBadRequest, HttpResponseNotAllowed, JsonResponse
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -613,6 +614,12 @@ def commission_list(request):
             qs = qs.filter(opportunity__organization=org)
         else:
             qs = qs.none()
+    # Everyone's commissions are payroll data for whoever manages sales
+    # compensation (crm_view_forecast, which also gates the commission
+    # rules). A rep who only manages the pipeline sees their own.
+    can_view_forecast = user_has_perm(request.user, 'crm_view_forecast')
+    if not can_view_forecast:
+        qs = qs.filter(user=request.user)
     status = (request.GET.get('status') or '').strip()
     if status:
         qs = qs.filter(status=status)
@@ -637,7 +644,7 @@ def commission_list(request):
         'user_q': user_q,
         'status_choices': Commission.STATUS_CHOICES,
         'totals': totals,
-        'can_view_forecast': user_has_perm(request.user, 'crm_view_forecast'),
+        'can_view_forecast': can_view_forecast,
     }
     return render(request, 'crm/commission_list.html', ctx)
 
@@ -655,6 +662,16 @@ def commission_decide(request, pk):
         else:
             qs = qs.none()
     commission = get_object_or_404(qs, pk=pk)
+    # Approving, cancelling or paying out a commission is a compensation
+    # decision: it needs crm_view_forecast (the flag that governs commission
+    # rules), and nobody decides their own commission. Until the
+    # roles/permissions program any rep with crm_manage_pipeline could
+    # approve and mark paid every commission, including their own.
+    if not request.user.is_superuser:
+        if not user_has_perm(request.user, 'crm_view_forecast'):
+            raise PermissionDenied("You don't have the 'crm_view_forecast' permission.")
+        if commission.user_id == request.user.id:
+            raise PermissionDenied('Another manager must decide your own commission.')
 
     action = (request.POST.get('action') or '').strip().lower()
     reference = (request.POST.get('reference') or '').strip()
@@ -874,6 +891,14 @@ def lead_capture_api(request):
         return JsonResponse({'error': 'Invalid API key.'}, status=401)
 
     msp = api_key.organization
+    # The key acts for its owner: it may file leads only where the owner's
+    # role may (crm_create_lead in the key's organization), and only while the
+    # owner is still active. Any organization's key used to be enough.
+    from accounts.permission_utils import has_perm_for_org
+    owner = getattr(api_key, 'user', None)
+    if (owner is None or not owner.is_active
+            or not has_perm_for_org(owner, msp, 'crm_create_lead')):
+        return JsonResponse({'error': 'This API key may not create leads.'}, status=403)
 
     # Accept JSON or form-encoded
     if request.content_type and 'application/json' in request.content_type:

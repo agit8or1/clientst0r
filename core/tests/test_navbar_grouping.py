@@ -246,7 +246,9 @@ class CustomerSidebarTests(NavbarTestBase):
         self.assertNotIn(f'href="{reverse("assets:custom_field_list")}"', self.html)
 
     def test_customer_keeps_what_they_saw_before(self):
-        self.assertEqual(self.nav['tickets'], urls(TICKETS))
+        # Dispatch is MSP-staff-only: the server refuses it to customers.
+        self.assertEqual(self.nav['tickets'],
+                         urls([n for n in TICKETS if n != 'psa:dispatch_board']))
         self.assertEqual(self.nav['devices'], urls(['assets:asset_list', 'hardware:device_list',
                                                     'monitoring:rack_list']))
         for name in ('docs:document_list', 'vault:password_list', 'psa:contract_list'):

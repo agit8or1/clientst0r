@@ -59,6 +59,23 @@ class WorkingHoursForm(forms.ModelForm):
         }
 
 
+def holiday_manageable_org_ids(request):
+    """Organizations whose holidays this request may create or change: the
+    caller's organizations (core.tenancy) in which they hold
+    `resourcing_manage_holidays`. None means every organization.
+
+    The view gate accepts the flag from any membership, so without the second
+    half a member who is Owner of one client and Read-Only in another could
+    manage the second client's holidays too."""
+    from accounts.permission_utils import orgs_with_perm
+    from core.tenancy import accessible_org_ids
+    allowed = accessible_org_ids(request)
+    if allowed is None:
+        return None
+    with_flag = orgs_with_perm(request.user, 'resourcing_manage_holidays')
+    return allowed if with_flag is None else (allowed & with_flag)
+
+
 class HolidayForm(forms.ModelForm):
     """Holiday create/edit.
 
@@ -82,7 +99,7 @@ class HolidayForm(forms.ModelForm):
         from core.models import Organization
         from core.tenancy import accessible_org_ids, is_cross_tenant_user
 
-        allowed = accessible_org_ids(request)
+        allowed = holiday_manageable_org_ids(request)
         field = self.fields.get('organization')
         if field is None:
             return
@@ -104,7 +121,7 @@ class HolidayForm(forms.ModelForm):
         from core.tenancy import accessible_org_ids, is_cross_tenant_user
         if is_cross_tenant_user(request):
             return org
-        allowed = accessible_org_ids(request)
+        allowed = holiday_manageable_org_ids(request)
         if org is None:
             raise forms.ValidationError(
                 'Choose an organization. Holidays that apply to every '

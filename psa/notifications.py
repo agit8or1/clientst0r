@@ -177,6 +177,12 @@ def notify_portal_status_change(ticket):
         return {'sms': 'lookup error'}
     if not user:
         return {'sms': 'no user account'}
+    # Only someone the portal would show this ticket to: an internal ticket
+    # (client_can_view off), or a requester who has since left the customer,
+    # gets nothing.
+    from .visibility import user_can_view_ticket
+    if not user_can_view_ticket(user, ticket):
+        return {'sms': 'not visible to requester'}
     profile = _user_profile(user)
     if not profile:
         return {'sms': 'no profile'}

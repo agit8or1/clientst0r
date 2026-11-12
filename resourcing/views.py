@@ -64,6 +64,37 @@ def _resolve_target_user(request, instance=None):
     return target, can_edit
 
 
+def _is_msp_tech(user):
+    from psa.visibility import is_msp_staff
+    return bool(user.is_authenticated and user.is_active and is_msp_staff(user))
+
+
+def has_msp_perm(user, perm_name):
+    """`perm_name` for the MSP's own team data: only MSP technicians hold it.
+
+    Roster, leave approvals, capacity, billable targets and loaded cost rates
+    describe the MSP's staff, not a customer's. Customer roles (Owner/Admin)
+    carry the resourcing_* flags too, and `require_perm` accepts a flag from
+    any membership, so until the roles/permissions program a customer
+    administrator could read and change MSP technicians' cost rates and
+    approve their leave.
+    """
+    return _is_msp_tech(user) and user_has_perm(user, perm_name)
+
+
+def require_msp_perm(perm_name):
+    def decorator(view_fn):
+        from functools import wraps
+
+        @wraps(view_fn)
+        def _wrapped(request, *args, **kwargs):
+            if not has_msp_perm(request.user, perm_name):
+                raise PermissionDenied(f"You don't have the '{perm_name}' permission.")
+            return view_fn(request, *args, **kwargs)
+        return _wrapped
+    return decorator
+
+
 def _is_staff_or_super(user):
     return user.is_authenticated and (user.is_superuser or user.is_staff)
 
@@ -110,7 +141,14 @@ def my_resourcing(request):
     has_explicit_cost_rate = TechCostRate.objects.filter(
         user=target, effective_from__lte=today,
     ).exists()
-    can_edit_cost_rate = (request.user.is_staff or request.user.is_superuser)
+    # Loaded cost rates are MSP cost data: shown to MSP technicians (their own,
+    # or anyone's for an admin) and never to a customer user, who would
+    # otherwise see the MSP's default loaded rate here.
+    show_cost_rate = _is_msp_tech(request.user)
+    if not show_cost_rate:
+        current_cost_rate = None
+        has_explicit_cost_rate = False
+    can_edit_cost_rate = has_msp_perm(request.user, 'resourcing_manage_cost_rates')
 
     return render(request, 'resourcing/my_resourcing.html', {
         'target': target,
@@ -126,6 +164,7 @@ def my_resourcing(request):
         'current_cost_rate': current_cost_rate,
         'has_explicit_cost_rate': has_explicit_cost_rate,
         'can_edit_cost_rate': can_edit_cost_rate,
+        'show_cost_rate': show_cost_rate,
     })
 
 
@@ -270,7 +309,7 @@ def hours_delete(request, pk):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('resourcing_view_team')
+@require_msp_perm('resourcing_view_team')
 def tech_roster(request):
     """
     List every active staff/internal user with skill counts, cert counts
@@ -331,6 +370,16 @@ def tech_roster(request):
 # Phase 2.2 — Holidays (staff/superuser only)
 # ---------------------------------------------------------------------------
 
+def _require_holiday_org(request, instance):
+    """404 unless the caller holds resourcing_manage_holidays in the
+    holiday's own organization (not merely in some other membership)."""
+    from django.http import Http404
+    from .forms import holiday_manageable_org_ids
+    allowed = holiday_manageable_org_ids(request)
+    if allowed is not None and instance.organization_id not in allowed:
+        raise Http404('No Holiday matches the given query.')
+
+
 @login_required
 @require_perm('resourcing_manage_holidays')
 def holiday_list(request):
@@ -368,6 +417,7 @@ def holiday_edit(request, pk):
     # another tenant's holiday by id, nor edit a shared national holiday,
     # which would change it for everybody.
     instance = get_scoped_object_or_404(Holiday, request, pk=pk)
+    _require_holiday_org(request, instance)
     if request.method == 'POST':
         form = HolidayForm(request.POST, instance=instance, request=request)
         if form.is_valid():
@@ -385,6 +435,7 @@ def holiday_edit(request, pk):
 @require_perm('resourcing_manage_holidays')
 def holiday_delete(request, pk):
     instance = get_scoped_object_or_404(Holiday, request, pk=pk)
+    _require_holiday_org(request, instance)
     if request.method == 'POST':
         instance.delete()
         messages.success(request, 'Holiday deleted.')
@@ -474,7 +525,7 @@ def leave_request_cancel(request, pk):
 
 
 @login_required
-@require_perm('resourcing_approve_leave')
+@require_msp_perm('resourcing_approve_leave')
 def leave_approvals(request):
     """Staff queue of pending leave requests across all users.
 
@@ -489,7 +540,12 @@ def leave_approvals(request):
             new_status = 'approved' if action == 'approve' else 'denied'
             now = timezone.now()
             count = 0
+            skipped_own = 0
             for lr in LeaveRequest.objects.filter(pk__in=ids, status='pending'):
+                # Nobody decides their own leave (superusers excepted).
+                if lr.user_id == request.user.id and not request.user.is_superuser:
+                    skipped_own += 1
+                    continue
                 lr.status = new_status
                 lr.approver = request.user
                 lr.decided_at = now
@@ -511,6 +567,8 @@ def leave_approvals(request):
                 )
                 count += 1
             messages.success(request, f'{count} request(s) {new_status}.')
+            if skipped_own:
+                messages.warning(request, 'Your own leave request was left for another approver.')
         return redirect('resourcing:leave_approvals')
 
     pending = LeaveRequest.objects.filter(status='pending').select_related('user').order_by('start_date')
@@ -520,12 +578,14 @@ def leave_approvals(request):
 
 
 @login_required
-@require_perm('resourcing_approve_leave')
+@require_msp_perm('resourcing_approve_leave')
 def leave_decide(request, pk):
     """POST endpoint: ?action=approve|deny + optional note. Audit-logged."""
     if request.method != 'POST':
         return HttpResponseForbidden('POST required.')
     instance = get_object_or_404(LeaveRequest, pk=pk)
+    if instance.user_id == request.user.id and not request.user.is_superuser:
+        raise PermissionDenied('Another approver must decide your own leave request.')
     action = request.GET.get('action') or request.POST.get('action')
     note = request.POST.get('note', '')
     if action not in ('approve', 'deny'):
@@ -572,7 +632,7 @@ def my_billable_target(request):
     # v3.17.169 — billable targets are now manager/admin-only. Even the target
     # user themselves cannot self-edit; this avoids mixed signals about whether
     # a tech is meeting their own self-set target.
-    can_edit = user_has_perm(request.user, 'resourcing_manage_cost_rates')
+    can_edit = has_msp_perm(request.user, 'resourcing_manage_cost_rates')
     return render(request, 'resourcing/billable_target_form.html', {
         'target': target,
         'billable_target': bt,
@@ -583,12 +643,12 @@ def my_billable_target(request):
 
 @login_required
 def billable_target_edit(request, user_id):
-    target = get_object_or_404(User, pk=user_id)
     # v3.17.169 — manager/admin only. Per user request, even the target user
     # themselves cannot edit their own billable target. Only users with
     # `resourcing_manage_cost_rates` (or staff/superuser via that perm) can.
-    if not user_has_perm(request.user, 'resourcing_manage_cost_rates'):
+    if not has_msp_perm(request.user, 'resourcing_manage_cost_rates'):
         raise PermissionDenied
+    target = get_object_or_404(User, pk=user_id)
     bt, _ = BillableTarget.objects.get_or_create(user=target)
     if request.method == 'POST':
         form = BillableTargetForm(request.POST, instance=bt)
@@ -616,7 +676,7 @@ def billable_target_edit(request, user_id):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('reports_view_capacity')
+@require_msp_perm('reports_view_capacity')
 def capacity_report(request):
     """
     Capacity / utilization report for techs. Default window = current ISO
@@ -728,7 +788,7 @@ def capacity_report(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('resourcing_manage_cost_rates')
+@require_msp_perm('resourcing_manage_cost_rates')
 def tech_cost_rate_list(request):
     """List every internal/staff user with their current loaded cost rate."""
     today = timezone.localdate()
@@ -758,7 +818,7 @@ def tech_cost_rate_list(request):
 
 
 @login_required
-@require_perm('resourcing_manage_cost_rates')
+@require_msp_perm('resourcing_manage_cost_rates')
 def tech_cost_rate_edit(request, user_id):
     """Show a user's full rate history + a form to add a new effective row."""
     target = get_object_or_404(User, pk=user_id)
@@ -798,7 +858,7 @@ def tech_cost_rate_edit(request, user_id):
 
 
 @login_required
-@require_perm('resourcing_manage_cost_rates')
+@require_msp_perm('resourcing_manage_cost_rates')
 def tech_cost_rate_delete(request, pk):
     """Delete a single cost-rate history row."""
     instance = get_object_or_404(TechCostRate, pk=pk)

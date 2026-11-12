@@ -96,6 +96,17 @@ def _open_engine_entry(user, organization_id):
     )
 
 
+def _may_log_time(user, organization_id) -> bool:
+    """Re-check, at the moment the job acts, that `user` may still add time to
+    this customer's tickets. Preferences are set once and the job runs every
+    minute, so a later deactivation or role change must stop it."""
+    if not user.is_active:
+        return False
+    from accounts.permission_utils import has_perm_for_org
+    from psa.visibility import is_msp_staff
+    return is_msp_staff(user) and has_perm_for_org(user, organization_id, 'tickets_edit')
+
+
 def _push_to_user(user, *, title: str, body: str, url: str = ''):
     """Emit a Web Push to all of the user's active subscriptions. Best-
     effort — failures are recorded but never raised."""
@@ -142,6 +153,13 @@ class Command(BaseCommand):
                 continue
 
             fence = _is_user_inside_geofence_now(user, latest)
+
+            if fence is not None and not _may_log_time(user, fence.organization_id):
+                # The tech's access changed since they opted in (deactivated,
+                # no longer MSP staff, or their role lost ticket editing for
+                # this customer): don't start time on their behalf.
+                skipped += 1
+                continue
 
             if fence is not None:
                 # Possible ENTER. Check whether we already have an open

@@ -185,7 +185,9 @@ class POReceiveSerialTests(TestCase):
         self.other = Organization.objects.create(name='RecvOther', slug='recv-other')
         role = RoleTemplate.objects.create(name='SerialReceiver', is_system_template=False,
                                            procurement_view=True, procurement_create_po=True)
-        self.user = User.objects.create_user(username='serial_receiver', password='pw', email='sr@x.com')
+        # Procurement receiving is MSP-only: an MSP technician.
+        from psa.tests._base import _make_msp_tech
+        self.user = _make_msp_tech(User.objects.create_user(username='serial_receiver', password='pw', email='sr@x.com'))
         Membership.objects.create(user=self.user, organization=self.org, role=Role.ADMIN,
                                   role_template=role, is_active=True)
         self.po = PurchaseOrder.objects.create(organization=self.org, vendor_name='ACME', title='T',
@@ -194,6 +196,9 @@ class POReceiveSerialTests(TestCase):
                                                          quantity=Decimal('3'), unit_price=Decimal('5'))
         self.client = Client()
         self.client.force_login(self.user)
+        session = self.client.session
+        session['current_organization_id'] = self.org.id
+        session.save()
 
     def test_receive_records_received_then_assigned(self):
         # Another customer already has this serial: it is not a duplicate here.
