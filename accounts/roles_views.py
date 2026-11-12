@@ -123,6 +123,11 @@ def role_create(request):
         role.routing_test = request.POST.get('routing_test') == 'on'
         role.routing_override = request.POST.get('routing_override') == 'on'
 
+        # Contract documents permissions (MSP technicians only)
+        for _flag in ('contracts_view', 'contracts_edit', 'contracts_manage_templates', 'contracts_approve',
+                      'contracts_send', 'contracts_void', 'contracts_view_audit', 'contracts_manage_settings'):
+            setattr(role, _flag, request.POST.get(_flag) == 'on')
+
         # Reports & dashboards permissions (v3.17.145)
         role.reports_view_dashboards = request.POST.get('reports_view_dashboards') == 'on'
         role.reports_view_financial = request.POST.get('reports_view_financial') == 'on'
@@ -233,6 +238,11 @@ def role_edit(request, pk):
         role.routing_manage_rules = request.POST.get('routing_manage_rules') == 'on'
         role.routing_test = request.POST.get('routing_test') == 'on'
         role.routing_override = request.POST.get('routing_override') == 'on'
+
+        # Contract documents permissions (MSP technicians only)
+        for _flag in ('contracts_view', 'contracts_edit', 'contracts_manage_templates', 'contracts_approve',
+                      'contracts_send', 'contracts_void', 'contracts_view_audit', 'contracts_manage_settings'):
+            setattr(role, _flag, request.POST.get(_flag) == 'on')
 
         # Reports & dashboards permissions (v3.17.145)
         role.reports_view_dashboards = request.POST.get('reports_view_dashboards') == 'on'

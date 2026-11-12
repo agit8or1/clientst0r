@@ -378,6 +378,58 @@
                     </div>
                 </div>
 
+                <!-- Contract documents permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-file-signature"></i> Contract Documents</h6>
+                        </div>
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-2">MSP technicians only.</small>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_view" id="contracts_view"
+                                       {% if role %}{% if role.contracts_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_view %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_view">View contract documents</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_edit" id="contracts_edit"
+                                       {% if role %}{% if role.contracts_edit %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_edit %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_edit">Create and edit drafts</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_manage_templates" id="contracts_manage_templates"
+                                       {% if role %}{% if role.contracts_manage_templates %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_manage_templates %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_manage_templates">Manage templates and clauses</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_approve" id="contracts_approve"
+                                       {% if role %}{% if role.contracts_approve %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_approve %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_approve">Approve contracts</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_send" id="contracts_send"
+                                       {% if role %}{% if role.contracts_send %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_send %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_send">Send contracts and manage signing links</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_void" id="contracts_void"
+                                       {% if role %}{% if role.contracts_void %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_void %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_void">Void contracts</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_view_audit" id="contracts_view_audit"
+                                       {% if role %}{% if role.contracts_view_audit %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_view_audit %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_view_audit">View sensitive audit details (IP, browser, evidence)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="contracts_manage_settings" id="contracts_manage_settings"
+                                       {% if role %}{% if role.contracts_manage_settings %}checked{% endif %}{% elif copy_from %}{% if copy_from.contracts_manage_settings %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="contracts_manage_settings">Manage contract settings</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Reports & Dashboards Permissions (v3.17.145) -->
                 <div class="col-md-6 mb-4">
                     <div class="card">

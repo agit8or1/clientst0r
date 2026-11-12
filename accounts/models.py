@@ -142,6 +142,9 @@ class Membership(BaseModel):
                 tickets_view=True, tickets_create=True, tickets_edit=True,
                 tickets_assign=True, tickets_view_all=True,
                 tickets_close=True, tickets_delete=True,
+                contracts_view=True, contracts_edit=True, contracts_manage_templates=True,
+                contracts_approve=True, contracts_send=True, contracts_void=True,
+                contracts_view_audit=True, contracts_manage_settings=True,
             )
         elif self.role == Role.ADMIN:
             return SimpleNamespace(
@@ -192,6 +195,9 @@ class Membership(BaseModel):
                 tickets_view=True, tickets_create=True, tickets_edit=True,
                 tickets_assign=True, tickets_view_all=True,
                 tickets_close=True, tickets_delete=True,
+                contracts_view=True, contracts_edit=True, contracts_manage_templates=True,
+                contracts_approve=True, contracts_send=True, contracts_void=True,
+                contracts_view_audit=True, contracts_manage_settings=True,
             )
         elif self.role == Role.EDITOR:
             return SimpleNamespace(
@@ -931,6 +937,25 @@ class RoleTemplate(BaseModel):
     routing_override = models.BooleanField(default=False,
         help_text='Ticket routing: accept or reject routing suggestions.')
 
+    # Contract documents (build, approve, send, sign). MSP technicians only;
+    # the /contracts/ section is staff-only whatever a customer role says.
+    contracts_view = models.BooleanField(default=False,
+        help_text='Contract documents: view contracts, the dashboard and timelines.')
+    contracts_edit = models.BooleanField(default=False,
+        help_text='Contract documents: create and edit drafts, clone, amend and revise.')
+    contracts_manage_templates = models.BooleanField(default=False,
+        help_text='Contract documents: manage templates and reusable clauses.')
+    contracts_approve = models.BooleanField(default=False,
+        help_text='Contract documents: give internal approval before sending.')
+    contracts_send = models.BooleanField(default=False,
+        help_text='Contract documents: send, resend, copy signing links, revoke invitations.')
+    contracts_void = models.BooleanField(default=False,
+        help_text='Contract documents: void a contract (with a reason).')
+    contracts_view_audit = models.BooleanField(default=False,
+        help_text='Contract documents: see IP addresses, browsers and download evidence.')
+    contracts_manage_settings = models.BooleanField(default=False,
+        help_text='Contract documents: change contract settings.')
+
     # RMM role tier (Phase 8). Read by rmm_permissions from a technician's
     # global role template only; '' (every pre-existing template) means
     # technician access and the flags above decide, exactly as before.
@@ -1090,6 +1115,15 @@ class RoleTemplate(BaseModel):
                 'routing_manage_rules': True,
                 'routing_test': True,
                 'routing_override': True,
+                # Contract documents
+                'contracts_view': True,
+                'contracts_edit': True,
+                'contracts_manage_templates': True,
+                'contracts_approve': True,
+                'contracts_send': True,
+                'contracts_void': True,
+                'contracts_view_audit': True,
+                'contracts_manage_settings': True,
             },
             {
                 'name': 'Administrator',
@@ -1210,6 +1244,15 @@ class RoleTemplate(BaseModel):
                 'routing_manage_rules': True,
                 'routing_test': True,
                 'routing_override': True,
+                # Contract documents
+                'contracts_view': True,
+                'contracts_edit': True,
+                'contracts_manage_templates': True,
+                'contracts_approve': True,
+                'contracts_send': True,
+                'contracts_void': True,
+                'contracts_view_audit': True,
+                'contracts_manage_settings': True,
             },
             {
                 'name': 'Editor',
@@ -1560,6 +1603,11 @@ class RoleTemplate(BaseModel):
                 'routing_manage_rules': True,
                 'routing_test': True,
                 'routing_override': True,
+                # Contract documents
+                'contracts_view': True,
+                'contracts_edit': True,
+                'contracts_approve': True,
+                'contracts_send': True,
             },
             {
                 'name': 'Documentation Writer',
