@@ -117,7 +117,7 @@ class Migration(migrations.Migration):
             name='ServiceRequestSubmission',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('token', models.CharField(max_length=64, unique=True)),
+                ('idempotency_key', models.CharField(max_length=64, unique=True)),
                 ('catalog_item_name', models.CharField(blank=True, max_length=120)),
                 ('form_version_number', models.PositiveIntegerField(blank=True, null=True)),
                 ('schema_snapshot', models.JSONField(blank=True, default=list)),

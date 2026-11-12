@@ -1334,14 +1334,14 @@ class ServiceRequestFormVersion(models.Model):
 class ServiceRequestSubmission(models.Model):
     """One portal request-form submission and the ticket it created.
 
-    `token` comes from the form the customer loaded, so a double click or
-    a retried POST finds this row and returns the same ticket instead of
+    `idempotency_key` (the form token) comes from the form the customer
+    loaded, so a double click or a retried POST finds this row and returns the same ticket instead of
     opening a second one. `schema_snapshot` + `original_answers` keep the
     labels, field types, option labels and answers exactly as submitted;
     later form edits, archiving or deleted options never change them.
     `answers` holds the current answers after any audited staff edit.
     """
-    token = models.CharField(max_length=64, unique=True)
+    idempotency_key = models.CharField(max_length=64, unique=True)
     ticket = models.OneToOneField(
         'Ticket', on_delete=models.CASCADE, null=True, blank=True,
         related_name='service_request_submission',

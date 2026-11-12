@@ -255,7 +255,7 @@ def request_form(request, slug):
     # A repeated POST (double click, browser retry) gets the first ticket.
     if valid_token(token):
         earlier = (ServiceRequestSubmission.objects.select_related('ticket')
-                   .filter(token=token).first())
+                   .filter(idempotency_key=token).first())
         if earlier is not None:
             if (earlier.submitted_by_id == request.user.pk and earlier.ticket_id
                     and earlier.organization_id == m.organization_id):

@@ -1479,7 +1479,7 @@ def submit_request(*, item, organization, user, answers, token=None, version=Non
             # Claim the token first: a second POST with the same token hits
             # the unique constraint and gets the first ticket back.
             submission = ServiceRequestSubmission.objects.create(
-                token=token or uuid.uuid4().hex,
+                idempotency_key=token or uuid.uuid4().hex,
                 catalog_item=item, catalog_item_name=item.name[:120],
                 organization=organization, submitted_by=user,
                 form_version=version, form_version_number=getattr(version, 'number', None),
@@ -1584,7 +1584,7 @@ def submit_request(*, item, organization, user, answers, token=None, version=Non
             submission.answers = rows
             submission.save(update_fields=['ticket', 'original_answers', 'answers'])
     except IntegrityError:
-        existing = (ServiceRequestSubmission.objects.filter(token=token).first()
+        existing = (ServiceRequestSubmission.objects.filter(idempotency_key=token).first()
                     if token else None)
         if existing is not None:
             raise DuplicateSubmission(existing)

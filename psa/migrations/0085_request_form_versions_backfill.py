@@ -42,7 +42,7 @@ def forwards(apps, schema_editor):
         rows = [r for r in (rec.get('answers') or []) if isinstance(r, dict)]
         snapshot = [{k: r[k] for k in ('key', 'label', 'type') if k in r} for r in rows]
         sub = Submission.objects.create(
-            token=f'legacy-{t["pk"]}', ticket_id=t['pk'],
+            idempotency_key=f'legacy-{t["pk"]}', ticket_id=t['pk'],
             catalog_item_id=rec.get('catalog_item_id') if rec.get('catalog_item_id') in item_ids else None,
             catalog_item_name=str(rec.get('catalog_item_name') or '')[:120],
             organization_id=t['organization_id'],
