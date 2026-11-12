@@ -532,4 +532,5 @@ Microsoft Office, ONLYOFFICE or Collabora.
 ONLYOFFICE Docs connector: see [office/ONLYOFFICE.md](office/ONLYOFFICE.md).
 Collabora Online connector (WOPI host): see [office/COLLABORA.md](office/COLLABORA.md).
 Installing, upgrading, draining and uninstalling the editor: [office/INSTALL.md](office/INSTALL.md).
+Managed Local ONLYOFFICE (clientst0r runs a pinned ONLYOFFICE Docs container on its own server): [office/MANAGED_LOCAL.md](office/MANAGED_LOCAL.md).
 Microsoft 365 documents (SharePoint / OneDrive: link, open, create, import and export copies): see [office/MICROSOFT_365.md](office/MICROSOFT_365.md).
