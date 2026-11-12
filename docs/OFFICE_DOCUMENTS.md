@@ -525,3 +525,5 @@ stubs. A connector must:
 by the tests: structure, content types and relationship targets.
 python-docx and python-pptx load and resave them. They have not been opened in
 Microsoft Office, ONLYOFFICE or Collabora.
+
+Collabora Online connector (WOPI host): see [office/COLLABORA.md](office/COLLABORA.md).
