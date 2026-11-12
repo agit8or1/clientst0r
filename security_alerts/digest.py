@@ -119,6 +119,30 @@ def render_all_clear(org, *, brand, unsubscribe):
     return subject, '\n'.join(lines)
 
 
+def recipient_still_eligible(sub):
+    """Rechecked at send time, not only at opt-in: a subscriber tied to a user
+    account gets the digest only while that account is active and still
+    belongs to the customer (MSP staff always do); one tied to a contact only
+    while the contact is active. Before this, a portal user who opted in kept
+    receiving their former customer's alert titles and devices after being
+    deactivated or removed."""
+    user = sub.user if sub.user_id else None
+    if user is not None:
+        if not user.is_active:
+            return False
+        from psa.visibility import is_msp_staff
+        if not is_msp_staff(user):
+            from core.utils import descendant_org_ids
+            member_orgs = user.memberships.filter(
+                is_active=True, organization__is_active=True).values_list('organization_id', flat=True)
+            if not any(sub.organization_id in descendant_org_ids(o) for o in member_orgs):
+                return False
+    contact = sub.contact if sub.contact_id else None
+    if contact is not None and getattr(contact, 'is_active', True) is False:
+        return False
+    return True
+
+
 def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=None, stdout=None):
     """Send each opted-in contact their customer's digest. Returns a dict of counts.
 
@@ -133,7 +157,7 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
            'no_smtp': False}
     subs = (SecurityDigestSubscription.objects
             .filter(is_subscribed=True, organization__is_active=True)
-            .select_related('organization').order_by('organization_id', 'email'))
+            .select_related('organization', 'user', 'contact').order_by('organization_id', 'email'))
     if org is not None:
         subs = subs.filter(organization=org)
     subs = list(subs)
@@ -165,6 +189,10 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
             if customer.pk not in all_clear_orgs:
                 continue
         for sub in org_subs:
+            if not recipient_still_eligible(sub):
+                out.setdefault('ineligible', 0)
+                out['ineligible'] += 1
+                continue
             if not force and sub.last_sent_at and now - sub.last_sent_at < MIN_INTERVAL:
                 out['skipped_recent'] += 1
                 continue

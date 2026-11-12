@@ -212,6 +212,15 @@ class Runner:
         service = ManagedOfficeService.get()
         if not service.enabled:
             return self.finish('failed', error='Managed Local ONLYOFFICE is turned off in Settings.')
+        # A queued operation runs later, from the scheduler: recheck that the
+        # administrator who asked for it still may (active superuser) before
+        # anything is touched. Maintenance-window updates are the system's
+        # own job, authorised by the maintenance settings, not by a person.
+        if self.op.source != 'maintenance':
+            requester = self.op.requested_by
+            if requester is None or not (requester.is_active and requester.is_superuser):
+                return self.finish('failed', error='The administrator who queued this operation no '
+                                                   'longer has platform administrator rights.')
         inst = self.instance()
         if self.op.action in DRAIN_ACTIONS and inst is not None:
             was = drain.block(inst)

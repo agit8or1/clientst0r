@@ -47,6 +47,14 @@ class Command(BaseCommand):
             )
             if opts.get('dry_run'):
                 continue
+            refusal = self._owner_refusal(sched)
+            if refusal:
+                # A delayed run acts on its creator's authority: recheck it now.
+                # The schedule is paused rather than retried every tick.
+                sched.is_active = False
+                sched.save(update_fields=['is_active'])
+                self.stderr.write(f'  x {sched.name} paused: {refusal}')
+                continue
             try:
                 self._run_one(sched)
                 ran += 1
@@ -61,6 +69,27 @@ class Command(BaseCommand):
         ))
 
     # ------------------------------------------------------------------ helpers
+
+    @staticmethod
+    def _owner_refusal(sched):
+        """Why the schedule's creator may no longer have it run, or ''.
+
+        Reports are MSP tooling (/reports/ is staff-only); the creator must
+        still be an active MSP staff account holding reports_manage_scheduled
+        for the schedule's customer. Schedules without a recorded creator
+        are left as they were (no person to recheck)."""
+        user = sched.created_by
+        if user is None:
+            return ''
+        if not user.is_active:
+            return f'its creator {user.username} is deactivated'
+        from psa.visibility import is_msp_staff
+        if not is_msp_staff(user):
+            return f'its creator {user.username} is no longer MSP staff'
+        from accounts.permission_utils import has_perm_for_org
+        if not has_perm_for_org(user, sched.organization_id, 'reports_manage_scheduled'):
+            return f'its creator {user.username} no longer manages scheduled reports for this customer'
+        return ''
 
     def _run_one(self, sched):
         from django.core.files.base import ContentFile
