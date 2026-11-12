@@ -22,10 +22,12 @@ recovery steps), recovered (an operator restored or resumed it).
 """
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from django.conf import settings
@@ -56,6 +58,28 @@ def ensure_private_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     os.chmod(path, 0o700)
     return path
+
+
+class LockHeld(Exception):
+    """Another process holds the upgrade lock (an upgrade, or a backup cleanup)."""
+
+
+@contextmanager
+def upgrade_lock():
+    """The one lock for "an upgrade (or a backup cleanup) is running here".
+
+    Apply holds it for the whole run; removing backups outside a run takes it
+    too, so a cleanup can never race the snapshot an upgrade is writing."""
+    root = ensure_private_dir(backup_root())
+    fd = os.open(str(root / 'apply.lock'), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise LockHeld('Another upgrade is running.')
+        yield
+    finally:
+        os.close(fd)
 
 
 def read() -> dict | None:

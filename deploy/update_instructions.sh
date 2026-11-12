@@ -251,7 +251,7 @@ if [ -n "$VERIFIED_BACKUP" ]; then
     fi
 else
     log "Taking and verifying a pre-upgrade backup (database, uploads, keys)..."
-    if BACKUP_OUT=$("$PY" "$BASE_DIR/manage.py" upgrade_backup --reason "before upgrade to $TARGET_REF" --print-path \
+    if BACKUP_OUT=$("$PY" "$BASE_DIR/manage.py" upgrade_backup --reason "before upgrade to $TARGET_REF" --print-path --in-upgrade \
             --code-sha "$PREV_SHA" ${PREV_VERSION:+--code-version "$PREV_VERSION"} 2>&1); then
         VERIFIED_BACKUP=$(printf '%s\n' "$BACKUP_OUT" | tail -1)
         printf '%s\n' "$BACKUP_OUT" | sed '$d' | while IFS= read -r line; do log "$line"; done

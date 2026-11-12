@@ -15,25 +15,41 @@ a backport policy (see docs/UPGRADE_AND_RECOVERY.md, "Release channels").
 
 Network failures never raise: the result carries `error` and, when there is
 one, the last good answer marked `stale`.
+
+Where the answer is kept (v3.17.667): one small JSON file,
+<UPGRADE_BACKUP_DIR>/channel_state.json, written atomically (temp file +
+rename). It used to live in Django's default cache, which on most installs
+is LocMemCache: one copy per gunicorn worker, so a page served by one worker
+could offer a release that the worker handling Apply had never heard of,
+and "Check for updates now" refreshed only the worker that served it. The
+file is shared by every process on the host (workers, the scheduler,
+manage.py) and needs nothing an install might lack: the backup directory
+already holds the upgrade journal for the same reason. Redis is optional,
+and a database row would add a write to the shared database on every check.
+If the directory cannot be written the answer is simply not kept, and every
+process asks GitHub itself: slower, never inconsistent.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
+import tempfile
+import time
 
 import requests
 from django.conf import settings
-from django.core.cache import cache
 from django.utils import timezone
 from packaging import version as pversion
 
 from .revision import TAG_RE, SHA_RE
 
-CACHE_KEY = 'upgrade_channels_v1'
-CACHE_KEY_LAST_GOOD = 'upgrade_channels_v1_last_good'
-CACHE_TTL = 600
-CACHE_TTL_ERROR = 120
+STATE_FILE = 'channel_state.json'
+STATE_FORMAT = 1
+CACHE_TTL = 600          # a good answer is reused for this long
+CACHE_TTL_ERROR = 120    # a failed check is not retried for this long
+LAST_GOOD_TTL = 24 * 3600
 CHANNELS = ('stable', 'preview')
 API = 'https://api.github.com/repos'
 RAW = 'https://raw.githubusercontent.com'
@@ -212,29 +228,85 @@ def _decide(remote, inst, channel):
     return target, relation
 
 
+def state_path():
+    from .journal import backup_root
+    return backup_root() / STATE_FILE
+
+
+def _read_state() -> dict:
+    try:
+        with open(state_path(), encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict) or data.get('format') != STATE_FORMAT:
+        return {}
+    return data
+
+
+def _write_state(data: dict) -> None:
+    """Atomic replace, so a reader never sees half a file. Best effort."""
+    from .journal import ensure_private_dir
+    tmp = None
+    try:
+        directory = ensure_private_dir(state_path().parent)
+        fd, tmp = tempfile.mkstemp(dir=str(directory), prefix='.channel_state.', suffix='.tmp')
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump({**data, 'format': STATE_FORMAT}, f, sort_keys=True)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, state_path())
+        tmp = None
+    except OSError:
+        pass
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def _fresh(stamp, ttl, now):
+    try:
+        return 0 <= now - float(stamp) < ttl
+    except (TypeError, ValueError):
+        return False
+
+
 def resolve(*, force_refresh=False):
-    """Channel state for Settings -> Updates, the badge and `upgrade_apply`."""
+    """Channel state for Settings -> Updates, the badge and `upgrade_apply`.
+
+    force_refresh asks GitHub now (Apply, "Check for updates now"); the answer
+    is then what every other process sees too."""
     inst = installed()
     channel = current_channel()
+    now = time.time()
+    state = _read_state()
     remote, error, stale, from_cache = None, None, False, False
     if not force_refresh:
-        remote = cache.get(CACHE_KEY)
-        from_cache = remote is not None
-    if remote is None:
+        if state.get('remote') and _fresh(state.get('fetched_at'), CACHE_TTL, now) \
+                and not _fresh(state.get('error_at'), CACHE_TTL_ERROR, now):
+            remote, from_cache = state['remote'], True
+        elif state.get('error') and _fresh(state.get('error_at'), CACHE_TTL_ERROR, now):
+            # A check failed moments ago: do not hammer GitHub on every page.
+            error, from_cache = state['error'], True
+    if remote is None and error is None:
         try:
             remote = _fetch_remote_state()
             remote['checked_at'] = timezone.now().isoformat()
-            cache.set(CACHE_KEY, remote, CACHE_TTL)
-            cache.set(CACHE_KEY_LAST_GOOD, remote, 24 * 3600)
+            _write_state({'remote': remote, 'fetched_at': now,
+                          'last_good': remote, 'last_good_at': now})
             _record_stable(remote.get('stable'))
         except GitHubError as e:
             error = str(e)
-            remote = cache.get(CACHE_KEY_LAST_GOOD)
-            stale = remote is not None
-            if remote is None:
-                remote = {'stable': None, 'preview': None, 'checked_at': timezone.now().isoformat()}
-            cache.set(CACHE_KEY, {**remote, '_error': error}, CACHE_TTL_ERROR)
-    error = error or remote.get('_error')
+            _write_state({'error': error, 'error_at': now,
+                          'last_good': state.get('last_good'),
+                          'last_good_at': state.get('last_good_at')})
+    if remote is None:
+        if state.get('last_good') and _fresh(state.get('last_good_at'), LAST_GOOD_TTL, now):
+            remote, stale = state['last_good'], True
+        else:
+            remote = {'stable': None, 'preview': None, 'checked_at': timezone.now().isoformat()}
     target, relation = _decide(remote, inst, channel)
     return {
         'installed': inst,
@@ -263,5 +335,16 @@ def _record_stable(stable):
         pass
 
 
-def clear_cache():
-    cache.delete(CACHE_KEY)
+def clear_cache(*, last_good=False):
+    """Forget the current answer (for every process), so the next resolve()
+    asks GitHub. last_good=True also forgets the fallback copy."""
+    state = _read_state()
+    if not state:
+        return
+    if last_good:
+        try:
+            os.unlink(state_path())
+        except OSError:
+            pass
+        return
+    _write_state({'last_good': state.get('last_good'), 'last_good_at': state.get('last_good_at')})

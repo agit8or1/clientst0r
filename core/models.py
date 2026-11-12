@@ -1045,6 +1045,16 @@ class SystemSetting(models.Model):
     ]
     update_channel = models.CharField(max_length=10, choices=UPDATE_CHANNEL_CHOICES, default='stable')
 
+    # Pre-upgrade backup retention (core/upgrade/retention.py, v3.17.667).
+    # Blank keep: UPGRADE_BACKUPS_KEEP from the environment (default 5).
+    upgrade_backups_keep = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text='Verified pre-upgrade backups to keep (at least 1). Blank: UPGRADE_BACKUPS_KEEP, default 5.')
+    upgrade_backups_max_age_days = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Also remove verified pre-upgrade backups older than this many days (the newest '
+                  'is always kept). Blank: no age limit.')
+
     # Metadata
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='system_settings_updates')
@@ -1163,6 +1173,7 @@ class ScheduledTask(models.Model):
         ('agreement_reminders', 'Agreement Signature Reminders'),
         ('kb_link_check', 'KB Dead Link Check'),
         ('ldap_group_sync', 'LDAP Group Mapping Sync'),
+        ('upgrade_backup_prune', 'Pre-upgrade Backup Cleanup'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1701,6 +1712,15 @@ class ScheduledTask(models.Model):
                            'signed in again (batch of 100, each user at most hourly; skips and '
                            'reports when the directory is unreachable)',
             'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
+            # Every upgrade grooms its own backups; this is the fallback for
+            # installs that rarely update.
+            'task_type': 'upgrade_backup_prune',
+            'description': 'Apply the pre-upgrade backup retention set in Settings -> Updates '
+                           '(skipped while an upgrade is running or needs recovery)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
     ]

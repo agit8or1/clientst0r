@@ -115,8 +115,11 @@ def check_disk():
               f'free for the backup and the new release. ' +
               '; '.join(f'{label}: {_human(free)} free' for label, free in rows))
     if short:
-        return Check('disk space', 'fail', detail, 'Free some space (old backups live in '
-                     f'{journal.backup_root()}).')
+        return Check('disk space', 'fail', detail,
+                     'Free some space. Old pre-upgrade backups can be removed under Settings -> '
+                     'Updates -> Pre-upgrade backups ("Clean up now", or delete one; lower '
+                     '"Backups to keep"), or with `manage.py upgrade_backup --prune` / '
+                     f'`--delete PATH`. They live in {journal.backup_root()}.')
     return Check('disk space', 'ok', detail)
 
 

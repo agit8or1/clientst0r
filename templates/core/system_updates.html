@@ -349,20 +349,102 @@
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-info-circle"></i>
                         Updates are checked every hour. Pre-upgrade backups (database, uploaded files and the keys needed to read them) are kept in <code>{{ backup_dir }}</code>, owner-only.
-                        {% if recent_backups %}
-                        <details class="mt-2"><summary>Recent backups</summary>
-                            <ul class="small mb-0 mt-1">
-                            {% for b in recent_backups %}
-                                <li><span class="git-status">{{ b.path }}</span> &mdash; v{{ b.app_version }}, {{ b.created_at }}, {% if b.verified %}verified{% else %}<strong>not verified</strong>{% endif %}</li>
-                            {% endfor %}
-                            </ul>
-                        </details>
-                        {% endif %}
+                        Every upgrade cleans up old backups itself; see <a href="#preUpgradeBackups">Pre-upgrade backups</a> below.
                         {% if not git_status.clean %}
                         <br><i class="fas fa-exclamation-triangle text-warning"></i>
                         <strong>Warning:</strong> tracked files were modified locally. Apply checks out the reviewed revision exactly, which replaces them.
                         {% endif %}
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pre-upgrade backups (v3.17.667) -->
+    <div class="row mb-4" id="preUpgradeBackups">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-archive"></i> Pre-upgrade backups</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        {{ backups.backups|length }} backup{{ backups.backups|length|pluralize }}, <strong>{{ backups.total_human }}</strong> in total.
+                        Free disk space where they are kept: <strong>{{ backups.free_human }}</strong>.
+                        <span class="text-muted small">(<code>{{ backup_dir }}</code>)</span>
+                    </p>
+                    <p class="small text-muted">
+                        Each upgrade removes old backups before it takes its own (counting the new one, never leaving fewer than one verified backup) and again when it finishes, whether it worked or not. A daily cleanup covers installs that rarely update.
+                        Never removed: the newest verified backup, the backup the last upgrade needs for recovery, and anything while an upgrade is running or needs recovery.
+                        Backups that never verified are kept {{ backups.policy.grace_days|default:14 }} days for inspection, then removed.
+                    </p>
+                    {% if cleanup_blocked %}
+                    <div class="alert alert-warning small"><i class="fas fa-lock"></i> Cleanup is paused: {{ upgrade_state.message }}</div>
+                    {% endif %}
+
+                    <form method="POST" action="{% url 'core:upgrade_backup_settings' %}" class="row g-2 align-items-end mb-3">
+                        {% csrf_token %}
+                        <div class="col-sm-4 col-md-3">
+                            <label for="backupKeep" class="form-label small mb-1">Backups to keep</label>
+                            <input type="number" min="1" max="100" class="form-control form-control-sm" id="backupKeep" name="keep"
+                                   value="{% if backups.policy.keep_from == 'settings' %}{{ backups.policy.keep }}{% endif %}" placeholder="{{ backups.env_keep }} (default)">
+                        </div>
+                        <div class="col-sm-4 col-md-3">
+                            <label for="backupMaxAge" class="form-label small mb-1">Maximum age (days)</label>
+                            <input type="number" min="1" max="3650" class="form-control form-control-sm" id="backupMaxAge" name="max_age_days"
+                                   value="{{ backups.policy.max_age_days|default:'' }}" placeholder="no limit">
+                        </div>
+                        <div class="col-sm-4 col-md-3">
+                            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-save"></i> Save retention</button>
+                        </div>
+                        <div class="col-12 small text-muted">
+                            Verified backups beyond this number, or older than the maximum age, are removed. Leave "Backups to keep" blank to use the server default ({{ backups.env_keep }}, <code>UPGRADE_BACKUPS_KEEP</code>); leave the age blank for no age limit.
+                        </div>
+                    </form>
+
+                    {% if backups.backups %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-2">
+                            <thead>
+                                <tr><th>Backup</th><th>Version</th><th>Taken</th><th>Size</th><th>State</th><th>Retention</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                            {% for b in backups.backups %}
+                                <tr>
+                                    <td><span class="git-status small">{{ b.name }}</span>{% if b.reason %}<div class="small text-muted">{{ b.reason }}</div>{% endif %}</td>
+                                    <td>{% if b.app_version %}v{{ b.app_version }}{% else %}&mdash;{% endif %}</td>
+                                    <td class="small">{{ b.created_dt|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ b.size_human }}</td>
+                                    <td>{% if b.verified %}<span class="badge bg-success">verified</span>{% elif b.in_progress %}<span class="badge bg-info">being written</span>{% else %}<span class="badge bg-warning text-dark">not verified</span>{% endif %}</td>
+                                    <td class="small">{% if b.would_remove %}<span class="text-danger">will be removed: {{ b.retention }}</span>{% else %}{{ b.retention }}{% endif %}</td>
+                                    <td class="text-end">
+                                        {% if not b.protected and not cleanup_blocked %}
+                                        <form method="POST" action="{% url 'core:upgrade_backup_delete' %}" class="d-inline"
+                                              data-confirm="Delete the backup {{ b.name }} ({{ b.size_human }})? This cannot be undone.">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="name" value="{{ b.name }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete this backup"><i class="fas fa-trash"></i> Delete</button>
+                                        </form>
+                                        {% else %}
+                                        <span class="small text-muted" title="This backup cannot be deleted now"><i class="fas fa-lock"></i></span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No pre-upgrade backups yet. One is taken and verified before every upgrade.</p>
+                    {% endif %}
+
+                    {% if not cleanup_blocked %}
+                    <form method="POST" action="{% url 'core:upgrade_backups_prune' %}" class="d-inline"
+                          data-confirm="Remove every backup the retention rules no longer keep{% if backups.would_remove %} ({{ backups.would_remove }} now){% endif %}?">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fas fa-broom"></i> Clean up now</button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>

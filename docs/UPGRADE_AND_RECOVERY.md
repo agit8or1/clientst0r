@@ -47,6 +47,14 @@ says so. It shows the last good answer, marked as stale, or nothing, and it
 never fails to load. Set `GITHUB_TOKEN` in `.env` if you hit the
 unauthenticated rate limit often.
 
+The answer from GitHub is kept for 10 minutes in
+`backups/upgrades/channel_state.json` (next to the upgrade journal), so every
+web worker, the scheduler and `manage.py` commands see the same one, and
+*Check for Updates* refreshes it for all of them. The last good answer is kept
+there for 24 hours as the fallback. Apply does not rely on the stored answer:
+it asks GitHub again when you click it. If GitHub cannot be reached at that
+moment, Apply refuses and changes nothing; try again later.
+
 ## Upgrade from the web UI
 
 1. **Settings → Updates** → *Check for Updates*.
@@ -57,9 +65,11 @@ unauthenticated rate limit often.
    serving the old version until the new one is installed, migrated and
    reloaded.
 
-The browser sends the revision it showed you. If the channel offers something
-else by the time you click Apply (for example, a new release appeared), the
-server refuses. Reload the page and review again.
+The browser sends the revision it showed you, and the server asks GitHub
+again. If the channel offers something else by the time you click Apply (for
+example, a new release appeared), the server refuses. Reload the page and
+review again. If GitHub cannot be reached, Apply refuses rather than install
+from an older answer.
 
 ## What Apply does
 
@@ -69,7 +79,10 @@ server refuses. Reload the page and review again.
    tag signature. The trusted key comes from `/etc/clientst0r/allowed_signers`
    (installed by the root helper), or else from the *installed* revision's
    `deploy/root-helper/allowed_signers`. A downgrade is refused.
-2. **Preflight checks.** These cover:
+2. **Backup cleanup, then preflight checks.** Old pre-upgrade backups are
+   removed first, counting the backup this run is about to take, so the
+   space is free before the disk check (see
+   [Backup retention](#backup-retention)). The checks cover:
    - disk space for a backup plus the new release
    - the database answers
    - the list of migrations that will run
@@ -93,6 +106,9 @@ server refuses. Reload the page and review again.
      [migration diagnosis](#half-applied-migrations-on-mysqlmariadb) and the
      recovery commands. The service is not reloaded, so it keeps running the
      old code. See [If an upgrade fails](#if-an-upgrade-fails-or-is-interrupted).
+
+When the run ends, whether it worked or not, old backups are cleaned up
+again; the backup the journal points at is always kept.
 
 Every stage is recorded in `backups/upgrades/journal.json`, so an interrupted
 upgrade is recognised afterwards. Each run is also written to the audit log
@@ -209,7 +225,59 @@ venv/bin/python manage.py upgrade_backup --list
 venv/bin/python manage.py upgrade_backup --verify backups/upgrades/snapshot-...
 ```
 
-Old backups are not deleted automatically. Remove the ones you no longer need.
+### Backup retention
+
+A backup is a full copy of the database and the uploads, often hundreds of
+megabytes, so old ones are removed automatically. Set the rules in
+**Settings → Updates → Pre-upgrade backups** (superusers):
+
+- **Backups to keep**: the newest N verified backups are kept (at least 1).
+  Blank uses `UPGRADE_BACKUPS_KEEP` from `.env` (default 5).
+- **Maximum age (days)**: verified backups older than this are removed too.
+  Blank means no age limit.
+- Backups that never verified (an interrupted run, a failed verification, a
+  half-written directory) are kept for `UPGRADE_UNVERIFIED_GRACE_DAYS` (default
+  14) so you can look at them, then removed.
+
+Never removed, automatically or by hand:
+
+- the newest verified backup
+- the backup the upgrade journal points at (the one a failed upgrade needs
+  for recovery)
+- a backup that is still being written
+
+A cleanup started outside an upgrade (the button, the daily task, the
+command line) removes nothing while an upgrade is running or the last one
+needs recovery.
+
+When the cleanup runs:
+
+- **every upgrade**, from the web UI, `upgrade_apply`, `auto_update` or the
+  nightly timer: before its backup (with the new backup counted, never below
+  one verified backup) and again when it ends, whether it worked or not
+- **every backup taken with `upgrade_backup`**, including the Docker
+  entrypoint's (skip it with `--no-groom`)
+- **daily**, through the scheduled task *Pre-upgrade Backup Cleanup*
+  (Settings → Scheduler), for installs that rarely update
+- **on request**: *Clean up now* on the Updates page, or
+  `upgrade_backup --prune`
+
+Each removal is written to the run's output and to the audit log (`delete`,
+object type `upgrade_backup`, with the path, size and reason).
+
+The Updates page lists every backup with its version, date, size and
+verified state, what retention will do with it, the total size, and the free
+disk space. A superuser can delete a single backup there (with a
+confirmation), or from the command line:
+
+```bash
+venv/bin/python manage.py upgrade_backup --prune
+venv/bin/python manage.py upgrade_backup --delete backups/upgrades/snapshot-...
+```
+
+`--delete` only accepts a `snapshot-*` directory directly under the backup
+directory, not a symbolic link, and refuses the protected backups above.
+If the preflight disk check fails, use these to free space.
 
 ## If an upgrade fails or is interrupted
 
