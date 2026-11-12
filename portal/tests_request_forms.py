@@ -76,6 +76,13 @@ class _Base(TestCase):
         )
         request_forms.publish(cls.item, cls.staff, schema=SCHEMA)
 
+    def setUp(self):
+        super().setUp()
+        # Portal submissions are rate-limited per user in the cache; start
+        # each test with a clean count.
+        from django.core.cache import cache
+        cache.clear()
+
     def post_data(self, **kw):
         data = {'f_who': 'Jane Smith', 'f_work_mode': 'remote', 'f_ship_to': '1 Main St',
                 'f_notes': '', 'f_impact': 'low', '_form_version': '1',

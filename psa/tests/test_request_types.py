@@ -69,6 +69,13 @@ class _Base(TestCase):
             default_queue=cls.queue, default_subject='New user: {{who}}')
         request_forms.publish(cls.item, cls.admin, schema=SCHEMA)
 
+    def setUp(self):
+        super().setUp()
+        # Portal submissions are rate-limited per user in the cache; start
+        # each test with a clean count.
+        from django.core.cache import cache
+        cache.clear()
+
     def submit(self, **answers):
         data = {'f_who': 'Jane', 'f_work_mode': 'remote', '_form_version': '1'}
         data.update(answers)
@@ -221,6 +228,7 @@ class BuilderViewTests(_Base):
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class RoutingOnAnswersTests(_Base):
     def setUp(self):
+        super().setUp()
         from psa.routing.tests import _set_msp
         _set_msp(mode='auto', business_days=[])
 
