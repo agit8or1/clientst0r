@@ -350,3 +350,26 @@ class DashboardRenderTests(TestCase):
         body = response.content.decode()
         self.assertIn('Nothing scheduled in the next 7 days', body)
         self.assertIn('Nothing outstanding', body)
+
+
+class ScheduleLocalDayTests(TestCase):
+    """The Schedule panel's days are local days (TIME_ZONE). At 23:00 Eastern
+    the UTC date is already tomorrow, which used to drop tonight's work and
+    file late items under the next day."""
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_evening_task_is_today_and_grouped_locally(self):
+        from datetime import datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        from scheduling.models import ScheduledTask
+        org = Organization.objects.create(name='Evening', slug='evening-sched')
+        late = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        ScheduledTask.objects.create(organization=org, title='Tonight', status='pending',
+                                     due_date=late + timedelta(minutes=30))
+        with mock.patch('django.utils.timezone.now', return_value=late.astimezone(ZoneInfo('UTC'))):
+            days = get_schedule(None, org, days=1)
+            self.assertEqual([(d.day.isoformat(), d.is_today) for d in days], [('2026-11-11', True)])
+            row = TaskRow(kind='task', title='t', due=late + timedelta(minutes=30))
+            self.assertEqual(row.days_until, 0)
+            self.assertFalse(row.is_overdue)

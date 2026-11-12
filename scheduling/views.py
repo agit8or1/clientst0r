@@ -376,7 +376,8 @@ def _wallboard_days(days_ahead):
     """
     from datetime import datetime, time, timedelta
 
-    today = timezone.now().date()
+    # Local days (TIME_ZONE): the UTC date is already tomorrow every evening.
+    today = timezone.localdate()
     end = today + timedelta(days=max(1, min(int(days_ahead or 1), 14)))
     start_dt = timezone.make_aware(datetime.combine(today, time.min))
     end_dt = timezone.make_aware(datetime.combine(end, time.min))
@@ -392,7 +393,7 @@ def _wallboard_days(days_ahead):
 
     buckets = {}
     for task in tasks:
-        buckets.setdefault(task.due_date.date(), []).append(task)
+        buckets.setdefault(timezone.localtime(task.due_date).date(), []).append(task)
     return [(day, buckets[day]) for day in sorted(buckets)]
 
 

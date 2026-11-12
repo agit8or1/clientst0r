@@ -5,6 +5,14 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.665] - 2026-11-12
+
+### Fixed
+- **The wall display and the dashboard Schedule panel no longer lose the evening's work.**
+  - Both took "today" from the UTC date, which is already tomorrow from 19:00 (20:00 in summer) US Eastern. From then until midnight the wall display showed "Nothing scheduled", and tonight's tasks and ticket deadlines dropped off the Schedule panel.
+  - Days now follow the installation's time zone (Settings → time zone / `TIME_ZONE`), both for which days are shown and for grouping items under a day. "Today" labels, "due in N days" and overdue dates use the same local day.
+- A ticket-routing test failed every evening because it booked leave on the server's date while availability is checked in the technician's time zone. The test now uses the technician's date; the routing code was already correct.
+
 ## [3.17.664] - 2026-11-11
 
 ### Added
