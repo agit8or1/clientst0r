@@ -5,9 +5,7 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-On the development branch `dev/program-2026-11`. Not released, tagged or deployed.
+## [3.17.664] - 2026-11-11
 
 ### Added
 - **Rem0te integration, contract revision 2** (Phase 63.1).

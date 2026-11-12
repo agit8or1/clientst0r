@@ -1,7 +1,6 @@
 # Administrator guide
 
-Where to switch on the optional features added on the development branch
-`dev/program-2026-11` (not yet released). After upgrading, every feature below
+Where to switch on the optional features added in v3.17.664. After upgrading, every feature below
 is in its default state until an administrator changes it. Feature guides:
 [TICKET_ROUTING.md](TICKET_ROUTING.md), [AI_TROUBLESHOOT.md](AI_TROUBLESHOOT.md),
 [SUPPORT_WORKFLOWS.md](SUPPORT_WORKFLOWS.md),

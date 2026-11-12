@@ -258,7 +258,7 @@ AI provider keys are encrypted to an X25519 public key (`AI_GATEWAY_KEY_DIR`, de
 
 ### Running the worker as its own OS user
 
-On the development branch (not yet released), the worker runs as a separate system user, `clientst0r-ai`, that
+Since v3.17.664, the worker runs as a separate system user, `clientst0r-ai`, that
 cannot read `.env`. Even a bug in the worker or in a provider library can't reach the master key.
 
 **Native install (MariaDB / MySQL).** A fresh `bash install.sh` runs `deploy/setup-ai-gateway-user.sh`. You can skip

@@ -183,7 +183,7 @@ created from the customer portal are shared automatically).
 | Built-in roles: Owner, Admin, Editor, Read-Only | Available | | Members page |
 | Custom roles | Available | Around a hundred individual permission switches, grouped by area. | `/accounts/roles/` |
 | **View passwords / View documents / View assets** | Available | Enforced since v3.17.600 everywhere those records appear: vault, documents and assets pages, global search (with real totals), dashboards, REST and GraphQL APIs, mobile app and browser extension. Contacts follow View assets. A user's personal vault is unaffected. The ticket sidebar's credential card follows View passwords and shows titles only. | `/accounts/roles/` |
-| **View files / View monitors / View integrations** | In progress (development branch) | Enforced per customer on `/files/`, `/monitoring/` and `/integrations/`, global search (synced PSA companies and contacts), dashboards, GraphQL monitors and expirations, the mobile dashboard, and the navbar. Attachment lists on asset and rack pages follow View files. Upgrading switches View monitors and View integrations on for every existing role, so nobody loses access. | `/accounts/roles/` |
+| **View files / View monitors / View integrations** | Shipped v3.17.664 | Enforced per customer on `/files/`, `/monitoring/` and `/integrations/`, global search (synced PSA companies and contacts), dashboards, GraphQL monitors and expirations, the mobile dashboard, and the navbar. Attachment lists on asset and rack pages follow View files. Upgrading switches View monitors and View integrations on for every existing role, so nobody loses access. | `/accounts/roles/` |
 | Vault export permission | Planned | Marked "Not yet implemented" in the role editor. | — |
 | Document publish permissions | Available | Since v3.17.605 publishing needs View/Publish documents for that customer (or Publish KB articles for global articles); without it, new documents, uploads and imports save as drafts. | Document form |
 | Role assignment limits | Available | A role can be assigned only if it is a system role or the organization's own custom role. | Members page |
@@ -610,19 +610,19 @@ Connect a third-party PSA to mirror its data. Separate from the built-in service
 | Device map | Limited | Only Tactical RMM supplies coordinates. | Dashboard |
 | Organization auto-import | Available | | `/integrations/rmm/<id>/map-organizations/` |
 
-### RMM technician workspace (development branch, not yet released)
+### RMM technician workspace
 
 | Capability | Status | Notes | Where |
 |---|---|---|---|
-| Rem0te contract revision 2 (Ed25519 pairing) | In progress (development branch) | Tested against a real Rem0te 0.30.1 (99/102 checks; job-across-restart case pending). Released versions pair Rem0te over HMAC. | `/integrations/rmm/rem0te/setup/` |
-| Device Workspace | In progress (development branch) | Stored RMM data with source and age per fact; unsupported fields shown as such; Refresh from RMM once per device every 5 minutes. | `/assets/workspace/` |
-| Service lists | In progress (development branch) | Tactical RMM only, opt-in per connection, kept 14 days. | RMM connection → Edit |
-| Ticket RMM panel | In progress (development branch) | Affected devices, health, read-only diagnostics, verify-then-close. | Ticket page |
-| L1 / L2 / L3 RMM permission levels | In progress (development branch) | One server-side check for every RMM action; second-person approvals; level changes need two administrators. | `/settings/security/rmm-permissions/` |
-| Alert-to-ticket policy | In progress (development branch) | Off (one ticket per Rem0te alert) until switched on. | `/psa/routing/alerts/` |
-| One-click support workflows | In progress (development branch) | Twelve built-ins; RMM remediation only where the RMM advertises it, with approval. | `/psa/workflows/` |
-| AI Troubleshoot (**OPTIONAL AI**) | In progress (development branch) | Needs `psa_ai_enabled` and the customer's AI policy; suggestions are text only. | Ticket page, Device Workspace |
-| Software sync for NinjaOne, Datto RMM, Atera, ConnectWise Automate | Limited | Released versions fail to sync software for these four (an argument error); fixed on the development branch. | — |
+| Rem0te contract revision 2 (Ed25519 pairing) | Shipped v3.17.664 | Tested against a real Rem0te 0.30.1 (99/102 checks; job-across-restart case pending). Released versions pair Rem0te over HMAC. | `/integrations/rmm/rem0te/setup/` |
+| Device Workspace | Shipped v3.17.664 | Stored RMM data with source and age per fact; unsupported fields shown as such; Refresh from RMM once per device every 5 minutes. | `/assets/workspace/` |
+| Service lists | Shipped v3.17.664 | Tactical RMM only, opt-in per connection, kept 14 days. | RMM connection → Edit |
+| Ticket RMM panel | Shipped v3.17.664 | Affected devices, health, read-only diagnostics, verify-then-close. | Ticket page |
+| L1 / L2 / L3 RMM permission levels | Shipped v3.17.664 | One server-side check for every RMM action; second-person approvals; level changes need two administrators. | `/settings/security/rmm-permissions/` |
+| Alert-to-ticket policy | Shipped v3.17.664 | Off (one ticket per Rem0te alert) until switched on. | `/psa/routing/alerts/` |
+| One-click support workflows | Shipped v3.17.664 | Twelve built-ins; RMM remediation only where the RMM advertises it, with approval. | `/psa/workflows/` |
+| AI Troubleshoot (**OPTIONAL AI**) | Shipped v3.17.664 | Needs `psa_ai_enabled` and the customer's AI policy; suggestions are text only. | Ticket page, Device Workspace |
+| Software sync for NinjaOne, Datto RMM, Atera, ConnectWise Automate | Shipped v3.17.663 | Earlier versions failed to sync software for these four (an argument error). A failed read keeps the stored list. | RMM connection |
 
 ---
 
