@@ -5178,3 +5178,61 @@ class SavedQueryVaultScopeTests(TestCase):
         sq = SavedQuery.objects.create(name='v', owner=me, target_model='vault.Password')
         _m, qs = execute(sq, user=me)
         self.assertEqual(sorted(p.title for p in qs), ['mine', 'shared'])
+
+
+# Local calendar days. At 23:00 Eastern the UTC date is already tomorrow;
+# "today" used to come from UTC, so the wallboard's "Opened Today" read 0 every
+# evening. The clock mock returns a UTC-aware value, as Django's now() does.
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
+                   TIME_ZONE='America/New_York')
+class LocalDayReportTests(TestCase):
+
+    def _evening(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        return datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+
+    def _clock(self):
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        return mock.patch('django.utils.timezone.now',
+                          return_value=self._evening().astimezone(ZoneInfo('UTC')))
+
+    def test_wallboard_opened_today_counts_this_evening(self):
+        import json
+        from datetime import timedelta
+        from django.contrib.auth.models import User
+        from django.core.management import call_command
+        from core.models import Organization
+        from psa.models import Queue, Ticket, TicketPriority, TicketStatus, TicketType
+        call_command('psa_seed_defaults', verbosity=0)
+        org = Organization.objects.create(name='Eve WB', slug='eve-wb')
+        t = Ticket.objects.create(organization=org, subject='Tonight', queue=Queue.objects.first(),
+                                  status=TicketStatus.objects.filter(slug='new').first(),
+                                  priority=TicketPriority.objects.first(),
+                                  ticket_type=TicketType.objects.first())
+        Ticket.objects.filter(pk=t.pk).update(created_at=self._evening() - timedelta(hours=1))
+        root = User.objects.create_user('eve-wb', 'e@x.com', 'pw', is_superuser=True, is_staff=True)
+        self.client.force_login(root)
+        with self._clock():
+            data = json.loads(self.client.get('/reports/wallboard/data/').content)
+        tiles = {tile['label']: tile['value'] for tile in data['tiles']}
+        self.assertEqual(tiles['Opened Today'], 1)
+        self.assertTrue(data['as_of'].startswith('2026-11-11 23:00'), data['as_of'])
+
+    def test_expiration_forecast_counts_earlier_today_as_today(self):
+        from datetime import timedelta
+        from core.models import Organization
+        from monitoring.models import Expiration
+        from reports.generators import ExpirationForecastReport
+        org = Organization.objects.create(name='Eve Exp', slug='eve-exp')
+        # 18:00 Eastern today is 23:00 UTC today, still the 11th in UTC; the
+        # UTC "today" (the 12th) made it read as expired yesterday.
+        Expiration.objects.create(organization=org, name='Cert', expiration_type='ssl_cert',
+                                  expires_at=self._evening() - timedelta(hours=5))
+        with self._clock():
+            forecast = ExpirationForecastReport(org).generate()['forecast']
+        self.assertEqual(forecast['expired'], 0)
+        self.assertEqual(forecast['expiring_7_days'], 1)

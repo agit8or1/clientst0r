@@ -1590,7 +1590,7 @@ def wallboard_data(request):
     from psa.models import Ticket
     from django.contrib.auth.models import User
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # Mega-tile counts
     open_qs = Ticket.objects.filter(status__is_terminal=False)
@@ -1669,7 +1669,7 @@ def wallboard_data(request):
         'tiles': tiles,
         'recent_tickets': recent_data,
         'techs_on_shift': techs_on_shift,
-        'as_of': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'as_of': timezone.localtime().strftime('%Y-%m-%d %H:%M:%S'),
     })
 
 
@@ -1799,7 +1799,7 @@ def exec_scorecard(request):
     for t in Ticket.objects.filter(
         created_at__date__gte=start_30, created_at__date__lte=today,
     ):
-        d = t.created_at.date()
+        d = timezone.localtime(t.created_at).date()
         if d in tix_by_day:
             tix_by_day[d] += 1
 
@@ -4843,12 +4843,12 @@ def trends_report(request):
     for ct in Ticket.objects.filter(created_at__date__gte=cutoff_dt).values_list(
             'created_at', flat=True):
         if ct:
-            key = ct.strftime('%Y-%m')
+            key = timezone.localtime(ct).strftime('%Y-%m')
             opened_by_month[key] += 1
     for rt in Ticket.objects.filter(resolved_at__date__gte=cutoff_dt).values_list(
             'resolved_at', flat=True):
         if rt:
-            key = rt.strftime('%Y-%m')
+            key = timezone.localtime(rt).strftime('%Y-%m')
             resolved_by_month[key] += 1
 
     # MRR added per month — sum of new active contracts' monthly equiv

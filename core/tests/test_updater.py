@@ -193,3 +193,30 @@ class RootHelperSudoCheckTests(SimpleTestCase):
         html = (Path(settings.BASE_DIR) / 'templates' / 'core' / 'system_updates.html').read_text()
         self.assertNotIn('NOPASSWD:', html)
         self.assertNotIn('sudoers.d/clientst0r-auto-update', html)
+
+
+class GitStatusTests(SimpleTestCase):
+    """The Installed card's Clean/Modified badge counts tracked files only."""
+
+    def _status(self, porcelain):
+        calls = []
+
+        def run(cmd, **kw):
+            calls.append(cmd)
+            out = {'--abbrev-ref': 'main\n', '--short': 'abc1234\n'}.get(cmd[2], porcelain)
+            return mock.Mock(returncode=0, stdout=out, stderr='')
+
+        with mock.patch('core.updater.subprocess.run', side_effect=run):
+            result = UpdateService.__new__(UpdateService)
+            result.base_dir = '/srv/app'
+            status = result.get_git_status()
+        return status, calls
+
+    def test_untracked_files_are_not_asked_for(self):
+        status, calls = self._status('')
+        self.assertTrue(status['clean'])
+        self.assertIn(['/usr/bin/git', 'status', '--porcelain', '--untracked-files=no'], calls)
+
+    def test_a_modified_tracked_file_is_reported(self):
+        status, _ = self._status(' M core/views.py\n')
+        self.assertFalse(status['clean'])

@@ -226,3 +226,36 @@ class TaskAssignmentConstraintTests(TestCase):
         TaskAssignment.objects.create(task=self.task, user=self.user)
         with self.assertRaises(IntegrityError), transaction.atomic():
             TaskAssignment.objects.create(task=self.task, user=self.user)
+
+
+class TaskCalendarLocalDayTests(TestCase):
+    """The task calendar groups by the installation's local day. A task due
+    at 23:30 Eastern is already the next day in UTC, so it used to be filed
+    under tomorrow."""
+
+    def test_late_task_is_grouped_under_its_local_day(self):
+        from datetime import date, datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        from django.conf import settings as django_settings
+        from django.test import override_settings
+        from accounts.models import Membership, Role
+        middleware = [m for m in django_settings.MIDDLEWARE
+                      if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m]
+        eastern = ZoneInfo('America/New_York')
+        org = Organization.objects.create(name='Cal Eve', slug='cal-eve')
+        user = User.objects.create_user('cal-eve', password='pw')
+        Membership.objects.create(user=user, organization=org, role=Role.OWNER, is_active=True)
+        ScheduledTask.objects.create(organization=org, title='Late', status='pending',
+                                     due_date=datetime(2026, 11, 11, 23, 30, tzinfo=eastern))
+        self.client.force_login(user)
+        s = self.client.session
+        s['current_organization_id'] = org.id
+        s.save()
+        noon = datetime(2026, 11, 11, 12, 0, tzinfo=eastern).astimezone(ZoneInfo('UTC'))
+        with override_settings(TIME_ZONE='America/New_York', MIDDLEWARE=middleware,
+                               SECURE_SSL_REDIRECT=False), \
+                mock.patch('django.utils.timezone.now', return_value=noon):
+            resp = self.client.get('/scheduling/calendar/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual([d for d, _ in resp.context['calendar_data']], [date(2026, 11, 11)])

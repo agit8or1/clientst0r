@@ -83,7 +83,7 @@ def _parse_date(value) -> date:
             return datetime.strptime(value[:10], '%Y-%m-%d').date()
         except ValueError:
             pass
-    return timezone.now().date()
+    return timezone.localdate()
 
 
 def sync_payments(connection, provider, *, since=None, limit=500,

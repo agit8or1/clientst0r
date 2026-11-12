@@ -261,3 +261,22 @@ class RecipientTests(ExpiryNotificationBase):
         it could only ever have raised FieldError."""
         from core.mailer import notification_recipients
         self.assertEqual(notification_recipients(self.org.pk), ['admin@acme.test'])
+
+
+class ExpiryDateLocalDayTests(TestCase):
+    """The date in an expiry notice is the installation's local date. A
+    certificate expiring at 23:30 Eastern used to show the next day (UTC)."""
+
+    def test_notice_shows_local_expiry_date(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from django.test import override_settings
+        from monitoring.expiry_notifications import Due
+        eastern = ZoneInfo('America/New_York')
+        expires = datetime(2026, 11, 11, 23, 30, tzinfo=eastern).astimezone(ZoneInfo('UTC'))
+        with override_settings(TIME_ZONE='America/New_York'), \
+                patch('django.utils.timezone.now',
+                      return_value=datetime(2026, 11, 1, 12, 0, tzinfo=eastern).astimezone(ZoneInfo('UTC'))):
+            due = Due(obj=None, key_field='k', org_id=None, label='SSL for example.com',
+                      expires_at=expires, path='/')
+            self.assertIn('2026-11-11', due.describe())

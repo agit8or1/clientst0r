@@ -441,13 +441,17 @@ def load_manifest(snap) -> dict:
         raise SnapshotError(f'{snap} is not a readable backup: {e}')
 
 
-def _check_files(snap, manifest, checks):
+def _check_files(snap, manifest, checks, quick=False):
     ok = True
     for name, meta in sorted(manifest.get('files', {}).items()):
         p = snap / name
         if not p.is_file():
             checks.append((f'file {name}', False, 'missing'))
             ok = False
+        elif quick and 'size' in meta:
+            if p.stat().st_size != meta['size']:
+                checks.append((f'file {name}', False, 'size changed'))
+                ok = False
         elif _sha256(p) != meta['sha256']:
             checks.append((f'file {name}', False, 'checksum mismatch'))
             ok = False
@@ -710,9 +714,12 @@ def verify(snap, *, out=None) -> dict:
     return report
 
 
-def is_verified(snap) -> tuple[bool, str]:
+def is_verified(snap, quick=False) -> tuple[bool, str]:
     """True only for a snapshot whose verification passed and whose files have
-    not changed since."""
+    not changed since.
+
+    `quick` compares file sizes instead of re-hashing every file, for listings
+    (a snapshot is hundreds of MB). Apply and restore always re-hash."""
     snap = Path(snap)
     try:
         report = json.loads((snap / 'verification.json').read_text())
@@ -724,12 +731,12 @@ def is_verified(snap) -> tuple[bool, str]:
     if report.get('manifest_sha256') != _sha256(snap / 'manifest.json'):
         return False, 'manifest changed after verification'
     checks = []
-    if not _check_files(snap, manifest, checks):
+    if not _check_files(snap, manifest, checks, quick=quick):
         return False, '; '.join(f'{n}: {d}' for n, o, d in checks if not o)
     return True, f"verified ({report.get('level')}) at {report.get('verified_at')}"
 
 
-def list_snapshots():
+def list_snapshots(quick=False):
     root = journal.backup_root()
     if not root.is_dir():
         return []
@@ -740,7 +747,7 @@ def list_snapshots():
                 m = load_manifest(p)
             except SnapshotError:
                 continue
-            ok, detail = is_verified(p)
+            ok, detail = is_verified(p, quick=quick)
             out.append({'path': str(p), 'created_at': m.get('created_at'),
                         'app_version': m.get('app_version'), 'git_sha': m.get('git_sha'),
                         'reason': m.get('reason'), 'verified': ok, 'detail': detail})

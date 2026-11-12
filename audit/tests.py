@@ -377,3 +377,28 @@ class MiddlewareObjectIdTests(TestCase):
         self.assertEqual(self._object_id({'pk': 42}), 42)
         self.assertEqual(self._object_id({'id': 2 ** 63 - 1}), 2 ** 63 - 1)
         self.assertEqual(self._object_id({'pk': -(2 ** 63)}), -(2 ** 63))
+
+
+class AuditListLocalDayTests(TestCase):
+    """"Today" on the audit page is the installation's local day. At 23:00
+    Eastern the UTC date is already tomorrow, so the count used to read 0."""
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_today_count_includes_this_evening(self):
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+        from audit import views
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        org = Organization.objects.create(name='Evening Audit', slug='evening-audit')
+        admin = User.objects.create_user('evening-audit', password='pw', is_superuser=True)
+        log = AuditLog.objects.create(organization=org, user=admin, username=admin.username,
+                                      action='read')
+        AuditLog.objects.filter(pk=log.pk).update(timestamp=evening - timedelta(hours=1))
+        request = RequestFactory().get('/audit/')
+        request.user = admin
+        request.current_organization = org
+        utc_now = evening.astimezone(ZoneInfo('UTC'))
+        with patch('django.utils.timezone.now', return_value=utc_now), \
+                patch.object(views, 'render') as render:
+            views.audit_log_list(request)
+        self.assertEqual(render.call_args[0][2]['today_count'], 1)

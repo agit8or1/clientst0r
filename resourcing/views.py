@@ -88,7 +88,7 @@ def my_resourcing(request):
         target = request.user
         viewing_as_admin = False
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     skills = UserSkill.objects.filter(user=target)
     certifications = UserCertification.objects.filter(user=target)
     working_hours = WorkingHours.objects.filter(user=target)
@@ -276,7 +276,7 @@ def tech_roster(request):
     List every active staff/internal user with skill counts, cert counts
     (with expiry warnings), and a "working now" indicator.
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     soon = today + timedelta(days=60)
 
     # "Internal users" — staff users (django is_staff=True) + anyone whose
@@ -341,7 +341,7 @@ def holiday_list(request):
     )
     return render(request, 'resourcing/holiday_list.html', {
         'holidays': holidays,
-        'today': timezone.now().date(),
+        'today': timezone.localdate(),
     })
 
 
@@ -414,7 +414,7 @@ def my_leave(request):
         except (TypeError, ValueError):
             pass
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     pending = qs.filter(status__in=('pending',)).order_by('start_date')
     upcoming = qs.filter(status='approved', end_date__gte=today).order_by('start_date')
     past = qs.exclude(pk__in=[lr.pk for lr in pending] + [lr.pk for lr in upcoming]).order_by('-start_date')
@@ -731,7 +731,7 @@ def capacity_report(request):
 @require_perm('resourcing_manage_cost_rates')
 def tech_cost_rate_list(request):
     """List every internal/staff user with their current loaded cost rate."""
-    today = timezone.now().date()
+    today = timezone.localdate()
     qs = User.objects.filter(is_active=True).filter(
         Q(is_staff=True) | Q(is_superuser=True) | Q(profile__user_type='staff')
     ).distinct().order_by('username')
@@ -778,9 +778,9 @@ def tech_cost_rate_edit(request, user_id):
                 messages.success(request, 'Cost rate added.')
                 return redirect('resourcing:tech_cost_rate_edit', user_id=target.id)
     else:
-        form = TechCostRateForm(initial={'effective_from': timezone.now().date()})
+        form = TechCostRateForm(initial={'effective_from': timezone.localdate()})
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     current_rate = TechCostRate.rate_for(target, today)
     has_explicit = TechCostRate.objects.filter(
         user=target, effective_from__lte=today,

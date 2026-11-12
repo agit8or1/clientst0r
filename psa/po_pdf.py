@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Any, List
 
 from django.conf import settings as django_settings
+from django.utils import timezone
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -130,7 +131,7 @@ def render_po_pdf(po) -> bytes:
         f'<font size=18 color="#2c3e50"><b>PURCHASE ORDER</b></font>',
         f'<font size=10>{po.po_number}</font>',
         f'<font size=8 color="#7f8c8d">'
-        f'Issue date: {po.issue_date or po.created_at.date():%Y-%m-%d}',
+        f'Issue date: {po.issue_date or timezone.localtime(po.created_at).date():%Y-%m-%d}',
     ]
     if po.expected_delivery_date:
         kicker_lines.append(f'Expected: {po.expected_delivery_date:%Y-%m-%d}')

@@ -581,7 +581,7 @@ class Ticket(models.Model):
         current year's tickets — adequate for Phase 1 throughput. Higher-
         volume installs can swap in a dedicated counter table later.
         """
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'PSA-{year}-'
         # Find the highest existing number for this year
         last = (
@@ -1481,7 +1481,7 @@ class Project(models.Model):
                 # charging it at a default would attribute cost to a person
                 # who is not recorded.
                 continue
-            day = (entry.started_at or entry.created_at).date()
+            day = timezone.localtime(entry.started_at or entry.created_at).date()
             key = (entry.user_id, day)
             if key not in rate_cache:
                 rate_cache[key] = TechCostRate.rate_for(entry.user, day)
@@ -1631,7 +1631,7 @@ class Project(models.Model):
 
         from django.utils import timezone as tz
 
-        invoice_date = invoice_date or tz.now().date()
+        invoice_date = invoice_date or tz.localdate()
         client = self.client_org or self.organization
 
         if self.billing_type == self.BILLING_FIXED_FEE:
@@ -2246,7 +2246,7 @@ class Contract(models.Model):
     def is_currently_active(self):
         if self.status != 'active':
             return False
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.start_date and self.start_date > today:
             return False
         if self.end_date and self.end_date < today:
@@ -2492,7 +2492,7 @@ class Contract(models.Model):
         """Return the active contract for a ticket's client (None if none)."""
         if not ticket or not ticket.organization_id:
             return None
-        today = timezone.now().date()
+        today = timezone.localdate()
         return cls.objects.filter(
             client_org=ticket.organization,
             status='active',
@@ -2507,7 +2507,7 @@ class Contract(models.Model):
         """Allowance + un-expired rolled-over minutes (in minutes)."""
         base = int(float(self.total_hours or 0) * 60)
         rolled = self.rolled_over_minutes or 0
-        if self.rollover_expires_at and timezone.now().date() > self.rollover_expires_at:
+        if self.rollover_expires_at and timezone.localdate() > self.rollover_expires_at:
             rolled = 0
         return base + rolled
 
@@ -3108,7 +3108,7 @@ class Quote(models.Model):
         self.customer_token_hash = self.hash_customer_token(raw)
 
     def _next_number(self) -> str:
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'Q-{year}-'
         last = Quote.objects.filter(quote_number__startswith=prefix).order_by('-quote_number').first()
         if last and last.quote_number:
@@ -4406,7 +4406,7 @@ class Invoice(models.Model):
         self.save(update_fields=['requires_approval', 'approved_by', 'approved_at', 'updated_at'])
 
     def _next_number(self) -> str:
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'INV-{year}-'
         last = Invoice.objects.filter(invoice_number__startswith=prefix).order_by('-invoice_number').first()
         if last and last.invoice_number:
@@ -4481,7 +4481,7 @@ class Invoice(models.Model):
         if Decimal(str(self.amount_paid or '0')) > 0:
             return
         self.status = ('overdue'
-                       if self.due_date and self.due_date < _tz.now().date()
+                       if self.due_date and self.due_date < _tz.localdate()
                        else 'sent')
         self.save(update_fields=['status', 'updated_at'])
 
@@ -4539,7 +4539,7 @@ class Invoice(models.Model):
                 title=f'Credit Memo for {self.invoice_number}',
                 description=(reason or '')[:500],
                 status='draft',
-                invoice_date=timezone.now().date(),
+                invoice_date=timezone.localdate(),
                 currency=self.currency,
                 tax_rate=self.tax_rate,
                 is_credit_memo=True,
@@ -4590,7 +4590,7 @@ class Invoice(models.Model):
 
     @classmethod
     def _next_credit_memo_number(cls):
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'CN-{year}-'
         last = cls.objects.filter(invoice_number__startswith=prefix).order_by('-invoice_number').first()
         if last and last.invoice_number:
@@ -5090,7 +5090,7 @@ class PurchaseRequisition(models.Model):
         """PR-YYYY-NNNNN, monotonic per year."""
         from django.utils import timezone
         from django.db.models import Max
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'PR-{year}-'
         last = cls.objects.filter(pr_number__startswith=prefix).aggregate(Max('pr_number'))['pr_number__max']
         if not last:
@@ -5231,7 +5231,7 @@ class PurchaseOrder(models.Model):
     def next_number(cls):
         from django.utils import timezone
         from django.db.models import Max
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'PO-{year}-'
         last = cls.objects.filter(po_number__startswith=prefix).aggregate(Max('po_number'))['po_number__max']
         if not last:
@@ -5727,7 +5727,7 @@ class Problem(models.Model):
     def next_number(cls):
         from django.utils import timezone
         from django.db.models import Max
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'PRB-{year}-'
         last = cls.objects.filter(problem_number__startswith=prefix).aggregate(
             Max('problem_number'))['problem_number__max']
@@ -5864,7 +5864,7 @@ class ReleaseWindow(models.Model):
     def next_number(cls):
         from django.utils import timezone
         from django.db.models import Max
-        year = timezone.now().year
+        year = timezone.localdate().year
         prefix = f'REL-{year}-'
         last = cls.objects.filter(release_number__startswith=prefix).aggregate(Max('release_number'))['release_number__max']
         if not last:

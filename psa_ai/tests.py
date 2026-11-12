@@ -828,3 +828,22 @@ class TriageTenantIsolationTests(TestCase):
             generate_triage_for_ticket(
                 self.ticket_b, requested_by=self.user_a, request=None,
             )
+
+
+class TriageDailyLimitLocalDayTests(TestCase):
+    """The org's daily triage limit counts the installation's local day. At
+    23:00 Eastern the UTC date is already tomorrow, so the count used to read 0
+    every evening and the limit never applied."""
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_this_evenings_suggestions_count_toward_today(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from psa_ai.services import triage_generator
+        org = Organization.objects.create(name='Eve Triage', slug='eve-triage')
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        with patch('django.utils.timezone.now', return_value=evening.astimezone(ZoneInfo('UTC'))), \
+                patch.object(triage_generator, 'TRIAGE_ORG_DAILY_LIMIT', 1):
+            AISuggestion.objects.create(organization=org, kind='triage', model_name='m')
+            exceeded, _ = triage_generator._triage_org_daily_exceeded(org)
+        self.assertTrue(exceeded)

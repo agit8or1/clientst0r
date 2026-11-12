@@ -453,3 +453,21 @@ class APIKeyRevocationOnOffboardTests(TestCase):
         tech.profile.save()
         resp = self._get(self._key_for(tech))
         self.assertNotEqual(resp.status_code, 401)
+
+
+class GraphQLExpiryLocalDayTests(TestCase):
+    """daysUntilExpiry compares local days. It used to take the expiry's UTC
+    date, which is already tomorrow for anything due late in the evening."""
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_expiring_tonight_is_zero_days(self):
+        from datetime import datetime, timedelta
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        from api.graphql.schema import ExpirationType
+        from monitoring.models import Expiration
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        # Rows come back from the database in UTC.
+        exp = Expiration(name='Cert', expires_at=(evening + timedelta(minutes=30)).astimezone(ZoneInfo('UTC')))
+        with mock.patch('django.utils.timezone.now', return_value=evening.astimezone(ZoneInfo('UTC'))):
+            self.assertEqual(ExpirationType.resolve_days_until_expiry(exp, None), 0)

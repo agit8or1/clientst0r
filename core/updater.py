@@ -456,7 +456,9 @@ class UpdateService:
 
             # Check if working tree is clean
             status_output = subprocess.run(
-                [git_cmd, 'status', '--porcelain'],
+                # Tracked files only: untracked directories (a developer's git
+                # worktrees, tool caches) don't change what is installed.
+                [git_cmd, 'status', '--porcelain', '--untracked-files=no'],
                 cwd=str(self.base_dir),
                 capture_output=True,
                 text=True,

@@ -3352,7 +3352,7 @@ def contract_form(request, pk=None):
 
         if item is None:
             item = Contract(organization=item_org, client_org=client_org, name=name,
-                            created_by=request.user, start_date=timezone.now().date())
+                            created_by=request.user, start_date=timezone.localdate())
         else:
             item.organization = item_org
             item.client_org = client_org
@@ -4161,7 +4161,7 @@ def ticket_expense_add(request, ticket_number):
         description=description[:300],
         amount=amount,
         currency=(request.POST.get('currency') or 'USD')[:8],
-        incurred_on=request.POST.get('incurred_on') or timezone.now().date(),
+        incurred_on=request.POST.get('incurred_on') or timezone.localdate(),
         is_billable=request.POST.get('is_billable') == 'on',
         is_reimbursable=request.POST.get('is_reimbursable') == 'on',
         receipt_file=request.FILES.get('receipt_file'),
@@ -4643,7 +4643,9 @@ def _dispatch_conflicts(tech_user, ticket):
     # in a slim deployment.
     try:
         from resourcing.models import LeaveRequest
-        target_date = due.date() if hasattr(due, 'date') else due
+        from resourcing.shifts import user_tz
+        # Leave is booked on the technician's local days, as the router reads it.
+        target_date = due.astimezone(user_tz(tech_user)).date()
         if LeaveRequest.is_user_on_leave(tech_user, target_date):
             warnings.append(
                 f'PTO conflict: {tech_user.username} is on approved leave on '
@@ -9352,7 +9354,7 @@ def my_timesheet(request, year=None, week=None):
     from datetime import date as _date, timedelta as _td
     from .models import TimesheetSubmission, TicketTimeEntry
     if year is None or week is None:
-        today = timezone.now().date()
+        today = timezone.localdate()
         period_start, period_end = _week_bounds(today)
     else:
         try:

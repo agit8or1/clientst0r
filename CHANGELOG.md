@@ -34,6 +34,37 @@ On the development branch `dev/office`. Not released. Not yet tested against a r
 - No malware scanner ships with clientst0r. Uploaded and saved files pass through a hook (`OFFICE_SCAN_HOOK`) that does nothing until a scanner is configured.
 - ONLYOFFICE Docs Server is AGPL-licensed; keep it installed separately and unmodified, with its branding. See docs/office/ONLYOFFICE.md.
 
+## [3.17.666] - 2026-11-12
+
+### Fixed
+- **Dates no longer jump to tomorrow in the evening.** Many screens, reports and background jobs took "today" from the UTC date, which is already tomorrow from 19:00 (20:00 in summer) US Eastern. They now use the installation's time zone (`TIME_ZONE`) for "today" and for grouping times under a day. Until midnight each evening:
+  - **Audit log:** the "today" count read 0.
+  - **Resourcing:** certifications expiring today showed as expired, leave ending today dropped out of "Upcoming", and cost-rate defaults were a day ahead.
+  - **Vehicles:** service, alerts and maintenance due today showed as overdue; insurance and registration warnings and dashboard alerts were a day off; date defaults on incident, service, fuel, assignment and receipt forms (and assignment end dates) were tomorrow.
+  - **PSA:**
+    - Contracts ending today read as inactive, and auto-renewal ran a day early.
+    - Rollover minutes expired a day early.
+    - Invoices due today reopened as overdue.
+    - "My timesheet" jumped to next week on Sunday night.
+    - Contract start, expense, credit memo and project invoice dates defaulted to tomorrow.
+    - On New Year's Eve evening, ticket, quote, invoice, credit, purchase request, purchase order, problem and release numbers took next year's prefix.
+    - The dispatch PTO warning now checks leave on the technician's own day, as routing and shift checks already did.
+  - **CRM:** opportunity close dates were stamped a day late.
+  - **Accounting sync:** the fallback payment date was a day late.
+  - **Runbooks:** run titles carried tomorrow's date, and the execution log grouped runs by UTC day.
+  - **Payroll export:** Sunday-evening shifts were filed under the next week.
+  - **AI triage:** the organization's daily limit did not apply in the evening.
+  - **Reports:**
+    - The wall display's "Opened/Closed Today" read 0, and its "as of" time was shown in UTC.
+    - The 30-day ticket chart and the 12-month opened/resolved charts put evening tickets on the next day or month.
+    - The expiration forecast, warranty counts, revenue-leakage cut-offs and client health were a day off.
+  - **Mobile app:** the dispatch calendar and "Upcoming" put late-evening items under tomorrow, or under next month on the last evening of a month.
+  - **GraphQL:** `daysUntilExpiry` was off by one.
+  - **Email:** expiry notices and knowledge-base review reminders showed the next day's date.
+  - **Task calendar:** late-evening tasks were filed under the next day.
+- **Settings → Updates loads faster.** The backup list re-checked every byte of each saved upgrade backup (about 1 GB on the reference install, nearly 5 seconds) on every page load; it now compares file sizes. Apply and restore still check every byte before using a backup.
+- **The Installed card shows "Clean" when only untracked folders are present.** It counted untracked directories (for example a developer's git worktrees) as modifications; the update checks before Apply already ignored them. The note under "Newer on main" no longer calls signed builds unsigned.
+
 ## [3.17.665] - 2026-11-12
 
 ### Fixed

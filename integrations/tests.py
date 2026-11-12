@@ -1218,3 +1218,18 @@ class SSRFGuardWiringTests(TestCase):
                     provider._api('GET', '/x')
                 send.assert_called_once()
                 bare.assert_not_called()
+
+
+class AccountingDateFallbackLocalDayTests(TestCase):
+    """A payment with no usable date falls back to the installation's local
+    today, not the UTC date (already tomorrow at 23:00 Eastern)."""
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_fallback_is_local_today_in_the_evening(self):
+        from datetime import date, datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        from integrations.services.accounting_sync import _parse_date
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        with mock.patch('django.utils.timezone.now', return_value=evening.astimezone(ZoneInfo('UTC'))):
+            self.assertEqual(_parse_date(None), date(2026, 11, 11))
