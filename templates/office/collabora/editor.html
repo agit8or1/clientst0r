@@ -1,0 +1,12 @@
+{# Collabora Online editor area, included by templates/office/editor.html. #}
+{# The access token travels only in this POST body (WOPI host-page pattern); #}
+{# office-collabora.js submits the form into the named iframe. #}
+<div class="d-none" id="collabora-toolbar">
+  {% if ctx.is_code %}<span class="badge text-bg-warning" id="collabora-code-badge" title="Collabora Online Development Edition (CODE)">CODE · {{ ctx.code_label }}</span>{% endif %}
+  {% if ctx.can_save %}<button type="button" class="btn btn-sm btn-outline-primary" id="collabora-save-now" disabled><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save now</button>{% endif %}
+</div>
+<form id="{{ ctx.form_id }}" class="d-none" method="post" action="{{ ctx.action_url }}" target="{{ ctx.frame_name }}" enctype="application/x-www-form-urlencoded">
+  <input type="hidden" name="access_token" value="{{ ctx.access_token }}">
+  <input type="hidden" name="access_token_ttl" value="{{ ctx.access_token_ttl }}">
+</form>
+<iframe name="{{ ctx.frame_name }}" id="collabora-frame" class="office-editor-frame" title="Collabora Online document editor" allow="clipboard-read {{ ctx.editor_origin }}; clipboard-write {{ ctx.editor_origin }}; fullscreen {{ ctx.editor_origin }}" allowfullscreen referrerpolicy="no-referrer"></iframe>

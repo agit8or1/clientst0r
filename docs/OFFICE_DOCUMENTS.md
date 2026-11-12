@@ -527,3 +527,4 @@ python-docx and python-pptx load and resave them. They have not been opened in
 Microsoft Office, ONLYOFFICE or Collabora.
 
 ONLYOFFICE Docs connector: see [docs/office/ONLYOFFICE.md](office/ONLYOFFICE.md).
+Collabora Online connector (WOPI host): see [office/COLLABORA.md](office/COLLABORA.md).
