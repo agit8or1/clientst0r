@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}PSA — Portal request types{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:service_catalog' %}">Service Catalog</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Portal request types</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Portal request types</h2>
+        <small class="text-muted">What customers pick under <strong>New ticket</strong> in the portal, and the form each one asks. A general support option is always offered as well.</small>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'psa:request_type_report' %}" class="btn btn-outline-secondary"><i class="fas fa-chart-bar me-1"></i>Report</a>
+        <a href="{% url 'psa:request_type_starters' %}" class="btn btn-outline-primary"><i class="fas fa-wand-magic-sparkles me-1"></i>Starter templates</a>
+        <form method="post" action="{% url 'psa:request_type_new' %}" class="d-flex gap-1">
+            {% csrf_token %}
+            <label for="new-rt-name" class="visually-hidden">Name</label>
+            <input type="text" name="name" id="new-rt-name" class="form-control" placeholder="New request type name" maxlength="120" required>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-plus me-1"></i>Create</button>
+        </form>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link {% if show != 'archived' %}active{% endif %}" href="?show=current">Current</a></li>
+    <li class="nav-item"><a class="nav-link {% if show == 'archived' %}active{% endif %}" href="?show=archived">Archived</a></li>
+</ul>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Request type</th><th>Scope</th><th>State</th><th class="d-none d-md-table-cell">Form</th><th class="d-none d-md-table-cell">Requests</th><th class="text-end">Order / actions</th></tr>
+            </thead>
+            <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <i class="{{ item.icon|default:'fas fa-clipboard-list' }} me-1 text-primary" aria-hidden="true"></i>
+                    <a href="{% url 'psa:request_type_builder' item.pk %}"><strong>{{ item.name }}</strong></a>
+                    <div class="small text-muted">{{ item.category|default:"Other" }}{% if item.portal_audience == 'org_admins' %} · portal admins only{% endif %}</div>
+                </td>
+                <td class="small">{% if item.organization %}<span class="badge text-bg-info">{{ item.organization.name }}</span>{% if item.based_on %}<div class="text-muted">copy of {{ item.based_on.name }}</div>{% endif %}{% else %}All customers{% if item.include_organizations.exists %} (limited){% endif %}{% endif %}</td>
+                <td>
+                    {% if item.lifecycle == 'archived' %}<span class="badge bg-dark">Archived</span>
+                    {% elif item.lifecycle == 'draft' %}<span class="badge bg-warning text-dark">Draft</span>
+                    {% else %}<span class="badge bg-success">Published</span>{% endif %}
+                    {% if not item.is_active %}<span class="badge bg-secondary">Disabled</span>{% endif %}
+                    {% if not item.portal_visible %}<span class="badge text-bg-light border">Not in portal</span>{% endif %}
+                    {% if item.draft_schema is not None and item.lifecycle == 'published' %}<span class="badge text-bg-light border">Unpublished changes</span>{% endif %}
+                </td>
+                <td class="d-none d-md-table-cell small">{% if item.published_version %}v{{ item.published_version.number }}{% else %}—{% endif %}</td>
+                <td class="d-none d-md-table-cell small">{{ item.n_submissions }}</td>
+                <td class="text-end text-nowrap">
+                    {% if show != 'archived' %}
+                    <form method="post" action="{% url 'psa:request_type_move' item.pk %}" class="d-inline">
+                        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="btn btn-sm btn-outline-secondary" name="direction" value="up" aria-label="Move {{ item.name }} up" title="Move up"><i class="fas fa-arrow-up"></i></button>
+                        <button class="btn btn-sm btn-outline-secondary" name="direction" value="down" aria-label="Move {{ item.name }} down" title="Move down"><i class="fas fa-arrow-down"></i></button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'psa:request_type_builder' item.pk %}" class="btn btn-sm btn-primary"><i class="fas fa-pen me-1"></i>Edit</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">
+                {% if show == 'archived' %}Nothing archived.{% else %}No request types yet. Start from a <a href="{% url 'psa:request_type_starters' %}">starter template</a> or create one above. Customers still get the general ticket form.{% endif %}
+            </td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="small text-muted mt-2">Display order is per category. Customers see published, enabled request types offered in the portal to their organization; a customer's own copy replaces the shared version for that customer only.</p>
+{% endblock %}

@@ -117,6 +117,7 @@ def ticket_facts(ticket, now, msp):
         'sla_pct': 0.0,
         'site_id': getattr(ticket, 'site_id', None),
         'site': '',
+        'answers': {},
     }
     if facts['site_id']:
         facts['site'] = getattr(getattr(ticket, 'site', None), 'name', '') or f'#{facts["site_id"]}'
@@ -124,6 +125,8 @@ def ticket_facts(ticket, now, msp):
         from psa.service_requests import SERVICE_REQUEST_KEY
         rec = (ticket.custom_fields or {}).get(SERVICE_REQUEST_KEY) or {}
         facts['service'] = rec.get('catalog_item_slug') or ''
+        facts['answers'] = {r.get('key'): r.get('value') for r in (rec.get('answers') or [])
+                            if isinstance(r, dict) and r.get('key') and r.get('type') != 'heading'}
     except Exception:  # noqa: BLE001
         pass
     try:
@@ -145,6 +148,35 @@ def _as_list(value):
     if isinstance(value, (list, tuple)):
         return [str(v) for v in value if str(v).strip()]
     return [str(value)]
+
+
+MAX_ANSWER_CONDITIONS = 5
+
+
+def _short(value):
+    if isinstance(value, dict):
+        value = value.get('label') or value.get('text') or value.get('value') or ''
+    if isinstance(value, list):
+        value = ', '.join(str(v.get('name') if isinstance(v, dict) else v) for v in value)
+    return str(value)[:60]
+
+
+def answer_condition_text(cond):
+    from psa.service_requests import OP_LABELS
+    op = cond.get('op') or 'equals'
+    val = cond.get('value')
+    if isinstance(val, list):
+        val = ', '.join(str(v) for v in val)
+    return OP_LABELS.get(op, op) + ('' if op in ('is_set', 'not_set') else f' "{val}"')
+
+
+def answer_condition_matches(cond, answers):
+    """A request-answer condition: same bounded operators as the form's
+    own conditions (psa/service_requests.py). An unanswered field only
+    satisfies not_set / not_equals / not_in."""
+    from psa.service_requests import _matches
+    return _matches({'field': cond.get('field'), 'op': cond.get('op') or 'equals',
+                     'value': cond.get('value')}, answers.get(cond.get('field')))
 
 
 def condition_failures(conditions, facts) -> List[str]:
@@ -184,6 +216,15 @@ def condition_failures(conditions, facts) -> List[str]:
         out.append('the ticket has no site')
     if site_state == 'unset' and facts.get('site_id'):
         out.append(f'the ticket has a site ({facts.get("site")})')
+    for cond in (c.get('answers') or [])[:MAX_ANSWER_CONDITIONS]:
+        if not isinstance(cond, dict) or not cond.get('field'):
+            continue
+        answers = facts.get('answers') or {}
+        if not answer_condition_matches(cond, answers):
+            shown = answers.get(cond['field'])
+            out.append(f'request answer "{cond["field"]}" {answer_condition_text(cond)} does not hold'
+                       + ('' if cond['field'] in answers else ' (not answered)')
+                       + (f' (answer: {_short(shown)})' if shown not in (None, '', []) else ''))
     hours = c.get('hours') or 'any'
     if hours == 'business' and not facts['business_hours']:
         out.append('it is outside business hours')

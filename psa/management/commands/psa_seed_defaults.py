@@ -376,7 +376,7 @@ class Command(BaseCommand):
 
         # Service catalog — structured fields + body/subject templates
         for i, item in enumerate(CATALOG):
-            existing = ServiceCatalogItem.objects.filter(name=item['name']).first()
+            existing = ServiceCatalogItem.objects.filter(name=item['name'], organization__isnull=True).first()
             if existing:
                 # Always refresh fields_json + templates so re-running the seed
                 # picks up schema changes. Operator-customised name / icon /

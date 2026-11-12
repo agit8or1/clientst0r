@@ -149,6 +149,13 @@ def ticket_list(request):
     queue_id = request.GET.get('queue') or ''
     assigned = request.GET.get('assigned') or ''
     search = (request.GET.get('q') or '').strip()
+    request_type = request.GET.get('request_type') or ''
+    if request_type == 'any':
+        qs = qs.filter(service_request_submission__isnull=False)
+    elif request_type.isdigit():
+        qs = qs.filter(service_request_submission__catalog_item_id=int(request_type))
+    else:
+        request_type = ''
 
     if client_id:
         qs = qs.filter(organization_id=client_id)
@@ -208,13 +215,15 @@ def ticket_list(request):
         'available_statuses': TicketStatus.objects.all(),
         'available_priorities': TicketPriority.objects.all(),
         'available_queues': Queue.objects.filter(is_active=True),
+        'available_request_types': ServiceCatalogItem.objects.filter(
+            submissions__isnull=False).distinct().order_by('name').only('pk', 'name', 'organization'),
         'work_queues': WORK_QUEUES,
         'work_queue': work_queue,
         'filter_values': {
             'client': client_id, 'status': status_id, 'priority': priority_id,
-            'queue': queue_id, 'assigned': assigned, 'q': search,
+            'queue': queue_id, 'assigned': assigned, 'q': search, 'request_type': request_type,
         },
-        'has_filters': any([client_id, status_id, priority_id, queue_id, assigned, search]),
+        'has_filters': any([client_id, status_id, priority_id, queue_id, assigned, search, request_type]),
     })
 
 
@@ -226,6 +235,13 @@ def _record_ai_draft_decision(ticket, request, body, **kw):
         record_draft_decision(ticket, request.user, body, (request.POST.get('ai_draft') or '').strip(), **kw)
     except Exception:
         logger.exception('recording the AI draft decision on %s failed', ticket.ticket_number)
+
+
+def _can_edit_request_answers(user, ticket):
+    if not isinstance((ticket.custom_fields or {}).get('service_request'), dict):
+        return False
+    from .request_builder_views import can_edit_answers
+    return can_edit_answers(user, ticket)
 
 
 @login_required
@@ -409,6 +425,7 @@ def ticket_detail(request, ticket_number):
         'available_statuses': TicketStatus.objects.all(),
         'closure_categories': Ticket.CLOSURE_CATEGORIES,
         'is_closed': is_closed,
+        'can_edit_request_answers': _can_edit_request_answers(request.user, ticket),
         'attachment_max_mb': ATTACHMENT_MAX_BYTES // (1024 * 1024),
         'watchers_count': watchers_count,
         'activity': _ticket_activity(request, ticket),
@@ -534,7 +551,7 @@ def ticket_create(request):
         # If a catalog template was used, harvest the dynamic field values
         # and render the subject/body templates.
         catalog_slug = request.POST.get('catalog_slug') or ''
-        catalog_post = ServiceCatalogItem.objects.filter(slug=catalog_slug, is_active=True).first() if catalog_slug else None
+        catalog_post = ServiceCatalogItem.objects.filter(slug=catalog_slug, is_active=True).exclude(lifecycle='archived').first() if catalog_slug else None
 
         if catalog_post is not None:
             values = {}
@@ -733,7 +750,7 @@ def ticket_create(request):
     catalog_slug = request.GET.get('from_catalog') or ''
     catalog_item = None
     if catalog_slug:
-        catalog_item = ServiceCatalogItem.objects.filter(slug=catalog_slug, is_active=True).first()
+        catalog_item = ServiceCatalogItem.objects.filter(slug=catalog_slug, is_active=True).exclude(lifecycle='archived').first()
 
     # Workflow templates available to attach at creation. List ALL published,
     # non-archived templates — the user picks one and the org is set when the
@@ -2358,6 +2375,7 @@ def service_catalog(request):
     ).order_by('sort_order', 'name')
     if not is_admin:
         qs = qs.filter(is_active=True)
+    qs = qs.exclude(lifecycle=ServiceCatalogItem.LIFECYCLE_ARCHIVED)
     view_mode = request.GET.get('view', 'tile')
     if view_mode not in ('tile', 'list'):
         view_mode = 'tile'
@@ -2425,6 +2443,11 @@ def service_catalog_form(request, pk=None):
 
         if not name:
             messages.error(request, 'Name is required.')
+            return redirect(request.path)
+        from .request_forms import name_taken
+        if name_taken(name, getattr(item, 'organization', None),
+                      exclude_pk=getattr(item, 'pk', None)):
+            messages.error(request, f'Another catalog item is already called "{name}".')
             return redirect(request.path)
 
         # Guided service requests: the editor posts the form builder's

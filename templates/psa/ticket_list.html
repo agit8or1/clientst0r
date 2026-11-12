@@ -80,6 +80,16 @@ Bootstrap columns that collapse awkwardly between breakpoints.
             <option value="unassigned" {% if filter_values.assigned == "unassigned" %}selected{% endif %}>Unassigned</option>
         </select>
     </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="tkRequestType">Request type</label>
+        <select id="tkRequestType" name="request_type" class="form-select">
+            <option value="">Any</option>
+            <option value="any" {% if filter_values.request_type == "any" %}selected{% endif %}>Any request form</option>
+            {% for rt in available_request_types %}
+            <option value="{{ rt.pk }}" {% if filter_values.request_type == rt.pk|stringformat:"s" %}selected{% endif %}>{{ rt.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <div class="ui-field ui-field--auto">
         <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Apply filters</button>
     </div>
@@ -99,6 +109,8 @@ Bootstrap columns that collapse awkwardly between breakpoints.
     {% for p in available_priorities %}{% if filter_values.priority == p.id|stringformat:"s" %}<span class="ui-chip">{{ p.name }}</span>{% endif %}{% endfor %}
     {% for q in available_queues %}{% if filter_values.queue == q.id|stringformat:"s" %}<span class="ui-chip">{{ q.name }}</span>{% endif %}{% endfor %}
     {% if work_queue %}{% for key, label in work_queues.items %}{% if key == work_queue %}<span class="ui-chip"><i class="fas fa-inbox"></i> {{ label }}</span>{% endif %}{% endfor %}{% endif %}
+    {% if filter_values.request_type == "any" %}<span class="ui-chip"><i class="fas fa-clipboard-list"></i> Any request form</span>{% endif %}
+    {% for rt in available_request_types %}{% if filter_values.request_type == rt.pk|stringformat:"s" %}<span class="ui-chip"><i class="fas fa-clipboard-list"></i> {{ rt.name }}</span>{% endif %}{% endfor %}
     {% if filter_values.assigned == "me" %}<span class="ui-chip">Assigned to me</span>{% endif %}
     {% if filter_values.assigned == "unassigned" %}<span class="ui-chip">Unassigned</span>{% endif %}
     <a href="{% url 'psa:ticket_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i> Clear all</a>

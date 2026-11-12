@@ -1053,7 +1053,10 @@ class ServiceCatalogItem(models.Model):
     New User, Terminate User, Password Reset, etc. Seeded by the
     psa_seed_defaults command.
     """
-    name = models.CharField(max_length=120, unique=True)
+    # Not unique on its own since request types can have customer-specific
+    # copies that keep the original's name; the editor checks uniqueness
+    # within one scope (MSP-wide, or one customer).
+    name = models.CharField(max_length=120)
     slug = models.SlugField(max_length=120, unique=True)
     description = models.TextField(blank=True,
         help_text='Shown in the catalog grid')
@@ -1157,6 +1160,92 @@ class ServiceCatalogItem(models.Model):
         help_text='These customers never see the item (wins over the include list).',
     )
 
+    # Request types and dynamic forms (Phase 54.7). Everything below is
+    # additive: existing rows read as published, MSP-wide, for everyone.
+    LIFECYCLE_DRAFT = 'draft'
+    LIFECYCLE_PUBLISHED = 'published'
+    LIFECYCLE_ARCHIVED = 'archived'
+    LIFECYCLE_CHOICES = [
+        (LIFECYCLE_DRAFT, 'Draft'),
+        (LIFECYCLE_PUBLISHED, 'Published'),
+        (LIFECYCLE_ARCHIVED, 'Archived'),
+    ]
+    AUDIENCE_EVERYONE = 'everyone'
+    AUDIENCE_ORG_ADMINS = 'org_admins'
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_EVERYONE, 'Everyone at the customer'),
+        (AUDIENCE_ORG_ADMINS, "Only the customer's portal admins"),
+    ]
+    lifecycle = models.CharField(
+        max_length=12, choices=LIFECYCLE_CHOICES, default=LIFECYCLE_PUBLISHED,
+        db_index=True,
+        help_text='Draft: never offered to customers. Archived: hidden everywhere '
+                  'except on tickets already raised from it.',
+    )
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='own_catalog_items',
+        help_text="Blank = an MSP-wide request type. Set = this customer's own copy.",
+    )
+    based_on = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='customer_copies',
+        help_text='The MSP-wide request type this copy was made from. While the '
+                  'copy is offered, the customer sees it instead of the original.',
+    )
+    portal_audience = models.CharField(
+        max_length=20, choices=AUDIENCE_CHOICES, default=AUDIENCE_EVERYONE,
+        help_text='Which portal users see this request type.',
+    )
+    confirmation_message = models.TextField(
+        blank=True, max_length=2000,
+        help_text='Shown to the customer after they submit. Plain text.',
+    )
+    default_assignee = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+        help_text='Technician assigned on submit, when they may work for that customer.',
+    )
+    default_team = models.ForeignKey(
+        'auth.Group', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', help_text="Team written to the ticket's team on submit.",
+    )
+    approval_allow_self = models.BooleanField(
+        default=False,
+        help_text='Let a requester who is also an eligible approver approve their '
+                  'own request. Off by default.',
+    )
+    draft_schema = models.JSONField(
+        null=True, blank=True,
+        help_text='Unpublished form-builder draft. Customers never see it.',
+    )
+    draft_updated_at = models.DateTimeField(null=True, blank=True)
+    draft_updated_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    published_version = models.ForeignKey(
+        'ServiceRequestFormVersion', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    starter_key = models.CharField(
+        max_length=40, blank=True,
+        help_text='Starter template this request type was created from.',
+    )
+
+    @property
+    def is_archived(self):
+        return self.lifecycle == self.LIFECYCLE_ARCHIVED
+
+    @property
+    def is_draft(self):
+        return self.lifecycle == self.LIFECYCLE_DRAFT
+
     def get_form_schema(self):
         """Canonical form definition; falls back to legacy fields_json."""
         from psa.service_requests import schema_from_legacy
@@ -1208,6 +1297,93 @@ class ServiceCatalogItem(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ServiceRequestFormVersion(models.Model):
+    """An immutable, published version of a request type's form.
+
+    Customers fill in (and the server validates against) the published
+    version; each submission records which one. Versions are written by
+    psa/request_forms.py:ensure_version and never edited afterwards.
+    """
+    catalog_item = models.ForeignKey(
+        ServiceCatalogItem, on_delete=models.CASCADE, related_name='form_versions',
+    )
+    number = models.PositiveIntegerField()
+    schema = models.JSONField(default=list, blank=True)
+    subject_pattern = models.CharField(max_length=300, blank=True)
+    note = models.CharField(max_length=300, blank=True)
+    published_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    published_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'psa_service_request_form_versions'
+        ordering = ['catalog_item_id', '-number']
+        constraints = [
+            models.UniqueConstraint(fields=['catalog_item', 'number'],
+                                    name='uniq_service_request_form_version'),
+        ]
+
+    def __str__(self):
+        return f'{self.catalog_item_id} v{self.number}'
+
+
+class ServiceRequestSubmission(models.Model):
+    """One portal request-form submission and the ticket it created.
+
+    `idempotency_key` (the form token) comes from the form the customer
+    loaded, so a double click or a retried POST finds this row and returns the same ticket instead of
+    opening a second one. `schema_snapshot` + `original_answers` keep the
+    labels, field types, option labels and answers exactly as submitted;
+    later form edits, archiving or deleted options never change them.
+    `answers` holds the current answers after any audited staff edit.
+    """
+    idempotency_key = models.CharField(max_length=64, unique=True)
+    ticket = models.OneToOneField(
+        'Ticket', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='service_request_submission',
+    )
+    catalog_item = models.ForeignKey(
+        ServiceCatalogItem, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='submissions',
+    )
+    catalog_item_name = models.CharField(max_length=120, blank=True)
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE,
+        related_name='service_request_submissions',
+    )
+    submitted_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='service_request_submissions',
+    )
+    form_version = models.ForeignKey(
+        ServiceRequestFormVersion, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='submissions',
+    )
+    form_version_number = models.PositiveIntegerField(null=True, blank=True)
+    schema_snapshot = models.JSONField(default=list, blank=True)
+    original_answers = models.JSONField(default=list, blank=True)
+    answers = models.JSONField(default=list, blank=True)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    edited_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_service_request_submissions'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['catalog_item', '-created_at']),
+            models.Index(fields=['organization', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.catalog_item_name} ({self.ticket_id})'
 
 
 class ServiceRequestApprover(models.Model):

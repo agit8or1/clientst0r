@@ -1,0 +1,105 @@
+{# One request-form field. Context: f (portal/request_views.py:build_fields), item, preview #}
+{% if f.type == 'heading' %}
+<div class="js-sr-field mt-4 mb-2 pt-2 border-top" data-key="{{ f.key }}" data-type="heading">
+    <h2 class="h5 mb-1">{{ f.label }}</h2>
+    {% if f.help %}<p class="text-muted small mb-0">{{ f.help }}</p>{% endif %}
+</div>
+{% elif f.type == 'info' %}
+<div class="js-sr-field alert alert-light border small mb-3" data-key="{{ f.key }}" data-type="info" role="note">
+    {% if f.label %}<strong class="d-block">{{ f.label }}</strong>{% endif %}{{ f.help|linebreaksbr }}
+</div>
+{% else %}
+<div class="mb-3 js-sr-field{% if f.error %} has-error{% endif %}" data-key="{{ f.key }}" data-type="{{ f.type }}">
+    {% if f.type == 'checkbox' %}
+    <div class="form-check">
+        <input type="checkbox" class="form-check-input{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" value="on"
+               {% if f.current %}checked{% endif %}{% if f.help %} aria-describedby="{{ f.dom_id }}_help"{% endif %}>
+        <label class="form-check-label" for="{{ f.dom_id }}">{{ f.label }} <span class="text-danger js-req-mark" {% if not f.required %}hidden{% endif %}>*<span class="visually-hidden"> required</span></span></label>
+    </div>
+    {% elif f.type == 'multiselect' or f.type == 'radio' %}
+    <fieldset{% if f.help %} aria-describedby="{{ f.dom_id }}_help"{% endif %}>
+        <legend class="form-label fs-6 mb-1">{{ f.label }} <span class="text-danger js-req-mark" {% if not f.required %}hidden{% endif %}>*<span class="visually-hidden"> required</span></span></legend>
+        {% for value, label in f.pairs %}
+        <div class="form-check">
+            {% if f.type == 'radio' %}
+            <input type="radio" class="form-check-input{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}_{{ forloop.counter }}" name="{{ f.input_name }}" value="{{ value }}" {% if f.current == value %}checked{% endif %}>
+            {% else %}
+            <input type="checkbox" class="form-check-input{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}_{{ forloop.counter }}" name="{{ f.input_name }}" value="{{ value }}" {% if value in f.current %}checked{% endif %}>
+            {% endif %}
+            <label class="form-check-label" for="{{ f.dom_id }}_{{ forloop.counter }}">{{ label }}</label>
+        </div>
+        {% endfor %}
+    </fieldset>
+    {% else %}
+    <label class="form-label" for="{{ f.dom_id }}{% if f.type == 'contact' or f.type == 'asset' %}_search{% endif %}">{{ f.label }} <span class="text-danger js-req-mark" {% if not f.required %}hidden{% endif %}>*<span class="visually-hidden"> required</span></span></label>
+    {% if f.type == 'textarea' %}
+    <textarea class="form-control js-sr-text{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" rows="4" maxlength="{{ f.max_length|default:10000 }}" placeholder="{{ f.placeholder|default:'' }}"{% if f.help %} aria-describedby="{{ f.dom_id }}_help"{% endif %}>{{ f.current }}</textarea>
+    {% elif f.type == 'select' %}
+    <select class="form-select{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}"{% if f.help %} aria-describedby="{{ f.dom_id }}_help"{% endif %}>
+        <option value="">— Choose —</option>
+        {% for value, label in f.pairs %}<option value="{{ value }}" {% if f.current == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% elif f.type == 'date' %}
+    <input type="date" class="form-control{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" value="{{ f.current }}"{% if f.help or f.requested_date %} aria-describedby="{{ f.dom_id }}_help"{% endif %}>
+    {% elif f.type == 'datetime' %}
+    <div class="row g-2">
+        <div class="col-sm-7"><input type="datetime-local" class="form-control{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" value="{{ f.current }}" aria-describedby="{{ f.dom_id }}_help"></div>
+        <div class="col-sm-5">
+            <label class="visually-hidden" for="{{ f.dom_id }}_tz">Time zone for {{ f.label }}</label>
+            <select class="form-select" id="{{ f.dom_id }}_tz" name="{{ f.input_name }}__tz">
+                {% for z in f.timezones %}<option value="{{ z }}" {% if z == f.current_tz %}selected{% endif %}>{{ z }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    {% elif f.type == 'email' %}
+    <input type="email" class="form-control{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" maxlength="254" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'' }}" autocomplete="off">
+    {% elif f.type == 'tel' %}
+    <input type="tel" class="form-control{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" maxlength="40" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'' }}" autocomplete="off">
+    {% elif f.type == 'number' %}
+    <input type="number" class="form-control{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" value="{{ f.current }}" step="{% if f.integer %}1{% else %}any{% endif %}"{% if f.min is not None %} min="{{ f.min }}"{% endif %}{% if f.max is not None %} max="{{ f.max }}"{% endif %}>
+    {% elif f.type == 'file' %}
+    <input type="file" class="form-control{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" {% if f.max_files > 1 %}multiple{% endif %} aria-describedby="{{ f.dom_id }}_help">
+    {% elif f.type == 'location' %}
+    <select class="form-select{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}">
+        <option value="">— Choose —</option>
+        {% for id, label in f.location_options %}<option value="{{ id }}" {% if f.current == id|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% if not f.location_options %}<div class="form-text">{% if preview %}Customers see their own sites here.{% else %}No sites are recorded for your organization yet — mention the location in the notes.{% endif %}</div>{% endif %}
+    {% elif f.type == 'contact' or f.type == 'asset' %}
+    <div class="js-lookup position-relative" data-lookup-url="{% if not preview %}{% url 'portal:request_lookup' item.slug f.key %}{% endif %}">
+        <input type="hidden" class="js-lookup-id" name="{{ f.input_name }}" value="{{ f.current_id }}">
+        {% if f.own_options %}
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            {% for o in f.own_options %}<button type="button" class="btn btn-sm btn-outline-primary js-lookup-own" data-id="{{ o.id }}" data-label="{{ o.label }}">{{ o.label }}</button>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="input-group">
+            <input type="text" class="form-control js-lookup-input{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}_search" value="{{ f.current_label }}" autocomplete="off"
+                   placeholder="{% if f.searchable %}Start typing a name{% elif f.own_options %}Choose above{% else %}Nothing to pick from — type below{% endif %}"
+                   {% if f.current_label or not f.searchable %}readonly{% endif %} aria-describedby="{{ f.dom_id }}_help">
+            <button type="button" class="btn btn-outline-secondary js-lookup-clear" {% if not f.current_label %}hidden{% endif %}>Clear</button>
+        </div>
+        <div class="list-group position-absolute w-100 shadow-sm js-lookup-results" style="z-index: 10" hidden></div>
+        {% if f.allow_text %}
+        <label class="form-label small text-muted mt-2 mb-0" for="{{ f.dom_id }}_text">{% if f.type == 'contact' %}Or type the person's name{% else %}Or describe the device{% endif %}</label>
+        <input type="text" class="form-control form-control-sm js-sr-text" id="{{ f.dom_id }}_text" name="{{ f.input_name }}__text" maxlength="200" value="{{ f.current_text }}" autocomplete="off">
+        {% endif %}
+        {% if f.scope_note %}<div class="form-text">{{ f.scope_note }}</div>{% elif preview %}<div class="form-text">Customers can pick from what they are allowed to see, or type a name.</div>{% endif %}
+    </div>
+    {% elif f.type == 'user' %}
+    <input type="text" class="form-control js-sr-text{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" maxlength="200" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'Name or email address' }}" autocomplete="off">
+    {% else %}
+    <input type="text" class="form-control js-sr-text{% if f.error %} is-invalid{% endif %}" id="{{ f.dom_id }}" name="{{ f.input_name }}" maxlength="{{ f.max_length|default:500 }}" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'' }}"{% if f.help %} aria-describedby="{{ f.dom_id }}_help"{% endif %}>
+    {% endif %}
+    {% endif %}
+    {% if f.error %}<div class="invalid-feedback d-block" role="alert">{{ f.error }}</div>{% endif %}
+    {% if f.help or f.requested_date or f.type == 'file' or f.type == 'datetime' %}
+    <div class="form-text" id="{{ f.dom_id }}_help">
+        {{ f.help }}
+        {% if f.requested_date %}<span class="d-block"><i class="far fa-calendar me-1" aria-hidden="true"></i>This is the date you'd like it done by. It isn't a guaranteed commitment — we'll confirm the timing.</span>{% endif %}
+        {% if f.type == 'file' and not f.help %}Up to {{ f.max_files }} file{{ f.max_files|pluralize }}, 25 MB each.{% endif %}
+        {% if f.type == 'datetime' and not f.help %}Pick the time zone the time is in.{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}

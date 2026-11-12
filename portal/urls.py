@@ -49,6 +49,8 @@ urlpatterns = [
     path('requests/<slug:slug>/', _request_views.request_form, name='request_form'),
     path('requests/<slug:slug>/kb/', _request_views.request_kb_suggest,
          name='request_kb_suggest'),
+    path('requests/<slug:slug>/lookup/<str:key>/', _request_views.request_lookup,
+         name='request_lookup'),
     # Version-specific agreements: MSAs, SOWs, policy acknowledgments.
     path('agreements/', _agreement_views.agreement_list, name='agreement_list'),
     path('agreements/<int:pk>/', _agreement_views.agreement_detail, name='agreement_detail'),

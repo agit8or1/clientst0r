@@ -1,40 +1,81 @@
 {% extends "portal/base.html" %}
-{% block title %}Request a service{% endblock %}
+{% load static %}
+{% block title %}New ticket{% endblock %}
+{% block extra_css %}
+<style>
+    .request-type-card { transition: border-color .15s, box-shadow .15s; }
+    .request-type-card:hover, .request-type-card:focus { border-color: var(--bs-primary); box-shadow: 0 0 0 .2rem rgba(13,110,253,.15); }
+    .request-type-icon { width: 2.5rem; height: 2.5rem; border-radius: .5rem; background: rgba(13,110,253,.08); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+</style>
+{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'portal:ticket_list' %}">My Tickets</a></li>
-        <li class="breadcrumb-item active">Request a service</li>
+        <li class="breadcrumb-item active" aria-current="page">New ticket</li>
     </ol>
 </nav>
 
-<h1 class="mb-1">Request a service</h1>
-<p class="text-muted mb-4">Pick what you need and we'll ask only the questions that matter. Something else? <a href="{% url 'portal:ticket_create' %}">Submit a general ticket</a>.</p>
+<h1 class="mb-1">What do you need help with?</h1>
+<p class="text-muted mb-3">Pick the closest match and we'll only ask the questions that matter. Not sure? Choose <strong>General support</strong>.</p>
+
+<div class="mb-4" id="request-type-search-wrap" hidden>
+    <label for="request-type-search" class="visually-hidden">Search request types</label>
+    <div class="input-group">
+        <span class="input-group-text" aria-hidden="true"><i class="fas fa-search"></i></span>
+        <input type="search" id="request-type-search" class="form-control" placeholder="Search, e.g. phone, new user, printer" autocomplete="off" hidden>
+    </div>
+    <div class="small text-muted mt-1" id="request-type-status" role="status" aria-live="polite"></div>
+</div>
 
 {% for category, items in groups %}
-<h5 class="mt-4 mb-2 text-muted text-uppercase small fw-semibold">{{ category }}</h5>
+<section class="js-request-group" aria-labelledby="cat-{{ forloop.counter }}">
+<h2 id="cat-{{ forloop.counter }}" class="h6 mt-4 mb-2 text-muted text-uppercase small fw-semibold">{{ category }}</h2>
 <div class="row g-3">
     {% for item in items %}
-    <div class="col-12 col-md-6 col-lg-4">
-        <a href="{% url 'portal:request_form' item.slug %}" class="card h-100 text-decoration-none text-reset">
+    <div class="col-12 col-md-6 col-lg-4 js-request-type" data-search="{{ item.name }} {{ item.category }} {{ item.description }}">
+        <a href="{% url 'portal:request_form' item.slug %}" class="card h-100 text-decoration-none text-reset request-type-card">
             <div class="card-body">
-                <div class="d-flex align-items-start gap-2">
-                    {% if item.icon %}<i class="{{ item.icon }} fa-lg mt-1 text-primary"></i>{% endif %}
+                <div class="d-flex align-items-start gap-3">
+                    <span class="request-type-icon" aria-hidden="true"><i class="{{ item.icon|default:'fas fa-clipboard-list' }} text-primary"></i></span>
                     <div>
                         <div class="fw-semibold">{{ item.name }}</div>
                         {% if item.description %}<div class="small text-muted">{{ item.description|truncatechars:160 }}</div>{% endif %}
                     </div>
                 </div>
             </div>
+            {% if item.turnaround_display or item.needs_customer_approval %}
             <div class="card-footer bg-transparent small text-muted d-flex flex-wrap gap-3">
-                {% if item.turnaround_display %}<span><i class="far fa-clock me-1"></i>{{ item.turnaround_display }}</span>{% endif %}
-                {% if item.needs_customer_approval %}<span><i class="fas fa-user-check me-1"></i>Needs approval</span>{% endif %}
+                {% if item.turnaround_display %}<span><i class="far fa-clock me-1" aria-hidden="true"></i>Usually {{ item.turnaround_display }}</span>{% endif %}
+                {% if item.needs_customer_approval %}<span><i class="fas fa-user-check me-1" aria-hidden="true"></i>Needs approval</span>{% endif %}
             </div>
+            {% endif %}
         </a>
     </div>
     {% endfor %}
 </div>
-{% empty %}
-<div class="alert alert-info">No services are available to request online yet. <a href="{% url 'portal:ticket_create' %}">Submit a ticket</a> and we'll take care of it.</div>
+</section>
 {% endfor %}
+
+<section class="js-request-group" aria-labelledby="cat-general">
+<h2 id="cat-general" class="h6 mt-4 mb-2 text-muted text-uppercase small fw-semibold">Something else</h2>
+<div class="row g-3">
+    <div class="col-12 col-md-6 col-lg-4 js-request-type js-always" data-search="general support other problem help question issue">
+        <a href="{% if general_item %}{% url 'portal:request_form' general_item.slug %}{% else %}{% url 'portal:ticket_create' %}?form=general{% endif %}" class="card h-100 text-decoration-none text-reset request-type-card" id="general-support-link">
+            <div class="card-body">
+                <div class="d-flex align-items-start gap-3">
+                    <span class="request-type-icon" aria-hidden="true"><i class="{{ general_item.icon|default:'fas fa-life-ring' }} text-primary"></i></span>
+                    <div>
+                        <div class="fw-semibold">{% if general_item %}{{ general_item.name }}{% else %}General support{% endif %}</div>
+                        <div class="small text-muted">{% if general_item and general_item.description %}{{ general_item.description|truncatechars:160 }}{% else %}Anything that doesn't fit a category above — describe it in your own words.{% endif %}</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+</section>
+
+<p class="text-muted mt-3" id="request-type-empty" hidden>No request type matches that. Use <strong>General support</strong> and describe what you need.</p>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'js/request_picker.js' %}"></script>{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}PSA — {{ item.name }} (request type){% endblock %}
+{% block extra_css %}
+<style>
+    .rb-handle { cursor: grab; padding: 0 .25rem; }
+    .rb-field .card-header { background: var(--bs-tertiary-bg, #f8f9fa); }
+</style>
+{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:request_type_list' %}">Portal request types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ item.name }}</li>
+    </ol>
+</nav>
+
+<div class="card mb-3"><div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h2 class="mb-1"><i class="{{ item.icon|default:'fas fa-clipboard-list' }} me-2 text-primary" aria-hidden="true"></i>{{ item.name }}</h2>
+        <div class="d-flex flex-wrap gap-1 align-items-center small">
+            {% if item.lifecycle == 'archived' %}<span class="badge bg-dark">Archived</span>
+            {% elif item.lifecycle == 'draft' %}<span class="badge bg-warning text-dark">Draft — not offered to customers</span>
+            {% else %}<span class="badge bg-success">Published{% if live_version %} · v{{ live_version.number }}{% endif %}</span>{% endif %}
+            {% if not item.is_active %}<span class="badge bg-secondary">Disabled</span>{% endif %}
+            {% if has_draft %}<span class="badge text-bg-light border">Unpublished changes</span>{% endif %}
+            {% if item.organization %}<span class="badge text-bg-info">Only for {{ item.organization.name }}</span>{% if item.based_on %}<span class="text-muted">copy of <a href="{% url 'psa:request_type_builder' item.based_on.pk %}">{{ item.based_on.name }}</a> — replaces it for this customer once published</span>{% endif %}{% else %}<span class="text-muted">Shared request type (all customers{% if include_ids %}, limited list{% endif %})</span>{% endif %}
+            {% if item.requires_approval %}<span class="badge bg-info-subtle text-info-emphasis">Change governance</span>{% endif %}
+            <span class="text-muted">· {{ submission_count }} request{{ submission_count|pluralize }}</span>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <form method="post" action="{% url 'psa:request_type_action' item.pk %}" class="d-inline">
+            {% csrf_token %}
+            {% if item.lifecycle == 'archived' %}
+            <button class="btn btn-outline-success" name="action" value="restore"><i class="fas fa-box-open me-1"></i>Restore</button>
+            {% else %}
+            {% if item.is_active %}<button class="btn btn-outline-secondary" name="action" value="disable"><i class="fas fa-pause me-1"></i>Disable</button>
+            {% else %}<button class="btn btn-outline-success" name="action" value="enable"><i class="fas fa-play me-1"></i>Enable</button>{% endif %}
+            <button class="btn btn-outline-secondary" name="action" value="duplicate"><i class="fas fa-copy me-1"></i>Duplicate</button>
+            <button class="btn btn-outline-danger" name="action" value="archive" data-confirm="Archive this request type? Customers stop seeing it; tickets already raised keep their request details."><i class="fas fa-box-archive me-1"></i>Archive</button>
+            {% endif %}
+        </form>
+    </div>
+</div></div>
+
+<div class="row g-3">
+<div class="col-xl-8">
+    <form method="post" id="rb-form" class="card">
+        {% csrf_token %}
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <strong><i class="fas fa-list-check me-1"></i>Form{% if has_draft %} <span class="badge text-bg-light border">editing draft</span>{% endif %}</strong>
+            <a class="small" href="{% url 'psa:request_type_preview' item.pk %}" target="_blank" rel="noopener">Preview published form</a>
+        </div>
+        <div class="card-body" id="rb-builder">
+            {% if schema_error %}<div class="alert alert-danger" role="alert">{{ schema_error }}</div>{% endif %}
+            <div class="alert alert-warning small" hidden><strong>Check before publishing:</strong><ul class="mb-0" id="rb-hints"></ul></div>
+            <p class="small text-muted">Customers only see the published form. Conditions are simple rules on answers to earlier questions — hidden questions are never required and their answers are discarded. Don't ask for passwords, PINs or sign-in codes: the form refuses those questions.</p>
+            <div id="rb-fields"></div>
+            <div class="visually-hidden" aria-live="polite" id="rb-live"></div>
+            <div class="d-flex flex-wrap gap-2 align-items-end mt-2 border-top pt-2">
+                <div>
+                    <label for="rb-add-type" class="form-label small mb-0">Add</label>
+                    <select id="rb-add-type" class="form-select form-select-sm">
+                        {% for value, label in type_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="rb-add"><i class="fas fa-plus me-1"></i>Add question</button>
+            </div>
+            <details class="mt-3">
+                <summary class="small text-muted">Edit as JSON</summary>
+                <textarea id="rb-raw" class="form-control font-monospace small mt-2" rows="10" aria-label="Form definition as JSON">{{ schema_json }}</textarea>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-1" id="rb-raw-apply">Apply JSON</button>
+            </details>
+            <input type="hidden" name="schema_json" id="rb-schema-json" value="{{ schema_json }}">
+        </div>
+        <div class="card-footer d-flex flex-wrap gap-2 align-items-center">
+            <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary"><i class="fas fa-floppy-disk me-1"></i>Save draft</button>
+            <span class="d-inline-flex flex-wrap gap-1 align-items-center">
+                <label for="rb-preview-org" class="visually-hidden">Preview as customer</label>
+                <select name="preview_org" id="rb-preview-org" class="form-select form-select-sm w-auto">
+                    {% if item.organization %}<option value="{{ item.organization.pk }}">{{ item.organization.name }}</option>{% else %}
+                    <option value="">Preview without a customer</option>
+                    {% for o in organizations %}<option value="{{ o.pk }}">as {{ o.name }}</option>{% endfor %}{% endif %}
+                </select>
+                <button type="submit" name="action" value="preview" class="btn btn-outline-secondary" formtarget="_blank"><i class="fas fa-eye me-1"></i>Save &amp; preview</button>
+            </span>
+            <span class="ms-auto d-inline-flex flex-wrap gap-1 align-items-center">
+                <label for="rb-note" class="visually-hidden">Change note</label>
+                <input type="text" name="note" id="rb-note" class="form-control form-control-sm" maxlength="300" placeholder="What changed (optional)">
+                <button type="submit" name="action" value="publish" class="btn btn-primary" data-confirm="Publish this form? Customers see it straight away; tickets already submitted keep their answers and labels."><i class="fas fa-upload me-1"></i>{% if can_publish_directly %}Publish{% else %}Propose for approval{% endif %}</button>
+            </span>
+            {% if has_draft %}<button type="submit" name="action" value="discard" class="btn btn-link text-danger" data-confirm="Discard the draft and go back to the published form?">Discard draft</button>{% endif %}
+        </div>
+    </form>
+
+    <div class="card mt-3">
+        <div class="card-header"><strong><i class="fas fa-code-branch me-1"></i>Published versions</strong></div>
+        <ul class="list-group list-group-flush small">
+            {% for v in versions %}
+            <li class="list-group-item d-flex justify-content-between flex-wrap gap-2">
+                <span><strong>v{{ v.number }}</strong> — {{ v.schema|length }} item{{ v.schema|length|pluralize }}{% if v.note %} · {{ v.note }}{% endif %}</span>
+                <span class="text-muted">{{ v.published_at|date:"Y-m-d H:i" }}{% if v.published_by %} by {{ v.published_by.get_username }}{% endif %}</span>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">Not published yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<div class="col-xl-4">
+    <form method="post" class="card mb-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="settings">
+        <div class="card-header"><strong><i class="fas fa-sliders me-1"></i>Settings</strong> <small class="text-muted">— apply immediately</small></div>
+        <div class="card-body small">
+            <fieldset {% if not can_publish_directly %}disabled{% endif %}>
+            <div class="mb-2"><label class="form-label mb-0" for="s-name">Name</label><input id="s-name" name="name" class="form-control form-control-sm" maxlength="120" value="{{ item.name }}" required></div>
+            <div class="mb-2"><label class="form-label mb-0" for="s-desc">Description</label><textarea id="s-desc" name="description" class="form-control form-control-sm" rows="2">{{ item.description }}</textarea></div>
+            <div class="row g-2 mb-2">
+                <div class="col-6"><label class="form-label mb-0" for="s-cat">Category</label><input id="s-cat" name="category" class="form-control form-control-sm" maxlength="80" value="{{ item.category }}" placeholder="People, Phones…"></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-icon">Icon</label><input id="s-icon" name="icon" class="form-control form-control-sm" maxlength="80" value="{{ item.icon }}" placeholder="fas fa-user-plus"></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-order">Display order</label><input id="s-order" type="number" min="0" name="sort_order" class="form-control form-control-sm" value="{{ item.sort_order }}"></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-aud">Who sees it</label><select id="s-aud" name="portal_audience" class="form-select form-select-sm">{% for v, l in audience_choices %}<option value="{{ v }}" {% if item.portal_audience == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="form-check form-switch mb-2"><input type="checkbox" class="form-check-input" id="s-vis" name="portal_visible" {% if item.portal_visible %}checked{% endif %}><label class="form-check-label" for="s-vis">Offer in the customer portal</label></div>
+            {% if not item.organization %}
+            <div class="row g-2 mb-2">
+                <div class="col-6"><label class="form-label mb-0" for="s-inc">Only these customers</label><select id="s-inc" name="include_organizations" multiple size="4" class="form-select form-select-sm">{% for o in organizations %}<option value="{{ o.pk }}" {% if o.pk in include_ids %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select><div class="form-text">Empty = all customers.</div></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-exc">Never these customers</label><select id="s-exc" name="exclude_organizations" multiple size="4" class="form-select form-select-sm">{% for o in organizations %}<option value="{{ o.pk }}" {% if o.pk in exclude_ids %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+            </div>
+            {% endif %}
+            <hr>
+            <div class="mb-2"><label class="form-label mb-0" for="s-subj">Ticket subject pattern</label><input id="s-subj" name="default_subject" class="form-control form-control-sm font-monospace" maxlength="300" value="{{ item.default_subject }}" placeholder="New user: {% verbatim %}{{first_name}} {{last_name}} — starts {{start_date}}{% endverbatim %}">
+                <div class="form-text">Use field IDs in <code>{% verbatim %}{{ }}{% endverbatim %}</code>, plus <code>{% verbatim %}{{request_type}}{% endverbatim %}</code>, <code>{% verbatim %}{{requester}}{% endverbatim %}</code>. Blank answers drop out; personal / sensitive answers are never put in the subject. Falls back to "{{ item.name }} — requester".</div></div>
+            <div class="row g-2 mb-2">
+                <div class="col-6"><label class="form-label mb-0" for="s-q">Queue</label><select id="s-q" name="default_queue" class="form-select form-select-sm"><option value="">Default</option>{% for q in queues %}<option value="{{ q.pk }}" {% if item.default_queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}</select></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-p">Priority</label><select id="s-p" name="default_priority" class="form-select form-select-sm"><option value="">Default</option>{% for p in priorities %}<option value="{{ p.pk }}" {% if item.default_priority_id == p.pk %}selected{% endif %}>{{ p.code }} {{ p.name }}</option>{% endfor %}</select></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-t">Ticket type</label><select id="s-t" name="default_type" class="form-select form-select-sm"><option value="">Default</option>{% for t in types %}<option value="{{ t.pk }}" {% if item.default_type_id == t.pk %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+                <div class="col-6"><label class="form-label mb-0" for="s-team">Team</label><select id="s-team" name="default_team" class="form-select form-select-sm"><option value="">None</option>{% for g in teams %}<option value="{{ g.pk }}" {% if item.default_team_id == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></div>
+                <div class="col-12"><label class="form-label mb-0" for="s-tech">Default technician</label><select id="s-tech" name="default_assignee" class="form-select form-select-sm"><option value="">Nobody (queue / routing decides)</option>{% for u in technicians %}<option value="{{ u.pk }}" {% if item.default_assignee_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select><div class="form-text">Only assigned when they may work for that customer; otherwise an internal note says why.</div></div>
+            </div>
+            <p class="form-text">The customer's urgency answer (if the form has one) is recorded on the ticket but never changes the priority above.</p>
+            <div class="row g-2 mb-2">
+                <div class="col-7"><label class="form-label mb-0" for="s-tt">Expected turnaround</label><input id="s-tt" name="expected_turnaround_text" class="form-control form-control-sm" maxlength="120" value="{{ item.expected_turnaround_text }}" placeholder="2 business days"></div>
+                <div class="col-5"><label class="form-label mb-0" for="s-th">or hours</label><input id="s-th" type="number" min="0" name="expected_turnaround_hours" class="form-control form-control-sm" value="{{ item.expected_turnaround_hours|default_if_none:'' }}"></div>
+            </div>
+            <div class="mb-2"><label class="form-label mb-0" for="s-conf">Confirmation message</label><textarea id="s-conf" name="confirmation_message" class="form-control form-control-sm" rows="2" maxlength="2000" placeholder="Shown after the customer submits">{{ item.confirmation_message }}</textarea></div>
+            <hr>
+            <div class="mb-2"><label class="form-label mb-0" for="s-ap">Approval</label><select id="s-ap" name="approval_policy" class="form-select form-select-sm">{% for v, l in approval_choices %}<option value="{{ v }}" {% if item.approval_policy == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+                <div class="form-text"><a href="{% url 'psa:service_catalog_approvers' item.pk %}">Named approvers per customer</a> — without names, the customer's portal admins approve.</div></div>
+            <div class="form-check mb-1"><input type="checkbox" class="form-check-input" id="s-self" name="approval_allow_self" {% if item.approval_allow_self %}checked{% endif %}><label class="form-check-label" for="s-self">Allow an eligible approver to approve their own request</label></div>
+            </fieldset>
+            {% if not can_publish_directly %}<p class="text-warning mb-0">This request type is under change governance; propose changes from the <a href="{% url 'psa:catalog_propose_change' item.pk %}">service catalog</a>.</p>{% endif %}
+        </div>
+        {% if can_publish_directly %}<div class="card-footer"><button type="submit" class="btn btn-sm btn-primary">Save settings</button></div>{% endif %}
+    </form>
+
+    <div class="card mb-3">
+        <div class="card-header"><strong><i class="fas fa-route me-1"></i>Routing</strong></div>
+        <div class="card-body small">
+            <p class="mb-2">Defaults above set the queue, team, priority and type when the ticket is created. If Ticket Routing is on for the customer, its rules run next — customer rules first, then shared ones, lowest priority number first; the first match wins. A ticket that already has a technician keeps them.</p>
+            {% if routing_rules %}
+            <p class="mb-1">Rules that mention this request type:</p>
+            <ul class="mb-2">{% for r in routing_rules %}<li><a href="{% url 'ticket_routing:rule_detail' r.pk %}">{{ r.name }}</a> {% if not r.is_active %}<span class="badge bg-secondary">inactive</span>{% endif %} <span class="text-muted">priority {{ r.current_version.priority }}{% if r.organization %}, {{ r.organization.name }}{% endif %}</span></li>{% endfor %}</ul>
+            {% else %}<p class="text-muted mb-2">No routing rule mentions this request type.</p>{% endif %}
+            <a class="btn btn-sm btn-outline-secondary mb-2" href="{% url 'ticket_routing:rule_new' %}?service={{ item.slug }}{% if item.organization %}&organization={{ item.organization.pk }}{% endif %}">New routing rule for this request type</a>
+            <form method="get" action="{% url 'psa:request_type_routing_preview' item.pk %}" class="border-top pt-2">
+                <label class="form-label mb-0" for="rp-org">Which rule would match?</label>
+                <select id="rp-org" name="organization" class="form-select form-select-sm mb-1">
+                    {% if item.organization %}<option value="{{ item.organization.pk }}">{{ item.organization.name }}</option>{% else %}{% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}{% endif %}
+                </select>
+                <label class="visually-hidden" for="rp-answers">Sample answers</label>
+                <textarea id="rp-answers" name="answers" rows="3" class="form-control form-control-sm font-monospace mb-1" placeholder="field_id=value, one per line"></textarea>
+                <button class="btn btn-sm btn-outline-primary" type="submit">Preview routing</button>
+            </form>
+        </div>
+    </div>
+
+    {% if not item.organization %}
+    <div class="card mb-3">
+        <div class="card-header"><strong><i class="fas fa-building me-1"></i>Customer-specific copies</strong></div>
+        <div class="card-body small">
+            <p class="mb-2">Make a copy for one customer to change it just for them. Once published, that customer sees their copy instead of this one; other customers are not affected.</p>
+            {% if copies %}<ul class="mb-2">{% for c in copies %}<li><a href="{% url 'psa:request_type_builder' c.pk %}">{{ c.organization.name }}</a> — {{ c.get_lifecycle_display }}</li>{% endfor %}</ul>{% endif %}
+            <form method="post" action="{% url 'psa:request_type_action' item.pk %}" class="d-flex gap-1">
+                {% csrf_token %}<input type="hidden" name="action" value="copy_for_customer">
+                <label for="copy-org" class="visually-hidden">Customer</label>
+                <select id="copy-org" name="organization_id" class="form-select form-select-sm">{% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select>
+                <button class="btn btn-sm btn-outline-primary text-nowrap" type="submit">Make copy</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+</div>
+
+{{ type_choices|json_script:"rb-types" }}
+{{ op_choices|json_script:"rb-ops" }}
+{{ locked_keys|json_script:"rb-locked" }}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/request_form_builder.js' %}"></script>{% endblock %}

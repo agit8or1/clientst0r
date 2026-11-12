@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}PSA — Requests by type{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:request_type_list' %}">Portal request types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Report</li>
+    </ol>
+</nav>
+<h2 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Requests by type</h2>
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto"><label class="form-label small mb-0" for="r-from">From</label><input id="r-from" type="date" name="from" class="form-control form-control-sm" value="{{ start|date:'Y-m-d' }}"></div>
+    <div class="col-auto"><label class="form-label small mb-0" for="r-to">To</label><input id="r-to" type="date" name="to" class="form-control form-control-sm" value="{{ end|date:'Y-m-d' }}"></div>
+    <div class="col-auto"><label class="form-label small mb-0" for="r-org">Customer</label><select id="r-org" name="organization" class="form-select form-select-sm"><option value="">All</option>{% for o in organizations %}<option value="{{ o.pk }}" {% if org_id == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+    <div class="col-auto"><button class="btn btn-sm btn-primary">Show</button></div>
+    <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" name="format" value="csv">Download CSV</button></div>
+</form>
+<div class="card"><div class="table-responsive"><table class="table mb-0">
+    <thead class="table-light"><tr><th>Request type</th><th class="text-end">Requests</th><th class="text-end">Open</th><th class="text-end">Closed</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr><td>{{ r.catalog_item_name|default:"(deleted request type)" }}</td><td class="text-end">{{ r.total }}</td><td class="text-end">{{ r.open }}</td><td class="text-end">{{ r.closed }}</td>
+        <td class="text-end">{% if r.catalog_item_id %}<a class="small" href="{% url 'psa:ticket_list' %}?request_type={{ r.catalog_item_id }}{% if org_id %}&client={{ org_id }}{% endif %}">Tickets</a>{% endif %}</td></tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-center text-muted py-4">No requests in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% if rows %}<tfoot><tr><th>Total</th><th class="text-end">{{ total }}</th><th colspan="3"></th></tr></tfoot>{% endif %}
+</table></div></div>
+{% endblock %}

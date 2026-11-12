@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}PSA — Starter request types{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:request_type_list' %}">Portal request types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Starter templates</li>
+    </ol>
+</nav>
+<h2 class="mb-1"><i class="fas fa-wand-magic-sparkles me-2"></i>Starter templates</h2>
+<p class="text-muted">Each starter is added as a <strong>draft</strong> you can edit before publishing. They collect requests only: none asks for passwords or sign-in codes, and submitting one never creates accounts, changes access or touches a phone system — it opens a ticket.</p>
+<div class="row g-3">
+    {% for s in starters %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h3 class="h6"><i class="{{ s.icon }} me-2 text-primary" aria-hidden="true"></i>{{ s.name }}</h3>
+                <p class="small text-muted mb-2">{{ s.description }}</p>
+                <p class="small mb-0">{{ s.field_count }} questions · {{ s.category }}{% if s.approval == 'customer' %} · customer approval{% endif %}</p>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                {% if s.installed %}<span class="small text-muted"><i class="fas fa-check me-1"></i>Added before</span>{% else %}<span></span>{% endif %}
+                <form method="post">{% csrf_token %}<button class="btn btn-sm btn-primary" name="starter" value="{{ s.key }}">{% if s.installed %}Add another copy{% else %}Add as draft{% endif %}</button></form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

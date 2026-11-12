@@ -29,7 +29,13 @@ Conditions: customer (the rule's scope), intake source (portal, email, API, moni
 ticket type, priority, current queue, tags, words in the subject or description, service catalog item, contract
 (has one / has none / type), business hours or after hours, and SLA risk (percent of the resolution window used).
 Business hours are set on the routing page (days, start, end, time zone); holidays from Resourcing count as after
-hours. *Site* is not available: tickets are not linked to a site.
+hours. Site conditions (specific sites, or "has a site" / "has no site") use the site on the ticket.
+
+**Request answers** (up to five per rule) match what the customer entered on a portal request form: equals, does not
+equal, is one of, is not one of, is answered, is not answered, contains. Pick the request type under *service* too,
+so the question keys mean what you expect; the review step warns about keys no selected form has. An unanswered
+question only satisfies "is not answered", "does not equal" and "is not one of". The form builder's **Routing
+preview** shows which rule a request with given answers would match for a chosen customer.
 
 Destinations:
 
@@ -64,7 +70,10 @@ activating or deactivating a rule never reassigns tickets that already exist.
 ### Order and precedence
 
 1. **Email routing rules** decide, at intake, which customer an email belongs to and may set queue and priority.
-2. **Service catalog defaults** set queue, priority and type on catalog requests.
+2. **Request type (service catalog) defaults** set queue, priority, type, team and, optionally, a default technician
+   on portal requests when the ticket is created. A default technician who may not work for that customer is not
+   assigned (an internal note says why). The customer's own urgency answer is recorded on the ticket but never
+   changes the priority.
 3. **Manual assignment and workflow rules**: a ticket created with an assignee, or assigned by a workflow rule while it
    is saved, keeps that assignee (routing records "already assigned").
 4. **Ticket Routing** runs after the ticket is saved: this customer's rules first, then rules for every customer,

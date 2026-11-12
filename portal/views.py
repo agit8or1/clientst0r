@@ -275,7 +275,7 @@ def ticket_detail(request, ticket_number):
     for a in pending_approvals:
         a.can_decide = (approvals_enabled and a.status == 'pending'
                         and can_decide_client_approval(a, m, request.user))
-    service_request = service_request_context(ticket)
+    service_request = service_request_context(ticket, m, request.user)
     conversation = build_conversation(
         ticket, raw_comments, attachments=attachments, include_internal=False,
         # A guided request shows its answers instead of the generated text.
@@ -440,6 +440,17 @@ def post_reply(request, ticket_number):
     return redirect('portal:ticket_detail', ticket_number=ticket_number)
 
 
+class _GeneralFiles:
+    """request.FILES seen through the request-form file rules: the general
+    form's `attachments` input is read as field `f_attachments`."""
+
+    def __init__(self, files):
+        self._files = files
+
+    def getlist(self, name):
+        return self._files.getlist('attachments') if name == 'f_attachments' else []
+
+
 @portal_psa_required
 @require_http_methods(['GET', 'POST'])
 def ticket_create(request):
@@ -448,12 +459,21 @@ def ticket_create(request):
     from psa.ticket_site import SOURCE_PORTAL, portal_default_site, portal_sites_for
     sites = list(portal_sites_for(m.organization)[:200])
 
+    if request.method == 'GET' and request.GET.get('form') != 'general':
+        # "What do you need help with?" — the request-type picker, when this
+        # customer has any request types; otherwise straight to the form.
+        from .request_views import picker_context
+        picker = picker_context(m)
+        if picker['has_request_types']:
+            return render(request, 'portal/request_catalog.html', {
+                'organization': m.organization, **picker})
+
     if request.method == 'POST':
         subject = (request.POST.get('subject') or '').strip()[:300]
         description = (request.POST.get('description') or '').strip()[:50000]
         if not subject:
             messages.error(request, 'Subject is required.')
-            return redirect(request.path)
+            return redirect(request.path + '?form=general')
         # Site: one of this customer's own active sites, or none (then the
         # usual intake rules in psa.ticket_site fill it when they can).
         raw_site = (request.POST.get('site') or '').strip()
@@ -462,7 +482,7 @@ def ticket_create(request):
             site = next((loc for loc in sites if str(loc.pk) == raw_site), None)
             if site is None:
                 messages.error(request, 'Pick one of your organization\'s sites.')
-                return redirect(request.path)
+                return redirect(request.path + '?form=general')
 
         # Use the client's default queue/priority/type — fall back to any.
         queue = Queue.objects.filter(is_active=True).first()
@@ -472,6 +492,15 @@ def ticket_create(request):
         if not (queue and priority and ticket_type and new_status):
             messages.error(request, 'PSA is not configured. Contact support.')
             return redirect('portal:ticket_list')
+
+        # Optional attachments, under the same rules as request-form files.
+        from psa.service_requests import _clean_files
+        uploads, upload_error = _clean_files(
+            {'key': 'attachments', 'label': 'Attachments', 'max_files': 5},
+            _GeneralFiles(request.FILES))
+        if upload_error:
+            messages.error(request, upload_error)
+            return redirect(request.path + '?form=general')
 
         ticket = Ticket.objects.create(
             organization=m.organization,
@@ -484,6 +513,10 @@ def ticket_create(request):
             created_by=request.user,
             site=site, site_source=SOURCE_PORTAL if site else '',
         )
+        if uploads:
+            from psa.service_requests import _save_attachments
+            _save_attachments(ticket, request.user,
+                              [{'key': 'attachments', 'type': 'file'}], {'attachments': uploads})
         AuditLog.log(
             user=request.user, action='create',
             organization=m.organization,
@@ -1076,6 +1109,12 @@ def approval_decide(request, pk):
         return redirect('portal:approvals_list')
     approval.decide(user=request.user, approved=(decision == 'approve'),
                     comment=comment)
+    if approval.object_type == SERVICE_REQUEST_APPROVAL_TYPE:
+        try:
+            from psa.service_requests import on_approval_decided
+            on_approval_decided(approval, request.user, decision == 'approve')
+        except Exception:
+            logger.exception('service request approval follow-up failed for #%s', approval.pk)
     if (approval.object_type == SERVICE_REQUEST_APPROVAL_TYPE
             and approval.related_ticket_id):
         # Put the decision on the request's timeline where the requester
