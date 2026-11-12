@@ -17,6 +17,20 @@ from core import root_helper
 PACKAGE_NAME = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9.+_-]*(:[a-z0-9_-]+)?')
 
 
+# Office editor packages installed by scripts/office/install-editor.sh are
+# pinned and held there, and upgraded only with `install-editor.sh --upgrade`
+# after draining sessions. Package updates from clientst0r leave them alone
+# (the root helper refuses them too).
+EDITOR_PACKAGE = re.compile(r'(onlyoffice-documentserver(-ee|-de)?|coolwsd|code-brand|'
+                            r'collabora-online-brand|collaboraoffice[a-z0-9+.-]*)(:[a-z0-9-]+)?')
+
+
+def without_editor_packages(names):
+    """(kept, skipped): Office editor packages are never upgraded from here."""
+    kept = [n for n in names if not EDITOR_PACKAGE.fullmatch(n)]
+    return kept, [n for n in names if EDITOR_PACKAGE.fullmatch(n)]
+
+
 def parse_package_list(value):
     """Split a comma-separated package list, rejecting anything that isn't a package name."""
     names = [name.strip() for name in (value or '').split(',') if name.strip()]
@@ -186,11 +200,27 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS('No security updates available'))
                     return True
 
+                security_packages, skipped = without_editor_packages(security_packages)
+                if skipped:
+                    self.stdout.write(self.style.WARNING(
+                        f'Skipping Office editor package(s) {", ".join(skipped)}: upgrade them with '
+                        f'scripts/office/install-editor.sh --upgrade after draining sessions.'))
+                if not security_packages:
+                    self.stdout.write(self.style.SUCCESS('No security updates available'))
+                    return True
                 cmd.extend(security_packages)
                 self.stdout.write(f'Installing {len(security_packages)} security updates...')
 
             elif self.packages:
                 # Update specific packages
+                packages, skipped = without_editor_packages(self.packages)
+                if skipped:
+                    self.stdout.write(self.style.WARNING(
+                        f'Skipping Office editor package(s) {", ".join(skipped)}: upgrade them with '
+                        f'scripts/office/install-editor.sh --upgrade after draining sessions.'))
+                if not packages:
+                    return True
+                self.packages = packages
                 cmd.extend(['install', '--only-upgrade'] + self.packages)
                 self.stdout.write(f'Updating {len(self.packages)} package(s)...')
 
