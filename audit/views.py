@@ -28,7 +28,7 @@ def audit_log_list(request):
 
     # Calculate stats before filtering
     all_logs = AuditLog.objects.filter(organization=org)
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     total_count = all_logs.count()
     today_count = all_logs.filter(timestamp__date=today).count()
