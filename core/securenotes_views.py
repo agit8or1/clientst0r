@@ -208,7 +208,16 @@ def secure_note_create(request):
 
             # Add recipients (only if not link-only)
             if not link_only and recipient_ids:
-                recipients = User.objects.filter(id__in=recipient_ids)
+                # Only people the picker offers: members of the selected
+                # customer, plus MSP staff. A forged id must not deliver a
+                # note to another customer's users.
+                from django.db.models import Q
+                from psa.visibility import msp_staff_q
+                member_q = Q(pk__in=[])
+                if org:
+                    member_q = Q(memberships__organization=org, memberships__is_active=True)
+                recipients = (User.objects.filter(id__in=recipient_ids, is_active=True)
+                              .filter(member_q | msp_staff_q()).distinct())
                 note.recipients.set(recipients)
                 messages.success(request, f'Secure note sent to {recipients.count()} recipient(s).')
             elif link_only:

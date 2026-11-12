@@ -658,10 +658,12 @@ class SecureNote(BaseModel):
             return False
         if self.sender == user:
             return True
-        # Link-only notes can be read by anyone with the link
-        if self.link_only:
-            return True
-        return user in self.recipients.all()
+        # Link-only notes are read through their secret link
+        # (`secure_note_view_link`), never by primary key: until this release
+        # any signed-in user could open one at /core/secure-notes/<pk>/,
+        # bypassing the token, max_views and the customer boundary (ticket
+        # secure messages are link-only notes).
+        return self.recipients.filter(pk=getattr(user, 'pk', None)).exists()
 
     @property
     def is_expired(self):

@@ -22,7 +22,8 @@ from .models import Password, PasswordBreachCheck, VaultAccessRule
 from .forms import PasswordForm
 from .breach_checker import PasswordBreachChecker
 from .encryption import EncryptionError
-from .permissions import can_access_password, visible_passwords
+from accounts.permission_utils import user_has_org_perm
+from .permissions import RevealDenied, can_access_password, gate_reveal, visible_passwords
 from .access_rules import evaluate as _evaluate_vault_access
 from django.conf import settings
 
@@ -528,7 +529,15 @@ def _can_decide_vault_reveal(user, request_obj, request_meta):
         return user.id != request_obj.requester_id, 'self_approval_blocked'
     is_staff = getattr(request_meta, 'is_staff_user', False)
     if is_staff:
-        return user.id != request_obj.requester_id, 'self_approval_blocked'
+        if user.id == request_obj.requester_id:
+            return False, 'self_approval_blocked'
+        # An approver must hold reveal rights in the entry's customer. Until
+        # this release any MSP technician could approve any customer's
+        # requests, including staff with no vault access there at all.
+        if not user_has_org_perm(user, request_obj.password.organization_id,
+                                 'vault_view_password'):
+            return False, 'not_allowed'
+        return True, 'allowed_as_staff'
     # Client-org admin path.
     from accounts.models import Membership
     if user.id == request_obj.requester_id:
@@ -598,9 +607,14 @@ def vault_reveal_request_list(request):
     if not (request.user.is_superuser or is_staff):
         return redirect('core:dashboard')
     from .models import VaultRevealRequest
-    pending = (VaultRevealRequest.objects.filter(status='pending')
+    # Entry titles are sensitive (v3.17.653): list only customers where the
+    # viewer holds vault_view.
+    from accounts.permission_utils import filter_by_org_perm
+    scoped = filter_by_org_perm(VaultRevealRequest.objects.all(), request.user,
+                                'vault_view', field='password__organization')
+    pending = (scoped.filter(status='pending')
                .select_related('password', 'requester'))
-    decided = (VaultRevealRequest.objects.exclude(status='pending')
+    decided = (scoped.exclude(status='pending')
                .select_related('password', 'requester', 'decided_by')
                .order_by('-decided_at')[:50])
     return render(request, 'vault/reveal_request_list.html', {
@@ -760,6 +774,11 @@ def password_create(request):
     entry") fill in initial values; tags resolve within this customer only.
     """
     org = get_request_organization(request)
+    # vault_create in this customer, as REST and mobile already require.
+    # @require_write alone passed any *_create flag (docs, assets, files...).
+    if org is not None and not _vault_full_reach(request.user) and not user_has_org_perm(
+            request.user, org, 'vault_create'):
+        raise PermissionDenied("Your role does not include 'vault_create' for this customer.")
 
     if request.method == 'POST':
         form = PasswordForm(request.POST, organization=org)
@@ -822,9 +841,27 @@ def _password_for_change(request, pk, permission):
         org = password.organization
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
-    if is_staff and not can_access_password(request.user, password, permission):
+    # Everyone is checked on the entry itself. Until this release only MSP
+    # staff were: a customer member passed on @require_write alone, i.e. any
+    # one of vault/assets/docs/files/monitoring *_create, so a role without
+    # vault_edit / vault_delete could still overwrite or delete entries (and
+    # change their client-access mode). Django `is_staff` accounts without a
+    # staff profile keep the full reach they always had.
+    if not _vault_full_reach(request.user) and not can_access_password(
+            request.user, password, permission):
         raise PermissionDenied
     return password, org
+
+
+def _vault_full_reach(user):
+    """Superusers, and Django `is_staff` accounts that are not profile-type
+    MSP staff (no global role to consult; @require_write always passed them)."""
+    if user.is_superuser:
+        return True
+    if not user.is_staff:
+        return False
+    profile = getattr(user, 'profile', None)
+    return not (profile is not None and profile.is_staff_user())
 
 
 def _write_or_msp_staff(view_func):
@@ -1032,15 +1069,16 @@ def generate_otp_api(request, pk):
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
-    if not can_access_password(request.user, password):
-        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
-
+    # The same gate as every other plaintext channel (REST /otp/, the
+    # extension's /totp/): per-entry permission, the reveal-approval
+    # requirement, and VaultAccessRule. Before this the web TOTP code and QR
+    # (the seed itself) skipped the approval requirement.
     try:
-        decision = _evaluate_vault_access(password, request.user, request)
-    except Exception:
-        return JsonResponse({'error': 'Vault access policy is temporarily unavailable'}, status=503)
-    if not decision.get('allowed', False):
-        return JsonResponse({'error': 'Vault access policy denied this request'}, status=403)
+        gate_reveal(request, password)
+    except RevealDenied as denial:
+        return JsonResponse({'error': denial.detail,
+                             'requires_approval': denial.requires_approval},
+                            status=denial.status)
 
     try:
         otp_data = password.generate_otp()
@@ -1096,22 +1134,23 @@ def password_qrcode(request, pk):
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
-    if not can_access_password(request.user, password):
-        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
-
+    # The same gate as every other plaintext channel (REST /otp/, the
+    # extension's /totp/): per-entry permission, the reveal-approval
+    # requirement, and VaultAccessRule. Before this the web TOTP code and QR
+    # (the seed itself) skipped the approval requirement.
     try:
-        decision = _evaluate_vault_access(password, request.user, request)
-    except Exception:
-        return JsonResponse({'error': 'Vault access policy is temporarily unavailable'}, status=503)
-    if not decision.get('allowed', False):
-        return JsonResponse({'error': 'Vault access policy denied this request'}, status=403)
+        gate_reveal(request, password)
+    except RevealDenied as denial:
+        return JsonResponse({'error': denial.detail,
+                             'requires_approval': denial.requires_approval},
+                            status=denial.status)
 
     if password.password_type != 'otp' or not password.otp_secret:
         return HttpResponse("Not an OTP entry or secret not configured", status=400)
 
     try:
         secret = password.get_otp_secret()
-        issuer = password.otp_issuer or org.name
+        issuer = password.otp_issuer or (password.organization.name if password.organization_id else "")
         account_name = password.username or password.title
 
         # Generate provisioning URI
@@ -1350,6 +1389,23 @@ def _require_access_rules_perm(request):
         raise PermissionDenied(
             "You don't have permission to manage vault access rules."
         )
+    # The flag must be held in the selected customer, not just anywhere:
+    # holding it in customer A must not let a user edit or delete customer
+    # B's DENY rules while B is selected.
+    org = get_request_organization(request)
+    if org is not None and not user_has_org_perm(
+            request.user, org, 'vault_manage_access_rules'):
+        raise PermissionDenied(
+            "You don't have permission to manage vault access rules for this customer."
+        )
+
+
+def _access_rules_qs(request):
+    """Rules of the customers where the user holds vault_manage_access_rules
+    (Global View lists and edits only those)."""
+    from accounts.permission_utils import filter_by_org_perm
+    return filter_by_org_perm(VaultAccessRule.objects.all(), request.user,
+                              'vault_manage_access_rules')
 
 
 def _parse_csv_codes(raw):
@@ -1388,7 +1444,7 @@ def access_rule_list(request):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        rules = VaultAccessRule.objects.all().select_related(
+        rules = _access_rules_qs(request).select_related(
             'organization', 'target_password', 'target_user',
         )
     else:
@@ -1433,7 +1489,7 @@ def access_rule_form(request, pk=None):
 
     if pk:
         if in_global_view:
-            rule = get_object_or_404(VaultAccessRule, pk=pk)
+            rule = get_object_or_404(_access_rules_qs(request), pk=pk)
         else:
             rule = get_object_or_404(VaultAccessRule, pk=pk, organization=org)
     else:
@@ -1475,6 +1531,10 @@ def access_rule_form(request, pk=None):
 
         target_password_id = request.POST.get('target_password') or None
         target_user_id = request.POST.get('target_user') or None
+        if target_password_id is not None and not str(target_password_id).isdigit():
+            target_password_id = None
+        if target_user_id is not None and not str(target_user_id).isdigit():
+            target_user_id = None
 
         allowed_countries = _parse_csv_codes(request.POST.get('allowed_countries'))
         blocked_countries = _parse_csv_codes(request.POST.get('blocked_countries'))
@@ -1526,6 +1586,21 @@ def access_rule_form(request, pk=None):
                         error = 'Target password not found.'
             if target_org is None and error is None:
                 error = 'No organization context. Pick an org first.'
+        if error is None and not user_has_org_perm(
+                request.user, target_org, 'vault_manage_access_rules'):
+            error = 'You do not manage vault access rules for that customer.'
+        # Targets must belong to the rule's customer: a forged id must not
+        # attach a rule to another customer's entry or user.
+        if error is None and target_password_id:
+            if not Password.objects.filter(pk=target_password_id,
+                                           organization=target_org).exists():
+                error = 'Target password not found.'
+        if error is None and target_user_id:
+            from accounts.models import Membership as _M
+            if not _M.objects.filter(user_id=target_user_id, organization=target_org,
+                                     is_active=True).exists() and not (
+                    _User.objects.filter(pk=target_user_id, profile__user_type='staff').exists()):
+                error = 'Target user not found.'
 
         if error is None:
             if rule is None:
@@ -1616,7 +1691,7 @@ def access_rule_delete(request, pk):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        rule = get_object_or_404(VaultAccessRule, pk=pk)
+        rule = get_object_or_404(_access_rules_qs(request), pk=pk)
     else:
         rule = get_object_or_404(VaultAccessRule, pk=pk, organization=org)
 
