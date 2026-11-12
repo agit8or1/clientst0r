@@ -156,9 +156,15 @@ def fix(request, ticket_number):
 
 # --- Phase 4: affected devices, notes, verify-then-close ----------------------
 
-def _staff_ticket(request, ticket_number):
+def _staff_ticket(request, ticket_number, perm='tickets_view'):
     """A ticket an MSP technician may change (same rule as Set asset): the
-    ticket page's scoped queryset, PSA on for the customer. 404 otherwise."""
+    ticket page's scoped queryset, PSA on for the customer. 404 otherwise.
+
+    `perm` is the ticket role flag the action needs at the ticket's customer
+    (tickets_edit to change affected devices, tickets_close to close); a
+    role without it gets 403 rather than the action."""
+    from django.core.exceptions import PermissionDenied
+    from accounts.permission_utils import has_perm_for_org
     from psa.visibility import is_msp_staff
     if not is_msp_staff(request.user):
         raise Http404()
@@ -166,6 +172,10 @@ def _staff_ticket(request, ticket_number):
                                ticket_number=ticket_number)
     if not is_psa_enabled_for_client(ticket.organization):
         raise Http404()
+    if not has_perm_for_org(request.user, ticket.organization, 'tickets_view'):
+        raise Http404()
+    if perm != 'tickets_view' and not has_perm_for_org(request.user, ticket.organization, perm):
+        raise PermissionDenied(f"Your role does not include '{perm}' for this customer.")
     return ticket
 
 
@@ -176,7 +186,7 @@ def _staff_ticket(request, ticket_number):
 def affected(request, ticket_number):
     """Add or remove an affected device (same customer only)."""
     from psa.affected import AffectedRefused, add, remove
-    ticket = _staff_ticket(request, ticket_number)
+    ticket = _staff_ticket(request, ticket_number, 'tickets_edit')
     try:
         if request.POST.get('op') == 'remove':
             asset = remove(ticket, request.POST.get('asset'), request.user, request)
@@ -234,7 +244,7 @@ def verify_close(request, ticket_number):
     from psa.models import TicketComment, TicketStatus
     from psa.views import _closeout_transition
     from .services.device_panel import verification, verification_text
-    ticket = _staff_ticket(request, ticket_number)
+    ticket = _staff_ticket(request, ticket_number, 'tickets_close')
     v = verification(ticket)
     verify_url = reverse('ticket_rmm:verify', args=[ticket.ticket_number])
     if not v['all_ok'] and request.POST.get('acknowledge') != '1':

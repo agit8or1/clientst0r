@@ -14,7 +14,16 @@ from django.views.decorators.csrf import csrf_exempt
 from docs import agreements
 from docs.agreement_models import Agreement, AgreementSignature
 
-from .views import portal_required
+from .views import PORTAL_AGREEMENTS_VIEW_ORG, portal_perm, portal_required
+
+
+def _signatures(request, qs):
+    """Signatures this portal user may see: everyone's at their customer when
+    the role allows (the default), otherwise only their own. Evidence holds
+    the signer's drawn signature, e-mail, IP address and browser."""
+    if portal_perm(request, PORTAL_AGREEMENTS_VIEW_ORG):
+        return qs
+    return qs.filter(user=request.user)
 
 
 def _own(request, pk):
@@ -33,7 +42,7 @@ def agreement_list(request):
         if rev is None:
             continue
         rows.append({'agreement': a, 'revision': rev, 'needs': agreements.needs_signature(a, request.user)})
-    mine = (AgreementSignature.objects.filter(organization=org)
+    mine = (_signatures(request, AgreementSignature.objects.filter(organization=org))
             .select_related('revision__agreement').order_by('-signed_at')[:100])
     return render(request, 'portal/agreements_list.html', {'rows': rows, 'signatures': mine,
                                                            'organization': org})
@@ -58,8 +67,8 @@ def agreement_detail(request, pk):
         else:
             messages.success(request, f'Thank you. Version {rev.version_number} is {agreement.verb_past}.')
         return redirect('portal:agreement_detail', pk=agreement.pk)
-    signatures = AgreementSignature.objects.filter(revision__agreement=agreement, organization=org) \
-        .select_related('revision').order_by('-signed_at')
+    signatures = _signatures(request, AgreementSignature.objects.filter(
+        revision__agreement=agreement, organization=org)).select_related('revision').order_by('-signed_at')
     return render(request, 'portal/agreement_detail.html', {
         'agreement': agreement, 'rev': rev, 'needs': agreements.needs_signature(agreement, request.user),
         'may_sign': agreements.may_sign(agreement, request.user),
@@ -83,8 +92,8 @@ def agreement_file(request, pk):
 @portal_required
 def agreement_evidence(request, pk):
     org = request.portal_membership.organization
-    sig = get_object_or_404(AgreementSignature.objects.select_related('revision__agreement'), pk=pk,
-                            organization=org)
+    sig = get_object_or_404(_signatures(request, AgreementSignature.objects.select_related('revision__agreement')),
+                            pk=pk, organization=org)
     from docs.agreement_views import evidence_response
     agreements._audit(request.user, 'export', 'docs.AgreementSignature', sig.pk,
                       f'Portal download of evidence for {sig}', org, request)

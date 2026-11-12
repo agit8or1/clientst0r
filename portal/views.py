@@ -16,6 +16,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -36,6 +37,37 @@ logger = logging.getLogger(__name__)
 
 
 PORTAL_ORG_SESSION_KEY = 'portal_org_id'
+
+
+# Customer-role permissions the portal enforces. No RoleTemplate flag
+# expresses these yet, so each is read with a default of True through
+# psa.visibility.membership_flag: every existing membership (including the
+# Read-Only memberships the portal invite creates) keeps exactly what it has
+# today, and a customer role that sets the flag to False is refused. Proposed
+# to roles-core in NEEDED_PERMISSIONS.md.
+PORTAL_TICKETS_CREATE = 'portal_tickets_create'      # file tickets / service requests
+PORTAL_TICKETS_REPLY = 'portal_tickets_reply'        # reply, secure reply, escalate, vote
+PORTAL_APPROVE_REQUESTS = 'portal_approve_requests'  # decide generic client approvals
+PORTAL_AGREEMENTS_VIEW_ORG = 'portal_agreements_view_org'  # coworkers' signatures / evidence
+
+
+def portal_perm(request, flag):
+    """Whether the active portal membership's role allows `flag`."""
+    from psa.visibility import membership_flag
+    return membership_flag(getattr(request, 'portal_membership', None), flag, True)
+
+
+def require_portal_perm(request, flag):
+    if not portal_perm(request, flag):
+        raise PermissionDenied("Your portal role doesn't allow this.")
+
+
+def portal_tickets(request):
+    """Tickets the portal user may see at the active customer: shared with
+    the client, and either the whole organization's or only their own,
+    depending on the role (psa.visibility.customer_ticket_q)."""
+    from psa.visibility import customer_ticket_q
+    return Ticket.objects.filter(customer_ticket_q(request.user, [request.portal_membership]))
 
 
 def _portal_memberships(user):
@@ -177,10 +209,9 @@ def ticket_list(request):
         # Portal home for a customer whose PSA is switched off: tickets are
         # unavailable, the knowledge base is not.
         return redirect('portal:kb_list')
-    qs = Ticket.objects.filter(organization=m.organization).select_related(
+    qs = portal_tickets(request).select_related(
         'status', 'priority', 'queue', 'ticket_type',
     )
-    qs = qs.filter(client_can_view=True)
     status = request.GET.get('status')
     if status == 'open':
         qs = qs.filter(status__is_terminal=False)
@@ -229,7 +260,7 @@ def ticket_detail(request, ticket_number):
     from psa.models import TicketVote
     m = request.portal_membership
     ticket = get_object_or_404(
-        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        portal_tickets(request),
         ticket_number=ticket_number,
     )
     # Customer rule, whoever is asking (a staff account can hold a portal
@@ -283,7 +314,8 @@ def ticket_detail(request, ticket_number):
     )
     return render(request, 'portal/ticket_detail.html', {
         'conversation': conversation,
-        'reply_open': not (ticket.status_id and ticket.status.is_terminal),
+        'reply_open': (not (ticket.status_id and ticket.status.is_terminal)
+                       and portal_perm(request, PORTAL_TICKETS_REPLY)),
         'progress': progress,
         'pending_approvals': pending_approvals,
         'waiting_question': waiting_question,
@@ -295,7 +327,7 @@ def ticket_detail(request, ticket_number):
         'vote_count': vote_count,
         'user_voted': user_voted,
         'voting_enabled': voting_enabled,
-        'escalation_enabled': escalation_enabled,
+        'escalation_enabled': escalation_enabled and portal_perm(request, PORTAL_TICKETS_REPLY),
         # Phase 12: the customer's own secure replies (metadata only).
         'secure_replies': ticket.secure_replies.filter(author=request.user),
         'secure_max_length': _secure.MAX_SECURE_LENGTH,
@@ -312,9 +344,10 @@ def secure_reply(request, ticket_number):
     from psa.models import TicketSecureReply
     m = request.portal_membership
     ticket = get_object_or_404(
-        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        portal_tickets(request),
         ticket_number=ticket_number,
     )
+    require_portal_perm(request, PORTAL_TICKETS_REPLY)
     back = redirect('portal:ticket_detail', ticket_number=ticket_number)
     if getattr(request, 'limited', False):
         messages.error(request, 'Too many secure replies. Try again later.')
@@ -346,9 +379,10 @@ def ticket_escalate(request, ticket_number):
         raise Http404('Customer escalation is not enabled')
     m = request.portal_membership
     ticket = get_object_or_404(
-        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        portal_tickets(request),
         ticket_number=ticket_number,
     )
+    require_portal_perm(request, PORTAL_TICKETS_REPLY)
     reason = (request.POST.get('reason') or '').strip()[:500]
     if not reason:
         messages.error(request, 'Please describe why this needs urgent attention.')
@@ -382,9 +416,10 @@ def ticket_vote(request, ticket_number):
     from psa.models import TicketVote
     m = request.portal_membership
     ticket = get_object_or_404(
-        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        portal_tickets(request),
         ticket_number=ticket_number,
     )
+    require_portal_perm(request, PORTAL_TICKETS_REPLY)
     existing = TicketVote.objects.filter(ticket=ticket, user=request.user).first()
     if existing:
         existing.delete()
@@ -403,9 +438,10 @@ def ticket_vote(request, ticket_number):
 def post_reply(request, ticket_number):
     m = request.portal_membership
     ticket = get_object_or_404(
-        Ticket.objects.filter(organization=m.organization, client_can_view=True),
+        portal_tickets(request),
         ticket_number=ticket_number,
     )
+    require_portal_perm(request, PORTAL_TICKETS_REPLY)
     body = (request.POST.get('body') or '').strip()
     if not body:
         messages.error(request, 'Reply cannot be empty.')
@@ -445,6 +481,7 @@ def post_reply(request, ticket_number):
 def ticket_create(request):
     """Client-side ticket submission."""
     m = request.portal_membership
+    require_portal_perm(request, PORTAL_TICKETS_CREATE)
     from psa.ticket_site import SOURCE_PORTAL, portal_default_site, portal_sites_for
     sites = list(portal_sites_for(m.organization)[:200])
 
@@ -518,6 +555,26 @@ def _client_ip_qs(request):
     return get_client_ip(request)
 
 
+def _quote_sign_refusal(quote):
+    """Why this quote can't be signed now, or ''.
+
+    The signing link exists from the moment a quote is saved, so it alone
+    must not let a customer accept a quote the provider has expired or one
+    still waiting on (or refused at) its internal approval chain
+    (Quote.send_for_approval) — e.g. a discount nobody has approved yet."""
+    from psa.models import PSAApproval
+    if quote.status == 'expired' or (
+            quote.valid_until and quote.valid_until < timezone.localdate()):
+        return 'This quote has expired. Please ask us for an updated quote.'
+    chain = PSAApproval.objects.filter(object_type='psa.Quote', object_id=quote.pk)
+    if chain.exclude(status__in=['approved', 'denied', 'cancelled']).exists():
+        return 'This quote is still being reviewed by our team. Please try again later.'
+    last = chain.exclude(status='cancelled').order_by('-pk').first()
+    if last is not None and last.status == 'denied':
+        return 'This quote is not available for signing. Please contact us.'
+    return ''
+
+
 @require_http_methods(['GET', 'POST'])
 def quote_sign(request, token):
     """
@@ -542,6 +599,11 @@ def quote_sign(request, token):
                 'organization': quote.client_org,
                 'already': True,
             })
+
+        refusal = _quote_sign_refusal(quote)
+        if refusal:
+            messages.error(request, refusal)
+            return redirect(request.path)
 
         signed_by_name = (request.POST.get('signed_by_name') or '').strip()[:200]
         signed_by_email = (request.POST.get('signed_by_email') or '').strip()[:254]
@@ -976,6 +1038,17 @@ def _set_security_digest(request, on):
 SERVICE_REQUEST_APPROVAL_TYPE = 'psa.ServiceCatalogItem'
 
 
+def _visible_approvals_q(request):
+    """Client approvals this portal user may see listed: their own requests,
+    approvals on tickets they can see, and — when the role shows the whole
+    organization's tickets — approvals not tied to a ticket."""
+    from psa.visibility import CUSTOMER_ORG_TICKETS_FLAG, membership_flag
+    q = Q(requested_by=request.user) | Q(related_ticket__in=portal_tickets(request).values('pk'))
+    if membership_flag(request.portal_membership, CUSTOMER_ORG_TICKETS_FLAG, True):
+        q |= Q(related_ticket__isnull=True)
+    return q
+
+
 def can_decide_client_approval(approval, membership, user):
     """Who may approve a client approval in the portal.
 
@@ -984,12 +1057,15 @@ def can_decide_client_approval(approval, membership, user):
     type's named approvers for this customer when it has any, otherwise an
     org admin of the customer (psa/service_requests.py:approvers_for).
     Other client approvals keep the original rule (any portal user of the
-    customer).
+    customer) unless the person's customer role withholds
+    `portal_approve_requests` (read with a default of True, see
+    PORTAL_APPROVE_REQUESTS).
     """
     if membership is None or membership.organization_id != approval.organization_id:
         return False
     if approval.object_type != SERVICE_REQUEST_APPROVAL_TYPE:
-        return True
+        from psa.visibility import membership_flag
+        return membership_flag(membership, PORTAL_APPROVE_REQUESTS, True)
     from psa.service_requests import can_approve_service_request
     return can_approve_service_request(approval, user)
 
@@ -1018,6 +1094,7 @@ def approvals_list(request):
         raise Http404('Customer approvals are not enabled')
     from psa.models import PSAApproval
     m = request.portal_membership
+    visible = _visible_approvals_q(request)
     pending = (PSAApproval.objects
                .filter(organization=m.organization,
                        is_client_approval=True,
@@ -1027,12 +1104,22 @@ def approvals_list(request):
     decided = (PSAApproval.objects
                .filter(organization=m.organization,
                        is_client_approval=True)
+               .filter(visible | Q(decided_by=request.user))
                .exclude(status='pending')
                .select_related('related_ticket', 'decided_by')
                .order_by('-decided_at')[:25])
-    pending = list(pending)
+    visible_ids = set(PSAApproval.objects.filter(
+        organization=m.organization, is_client_approval=True, status='pending').filter(visible)
+        .values_list('pk', flat=True))
+    shown = []
     for a in pending:
         a.can_decide = can_decide_client_approval(a, m, request.user)
+        # Someone else's request on a ticket this person can't see is only
+        # listed when they are the one who has to decide it.
+        if a.can_decide or a.pk in visible_ids:
+            shown.append(a)
+    pending = shown
+    for a in pending:
         a.approver_note = (_approver_display(a)
                            if a.object_type == SERVICE_REQUEST_APPROVAL_TYPE else '')
     # The ones this person can act on come first.

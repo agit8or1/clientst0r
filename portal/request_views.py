@@ -23,7 +23,10 @@ from psa.service_requests import (
     validate_submission,
 )
 
-from .views import _portal_feature_enabled, portal_kb_queryset, portal_psa_required
+from .views import (
+    PORTAL_TICKETS_CREATE, _portal_feature_enabled, portal_kb_queryset, portal_psa_required,
+    require_portal_perm,
+)
 
 _STOPWORDS = {
     'a', 'an', 'and', 'the', 'for', 'to', 'of', 'in', 'on', 'or', 'my', 'new',
@@ -91,6 +94,8 @@ def request_catalog(request):
 @require_http_methods(['GET', 'POST'])
 def request_form(request, slug):
     m = request.portal_membership
+    # A request files a ticket: same role permission as the plain form.
+    require_portal_perm(request, PORTAL_TICKETS_CREATE)
     item = _available_item(request, slug)
     schema = item.get_form_schema()
     errors = []
