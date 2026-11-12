@@ -68,8 +68,9 @@ class EditorInstanceForm(forms.ModelForm):
                 widget.attrs.setdefault('class', 'form-select')
             else:
                 widget.attrs.setdefault('class', 'form-control')
-        self.fields['shared_secret'].required = not (self.instance and self.instance.pk
-                                                     and self.instance.shared_secret)
+        # Required for ONLYOFFICE only (JWT); checked in clean() once the
+        # provider is known. Collabora shares no secret with clientst0r.
+        self.fields['shared_secret'].required = False
         self.fields['shared_secret'].widget.attrs['autocomplete'] = 'new-password'
         self.fields['organizations'].required = False
 
@@ -87,6 +88,9 @@ class EditorInstanceForm(forms.ModelForm):
         except forms.ValidationError as e:
             self.add_error('ca_bundle', e)
         secret = data.get('shared_secret')
+        has_stored = bool(self.instance and self.instance.pk and self.instance.shared_secret)
+        if data.get('provider') == 'onlyoffice' and not secret and not has_stored:
+            self.add_error('shared_secret', 'ONLYOFFICE needs the JWT secret set on the Document Server.')
         if secret:
             from .models import secret_problem
             problem = secret_problem(secret)

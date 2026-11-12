@@ -499,6 +499,22 @@ class OnlyOfficeProvider(EditorProvider):
         return data
 
     # ------------------------------------------------------------------
+    def force_save(self, session) -> bool:
+        """Command service ``forcesave`` for this session's editor key (used
+        by ``office_sessions --drain``). The save itself still arrives as a
+        status 6 callback. Error 4 ("no changes") counts as success."""
+        key = (session.provider_state or {}).get('oo_key')
+        if not key or session.instance is None:
+            return True  # never opened in the editor: nothing to save
+        try:
+            client.command(session.instance, 'forcesave', key=key, userdata=str(session.pk))
+        except client.DocsError as e:
+            if e.code == 4:
+                return True
+            log.warning('ONLYOFFICE forcesave (drain) failed for session %s: %s', session.pk, e)
+            return False
+        return True
+
     def on_session_revoked(self, session) -> None:
         ps = session.provider_state or {}
         key, user = ps.get('oo_key'), ps.get('oo_user')

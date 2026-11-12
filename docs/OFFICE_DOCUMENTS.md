@@ -453,7 +453,7 @@ handler.
   - a checklist plus shell-quoted commands that run on the server as root;
   - Django never runs a shell command;
   - the secret is passed with `--secret-file`, never on a command line.
-  - `scripts/office/install-editor.sh` does not exist yet, and the page says so.
+  - the commands run `scripts/office/install-editor.sh` (see [office/INSTALL.md](office/INSTALL.md)).
 - **Quarantine:** review, download and restore quarantined saves.
 
 ### Settings → Office Documents (organization)
@@ -471,7 +471,9 @@ For holders of `org_manage_settings`:
 manage.py office_setup --plan --provider onlyoffice --mode same-server --editor-host docs.example.com
 manage.py office_setup --set-secret <id> --secret-file /root/clientst0r-office-secret   # file must be chmod 600
 manage.py office_setup --verify-tls <id>
-manage.py office_setup --install     # reserved: prints the plan and exits 2
+manage.py office_setup --install     # prints the installer commands; installs nothing
+manage.py office_setup --import-secret <file> [--instance <id>]   # file from the installer, shredded after import
+manage.py office_sessions --status | --drain <id> | --resume <id>
 manage.py office_purge_quarantine
 ```
 
@@ -502,7 +504,7 @@ All `office.*` loggers carry `RedactSecretsFilter`, which redacts:
 ## Not implemented here
 
 **Editor connectors.** `office/providers/onlyoffice.py` and `collabora.py` are
-stubs. A connector must:
+stubs; the ONLYOFFICE and Collabora connectors below replace them. A connector must:
 
 - register a provider;
 - add its callback / WOPI endpoints to `provider_urls.py`;
@@ -513,8 +515,8 @@ stubs. A connector must:
 
 **Microsoft 365.** Not started.
 
-**Package installation.** `scripts/office/install-editor.sh` and
-`office_setup --install` are reserved names only.
+**Package installation.** `scripts/office/install-editor.sh` is tested against a faked host only;
+no real install on Ubuntu 24.04 or Debian 12 has been run yet (see [office/INSTALL.md](office/INSTALL.md)).
 
 **Malware scanning.** No scanner ships with the repository; see the hook above.
 
@@ -526,6 +528,6 @@ by the tests: structure, content types and relationship targets.
 python-docx and python-pptx load and resave them. They have not been opened in
 Microsoft Office, ONLYOFFICE or Collabora.
 
-ONLYOFFICE Docs connector: see [docs/office/ONLYOFFICE.md](office/ONLYOFFICE.md).
+ONLYOFFICE Docs connector: see [office/ONLYOFFICE.md](office/ONLYOFFICE.md).
 Collabora Online connector (WOPI host): see [office/COLLABORA.md](office/COLLABORA.md).
 Installing, upgrading, draining and uninstalling the editor: [docs/office/INSTALL.md](office/INSTALL.md).

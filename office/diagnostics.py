@@ -47,10 +47,14 @@ def config_checks(instance):
         ' '.join(problems) or 'Browser, internal and callback addresses are set and use https.',
         'Edit the instance and correct the addresses.' if problems else ''))
     from .models import secret_problem
-    problem = secret_problem(instance.shared_secret)
+    if instance.provider != 'onlyoffice' and not instance.shared_secret:
+        problem = None  # Collabora shares no secret with clientst0r (WOPI tokens + proof keys)
+    else:
+        problem = secret_problem(instance.shared_secret)
     checks.append(DiagnosticCheck(
         'config.secret', 'Shared secret', FAIL if problem else PASS,
-        problem or 'A secret is stored (encrypted).',
+        problem or ('A secret is stored (encrypted).' if instance.shared_secret
+                    else 'Not used: Collabora is authorised by WOPI access tokens and proof keys.'),
         'Set a new random secret on the editor and the same one here '
         '(Edit instance → Shared secret).' if problem else ''))
     if not instance.verify_tls:
