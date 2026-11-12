@@ -5,6 +5,33 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+On the development branch `dev/office`. Not released. Not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service.
+
+### Added
+- **Office documents (Phase 62).** View, edit and create Word, Excel and PowerPoint files on documents, tickets and assets.
+  - New Word / Excel / PowerPoint, create from template, Preview, Edit, Download, Rename, Save a Copy, Version History and Restore. Export PDF only where the editor supports it.
+  - clientst0r keeps every version of the file itself, with a checksum. A save based on an older version is never written over a newer one: it is kept in quarantine for 30 days.
+  - The editor page shows "changes in editor" separately from "saved to clientst0r", and warns before leaving with unsaved changes.
+  - Old and macro-enabled formats (.doc, .xls, .ppt, .docm, .xlsm, .pptm) keep the original and open read-only; conversion makes a new copy.
+- **ONLYOFFICE Docs connector** (10.0 or later): signed editor configuration and callbacks, force-save, revocation, PDF and legacy conversion.
+- **Collabora Online connector** (WOPI host): locks, conflict handling, proof-key checks. CODE is labelled evaluation / development only.
+- **Microsoft 365 documents**, a separate switch on the Microsoft 365 connection: each user signs in for document access only; administrators choose the allowed libraries and folders; link, open in Microsoft 365, create in a chosen folder, and import / export copies. No sharing links and no automatic sync. Existing tenant-read and mail permissions are unchanged.
+- **Settings → Integrations → Office Documents**: editor instances (this server, a separate VM, or an existing service), shared or per organization, private CA support, diagnostics and an explicit round-trip test. Only superusers set addresses and secrets; organization admins choose among approved editors.
+- **Editor installer** `scripts/office/install-editor.sh` (ONLYOFFICE, CODE, licensed Collabora Online; same server or separate VM) with preflight checks, verified signing keys and pinned, held versions. `manage.py office_setup --import-secret` and `manage.py office_sessions --drain` for upgrades and provider switches.
+
+### Security
+- Office sessions use tokens limited to one file, one user and one session, which expire and are revoked when access is lost. Permission is rechecked on every save.
+- Requests to editors go only to the approved editor hosts; cloud metadata addresses, redirects to other hosts and DNS rebinding are blocked, and TLS is always verified.
+- The request log no longer records sensitive form fields and query strings (an editor secret submitted in a form would have been logged).
+- clientst0r updates never upgrade or restart editor services; the root helper refuses editor packages.
+
+### Upgrade notes
+- Nothing changes until a superuser adds an editor instance. Edit buttons stay disabled, with the reason, until a configured, healthy editor allows them.
+- No malware scanner ships with clientst0r. Uploaded and saved files pass through a hook (`OFFICE_SCAN_HOOK`) that does nothing until a scanner is configured.
+- ONLYOFFICE Docs Server is AGPL-licensed; keep it installed separately and unmodified, with its branding. See docs/office/ONLYOFFICE.md.
+
 ## [3.17.665] - 2026-11-12
 
 ### Fixed

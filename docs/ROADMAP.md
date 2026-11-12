@@ -2282,36 +2282,58 @@ a time.
   to documents or to assets with custom fields. All through the same plan,
   review, apply, rollback and report.
 
-## Phase 62 — Pluggable document editors **(L · documents)** [planned]
+## Phase 62 — Pluggable document editors **(L · documents)** [in progress]
 
-Edit Word, Excel and PowerPoint files attached to documentation, KB articles
-and assets in the browser, through an editor the MSP chooses. Today documents
-use the built-in editor only, and the Microsoft 365 connection reads tenant
-data without editing files.
+View, edit and create Word, Excel and PowerPoint files attached to
+documentation, tickets and assets, through an editor the MSP chooses: on the
+clientst0r server, on a separate VM, or an existing editor service. Local files
+stay in clientst0r, which keeps every version. Built and tested against
+protocol-accurate fakes; **not yet verified against a real ONLYOFFICE,
+Collabora or Microsoft 365 service** (development branch `dev/office`, not
+released).
 
-- **62.1 Editor framework** *(planned)* — one interface for opening, saving
-  and locking a file through an external editor. Each file keeps its version
-  history, and every save is audited. Off until an editor is configured;
-  switched on per installation, with per-customer opt-out.
-- **62.2 ONLYOFFICE Docs (self-hosted)** *(planned)* — first editor. Uses the
-  Document Server's signed (JWT) editor config and save callbacks. The
-  Document Server fetches files through short-lived, single-file download
-  links. Real-time co-editing when the server allows it.
-- **62.3 Collabora Online (self-hosted)** *(planned)* — WOPI host endpoints
-  (CheckFileInfo, GetFile, PutFile, locks) with per-file, per-user access
-  tokens that expire.
-- **62.4 Microsoft 365 for the web** *(planned)* — optional connector. Files
-  are opened in Word, Excel or PowerPoint Online through the customer's or the
-  MSP's tenant; needs consent to write files, separate from the read-only
-  Microsoft 365 connection.
+- **62.1 Editor framework** *(in progress — built on the development branch, not yet released)* — binary
+  file versions with checksums, atomic saves, stale-save refusal and a
+  quarantine for late or refused saves (30-day retention); edit sessions with
+  scoped, expiring, revocable tokens; outbound requests only to approved editor
+  hosts (metadata addresses, redirects and DNS rebinding blocked; private CA
+  supported, TLS always verified); New Word / Excel / PowerPoint, templates,
+  Preview, Edit, Download, Rename, Save a Copy, Version History, Restore,
+  Export PDF where the editor supports it; legacy and macro-enabled files kept
+  and opened read-only with conversion to a new copy; full-screen editor with
+  "changes in editor" vs "saved to clientst0r" status; Settings → Integrations
+  → Office Documents (superusers configure instances, organization admins pick
+  approved ones), diagnostics and an explicit round-trip test; every action
+  audited, tokens redacted from logs. No malware scanner ships; a hook is
+  provided.
+- **62.2 ONLYOFFICE Docs (self-hosted)** *(in progress — built on the development branch, not yet released)* — signed (JWT)
+  editor configuration and callbacks, every callback status, force-save,
+  per-save document keys, revocation drops the editor, PDF and legacy
+  conversion via the conversion service. Requires ONLYOFFICE Docs 10.0 or
+  later.
+- **62.3 Collabora Online (self-hosted)** *(in progress — built on the development branch, not yet released)* — WOPI host
+  (CheckFileInfo, GetFile, PutFile, locks, rename), proof-key verification,
+  timestamp and lock conflict handling, form-posted tokens with renewal,
+  postMessage origin checks. CODE is labelled evaluation / development only;
+  licensed Collabora Online is supported for production.
+- **62.4 Microsoft 365 documents** *(in progress — built on the development branch, not yet released)* — separately enabled
+  on the Microsoft 365 connection: per-user delegated sign-in for document
+  scopes only, administrator-chosen libraries and folders, link and open
+  SharePoint / OneDrive files in Microsoft 365, create in a chosen folder, and
+  explicit import / export of copies. Linked files stay in Microsoft 365; no
+  sync, no sharing links. Editing clientst0r-stored files in Microsoft's
+  editors is not offered (it requires Microsoft's partner program).
 - **62.5 Google Docs** *(planned)* — optional connector. Open a copy in
   Google Drive, then import the edited file back as a new version; files are
   never left shared in Drive.
-- **62.6 Permissions and customer boundaries** *(planned)* — opening a file
-  in an editor follows the same view and edit permissions as the document it
-  belongs to. Editor tokens are limited to one file and one user. Customer
-  portal users can edit only files shared to the portal, and only when the
-  MSP allows it.
+- **62.6 Permissions and customer boundaries** *(partial — staff side built on the development branch; customer portal editing planned)* — opening a file follows the same view and edit permissions as
+  its document, ticket or asset, rechecked on every save; tokens are limited
+  to one file, one user and one session. Customer portal editing is planned.
+- **62.7 Installation and operations** *(in progress — built on the development branch, not yet released)* — editor installer
+  for the same server or a separate VM (preflight, verified signing keys,
+  pinned and held versions, secrets never on the command line), drain before
+  editor upgrades or provider switches, uninstall that keeps every document,
+  and clientst0r updates that never upgrade or restart an editor.
 
 **Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
 Microsoft 365 and Google Docs 1–2 weeks each.
@@ -2432,7 +2454,7 @@ applications have passed end to end.
 | 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals v3.17.664; LTS planned | updater, root helper (release signing key), Docker entrypoint |
 | 60 — Optional ticket routing | M | shipped v3.17.664 | extends the workflow engine (Phase 14), email routing rules, service catalog, dispatch |
 | 61 — One-customer migration rehearsals | M | shipped v3.17.664 | extends the IT Glue / Hudu importers and import rollback; scheduler |
-| 62 — Pluggable document editors | L | planned | documents and file attachments; optional Microsoft 365 / Google connectors |
+| 62 — Pluggable document editors | L | in progress — framework, ONLYOFFICE, Collabora, Microsoft 365 documents and installer built on a development branch; not yet tested against real editors; Google Docs planned | documents and file attachments; optional Microsoft 365 / Google connectors |
 | 63 — RMM integration and technician workspace | XL | in progress — 63.1–63.10 v3.17.664; Rem0te revision 2 tested against Rem0te 0.30.1 (99/102), restart case pending | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
