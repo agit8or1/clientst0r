@@ -9,6 +9,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from core.models import SystemSetting
 
+# Upper bound for scripts/auto_update.sh: backup + test restore, dependencies,
+# migrations and static files. The upgrade itself runs detached and is not
+# stopped by this limit.
+UPDATE_SCRIPT_TIMEOUT = 60 * 60
+
 
 class Command(BaseCommand):
     help = 'Automatically update Client St0r from GitHub (pull, migrate, restart)'
@@ -104,7 +109,9 @@ class Command(BaseCommand):
                     [str(update_script)],
                     cwd=project_dir,
                     text=True,
-                    timeout=300  # 5 minute timeout
+                    # The backup with its test restore alone takes minutes on a
+                    # real install; 5 minutes was too short (v3.17.668).
+                    timeout=UPDATE_SCRIPT_TIMEOUT,
                 )
 
                 if result.returncode == 0:
@@ -114,6 +121,9 @@ class Command(BaseCommand):
                     raise CommandError(f'Update script failed with exit code {result.returncode}')
 
             except subprocess.TimeoutExpired:
-                raise CommandError('Update script timed out (>5 minutes)')
+                raise CommandError(
+                    f'Update script timed out (>{UPDATE_SCRIPT_TIMEOUT // 60} minutes). The upgrade '
+                    'itself may still be running: check Settings -> Updates or '
+                    '/var/log/clientst0r/auto-update.log before retrying.')
             except Exception as e:
                 raise CommandError(f'Error running update: {e}')
