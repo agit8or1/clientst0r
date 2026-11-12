@@ -22,6 +22,9 @@ from .providers.distributors import get_distributor_provider
 from vault.encryption import EncryptionError
 from django.conf import settings
 from core.tenancy import get_org_object_or_404
+from .ownership import (OwnershipError, can_manage_platform, can_sync_platform, can_view_platform,
+                        connection_queryset, get_connection_or_404, integration_access, make_platform_owned,
+                        owner_choices)
 import logging
 
 logger = logging.getLogger('integrations')
@@ -58,20 +61,33 @@ def integration_list(request):
     connection type (PSA / RMM / UniFi / M365 / Omada / Grandstream /
     Distributor / Accounting) with a status pill, search box, and Tile/List
     view toggle.
+
+    Integrations belong to the platform owner. In global view platform staff
+    see every connection — platform-owned ones first, then customers' own
+    connections, which a platform administrator can make platform-owned.
+    Inside a customer the page lists that customer's own connections, plus a
+    read-only note naming the platform connections that supply its mapped
+    data (integrations.ownership).
     """
     org = get_request_organization(request)
+    global_view = org is None
+    platform_viewer = global_view and can_view_platform(request.user)
+    platform_admin = global_view and can_manage_platform(request.user)
 
     # Each row: (icon, category, provider_label, name, conn, configure_url,
     # detail_url_or_none, status_dict, health).
     rows = []
     from .health import health_for
     from .models import IntegrationSyncHealth
+    from .ownership import make_platform_refusal, type_key_for
     health_rows = {}
     try:
         from .health import SUBSYSTEM_KINDS
         health_qs = IntegrationSyncHealth.objects.exclude(kind__in=SUBSYSTEM_KINDS)
         if org is not None:
             health_qs = health_qs.filter(organization=org)
+        elif not platform_viewer:
+            health_qs = health_qs.none()
         for h in health_qs:
             health_rows[(h.content_type_id, h.object_id)] = h
     except Exception:
@@ -81,7 +97,7 @@ def integration_list(request):
     def _add(qs, *, icon, category, configure_url_name, detail_url_name=None,
              provider_label_attr='get_provider_type_display',
              host_attr=None):
-        for conn in qs:
+        for conn in qs.select_related('organization'):
             try:
                 if callable(getattr(conn, provider_label_attr, None)):
                     provider_label = getattr(conn, provider_label_attr)()
@@ -109,6 +125,13 @@ def integration_list(request):
                 h_row = health_rows.get((ContentType.objects.get_for_model(type(conn)).pk, conn.pk))
             except Exception:
                 h_row = None
+            make_platform = None
+            if platform_admin and conn.organization_id is not None:
+                refusal = make_platform_refusal(conn)
+                make_platform = {
+                    'url': reverse('integrations:make_platform_owned', args=[type_key_for(conn), conn.pk]),
+                    'refusal': refusal,
+                }
             rows.append({
                 'icon': icon,
                 'category': category,
@@ -116,6 +139,9 @@ def integration_list(request):
                 'name': conn.name,
                 'conn': conn,
                 'pk': conn.pk,
+                'owner': conn.owner_label,
+                'platform_owned': conn.organization_id is None,
+                'make_platform': make_platform,
                 'configure_url': configure_url,
                 'detail_url': detail_url,
                 'status': connection_status(conn, h_row),
@@ -123,42 +149,45 @@ def integration_list(request):
                 'rem0te': _rem0te_summary(conn),
             })
 
-    _add(PSAConnection.objects.for_organization(org),
+    def scoped(model):
+        return connection_queryset(request, model, 'read')
+
+    _add(scoped(PSAConnection),
          icon='fas fa-ticket-alt', category='PSA',
          configure_url_name='integrations:integration_edit',
          detail_url_name='integrations:integration_detail')
-    _add(RMMConnection.objects.for_organization(org),
+    _add(scoped(RMMConnection),
          icon='fas fa-desktop', category='RMM',
          configure_url_name='integrations:rmm_edit',
          detail_url_name='integrations:rmm_detail')
-    _add(UnifiConnection.objects.for_organization(org),
+    _add(scoped(UnifiConnection),
          icon='fas fa-network-wired', category='UniFi',
          configure_url_name='integrations:unifi_edit',
          detail_url_name='integrations:unifi_detail',
          provider_label_attr='host', host_attr='host')
-    _add(M365Connection.objects.for_organization(org),
+    _add(scoped(M365Connection),
          icon='fab fa-microsoft', category='Microsoft 365',
          configure_url_name='integrations:m365_edit',
          detail_url_name='integrations:m365_detail',
          provider_label_attr='tenant_id')
-    _add(OmadaConnection.objects.for_organization(org),
+    _add(scoped(OmadaConnection),
          icon='fas fa-network-wired', category='Omada',
          configure_url_name='integrations:omada_edit',
          detail_url_name='integrations:omada_detail',
          provider_label_attr='host', host_attr='host')
-    _add(GrandstreamConnection.objects.for_organization(org),
+    _add(scoped(GrandstreamConnection),
          icon='fas fa-wifi', category='Grandstream',
          configure_url_name='integrations:grandstream_edit',
          detail_url_name='integrations:grandstream_detail',
          provider_label_attr='host', host_attr='host')
     try:
-        _add(DistributorConnection.objects.for_organization(org),
+        _add(scoped(DistributorConnection),
              icon='fas fa-truck', category='Distributor',
              configure_url_name='integrations:distributor_edit')
     except Exception:
         pass
     try:
-        _add(AccountingConnection.objects.for_organization(org),
+        _add(scoped(AccountingConnection),
              icon='fas fa-file-invoice-dollar', category='Accounting',
              configure_url_name='integrations:accounting_edit')
     except Exception:
@@ -173,6 +202,7 @@ def integration_list(request):
             if needle in (r['name'] or '').lower()
             or needle in (r['provider_label'] or '').lower()
             or needle in (r['category'] or '').lower()
+            or needle in (r['owner'] or '').lower()
         ]
 
     # View mode — querystring is source of truth, JS layer mirrors to localStorage.
@@ -185,12 +215,13 @@ def integration_list(request):
     for r in rows:
         counts[r['status']['state']] = counts.get(r['status']['state'], 0) + 1
 
-    rows.sort(key=lambda r: (r['category'], r['name'].lower()))
+    # Platform-owned first, then by category and name.
+    rows.sort(key=lambda r: (not r['platform_owned'], r['category'], r['name'].lower()))
 
-    # Global view has no organization, so the per-organization create pages
-    # (RMM, UniFi, M365, ...) would bounce straight back here. Offer a picker.
+    # Global view: platform staff may also open one customer to see only its
+    # own connections.
     pick_orgs = []
-    if org is None:
+    if global_view:
         from core.models import Organization
         from psa.visibility import is_msp_staff
         if request.user.is_superuser or is_msp_staff(request.user):
@@ -204,9 +235,52 @@ def integration_list(request):
         'search_query': search_q,
         'view_mode': view_mode,
         'counts': counts,
-        'no_organization': org is None,
+        'no_organization': global_view,
+        'platform_viewer': platform_viewer,
+        'platform_admin': platform_admin,
+        # Add buttons: a customer's own connection inside a customer, a
+        # platform (or chosen customer's) connection in global view.
+        'can_add': (not global_view) or platform_admin,
         'pick_orgs': pick_orgs,
+        'platform_suppliers': [] if global_view else _platform_suppliers(request, org),
     })
+
+
+def _platform_suppliers(request, org):
+    """Platform-owned connections that supply this customer's mapped data,
+    for the read-only note on a customer's Integrations page. Names are shown
+    to MSP staff; a customer user sees only the kind of integration. No
+    credential, setting or link to the connection is exposed."""
+    from core.utils import descendant_org_ids
+    from psa.visibility import is_msp_staff
+    from .models import (AccountingCustomerLink, NetworkAssetLink, PSACompany, RMMDevice)
+    ids = descendant_org_ids(org)
+    found = []  # (category, connection name)
+    try:
+        for name in (RMMDevice.objects.filter(organization_id__in=ids, connection__organization__isnull=True,
+                                              ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
+                     .values_list('connection__name', flat=True).distinct()):
+            found.append(('RMM', name))
+        for name in (PSACompany.objects.filter(organization_id__in=ids, connection__organization__isnull=True)
+                     .values_list('connection__name', flat=True).distinct()):
+            found.append(('PSA', name))
+        for source, model, label in (('unifi', UnifiConnection, 'UniFi'), ('omada', OmadaConnection, 'Omada'),
+                                     ('grandstream', GrandstreamConnection, 'Grandstream')):
+            conn_ids = set(NetworkAssetLink.objects.filter(organization_id__in=ids, source=source)
+                           .values_list('connection_id', flat=True))
+            for name in (model.objects.filter(pk__in=conn_ids, organization__isnull=True)
+                         .values_list('name', flat=True)):
+                found.append((label, name))
+        for name in (AccountingCustomerLink.objects.filter(client_org_id__in=ids,
+                                                           connection__organization__isnull=True)
+                     .values_list('connection__name', flat=True).distinct()):
+            found.append(('Accounting', name))
+    except Exception:
+        logger.debug('platform supplier note unavailable', exc_info=True)
+        return []
+    if is_msp_staff(request.user):
+        return [{'category': c, 'name': n} for c, n in sorted(set(found))]
+    return [{'category': c, 'name': ''} for c in sorted({c for c, _ in found})]
 
 
 def __reverse_safe(url_name, pk):
@@ -218,89 +292,67 @@ def __reverse_safe(url_name, pk):
         return None
 
 
-@login_required
-@require_admin
-def integration_create(request):
-    """Create new PSA connection."""
-    from core.models import Organization
-
-    # Get user's organizations
-    if request.user.is_superuser:
-        user_orgs = Organization.objects.all()
+def _encryption_error_message(request, e):
+    # Handle APP_MASTER_KEY errors - usually means Gunicorn isn't loading .env
+    error_msg = str(e)
+    if 'Invalid APP_MASTER_KEY format' in error_msg or 'base64' in error_msg.lower() or 'padding' in error_msg.lower():
+        messages.error(
+            request,
+            "🔐 <strong>Encryption Configuration Error</strong><br><br>"
+            "The Gunicorn service is not loading your .env file with the APP_MASTER_KEY. "
+            "This is a common setup issue that's easy to fix!<br><br>"
+            "<strong>Quick Fix:</strong><br>"
+            f"<code>cd {settings.BASE_DIR}<br>"
+            "./scripts/fix_gunicorn_env.sh</code><br><br>"
+            "<strong>Or run diagnostic to see what's wrong:</strong><br>"
+            "<code>./diagnose_gunicorn_fix.sh</code><br><br>"
+            "This will configure Gunicorn to load environment variables from your .env file. "
+            "See <a href='https://github.com/agit8or1/clientst0r/issues/4' target='_blank'>Issue #4</a> for details.",
+            extra_tags='safe'
+        )
     else:
-        user_orgs = Organization.objects.filter(
-            memberships__user=request.user,
-            memberships__is_active=True
-        ).distinct()
+        messages.error(request, f"Encryption error: {error_msg}")
 
-    # Auto-select if only one organization
+
+def _owner_choices_for(request, org):
+    """Owner options on a create form: only in global view, where only
+    platform administrators get this far."""
+    return owner_choices(request.user) if org is None else None
+
+
+@login_required
+@integration_access('admin')
+def integration_create(request):
+    """Create a PSA connection: inside a customer, that customer's own; in
+    global view (platform administrators), platform-owned by default or one
+    chosen customer's."""
     org = get_request_organization(request)
-    if not org and user_orgs.count() == 1:
-        org = user_orgs.first()
-
-    # If no org and multiple available, let form handle it
-    # If still no orgs available at all, show error
-    if user_orgs.count() == 0:
-        messages.error(request, "You must be a member of at least one organization to create integrations.")
-        return redirect('integrations:integration_list')
+    choices = _owner_choices_for(request, org)
 
     if request.method == 'POST':
-        # Get organization from form if not already set
-        if not org and 'organization' in request.POST:
-            try:
-                org_id = request.POST.get('organization')
-                org = user_orgs.get(pk=org_id)
-            except Organization.DoesNotExist:
-                messages.error(request, "Invalid organization selected.")
-                return redirect('integrations:integration_create')
-
-        form = PSAConnectionForm(request.POST, organization=org)
+        form = PSAConnectionForm(request.POST, organization=org, owner_choices=choices)
         if form.is_valid():
             try:
-                connection = form.save(commit=False)
-                connection.organization = org
-                connection.save()
+                connection = form.save()
                 messages.success(request, f"Connection '{connection.name}' created successfully.")
                 return redirect('integrations:integration_detail', pk=connection.pk)
             except EncryptionError as e:
-                # Handle APP_MASTER_KEY errors - usually means Gunicorn isn't loading .env
-                error_msg = str(e)
-                if 'Invalid APP_MASTER_KEY format' in error_msg or 'base64' in error_msg.lower() or 'padding' in error_msg.lower():
-                    messages.error(
-                        request,
-                        "🔐 <strong>Encryption Configuration Error</strong><br><br>"
-                        "The Gunicorn service is not loading your .env file with the APP_MASTER_KEY. "
-                        "This is a common setup issue that's easy to fix!<br><br>"
-                        "<strong>Quick Fix:</strong><br>"
-                        f"<code>cd {settings.BASE_DIR}<br>"
-                        "./scripts/fix_gunicorn_env.sh</code><br><br>"
-                        "<strong>Or run diagnostic to see what's wrong:</strong><br>"
-                        "<code>./diagnose_gunicorn_fix.sh</code><br><br>"
-                        "This will configure Gunicorn to load environment variables from your .env file. "
-                        "See <a href='https://github.com/agit8or1/clientst0r/issues/4' target='_blank'>Issue #4</a> for details.",
-                        extra_tags='safe'
-                    )
-                else:
-                    messages.error(request, f"Encryption error: {error_msg}")
+                _encryption_error_message(request, e)
     else:
-        form = PSAConnectionForm(organization=org)
+        form = PSAConnectionForm(organization=org, owner_choices=choices)
 
-    context = {
+    return render(request, 'integrations/integration_form.html', {
         'form': form,
         'action': 'Create',
-        'user_organizations': user_orgs,
-        'selected_org': org,
-        'show_org_selector': user_orgs.count() > 1 and not org,
-    }
-
-    return render(request, 'integrations/integration_form.html', context)
+    })
 
 
 @login_required
+@integration_access('read')
 def integration_detail(request, pk):
     """View connection details."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
+    connection = get_connection_or_404(request, PSAConnection, pk, 'read')
 
     companies = PSACompany.objects.filter(connection=connection)[:10]
     tickets = PSATicket.objects.filter(connection=connection).order_by('-external_updated_at')[:10]
@@ -313,11 +365,11 @@ def integration_detail(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def integration_edit(request, pk):
     """Edit PSA connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
+    connection = get_connection_or_404(request, PSAConnection, pk, 'admin')
 
     if request.method == 'POST':
         form = PSAConnectionForm(request.POST, instance=connection, organization=org)
@@ -357,11 +409,11 @@ def integration_edit(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def integration_delete(request, pk):
     """Delete PSA connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
+    connection = get_connection_or_404(request, PSAConnection, pk, 'admin')
 
     if request.method == 'POST':
         name = connection.name
@@ -375,11 +427,11 @@ def integration_delete(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def integration_test(request, pk):
     """Test PSA connection with diagnostic information (AJAX)."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
+    connection = get_connection_or_404(request, PSAConnection, pk, 'admin')
 
     if request.method == 'POST':
         try:
@@ -449,11 +501,11 @@ def integration_test(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def integration_sync(request, pk):
     """Trigger manual sync (AJAX)."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
+    connection = get_connection_or_404(request, PSAConnection, pk, 'admin')
 
     if request.method == 'POST':
         try:
@@ -517,9 +569,12 @@ def psa_company_detail(request, pk):
     org = get_request_organization(request)
     company = get_org_object_or_404(PSACompany, org, pk=pk)
 
-    # Get related contacts and tickets
-    contacts = company.contacts.all()
-    tickets = company.tickets.order_by('-external_updated_at')[:20]
+    # Related rows of this customer only: a platform PSA's contacts and
+    # tickets carry their own customer, which follows the company's mapping.
+    from core.utils import descendant_org_ids
+    ids = descendant_org_ids(org)
+    contacts = company.contacts.filter(organization_id__in=ids)
+    tickets = company.tickets.filter(organization_id__in=ids).order_by('-external_updated_at')[:20]
 
     return render(request, 'integrations/psa_company_detail.html', {
         'company': company,
@@ -545,8 +600,9 @@ def psa_contact_detail(request, pk):
     org = get_request_organization(request)
     contact = get_org_object_or_404(PSAContact, org, pk=pk)
 
-    # Get related tickets
-    tickets = contact.tickets.order_by('-external_updated_at')[:20]
+    # Get related tickets (this customer's only)
+    from core.utils import descendant_org_ids
+    tickets = contact.tickets.filter(organization_id__in=descendant_org_ids(org)).order_by('-external_updated_at')[:20]
 
     return render(request, 'integrations/psa_contact_detail.html', {
         'contact': contact,
@@ -568,25 +624,17 @@ def psa_ticket_detail(request, pk):
 # RMM Views
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 def rmm_create(request):
     """Create new RMM connection."""
     org = get_request_organization(request)
-
-    # Require organization to be selected
-    if not org:
-        messages.error(request, "Please select an organization first.")
-        return redirect('integrations:integration_list')
+    choices = _owner_choices_for(request, org)
 
     if request.method == 'POST':
-        form = RMMConnectionForm(request.POST, organization=org)
+        form = RMMConnectionForm(request.POST, organization=org, owner_choices=choices)
         if form.is_valid():
             try:
-                connection = form.save(commit=False)
-                # Ensure organization is set (should be set by form, but double-check)
-                if not connection.organization:
-                    connection.organization = org
-                connection.save()
+                connection = form.save()
                 messages.success(request, f"RMM connection '{connection.name}' created successfully.")
                 _propose_pairing(request, form, connection)
                 return redirect('integrations:rmm_detail', pk=connection.pk)
@@ -627,7 +675,7 @@ def rmm_create(request):
                 else:
                     messages.error(request, f"Encryption error: {error_msg}")
     else:
-        form = RMMConnectionForm(organization=org)
+        form = RMMConnectionForm(organization=org, owner_choices=choices)
 
     return render(request, 'integrations/rmm_form.html', {
         'form': form,
@@ -637,10 +685,11 @@ def rmm_create(request):
 
 @login_required
 @rmm_staff_only
+@integration_access('read')
 def rmm_detail(request, pk):
     """View RMM connection details."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'read')
 
     devices = RMMDevice.objects.filter(connection=connection).order_by('-last_seen')[:20]
     total_devices = RMMDevice.objects.filter(connection=connection).count()
@@ -675,14 +724,14 @@ def _propose_pairing(request, form, connection):
 
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 @require_POST
 def rmm_pairing_check(request, pk):
     """Ask the RMM for its ticket-rmm-v1 capabilities now (signed GET
     /capabilities). An RMM that doesn't implement the contract simply fails
     the check; the connection page says why."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
     from integrations.ticket_rmm import settings as pairing_settings, status as pairing_status
     from psa_ai.services.processor import refresh_capabilities
     ps = pairing_settings(connection)
@@ -705,7 +754,7 @@ def rmm_pairing_check(request, pk):
 
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 @require_POST
 def rmm_rem0te_identity(request, pk):
     """ClientSt0r's own Rem0te identity (instance-wide: one peer entry in
@@ -714,7 +763,7 @@ def rmm_rem0te_identity(request, pk):
     Superusers only, because it affects every organization's pairing.
     Private keys are encrypted at rest and never shown."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
     if connection.provider_type != 'rem0te':
         raise Http404
     if not request.user.is_superuser:
@@ -745,11 +794,11 @@ def rmm_rem0te_identity(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def rmm_edit(request, pk):
     """Edit RMM connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
 
     if request.method == 'POST':
         form = RMMConnectionForm(request.POST, instance=connection, organization=org)
@@ -791,11 +840,11 @@ def rmm_edit(request, pk):
 
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 def rmm_delete(request, pk):
     """Delete RMM connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
 
     if request.method == 'POST':
         name = connection.name
@@ -1017,6 +1066,10 @@ def _can_decide(request):
     from psa.visibility import is_msp_staff
     if not is_msp_staff(request.user):
         return False
+    if get_request_organization(request) is None:
+        # Global view: placing a platform connection's devices with
+        # customers is for platform staff who may sync platform integrations.
+        return can_sync_platform(request.user)
     if request.user.is_superuser or request.user.is_staff:
         return True
     from core.decorators import get_user_membership
@@ -1052,6 +1105,7 @@ def _review_queryset(connection):
 
 @login_required
 @rmm_staff_only
+@integration_access('read')
 def rmm_review(request, pk):
     """Staff-only queue for one connection: unresolved customers, upstream
     moves and asset matches that need a decision."""
@@ -1059,7 +1113,7 @@ def rmm_review(request, pk):
     if not is_msp_staff(request.user):
         raise PermissionDenied
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'read')
     from assets.models import Asset
     from core.models import Organization
     items = []
@@ -1091,8 +1145,9 @@ def rmm_device_decide(request, pk):
     org = get_request_organization(request)
     device = get_object_or_404(RMMDevice.objects.select_related('connection', 'organization'), pk=pk)
     # The connection's owner decides: the device is reached through its
-    # connection, never through the (possibly unset) device customer.
-    get_org_object_or_404(RMMConnection, org, pk=device.connection_id)
+    # connection, never through the (possibly unset) device customer. A
+    # platform connection's devices are decided in global view only.
+    get_connection_or_404(request, RMMConnection, device.connection_id, 'write')
     action = request.POST.get('action', '')
     back = request.POST.get('next') or reverse('integrations:rmm_review', args=[device.connection_id])
     if not back.startswith('/') or back.startswith('//'):
@@ -1152,7 +1207,7 @@ def rmm_device_open(request, pk):
 
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 def rmm_device_delete(request, pk):
     """Delete an RMM device (orphaned or synced).
 
@@ -1166,10 +1221,15 @@ def rmm_device_delete(request, pk):
     from django.db.models import Q
     from core.utils import descendant_org_ids
     org = get_request_organization(request)
-    ids = descendant_org_ids(org)
+    if org is None:
+        # Global view (platform administrators, checked by the decorator):
+        # devices of platform-owned connections only.
+        scope = Q(connection__organization__isnull=True)
+    else:
+        ids = descendant_org_ids(org)
+        scope = Q(organization_id__in=ids) | Q(connection__organization_id__in=ids)
     device = get_object_or_404(
-        RMMDevice.objects.select_related('connection', 'organization')
-        .filter(Q(organization_id__in=ids) | Q(connection__organization_id__in=ids)), pk=pk)
+        RMMDevice.objects.select_related('connection', 'organization').filter(scope), pk=pk)
 
     if request.method == 'POST':
         device_name = device.device_name
@@ -1321,12 +1381,12 @@ def global_rmm_device_map_data(request):
 
 @login_required
 @rmm_staff_only
-@require_write
+@integration_access('write')
 @require_POST
 def rmm_trigger_sync(request, pk):
     """Manually trigger RMM sync for a connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(RMMConnection.objects.for_organization(org), pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'write')
 
     try:
         from integrations.sync import RMMSync
@@ -1349,7 +1409,7 @@ def rmm_trigger_sync(request, pk):
 
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 def rmm_import_clients(request, pk):
     """
     Import RMM clients as organizations.
@@ -1359,7 +1419,7 @@ def rmm_import_clients(request, pk):
     from django.db import transaction
 
     org = get_request_organization(request)
-    connection = get_object_or_404(RMMConnection.objects.for_organization(org), pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
 
     if connection.provider_type == 'rem0te':
         # One key, one business: its computers already belong here.
@@ -1479,7 +1539,7 @@ def rmm_import_clients(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def psa_organization_mapping(request, pk):
     """
     Map PSA companies to existing Client St0r organizations.
@@ -1489,8 +1549,11 @@ def psa_organization_mapping(request, pk):
     from integrations.models import ExternalObjectMap
     from django.db.models import Q
 
+    from .psa_assignment import assign_company, mapping_targets
     org = get_request_organization(request)
-    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
+    connection = get_connection_or_404(request, PSAConnection, pk, 'admin')
+    # Never another customer's organization for a customer's own connection.
+    targets = mapping_targets(connection)
 
     if request.method == 'POST':
         # Process mappings
@@ -1512,14 +1575,21 @@ def psa_organization_mapping(request, pk):
                             # Mark for org creation during next sync
                             continue
                         else:
-                            # action is the organization ID to map to
+                            # action is the organization ID to map to —
+                            # one this connection may assign to.
                             try:
-                                target_org = Organization.objects.get(pk=int(action))
+                                target_org = targets.get(pk=int(action))
                                 company = PSACompany.objects.get(pk=company_id, connection=connection)
+                                if connection.organization_id is None and company.organization_id != target_org.pk:
+                                    # Platform PSA: the company, its contacts
+                                    # and tickets go to the mapped customer.
+                                    assign_company(company, target_org, request.user)
 
                                 # Create or update ExternalObjectMap
+                                from django.contrib.contenttypes.models import ContentType
                                 ext_map, created = ExternalObjectMap.objects.update_or_create(
-                                    connection=connection,
+                                    connection_type=ContentType.objects.get_for_model(PSAConnection),
+                                    connection_id=connection.pk,
                                     external_type='company',
                                     external_id=company.external_id,
                                     defaults={
@@ -1562,40 +1632,36 @@ def psa_organization_mapping(request, pk):
     # Get all companies from this PSA connection
     companies = PSACompany.objects.filter(connection=connection).order_by('name')
 
-    # Get all organizations (for dropdown)
-    all_organizations = Organization.objects.all().order_by('name')
+    # Organizations this connection may map to (for dropdown)
+    all_organizations = targets
 
     # Get existing mappings
     existing_mappings = {}
-    for mapping in ExternalObjectMap.objects.filter(
-        connection=connection,
-        external_type='company',
-        local_type='organization'
-    ):
+    from .org_import import _eom_filter
+    for mapping in _eom_filter(connection, external_type='company', local_type='organization'):
         existing_mappings[mapping.external_id] = mapping.local_id
 
     # Build company list with mapping info
     company_mapping_data = []
     for company in companies:
-        # Check if already mapped
+        # Check if already mapped (a platform company's own customer is its mapping)
         mapped_org_id = existing_mappings.get(company.external_id)
+        if connection.organization_id is None and company.organization_id:
+            mapped_org_id = company.organization_id
         mapped_org = None
         if mapped_org_id:
-            try:
-                mapped_org = Organization.objects.get(pk=mapped_org_id)
-            except Organization.DoesNotExist:
-                pass
+            mapped_org = targets.filter(pk=mapped_org_id).first()
 
         # Try to find exact name match as suggestion
         suggested_org = None
         if not mapped_org:
             # Try exact match
-            suggested_org = Organization.objects.filter(name__iexact=company.name).first()
+            suggested_org = targets.filter(name__iexact=company.name).first()
             if not suggested_org:
                 # Try with prefix removed
                 if connection.org_name_prefix:
                     name_without_prefix = company.name.replace(connection.org_name_prefix, '', 1).strip()
-                    suggested_org = Organization.objects.filter(name__iexact=name_without_prefix).first()
+                    suggested_org = targets.filter(name__iexact=name_without_prefix).first()
 
         company_mapping_data.append({
             'company': company,
@@ -1612,7 +1678,7 @@ def psa_organization_mapping(request, pk):
 
 @login_required
 @rmm_staff_only
-@require_admin
+@integration_access('admin')
 def rmm_organization_mapping(request, pk):
     """
     Map RMM sites to existing Client St0r organizations.
@@ -1622,7 +1688,7 @@ def rmm_organization_mapping(request, pk):
     from django.db.models import Q
 
     org = get_request_organization(request)
-    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    connection = get_connection_or_404(request, RMMConnection, pk, 'admin')
 
     if request.method == 'POST':
         # For RMM, we can't use ExternalObjectMap (PSA-only)
@@ -1684,27 +1750,26 @@ def rmm_organization_mapping(request, pk):
 # ============================================================================
 
 @login_required
-@require_admin
+@integration_access('admin')
 def unifi_create(request):
     """Create new UniFi connection."""
     org = get_request_organization(request)
-    if not org:
-        messages.error(request, "Please select an organization first.")
-        return redirect('integrations:integration_list')
+    choices = _owner_choices_for(request, org)
 
     if request.method == 'POST':
-        form = UnifiConnectionForm(request.POST, organization=org)
+        form = UnifiConnectionForm(request.POST, organization=org, owner_choices=choices)
         if form.is_valid():
             connection = form.save()
             messages.success(request, f"UniFi connection '{connection.name}' created.")
             return redirect('integrations:unifi_detail', pk=connection.pk)
     else:
-        form = UnifiConnectionForm(organization=org)
+        form = UnifiConnectionForm(organization=org, owner_choices=choices)
 
     return render(request, 'integrations/unifi_form.html', {'form': form, 'action': 'Create'})
 
 
 @login_required
+@integration_access('read')
 def unifi_detail(request, pk):
     """View UniFi connection details and cached data."""
     connection = _get_unifi_connection(request, pk)
@@ -1852,11 +1917,11 @@ def unifi_detail(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def unifi_edit(request, pk):
     """Edit UniFi connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(UnifiConnection, org, pk=pk)
+    connection = get_connection_or_404(request, UnifiConnection, pk, 'admin')
 
     if request.method == 'POST':
         form = UnifiConnectionForm(request.POST, instance=connection, organization=org)
@@ -1871,11 +1936,11 @@ def unifi_edit(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def unifi_delete(request, pk):
     """Delete UniFi connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(UnifiConnection, org, pk=pk)
+    connection = get_connection_or_404(request, UnifiConnection, pk, 'admin')
 
     if request.method == 'POST':
         name = connection.name
@@ -1887,12 +1952,11 @@ def unifi_delete(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_POST
 def unifi_site_org(request, pk):
     """Save cloud site → organization assignments (AJAX POST)."""
-    from core.models import Organization
-    connection = _get_unifi_connection(request, pk)
+    connection = _get_unifi_connection(request, pk, 'admin')
 
     import json as _json
     try:
@@ -1900,19 +1964,39 @@ def unifi_site_org(request, pk):
         site_org_map = body.get('site_org_map', {})
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON.'}, status=400)
-
-    # Validate org IDs — only allow orgs the admin can access
-    if request.user.is_superuser or getattr(request, 'is_staff_user', False):
-        valid_ids = set(Organization.objects.filter(is_active=True).values_list('id', flat=True))
-    else:
-        from accounts.models import Membership
-        valid_ids = set(
-            Membership.objects.filter(user=request.user, is_active=True, organization__is_active=True)
-            .values_list('organization_id', flat=True)
-        )
-    # Include null/empty (clear assignment)
     if not isinstance(site_org_map, dict):
         return JsonResponse({'ok': False, 'error': 'site_org_map must be an object.'}, status=400)
+    cleaned, rejected = _clean_site_org_map(request, connection, site_org_map)
+    _save_site_org_map(request, connection, cleaned, rejected, 'unifi_connection', 'UniFi')
+    if rejected:
+        return JsonResponse({'ok': False, 'error': 'Some customers are not ones you can assign.',
+                             'rejected': rejected}, status=400)
+    return JsonResponse({'ok': True})
+
+
+def _site_org_targets(request, connection):
+    """Customer ids a controller's sites may be mapped to.
+
+    A platform-owned controller maps to any active customer (only platform
+    admins get here). A customer's own controller maps only within that
+    customer (and its sub-customers), and a non-staff admin further only to
+    customers they belong to — one customer's controller never feeds another.
+    """
+    from core.models import Organization
+    from core.utils import descendant_org_ids
+    active = set(Organization.objects.filter(is_active=True).values_list('id', flat=True))
+    if connection.organization_id is None:
+        return active
+    allowed = active & set(descendant_org_ids(connection.organization_id))
+    if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+        from accounts.models import Membership
+        allowed &= set(Membership.objects.filter(user=request.user, is_active=True)
+                       .values_list('organization_id', flat=True))
+    return allowed
+
+
+def _clean_site_org_map(request, connection, site_org_map):
+    valid_ids = _site_org_targets(request, connection)
     cleaned = {}
     rejected = []
     for site_key, org_id in site_org_map.items():
@@ -1929,32 +2013,117 @@ def unifi_site_org(request, pk):
             cleaned[site_key] = oid
         else:
             rejected.append(site_key)
+    return cleaned, rejected
 
+
+def _save_site_org_map(request, connection, cleaned, rejected, object_type, label):
     before = connection.site_org_map or {}
     connection.site_org_map = cleaned
     connection.save(update_fields=['site_org_map'])
     try:
         from audit.models import AuditLog
         AuditLog.log(user=request.user, action='update', organization=connection.organization,
-                     object_type='unifi_connection', object_id=connection.pk,
+                     object_type=object_type, object_id=connection.pk,
                      object_repr=str(connection)[:255],
-                     description='UniFi site → customer mapping changed',
+                     description=f'{label} site → customer mapping changed',
                      ip_address=request.META.get('REMOTE_ADDR') or None, path=request.path,
                      extra_data={'before': before, 'after': cleaned, 'rejected': rejected})
     except Exception:
-        logger.exception('could not audit UniFi site mapping change')
+        logger.exception('could not audit %s site mapping change', label)
+
+
+def _site_mapping_rows(connection):
+    """Rows for the site → customer table on a platform-owned Omada or
+    Grandstream controller."""
+    from .network_assets import resolve_unifi_sites
+    return [r.as_dict() for r in resolve_unifi_sites(connection, (connection.cached_data or {}).get('sites', []))]
+
+
+def _site_mapping_context(request, connection):
+    """Site → customer rows and target customers, for a platform-owned
+    controller viewed by a platform admin; empty otherwise."""
+    if connection.organization_id is not None or not can_manage_platform(request.user):
+        return [], []
+    from core.models import Organization
+    rows = _site_mapping_rows(connection)
+    return rows, list(Organization.objects.filter(is_active=True).order_by('name').only('id', 'name'))
+
+
+def _network_site_org(request, model, pk, object_type, label, detail_url):
+    """Save a platform-owned Omada / Grandstream controller's site → customer
+    mapping (form POST: one `site__<key>` field per site)."""
+    connection = get_connection_or_404(request, model, pk, 'admin')
+    if connection.organization_id is not None:
+        messages.error(request, f'This {label} controller belongs to {connection.owner_label}; '
+                                'all of its sites go to that customer.')
+        return redirect(detail_url, pk=pk)
+    submitted = {k[len('site__'):]: v for k, v in request.POST.items() if k.startswith('site__')}
+    cleaned, rejected = _clean_site_org_map(request, connection, submitted)
+    _save_site_org_map(request, connection, cleaned, rejected, object_type, label)
     if rejected:
-        return JsonResponse({'ok': False, 'error': 'Some customers are not ones you can assign.',
-                             'rejected': rejected}, status=400)
-    return JsonResponse({'ok': True})
+        messages.warning(request, f'{len(rejected)} site(s) were not saved: that customer cannot be assigned.')
+    else:
+        messages.success(request, 'Site → customer mapping saved. Unmapped sites stay unassigned.')
+    return redirect(detail_url, pk=pk)
 
 
-def _get_unifi_connection(request, pk):
-    """Get UniFi connection by pk. Superusers/staff may access connections cross-org."""
-    if request.user.is_superuser or getattr(request, 'is_staff_user', False):
-        return get_object_or_404(UnifiConnection, pk=pk)
+@login_required
+@integration_access('admin')
+@require_POST
+def omada_site_org(request, pk):
+    return _network_site_org(request, OmadaConnection, pk, 'omada_connection', 'Omada',
+                             'integrations:omada_detail')
+
+
+@login_required
+@integration_access('admin')
+@require_POST
+def grandstream_site_org(request, pk):
+    return _network_site_org(request, GrandstreamConnection, pk, 'grandstream_connection', 'Grandstream',
+                             'integrations:grandstream_detail')
+
+
+@login_required
+@integration_access('admin')
+@require_POST
+def make_platform_owned_view(request, type_key, pk):
+    """Global view → Integrations → "Make platform-owned" (platform admins only).
+
+    Requires `confirm=yes` from the confirmation dialog. Everything the
+    connection already assigned keeps its customer; see
+    integrations.ownership.make_platform_owned."""
+    from .ownership import connection_types
+    if get_request_organization(request) is not None or not can_manage_platform(request.user):
+        raise PermissionDenied('Only platform admins in global view can change who owns a connection.')
+    types = connection_types()
+    if type_key not in types:
+        raise Http404('Unknown integration type.')
+    model = types[type_key][0]
+    connection = get_object_or_404(model, pk=pk)
+    if request.POST.get('confirm') != 'yes':
+        messages.error(request, 'Confirm the change to make this connection platform-owned.')
+        return redirect('integrations:integration_list')
+    try:
+        summary = make_platform_owned(connection, request.user, request=request)
+    except OwnershipError as exc:
+        messages.error(request, str(exc))
+        return redirect('integrations:integration_list')
+    messages.success(request, f'"{connection.name}" is now platform-owned (was {summary["previous_owner"]}). '
+                              'Data it already assigned kept its customer; new data that maps to no customer '
+                              'waits for you to assign it.')
+    return redirect('integrations:integration_list')
+
+
+def _get_unifi_connection(request, pk, level='read'):
+    """Get UniFi connection by pk.
+
+    Inside a customer, superusers and MSP staff may still open another
+    customer's own controller by id (as before), but never a platform-owned
+    one: those are managed from global view, under the platform rule."""
     org = get_request_organization(request)
-    return get_org_object_or_404(UnifiConnection, org, pk=pk)
+    if org is not None and (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+        return get_object_or_404(UnifiConnection.objects.filter(organization__isnull=False), pk=pk)
+    return get_connection_or_404(request, UnifiConnection, pk, level)
 
 
 def _get_unifi_provider(connection):
@@ -1972,6 +2141,8 @@ def _is_staff_admin(request):
         return False
     if user.is_superuser or user.is_staff:
         return True
+    if get_request_organization(request) is None:
+        return can_manage_platform(user)
     if not getattr(request, 'is_staff_user', False):
         return False
     from core.decorators import get_user_membership
@@ -1980,10 +2151,10 @@ def _is_staff_admin(request):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def unifi_test(request, pk):
     """Test UniFi connection."""
-    connection = _get_unifi_connection(request, pk)
+    connection = _get_unifi_connection(request, pk, 'write')
     provider = _get_unifi_provider(connection)
     result = provider.test_connection()
     if result['success']:
@@ -1995,7 +2166,7 @@ def unifi_test(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def unifi_sync(request, pk):
     """Sync UniFi data and regenerate documentation."""
     from django.utils import timezone
@@ -2003,7 +2174,7 @@ def unifi_sync(request, pk):
     from docs.models import Document
     import html as html_lib
 
-    connection = _get_unifi_connection(request, pk)
+    connection = _get_unifi_connection(request, pk, 'write')
 
     provider = _get_unifi_provider(connection)
     try:
@@ -2330,7 +2501,13 @@ def unifi_sync(request, pk):
 
         # Create or update document
         doc_title = f'{connection.name} — UniFi Network Documentation'
-        if connection.doc:
+        if connection.organization_id is None:
+            # Platform-owned: the data stays on this page for platform staff.
+            # Customer documentation is written only by a customer's own
+            # connection, so a shared controller or the MSP's own tenant
+            # never lands in one customer's documents.
+            pass
+        elif connection.doc:
             connection.doc.title = doc_title
             connection.doc.body = content
             connection.doc.content_type = 'html'
@@ -2353,6 +2530,7 @@ def unifi_sync(request, pk):
 
         connection.save()
         site_count = len(data.get('sites', []))
+        doc_note = ('' if connection.organization_id is None else 'Documentation updated. ')
         from . import health as _health
         from .network_assets import import_unifi_assets, record_unifi_import, summary_message
         if connection.auto_sync_assets:
@@ -2360,13 +2538,13 @@ def unifi_sync(request, pk):
             connection.last_asset_sync_at = timezone.now()
             connection.save(update_fields=['last_asset_sync_at'])
             record_unifi_import(connection, result)
-            messages.success(request, f"Synced {site_count} site(s). Documentation updated. "
+            messages.success(request, f"Synced {site_count} site(s). {doc_note}"
                                       f"Assets: {summary_message(result)}.")
             for it in result['issues'][:5]:
                 messages.warning(request, f"{it['message']} {it.get('action', '')}".strip())
         else:
             _health.record_sync(connection, 'unifi', status=_health.STATUS_SUCCESS)
-            messages.success(request, f"Synced {site_count} site(s). Documentation updated.")
+            messages.success(request, f"Synced {site_count} site(s). {doc_note}".strip())
     except Exception as e:
         from . import health as _health
         err = _health.redact_for(connection, e)
@@ -2377,7 +2555,7 @@ def unifi_sync(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def unifi_import_assets(request, pk):
     """Import UniFi devices into the asset registry (manual path).
 
@@ -2390,7 +2568,7 @@ def unifi_import_assets(request, pk):
         resolve_unifi_sites, summary_message,
     )
 
-    connection = _get_unifi_connection(request, pk)
+    connection = _get_unifi_connection(request, pk, 'admin')
     data = connection.cached_data or {}
     is_cloud = data.get('mode') == 'cloud'
     site_filter = request.GET.get('site', '').strip()
@@ -2451,13 +2629,13 @@ def _staff_admin_or_403(request):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def unifi_placement_report(request, pk):
     """Read-only: assets earlier syncs put under the wrong customer, gave the
     wrong type, or created twice. Corrections are a separate POST."""
     from .network_assets import build_unifi_placement_report
     _staff_admin_or_403(request)
-    connection = _get_unifi_connection(request, pk)
+    connection = _get_unifi_connection(request, pk, 'admin')
     report = build_unifi_placement_report(connection)
     return render(request, 'integrations/unifi_placement_report.html', {
         'connection': connection,
@@ -2466,13 +2644,13 @@ def unifi_placement_report(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_POST
 def unifi_placement_correct(request, pk):
     """Apply the selected placement-report findings (audited, before-values logged)."""
     from .network_assets import apply_unifi_corrections
     _staff_admin_or_403(request)
-    connection = _get_unifi_connection(request, pk)
+    connection = _get_unifi_connection(request, pk, 'admin')
     finding_ids = [f for f in request.POST.getlist('finding') if f][:500]
     if not finding_ids:
         messages.warning(request, 'Select at least one finding to correct.')
@@ -2520,31 +2698,30 @@ def _import_devices_to_assets(org, devices, source_label='Network', connection=N
 # ============================================================================
 
 @login_required
-@require_admin
+@integration_access('admin')
 def omada_create(request):
     """Create new Omada connection."""
     org = get_request_organization(request)
-    if not org:
-        messages.error(request, "Please select an organization first.")
-        return redirect('integrations:integration_list')
+    choices = _owner_choices_for(request, org)
 
     if request.method == 'POST':
-        form = OmadaConnectionForm(request.POST, organization=org)
+        form = OmadaConnectionForm(request.POST, organization=org, owner_choices=choices)
         if form.is_valid():
             connection = form.save()
             messages.success(request, f"Omada connection '{connection.name}' created.")
             return redirect('integrations:omada_detail', pk=connection.pk)
     else:
-        form = OmadaConnectionForm(organization=org)
+        form = OmadaConnectionForm(organization=org, owner_choices=choices)
 
     return render(request, 'integrations/omada_form.html', {'form': form, 'action': 'Create'})
 
 
 @login_required
+@integration_access('read')
 def omada_detail(request, pk):
     """View Omada connection details and cached data."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
+    connection = get_connection_or_404(request, OmadaConnection, pk, 'read')
     data = connection.cached_data or {}
 
     sites = []
@@ -2556,19 +2733,22 @@ def omada_detail(request, pk):
         })
 
     total_devices = sum(len(s['devices']) for s in sites)
+    site_rows, site_customers = _site_mapping_context(request, connection)
     return render(request, 'integrations/omada_detail.html', {
         'connection': connection,
         'sites': sites,
         'total_devices': total_devices,
+        'site_rows': site_rows,
+        'site_customers': site_customers,
     })
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def omada_edit(request, pk):
     """Edit Omada connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
+    connection = get_connection_or_404(request, OmadaConnection, pk, 'admin')
 
     if request.method == 'POST':
         form = OmadaConnectionForm(request.POST, instance=connection, organization=org)
@@ -2583,11 +2763,11 @@ def omada_edit(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def omada_delete(request, pk):
     """Delete Omada connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
+    connection = get_connection_or_404(request, OmadaConnection, pk, 'admin')
 
     if request.method == 'POST':
         name = connection.name
@@ -2599,12 +2779,12 @@ def omada_delete(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def omada_test(request, pk):
     """Test Omada connection."""
     from integrations.providers.omada import OmadaProvider
     org = get_request_organization(request)
-    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
+    connection = get_connection_or_404(request, OmadaConnection, pk, 'write')
     creds = connection.get_credentials()
     provider = OmadaProvider(
         host=connection.host,
@@ -2622,14 +2802,14 @@ def omada_test(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def omada_sync(request, pk):
     """Sync Omada data and optionally import assets."""
     from django.utils import timezone
     from integrations.providers.omada import OmadaProvider
 
     org = get_request_organization(request)
-    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
+    connection = get_connection_or_404(request, OmadaConnection, pk, 'write')
     creds = connection.get_credentials()
     provider = OmadaProvider(
         host=connection.host,
@@ -2650,11 +2830,11 @@ def omada_sync(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def omada_import_assets(request, pk):
     """Import Omada devices into the asset registry."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
+    connection = get_connection_or_404(request, OmadaConnection, pk, 'admin')
     data = connection.cached_data or {}
 
     all_devices = []
@@ -2677,7 +2857,10 @@ def omada_import_assets(request, pk):
                             failed=result['failed'], issues=result['issues'])
         msg = (f"Import complete: {result['created']} created, {result['updated']} updated, "
                f"{result['skipped']} unchanged, {result['failed']} failed.")
-        (messages.warning if result['failed'] else messages.success)(request, msg)
+        if result.get('skipped_sites'):
+            msg += (f" {result['skipped_sites']} site(s) map to no customer and were left unassigned —"
+                    " map them on this page.")
+        (messages.warning if (result['failed'] or result.get('skipped_sites')) else messages.success)(request, msg)
         return redirect('integrations:omada_detail', pk=pk)
 
     return render(request, 'integrations/omada_import_assets.html', {
@@ -2691,31 +2874,30 @@ def omada_import_assets(request, pk):
 # ============================================================================
 
 @login_required
-@require_admin
+@integration_access('admin')
 def grandstream_create(request):
     """Create new Grandstream connection."""
     org = get_request_organization(request)
-    if not org:
-        messages.error(request, "Please select an organization first.")
-        return redirect('integrations:integration_list')
+    choices = _owner_choices_for(request, org)
 
     if request.method == 'POST':
-        form = GrandstreamConnectionForm(request.POST, organization=org)
+        form = GrandstreamConnectionForm(request.POST, organization=org, owner_choices=choices)
         if form.is_valid():
             connection = form.save()
             messages.success(request, f"Grandstream connection '{connection.name}' created.")
             return redirect('integrations:grandstream_detail', pk=connection.pk)
     else:
-        form = GrandstreamConnectionForm(organization=org)
+        form = GrandstreamConnectionForm(organization=org, owner_choices=choices)
 
     return render(request, 'integrations/grandstream_form.html', {'form': form, 'action': 'Create'})
 
 
 @login_required
+@integration_access('read')
 def grandstream_detail(request, pk):
     """View Grandstream connection details and cached data."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
+    connection = get_connection_or_404(request, GrandstreamConnection, pk, 'read')
     data = connection.cached_data or {}
 
     sites = []
@@ -2727,19 +2909,22 @@ def grandstream_detail(request, pk):
         })
 
     total_devices = sum(len(s['devices']) for s in sites)
+    site_rows, site_customers = _site_mapping_context(request, connection)
     return render(request, 'integrations/grandstream_detail.html', {
         'connection': connection,
         'sites': sites,
         'total_devices': total_devices,
+        'site_rows': site_rows,
+        'site_customers': site_customers,
     })
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def grandstream_edit(request, pk):
     """Edit Grandstream connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
+    connection = get_connection_or_404(request, GrandstreamConnection, pk, 'admin')
 
     if request.method == 'POST':
         form = GrandstreamConnectionForm(request.POST, instance=connection, organization=org)
@@ -2754,11 +2939,11 @@ def grandstream_edit(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def grandstream_delete(request, pk):
     """Delete Grandstream connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
+    connection = get_connection_or_404(request, GrandstreamConnection, pk, 'admin')
 
     if request.method == 'POST':
         name = connection.name
@@ -2770,12 +2955,12 @@ def grandstream_delete(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def grandstream_test(request, pk):
     """Test Grandstream connection."""
     from integrations.providers.grandstream import GrandstreamProvider
     org = get_request_organization(request)
-    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
+    connection = get_connection_or_404(request, GrandstreamConnection, pk, 'write')
     creds = connection.get_credentials()
     provider = GrandstreamProvider(
         host=connection.host,
@@ -2792,14 +2977,14 @@ def grandstream_test(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def grandstream_sync(request, pk):
     """Sync Grandstream data and optionally import assets."""
     from django.utils import timezone
     from integrations.providers.grandstream import GrandstreamProvider
 
     org = get_request_organization(request)
-    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
+    connection = get_connection_or_404(request, GrandstreamConnection, pk, 'write')
     creds = connection.get_credentials()
     provider = GrandstreamProvider(
         host=connection.host,
@@ -2819,11 +3004,11 @@ def grandstream_sync(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def grandstream_import_assets(request, pk):
     """Import Grandstream devices into the asset registry."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
+    connection = get_connection_or_404(request, GrandstreamConnection, pk, 'admin')
     data = connection.cached_data or {}
 
     all_devices = []
@@ -2846,7 +3031,10 @@ def grandstream_import_assets(request, pk):
                             failed=result['failed'], issues=result['issues'])
         msg = (f"Import complete: {result['created']} created, {result['updated']} updated, "
                f"{result['skipped']} unchanged, {result['failed']} failed.")
-        (messages.warning if result['failed'] else messages.success)(request, msg)
+        if result.get('skipped_sites'):
+            msg += (f" {result['skipped_sites']} site(s) map to no customer and were left unassigned —"
+                    " map them on this page.")
+        (messages.warning if (result['failed'] or result.get('skipped_sites')) else messages.success)(request, msg)
         return redirect('integrations:grandstream_detail', pk=pk)
 
     return render(request, 'integrations/grandstream_import_assets.html', {
@@ -2860,31 +3048,30 @@ def grandstream_import_assets(request, pk):
 # ============================================================================
 
 @login_required
-@require_admin
+@integration_access('admin')
 def m365_create(request):
     """Create new M365 connection."""
     org = get_request_organization(request)
-    if not org:
-        messages.error(request, "Please select an organization first.")
-        return redirect('integrations:integration_list')
+    choices = _owner_choices_for(request, org)
 
     if request.method == 'POST':
-        form = M365ConnectionForm(request.POST, organization=org)
+        form = M365ConnectionForm(request.POST, organization=org, owner_choices=choices)
         if form.is_valid():
             connection = form.save()
             messages.success(request, f"M365 connection '{connection.name}' created.")
             return redirect('integrations:m365_detail', pk=connection.pk)
     else:
-        form = M365ConnectionForm(organization=org)
+        form = M365ConnectionForm(organization=org, owner_choices=choices)
 
     return render(request, 'integrations/m365_form.html', {'form': form, 'action': 'Create'})
 
 
 @login_required
+@integration_access('read')
 def m365_detail(request, pk):
     """View M365 connection details and cached data."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(M365Connection, org, pk=pk)
+    connection = get_connection_or_404(request, M365Connection, pk, 'read')
     data = connection.cached_data or {}
     raw_mailbox = data.get('mailbox_usage', [])
     first_mb = raw_mailbox[0] if raw_mailbox else {}
@@ -2909,11 +3096,11 @@ def m365_detail(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def m365_edit(request, pk):
     """Edit M365 connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(M365Connection, org, pk=pk)
+    connection = get_connection_or_404(request, M365Connection, pk, 'admin')
 
     if request.method == 'POST':
         form = M365ConnectionForm(request.POST, instance=connection, organization=org)
@@ -2928,11 +3115,11 @@ def m365_edit(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 def m365_delete(request, pk):
     """Delete M365 connection."""
     org = get_request_organization(request)
-    connection = get_org_object_or_404(M365Connection, org, pk=pk)
+    connection = get_connection_or_404(request, M365Connection, pk, 'admin')
 
     if request.method == 'POST':
         name = connection.name
@@ -2944,12 +3131,12 @@ def m365_delete(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def m365_test(request, pk):
     """Test M365 connection."""
     from integrations.providers.m365 import M365Provider
     org = get_request_organization(request)
-    connection = get_org_object_or_404(M365Connection, org, pk=pk)
+    connection = get_connection_or_404(request, M365Connection, pk, 'write')
     creds = connection.get_credentials()
     provider = M365Provider(connection.tenant_id, creds.get('client_id', ''), creds.get('client_secret', ''))
     result = provider.test_connection()
@@ -2962,7 +3149,7 @@ def m365_test(request, pk):
 
 
 @login_required
-@require_write
+@integration_access('write')
 def m365_sync(request, pk):
     """Sync M365 data and regenerate documentation."""
     from integrations.providers.m365 import M365Provider
@@ -2972,7 +3159,7 @@ def m365_sync(request, pk):
     import html as html_lib
 
     org = get_request_organization(request)
-    connection = get_org_object_or_404(M365Connection, org, pk=pk)
+    connection = get_connection_or_404(request, M365Connection, pk, 'write')
     creds = connection.get_credentials()
 
     provider = M365Provider(connection.tenant_id, creds.get('client_id', ''), creds.get('client_secret', ''))
@@ -3340,7 +3527,13 @@ def m365_sync(request, pk):
 </div>'''
 
         doc_title = f'{connection.name} \u2014 M365 Tenant Documentation'
-        if connection.doc:
+        if connection.organization_id is None:
+            # Platform-owned: the data stays on this page for platform staff.
+            # Customer documentation is written only by a customer's own
+            # connection, so a shared controller or the MSP's own tenant
+            # never lands in one customer's documents.
+            pass
+        elif connection.doc:
             connection.doc.title = doc_title
             connection.doc.body = content
             connection.doc.content_type = 'html'
@@ -3428,10 +3621,19 @@ def _distributor_form(request, pk):
             messages.error(request, 'Unsupported distributor provider.')
             return redirect(request.path)
 
-        try:
-            org = Organization.objects.get(pk=org_id)
-        except Organization.DoesNotExist:
-            messages.error(request, 'Pick a valid organization.')
+        # Blank owner = platform-owned (data is assigned by mapping). Moving
+        # an existing connection between a customer and the platform goes
+        # through "Make platform-owned", which keeps assigned data in place.
+        org = None
+        if org_id:
+            try:
+                org = Organization.objects.get(pk=org_id, is_active=True)
+            except (Organization.DoesNotExist, ValueError):
+                messages.error(request, 'Pick a valid owner.')
+                return redirect(request.path)
+        if item is not None and (item.organization_id is None) != (org is None):
+            messages.error(request, 'To move this connection to or from the platform, use "Make platform-owned" '
+                                    'on the Integrations page in global view.')
             return redirect(request.path)
 
         if item is None:
@@ -3711,10 +3913,19 @@ def _accounting_form(request, pk):
         if provider_type not in PROVIDER_REGISTRY:
             messages.error(request, 'Unsupported accounting provider.')
             return redirect(request.path)
-        try:
-            org = Organization.objects.get(pk=org_id)
-        except Organization.DoesNotExist:
-            messages.error(request, 'Pick a valid organization.')
+        # Blank owner = platform-owned (data is assigned by mapping). Moving
+        # an existing connection between a customer and the platform goes
+        # through "Make platform-owned", which keeps assigned data in place.
+        org = None
+        if org_id:
+            try:
+                org = Organization.objects.get(pk=org_id, is_active=True)
+            except (Organization.DoesNotExist, ValueError):
+                messages.error(request, 'Pick a valid owner.')
+                return redirect(request.path)
+        if item is not None and (item.organization_id is None) != (org is None):
+            messages.error(request, 'To move this connection to or from the platform, use "Make platform-owned" '
+                                    'on the Integrations page in global view.')
             return redirect(request.path)
 
         if item is None:

@@ -71,7 +71,7 @@ Rem0te is autoescaped text.
         {% for r in rows %}
         <div class="card mb-3" data-rem0te-connection="{{ r.connection.pk }}">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><strong>{{ r.connection.name }}</strong> <span class="text-muted">{{ r.connection.organization.name }} · <code>{{ r.organization_id }}</code></span></span>
+                <span><strong>{{ r.connection.name }}</strong> <span class="text-muted">{{ r.connection.owner_label }} · <code>{{ r.organization_id }}</code></span></span>
                 <span class="badge bg-{{ r.status.badge }}" data-rem0te-state="{{ r.status.state }}">{{ r.status.label }}</span>
             </div>
             <div class="card-body">

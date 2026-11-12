@@ -22,9 +22,9 @@
             </div>
 
             <div class="col-md-6">
-                <label class="form-label">Organization</label>
-                <select name="organization" class="form-select" required>
-                    <option value="">— select —</option>
+                <label class="form-label">Owner</label>
+                <select name="organization" class="form-select">
+                    <option value="" {% if item and not item.organization_id %}selected{% endif %}>Platform (the MSP)</option>
                     {% for org in organizations %}
                     <option value="{{ org.pk }}" {% if item.organization_id == org.pk %}selected{% endif %}>{{ org.name }}</option>
                     {% endfor %}

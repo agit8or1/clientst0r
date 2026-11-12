@@ -88,7 +88,8 @@ def check_git(target: Target | None):
     return Check('code checkout', 'ok', f'git checkout, origin {r.stdout.strip()}')
 
 
-def check_disk():
+def measure_sizes():
+    """(database bytes, uploaded-files bytes): what a backup has to copy."""
     db = settings.DATABASES['default']
     db_size = _size_of(Path(str(db['NAME']))) if snapshot.db_engine() == 'sqlite' else 0
     if snapshot.db_engine() == 'mysql':
@@ -100,7 +101,11 @@ def check_disk():
                 db_size = int(c.fetchone()[0])
         except Exception:
             db_size = 0
-    media = _size_of(Path(settings.MEDIA_ROOT))
+    return db_size, _size_of(Path(settings.MEDIA_ROOT))
+
+
+def check_disk():
+    db_size, media = measure_sizes()
     need = 2 * (db_size + media) + MIN_FREE_BYTES
     rows = []
     for label, path in (('install directory', Path(settings.BASE_DIR)),
@@ -115,8 +120,11 @@ def check_disk():
               f'free for the backup and the new release. ' +
               '; '.join(f'{label}: {_human(free)} free' for label, free in rows))
     if short:
-        return Check('disk space', 'fail', detail, 'Free some space (old backups live in '
-                     f'{journal.backup_root()}).')
+        return Check('disk space', 'fail', detail,
+                     'Free some space. Old pre-upgrade backups can be removed under Settings -> '
+                     'Updates -> Pre-upgrade backups ("Clean up now", or delete one; lower '
+                     '"Backups to keep"), or with `manage.py upgrade_backup --prune` / '
+                     f'`--delete PATH`. They live in {journal.backup_root()}.')
     return Check('disk space', 'ok', detail)
 
 

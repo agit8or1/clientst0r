@@ -19,7 +19,6 @@ back with `manage.py upgrade_restore`.
 """
 from __future__ import annotations
 
-import fcntl
 import logging
 import os
 import subprocess
@@ -66,16 +65,11 @@ class ApplyFailed(Exception):
 
 @contextmanager
 def _exclusive():
-    root = journal.ensure_private_dir(journal.backup_root())
-    fd = os.open(str(root / 'apply.lock'), os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise ApplyRefused('Another upgrade is running.')
-        yield
-    finally:
-        os.close(fd)
+        with journal.upgrade_lock():
+            yield
+    except journal.LockHeld as e:
+        raise ApplyRefused(str(e))
 
 
 def _service_name():
@@ -89,6 +83,7 @@ def _service_name():
 class _Reporter:
     def __init__(self, emit, progress):
         self.emit, self.progress, self.lines = emit, progress, []
+        self.began = False   # set once this run owns the journal entry
 
     def __call__(self, line, level='info'):
         self.lines.append(line)
@@ -106,6 +101,38 @@ class _Reporter:
         if self.progress:
             self.progress.step_complete(step)
 
+    def _progress(self, method, *args):
+        if self.progress and hasattr(self.progress, method):
+            try:
+                getattr(self.progress, method)(*args)
+            except Exception:
+                logger.exception('progress update failed')   # cosmetic; never fails a run
+
+    def backup_begin(self, est):
+        """est: snapshot.estimate(), or None when the sizes could not be
+        measured (the view then shows the parts and elapsed time only)."""
+        self.estimate = est
+        if not est:
+            self._progress('backup_begin', {})
+            return
+        self(f"Pre-upgrade backup: database {preflight._human(est['database_bytes'])}, uploads "
+             f"{preflight._human(est['media_bytes'])}; expected to take about "
+             f"{snapshot.format_duration(est['total'])} ({est['basis']}).")
+        self._progress('backup_begin', est)
+
+    def backup_phase(self, key):
+        from core.update_progress import BACKUP_PHASES
+        label = dict(BACKUP_PHASES).get(key)
+        if not label:
+            return
+        expected = (getattr(self, 'estimate', None) or {}).get(key)
+        self(f'Backup: {label}' + (f' (about {snapshot.format_duration(expected)})...'
+                                   if expected else '...'))
+        self._progress('backup_phase', key)
+
+    def backup_end(self):
+        self._progress('backup_end')
+
 
 def run(target: Target | None, *, user=None, progress=None, emit=None, resume=False,
         deps_check=True, allow_preview=False, env_extra=None) -> dict:
@@ -117,8 +144,16 @@ def run(target: Target | None, *, user=None, progress=None, emit=None, resume=Fa
               'backup': None, 'target': target.as_dict() if target else None}
     try:
         with _exclusive():
-            _run(target, say, result, user=user, resume=resume, deps_check=deps_check,
-                 allow_preview=allow_preview, env_extra=env_extra or {})
+            try:
+                _run(target, say, result, user=user, resume=resume, deps_check=deps_check,
+                     allow_preview=allow_preview, env_extra=env_extra or {})
+            finally:
+                # Every run that started, whatever its outcome, leaves the
+                # backup directory within the retention rules (the journal's
+                # backup is kept). A run refused before it began -- e.g.
+                # because the last upgrade needs recovery -- touches nothing.
+                if say.began:
+                    _groom(say, user, 'after the upgrade run')
     except ApplyRefused as e:
         result.update(refused=True, error=str(e))
         say(f'REFUSED: {e}')
@@ -179,6 +214,7 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     else:
         journal.begin(target=target.as_dict(), prev_sha=installed_sha, prev_version=installed_ver,
                       user=getattr(user, 'username', None) or 'system')
+    say.began = True
 
     # 1-2: the reviewed revision, exactly
     say.start('Verify Revision')
@@ -216,6 +252,11 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     journal.stage('revision_verified', target_version=target_version)
     say.done('Verify Revision')
 
+    # Free the space for this run's backup before the disk check: retention
+    # with the new backup counted, never below one verified backup.
+    if not resume:
+        _groom(say, user, 'before the pre-upgrade backup', reserve=1)
+
     # 3: preflight
     say.start('Preflight Checks')
     checks = preflight.run(target, installed_sha=installed_sha, deps=deps_check)
@@ -243,9 +284,19 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         say(f'Reusing the pre-upgrade backup {backup} ({detail})')
     else:
         try:
+            try:
+                say.backup_begin(snapshot.estimate(*preflight.measure_sizes()))
+            except Exception:
+                logger.exception('could not estimate the backup duration')
+                say.backup_begin(None)
             snap = snapshot.create(reason=f'before upgrade to {target.ref}', target=target.as_dict(),
-                                   out=say)
+                                   out=say, phase=say.backup_phase)
+            say.backup_phase('verify')
             report = snapshot.verify(snap, out=say)
+            say.backup_end()
+            took = _took(snap)
+            if took:
+                say(f'Backup took {snapshot.format_duration(took)}.')
         except Exception as e:
             journal.finish('aborted', error=f'backup failed: {e}')
             raise ApplyRefused(f'Could not take a verified backup, so nothing was changed: {e}')
@@ -305,10 +356,32 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     if data.get('status') != 'complete':
         journal.stage('complete')
     result['success'] = True
+
+
+def _took(snap):
+    """Seconds the backup took (creating + verifying), from what it recorded."""
     try:
-        snapshot.prune(out=say)
-    except Exception as e:  # pruning must never fail a finished upgrade
-        say(f'Could not prune old upgrade backups: {e}', 'warning')
+        import json
+        m = snapshot.load_manifest(snap)
+        v = json.loads((snap / 'verification.json').read_text())
+        return float((m.get('timings') or {}).get('create_seconds') or 0) + \
+            float(v.get('duration_seconds') or 0)
+    except Exception:
+        return 0
+
+
+def _groom(say, user, when, reserve=0):
+    """Apply backup retention inside this run (core.upgrade.retention). Never
+    fails the run: a backup that cannot be removed is only reported."""
+    from . import retention
+    try:
+        removed = retention.prune(trigger='upgrade', user=user, out=say, reserve=reserve,
+                                  in_run=True)
+        if removed:
+            say(f'Backup cleanup {when}: removed {len(removed)} old backup(s).')
+    except Exception as e:
+        logger.exception('upgrade backup cleanup failed')
+        say(f'Could not clean up old upgrade backups ({when}): {e}', 'warning')
 
 
 def _audit(user, result):

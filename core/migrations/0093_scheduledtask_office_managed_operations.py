@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0090_scheduledtask_office_purge_quarantine'),
+        ('core', '0092_scheduledtask_office_purge_quarantine'),
     ]
 
     operations = [

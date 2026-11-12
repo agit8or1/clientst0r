@@ -482,7 +482,7 @@ def propose_pairing(connection, pairing_request, by, request=None):
         what.append('marked on-premises')
     return propose('business_mapping',
                    f'{connection.get_provider_type_display()} ticket integration pairing "{connection.name}" at '
-                   f'{connection.organization.name}: {", ".join(what)}',
+                   f'{connection.owner_label}: {", ".join(what)}',
                    {'connection': connection.pk, 'provider': connection.provider_type,
                     'fingerprint': pairing_fingerprint(connection), **pairing_request}, what, by, request=request)
 

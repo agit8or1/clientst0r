@@ -1,0 +1,1 @@
+{% if r.platform_owned %}<span class="badge bg-primary-subtle text-primary-emphasis border" title="Platform-owned: data is assigned to customers by mapping">Platform</span>{% else %}<span class="badge bg-light text-dark border" title="This customer's own connection">{{ r.owner }}</span>{% endif %}

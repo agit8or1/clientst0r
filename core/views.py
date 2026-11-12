@@ -709,12 +709,16 @@ def system_updates(request):
             'current_version': get_version(),
         }
 
-    from core.upgrade import journal as upgrade_journal, snapshot as upgrade_snapshot
+    from core.upgrade import journal as upgrade_journal, retention as upgrade_retention
     upgrade_state = upgrade_journal.assess()
+    # Sizes come from a stat of each snapshot's few files; nothing is re-hashed.
     try:
-        recent_backups = upgrade_snapshot.list_snapshots(quick=True)[:5]
+        backups = upgrade_retention.summary()
     except Exception:
-        recent_backups = []
+        logger.exception('could not list the upgrade backups')
+        backups = {'backups': [], 'total_human': '?', 'free_human': 'unknown', 'policy': None,
+                   'env_keep': upgrade_retention.env_keep(), 'would_remove': 0}
+    recent_backups = backups['backups']
 
     # Get last OS package scan
     from core.models import SystemPackageScan
@@ -735,6 +739,9 @@ def system_updates(request):
         'channels': update_info.get('channels') or {},
         'upgrade_state': upgrade_state,
         'recent_backups': recent_backups,
+        'backups': backups,
+        'cleanup_blocked': (upgrade_state['state'] in ('running', 'unreadable')
+                            or upgrade_state['needs_recovery']),
         'backup_dir': str(upgrade_journal.backup_root()),
     })
 
@@ -760,6 +767,87 @@ def set_update_channel(request):
     messages.success(request, 'Following the Preview channel: Apply offers the newest commit on main '
                      '(unreleased, unsigned).' if channel == 'preview' else
                      'Following the Stable channel: Apply offers signed published releases only.')
+    return redirect('core:system_updates')
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+def upgrade_backup_settings(request):
+    """Retention for pre-upgrade backups: how many to keep, and how old."""
+    from core.models import SystemSetting
+    errors = []
+
+    def number(field, label, minimum, maximum):
+        raw = (request.POST.get(field) or '').strip()
+        if not raw:
+            return None
+        try:
+            value = int(raw)
+        except ValueError:
+            errors.append(f'{label} must be a whole number.')
+            return None
+        if not minimum <= value <= maximum:
+            errors.append(f'{label} must be between {minimum} and {maximum}.')
+            return None
+        return value
+
+    keep = number('keep', 'Backups to keep', 1, 100)
+    max_age = number('max_age_days', 'Maximum age', 1, 3650)
+    if errors:
+        for e in errors:
+            messages.error(request, e)
+        return redirect('core:system_updates')
+    s = SystemSetting.get_settings()
+    before = (s.upgrade_backups_keep, s.upgrade_backups_max_age_days)
+    if before != (keep, max_age):
+        SystemSetting.objects.filter(pk=1).update(upgrade_backups_keep=keep,
+                                                  upgrade_backups_max_age_days=max_age)
+        AuditLog.objects.create(
+            user=request.user, username=request.user.username, action='update',
+            object_type='system_setting', object_repr='Upgrade backup retention',
+            description=(f"Upgrade backup retention: keep {keep or 'default'}, "
+                         f"max age {f'{max_age} days' if max_age else 'none'}"),
+            extra_data={'before': {'keep': before[0], 'max_age_days': before[1]},
+                        'after': {'keep': keep, 'max_age_days': max_age}})
+    messages.success(request, 'Backup retention saved. It is applied by every upgrade, by the daily '
+                     'cleanup, and by "Clean up now".')
+    return redirect('core:system_updates')
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+@ratelimit(key='user', rate='30/h', method='POST', block=True)
+def upgrade_backups_prune(request):
+    """"Clean up now": apply the retention rules immediately."""
+    from core.upgrade import retention
+    try:
+        removed = retention.prune(trigger='web', user=request.user)
+    except retention.RetentionRefused as e:
+        messages.error(request, str(e))
+        return redirect('core:system_updates')
+    if removed:
+        messages.success(request, f'Removed {len(removed)} old backup(s).')
+    else:
+        messages.info(request, 'Nothing to remove: every backup is within the retention rules.')
+    return redirect('core:system_updates')
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+@ratelimit(key='user', rate='60/h', method='POST', block=True)
+def upgrade_backup_delete(request):
+    """Remove one pre-upgrade backup, named by its directory name."""
+    from core.upgrade import retention
+    name = request.POST.get('name', '')
+    try:
+        path = retention.delete(name, user=request.user, trigger='web')
+    except retention.RetentionRefused as e:
+        messages.error(request, str(e))
+        return redirect('core:system_updates')
+    messages.success(request, f'Removed the backup {path.rsplit("/", 1)[-1]}.')
     return redirect('core:system_updates')
 
 
@@ -904,7 +992,17 @@ def apply_update(request):
             return JsonResponse({'status': 'error', 'message':
                                  f'No reviewed revision was sent ({e}). Reload the page.'}, status=400)
         updater = UpdateService()
-        current = (updater.check_for_updates().get('target') or {})
+        # Ask GitHub now rather than trusting any stored answer: the page may
+        # be minutes old, and what is installed must be what the channel
+        # offers at this moment. If GitHub cannot be asked, refuse rather
+        # than install from a stale answer.
+        info = updater.check_for_updates(force_refresh=True)
+        if info.get('error'):
+            return JsonResponse({'status': 'error', 'message':
+                                 'Could not confirm with GitHub what this channel offers right now '
+                                 f"({info['error']}), so nothing was started. Try again in a few "
+                                 'minutes.'}, status=503)
+        current = (info.get('target') or {})
         if (current.get('kind'), current.get('ref'), current.get('sha')) != \
                 (reviewed.kind, reviewed.ref, reviewed.sha):
             return JsonResponse({'status': 'error', 'message':
@@ -976,9 +1074,13 @@ def update_progress_api(request):
     API endpoint for checking update progress (for AJAX polling).
     Staff-only access.
     """
+    import time as _time
     from core.update_progress import UpdateProgress
-    progress = UpdateProgress()
-    return JsonResponse(progress.get_progress())
+    progress = UpdateProgress().get_progress()
+    # The page measures elapsed time against the server's clock, not the
+    # browser's (they need not agree).
+    progress['now'] = _time.time()
+    return JsonResponse(progress)
 
 
 @login_required

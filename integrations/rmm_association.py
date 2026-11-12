@@ -160,7 +160,9 @@ def resolve_customer(connection, data, device=None, *, legacy_keys=()):
     RMM used name slugs), so existing mappings carry over.
     """
     from .models import RMMDevice
-    if connection.is_single_customer:
+    # Single customer means "the owner's": a platform-owned connection has no
+    # customer of its own, so it always resolves each device's customer.
+    if connection.is_single_customer and connection.organization_id is not None:
         return CustomerDecision(connection.organization)
 
     identity = customer_identity(data)

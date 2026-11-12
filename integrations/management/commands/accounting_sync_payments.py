@@ -62,9 +62,9 @@ class Command(BaseCommand):
                 continue
 
             # Outstanding pushed invoices on this org
-            invs = (Invoice.objects
-                    .filter(organization=conn.organization,
-                            pushed_to_accounting_at__isnull=False,
+            from integrations.ownership import invoices_for_connection
+            invs = (invoices_for_connection(conn)
+                    .filter(pushed_to_accounting_at__isnull=False,
                             accounting_external_id__gt='')
                     .filter(~Q(status='paid') & ~Q(status='void')
                             & Q(amount_paid__lt=F('total'))))

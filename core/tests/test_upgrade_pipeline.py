@@ -14,6 +14,7 @@ database files, git repositories) is a temporary directory.
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import shutil
@@ -181,6 +182,33 @@ class SnapshotTests(_TmpMixin, SimpleTestCase):
         self.assertIn('1 uploaded file(s)', names['media']['detail'])
         self.assertEqual(snapshot.load_manifest(snap)['git_sha'], SHA1)
         self.assertTrue(snapshot.is_verified(snap)[0])
+
+    def test_backup_records_how_long_it_took_and_reports_its_parts(self):
+        """v3.17.667: the next backup's estimate comes from these."""
+        phases = []
+        # A clock that advances a second per reading: a tiny test backup
+        # would otherwise round to 0 s, which the estimate rightly ignores.
+        ticks = iter(range(0, 10_000))
+        with mock.patch.object(snapshot.time, 'monotonic', side_effect=lambda: float(next(ticks))):
+            snap = snapshot.create(reason='test', phase=phases.append)
+            report = snapshot.verify(snap)
+        self.assertEqual(phases, ['database', 'media'])
+        m = snapshot.load_manifest(snap)
+        self.assertEqual(set(m['timings']), {'database_seconds', 'media_seconds', 'create_seconds'})
+        self.assertEqual(m['sizes']['database_bytes'], (snap / 'database.sqlite3').stat().st_size)
+        self.assertEqual(m['sizes']['media_bytes'], len(b'hello attachment'))
+        self.assertGreaterEqual(report['duration_seconds'], 0)
+        saved = json.loads((snap / 'verification.json').read_text())
+        self.assertIn('duration_seconds', saved)
+        self.assertTrue(snapshot.is_verified(snap)[0])
+        est = snapshot.estimate(10_000_000, 20_000_000)
+        self.assertIn('previous backup', est['basis'])
+
+    def test_a_failing_progress_callback_does_not_break_the_backup(self):
+        def boom(name):
+            raise RuntimeError('progress view gone')
+        snap = snapshot.create(reason='test', phase=boom)
+        self.assertTrue(snapshot.verify(snap)['ok'])
 
     def test_backup_records_the_revision_that_matches_the_database(self):
         snap = snapshot.create(reason='legacy', code_sha=SHA2, code_version='3.17.640')
@@ -399,11 +427,11 @@ def _github(stable='3.17.640', main_version='3.17.659', ahead=19, extra_releases
     return get
 
 
-class ChannelTests(TestCase):
+class ChannelTests(_TmpMixin, TestCase):
     def setUp(self):
-        channels.clear_cache()
-        from django.core.cache import cache
-        cache.delete(channels.CACHE_KEY_LAST_GOOD)
+        o = override_settings(UPGRADE_BACKUP_DIR=self.make_tmp() / 'backups')
+        o.enable()
+        self.addCleanup(o.disable)
 
     def _resolve(self, installed_version, channel='stable', get=None, installed_sha=SHA1):
         from core.models import SystemSetting
@@ -462,6 +490,153 @@ class ChannelTests(TestCase):
         self.assertIn('rate limit', r['error'])
         self.assertTrue(r['stale'])
         self.assertEqual(r['target']['ref'], 'v3.17.640')
+
+
+class _Process:
+    """One gunicorn worker (or the scheduler): its own process-local cache.
+
+    Production runs LocMemCache with several workers, so anything kept in
+    the default cache is per process. Each _Process swaps in a separate
+    LocMemCache while it runs, as if it were a different worker."""
+    def __init__(self, name):
+        from django.core.cache.backends.locmem import LocMemCache
+        self.cache = LocMemCache(f'cs0r-test-{name}-{id(self)}', {})
+
+    def __call__(self, fn, *a, get=None, **k):
+        inst = {'version': '3.17.630', 'sha': '9' * 40, 'branch': 'main', 'clean': True,
+                'is_git': True}
+        with mock.patch('core.upgrade.channels.cache', self.cache, create=True), \
+                mock.patch.object(channels, 'installed', return_value=inst), \
+                mock.patch.object(channels.requests, 'get', side_effect=get or _github()):
+            return fn(*a, **k)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class SharedChannelStateTests(_TmpMixin, TestCase):
+    """v3.17.667: every process sees one answer about what the channel offers.
+
+    What went wrong: Settings -> Updates, served by one worker, offered the
+    release just published; the Apply POST reached a worker whose cached
+    answer was older and refused with "What this channel offers has changed
+    since the page was loaded (now: nothing)"."""
+
+    def setUp(self):
+        self.tmp = self.make_tmp()
+        o = override_settings(UPGRADE_BACKUP_DIR=self.tmp / 'backups')
+        o.enable()
+        self.addCleanup(o.disable)
+        self.a, self.b = _Process('a'), _Process('b')
+        p = mock.patch('core.update_progress.UpdateProgress')
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_refresh_in_one_process_is_seen_by_another(self):
+        old = self.b(channels.resolve, get=_github(stable='3.17.640'))
+        self.assertEqual(old['target']['ref'], 'v3.17.640')
+        fresh = self.a(channels.resolve, force_refresh=True, get=_github(stable='3.17.666'))
+        self.assertEqual(fresh['target']['ref'], 'v3.17.666')
+
+        def no_network(*a, **k):
+            raise AssertionError('should reuse the shared answer, not ask GitHub')
+        seen = self.b(channels.resolve, get=no_network)
+        self.assertEqual(seen['target']['ref'], 'v3.17.666')
+        self.assertTrue(seen['from_cache'])
+
+    def test_clear_cache_in_one_process_applies_to_all(self):
+        self.b(channels.resolve, get=_github(stable='3.17.640'))
+        self.a(channels.clear_cache)
+        seen = self.b(channels.resolve, get=_github(stable='3.17.666'))
+        self.assertEqual(seen['target']['ref'], 'v3.17.666')
+        self.assertFalse(seen['from_cache'])
+
+    def test_last_good_answer_is_shared(self):
+        import requests
+
+        def down(*a, **k):
+            raise requests.ConnectionError('no route')
+        self.a(channels.resolve, force_refresh=True, get=_github(stable='3.17.666'))
+        r = self.b(channels.resolve, force_refresh=True, get=down)
+        self.assertTrue(r['stale'])
+        self.assertIn('Cannot connect', r['error'])
+        self.assertEqual(r['stable']['tag'], 'v3.17.666')
+
+    def test_state_file_is_private_and_atomic(self):
+        self.a(channels.resolve, force_refresh=True)
+        path = channels.state_path()
+        self.assertEqual(_mode(path), 0o600)
+        self.assertEqual(json.loads(path.read_text())['format'], channels.STATE_FORMAT)
+        self.assertEqual([p.name for p in path.parent.iterdir() if p.name.endswith('.tmp')], [])
+
+    def test_unwritable_state_dir_still_answers(self):
+        with mock.patch.object(channels.tempfile, 'mkstemp', side_effect=OSError('read-only')):
+            r = self.a(channels.resolve, force_refresh=True)
+        self.assertEqual(r['target']['ref'], 'v3.17.640')
+        self.assertFalse(channels.state_path().exists())
+
+    def _login(self):
+        su = get_user_model().objects.create_user('shared_su', 's@x.invalid', 'pw',
+                                                  is_superuser=True, is_staff=True)
+        self.client.force_login(su)
+
+    def _apply(self, process, body, get):
+        def post():
+            return self.client.post(reverse('core:apply_update'), data=json.dumps(body),
+                                    content_type='application/json')
+        with mock.patch('core.updater.UpdateService.perform_update') as perform, \
+                mock.patch('threading.Thread') as thread:
+            r = process(post, get=get)
+        self.performed = perform.called or thread.called
+        return r
+
+    def test_apply_in_another_worker_installs_what_the_page_showed(self):
+        self._login()
+        # Worker B looked earlier, when Stable was v3.17.640.
+        self.b(channels.resolve, get=_github(stable='3.17.640'))
+        # v3.17.666 is published; worker A serves the page and offers it.
+        page = self.a(channels.resolve, force_refresh=True, get=_github(stable='3.17.666'))
+        reviewed = {k: page['target'][k] for k in ('kind', 'ref', 'sha')}
+        self.assertEqual(reviewed['ref'], 'v3.17.666')
+        # The Apply POST lands on worker B.
+        r = self._apply(self.b, reviewed, _github(stable='3.17.666'))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()['status'], 'started')
+
+    def test_apply_asks_github_again_rather_than_trusting_the_stored_answer(self):
+        self._login()
+        page = self.a(channels.resolve, force_refresh=True, get=_github(stable='3.17.640'))
+        reviewed = {k: page['target'][k] for k in ('kind', 'ref', 'sha')}
+        # Since the page loaded, a newer release came out: the stored answer
+        # still says 640, GitHub says 666. Apply must notice.
+        r = self._apply(self.b, reviewed, _github(stable='3.17.666'))
+        self.assertEqual(r.status_code, 409)
+        self.assertIn('v3.17.666', r.json()['message'])
+
+    def test_apply_refuses_when_github_is_unreachable(self):
+        import requests
+        self._login()
+        page = self.a(channels.resolve, force_refresh=True, get=_github(stable='3.17.666'))
+        reviewed = {k: page['target'][k] for k in ('kind', 'ref', 'sha')}
+
+        def down(*a, **k):
+            raise requests.ConnectionError('no route')
+        r = self._apply(self.b, reviewed, down)
+        self.assertEqual(r.status_code, 503)
+        self.assertIn('Could not confirm with GitHub', r.json()['message'])
+        self.assertIn('nothing was started', r.json()['message'])
+        self.assertFalse(self.performed)
+
+    def test_cli_does_not_install_from_a_stale_answer(self):
+        import requests
+        from django.core.management import call_command
+        self.a(channels.resolve, force_refresh=True, get=_github(stable='3.17.666'))
+
+        def down(*a, **k):
+            raise requests.ConnectionError('no route')
+        with mock.patch.object(upgrade_apply, 'run') as run, self.assertRaises(SystemExit) as cm:
+            self.b(call_command, 'upgrade_apply', '--auto', stdout=io.StringIO(),
+                   stderr=io.StringIO(), get=down)
+        self.assertEqual(cm.exception.code, 4)
+        run.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -796,8 +971,6 @@ class UpdatesViewTests(_TmpMixin, TestCase):
         self.assertEqual(data['checks'][0]['name'], 'disk space')
 
     def test_updates_page_shows_installed_stable_and_unreleased_main(self):
-        from django.core.cache import cache
-        cache.delete(channels.CACHE_KEY_LAST_GOOD)
         inst = {'version': '3.17.558', 'sha': '9' * 40, 'branch': 'main', 'clean': True, 'is_git': True}
         with mock.patch.object(channels, 'installed', return_value=inst), \
                 mock.patch.object(channels.requests, 'get', side_effect=_github()):
@@ -811,8 +984,6 @@ class UpdatesViewTests(_TmpMixin, TestCase):
 
     def test_updates_page_survives_github_being_down(self):
         import requests
-        from django.core.cache import cache
-        cache.delete(channels.CACHE_KEY_LAST_GOOD)
 
         def down(*a, **k):
             raise requests.Timeout('slow')
@@ -871,28 +1042,3 @@ class ChannelUpgradeDefaultTests(TestCase):
         SystemSetting.get_settings()
         self._run()
         self.assertEqual(SystemSetting.get_settings().update_channel, 'preview')
-
-
-class BackupPruneTests(TestCase):
-    """After a successful upgrade only the newest verified backups are kept;
-    the journal's backup and unverified ones are never removed."""
-
-    def test_prune_keeps_newest_pinned_and_unverified(self):
-        from unittest import mock
-        from core.upgrade import snapshot
-        root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, root, True)
-        snaps = []
-        for i in range(5):
-            d = root / f'snapshot-2026111{i}'
-            d.mkdir()
-            snaps.append({'path': str(d), 'verified': i != 1})
-        snaps.reverse()  # newest first, like list_snapshots()
-        pinned = str(root / 'snapshot-20261110')  # oldest, but the journal points at it
-        with mock.patch.object(snapshot, 'list_snapshots', return_value=snaps), \
-                mock.patch.object(snapshot.journal, 'read', return_value={'backup': pinned}):
-            removed = snapshot.prune(keep=2)
-        self.assertEqual(removed, [str(root / 'snapshot-20261112')])
-        left = sorted(p.name for p in root.iterdir())
-        self.assertEqual(left, ['snapshot-20261110', 'snapshot-20261111', 'snapshot-20261113',
-                                'snapshot-20261114'])

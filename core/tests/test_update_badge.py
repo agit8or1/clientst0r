@@ -64,10 +64,14 @@ class UpdateBadgeTests(TestCase):
 
     def test_update_check_records_the_latest_release_for_every_process(self):
         """The badge shows the latest published (stable) release."""
-        from django.core.cache import cache
-        from core.upgrade import channels
-        cache.delete(channels.CACHE_KEY)
-        cache.delete(channels.CACHE_KEY_LAST_GOOD)
+        import shutil
+        import tempfile
+        from pathlib import Path
+        tmp = tempfile.mkdtemp(prefix='cs0r-badge-test-')
+        self.addCleanup(shutil.rmtree, tmp, True)
+        o = override_settings(UPGRADE_BACKUP_DIR=Path(tmp))
+        o.enable()
+        self.addCleanup(o.disable)
         newer = _bump(get_version(), 3)
         remote = {'stable': {'tag': f'v{newer}', 'version': newer, 'sha': 'a' * 40},
                   'preview': None}

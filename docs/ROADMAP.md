@@ -1713,6 +1713,29 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Integrations belong to the platform** *(partial — platform ownership, global-view management and mapping-only data shipped v3.17.667; per-customer docs from platform controllers and multi-customer RMM ticket pairing planned)*: connections are
+  platform-owned by default and added from global view, with an optional
+  owner of one customer (its own Microsoft 365 tenant or on-site controller).
+  Data from a platform connection reaches a customer only through the
+  connection's mapping (PSA company, RMM customer, controller site,
+  accounting customer); unmapped data stays with platform staff in global
+  view. Managing platform connections needs a global role granting
+  `integrations_configure` (sync and view have their own flags); a
+  customer's admins see only their own connections and a read-only note.
+  Existing connections keep their customer until a platform administrator
+  uses the audited "Make platform-owned" action (or
+  `manage.py integrations_ownership`). Extends integrations from global view
+  (shipped v3.17.662). Planned: per-customer documentation from platform
+  UniFi and Microsoft 365 connections, and ticket pairing for multi-customer
+  platform RMM connections.
+- **Pre-upgrade backups that look after themselves** *(shipped v3.17.667)*:
+  every update trims old backups before and after it runs, keeping the
+  newest verified one and anything a recovery needs; Settings → Updates
+  lists them with sizes, retention settings, Delete and Clean up now, and
+  the backup step shows its parts, elapsed and expected time.
+- **Snyk CLI update alerts** *(shipped v3.17.667)*: a daily check e-mails
+  superusers once per new CLI version; upgrading stays a manual,
+  exact-version install.
 - **Local days everywhere "today" matters** *(shipped v3.17.666)*: reports,
   PSA contracts and invoices, vehicles, resourcing, runbooks, payroll export,
   the mobile calendar, notifications and AI triage limits use the

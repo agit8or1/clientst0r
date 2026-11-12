@@ -63,6 +63,12 @@ class Command(BaseCommand):
                 out(f"Preview:   main @ {p['sha'][:12]} v{p.get('version') or '?'}"
                     + (f" -- {ahead} unreleased commit(s) after the stable release (not a release)"
                        if ahead else ''))
+            if state['error']:
+                # Never install from a stored answer: what is installed must
+                # be what the channel offers now.
+                self.stderr.write('Could not confirm with GitHub what this channel offers; '
+                                  'nothing was installed.')
+                sys.exit(4)
             t = state['target']
             if not t:
                 out('Nothing newer to install on this channel.')

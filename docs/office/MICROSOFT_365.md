@@ -16,7 +16,7 @@ permissions). Every Graph call runs as that person, so Microsoft's own
 permissions apply on top of clientst0r's.
 
 Code: `integrations/m365docs/`. Models and migration:
-`integrations/migrations/0040_m365_documents.py`. Tests:
+`integrations/migrations/0041_m365_documents.py`. Tests:
 `integrations/tests_m365docs.py`, plus `integrations/tests_m365docs_e2e.py`
 for a real tenant (opt-in; **not run** so far).
 

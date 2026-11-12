@@ -52,27 +52,7 @@
                     </div>
                     {% endif %}
 
-                    <!-- Organization Selection (if multiple orgs) -->
-                    {% if show_org_selector %}
-                    <div class="mb-3">
-                        <label for="organization" class="form-label">Organization *</label>
-                        <select class="form-select" id="organization" name="organization" required>
-                            <option value="">Select an organization...</option>
-                            {% for org in user_organizations %}
-                            <option value="{{ org.pk }}" {% if selected_org.pk == org.pk %}selected{% endif %}>
-                                {{ org.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        <small class="form-text text-muted">Choose which organization this integration belongs to</small>
-                    </div>
-                    {% elif selected_org %}
-                    <input type="hidden" name="organization" value="{{ selected_org.pk }}">
-                    <div class="alert alert-info mb-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        This integration will be created for: <strong>{{ selected_org.name }}</strong>
-                    </div>
-                    {% endif %}
+                    {% include 'integrations/_owner_field.html' %}
 
                     <!-- Provider Type Selection -->
                     <div class="mb-3">

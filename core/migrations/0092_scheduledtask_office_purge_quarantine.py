@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0089_scheduledtask_ldap_group_sync'),
+        ('core', '0091_snyk_update_check'),
     ]
 
     operations = [

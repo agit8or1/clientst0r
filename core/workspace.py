@@ -799,11 +799,18 @@ def _review_panel(request, customer_ids):
     try:
         from integrations.models import RMMDevice
         current = getattr(request, 'current_organization', None)
-        # rmm_review opens connections of the current customer only.
+        # rmm_review opens the current customer's own connections inside a
+        # customer, and platform-owned connections in global view.
+        pending = None
         if current is not None and (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
             from core.utils import descendant_org_ids
-            pending = (RMMDevice.objects.exclude(ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
-                       .filter(connection__organization_id__in=descendant_org_ids(current))
+            pending = RMMDevice.objects.filter(connection__organization_id__in=descendant_org_ids(current))
+        elif current is None:
+            from integrations.ownership import can_view_platform
+            if can_view_platform(request.user):
+                pending = RMMDevice.objects.filter(connection__organization__isnull=True)
+        if pending is not None:
+            pending = (pending.exclude(ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
                        .values('connection_id', 'connection__name').order_by())
             from django.db.models import Count
             for row in pending.annotate(n=Count('id'))[:PANEL_LIMIT]:

@@ -3,6 +3,8 @@ Vault views - Password management and security features
 """
 import logging
 import requests
+from functools import wraps
+
 from django.utils.html import escape
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -806,14 +808,43 @@ def password_create(request):
     })
 
 
+def _password_for_change(request, pk, permission):
+    """The entry to edit or delete, and the organization it belongs to.
+
+    In global view (superusers and staff, no organization selected) the entry
+    is found the way password_detail finds it. MSP staff have no membership
+    for @require_write to check, so for them `permission` is checked in the
+    entry's own customer (their global role decides, as for reveals)."""
+    org = get_request_organization(request)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    if not org and (request.user.is_superuser or is_staff):
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
+        org = password.organization
+    else:
+        password = get_org_object_or_404(Password, org, pk=pk)
+    if is_staff and not can_access_password(request.user, password, permission):
+        raise PermissionDenied
+    return password, org
+
+
+def _write_or_msp_staff(view_func):
+    """@require_write for everyone except MSP staff, whose permission is
+    checked on the entry itself by _password_for_change."""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if getattr(request, 'is_staff_user', False):
+            return view_func(request, *args, **kwargs)
+        return require_write(view_func)(request, *args, **kwargs)
+    return wrapper
+
+
 @login_required
-@require_write
+@_write_or_msp_staff
 def password_edit(request, pk):
     """
     Edit password entry.
     """
-    org = get_request_organization(request)
-    password = get_org_object_or_404(Password, org, pk=pk)
+    password, org = _password_for_change(request, pk, 'vault_edit')
 
     if request.method == 'POST':
         form = PasswordForm(request.POST, instance=password, organization=org)
@@ -892,13 +923,12 @@ def password_edit(request, pk):
 
 
 @login_required
-@require_write
+@_write_or_msp_staff
 def password_delete(request, pk):
     """
     Delete password entry.
     """
-    org = get_request_organization(request)
-    password = get_org_object_or_404(Password, org, pk=pk)
+    password, org = _password_for_change(request, pk, 'vault_delete')
 
     if request.method == 'POST':
         title = password.title

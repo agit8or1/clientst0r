@@ -61,6 +61,8 @@ COMMAND_TASKS = {
     'ldap_group_sync': ('ldap_group_sync', []),
     'office_purge_quarantine': ('office_purge_quarantine', []),
     'office_managed_operations': ('office_managed', ['--run-pending']),
+    'upgrade_backup_prune': ('upgrade_backup', ['--prune', '--trigger', 'scheduler']),
+    'snyk_cli_update_check': ('check_snyk_cli_update', []),
 }
 
 

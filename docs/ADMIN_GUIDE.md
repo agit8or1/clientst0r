@@ -13,6 +13,7 @@ is in its default state until an administrator changes it. Feature guides:
 
 | Feature | Setting location | Default | Who can change it |
 |---|---|---|---|
+| Integration owner (platform or one customer) | Integrations in global view → Add (Owner); existing connections: "Make platform-owned" or `manage.py integrations_ownership` | New connections in global view are platform-owned; existing ones keep their customer | su, Django staff, or MSP staff whose global role grants `integrations_configure` |
 | Rem0te pairing (Ed25519) | Settings → Integrations → Rem0te Setup (`/integrations/rmm/rem0te/setup/`) | Not paired: no identity keys until created | su |
 | RMM service lists (Tactical RMM only) | Integrations → the RMM connection → Edit → "Collect services" | Off | MSP staff who are administrators of the selected customer |
 | Refresh from RMM (one device) | Device Workspace → Refresh from RMM | Available; once per device every 5 minutes | MSP technicians allowed `device.view` for that device |

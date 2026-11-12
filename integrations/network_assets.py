@@ -204,13 +204,22 @@ def _org_ids(value) -> list:
     return out
 
 
+_CONTROLLER_LABELS = {'UnifiConnection': 'UniFi', 'OmadaConnection': 'Omada',
+                      'GrandstreamConnection': 'Grandstream'}
+
+
 def _mapping_hint(connection, site_name) -> str:
-    return (f'Map site "{site_name}" to exactly one customer in Integrations → UniFi '
+    label = _CONTROLLER_LABELS.get(type(connection).__name__, 'UniFi')
+    return (f'Map site "{site_name}" to exactly one customer in Integrations → {label} '
             f'"{connection.name}" → Site → customer mapping.')
 
 
 def resolve_unifi_sites(connection, sites: list) -> list:
-    """Resolve each controller site to one customer organization, or say why not."""
+    """Resolve each controller site to one customer organization, or say why not.
+
+    Any network controller with a `site_org_map` (UniFi; Omada and Grandstream
+    when platform-owned). A platform-owned controller has no owner to fall
+    back to: an unmapped site is reported, never guessed."""
     from core.models import Organization
 
     site_map = connection.site_org_map or {}
@@ -689,7 +698,11 @@ def apply_unifi_corrections(connection, finding_ids, *, user, request=None) -> d
 # ---------------------------------------------------------------------------
 
 def import_flat_devices(connection, kind: str, data: dict) -> dict:
-    """Import every site's devices into the connection's own organization."""
+    """Import every site's devices into the connection's own organization,
+    or — for a platform-owned controller — into the customer each site maps
+    to, skipping and reporting sites that map to none."""
+    if connection.organization_id is None:
+        return _import_mapped_sites(connection, kind, data)
     totals = _empty_counts()
     issues = []
     for s in data.get('sites', []):
@@ -700,6 +713,27 @@ def import_flat_devices(connection, kind: str, data: dict) -> dict:
             totals[k] += counts[k]
     status = health.STATUS_PARTIAL if totals['failed'] else health.STATUS_SUCCESS
     return {**totals, 'issues': issues, 'status': status, 'skipped_sites': 0, 'sites': []}
+
+
+def _import_mapped_sites(connection, kind: str, data: dict) -> dict:
+    totals = _empty_counts()
+    issues = []
+    skipped_sites = 0
+    resolutions = resolve_unifi_sites(connection, data.get('sites', []))
+    for res in resolutions:
+        if not res.importable:
+            skipped_sites += 1
+            totals['skipped'] += len(res.devices)
+            issues.append(health.issue(f'{res.reason} {len(res.devices)} device(s) skipped.',
+                                       site=res.site_name, action=res.action, kind=res.status))
+            continue
+        counts = import_devices(res.organization, res.devices, source=kind, connection=connection,
+                                site_id=res.site_id, site_name=res.site_name, issues=issues)
+        for k in totals:
+            totals[k] += counts[k]
+    status = health.STATUS_PARTIAL if (totals['failed'] or skipped_sites) else health.STATUS_SUCCESS
+    return {**totals, 'issues': issues, 'status': status, 'skipped_sites': skipped_sites,
+            'sites': [r.as_dict() for r in resolutions]}
 
 
 def sync_flat_connection(connection, kind: str, provider, *, import_assets: bool) -> dict:

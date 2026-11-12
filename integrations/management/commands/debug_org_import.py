@@ -37,7 +37,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f'=== RMM Organization Import Debug ==='))
         self.stdout.write(f'Connection: {connection.name} ({connection.get_provider_type_display()})')
-        self.stdout.write(f'Parent Organization: {connection.organization.name}')
+        self.stdout.write(f'Parent Organization: {connection.owner_label}')
         self.stdout.write(f'Import Organizations Enabled: {connection.import_organizations}')
         self.stdout.write(f'Organization Prefix: "{connection.org_name_prefix}"')
         self.stdout.write('')
@@ -97,10 +97,10 @@ class Command(BaseCommand):
 
             # Determine what would happen
             if not connection.import_organizations:
-                result = f'Would use connection org: {connection.organization.name}'
+                result = f'Would use connection org: {connection.owner_label}'
                 self.stdout.write(self.style.WARNING(f'  → {result}'))
             elif not (client_id or site_id) or not (client_name or site_name):
-                result = f'No client/site data - would fallback to connection org: {connection.organization.name}'
+                result = f'No client/site data - would fallback to connection org: {connection.owner_label}'
                 self.stdout.write(self.style.WARNING(f'  → {result}'))
             else:
                 org_name = client_name if client_name else site_name
@@ -130,7 +130,7 @@ class Command(BaseCommand):
         if not connection.import_organizations:
             self.stdout.write(self.style.WARNING(
                 '⚠ Import Organizations is DISABLED\n'
-                '  All devices will use connection organization: ' + connection.organization.name + '\n'
+                '  All devices will use connection organization: ' + connection.owner_label + '\n'
                 '  Enable it in: Integrations → Edit Connection → Enable "Import Organizations"'
             ))
         elif not has_client_data:

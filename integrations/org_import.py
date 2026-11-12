@@ -41,6 +41,10 @@ def create_inherited_memberships(new_org, parent_org):
     """
     from accounts.models import Membership
 
+    if parent_org is None:
+        # A platform-owned connection has no owner customer to inherit from.
+        return 0
+
     # Find all owner memberships in parent organization
     parent_owners = Membership.objects.filter(
         organization=parent_org,

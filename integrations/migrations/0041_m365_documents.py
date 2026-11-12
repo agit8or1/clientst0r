@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         ('assets', '0029_serial_events'),
         ('core', '0088_existing_installs_keep_reports_and_secure_notes'),
         ('docs', '0020_agreement_reminder_opt_out'),
-        ('integrations', '0039_device_snapshots_manual_refresh'),
+        ('integrations', '0040_platform_owned_connections'),
         ('psa', '0083_remove_unused_client_surface_switches'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

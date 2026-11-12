@@ -56,7 +56,7 @@ provider sends one.
 | `QuarantinedSave` | Content the core refused to make current, kept for an administrator. <ul><li>`reason` is one of stale / revoked / permission / validation / storage_error.</li><li>Expires after the retention period.</li><li>Never served by the media view.</li></ul> |
 
 Migrations: `office/migrations/0001_initial.py` and
-`core/migrations/0090_scheduledtask_office_purge_quarantine.py` (the scheduler task type).
+`core/migrations/0092_scheduledtask_office_purge_quarantine.py` (the scheduler task type).
 
 ## Storage (`office/storage.py`)
 

@@ -45,6 +45,7 @@
             <div class="card-body">
                 <form method="post" id="rmm-form">
                     {% csrf_token %}
+                    {% include 'integrations/_owner_field.html' %}
 
                     {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">
