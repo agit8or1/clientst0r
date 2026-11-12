@@ -64,7 +64,7 @@ SHORTCUT_REGISTRY = [
     {'key': 'tickets', 'label': _('Tickets'), 'icon': 'fa-list',
      'url_name': 'psa:ticket_list', 'gate': _psa},
     {'key': 'dispatch_board', 'label': _('Dispatch Board'), 'icon': 'fa-table-list',
-     'url_name': 'psa:dispatch_board', 'gate': _psa},
+     'url_name': 'psa:dispatch_board', 'gate': _all(_psa, _staff)},
     {'key': 'projects', 'label': _('Projects'), 'icon': 'fa-diagram-project',
      'url_name': 'psa:project_list', 'gate': _psa},
     {'key': 'approvals', 'label': _('Approvals'), 'icon': 'fa-circle-check',

@@ -180,7 +180,8 @@ SECTIONS = (
         Tab(_('Tickets'), 'psa:ticket_list', 'fa-list'),
         Tab(_('Recurring Tickets'), 'psa:recurring_list', 'fa-repeat'),
         Tab(_('Canned Replies'), 'psa:canned_reply_list', 'fa-magic'),
-        Tab(_('Workflow Rules'), 'psa:workflow_rule_list', 'fa-bolt'),
+        # MSP-wide automation; the views are MSP staff only.
+        Tab(_('Workflow Rules'), 'psa:workflow_rule_list', 'fa-bolt', gate=_msp_staff),
         Tab(_('Workflow Flow Map'), 'psa:workflow_rule_map', 'fa-project-diagram',
             # require_admin lets a customer's Owner in too; the map of every
             # rule is an MSP tool, so the link is offered to MSP staff only.
@@ -188,7 +189,7 @@ SECTIONS = (
         Tab(_('Email Ingestion'), 'psa:email_config_list', 'fa-envelope-open-text'),
         Tab(_('AI Inbox'), 'psa_ai:inbox', 'fa-wand-magic-sparkles', gate=_ai_enabled),
     )),
-    Section('psa_dispatch', 'psa', _('Dispatch Board'), gate=_psa, tabs=(
+    Section('psa_dispatch', 'psa', _('Dispatch Board'), gate=_all(_msp_staff, _psa), tabs=(
         Tab(_('Dispatch Board'), 'psa:dispatch_board', 'fa-table-list'),
         # Routing pages check their own permissions (manage / test / override).
         Tab(_('Routing Triage'), 'ticket_routing:triage', 'fa-inbox', gate=_msp_staff),
@@ -210,7 +211,7 @@ SECTIONS = (
     )),
     Section('psa_service', 'psa', _('Service Management'), gate=_psa, tabs=(
         Tab(_('Service Catalog'), 'psa:service_catalog', 'fa-th'),
-        Tab(_('Catalog Changes'), 'psa:catalog_change_list', 'fa-clipboard-check'),
+        Tab(_('Catalog Changes'), 'psa:catalog_change_list', 'fa-clipboard-check', gate=_msp_staff),
         Tab(_('Change Requests'), 'psa:change_request_list', 'fa-code-branch'),
         Tab(_('Problems'), 'psa:problem_list', 'fa-bug'),
         Tab(_('Releases'), 'psa:release_list', 'fa-rocket'),
@@ -224,7 +225,8 @@ SECTIONS = (
         Tab(_('Aging Report'), 'psa:aging_report', 'fa-chart-column'),
         Tab(_('Billing Review'), 'psa:billing_review', 'fa-list-check', gate=_billing_reviewer),
     )),
-    Section('psa_procurement', 'psa', _('Procurement'), gate=_psa, tabs=(
+    # Purchasing carries vendor costs: MSP staff only (psa.views._msp_staff_only).
+    Section('psa_procurement', 'psa', _('Procurement'), gate=_all(_msp_staff, _psa), tabs=(
         Tab(_('Requisitions'), 'psa:requisition_list', 'fa-clipboard-list'),
         Tab(_('Purchase Orders'), 'psa:po_list', 'fa-file-invoice'),
         Tab(_('Back-orders'), 'psa:back_order_list', 'fa-hourglass-half'),
@@ -245,7 +247,7 @@ SECTIONS = (
         Tab(_('All Tasks'), 'scheduling:task_list', 'fa-tasks'),
         Tab(_('My Tasks'), 'scheduling:my_tasks', 'fa-user-check'),
         Tab(_('Calendar'), 'scheduling:task_calendar', 'fa-calendar-alt'),
-        Tab(_('Wallboard'), 'scheduling:wallboard_settings', 'fa-tv'),
+        Tab(_('Wallboard'), 'scheduling:wallboard_settings', 'fa-tv', gate=_msp_staff),
     )),
     Section('ops_monitoring', 'ops', _('Monitoring'), gate=_flag('monitoring_enabled'), tabs=(
         Tab(_('Website Monitors'), 'monitoring:website_monitor_list', 'fa-globe'),
@@ -254,7 +256,8 @@ SECTIONS = (
         Tab(_('Status Pages'), 'statuspage:list', 'fa-heart-pulse'),
         Tab(_('Config Backups'), 'netconfig:device_list', 'fa-file-code'),
     )),
-    Section('ops_vehicles', 'ops', _('Vehicles'), gate=_flag('vehicles_enabled'), tabs=(
+    # The fleet pages are MSP staff only (vehicles/urls.py).
+    Section('ops_vehicles', 'ops', _('Vehicles'), gate=_all(_msp_staff, _flag('vehicles_enabled')), tabs=(
         Tab(_('All Vehicles'), 'vehicles:vehicle_list', 'fa-truck'),
         Tab(_('Service Alerts'), 'vehicles:service_alert_list', 'fa-bell'),
     )),
