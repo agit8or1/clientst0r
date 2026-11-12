@@ -904,7 +904,17 @@ def apply_update(request):
             return JsonResponse({'status': 'error', 'message':
                                  f'No reviewed revision was sent ({e}). Reload the page.'}, status=400)
         updater = UpdateService()
-        current = (updater.check_for_updates().get('target') or {})
+        # Ask GitHub now rather than trusting any stored answer: the page may
+        # be minutes old, and what is installed must be what the channel
+        # offers at this moment. If GitHub cannot be asked, refuse rather
+        # than install from a stale answer.
+        info = updater.check_for_updates(force_refresh=True)
+        if info.get('error'):
+            return JsonResponse({'status': 'error', 'message':
+                                 'Could not confirm with GitHub what this channel offers right now '
+                                 f"({info['error']}), so nothing was started. Try again in a few "
+                                 'minutes.'}, status=503)
+        current = (info.get('target') or {})
         if (current.get('kind'), current.get('ref'), current.get('sha')) != \
                 (reviewed.kind, reviewed.ref, reviewed.sha):
             return JsonResponse({'status': 'error', 'message':

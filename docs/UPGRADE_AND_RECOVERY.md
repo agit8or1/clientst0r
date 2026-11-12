@@ -47,6 +47,14 @@ says so. It shows the last good answer, marked as stale, or nothing, and it
 never fails to load. Set `GITHUB_TOKEN` in `.env` if you hit the
 unauthenticated rate limit often.
 
+The answer from GitHub is kept for 10 minutes in
+`backups/upgrades/channel_state.json` (next to the upgrade journal), so every
+web worker, the scheduler and `manage.py` commands see the same one, and
+*Check for Updates* refreshes it for all of them. The last good answer is kept
+there for 24 hours as the fallback. Apply does not rely on the stored answer:
+it asks GitHub again when you click it. If GitHub cannot be reached at that
+moment, Apply refuses and changes nothing; try again later.
+
 ## Upgrade from the web UI
 
 1. **Settings → Updates** → *Check for Updates*.
@@ -57,9 +65,11 @@ unauthenticated rate limit often.
    serving the old version until the new one is installed, migrated and
    reloaded.
 
-The browser sends the revision it showed you. If the channel offers something
-else by the time you click Apply (for example, a new release appeared), the
-server refuses. Reload the page and review again.
+The browser sends the revision it showed you, and the server asks GitHub
+again. If the channel offers something else by the time you click Apply (for
+example, a new release appeared), the server refuses. Reload the page and
+review again. If GitHub cannot be reached, Apply refuses rather than install
+from an older answer.
 
 ## What Apply does
 
