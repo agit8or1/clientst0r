@@ -141,17 +141,29 @@
                         <h6 class="mb-0"><i class="fas fa-terminal"></i> Snyk CLI Tool</h6>
                     </div>
                     <div class="card-body">
+                        {% if snyk_cli_update_available %}
+                        <div class="alert alert-warning py-2" id="snykCliUpdateNotice">
+                            <i class="fas fa-arrow-circle-up"></i>
+                            <strong>Snyk CLI update available: {{ settings.snyk_cli_installed_version }} → {{ settings.snyk_cli_latest_version }}</strong>
+                            <span class="d-block small">Nothing is installed automatically. Use "Upgrade Snyk CLI" to install {{ settings.snyk_cli_latest_version }}.</span>
+                        </div>
+                        {% endif %}
                         <div class="row">
                             <div class="col-md-6">
-                                <p class="mb-2"><strong>Current Version:</strong> <code id="snykCurrentVersion" class="text-muted">Click 'Check for Updates'</code></p>
-                                <p class="mb-2"><strong>Latest Version:</strong> <code id="snykLatestVersion" class="text-muted">Click 'Check for Updates'</code></p>
+                                <p class="mb-2"><strong>Current Version:</strong> <code id="snykCurrentVersion" class="text-muted">{{ settings.snyk_cli_installed_version|default:"Not installed" }}</code></p>
+                                <p class="mb-2"><strong>Latest Version:</strong> <code id="snykLatestVersion" class="text-muted">{{ settings.snyk_cli_latest_version|default:"Unknown" }}</code></p>
+                                <p class="mb-2"><strong>Last checked:</strong> <span id="snykCheckedAt" class="text-muted">{% if settings.snyk_cli_checked_at %}{{ settings.snyk_cli_checked_at|date:"Y-m-d H:i" }}{% else %}Never{% endif %}</span>
+                                    <small class="text-muted d-block">Checked automatically once a day while Snyk is enabled.</small></p>
+                                {% if settings.snyk_cli_check_error %}
+                                <p class="mb-2 small text-danger" id="snykCheckError"><i class="fas fa-exclamation-triangle"></i> Last check: {{ settings.snyk_cli_check_error|truncatechars:300 }}</p>
+                                {% endif %}
                                 <p class="mb-0"><strong>Node.js/npm:</strong> <code id="nodejsStatus" class="text-muted">Click 'Check for Updates'</code></p>
                             </div>
                             <div class="col-md-6 text-end">
                                 <button type="button" class="btn btn-outline-primary btn-sm" id="checkSnykVersionBtn">
                                     <i class="fas fa-sync"></i> Check for Updates
                                 </button>
-                                <button type="button" class="btn btn-success btn-sm" id="upgradeSnykBtn" style="display: none;">
+                                <button type="button" class="btn btn-success btn-sm" id="upgradeSnykBtn" data-version="{{ settings.snyk_cli_latest_version }}"{% if not snyk_cli_update_available %} style="display: none;"{% endif %}>
                                     <i class="fas fa-arrow-up"></i> Upgrade Snyk CLI
                                 </button>
                                 <button type="button" class="btn btn-primary btn-sm" id="installNodejsBtn" style="display: none;">
@@ -540,11 +552,29 @@ function checkSnykVersion() {
     currentVersionEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
     latestVersionEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
 
-    fetch('{% url "core:check_snyk_version" %}')
+    fetch('{% url "core:check_snyk_version" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
         .then(response => response.json())
         .then(data => {
-            // Debug logging
-            console.log('Snyk version check response:', data);
+            const checkedAtEl = document.getElementById('snykCheckedAt');
+            if (checkedAtEl && data.checked_at) {
+                checkedAtEl.textContent = data.checked_at;
+            }
+            const noticeEl = document.getElementById('snykCliUpdateNotice');
+            if (noticeEl && !data.update_available) {
+                noticeEl.style.display = 'none';
+            }
+            if (data.latest_version) {
+                upgradeBtn.dataset.version = data.latest_version;
+            }
+            const checkErrorEl = document.getElementById('snykCheckError');
+            if (checkErrorEl && !data.error) {
+                checkErrorEl.style.display = 'none';
+            }
 
             const nodejsStatusEl = document.getElementById('nodejsStatus');
             const installNodejsBtn = document.getElementById('installNodejsBtn');
@@ -606,17 +636,26 @@ snyk --version
                         upgradeBtn.style.display = 'inline-block';
                         statusDiv.style.display = 'block';
                         statusDiv.className = 'alert alert-warning mt-2';
-                        statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>Update Available!</strong> A newer version of Snyk CLI is available.';
+                        statusDiv.textContent = '';
+                        const strong = document.createElement('strong');
+                        strong.textContent = 'Snyk CLI update available: ' + data.current_version + ' \u2192 ' + data.latest_version;
+                        statusDiv.appendChild(strong);
                     } else if (data.current_version) {
                         upgradeBtn.style.display = 'none';
                         statusDiv.style.display = 'block';
                         statusDiv.className = 'alert alert-success mt-2';
                         statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Snyk CLI is up to date.';
                     } else {
-                        upgradeBtn.style.display = 'inline-block';
+                        upgradeBtn.style.display = data.latest_version ? 'inline-block' : 'none';
                         statusDiv.style.display = 'block';
                         statusDiv.className = 'alert alert-info mt-2';
                         statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> Snyk CLI is not installed. Click "Upgrade Snyk CLI" to install.';
+                    }
+                    if (data.error) {
+                        const errEl = document.createElement('div');
+                        errEl.className = 'small mt-1';
+                        errEl.textContent = 'Check reported: ' + data.error;
+                        statusDiv.appendChild(errEl);
                     }
                 }
             } else {
@@ -637,8 +676,6 @@ snyk --version
         });
 }
 
-// Don't auto-check on page load (performance) - only check when button is clicked
-// User can manually trigger check with the button below
 
 // Handle check version button
 document.getElementById('checkSnykVersionBtn').addEventListener('click', function() {
@@ -709,7 +746,8 @@ document.getElementById('upgradeSnykBtn').addEventListener('click', function() {
     const originalHtml = btn.innerHTML;
     const statusDiv = document.getElementById('snykVersionStatus');
 
-    if (!confirm('This will upgrade Snyk CLI to the latest version. Continue?')) {
+    const targetVersion = btn.dataset.version || 'the version shown';
+    if (!confirm('This will install Snyk CLI ' + targetVersion + '. Continue?')) {
         return;
     }
 
@@ -758,9 +796,7 @@ document.getElementById('upgradeSnykBtn').addEventListener('click', function() {
     });
 });
 
-// Auto-check Snyk version on page load
-document.addEventListener('DOMContentLoaded', function() {
-    checkSnykVersion();
-});
+// No check on page load: the stored result (from the daily scheduled check
+// or the last button click) is rendered server-side.
 </script>
 {% endblock %}

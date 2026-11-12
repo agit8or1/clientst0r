@@ -60,6 +60,7 @@ COMMAND_TASKS = {
     'kb_link_check': ('kb_link_check', []),
     'ldap_group_sync': ('ldap_group_sync', []),
     'upgrade_backup_prune': ('upgrade_backup', ['--prune', '--trigger', 'scheduler']),
+    'snyk_cli_update_check': ('check_snyk_cli_update', []),
 }
 
 

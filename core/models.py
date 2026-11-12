@@ -871,6 +871,19 @@ class SystemSetting(models.Model):
     snyk_test_container = models.BooleanField(default=False, help_text='Scan Docker images with Snyk Container (snyk container test)')
     snyk_test_iac = models.BooleanField(default=False, help_text='Scan IaC files with Snyk IaC (snyk iac test)')
 
+    # Snyk CLI update check (core.snyk_cli). Written by the daily scheduled
+    # task and by the "Check for Updates" button; shown on Settings -> Snyk.
+    snyk_cli_installed_version = models.CharField(max_length=50, blank=True, help_text='Snyk CLI version found on this server at the last check')
+    snyk_cli_latest_version = models.CharField(max_length=50, blank=True, help_text='Newest Snyk CLI release at the last check')
+    snyk_cli_checked_at = models.DateTimeField(null=True, blank=True, help_text='When the Snyk CLI version was last checked')
+    snyk_cli_check_error = models.TextField(blank=True, help_text='Error from the last Snyk CLI version check, if any')
+    snyk_cli_notified_version = models.CharField(max_length=50, blank=True, help_text='Latest Snyk CLI version superusers were already alerted about')
+
+    @property
+    def snyk_cli_update_available(self):
+        from core.snyk_cli import is_newer
+        return is_newer(self.snyk_cli_latest_version, self.snyk_cli_installed_version)
+
     # Bug Reporting
     github_pat = EncryptedTextField(blank=True, legacy='auto', help_text='GitHub Personal Access Token for bug reporting (encrypted)')
 
@@ -1174,6 +1187,7 @@ class ScheduledTask(models.Model):
         ('kb_link_check', 'KB Dead Link Check'),
         ('ldap_group_sync', 'LDAP Group Mapping Sync'),
         ('upgrade_backup_prune', 'Pre-upgrade Backup Cleanup'),
+        ('snyk_cli_update_check', 'Snyk CLI Update Check'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1720,6 +1734,16 @@ class ScheduledTask(models.Model):
             'task_type': 'upgrade_backup_prune',
             'description': 'Apply the pre-upgrade backup retention set in Settings -> Updates '
                            '(skipped while an upgrade is running or needs recovery)',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Snyk is enabled and the CLI is installed.
+            # Alerts superusers once per new version; never installs anything.
+            'task_type': 'snyk_cli_update_check',
+            'description': 'Check whether a newer Snyk CLI is available and e-mail superusers once '
+                           'per new version (only when Snyk is enabled and the CLI is installed; '
+                           'upgrading stays manual in Settings → Snyk)',
             'interval_minutes': 1440,
             'enabled': True,
         },
