@@ -4803,7 +4803,10 @@ class WidgetViewerScopeTests(TestCase):
         from reports.widget_sources import get_widget_data, viewer_for
         nobody = User.objects.create_user('nobody_w', 'n@x.com', 'pw')
         data = get_widget_data('open_tickets_count', {}, viewer_for(nobody))
-        self.assertEqual(data['value'], '0')
+        # No membership means no tickets_view anywhere: the tile is
+        # restricted rather than a count (roles & permissions program).
+        self.assertTrue(data.get('restricted'))
+        self.assertNotIn('value', data)
 
     # -- through the actual page ---------------------------------------------
 

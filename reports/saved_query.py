@@ -194,6 +194,19 @@ def build_filter(target_model, filters):
 VIEW_PERMS = {
     'assets.Asset': 'assets_view',
     'vault.Password': 'vault_view',
+    # Until the roles & permissions program these three ran unscoped for
+    # any MSP technician: every customer's tickets, invoice totals and time.
+    'psa.Ticket': 'tickets_view',
+    'psa.TicketTimeEntry': 'tickets_view',
+    'psa.Invoice': 'billing_view_invoices',
+}
+
+# Where each target's customer lives, when it isn't `organization`.
+PERM_ORG_FIELDS = {
+    'psa.TicketTimeEntry': ('ticket__organization_id',),
+    # An invoice belongs to the billed customer and the issuing organization;
+    # either one granting billing_view_invoices is enough (psa.views rule).
+    'psa.Invoice': ('client_org_id', 'organization_id'),
 }
 
 
@@ -213,7 +226,14 @@ def _scope_for_user(target_model, qs, user):
     if perm:
         allowed = orgs_with_perm(user, perm)
         if allowed is not None:
-            qs = qs.filter(organization_id__in=allowed)
+            q = Q(pk__in=[])
+            for field in PERM_ORG_FIELDS.get(target_model, ('organization_id',)):
+                q |= Q(**{f'{field}__in': allowed})
+            qs = qs.filter(q)
+    if target_model == 'psa.Ticket':
+        from psa.visibility import is_msp_staff
+        if not is_msp_staff(user):
+            qs = qs.filter(client_can_view=True)
     return qs
 
 

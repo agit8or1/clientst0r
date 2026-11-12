@@ -12,6 +12,7 @@ from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from accounts.permission_utils import user_has_perm, require_perm
+from .access import require_msp_wide_perm, has_msp_wide_perm
 from .models import (
     Dashboard, DashboardWidget, ReportTemplate, GeneratedReport,
     ScheduledReport, AnalyticsEvent, Wallboard, WallboardWidget,
@@ -84,7 +85,14 @@ def _schedule_from_post(request, schedule, orgs):
     if template is None:
         errors.append('Choose a report template.')
     else:
-        schedule.template = template
+        from .access import may_see_report_type, report_type_perm
+        if not may_see_report_type(request.user, template.report_type, schedule.organization):
+            # The schedule e-mails this data on its own later; nobody may
+            # schedule a report they couldn't generate themselves.
+            errors.append(f"Your role does not include the "
+                          f"'{report_type_perm(template.report_type)}' permission for this customer.")
+        else:
+            schedule.template = template
     schedule.frequency = request.POST.get('frequency') or ''
     if schedule.frequency not in dict(ScheduledReport.FREQUENCY_CHOICES):
         errors.append('Choose a frequency.')
@@ -525,6 +533,7 @@ def template_delete(request, pk):
 
 
 @login_required
+@require_perm('reports_view_dashboards')
 def generate_report(request, pk):
     """Generate a report from a template"""
     from .generators import FORMAT_CHOICES, OUTPUT_FORMATS
@@ -539,6 +548,12 @@ def generate_report(request, pk):
         Q(organization__in=orgs) | Q(organization__isnull=True),
         pk=pk
     )
+
+    from .access import may_see_report_type, report_type_perm
+    if not may_see_report_type(request.user, template.report_type, org):
+        messages.error(request, f"Your role does not include the "
+                                f"'{report_type_perm(template.report_type)}' permission for this customer.")
+        return redirect('reports:template_list')
 
     if request.method == 'POST':
         report_format = (request.POST.get('format') or 'pdf').lower()
@@ -598,6 +613,17 @@ def generate_report(request, pk):
     return render(request, 'reports/generate_form.html', context)
 
 
+def _require_generated_report_access(request, report):
+    """A generated report is a copy of the data behind its type, so whoever
+    opens it needs the same per-customer view flag the generator needed
+    (vault_view for a password audit, audit_view for user activity...)."""
+    from .access import may_see_report_type, report_type_perm
+    rtype = getattr(report.template, 'report_type', None)
+    if not may_see_report_type(request.user, rtype, report.organization):
+        raise PermissionDenied(
+            f"Your role does not include the '{report_type_perm(rtype)}' permission for this customer.")
+
+
 @login_required
 @require_perm('reports_view_dashboards')
 def generated_list(request):
@@ -625,6 +651,7 @@ def generated_detail(request, pk):
         pk=pk,
         organization__in=orgs
     )
+    _require_generated_report_access(request, report)
 
     context = {
         'report': report,
@@ -645,6 +672,7 @@ def generated_download(request, pk):
         pk=pk,
         organization__in=orgs
     )
+    _require_generated_report_access(request, report)
 
     if not report.file:
         messages.error(request, 'Report file not found.')
@@ -775,6 +803,7 @@ def scheduled_delete(request, pk):
 
 @login_required
 @require_perm('reports_manage_scheduled')
+@require_http_methods(['POST'])
 def scheduled_toggle(request, pk):
     """Toggle a scheduled report active/inactive"""
     orgs = get_user_organizations(request.user)
@@ -860,6 +889,7 @@ def analytics_events(request):
 # ---------------------------------------------------------------------------
 
 @login_required
+@require_msp_wide_perm('tickets_view', legacy='staff')
 def psa_reports_list(request):
     """Catalog of PSA reports — click one to run it ad-hoc against the
     user's accessible orgs (or a specific picked client)."""
@@ -870,6 +900,7 @@ def psa_reports_list(request):
 
 
 @login_required
+@require_msp_wide_perm('tickets_view', legacy='staff')
 def psa_report_run(request, report_type):
     """Run an ad-hoc PSA report. URL params:
        ?days=<n>&client=<org_id>
@@ -971,7 +1002,7 @@ def _parse_date(s, fallback):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_profitability_by_client(request):
     """
     Per-client profitability report — revenue, cost, margin over a
@@ -1085,7 +1116,7 @@ def _csv_response(filename, header, rows, totals_row=None):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_profitability_by_tech(request):
     """Per-tech profitability — hours / cost / attributed revenue / margin /
     utilization %. CSV export via ?format=csv."""
@@ -1135,7 +1166,7 @@ def psa_profitability_by_tech(request):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_profitability_by_contract(request):
     """Per-contract profitability."""
     from .queries import profitability_by_contract
@@ -1180,7 +1211,7 @@ def psa_profitability_by_contract(request):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_profitability_by_project(request):
     """Per-project profitability."""
     from .queries import profitability_by_project
@@ -1240,7 +1271,7 @@ def _median(vals):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_effective_hourly_rate(request):
     """
     Effective hourly rate report — `revenue ÷ billable_hours` per client
@@ -1321,7 +1352,7 @@ def psa_effective_hourly_rate(request):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_revenue_leakage(request):
     """
     Revenue leakage report — three categories of "money you should have
@@ -1393,7 +1424,7 @@ def psa_revenue_leakage(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('reports_view_sla')
+@require_msp_wide_perm('reports_view_sla')
 def psa_sla_trends(request):
     """
     SLA breach trend report — per-priority response + resolution breach %
@@ -1492,7 +1523,7 @@ def psa_sla_trends(request):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_margin_analytics(request):
     """
     Margin grouped by service-line dimension — ticket_type / closure_category
@@ -1590,15 +1621,20 @@ def wallboard_data(request):
     from psa.models import Ticket
     from django.contrib.auth.models import User
 
+    from accounts.permission_utils import filter_by_org_perm
+
     today = timezone.localdate()
+    # Only the customers whose tickets this viewer may see (tickets_view):
+    # the board shows ticket subjects and client names.
+    tickets = filter_by_org_perm(Ticket.objects.all(), request.user, 'tickets_view')
 
     # Mega-tile counts
-    open_qs = Ticket.objects.filter(status__is_terminal=False)
+    open_qs = tickets.filter(status__is_terminal=False)
     sla_overdue = open_qs.filter(resolution_due_at__lt=timezone.now()).count()
     unassigned = open_qs.filter(assigned_to__isnull=True).count()
     p1 = open_qs.filter(priority__code='P1').count()
-    opened_today = Ticket.objects.filter(created_at__date=today).count()
-    closed_today = Ticket.objects.filter(
+    opened_today = tickets.filter(created_at__date=today).count()
+    closed_today = tickets.filter(
         closed_at__date=today, status__is_terminal=True
     ).count()
     open_total = open_qs.count()
@@ -1628,7 +1664,7 @@ def wallboard_data(request):
 
     # Recent tickets ticker (5 most recent)
     recent = (
-        Ticket.objects
+        tickets
         .select_related('priority', 'organization')
         .order_by('-created_at')[:5]
     )
@@ -1674,7 +1710,7 @@ def wallboard_data(request):
 
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def exec_scorecard(request):
     """Rolling 30d executive scorecard for the owner.
 
@@ -1828,7 +1864,7 @@ def exec_scorecard(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('reports_view_financial')
+@require_msp_wide_perm('reports_view_financial')
 def psa_client_health(request):
     """Composite client-health score report. CSV via ?format=csv."""
     from .queries import client_health_scores_all
@@ -1865,7 +1901,7 @@ def psa_client_health(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('crm_view_forecast')
+@require_msp_wide_perm('crm_view_forecast')
 def crm_sales_funnel(request):
     """
     Visual funnel from Leads → Qualified → Opportunities → Proposal → Closed
@@ -1901,7 +1937,7 @@ def crm_sales_funnel(request):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_perm('reports_view_sla')
+@require_msp_wide_perm('reports_view_sla')
 def security_alert_mtta_report(request):
     """
     Mean Time To Acknowledge for security alerts in a date window,
@@ -2352,6 +2388,7 @@ def wallboard_widget_data(request, pk):
 # ---------------------------------------------------------------------------
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def agreement_reconciliation(request):
     """
     List every active MSP contract with its included-vs-consumed hours
@@ -2647,6 +2684,7 @@ def saved_query_delete(request, pk):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def agreement_reconciliation_detail(request, pk):
     """
     Phase 36 v3 (v3.17.248): drill-down view that classifies a contract's
@@ -2763,6 +2801,7 @@ def agreement_reconciliation_detail(request, pk):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def accounting_reconciliation(request):
     """
     Phase 27 v1 (v3.17.255) — accounting reconciliation report.
@@ -2902,6 +2941,7 @@ def accounting_reconciliation(request):
 
 
 @login_required
+@require_msp_wide_perm('billing_view_aging', legacy='staff')
 def ar_aging_report(request):
     """
     Phase 27 v5 (v3.17.269): AR aging tied to QBO. Buckets pushed-but-
@@ -3040,6 +3080,7 @@ def ar_aging_report(request):
 
 
 @login_required
+@require_msp_wide_perm('billing_record_payments', legacy='staff')
 def bank_reconciliation_report(request):
     """
     Phase 27 v9 (v3.17.281): bank deposit reconciliation. Groups
@@ -3119,6 +3160,7 @@ def bank_reconciliation_report(request):
 
 
 @login_required
+@require_msp_wide_perm('billing_record_payments', legacy='staff')
 def bank_reconciliation_mark(request):
     """Phase 27 v9 (v3.17.281): bulk-mark a deposit batch reconciled
     (or reopen it). POST `batch=NAME` + `action=reconcile|reopen`."""
@@ -3261,6 +3303,7 @@ def multi_location_report(request):
 
 
 @login_required
+@require_msp_wide_perm('billing_view_invoices', legacy='staff')
 def billing_reconciliation_report(request):
     """
     Phase 15 v6 (v3.17.295): per-client invoiced-vs-paid summary for a
@@ -3358,6 +3401,7 @@ def billing_reconciliation_report(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def mrr_forecast_report(request):
     """
     Phase 15 v9 (v3.17.295): monthly recurring revenue forecast.
@@ -3480,6 +3524,7 @@ def mrr_forecast_report(request):
 
 
 @login_required
+@require_msp_wide_perm('assets_view', legacy='staff')
 def software_compliance_report(request):
     """
     Phase 17 v3 (v3.17.305): software compliance audit. Joins
@@ -3573,6 +3618,7 @@ def software_compliance_report(request):
 
 
 @login_required
+@require_msp_wide_perm('tickets_view', legacy='staff')
 def ticket_aging_report(request):
     """
     Phase 19 v1 (v3.17.257): ticket aging analytics. Bucket open
@@ -3657,6 +3703,7 @@ def ticket_aging_report(request):
 
 
 @login_required
+@require_msp_wide_perm('procurement_view', legacy='staff')
 def procurement_summary(request):
     """
     Phase 13 v3 (v3.17.258): procurement summary report. Aggregates
@@ -3754,6 +3801,7 @@ def procurement_summary(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def vendor_cost_history(request):
     """
     Phase 13 v5 (v3.17.262): vendor cost history. Aggregates
@@ -3947,6 +3995,7 @@ def asset_lifecycle_report(request):
 
 
 @login_required
+@require_msp_wide_perm('procurement_view', legacy='staff')
 def procurement_forecasting(request):
     """
     Phase 13 v8 (v3.17.268): procurement forecasting. Reads the last
@@ -4044,6 +4093,7 @@ def procurement_forecasting(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def hardware_margin_report(request):
     """
     Phase 13 v9 (v3.17.271): hardware-resale margin analytics. For each
@@ -4163,6 +4213,7 @@ def hardware_margin_report(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_sla', legacy='staff')
 def sla_forecast_report(request):
     """
     Phase 19 v2 (v3.17.320): SLA forecasting. Predicts breach risk on
@@ -4268,6 +4319,7 @@ def sla_forecast_report(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_financial', legacy='staff')
 def quote_conversion_report(request):
     """
     Phase 19 v3 (v3.17.321): quote conversion tracking. For sales pipeline
@@ -4474,7 +4526,11 @@ def kpi_dashboard(request):
     mrr_total = _D('0')
     arr_total = _D('0')
     contract_count = 0
-    if is_staff:
+    # Recurring revenue is a financial figure: the financial flag, not just
+    # being MSP staff (a Level 1 technician's global role leaves it out).
+    show_money = is_staff and has_msp_wide_perm(
+        request.user, 'reports_view_financial', legacy='staff')
+    if show_money:
         contracts = (Contract.objects.filter(status='active')
                      .exclude(billing_frequency='none'))
         for c in contracts:
@@ -4499,7 +4555,7 @@ def kpi_dashboard(request):
         'mrr_total': mrr_total,
         'arr_total': arr_total,
         'contract_count': contract_count,
-        'is_staff_view': is_staff,
+        'is_staff_view': show_money,  # gates the MRR/ARR cards and export rows
     }
 
     fmt = (request.GET.get('format') or '').lower()
@@ -4542,6 +4598,7 @@ def kpi_dashboard(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_capacity', legacy='staff')
 def operational_metrics_report(request):
     """
     Phase 19 v5 (v3.17.323): operational metrics. Per-window aggregates
@@ -4695,6 +4752,7 @@ def operational_metrics_report(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_dashboards', legacy='staff')
 def workflow_performance_report(request):
     """
     Phase 19 v6 (v3.17.324): workflow performance analytics. Rolls up
@@ -4797,6 +4855,7 @@ def workflow_performance_report(request):
 
 
 @login_required
+@require_msp_wide_perm('reports_view_dashboards', legacy='staff')
 def trends_report(request):
     """
     Phase 19 v7 (v3.17.325): trend analysis + capacity forecasting.

@@ -157,6 +157,20 @@ def is_msp_staff(user):
     return _is_msp_staff(user)
 
 
+def visible_tickets(qs, user):
+    """Tickets of `qs` this user may see: everything for MSP staff; for a
+    customer user, tickets shared with the client and either their own or —
+    when their role sees the whole organization's — any of them
+    (psa.visibility.customer_ticket_q)."""
+    from psa.visibility import customer_ticket_q, customer_visible_tickets
+    qs = customer_visible_tickets(qs, user)
+    if is_msp_staff(user):
+        return qs
+    return qs.filter(customer_ticket_q(
+        user, user.memberships.filter(is_active=True, organization__is_active=True)
+        .select_related('role_template')))
+
+
 def can_open_customer(request, org):
     """True when the user may open this customer at all."""
     if org is None or not org.is_active:
@@ -230,7 +244,6 @@ def _sorted(items):
 def sla_section(request, org, now=None):
     from psa import sla
     from psa.models import Ticket
-    from psa.visibility import customer_visible_tickets
 
     now = now or timezone.now()
     user = request.user
@@ -239,7 +252,7 @@ def sla_section(request, org, now=None):
           .filter(Q(resolution_due_at__isnull=False) | Q(first_response_due_at__isnull=False))
           .select_related('status', 'priority', 'assigned_to')
           .order_by('resolution_due_at'))
-    qs = customer_visible_tickets(qs, user)
+    qs = visible_tickets(qs, user)
     rows = list(qs[:SCAN_LIMIT + 1])
     section = Section('sla', TITLES['sla'], ICONS['sla'],
                       truncated=len(rows) > SCAN_LIMIT,
@@ -326,8 +339,7 @@ def uptime_section(request, org, now=None):
         if staff:
             actions.append(Action('Open status page', _url('statuspage:detail', inc.page_id), 'fa-heart-pulse'))
         if inc.ticket_id and inc.ticket.organization_id == org.pk and _has(user, org, 'tickets_view'):
-            from psa.visibility import customer_visible_tickets
-            if customer_visible_tickets(type(inc.ticket).objects.filter(pk=inc.ticket_id), user).exists():
+            if visible_tickets(type(inc.ticket).objects.filter(pk=inc.ticket_id), user).exists():
                 actions.append(Action('Open ticket', _url('psa:ticket_detail', inc.ticket.ticket_number),
                                       'fa-ticket-alt'))
         section.items.append(Item(

@@ -72,9 +72,12 @@
                                                 <a href="{% url 'reports:scheduled_edit' schedule.pk %}" class="btn btn-outline-primary" title="Edit">
                                                     <i class="fas fa-pen"></i>
                                                 </a>
-                                                <a href="{% url 'reports:scheduled_toggle' schedule.pk %}" class="btn btn-outline-{% if schedule.is_active %}warning{% else %}success{% endif %}" title="{% if schedule.is_active %}Disable{% else %}Enable{% endif %}">
-                                                    <i class="fas fa-{% if schedule.is_active %}pause{% else %}play{% endif %}"></i>
-                                                </a>
+                                                <form method="post" action="{% url 'reports:scheduled_toggle' schedule.pk %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-outline-{% if schedule.is_active %}warning{% else %}success{% endif %} rounded-0" title="{% if schedule.is_active %}Disable{% else %}Enable{% endif %}">
+                                                        <i class="fas fa-{% if schedule.is_active %}pause{% else %}play{% endif %}"></i>
+                                                    </button>
+                                                </form>
                                                 <a href="{% url 'reports:scheduled_delete' schedule.pk %}" class="btn btn-outline-danger" title="Delete">
                                                     <i class="fas fa-trash"></i>
                                                 </a>

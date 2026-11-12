@@ -190,7 +190,16 @@ def global_search(request):
             try:
                 from django.db.models import Case, IntegerField, Value, When
                 from psa.views import _scoped_ticket_qs
-                tickets = _scoped_ticket_qs(request).filter(
+                from psa.visibility import customer_ticket_q
+                tickets = filter_by_org_perm(_scoped_ticket_qs(request), user, 'tickets_view')
+                if not staff_user:
+                    # A customer user finds the tickets they could open: their
+                    # own, or the whole organization's when their role allows.
+                    tickets = tickets.filter(customer_ticket_q(
+                        user, user.memberships.filter(is_active=True,
+                                                      organization__is_active=True)
+                        .select_related('role_template')))
+                tickets = tickets.filter(
                     Q(ticket_number__icontains=query) | Q(subject__icontains=query)
                 ).annotate(_exact=Case(When(ticket_number__iexact=query, then=Value(0)),
                                        default=Value(1), output_field=IntegerField())

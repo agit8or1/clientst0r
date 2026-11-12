@@ -52,27 +52,27 @@ WIDGET_SPECS = {
     # SLA — same bar as the SLA trends page.
     'sla_breach_trend': ('reports_view_sla', SCOPE_ORG),
     # Service desk.
-    'open_tickets_count': (None, SCOPE_ORG),
-    'overdue_tickets_count': (None, SCOPE_ORG),
-    'avg_resolution_hours': (None, SCOPE_ORG),
-    'tickets_by_priority': (None, SCOPE_ORG),
-    'tickets_opened_30d': (None, SCOPE_ORG),
-    'my_assigned_tickets': (None, SCOPE_ORG),
-    'active_techs': (None, SCOPE_ORG),
+    'open_tickets_count': ('tickets_view', SCOPE_ORG),
+    'overdue_tickets_count': ('tickets_view', SCOPE_ORG),
+    'avg_resolution_hours': ('tickets_view', SCOPE_ORG),
+    'tickets_by_priority': ('tickets_view', SCOPE_ORG),
+    'tickets_opened_30d': ('tickets_view', SCOPE_ORG),
+    'my_assigned_tickets': ('tickets_view', SCOPE_ORG),
+    'active_techs': ('tickets_view', SCOPE_ORG),
     # Client health.
-    'at_risk_clients': (None, SCOPE_ORG),
-    'client_health_breakdown': (None, SCOPE_ORG),
+    'at_risk_clients': ('tickets_view', SCOPE_ORG),
+    'client_health_breakdown': ('tickets_view', SCOPE_ORG),
     # Other modules — each behind its own module's view permission.
     'recent_sales_activity': ('crm_view', SCOPE_ORG),
     'low_stock_items': ('procurement_view', SCOPE_ORG),
-    'security_alerts_24h': (None, SCOPE_ORG),
-    'security_alerts_open_critical': (None, SCOPE_ORG),
-    'alerts_by_severity': (None, SCOPE_ORG),
-    'monitors_down': (None, SCOPE_ORG),
-    'monitors_status_breakdown': (None, SCOPE_ORG),
-    'ssl_expiring_soon': (None, SCOPE_ORG),
-    'domain_expiring_soon': (None, SCOPE_ORG),
-    'warranties_expiring_soon': (None, SCOPE_ORG),
+    'security_alerts_24h': ('security_alerts_view', SCOPE_ORG),
+    'security_alerts_open_critical': ('security_alerts_view', SCOPE_ORG),
+    'alerts_by_severity': ('monitoring_view', SCOPE_ORG),
+    'monitors_down': ('monitoring_view', SCOPE_ORG),
+    'monitors_status_breakdown': ('monitoring_view', SCOPE_ORG),
+    'ssl_expiring_soon': ('monitoring_view', SCOPE_ORG),
+    'domain_expiring_soon': ('monitoring_view', SCOPE_ORG),
+    'warranties_expiring_soon': ('assets_view', SCOPE_ORG),
     'vault_activity_24h': ('audit_view', SCOPE_ORG),
     # No client to scope these by, so they are MSP-wide or nothing.
     'recent_failed_logins': ('audit_view', SCOPE_MSP),
@@ -93,24 +93,38 @@ def viewer_for(user, is_staff_user=False):
     `org_ids` is None for someone entitled to every client (superuser or MSP
     staff) and a list of their active memberships' organization ids otherwise
     — the same rule `psa.views._scoped_ticket_qs` applies to tickets.
+
+    `perm_orgs` says, per permission, where the viewer holds it: None for
+    every client, else a list of organization ids. For MSP staff with a
+    global role that role decides (reports.access.has_msp_wide_perm), so a
+    flag held on one customer membership no longer unlocks every customer's
+    figures; customer users hold a flag only in the organizations whose
+    membership grants it.
     """
-    from accounts.permission_utils import user_has_perm
+    from accounts.permission_utils import orgs_with_perm
+    from reports.access import has_msp_wide_perm
 
     if not user or not getattr(user, 'is_authenticated', False):
         return no_access_viewer()
 
     if user.is_superuser or is_staff_user:
         org_ids = None
+        perm_orgs = {p: (None if has_msp_wide_perm(user, p) else []) for p in REQUIRED_PERMS}
     else:
         org_ids = list(
             user.memberships.filter(is_active=True)
             .values_list('organization_id', flat=True)
         ) if hasattr(user, 'memberships') else []
+        perm_orgs = {}
+        for p in REQUIRED_PERMS:
+            allowed = orgs_with_perm(user, p)
+            perm_orgs[p] = None if allowed is None else sorted(allowed)
 
     return {
         'user_id': user.id,
         'org_ids': org_ids,
-        'perms': {p for p in REQUIRED_PERMS if user_has_perm(user, p)},
+        'perm_orgs': perm_orgs,
+        'perms': {p for p, ids in perm_orgs.items() if ids is None or ids},
     }
 
 
@@ -985,6 +999,12 @@ def get_widget_data(data_source: str, params: dict, viewer: dict = None) -> dict
 
     if perm and perm not in (viewer.get('perms') or ()):
         return _restricted(f'Restricted — needs the {perm} permission')
+    if perm and 'perm_orgs' in viewer:
+        # Only the clients where the viewer holds this widget's permission.
+        held = viewer['perm_orgs'].get(perm)
+        if held is not None:
+            held = set(held)
+            org_ids = sorted(held) if org_ids is None else [i for i in org_ids if i in held]
     if scope == SCOPE_MSP and org_ids is not None:
         return _restricted('Restricted — this widget reports across every client')
 
