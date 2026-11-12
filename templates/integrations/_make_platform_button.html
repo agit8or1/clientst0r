@@ -1,0 +1,11 @@
+{% if r.make_platform %}
+{% if r.make_platform.refusal %}
+<span class="d-inline-block" tabindex="0" title="{{ r.make_platform.refusal }}"><button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" disabled>Make platform-owned</button></span>
+{% else %}
+<form method="post" action="{{ r.make_platform.url }}" class="d-inline"
+      data-confirm="Make &quot;{{ r.name }}&quot; platform-owned? Everything it already assigned stays with {{ r.owner }}. New data that maps to no customer will wait in global view for you to assign; it will not go to {{ r.owner }} automatically. {{ r.owner }}'s admins will no longer see or edit this connection.">
+    {% csrf_token %}<input type="hidden" name="confirm" value="yes">
+    <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">Make platform-owned</button>
+</form>
+{% endif %}
+{% endif %}

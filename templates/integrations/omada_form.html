@@ -15,6 +15,7 @@
             {% if form.non_field_errors %}
             <div class="alert alert-danger">{{ form.non_field_errors }}</div>
             {% endif %}
+            {% include 'integrations/_owner_field.html' %}
 
             <div class="mb-3">
                 <label class="form-label fw-semibold">{{ form.name.label }}</label>

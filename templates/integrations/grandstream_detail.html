@@ -31,7 +31,8 @@
             <div class="card-header">Connection Details</div>
             <div class="card-body">
                 <table class="table table-sm">
-                    <tr><th style="width:40%">Host</th><td>{{ connection.host }}</td></tr>
+                    <tr><th style="width:40%">Owner</th><td>{{ connection.owner_label }}</td></tr>
+                    <tr><th>Host</th><td>{{ connection.host }}</td></tr>
                     <tr><th>SSL Verify</th><td>{{ connection.verify_ssl|yesno:"Yes,No" }}</td></tr>
                     <tr><th>Active</th><td>{{ connection.is_active|yesno:"Yes,No" }}</td></tr>
                     <tr><th>Auto-Sync Assets</th><td>{{ connection.auto_sync_assets|yesno:"Yes,No" }}</td></tr>
@@ -58,6 +59,9 @@
         </div>
     </div>
 </div>
+
+{% url 'integrations:grandstream_site_org' connection.pk as site_org_url %}
+{% include 'integrations/_site_org_mapping.html' %}
 
 {% for site in sites %}
 <div class="card mb-4">

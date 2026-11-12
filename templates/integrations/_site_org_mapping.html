@@ -1,0 +1,34 @@
+{# Site → customer mapping for a platform-owned Omada / Grandstream controller. #}
+{# Needs: site_rows, site_customers, site_org_url. The view fills site_rows only for platform admins. #}
+{% if site_rows %}
+<div class="card mb-4">
+    <div class="card-header">Site → customer mapping</div>
+    <div class="card-body">
+        <p class="small text-muted mb-3">This controller is platform-owned. Each site's devices are imported into the customer you choose here. A site with no customer stays unassigned and is skipped by imports; nothing is guessed.</p>
+        <form method="post" action="{{ site_org_url }}">
+            {% csrf_token %}
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Site</th><th>Devices</th><th>Customer</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for row in site_rows %}
+                <tr>
+                    <td>{{ row.site_name }}</td>
+                    <td>{{ row.device_count }}</td>
+                    <td>
+                        <select name="site__{{ row.map_key }}" class="form-select form-select-sm" aria-label="Customer for site {{ row.site_name }}">
+                            <option value="">Unassigned</option>
+                            {% for org in site_customers %}
+                            <option value="{{ org.id }}"{% if org.id == row.organization_id %} selected{% endif %}>{{ org.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>{% if row.organization_id %}<span class="badge bg-success">Mapped</span>{% else %}<span class="badge bg-warning text-dark" title="{{ row.reason }}">Unassigned</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save me-1"></i>Save mapping</button>
+        </form>
+    </div>
+</div>
+{% endif %}

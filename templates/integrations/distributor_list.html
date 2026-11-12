@@ -23,7 +23,7 @@
                 <tr>
                     <th>Name</th>
                     <th>Provider</th>
-                    <th>Organization</th>
+                    <th>Owner</th>
                     <th>Active</th>
                     <th>Order Sync</th>
                     <th>Last Sync</th>
@@ -35,7 +35,7 @@
                 <tr>
                     <td><strong>{{ conn.name }}</strong></td>
                     <td>{{ conn.get_provider_type_display }}</td>
-                    <td>{{ conn.organization.name }}</td>
+                    <td>{{ conn.owner_label }}</td>
                     <td>
                         {% if conn.is_active %}
                         <span class="badge text-bg-success">Yes</span>

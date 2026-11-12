@@ -29,7 +29,7 @@
             <tr>
                 <th>Distributor</th>
                 <th>Provider</th>
-                <th>Org</th>
+                <th>Owner</th>
                 <th class="text-end">Qty available</th>
                 <th class="text-end">Unit price</th>
                 <th class="text-end">Latency</th>
@@ -41,7 +41,7 @@
             <tr>
                 <td><strong>{{ r.connection.name }}</strong></td>
                 <td>{{ r.connection.get_provider_type_display }}</td>
-                <td>{{ r.connection.organization.name }}</td>
+                <td>{{ r.connection.owner_label }}</td>
                 <td class="text-end">
                     {% if r.ok %}
                         {% if r.qty is not None %}
