@@ -59,7 +59,6 @@
                 {% endif %}
                 {% if request.portal_psa_enabled is not False %}
                 <a href="{% url 'portal:ticket_list' %}" class="btn btn-link">My Tickets</a>
-                <a href="{% url 'portal:request_catalog' %}" class="btn btn-link"><i class="fas fa-concierge-bell"></i> Request a service</a>
                 {% endif %}
                 <a href="{% url 'portal:kb_list' %}" class="btn btn-link"><i class="fas fa-book"></i> Knowledge Base</a>
                 <a href="{% url 'portal:vault_list' %}" class="btn btn-link"><i class="fas fa-key"></i> Credentials</a>

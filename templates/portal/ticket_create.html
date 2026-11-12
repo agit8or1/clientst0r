@@ -4,13 +4,14 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'portal:ticket_list' %}">My Tickets</a></li>
-        <li class="breadcrumb-item active">New Ticket</li>
+        <li class="breadcrumb-item"><a href="{% url 'portal:ticket_create' %}">New ticket</a></li>
+        <li class="breadcrumb-item active">General support</li>
     </ol>
 </nav>
 
 <h1 class="mb-3">Submit a Support Request</h1>
 
-<form method="post" class="card">
+<form method="post" class="card" enctype="multipart/form-data" action="{% url 'portal:ticket_create' %}">
     {% csrf_token %}
     <div class="card-body">
         <div class="mb-3">
@@ -34,6 +35,11 @@
             </select>
         </div>
         {% endif %}
+        <div class="mb-3">
+            <label class="form-label" for="ticket-attachments">Attachments <small class="text-muted">(optional — up to 5 files, 25 MB each)</small></label>
+            <input type="file" name="attachments" id="ticket-attachments" class="form-control" multiple>
+            <div class="form-text">Screenshots or documents. Please don't send passwords or sign-in codes.</div>
+        </div>
         <p class="text-muted small mb-0">A support engineer will follow up. You'll get an email when the ticket is updated.</p>
     </div>
     <div class="card-footer">

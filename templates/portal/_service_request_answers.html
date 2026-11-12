@@ -1,10 +1,23 @@
 {# Answers from a guided service request. Context: sr (portal/request_views.py:service_request_context) #}
-<h6 class="mb-2"><i class="fas fa-clipboard-list me-1"></i>{{ sr.name|default:"Request details" }}</h6>
-{% if sr.answers %}
+<h2 class="h6 mb-2"><i class="fas fa-clipboard-list me-1" aria-hidden="true"></i>Request details{% if sr.name %}: {{ sr.name }}{% endif %}</h2>
+{% if sr.approval_required %}
+<p class="small mb-2">
+    {% if sr.approval_status == 'approved' %}<span class="badge bg-success">Approved</span>
+    {% elif sr.approval_status == 'denied' %}<span class="badge bg-danger">Declined</span>
+    {% else %}<span class="badge bg-warning text-dark">Waiting for approval</span> Work starts once an approver at your organization approves it.{% endif %}
+</p>
+{% endif %}
+{% if sr.answers_hidden %}
+<p class="text-muted small mb-0">The details of this request are visible to the person who asked, its approvers and your organization's portal admins.</p>
+{% elif sr.answers %}
 <dl class="row mb-0 small">
     {% for a in sr.answers %}
+    {% if a.type == 'heading' %}
+    <dt class="col-12 mt-2 text-uppercase text-muted small fw-semibold">{{ a.label }}</dt>
+    {% else %}
     <dt class="col-sm-4 text-muted fw-normal">{{ a.label }}</dt>
     <dd class="col-sm-8" style="white-space: pre-wrap;">{{ a.display|default:"—" }}</dd>
+    {% endif %}
     {% endfor %}
 </dl>
 {% else %}
