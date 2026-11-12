@@ -712,7 +712,7 @@ def system_updates(request):
     from core.upgrade import journal as upgrade_journal, snapshot as upgrade_snapshot
     upgrade_state = upgrade_journal.assess()
     try:
-        recent_backups = upgrade_snapshot.list_snapshots()[:5]
+        recent_backups = upgrade_snapshot.list_snapshots(quick=True)[:5]
     except Exception:
         recent_backups = []
 

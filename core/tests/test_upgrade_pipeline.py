@@ -203,6 +203,18 @@ class SnapshotTests(_TmpMixin, SimpleTestCase):
         self.assertFalse(ok)
         self.assertIn('checksum', detail)
 
+    def test_quick_check_skips_hashing_but_catches_size_changes(self):
+        snap, _ = self._snap()
+        with mock.patch.object(snapshot, '_sha256', wraps=snapshot._sha256) as h:
+            self.assertTrue(snapshot.is_verified(snap, quick=True)[0])
+        hashed = {Path(c.args[0]).name for c in h.call_args_list}
+        self.assertEqual(hashed, {'manifest.json'})
+        with open(snap / 'media.tar', 'ab') as f:
+            f.write(b'junk')
+        ok, detail = snapshot.is_verified(snap, quick=True)
+        self.assertFalse(ok)
+        self.assertIn('size changed', detail)
+
     def test_world_readable_backup_fails_verification(self):
         snap = snapshot.create(reason='test')
         os.chmod(snap / 'keys.env', 0o644)
