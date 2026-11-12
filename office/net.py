@@ -21,7 +21,8 @@ probes — goes through ``fetch``. Rules:
   fd00:ec2::254, 100.100.100.200, ...). Private ranges (RFC 1918, CGNAT,
   ULA) are allowed because the host is the approved editor host; loopback is
   allowed only for an instance installed on this server (mode
-  ``same_server``). Nothing else about the global SSRF policy changes:
+  ``same_server``). An endpoint object with ``public_only = True`` (the
+  Microsoft 365 documents client) gets public addresses only. Nothing else about the global SSRF policy changes:
   core.safe_http is reused for its blocklists and stays as strict as before
   for every other caller.
 * Redirects are followed manually (at most 3) and only to the same approved
@@ -127,6 +128,9 @@ def ip_allowed(value, instance) -> bool:
         return False
     if safe_http.is_public_ip(ip):
         return True
+    if getattr(instance, 'public_only', False):
+        # Cloud endpoints (Microsoft Graph, SharePoint): public addresses only.
+        return False
     if any(ip in net for net in _LOOPBACK):
         return instance.mode == 'same_server'
     return any(ip in net for net in _PRIVATE)

@@ -1,0 +1,3 @@
+{% if show %}
+<a class="btn btn-outline-secondary" href="{% url 'integrations:m365docs_home' %}?export={{ export_param|urlencode }}"><i class="fab fa-microsoft" aria-hidden="true"></i> Export a copy to Microsoft 365…</a>
+{% endif %}

@@ -1,0 +1,13 @@
+{% if status.connected %}
+<p class="mb-2"><i class="fas fa-circle-check text-success" aria-hidden="true"></i> Connected{% if status.grant.ms_display_name %} as {{ status.grant.ms_display_name }}{% endif %}.</p>
+{% if status.missing %}<p class="small text-warning-emphasis">Not granted yet: {% for m in status.missing %}<code>{{ m }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}. Connect again to ask for them.</p>{% endif %}
+<div class="d-flex gap-2 flex-wrap">
+  {% if status.missing %}<form method="post" action="{% url 'integrations:m365docs_connect' connection.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="btn btn-sm btn-primary">Connect again</button></form>{% endif %}
+  <form method="post" action="{% url 'integrations:m365docs_disconnect' connection.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="btn btn-sm btn-outline-danger">Disconnect</button></form>
+</div>
+<p class="small text-muted mt-2 mb-0">Disconnect deletes your stored tokens here. To also remove the app's consent at Microsoft, use My Apps (myapplications.microsoft.com) or ask your administrator.</p>
+{% else %}
+<p>Not connected. You will sign in to Microsoft and be asked to allow the permissions listed on this page.</p>
+<form method="post" action="{% url 'integrations:m365docs_connect' connection.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <button type="submit" class="btn btn-primary"{% if not connection.docs_enabled %} disabled aria-disabled="true"{% endif %}><i class="fab fa-microsoft" aria-hidden="true"></i> Connect my Microsoft 365 documents</button></form>
+{% endif %}

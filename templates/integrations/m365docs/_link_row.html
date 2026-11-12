@@ -1,0 +1,11 @@
+<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <span class="text-break"><i class="fab fa-microsoft text-muted" aria-hidden="true"></i> {{ link.name }}
+    <small class="text-muted">{% if link.size %}{{ link.size|filesizeformat }} · {% endif %}{{ link.connection.name }}</small></span>
+  <span class="d-flex gap-1 flex-wrap">
+    <form method="post" action="{% url 'integrations:m365docs_open' link.pk %}" target="_blank" rel="noopener noreferrer">{% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-primary" title="Opens where the file lives in Microsoft 365, in a new tab"><i class="fas fa-up-right-from-square" aria-hidden="true"></i> Open in Microsoft 365</button></form>
+    {% if can_import %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'integrations:m365docs_import' link.connection_id %}?drive={{ link.drive_id|urlencode }}&amp;item={{ link.item_id|urlencode }}&amp;next={{ request.get_full_path|urlencode }}">Import a copy…</a>{% endif %}
+    {% if can_unlink %}<form method="post" action="{% url 'integrations:m365docs_unlink' link.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="btn btn-sm btn-outline-danger">Unlink</button></form>{% endif %}
+  </span>
+</li>

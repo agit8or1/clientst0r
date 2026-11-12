@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load asset_tags %}
-{% load office_tags %}
+{% load office_tags m365docs_tags %}
 
 {% block title %}{{ asset.name }}{% endblock %}
 
@@ -659,6 +659,7 @@
                             {% endfor %}
                         </ul>
                         {% else %}<p class="text-muted small">No Word, Excel or PowerPoint files on this asset.</p>{% endif %}
+                        {% m365_linked_documents asset %}
                     </div>
                 </div>
             </div>

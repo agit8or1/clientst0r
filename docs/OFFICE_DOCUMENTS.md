@@ -513,7 +513,8 @@ stubs; the ONLYOFFICE and Collabora connectors below replace them. A connector m
 - store it with `storage.save_or_quarantine(..., source='editor_save', session=...)`;
 - fill `editor_page_context`, `health_check`, `diagnostics`, `round_trip` and `convert`.
 
-**Microsoft 365.** Not started.
+**Microsoft 365.** Linked SharePoint/OneDrive documents stay in Microsoft 365; see
+[office/MICROSOFT_365.md](office/MICROSOFT_365.md). Tested against a fake Graph only.
 
 **Package installation.** `scripts/office/install-editor.sh` is tested against a faked host only;
 no real install on Ubuntu 24.04 or Debian 12 has been run yet (see [office/INSTALL.md](office/INSTALL.md)).
@@ -530,4 +531,5 @@ Microsoft Office, ONLYOFFICE or Collabora.
 
 ONLYOFFICE Docs connector: see [office/ONLYOFFICE.md](office/ONLYOFFICE.md).
 Collabora Online connector (WOPI host): see [office/COLLABORA.md](office/COLLABORA.md).
-Installing, upgrading, draining and uninstalling the editor: [docs/office/INSTALL.md](office/INSTALL.md).
+Installing, upgrading, draining and uninstalling the editor: [office/INSTALL.md](office/INSTALL.md).
+Microsoft 365 documents (SharePoint / OneDrive: link, open, create, import and export copies): see [office/MICROSOFT_365.md](office/MICROSOFT_365.md).

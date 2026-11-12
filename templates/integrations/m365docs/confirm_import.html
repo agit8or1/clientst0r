@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Import a copy - Microsoft 365{% endblock %}
+{% block content %}
+<h2>Import a copy into clientst0r?</h2>
+<dl class="row">
+  <dt class="col-sm-3">From Microsoft 365</dt><dd class="col-sm-9">{{ location.display_name }} / {{ item.name }} {% if item.size %}<small class="text-muted">({{ item.size|filesizeformat }})</small>{% endif %}</dd>
+  <dt class="col-sm-3">To</dt><dd class="col-sm-9">A new document in <strong>{{ organization.name }}</strong> → Documents, with its own version history</dd>
+</dl>
+<p class="small text-muted">The Microsoft 365 file is not changed and the copy is not kept in sync with it.</p>
+<form method="post" action="{% url 'integrations:m365docs_import' connection.pk %}">{% csrf_token %}
+  <input type="hidden" name="drive" value="{{ drive_id }}"><input type="hidden" name="item" value="{{ item.id }}"><input type="hidden" name="next" value="{{ next }}">
+  <div class="mb-3"><label class="form-label" for="imp-title">Name in clientst0r</label><input class="form-control" id="imp-title" name="title" value="{{ item.name }}" maxlength="250"></div>
+  <button type="submit" class="btn btn-primary">Import a copy</button>
+  <a class="btn btn-outline-secondary" href="{% url 'integrations:m365docs_home' %}">Cancel</a>
+</form>
+{% endblock %}

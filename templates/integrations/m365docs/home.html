@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Microsoft 365 documents{% endblock %}
+{% block content %}
+<div class="ui-page-head"><div class="ui-page-head__main">
+  <h1 class="ui-page-title"><i class="fas fa-file-alt" aria-hidden="true"></i> Documents</h1>
+  <p class="ui-page-sub">Files in {{ organization.name }}'s Microsoft 365 (OneDrive and SharePoint). They stay in Microsoft 365: links are references, and copies are made only when you ask.</p>
+</div></div>
+<ul class="nav nav-tabs mb-3" aria-label="Document source">
+  <li class="nav-item"><a class="nav-link" href="{% url 'docs:document_list' %}"><i class="fas fa-file-alt" aria-hidden="true"></i> clientst0r</a></li>
+  <li class="nav-item"><a class="nav-link active" aria-current="page" href="{% url 'integrations:m365docs_home' %}"><i class="fab fa-microsoft" aria-hidden="true"></i> Microsoft 365</a></li>
+</ul>
+{% if export_target %}<div class="alert alert-info">Choose where to export a copy of <strong>{{ export_target.filename }}</strong>: open an allowed location, go to the folder, then choose <em>Export here</em>.</div>{% endif %}
+{% if for_param != 'org' %}<div class="alert alert-info">Choose a file to link: open an allowed location and use <em>Link</em>.</div>{% endif %}
+{% for row in rows %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <strong>{{ row.connection.name }}</strong>
+    {% if row.can_configure %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'integrations:m365docs_settings' row.connection.pk %}">Settings</a>{% endif %}
+  </div>
+  <div class="card-body">
+    {% include "integrations/m365docs/_connect_status.html" with status=row.status connection=row.connection %}
+    {% if row.status.connected %}
+    <h6 class="mt-3">Allowed locations</h6>
+    {% if row.locations %}
+    <div class="list-group mb-3">
+      {% for loc in row.locations %}
+      <a class="list-group-item list-group-item-action" href="{% url 'integrations:m365docs_browse' row.connection.pk %}?loc={{ loc.pk }}&amp;for={{ for_param|urlencode }}{% if export_param %}&amp;export={{ export_param|urlencode }}{% endif %}"><i class="fas fa-folder-open text-warning" aria-hidden="true"></i> {{ loc.display_name }} <small class="text-muted">{{ loc.get_kind_display }}</small></a>
+      {% endfor %}
+    </div>
+    {% else %}<p class="text-muted">An administrator has not allowed any location yet.</p>{% endif %}
+    {% endif %}
+    {% if for_param == 'org' and not export_target %}
+    <h6>Linked to the organization's documents ({{ row.links|length }})</h6>
+    {% if row.links %}<ul class="list-group">{% for link in row.links %}{% include "integrations/m365docs/_link_row.html" with link=link can_import=row.can_import can_unlink=row.can_link %}{% endfor %}</ul>
+    {% else %}<p class="small text-muted">None yet.</p>{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% empty %}
+<p class="text-muted">Microsoft 365 documents are not enabled for this organization, or you lack permission. An administrator turns them on in the organization's Microsoft 365 connection (Documents (SharePoint/OneDrive)).</p>
+{% endfor %}
+<p class="small text-muted">Opening files that are stored in clientst0r in Microsoft's online editor is not available: it requires Microsoft's Cloud Storage Partner Program, which is not open to self-hosted deployments.</p>
+{% endblock %}

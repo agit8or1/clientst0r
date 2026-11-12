@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load office_tags %}
+{% load office_tags m365docs_tags %}
 {% load vault_access %}
 {% load ticket_routing %}
 {% load ai_history %}
@@ -388,6 +388,7 @@
             </div>
             {% endif %}
         </div>
+        {% if is_msp_staff %}<div class="mt-3">{% m365_linked_documents ticket %}</div>{% endif %}
     </div>
 
     <div class="col-lg-4">
