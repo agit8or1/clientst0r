@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Managed ONLYOFFICE diagnostics{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb="Managed ONLYOFFICE diagnostics" %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h1 class="h5 mb-0">Managed ONLYOFFICE diagnostics</h1>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:managed' %}">Back</a>
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'office:managed_diagnostics' %}?lines={{ lines }}&amp;download=1">Download</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted">The Office service helper removes secrets, tokens and signed links from the log before clientst0r sees it. The JWT secret is never shown here. Check the download before you attach it to a support request anyway.</p>
+        <form method="get" class="d-flex gap-2 align-items-end mb-3">
+          <div><label class="form-label small" for="diag-lines">Log lines (1-500)</label><input class="form-control form-control-sm" type="number" min="1" max="500" id="diag-lines" name="lines" value="{{ lines }}"></div>
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Refresh</button>
+        </form>
+        <h2 class="h6">Status</h2>
+        {% if status %}
+        <dl class="row small">
+          <dt class="col-sm-4">Helper</dt><dd class="col-sm-8">{{ status.helper_version }}</dd>
+          <dt class="col-sm-4">Docker</dt><dd class="col-sm-8">{% if status.docker.available %}{{ status.docker.version }} · {{ status.docker.compose }}{% else %}<span class="text-danger">unavailable</span> {{ status.docker.detail }}{% endif %}</dd>
+          <dt class="col-sm-4">Installed</dt><dd class="col-sm-8">{{ status.installed.state|default:"not installed" }} {{ status.installed.release|default:"" }}{% if status.installed.installed_at %} · {{ status.installed.installed_at }}{% endif %}</dd>
+          <dt class="col-sm-4">Image digest</dt><dd class="col-sm-8"><code class="text-break">{{ status.installed.digest|default:"—" }}</code></dd>
+          <dt class="col-sm-4">Container</dt><dd class="col-sm-8">{% if status.container.exists %}{{ status.container.state }}, health {{ status.container.health }}, started {{ status.container.started_at }}, restarts {{ status.container.restart_count }}{% if status.container.oom_killed %}, killed: out of memory{% endif %}{% else %}none{% endif %}</dd>
+          <dt class="col-sm-4">Last helper operation</dt><dd class="col-sm-8">{% if status.operation %}{{ status.operation.op }} — {{ status.operation.state }}{% if status.operation.step %} ({{ status.operation.step }}){% endif %}{% if status.operation.error %}: {{ status.operation.error }}{% endif %}{% else %}none{% endif %}</dd>
+          <dt class="col-sm-4">Secrets on the server</dt><dd class="col-sm-8">{{ status.secrets_present|yesno:"present,missing" }} (values never leave the server except to configure the editor connection)</dd>
+        </dl>
+        {% else %}
+        <div class="alert alert-warning small">The helper did not answer.</div>
+        {% endif %}
+        <h2 class="h6">Container log</h2>
+        {% if log_error %}<div class="alert alert-warning small">{{ log_error }}</div>{% endif %}
+        <pre class="small border rounded p-2 bg-body-tertiary" style="max-height: 32rem; overflow: auto;">{{ log_text|default:"(empty)" }}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

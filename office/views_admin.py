@@ -15,7 +15,8 @@ from core.middleware import get_request_organization
 from . import audit, diagnostics, formats, install_guidance, policy, storage, targets
 from .forms import (EditorInstanceForm, OfficeSettingsForm, OrganizationPolicyForm,
                     TemplateUploadForm)
-from .models import EditorInstance, EditSession, OfficeFile, OfficeSettings, QuarantinedSave
+from .models import (EditorInstance, EditSession, ManagedOfficeService, OfficeFile, OfficeSettings,
+                     QuarantinedSave)
 from .providers import all_providers
 
 
@@ -57,6 +58,7 @@ def settings_index(request):
     return render(request, 'office/settings/index.html', {
         'form': form, 'instances': instances, 'providers': all_providers(),
         'quarantine_count': QuarantinedSave.objects.count(),
+        'managed_service': ManagedOfficeService.get(),
         'active_page': 'office_documents',
     })
 
@@ -66,6 +68,10 @@ def settings_index(request):
 @require_http_methods(['GET', 'POST'])
 def instance_edit(request, pk=None):
     instance = get_object_or_404(EditorInstance, pk=pk) if pk else None
+    if instance is not None and instance.mode == 'managed_local':
+        messages.info(request, 'This editor is managed by clientst0r: its addresses and secret come '
+                               'from the server configuration.')
+        return redirect('office:managed')
     before = {f: getattr(instance, f) for f in _INSTANCE_AUDIT_FIELDS} if instance else {}
     old_secret = instance.shared_secret if instance else ''
     old_ca = instance.ca_bundle if instance else ''
@@ -105,6 +111,10 @@ def instance_edit(request, pk=None):
 @require_http_methods(['GET', 'POST'])
 def instance_delete(request, pk):
     instance = get_object_or_404(EditorInstance, pk=pk)
+    if instance.mode == 'managed_local':
+        messages.info(request, 'Use Uninstall on the Managed Local ONLYOFFICE page; it drains '
+                               'sessions first and keeps documents and editor data.')
+        return redirect('office:managed')
     live = instance.sessions.filter(state__in=EditSession.LIVE_STATES).count()
     if request.method == 'POST':
         from . import sessions as session_api

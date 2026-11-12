@@ -40,6 +40,13 @@
       </div>
     </div>
 
+    <div class="card mb-4"><div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div><strong>Managed Local ONLYOFFICE</strong>
+        <span class="badge {% if managed_service.enabled %}text-bg-primary{% else %}text-bg-secondary{% endif %}">{% if managed_service.enabled %}on{% else %}off{% endif %}</span>
+        <div class="small text-muted">clientst0r installs and runs one pinned ONLYOFFICE Docs container on this server, for this deployment only, and configures the editor above for it. An alternative to connecting an external editor.</div></div>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:managed' %}">Open</a>
+    </div></div>
+
     <div class="card mb-4">
       <div class="card-header"><h2 class="h5 mb-0">Policy</h2></div>
       <div class="card-body">

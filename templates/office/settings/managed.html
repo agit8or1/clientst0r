@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Managed Local ONLYOFFICE{% endblock %}
+{% block content %}
+{% include "office/settings/_layout_start.html" with crumb="Managed Local ONLYOFFICE" %}
+<div class="row">
+  <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
+  <div class="col-md-9">
+
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h1 class="h5 mb-0"><i class="fas fa-server" aria-hidden="true"></i> Managed Local ONLYOFFICE</h1>
+        <form method="post" action="{% url 'office:managed_toggle' %}">{% csrf_token %}
+          {% if service.enabled %}
+          <input type="hidden" name="enabled" value="0"><button class="btn btn-sm btn-outline-secondary" type="submit" data-confirm="Turn managed mode off? The container is left as it is.">Turn off</button>
+          {% else %}
+          <input type="hidden" name="enabled" value="1"><button class="btn btn-sm btn-primary" type="submit">Turn on</button>
+          {% endif %}
+        </form>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted">One ONLYOFFICE Docs container, pinned to a release and image digest from clientst0r's release list, runs on this server for this deployment only. clientst0r keeps every document and revision; the editor only holds working copies. Lifecycle actions run through the root-owned Office service helper, which accepts a fixed list of operations and nothing else. Setup of the server side (Docker prerequisites, the helper socket, the office host name in Nginx) is a one-time root step: <code>scripts/office/install-editor.sh --mode managed-local</code>, see docs/office/MANAGED_LOCAL.md.</p>
+        {% if not service.enabled %}
+        <p class="mb-0">Managed mode is <strong>off</strong>. External editors keep working either way.</p>
+        {% else %}
+        <dl class="row small mb-0">
+          <dt class="col-sm-4">Mode</dt><dd class="col-sm-8">Managed local container{% if instance %} · editor instance <a href="{% url 'office:instance_diagnostics' instance.pk %}">{{ instance.name }}</a>{% if not instance.enabled %} <span class="badge text-bg-secondary">closed to users</span>{% endif %}{% endif %}</dd>
+          <dt class="col-sm-4">Helper</dt><dd class="col-sm-8">{% if service.helper_reachable %}reachable{% if status.helper_version %} (version {{ status.helper_version }}){% endif %}{% else %}<span class="text-danger">unreachable</span>{% if service.status_error %} — {{ service.status_error }}{% endif %}{% endif %}{% if service.status_at %} <span class="text-muted">· {{ service.status_at|date:"Y-m-d H:i" }}</span>{% endif %}</dd>
+          <dt class="col-sm-4">Installation</dt><dd class="col-sm-8">{{ installed_state }}{% if status.installed.release %} · {{ status.installed.release }}{% endif %}</dd>
+          <dt class="col-sm-4">Service</dt><dd class="col-sm-8">{% if container.exists %}{{ container.state }}, health {{ container.health }}{% if container.restart_count %}, {{ container.restart_count }} restart(s){% endif %}{% if container.oom_killed %} <span class="text-danger">(killed: out of memory)</span>{% endif %}{% else %}no container{% endif %}</dd>
+          <dt class="col-sm-4">Edition / version</dt><dd class="col-sm-8">{{ status.config.edition|default:"—" }} / {{ status.installed.version|default:"—" }}{% if instance.detected_version %} (editor reports {{ instance.detected_version }}{% if instance.detected_edition %}, {{ instance.detected_edition }}{% endif %}){% endif %}</dd>
+          <dt class="col-sm-4">Image</dt><dd class="col-sm-8"><code class="small text-break">{{ status.installed.digest|default:"—" }}</code></dd>
+          <dt class="col-sm-4">Addresses</dt><dd class="col-sm-8">browser {{ status.config.browser_url|default:"—" }} · internal {{ status.config.internal_url|default:"—" }} · callbacks to {{ status.config.clientstor_url|default:"—" }}</dd>
+          <dt class="col-sm-4">Health</dt><dd class="col-sm-8">{% if instance %}{{ instance.get_health_status_display }}{% if instance.last_check_at %} ({{ instance.last_check_at|date:"Y-m-d H:i" }}){% endif %}{% else %}—{% endif %}</dd>
+          <dt class="col-sm-4">Last successful connection check</dt><dd class="col-sm-8">{% if service.last_connection_ok_at %}{{ service.last_connection_ok_at|date:"Y-m-d H:i" }}{% else %}never{% endif %}</dd>
+          <dt class="col-sm-4">Resources</dt><dd class="col-sm-8">{% if status.resources %}CPU {{ status.resources.cpu_percent }}, memory {{ status.resources.memory }} ({{ status.resources.memory_percent }}){% else %}not available{% endif %} · limits {{ status.config.cpus|default:"—" }} CPU, {{ status.config.memory_mb|default:"—" }} MB · data {{ status.data_bytes|filesizeformat }}</dd>
+          <dt class="col-sm-4">Updates</dt><dd class="col-sm-8">{% if updates %}{% for u in updates %}{{ u.id }}{% if not u.installable %} <span class="text-muted">({{ u.problem }})</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}none in the release list{% endif %}</dd>
+          <dt class="col-sm-4">Editing sessions</dt><dd class="col-sm-8">{{ sessions.live }} open ({{ sessions.edit }} editing){% if sessions.stale %}, {{ sessions.stale }} expired but not confirmed closed{% endif %}{% if sessions.errors %}, <span class="text-danger">{{ sessions.errors }} with a save error</span>{% endif %} · {{ sessions.quarantined }} unaccepted save(s) in 30 days{% if sessions.quarantined %} (<a href="{% url 'office:quarantine_list' %}">recover</a>){% endif %}
+            <div class="text-muted">Counted from clientst0r's own sessions. Before maintenance each one is checked with the editor; an unknown state postpones the operation.</div></dd>
+        </dl>
+        {% endif %}
+      </div>
+      {% if service.enabled %}
+      <div class="card-footer d-flex flex-wrap gap-2">
+        <form method="post" action="{% url 'office:managed_checks' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit">Setup checks</button></form>
+        <form method="post" action="{% url 'office:managed_action' %}">{% csrf_token %}<input type="hidden" name="action" value="install"><button class="btn btn-sm btn-primary" type="submit"{% if operation %} disabled{% endif %}>{% if container.exists %}Repair / reinstall{% else %}Install{% endif %}</button></form>
+        <form method="post" action="{% url 'office:managed_test' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit">Test connection</button></form>
+        <form method="post" action="{% url 'office:managed_action' %}">{% csrf_token %}<input type="hidden" name="action" value="start"><button class="btn btn-sm btn-outline-secondary" type="submit"{% if operation %} disabled{% endif %}>Start</button></form>
+        <form method="post" action="{% url 'office:managed_action' %}">{% csrf_token %}<input type="hidden" name="action" value="stop"><button class="btn btn-sm btn-outline-secondary" type="submit"{% if operation %} disabled{% endif %} data-confirm="Stop the editor? Open documents are saved first; nobody can edit until it is started again.">Stop</button></form>
+        <form method="post" action="{% url 'office:managed_action' %}">{% csrf_token %}<input type="hidden" name="action" value="restart"><button class="btn btn-sm btn-outline-secondary" type="submit"{% if operation %} disabled{% endif %} data-confirm="Restart the editor? Open documents are saved first.">Restart</button></form>
+        <form method="post" action="{% url 'office:managed_action' %}">{% csrf_token %}<input type="hidden" name="action" value="rollback"><button class="btn btn-sm btn-outline-secondary" type="submit"{% if operation or not status.installed.previous_release %} disabled{% endif %} data-confirm="Roll back to {{ status.installed.previous_release }}? Sessions are drained, the current editor data is kept in a backup, and the data from before the last update is restored.">Roll back{% if status.installed.previous_release %} to {{ status.installed.previous_release }}{% endif %}</button></form>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:managed_diagnostics' %}">Diagnostics</a>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if service.enabled %}
+    <div class="card mb-4" id="managed-progress" data-progress-url="{% url 'office:managed_progress' %}">
+      <div class="card-header"><h2 class="h6 mb-0">Operation progress</h2></div>
+      <div class="card-body">
+        {% if operation %}
+        <p class="mb-1"><strong data-progress-title>{{ operation.get_action_display }}{% if operation.target_release %} to {{ operation.target_release }}{% endif %}</strong> — <span data-progress-state>{{ operation.get_state_display }}</span></p>
+        <p class="small mb-2" data-progress-message>{{ operation.progress.message }}</p>
+        <ol class="small text-muted mb-2" data-progress-steps>{% for s in operation.progress.steps %}<li>{{ s.message }}</li>{% endfor %}</ol>
+        {% if operation.state == 'queued' %}<form method="post" action="{% url 'office:managed_cancel' operation.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Cancel</button></form>{% endif %}
+        <p class="small text-muted mb-0">Runs in the background (scheduler, every minute). This panel refreshes itself.</p>
+        {% else %}
+        <p class="small mb-0">No operation running.</p>
+        {% endif %}
+        {% if history %}
+        <div class="table-responsive mt-3"><table class="table table-sm small mb-0">
+          <thead><tr><th scope="col">Queued</th><th scope="col">Action</th><th scope="col">By</th><th scope="col">State</th><th scope="col">Result</th></tr></thead>
+          <tbody>{% for op in history %}<tr>
+            <td class="text-nowrap">{{ op.queued_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ op.get_action_display }}{% if op.target_release %} → {{ op.target_release }}{% endif %}</td>
+            <td>{% if op.requested_by %}{{ op.requested_by.username }}{% else %}{{ op.get_source_display }}{% endif %}</td>
+            <td><span class="badge {% if op.state == 'succeeded' %}text-bg-success{% elif op.state == 'failed' %}text-bg-danger{% elif op.state == 'postponed' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ op.get_state_display }}</span></td>
+            <td>{{ op.error|truncatechars:300 }}</td>
+          </tr>{% endfor %}</tbody>
+        </table></div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if checks %}
+    <h2 class="h6">Setup checks</h2>
+    <p class="small text-muted">Browser → ONLYOFFICE is proven by the browser probe (recorded from an administrator's browser), clientst0r → ONLYOFFICE by the loopback health check, and ONLYOFFICE → clientst0r by the document-download check once installed.</p>
+    {% include "office/settings/_check_list.html" with checks=checks %}
+    {% endif %}
+
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="h6 mb-0">Update</h2></div>
+      <div class="card-body">
+        <p class="small text-muted">Updates are manual by default. The helper downloads the pinned image before any downtime, drains sessions, takes a backup with the editor stopped, starts the new release and verifies health; clientst0r then runs an open/edit/save round trip before users can edit again. A new release that never becomes healthy is replaced by the previous one automatically. Ordinary clientst0r updates never update or restart the editor.</p>
+        {% with installable=updates %}
+        <form method="post" action="{% url 'office:managed_action' %}" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
+          <input type="hidden" name="action" value="update">
+          <div><label class="form-label small" for="managed-release">Release</label>
+            <select class="form-select form-select-sm" id="managed-release" name="release">{% for u in installable %}{% if u.installable %}<option value="{{ u.id }}">{{ u.id }}</option>{% endif %}{% endfor %}</select></div>
+          <button class="btn btn-sm btn-outline-primary" type="submit"{% if operation or not updates %} disabled{% endif %} data-confirm="Update the editor? Open documents are saved first and nobody can edit until the new release is verified.">Update</button>
+        </form>
+        {% endwith %}
+        <hr>
+        <form method="post" action="{% url 'office:managed_maintenance' %}" class="row g-2 align-items-end">{% csrf_token %}
+          <div class="col-12 form-check ms-2"><input class="form-check-input" type="checkbox" name="maintenance_updates" value="1" id="mw-on"{% if service.maintenance_updates %} checked{% endif %}> <label class="form-check-label small" for="mw-on">Allow updates inside the maintenance window (also needs <code>MAINTENANCE_UPDATES=yes</code> in the server's office-service.conf{% if status.config and not status.config.maintenance_updates %}; it is currently <strong>no</strong>{% endif %})</label></div>
+          <div class="col-sm-4"><label class="form-label small" for="mw-day">Day</label>
+            <select class="form-select form-select-sm" name="maintenance_weekday" id="mw-day"><option value="">Every day</option>{% for d, name in weekdays %}<option value="{{ d }}"{% if service.maintenance_weekday == d %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+          <div class="col-sm-3"><label class="form-label small" for="mw-hour">Start hour</label><input class="form-control form-control-sm" type="number" min="0" max="23" name="maintenance_hour" id="mw-hour" value="{{ service.maintenance_hour }}"></div>
+          <div class="col-sm-3"><label class="form-label small" for="mw-len">Hours</label><input class="form-control form-control-sm" type="number" min="1" max="6" name="maintenance_hours" id="mw-len" value="{{ service.maintenance_hours }}"></div>
+          <div class="col-sm-2"><button class="btn btn-sm btn-outline-primary" type="submit">Save</button></div>
+        </form>
+        {% if backups %}<p class="small text-muted mt-3 mb-0">Backups on the server: {% for b in backups %}{{ b.id }} ({{ b.size|filesizeformat }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="card border-danger mb-4">
+      <div class="card-header"><h2 class="h6 mb-0">Uninstall</h2></div>
+      <div class="card-body">
+        <p class="small">Drains sessions, then removes the container. Documents and revisions in clientst0r, the editor's working data, its secrets and backups are <strong>kept</strong>. Deleting the editor data is a separate step from a root shell on the server: <code>sudo clientst0r-office-helper cli purge --confirm {{ status.config.deployment_id|default:"&lt;DEPLOYMENT_ID&gt;" }}</code>.</p>
+        <form method="post" action="{% url 'office:managed_action' %}" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
+          <input type="hidden" name="action" value="uninstall">
+          <div><label class="form-label small" for="un-confirm">Type <code>uninstall</code></label><input class="form-control form-control-sm" id="un-confirm" name="confirm" autocomplete="off"></div>
+          <button class="btn btn-sm btn-outline-danger" type="submit"{% if operation %} disabled{% endif %}>Uninstall</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/office-managed.js' %}"></script>{% endblock %}

@@ -12,7 +12,7 @@
 """
 from django.urls import include, path
 
-from . import views, views_admin
+from . import views, views_admin, views_managed
 
 app_name = 'office'
 
@@ -51,6 +51,18 @@ urlpatterns = [
     path('settings/instances/<int:pk>/diagnostics/', views_admin.instance_diagnostics,
          name='instance_diagnostics'),
     path('settings/install/', views_admin.install_page, name='install'),
+    path('settings/managed/', views_managed.managed_page, name='managed'),
+    path('settings/managed/toggle/', views_managed.managed_toggle, name='managed_toggle'),
+    path('settings/managed/action/', views_managed.managed_action, name='managed_action'),
+    path('settings/managed/operations/<int:pk>/cancel/', views_managed.managed_cancel,
+         name='managed_cancel'),
+    path('settings/managed/checks/', views_managed.managed_checks_view, name='managed_checks'),
+    path('settings/managed/test/', views_managed.managed_test, name='managed_test'),
+    path('settings/managed/diagnostics/', views_managed.managed_diagnostics,
+         name='managed_diagnostics'),
+    path('settings/managed/maintenance/', views_managed.managed_maintenance,
+         name='managed_maintenance'),
+    path('settings/managed/progress/', views_managed.managed_progress, name='managed_progress'),
     path('settings/quarantine/', views_admin.quarantine_list, name='quarantine_list'),
     path('settings/quarantine/<int:qid>/download/', views_admin.quarantine_admin_download,
          name='quarantine_admin_download'),
