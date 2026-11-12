@@ -160,7 +160,7 @@ class ServiceVehicle(BaseModel):
             return False
         from django.utils import timezone
         from datetime import timedelta
-        return self.insurance_expires_at <= timezone.now().date() + timedelta(days=30)
+        return self.insurance_expires_at <= timezone.localdate() + timedelta(days=30)
 
     @property
     def is_registration_expiring_soon(self):
@@ -169,7 +169,7 @@ class ServiceVehicle(BaseModel):
             return False
         from django.utils import timezone
         from datetime import timedelta
-        return self.registration_expires_at <= timezone.now().date() + timedelta(days=30)
+        return self.registration_expires_at <= timezone.localdate() + timedelta(days=30)
 
     @property
     def has_location(self):
@@ -486,7 +486,7 @@ class VehicleMaintenanceRecord(BaseModel):
     def is_overdue(self):
         """Check if next service is overdue"""
         from django.utils import timezone
-        if self.next_due_date and self.next_due_date < timezone.now().date():
+        if self.next_due_date and self.next_due_date < timezone.localdate():
             return True
         if self.next_due_mileage and self.vehicle.current_mileage >= self.next_due_mileage:
             return True
@@ -644,7 +644,7 @@ class VehicleAssignment(BaseModel):
     def duration_days(self):
         """Calculate assignment duration"""
         from django.utils import timezone
-        end = self.end_date or timezone.now().date()
+        end = self.end_date or timezone.localdate()
         return (end - self.start_date).days
 
 
@@ -759,14 +759,14 @@ class VehicleServiceSchedule(BaseModel):
         from django.utils import timezone
         nd = self.next_due_date
         if nd:
-            return (nd - timezone.now().date()).days
+            return (nd - timezone.localdate()).days
         return None
 
     @property
     def is_due(self):
         """True if service should be alerted now (within warning threshold)."""
         from django.utils import timezone
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.miles_until_due is not None and self.miles_until_due <= self.warning_miles:
             return True
         if self.days_until_due is not None and self.days_until_due <= self.warning_days:
@@ -776,7 +776,7 @@ class VehicleServiceSchedule(BaseModel):
     @property
     def is_overdue(self):
         from django.utils import timezone
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.next_due_mileage is not None and self.vehicle.current_mileage >= self.next_due_mileage:
             return True
         if self.next_due_date and today > self.next_due_date:
@@ -843,7 +843,7 @@ class VehicleServiceAlert(BaseModel):
     @property
     def is_overdue(self):
         from django.utils import timezone
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.due_date and today > self.due_date:
             return True
         if self.due_mileage and self.vehicle.current_mileage >= self.due_mileage:
