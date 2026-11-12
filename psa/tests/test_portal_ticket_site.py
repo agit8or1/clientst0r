@@ -121,7 +121,8 @@ class RequesterSitesPageTests(SiteFixture, TestCase):
         _login(c, self.portal)
         r = c.post(reverse('psa:requester_sites'), {'kind': 'user', 'target': self.portal.pk,
                                                     'site': self.hq.pk})
-        self.assertEqual(r.status_code, 403)
+        # Customer portal users are sent to the portal; nothing is saved.
+        self.assertEqual((r.status_code, r.get('Location')), (302, '/portal/'))
         self.assertFalse(RequesterDefaultSite.objects.exists())
 
     def test_contact_page_shows_the_default(self):

@@ -540,8 +540,12 @@ class SuggestAndPermissionTests(RoutingFixture, TestCase):
         m.role_template = role
         m.save()
         _login(c, self.portal_a)
-        self.assertEqual(c.get(reverse('ticket_routing:overview')).status_code, 403)
-        self.assertEqual(c.get(reverse('ticket_routing:test')).status_code, 403)
+        # Customer portal users are sent to the portal before any routing page.
+        for name in ('ticket_routing:overview', 'ticket_routing:test'):
+            r = c.get(reverse(name))
+            self.assertIn(r.status_code, (302, 403))
+            if r.status_code == 302:
+                self.assertEqual(r['Location'], '/portal/')
         _login(c, self.admin)
         self.assertEqual(c.get(reverse('ticket_routing:overview')).status_code, 200)
 

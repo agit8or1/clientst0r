@@ -341,9 +341,12 @@ class VisibilityTests(HistoryBase):
         self.assertNotIn(PANEL, body)
         self.assertNotIn('AI and automation history', body)
         self.assertNotRegex(body, r'\.md@[0-9a-f]{12}')
+        # Customer portal users are sent to the portal from staff pages.
         r = c.get(f'/psa/t/{self.ticket.ticket_number}/')
+        self.assertEqual((r.status_code, r.get('Location')), (302, '/portal/'))
         self.assertNotIn(PANEL, r.content.decode())
-        self.assertEqual(c.get(f'/psa/ai/assist/{self.ticket.ticket_number}/history/').status_code, 404)
+        r = c.get(f'/psa/ai/assist/{self.ticket.ticket_number}/history/')
+        self.assertEqual((r.status_code, r.get('Location')), (302, '/portal/'))
 
     def test_other_customers_technician_is_refused(self):
         tech_b = make_tech('bea')
