@@ -5,6 +5,32 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.667] - 2026-11-12
+
+### Added
+- **Integrations belong to the platform.** Connections are platform-owned by default and added from global view, with an optional owner of one customer (for example that customer's own Microsoft 365 tenant or on-site controller).
+  - Data from a platform connection reaches a customer only through the connection's mapping: PSA company, RMM customer, controller site (now also for Omada and Grandstream) or accounting customer. Unmapped data stays with platform staff in global view and is never guessed.
+  - Managing platform connections needs a global role granting `integrations_configure`; syncing and viewing have their own flags. A customer's admins and portal users never see platform connections or their credentials. Inside a customer, only its own connections are listed, plus a read-only note of the platform integrations that supply its data.
+  - Create forms have **Owner: Platform / a customer**. Existing connections keep their customer until a platform administrator uses **Make platform-owned** (audited, with a confirmation) or `manage.py integrations_ownership --make-platform <type> <id>`. It writes out the mapping each connection used implicitly, so already-assigned data stays with its customer. Rem0te connections and RMM connections paired for tickets stay customer-owned.
+- **Pre-upgrade backups look after themselves.** Every update trims old backups before it takes its own and again when it finishes, successful or not, in the web Apply, `auto_update`, the nightly timer, the command-line upgrade and the legacy update script. The newest verified backup, the one a recovery needs and one still being written are never removed; leftovers from failed runs go after 14 days (`UPGRADE_UNVERIFIED_GRACE_DAYS`).
+  - Settings → Updates has a **Pre-upgrade backups** card: each backup's version, date, size and verified state, total size and free space, **Backups to keep** and **Maximum age (days)**, Delete and **Clean up now** (superusers, audited).
+  - A daily **Pre-upgrade Backup Cleanup** task as a fallback, and `manage.py upgrade_backup --prune` / `--delete PATH`.
+  - Apply's backup step shows what it is doing (copying the database, archiving uploads, verifying with a test restore), the elapsed time and the expected duration, estimated from the previous backup's timings.
+- **Snyk CLI update alerts.** A daily **Snyk CLI Update Check** (only while Snyk is enabled) e-mails superusers once per new version: "Snyk CLI update available: X → Y". Settings → Snyk and the security dashboard show the notice and the stored versions when the page opens. Version lookup works without npm, through the npm registry.
+
+### Fixed
+- **Apply no longer fails with "What this channel offers has changed since the page was loaded (now: nothing)".** Each web worker kept its own copy of the GitHub answer, so the page and the Apply click could disagree for up to 10 minutes after a release. All processes now share one answer, "Check for updates now" refreshes it everywhere, and Apply checks GitHub again when clicked. If GitHub cannot be reached, Apply and the nightly timer refuse instead of installing from an old answer.
+- **Vault Edit and Delete work from global view.** They returned Not Found because they looked only in the selected organization; they now find the entry the way its detail page does and save it in the entry's own customer. MSP staff are checked for the edit and delete permissions of their global role.
+- Deleting a PSA connection and the PSA "Map organizations" page always crashed; both work. Deleting a platform PSA or RMM connection never deletes customers, and a PSA connection's imported customers are deleted only when they hold no other data.
+- On a customer-owned PSA, company mapping now offers only that customer and its sub-customers.
+- Global search found no PSA contacts.
+
+### Security
+- "Upgrade Snyk CLI" installs exactly the version the check found (validated as a plain version number) instead of `snyk@latest`; the version check is POST-only.
+
+### Upgrade notes
+- Two migrations: `core.0090`/`0091` (backup retention settings, Snyk check fields, two scheduled tasks) and `integrations.0040` (connection owner becomes optional). Schema only: existing connections keep their customer.
+
 ## [3.17.666] - 2026-11-12
 
 ### Fixed
