@@ -58,7 +58,7 @@ class Command(BaseCommand):
             ]
             for d in docs:
                 anchor = d.last_reviewed_at or d.published_at or d.created_at
-                lines.append(f'  - {d.title} (last reviewed: {anchor.date() if anchor else "never"})')
+                lines.append(f'  - {d.title} (last reviewed: {timezone.localtime(anchor).date() if anchor else "never"})')
             lines += [
                 '',
                 'Open each article and click "Mark reviewed" once you\'ve confirmed it\'s still accurate.',

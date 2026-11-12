@@ -76,7 +76,7 @@ class Due:
             else:
                 when = f'expires in {days} days'
         detail = f' — {self.extra}' if self.extra else ''
-        return f'{self.label} ({when}, {self.expires_at.date()}){detail}'
+        return f'{self.label} ({when}, {timezone.localtime(self.expires_at).date()}){detail}'
 
 
 def _within_window(expires_at, warning_days, now):

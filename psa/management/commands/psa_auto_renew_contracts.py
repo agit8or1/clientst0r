@@ -28,7 +28,7 @@ class Command(BaseCommand):
         from psa.models import Contract, ContractMeter
         from dateutil.relativedelta import relativedelta
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         # Candidates: status active, auto_renew, end_date passed, no child renewal yet
         candidates = Contract.objects.filter(
             status='active',

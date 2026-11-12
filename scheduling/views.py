@@ -352,7 +352,7 @@ def task_calendar(request):
     # Group by date
     grouped = defaultdict(list)
     for task in tasks:
-        date_key = task.due_date.date()
+        date_key = timezone.localtime(task.due_date).date()
         grouped[date_key].append(task)
 
     # Sort by date

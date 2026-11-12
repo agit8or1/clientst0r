@@ -17,10 +17,12 @@ Coverage areas:
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest import mock
+from zoneinfo import ZoneInfo
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from vehicles.models import ServiceVehicle, VehicleInventoryItem
@@ -236,3 +238,34 @@ class ReceiptOcrAiSwitchTests(TestCase):
         resp = self.client.get(f'/vehicles/vehicles/{self.vehicle.pk}/receipts/create/')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'id="aiExtractBtn"')
+
+
+class LocalDayTests(TestCase):
+    """Due/overdue use the installation's local day. At 23:00 Eastern the UTC
+    date is already tomorrow, which used to make a service due today overdue
+    (and a day early) every evening."""
+
+    EVENING = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+    TODAY = date(2026, 11, 11)
+
+    def _clock(self):
+        return mock.patch('django.utils.timezone.now',
+                          return_value=self.EVENING.astimezone(ZoneInfo('UTC')))
+
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_service_due_today_is_not_overdue_in_the_evening(self):
+        from vehicles.models import (VehicleAssignment, VehicleMaintenanceRecord,
+                                     VehicleServiceAlert, VehicleServiceSchedule)
+        v = ServiceVehicle(name='Van', current_mileage=0)
+        schedule = VehicleServiceSchedule(vehicle=v, name='Oil', interval_days=30,
+                                          last_service_date=self.TODAY - timedelta(days=30))
+        with self._clock():
+            self.assertEqual(schedule.days_until_due, 0)
+            self.assertFalse(schedule.is_overdue)
+            self.assertFalse(VehicleServiceAlert(vehicle=v, due_date=self.TODAY).is_overdue)
+            self.assertFalse(VehicleMaintenanceRecord(vehicle=v, next_due_date=self.TODAY).is_overdue)
+            self.assertEqual(VehicleAssignment(vehicle=v, start_date=self.TODAY).duration_days, 0)
+            # 31 days out is outside the 30-day warning window.
+            far = self.TODAY + timedelta(days=31)
+            self.assertFalse(ServiceVehicle(insurance_expires_at=far).is_insurance_expiring_soon)
+            self.assertFalse(ServiceVehicle(registration_expires_at=far).is_registration_expiring_soon)

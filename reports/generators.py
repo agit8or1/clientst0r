@@ -56,7 +56,7 @@ class AssetSummaryReport(ReportGenerator):
         counts = assets.aggregate(
             total=Count('id'),
             needs_reorder=Count('id', filter=Q(needs_reorder=True)),
-            warranty_expired=Count('id', filter=Q(warranty_expiry__lt=timezone.now().date())),
+            warranty_expired=Count('id', filter=Q(warranty_expiry__lt=timezone.localdate())),
             recent=Count('id', filter=Q(created_at__gte=recent_date)),
         )
 
@@ -303,7 +303,7 @@ class ExpirationForecastReport(ReportGenerator):
     def generate(self):
         expirations = Expiration.objects.filter(organization=self.organization)
 
-        now = timezone.now().date()
+        now = timezone.localdate()
 
         # Expiring in different time frames
         forecast = {
@@ -319,7 +319,7 @@ class ExpirationForecastReport(ReportGenerator):
         # v3.17.618).
         for exp in expirations:
             if exp.expires_at:
-                days_until = (exp.expires_at.date() - now).days
+                days_until = (timezone.localtime(exp.expires_at).date() - now).days
 
                 if days_until < 0:
                     forecast['expired'] += 1

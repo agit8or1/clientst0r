@@ -835,7 +835,7 @@ def revenue_leakage(start_date, end_date, organization=None,
     from django.utils import timezone
     from psa.models import TicketTimeEntry, Contract, Invoice, InvoiceLineItem
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     stale_cutoff = today - timedelta(days=stale_days)
     stuck_cutoff = today - timedelta(days=14)
 
@@ -1219,7 +1219,7 @@ def client_health_score(client_org_id, ref_date=None):
     from psa.models import Ticket, Invoice
     from core.models import Organization
 
-    ref = ref_date or timezone.now().date()
+    ref = ref_date or timezone.localdate()
     start_30 = ref - timedelta(days=29)
 
     org = Organization.objects.filter(pk=client_org_id).first()

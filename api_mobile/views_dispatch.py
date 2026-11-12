@@ -144,7 +144,7 @@ def dispatch_calendar_view(request):
 
     `month` defaults to the current local month. Format YYYY-MM.
     """
-    from datetime import date, timedelta
+    from datetime import date, datetime, time as dtime
     from django.utils import timezone
     from scheduling.models import TaskAssignment
 
@@ -167,13 +167,13 @@ def dispatch_calendar_view(request):
 
     qs = (TaskAssignment.objects
           .filter(user=request.user,
-                  task__due_date__gte=start,
-                  task__due_date__lt=end)
+                  task__due_date__gte=timezone.make_aware(datetime.combine(start, dtime.min)),
+                  task__due_date__lt=timezone.make_aware(datetime.combine(end, dtime.min)))
           .select_related('task', 'task__organization'))
 
     bucketed: dict[str, list[dict]] = {}
     for a in qs:
-        d = a.task.due_date.date().isoformat() if a.task.due_date else None
+        d = timezone.localtime(a.task.due_date).date().isoformat() if a.task.due_date else None
         if not d:
             continue
         bucketed.setdefault(d, []).append(_serialize_assignment(a))
@@ -185,21 +185,20 @@ def dispatch_calendar_view(request):
     try:
         from psa.models import Ticket
         from django.db.models import Q
-        from datetime import datetime, time as dtime
         # Restrict to tickets the caller can see: assigned to them
         # OR they have tickets_view_all. Membership-scoped reads aren't
         # filtered here because the calendar payload is per-user noise,
         # not cross-org leakage.
         ticket_qs = (customer_visible_tickets(Ticket.objects.all(), request.user)
-                     .filter(resolution_due_at__gte=datetime.combine(start, dtime.min),
-                             resolution_due_at__lt=datetime.combine(end, dtime.min))
+                     .filter(resolution_due_at__gte=timezone.make_aware(datetime.combine(start, dtime.min)),
+                             resolution_due_at__lt=timezone.make_aware(datetime.combine(end, dtime.min)))
                      .filter(Q(assigned_to=request.user)
                              | Q(organization_id__in=accessible_org_ids(request.user)))
                      .filter(status__is_terminal=False)
                      .select_related('status', 'priority', 'organization')
                      .distinct())
         for t in ticket_qs:
-            d = t.resolution_due_at.date().isoformat()
+            d = timezone.localtime(t.resolution_due_at).date().isoformat()
             bucketed.setdefault(d, []).append(_serialize_ticket_calendar(t))
     except Exception:
         pass
@@ -356,11 +355,11 @@ def dispatch_upcoming_view(request):
     # Tasks
     task_qs = (TaskAssignment.objects
                .filter(user=request.user,
-                       task__due_date__gte=datetime.combine(today, dtime.min),
-                       task__due_date__lt=datetime.combine(end, dtime.min))
+                       task__due_date__gte=timezone.make_aware(datetime.combine(today, dtime.min)),
+                       task__due_date__lt=timezone.make_aware(datetime.combine(end, dtime.min)))
                .select_related('task', 'task__organization'))
     for a in task_qs:
-        d = a.task.due_date.date().isoformat() if a.task.due_date else None
+        d = timezone.localtime(a.task.due_date).date().isoformat() if a.task.due_date else None
         if d and d in by_date:
             by_date[d]['items'].append(_serialize_assignment(a))
 
@@ -369,15 +368,15 @@ def dispatch_upcoming_view(request):
         from psa.models import Ticket
         from django.db.models import Q
         ticket_qs = (customer_visible_tickets(Ticket.objects.all(), request.user)
-                     .filter(resolution_due_at__gte=datetime.combine(today, dtime.min),
-                             resolution_due_at__lt=datetime.combine(end, dtime.min))
+                     .filter(resolution_due_at__gte=timezone.make_aware(datetime.combine(today, dtime.min)),
+                             resolution_due_at__lt=timezone.make_aware(datetime.combine(end, dtime.min)))
                      .filter(Q(assigned_to=request.user)
                              | Q(organization_id__in=accessible_org_ids(request.user)))
                      .filter(status__is_terminal=False)
                      .select_related('status', 'priority', 'organization')
                      .distinct())
         for t in ticket_qs:
-            d = t.resolution_due_at.date().isoformat()
+            d = timezone.localtime(t.resolution_due_at).date().isoformat()
             if d in by_date:
                 by_date[d]['items'].append(_serialize_ticket_calendar(t))
     except Exception:

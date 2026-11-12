@@ -53,7 +53,7 @@ def vehicles_dashboard(request):
     in_maintenance = vehicles.filter(status='maintenance').count()
 
     # Alerts
-    today = timezone.now().date()
+    today = timezone.localdate()
     alerts = []
 
     # Insurance expiring soon
@@ -608,7 +608,7 @@ def damage_report_create(request, vehicle_id):
     else:
         initial = {
             'reported_by': request.user,
-            'incident_date': timezone.now().date()
+            'incident_date': timezone.localdate()
         }
         location = request.GET.get('location', '').strip()
         if location:
@@ -694,7 +694,7 @@ def maintenance_record_create(request, vehicle_id):
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
     else:
         form = VehicleMaintenanceRecordForm(initial={
-            'service_date': timezone.now().date(),
+            'service_date': timezone.localdate(),
             'mileage_at_service': vehicle.current_mileage
         })
 
@@ -765,7 +765,7 @@ def fuel_log_create(request, vehicle_id):
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
     else:
         form = VehicleFuelLogForm(initial={
-            'date': timezone.now().date(),
+            'date': timezone.localdate(),
             'mileage': vehicle.current_mileage
         })
 
@@ -840,7 +840,7 @@ def assignment_create(request, vehicle_id):
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
     else:
         form = VehicleAssignmentForm(vehicle=vehicle, initial={
-            'start_date': timezone.now().date(),
+            'start_date': timezone.localdate(),
             'starting_mileage': vehicle.current_mileage
         })
 
@@ -860,7 +860,7 @@ def assignment_end(request, pk):
     if request.method == 'POST':
         ending_mileage = request.POST.get('ending_mileage')
 
-        assignment.end_date = timezone.now().date()
+        assignment.end_date = timezone.localdate()
         assignment.ending_mileage = ending_mileage
         assignment.save()
 
@@ -1184,7 +1184,7 @@ def end_inventory_session(request, vehicle_id):
 def _generate_vehicle_service_alerts(vehicle):
     """Check all active service schedules and create pending alerts if needed."""
     from datetime import timedelta
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     for schedule in vehicle.service_schedules.filter(is_active=True):
         # Skip if a pending alert already exists for this schedule
@@ -1277,7 +1277,7 @@ def service_alert_acknowledge(request, pk):
         initial = {'record_service_done': True}
         if alert.schedule and alert.schedule.last_service_mileage:
             initial['service_mileage'] = alert.vehicle.current_mileage
-        initial['service_date'] = timezone.now().date()
+        initial['service_date'] = timezone.localdate()
         form = VehicleServiceAlertAcknowledgeForm(initial=initial)
 
     return render(request, 'vehicles/service_alert_acknowledge.html', {
@@ -1535,7 +1535,7 @@ def receipt_create(request, vehicle_id):
             messages.success(request, 'Receipt saved.')
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
     else:
-        form = VehicleReceiptForm(initial={'receipt_date': timezone.now().date()})
+        form = VehicleReceiptForm(initial={'receipt_date': timezone.localdate()})
 
     return render(request, 'vehicles/receipt_form.html', {
         'form': form,

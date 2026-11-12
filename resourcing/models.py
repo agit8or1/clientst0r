@@ -86,7 +86,7 @@ class UserCertification(models.Model):
     @property
     def is_expired(self):
         from django.utils import timezone
-        return self.expires_at is not None and self.expires_at < timezone.now().date()
+        return self.expires_at is not None and self.expires_at < timezone.localdate()
 
     @property
     def expires_soon(self):
@@ -95,7 +95,7 @@ class UserCertification(models.Model):
         from django.utils import timezone
         if not self.expires_at:
             return False
-        today = timezone.now().date()
+        today = timezone.localdate()
         return today <= self.expires_at <= today + timedelta(days=60)
 
 

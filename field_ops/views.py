@@ -123,7 +123,8 @@ def timeclock_payroll_export(request):
     # Bucket by (tech, week_start, org)
     buckets = {}
     for e in qs:
-        ws = e.clocked_in_at.date() - timedelta(days=e.clocked_in_at.weekday())
+        day = timezone.localtime(e.clocked_in_at).date()
+        ws = day - timedelta(days=day.weekday())
         org_name = e.organization.name if e.organization_id else ''
         key = (e.tech.username, ws.isoformat(), org_name)
         buckets.setdefault(key, 0)

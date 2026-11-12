@@ -323,6 +323,21 @@ class ProcessCloneTemplateTests(TestCase):
         titles = list(clone.stages.order_by('order').values_list('title', flat=True))
         self.assertEqual(titles, ['Provision M365', 'Set up vault', 'Schedule kickoff'])
 
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_clone_title_uses_local_date_in_the_evening(self):
+        # At 23:00 Eastern the UTC date is already tomorrow; the run used to
+        # be titled with it.
+        from datetime import datetime
+        from unittest import mock
+        from zoneinfo import ZoneInfo
+        evening = datetime(2026, 11, 11, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        c = Client()
+        self._login(c)
+        with mock.patch('django.utils.timezone.now', return_value=evening.astimezone(ZoneInfo('UTC'))):
+            c.post(f'/processes/{self.tpl.slug}/clone-template/')
+        clone = Process.objects.exclude(pk=self.tpl.pk).get(organization=self.org)
+        self.assertTrue(clone.title.startswith('[2026-11-11] '), clone.title)
+
     def test_clone_rejects_non_template_source(self):
         # Create a NON-template Process and try to clone it.
         non_tpl = Process.objects.create(

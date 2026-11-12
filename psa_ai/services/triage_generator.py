@@ -89,7 +89,7 @@ def _triage_org_daily_exceeded(org) -> tuple[bool, str]:
     today."""
     from django.utils import timezone
     from psa_ai.models import AISuggestion
-    today = timezone.now().date()
+    today = timezone.localdate()
     count = AISuggestion.objects.filter(
         kind='triage', organization=org, created_at__date=today,
     ).count()
