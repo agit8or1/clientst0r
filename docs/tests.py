@@ -419,6 +419,19 @@ class KBReviewReminderCommandTests(TestCase):
         call_command('kb_review_reminders', '--dry-run', verbosity=0)
         self.assertEqual(len(mail.outbox), 0)
 
+    @override_settings(TIME_ZONE='America/New_York')
+    def test_last_reviewed_date_is_the_local_date(self):
+        # Reviewed at 23:00 Eastern, which is already the next day in UTC.
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from django.core import mail
+        from django.core.management import call_command
+        late = datetime(2026, 6, 1, 23, 0, tzinfo=ZoneInfo('America/New_York'))
+        Document.objects.filter(title='Stale 1').update(last_reviewed_at=late)
+        mail.outbox = []
+        call_command('kb_review_reminders', verbosity=0)
+        self.assertIn('Stale 1 (last reviewed: 2026-06-01)', mail.outbox[0].body)
+
 
 # ---------------------------------------------------------------------------
 # Issue #138 — AI document generation returned an HTML 500 ("Server returned
