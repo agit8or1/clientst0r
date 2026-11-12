@@ -73,6 +73,10 @@ class EditorInstanceForm(forms.ModelForm):
         self.fields['shared_secret'].required = False
         self.fields['shared_secret'].widget.attrs['autocomplete'] = 'new-password'
         self.fields['organizations'].required = False
+        # The managed local container's instance is written by
+        # office.managed.provision only; it cannot be created or chosen here.
+        self.fields['mode'].choices = [c for c in self.fields['mode'].choices
+                                       if c[0] in EditorInstance.MANUAL_MODES]
 
     def clean(self):
         data = super().clean()

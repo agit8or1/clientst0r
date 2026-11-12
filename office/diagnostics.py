@@ -26,7 +26,7 @@ def _https_or_loopback(url, instance):
     if parts.scheme == 'https':
         return True
     host = (parts.hostname or '').lower()
-    return (parts.scheme == 'http' and instance.mode == 'same_server'
+    return (parts.scheme == 'http' and instance.mode in ('same_server', 'managed_local')
             and host in ('localhost', '127.0.0.1', '::1'))
 
 
@@ -166,11 +166,14 @@ def run_health_check(instance, *, user=None, request=None):
     return result
 
 
-def run_round_trip(instance, user, *, request=None):
+def run_round_trip(instance, user, *, request=None, maintenance=False):
     """Create a disposable document in the system scope, open an edit
     session on it, then let the provider drive the editor. Each stage is a
     step in the returned report; stages the provider cannot run are
-    reported as not run, never as passed."""
+    reported as not run, never as passed.
+
+    ``maintenance=True`` (managed-service verification only) opens the
+    session although the instance is still closed to users."""
     from datetime import timedelta
     from . import audit, sessions, storage
     from .models import OfficeFile
@@ -194,7 +197,7 @@ def run_round_trip(instance, user, *, request=None):
         return report
     try:
         session = sessions.open_session(target, user, mode='edit', instance=instance,
-                                        request=request)
+                                        request=request, maintenance=maintenance)
         report.step('session', 'Open an edit session', PASS,
                     f'Session opened on revision {session.base_revision.revision_number}.')
     except Exception as e:

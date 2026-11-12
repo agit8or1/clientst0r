@@ -510,6 +510,9 @@ class OnlyOfficeProvider(EditorProvider):
             client.command(session.instance, 'forcesave', key=key, userdata=str(session.pk))
         except client.DocsError as e:
             if e.code == 4:
+                # "No changes since the last save": recorded so a drain can
+                # tell it apart from a save that is still on its way.
+                state.update(session.pk, oo_forcesave_nochange_at=state.now_iso())
                 return True
             log.warning('ONLYOFFICE forcesave (drain) failed for session %s: %s', session.pk, e)
             return False

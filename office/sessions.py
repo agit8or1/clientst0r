@@ -68,11 +68,16 @@ def shared_key(target, revision, instance):
     return None
 
 
-def open_session(target, user, *, mode, instance=None, request=None):
+def open_session(target, user, *, mode, instance=None, request=None, maintenance=False):
     """Create a session after checking permission, policy and the file.
 
     Raises PermissionDenied (no right for `mode`), NotConfigured (no usable
     instance), or office.storage errors when the stored file is unusable.
+
+    ``maintenance=True`` skips only the instance's ``enabled`` switch, for
+    the managed service's own verification round trip on a disposable file
+    while the editor is still closed to users. Permissions are checked as
+    always.
     """
     from . import audit, policy, storage
     from .models import EditSession
@@ -86,7 +91,7 @@ def open_session(target, user, *, mode, instance=None, request=None):
         instance = policy.instance_for(target.organization_id)
     if instance is None:
         raise NotConfigured('No Office editor is configured for this organization.')
-    if not instance.available_to(target.organization_id) or not instance.enabled:
+    if not instance.available_to(target.organization_id) or not (instance.enabled or maintenance):
         raise NotConfigured('That editor is not available to this organization.')
 
     revision = storage.ensure_current(target, user)

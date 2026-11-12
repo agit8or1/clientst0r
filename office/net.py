@@ -21,7 +21,11 @@ probes — goes through ``fetch``. Rules:
   fd00:ec2::254, 100.100.100.200, ...). Private ranges (RFC 1918, CGNAT,
   ULA) are allowed because the host is the approved editor host; loopback is
   allowed only for an instance installed on this server (mode
-  ``same_server``). An endpoint object with ``public_only = True`` (the
+  ``same_server``), and for the managed local container (mode
+  ``managed_local``) only on the ports of its own two URLs: the loopback
+  port the container is published on and the browser URL's port (the
+  host's own reverse proxy). Any other loopback port, i.e. any other local
+  service, stays refused. An endpoint object with ``public_only = True`` (the
   Microsoft 365 documents client) gets public addresses only. Nothing else about the global SSRF policy changes:
   core.safe_http is reused for its blocklists and stays as strict as before
   for every other caller.
@@ -116,7 +120,18 @@ def _unmap(ip):
     return ip
 
 
-def ip_allowed(value, instance) -> bool:
+def _managed_loopback_ports(instance) -> set:
+    ports = set()
+    for url in (instance.internal_url, instance.browser_url):
+        if url:
+            try:
+                ports.add(_origin(url)[2])
+            except ValueError:
+                continue
+    return ports
+
+
+def ip_allowed(value, instance, port=None) -> bool:
     try:
         ip = ipaddress.ip_address(str(value).split('%')[0])
     except ValueError:
@@ -132,7 +147,12 @@ def ip_allowed(value, instance) -> bool:
         # Cloud endpoints (Microsoft Graph, SharePoint): public addresses only.
         return False
     if any(ip in net for net in _LOOPBACK):
-        return instance.mode == 'same_server'
+        mode = getattr(instance, 'mode', '')
+        if mode == 'same_server':
+            return True
+        # Managed local container: the exact loopback ports of its own URLs.
+        return mode == 'managed_local' and port is not None \
+            and port in _managed_loopback_ports(instance)
     return any(ip in net for net in _PRIVATE)
 
 
@@ -161,7 +181,7 @@ def check_url(url, instance) -> str:
         literal = ipaddress.ip_address(host.strip('[]'))
     except ValueError:
         literal = None
-    if literal is not None and not ip_allowed(literal, instance):
+    if literal is not None and not ip_allowed(literal, instance, origin[2]):
         raise DestinationNotAllowed('The address is not allowed')
     if host in safe_http._ALWAYS_BLOCKED_HOSTNAMES:
         raise DestinationNotAllowed('The host is not allowed')
@@ -187,7 +207,7 @@ def resolve(host, port, instance) -> list:
     addresses = []
     for info in infos:
         ip = info[4][0]
-        if not ip_allowed(ip, instance):
+        if not ip_allowed(ip, instance, port):
             raise DestinationNotAllowed(f'{host} resolves to an address that is not allowed')
         if ip not in addresses:
             addresses.append(ip)
@@ -224,7 +244,7 @@ class _PinnedMixin:
         except OSError as e:
             sock.close()
             raise NewConnectionError(self, f'Could not read peer address: {e}')
-        if peer not in self._pinned or not ip_allowed(peer, self._instance):
+        if peer not in self._pinned or not ip_allowed(peer, self._instance, self.port):
             sock.close()
             raise DestinationNotAllowed('Connected peer is not an approved address')
         return sock

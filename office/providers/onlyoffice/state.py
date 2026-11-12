@@ -15,6 +15,9 @@ Keys used:
                   the last time Docs downloaded the document URL
     oo_last_error {at, status, message}  last save error Docs or clientst0r hit
     oo_last_saved {at, revision, status}
+    oo_drain_save {at, outcome}   a drain's force-save request (office.drain)
+    oo_forcesave_nochange_at      the editor answered a force-save with
+                                  "no changes" (command error 4)
 
 Editor keys. The core gives every session of one co-editing group the same
 ``document_key`` (see office.sessions). ONLYOFFICE also needs a new key after

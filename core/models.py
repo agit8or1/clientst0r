@@ -1166,6 +1166,9 @@ class ScheduledTask(models.Model):
         # Office documents: remove unaccepted editor saves past retention and
         # expired diagnostics files; close sessions nobody closed.
         ('office_purge_quarantine', 'Purge Office Quarantine'),
+        # Managed Local ONLYOFFICE: advances the queued lifecycle operation
+        # (drain, server operation, verification). Nothing to do when unused.
+        ('office_managed_operations', 'Managed ONLYOFFICE Operations'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1712,6 +1715,15 @@ class ScheduledTask(models.Model):
             'description': 'Delete unaccepted Office editor saves past their retention period and '
                            'expired diagnostics documents; mark expired edit sessions closed',
             'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Managed Local ONLYOFFICE is turned on and an
+            # operation is queued (or a maintenance-window update is allowed).
+            'task_type': 'office_managed_operations',
+            'description': 'Advance the queued Managed ONLYOFFICE operation (drain, server '
+                           'operation, verification) and start allowed maintenance-window updates',
+            'interval_minutes': 1,
             'enabled': True,
         },
     ]

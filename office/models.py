@@ -90,7 +90,12 @@ class EditorInstance(BaseModel):
         ('same_server', 'Installed on this server'),
         ('separate_server', 'Separate VM / server'),
         ('existing_service', 'Existing service'),
+        # Provisioned and run by clientst0r through the Office service helper
+        # (office/managed/, deploy/office-helper/). Its URLs and secret are
+        # written by office.managed.provision, never typed in.
+        ('managed_local', 'Managed local (container on this server)'),
     ]
+    MANUAL_MODES = ('same_server', 'separate_server', 'existing_service')
     HEALTH_CHOICES = [
         ('unknown', 'Not checked yet'),
         ('ok', 'Healthy'),
@@ -514,3 +519,116 @@ class WopiLock(models.Model):
 
     def __str__(self):
         return f'WOPI lock on {self.target_kind}:{self.target_pk}'
+
+
+# ---------------------------------------------------------------------------
+# Managed Local ONLYOFFICE (office/managed/, docs/office/MANAGED_LOCAL.md)
+# ---------------------------------------------------------------------------
+
+class ManagedOfficeService(models.Model):
+    """Singleton (pk=1): this deployment's managed ONLYOFFICE container, as
+    clientst0r last saw it through the Office service helper. The helper and
+    its root-owned configuration are the source of truth; this row is a
+    cache plus the administrator's app-side choices."""
+
+    enabled = models.BooleanField(
+        default=False,
+        help_text='Managed mode is off until a deployment administrator turns it on.')
+    instance = models.ForeignKey(EditorInstance, on_delete=models.SET_NULL, null=True,
+                                 blank=True, related_name='+')
+    status = models.JSONField(default=dict, blank=True,
+                              help_text='Last helper status (no secrets).')
+    status_at = models.DateTimeField(null=True, blank=True)
+    helper_reachable = models.BooleanField(default=False)
+    status_error = models.CharField(max_length=500, blank=True)
+    last_connection_ok_at = models.DateTimeField(null=True, blank=True)
+    last_connection_detail = models.TextField(blank=True)
+
+    maintenance_updates = models.BooleanField(
+        default=False,
+        help_text='Allow updates inside the maintenance window. Off: updates are manual only.')
+    maintenance_weekday = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text='0 = Monday ... 6 = Sunday; empty = every day.')
+    maintenance_hour = models.PositiveSmallIntegerField(
+        default=3, help_text='Window start, server local time (0-23).')
+    maintenance_hours = models.PositiveSmallIntegerField(default=2, help_text='Window length (1-6).')
+
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'office_managed_service'
+
+    def __str__(self):
+        return 'Managed ONLYOFFICE service'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+
+class ManagedOfficeOperation(models.Model):
+    """One lifecycle operation on the managed container, run in the
+    background by office.managed.jobs (scheduler task
+    ``office_managed_operations``). At most one is active at a time; the
+    database enforces it with a conditional unique constraint."""
+
+    ACTIONS = [
+        ('install', 'Install'), ('start', 'Start'), ('stop', 'Stop'), ('restart', 'Restart'),
+        ('update', 'Update'), ('rollback', 'Roll back'), ('uninstall', 'Uninstall'),
+    ]
+    STATES = [
+        ('queued', 'Queued'),
+        ('draining', 'Draining editing sessions'),
+        ('running', 'Running on the server'),
+        ('verifying', 'Verifying'),
+        ('succeeded', 'Succeeded'),
+        ('failed', 'Failed'),
+        ('postponed', 'Postponed (sessions could not be drained)'),
+        ('cancelled', 'Cancelled'),
+    ]
+    ACTIVE_STATES = ('queued', 'draining', 'running', 'verifying')
+    SOURCES = [('admin', 'Administrator'), ('maintenance', 'Maintenance window')]
+
+    lock_key = models.CharField(max_length=20, default='managed', editable=False)
+    action = models.CharField(max_length=20, choices=ACTIONS)
+    target_release = models.CharField(max_length=40, blank=True)
+    state = models.CharField(max_length=20, choices=STATES, default='queued')
+    source = models.CharField(max_length=20, choices=SOURCES, default='admin')
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name='+')
+    queued_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    heartbeat_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    lease = models.CharField(max_length=40, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    helper_op_id = models.CharField(max_length=60, blank=True)
+    helper_submits = models.PositiveSmallIntegerField(default=0)
+    drain_started_at = models.DateTimeField(null=True, blank=True)
+    progress = models.JSONField(default=dict, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'office_managed_operations'
+        ordering = ['-queued_at']
+        constraints = [
+            models.UniqueConstraint(fields=['lock_key'],
+                                    condition=Q(state__in=('queued', 'draining', 'running',
+                                                           'verifying')),
+                                    name='office_managed_one_active_operation'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_action_display()} ({self.state})'
+
+    @property
+    def is_active(self):
+        return self.state in self.ACTIVE_STATES

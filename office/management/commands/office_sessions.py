@@ -24,10 +24,9 @@ import time
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from office import audit
+from office import audit, drain
 from office import sessions as session_api
 from office.models import EditorInstance
-from office.providers import NotConfigured, NotSupported, get_provider
 
 
 def _live(instance=None):
@@ -115,26 +114,11 @@ class Command(BaseCommand):
         self.stdout.write(f'{len(live)} open session(s).')
         for s in live:
             self.stdout.write(self._session_line(s))
-        try:
-            provider = get_provider(inst.provider)
-        except NotConfigured as e:
-            provider = None
-            self.stdout.write(f'Cannot ask the editor to save: {e}')
-        asked = set()
-        for s in live:
-            if provider is None or s.mode != 'edit' or s.document_key in asked:
-                continue
-            asked.add(s.document_key)
-            try:
-                ok = provider.force_save(s)
-                result = 'save requested' if ok else 'editor refused the save request'
-            except NotSupported as e:
-                result = f'not supported ({e}); waiting for the user to close the editor'
-            except NotConfigured as e:
-                result = f'connector not configured ({e})'
-            except Exception as e:   # one failing group must not stop the drain
-                result = f'error: {type(e).__name__}'
-            self.stdout.write(f'  {s.target_label[:60]}: {result}')
+        labels = {'requested': 'save requested', 'refused': 'editor refused the save request',
+                  'unsupported': 'not supported; waiting for the user to close the editor',
+                  'unconfigured': 'connector not configured', 'error': 'error'}
+        for s, outcome in drain.request_saves(inst):
+            self.stdout.write(f'  {s.target_label[:60]}: {labels.get(outcome, outcome)}')
 
         deadline = time.monotonic() + timeout
         while True:

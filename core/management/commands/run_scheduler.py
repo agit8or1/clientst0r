@@ -60,6 +60,7 @@ COMMAND_TASKS = {
     'kb_link_check': ('kb_link_check', []),
     'ldap_group_sync': ('ldap_group_sync', []),
     'office_purge_quarantine': ('office_purge_quarantine', []),
+    'office_managed_operations': ('office_managed', ['--run-pending']),
 }
 
 
