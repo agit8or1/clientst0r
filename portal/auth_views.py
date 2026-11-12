@@ -60,8 +60,10 @@ class PortalAuthenticationForm(AuthenticationForm):
         'invalid_login': PORTAL_LOGIN_ERROR,
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # `request` must stay a named parameter: two_factor passes it only to
+    # forms whose signature asks for it, and axes needs it to authenticate.
+    def __init__(self, request=None, *args, **kwargs):
+        super().__init__(request, *args, **kwargs)
         self.fields['username'].label = 'Email or username'
         self.fields['username'].widget.attrs.setdefault('autocomplete', 'username')
 
