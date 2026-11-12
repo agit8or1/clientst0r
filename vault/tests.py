@@ -1397,3 +1397,90 @@ class PasswordFormTOTPForAnyTypeTests(TestCase):
         pw = form.save()
         self.assertTrue(pw.otp_secret, 'auto-generated TOTP secret should be stored')
         self.assertEqual(len(pw.generate_otp()['code']), 6)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PasswordChangeInGlobalViewTests(TestCase):
+    """Edit and Delete open from global view, like the detail page that links
+    to them; the permission is checked in the entry's own customer."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='GlobalCo', slug='globalco')
+        self.password = Password.objects.create(
+            organization=self.org, title='edge router', username='admin',
+            password_type='server')
+        self.password.set_password('s3cret')
+        self.password.save()
+
+    def _client(self, user):
+        c = Client()
+        c.force_login(user)
+        session = c.session
+        session['2fa_prompted'] = True
+        session.pop('current_organization_id', None)
+        session['global_view_mode'] = True
+        session.save()
+        return c
+
+    def test_superuser_can_open_edit_in_global_view(self):
+        admin = User.objects.create_superuser('gv-admin', 'a@x.com', 'pw')
+        r = self._client(admin).get(f'/vault/{self.password.pk}/edit/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'edge router')
+
+    def test_superuser_edit_saves_in_the_entrys_customer(self):
+        admin = User.objects.create_superuser('gv-admin2', 'a2@x.com', 'pw')
+        r = self._client(admin).post(f'/vault/{self.password.pk}/edit/', {
+            'title': 'edge router 2', 'username': 'admin', 'password_type': 'server',
+            'client_access_mode': 'none', 'organization': self.org.pk})
+        self.assertEqual(r.status_code, 302)
+        self.password.refresh_from_db()
+        self.assertEqual(self.password.title, 'edge router 2')
+        self.assertEqual(self.password.organization_id, self.org.pk)
+
+    def test_superuser_can_delete_in_global_view(self):
+        admin = User.objects.create_superuser('gv-admin3', 'a3@x.com', 'pw')
+        r = self._client(admin).post(f'/vault/{self.password.pk}/delete/')
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Password.objects.filter(pk=self.password.pk).exists())
+
+    def _msp_tech(self, name, **perms):
+        from accounts.models import RoleTemplate
+        from core.tests.test_customer_ops import _make_msp_tech
+        role = RoleTemplate.objects.create(name=f'role {name}', **perms)
+        return _make_msp_tech(User.objects.create_user(name, f'{name}@x.com', 'pw'), role)
+
+    def test_msp_tech_with_edit_and_delete_in_their_global_role_can_use_them(self):
+        tech = self._msp_tech('gv-tech', vault_view=True, vault_edit=True, vault_delete=True)
+        c = self._client(tech)
+        self.assertEqual(c.get(f'/vault/{self.password.pk}/edit/').status_code, 200)
+        self.assertEqual(c.post(f'/vault/{self.password.pk}/delete/').status_code, 302)
+        self.assertFalse(Password.objects.filter(pk=self.password.pk).exists())
+
+    def test_msp_tech_without_edit_or_delete_is_refused(self):
+        tech = self._msp_tech('gv-viewer', vault_view=True, vault_edit=False, vault_delete=False)
+        c = self._client(tech)
+        self.assertEqual(c.get(f'/vault/{self.password.pk}/edit/').status_code, 403)
+        self.assertEqual(c.post(f'/vault/{self.password.pk}/delete/').status_code, 403)
+        self.assertTrue(Password.objects.filter(pk=self.password.pk).exists())
+
+    def test_msp_tech_without_vault_access_is_refused(self):
+        tech = self._msp_tech('gv-novault', vault_view=False)
+        c = self._client(tech)
+        self.assertIn(c.get(f'/vault/{self.password.pk}/edit/').status_code, (403, 404))
+        self.assertIn(c.post(f'/vault/{self.password.pk}/delete/').status_code, (403, 404))
+        self.assertTrue(Password.objects.filter(pk=self.password.pk).exists())
+
+    def test_customer_member_in_another_org_cannot_reach_it(self):
+        from accounts.models import Membership, Role
+        other = Organization.objects.create(name='OtherCo', slug='otherco')
+        user = User.objects.create_user('gv-other', 'o@x.com', 'pw')
+        Membership.objects.create(user=user, organization=other, role=Role.OWNER, is_active=True)
+        c = Client()
+        c.force_login(user)
+        session = c.session
+        session['2fa_prompted'] = True
+        session['current_organization_id'] = other.pk
+        session.save()
+        self.assertEqual(c.get(f'/vault/{self.password.pk}/edit/').status_code, 404)
+        self.assertEqual(c.post(f'/vault/{self.password.pk}/delete/').status_code, 404)
