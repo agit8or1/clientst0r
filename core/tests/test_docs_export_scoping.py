@@ -49,10 +49,11 @@ class KnowledgeBaseScopeTests(TestCase):
             organization=cls.child, name='Subsidiary Runbooks')
         cls.child_doc = Document.objects.create(
             organization=cls.child, title='child-firewall-runbook',
-            body='how to', is_published=True, category=cls.child_cat)
+            body='how to', is_published=True, category=cls.child_cat,
+            is_client_visible=True)  # the user is a customer member (authz-tech)
         cls.rival_doc = Document.objects.create(
             organization=cls.stranger, title='rival-runbook',
-            body='secret', is_published=True)
+            body='secret', is_published=True, is_client_visible=True)
 
         User = get_user_model()
         cls.user = User.objects.create_user('kb_user', 'k@x.com', 'pw')

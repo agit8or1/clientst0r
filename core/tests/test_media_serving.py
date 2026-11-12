@@ -97,12 +97,14 @@ class MediaServingTests(TestCase):
 
         cls.doc = Document.objects.create(
             organization=cls.org_a, title='Runbook', body='', is_published=True,
+            is_client_visible=True,  # alice is a customer member (authz-tech)
             file=SimpleUploadedFile('runbook.pdf', b'%PDF-doc'))
         cls.global_doc = Document.objects.create(
             organization=None, title='Global KB', body='', is_published=True,
             is_global=True, file=SimpleUploadedFile('global.pdf', b'%PDF-g'))
         cls.draft = Document.objects.create(
             organization=cls.org_a, title='Draft', body='', is_published=False,
+            is_client_visible=True,
             file=SimpleUploadedFile('draft.pdf', b'%PDF-d'))
 
         settings_obj = SystemSetting.get_settings()

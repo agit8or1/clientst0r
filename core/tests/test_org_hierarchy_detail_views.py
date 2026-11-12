@@ -179,7 +179,8 @@ class RackDeviceAssetScopeTests(TestCase):
 
         User = get_user_model()
         cls.user = User.objects.create_user('rk_user', 'r@x.com', 'pw')
-        rt = RoleTemplate.objects.create(name='RackAdmin')
+        # The rack API now checks monitoring_create (authz-tech).
+        rt = RoleTemplate.objects.create(name='RackAdmin', monitoring_view=True, monitoring_create=True)
         Membership.objects.create(
             user=cls.user, organization=cls.mine,
             role='admin', role_template=rt, is_active=True,
