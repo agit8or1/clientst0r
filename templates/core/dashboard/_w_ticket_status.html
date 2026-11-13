@@ -1,0 +1,16 @@
+{% if w.rows %}
+<ul class="dash-bars">
+    {% for r in w.rows %}
+    <li>
+        <a href="{{ r.href }}" class="dash-bar-row">
+            <span class="dash-bar-label">{{ r.name }}</span>
+            <span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill" style="width: {{ r.pct }}%"></span></span>
+            <strong class="dash-bar-value">{{ r.count }}</strong>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+<div class="dash-w-foot">{{ w.total }} open ticket{{ w.total|pluralize }}</div>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> No open tickets</div>
+{% endif %}

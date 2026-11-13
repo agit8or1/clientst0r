@@ -1,0 +1,89 @@
+<div class="offcanvas offcanvas-end dash-customize" tabindex="-1" id="dash-customize" aria-labelledby="dash-customize-title">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title h5" id="dash-customize-title"><i class="fas fa-sliders" aria-hidden="true"></i> Customize dashboard</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <p class="dash-c-note">
+            {% if layout_source == 'personal' %}You are using your own layout.
+            {% elif layout_source == 'role' %}You are using the default layout for <strong>{{ layout_preset_label }}</strong> set by an administrator.
+            {% else %}You are using the built-in layout for <strong>{{ layout_preset_label }}</strong>.{% endif %}
+            Drag rows or use the arrow buttons to reorder. Only panels you have access to are listed.
+        </p>
+        <div class="alert alert-danger py-2 small" role="alert" id="dash-c-error" hidden></div>
+        <div class="alert alert-success py-2 small" role="status" id="dash-c-ok" hidden></div>
+
+        <fieldset class="dash-c-section">
+            <legend>Density</legend>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Density">
+                <input type="radio" class="btn-check" name="dash-density" id="dash-density-compact" value="compact" {% if ui_density != 'comfortable' %}checked{% endif %}>
+                <label class="btn btn-outline-secondary" for="dash-density-compact">Compact</label>
+                <input type="radio" class="btn-check" name="dash-density" id="dash-density-comfortable" value="comfortable" {% if ui_density == 'comfortable' %}checked{% endif %}>
+                <label class="btn btn-outline-secondary" for="dash-density-comfortable">Comfortable</label>
+            </div>
+        </fieldset>
+
+        {% if customize.kpi %}
+        <fieldset class="dash-c-section">
+            <legend>Key figures</legend>
+            <ol class="dash-c-list" data-dash-list="kpi">
+                {% for p in customize.kpi %}{% include "core/dashboard/_customize_row.html" with p=p sizes=False %}{% endfor %}
+            </ol>
+        </fieldset>
+        {% endif %}
+
+        <fieldset class="dash-c-section">
+            <legend>Panels</legend>
+            <ol class="dash-c-list" data-dash-list="grid">
+                {% for p in customize.grid %}{% include "core/dashboard/_customize_row.html" with p=p sizes=True %}{% endfor %}
+            </ol>
+        </fieldset>
+
+        <fieldset class="dash-c-section">
+            <legend>Quick actions</legend>
+            <ol class="dash-c-list" data-dash-list="toolbar">
+                {% for p in customize.toolbar %}{% include "core/dashboard/_customize_row.html" with p=p sizes=False %}{% endfor %}
+            </ol>
+            {% if quick_action_options %}
+            <ol class="dash-c-list dash-c-sub" data-dash-list="qa" aria-label="Quick action buttons">
+                {% for a in quick_action_options %}
+                <li class="dash-c-row" draggable="true" data-key="{{ a.key }}">
+                    <span class="dash-c-grip" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+                    <label class="dash-c-label">
+                        <input type="checkbox" class="form-check-input" data-dash-show {% if a.on %}checked{% endif %}>
+                        <i class="fas {{ a.icon }}" aria-hidden="true"></i> {{ a.label }}
+                    </label>
+                    <span class="dash-c-move">
+                        <button type="button" class="btn btn-sm btn-link" data-dash-up aria-label="Move {{ a.label }} up"><i class="fas fa-arrow-up" aria-hidden="true"></i></button>
+                        <button type="button" class="btn btn-sm btn-link" data-dash-down aria-label="Move {{ a.label }} down"><i class="fas fa-arrow-down" aria-hidden="true"></i></button>
+                    </span>
+                </li>
+                {% endfor %}
+            </ol>
+            {% else %}
+            <p class="dash-c-note">No quick actions are available to your role here.</p>
+            {% endif %}
+        </fieldset>
+
+        <div class="dash-c-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="dash-c-save"><i class="fas fa-check" aria-hidden="true"></i> Save</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-c-reset"
+                    title="Forget your own layout and use your role's default"><i class="fas fa-rotate-left" aria-hidden="true"></i> Reset to default</button>
+        </div>
+
+        {% if can_manage_role_defaults %}
+        <fieldset class="dash-c-section dash-c-admin">
+            <legend>Role defaults</legend>
+            <p class="dash-c-note">Save the layout above as the default for everyone in a role who has not customized their own. Each panel still checks the viewer's own permissions.</p>
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <label class="visually-hidden" for="dash-c-preset">Role</label>
+                <select class="form-select form-select-sm w-auto" id="dash-c-preset">
+                    {% for key, label in preset_choices %}<option value="{{ key }}"{% if key == layout_preset %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="dash-c-role-save">Save as role default</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="dash-c-role-clear">Clear role default</button>
+            </div>
+        </fieldset>
+        {% endif %}
+    </div>
+</div>

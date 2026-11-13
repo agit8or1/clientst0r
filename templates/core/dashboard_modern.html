@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block body_class %}dash-page{% endblock %}
+{% block main_class %}dash-main container-fluid{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="dash" id="dash" data-dash-density="{{ ui_density }}"
+     data-widget-url="{% url 'core:dashboard_widget' 'WIDGET_KEY' %}"
+     data-save-url="{% url 'core:dashboard_layout_save' %}"
+     {% if can_manage_role_defaults %}data-role-url="{% url 'core:dashboard_role_default_save' %}"{% endif %}>
+
+    <header class="dash-head">
+        <h1 class="dash-title">
+            <i class="fas fa-tachometer-alt" aria-hidden="true"></i> Dashboard
+            {% if current_organization %}<span class="dash-org" title="Current customer">{{ current_organization.name }}</span>{% endif %}
+        </h1>
+        <div class="dash-head-actions">
+            {% if psa_enabled %}
+            <a href="{% url 'psa:my_work' %}" class="btn btn-primary btn-sm"><i class="fas fa-user-check" aria-hidden="true"></i> My Work</a>
+            {% endif %}
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-refresh" title="Reload every widget">
+                <i class="fas fa-rotate" aria-hidden="true"></i> <span class="dash-btn-text">Refresh</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="offcanvas"
+                    data-bs-target="#dash-customize" aria-controls="dash-customize" id="dash-customize-btn">
+                <i class="fas fa-sliders" aria-hidden="true"></i> <span class="dash-btn-text">Customize</span>
+            </button>
+            <form method="post" action="{% url 'core:dashboard_variant_save' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="variant" value="classic">
+                <button type="submit" class="btn btn-outline-secondary btn-sm"
+                        title="Switch to the previous dashboard layout (you can switch back at any time)">
+                    <i class="fas fa-table-columns" aria-hidden="true"></i> <span class="dash-btn-text">Classic dashboard</span>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    {% for b in banners %}{% include b.widget.template with w=b.ctx widget=b.widget %}{% endfor %}
+
+    {% if kpis %}
+    <section class="dash-kpis" aria-label="Key figures">
+        {% for k in kpis %}{% include k.widget.template with w=k.ctx widget=k.widget %}{% endfor %}
+    </section>
+    {% endif %}
+
+    {% for t in toolbar %}{% include t.widget.template with w=t.ctx widget=t.widget %}{% endfor %}
+
+    <section class="dash-grid" id="dash-grid" aria-label="Dashboard panels">
+        {% for p in grid %}
+        <article class="dash-w" id="dash-w-{{ p.key }}" data-key="{{ p.key }}" data-size="{{ p.size }}"
+                 aria-labelledby="dash-w-{{ p.key }}-title">
+            <header class="dash-w-head">
+                <h2 class="dash-w-title" id="dash-w-{{ p.key }}-title">
+                    <i class="fas {{ p.widget.icon }}" aria-hidden="true"></i> {{ p.widget.label }}
+                </h2>
+                <div class="dash-w-tools">
+                    {% if p.link %}<a href="{{ p.link }}" class="dash-w-link">View all</a>{% endif %}
+                    {% if p.widget.expandable %}
+                    <button type="button" class="dash-w-btn" data-dash-expand aria-expanded="false"
+                            title="Expand" aria-label="Expand {{ p.widget.label }}">
+                        <i class="fas fa-up-right-and-down-left-from-center" aria-hidden="true"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </header>
+            <div class="dash-w-body"{% if p.widget.lazy %} data-dash-lazy{% endif %}>
+                {% if p.widget.lazy %}
+                <div class="dash-w-state"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading…</div>
+                {% elif p.ctx.load_error %}
+                <div class="dash-w-state text-danger"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> This panel could not be loaded.</div>
+                {% else %}
+                {% include p.widget.template with w=p.ctx widget=p.widget %}
+                {% endif %}
+            </div>
+        </article>
+        {% empty %}
+        <div class="dash-empty">
+            <i class="fas fa-table-cells-large" aria-hidden="true"></i>
+            <p>No panels are shown. Use <strong>Customize</strong> to add some.</p>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+<div class="dash-backdrop" id="dash-backdrop" hidden></div>
+
+{% include "core/dashboard/_customize.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

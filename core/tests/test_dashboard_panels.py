@@ -315,15 +315,19 @@ class DashboardRenderTests(TestCase):
             organization=self.org, title='Core switch',
             expires_at=timezone.now() + timedelta(days=4))
 
-        response = self.client.get(reverse('core:dashboard'))
-        self.assertEqual(response.status_code, 200)
-        body = response.content.decode()
-        self.assertIn('Schedule (next 7 days)', body)
-        self.assertIn('Swap the firewall', body)
-        self.assertIn('Core switch', body)
+        # Phase 67: the new dashboard and the classic one carry both panels.
+        for layout in ('modern', 'classic'):
+            with self.subTest(layout=layout):
+                response = self.client.get(reverse('core:dashboard') + f'?layout={layout}')
+                self.assertEqual(response.status_code, 200)
+                body = response.content.decode()
+                self.assertIn('Schedule (next 7 days)', body)
+                self.assertIn('Swap the firewall', body)
+                self.assertIn('Core switch', body)
 
     def test_removed_panels_are_gone(self):
-        response = self.client.get(reverse('core:dashboard'))
+        # The classic dashboard (Phase 67 keeps it unchanged).
+        response = self.client.get(reverse('core:dashboard') + '?layout=classic')
         body = response.content.decode()
         for gone in ('My Recent', 'Recent Activity', 'Expiring Soon'):
             self.assertNotIn(gone, body, f'{gone} panel should have been removed')
@@ -339,17 +343,20 @@ class DashboardRenderTests(TestCase):
         guard lives in test_source_syntax.TemplateCommentTests; this asserts the
         rendered result for the page it actually happened on.
         """
-        body = self.client.get(reverse('core:dashboard')).content.decode()
-        for marker in ('{#', '#}', '{%', '%}'):
-            self.assertNotIn(marker, body,
-                             f'unrendered template syntax {marker!r} in the page')
+        for layout in ('modern', 'classic'):
+            body = self.client.get(reverse('core:dashboard') + f'?layout={layout}').content.decode()
+            for marker in ('{#', '#}', '{%', '%}'):
+                self.assertNotIn(marker, body,
+                                 f'unrendered template syntax {marker!r} in the {layout} page')
 
     def test_empty_state_renders(self):
-        response = self.client.get(reverse('core:dashboard'))
-        self.assertEqual(response.status_code, 200)
-        body = response.content.decode()
-        self.assertIn('Nothing scheduled in the next 7 days', body)
-        self.assertIn('Nothing outstanding', body)
+        for layout in ('modern', 'classic'):
+            with self.subTest(layout=layout):
+                response = self.client.get(reverse('core:dashboard') + f'?layout={layout}')
+                self.assertEqual(response.status_code, 200)
+                body = response.content.decode()
+                self.assertIn('Nothing scheduled in the next 7 days', body)
+                self.assertIn('Nothing outstanding', body)
 
 
 class ScheduleLocalDayTests(TestCase):

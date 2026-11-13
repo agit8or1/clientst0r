@@ -1,0 +1,19 @@
+<ul class="dash-stat-list">
+    <li><a href="{{ w.updates_url }}" class="dash-stat">
+        <span><i class="fas fa-code-branch" aria-hidden="true"></i> Version {{ w.version }}</span>
+        {% if w.update %}<span class="badge bg-warning text-dark">Update {{ w.update }} available</span>{% else %}<span class="dash-sub-success">Up to date</span>{% endif %}
+    </a></li>
+    <li><a href="{{ w.status_url }}" class="dash-stat">
+        <span><i class="fas fa-database" aria-hidden="true"></i> Database ({{ w.db_engine }})</span>
+        {% if w.db_ok %}<span class="dash-sub-success">Connected</span>{% else %}<span class="dash-sub-danger">Unavailable</span>{% endif %}
+    </a></li>
+    {% if w.disk != None %}<li><a href="{{ w.status_url }}" class="dash-stat">
+        <span><i class="fas fa-hard-drive" aria-hidden="true"></i> Disk used</span>
+        <strong class="{% if w.disk >= 90 %}dash-sub-danger{% elif w.disk >= 75 %}dash-sub-warning{% endif %}">{{ w.disk }}%</strong>
+    </a></li>{% endif %}
+    {% if w.mem != None %}<li><a href="{{ w.status_url }}" class="dash-stat">
+        <span><i class="fas fa-memory" aria-hidden="true"></i> Memory used</span>
+        <strong class="{% if w.mem >= 90 %}dash-sub-danger{% elif w.mem >= 75 %}dash-sub-warning{% endif %}">{{ w.mem }}%</strong>
+    </a></li>{% endif %}
+</ul>
+{% if w.last_check %}<div class="dash-w-foot">Update check {{ w.last_check|timesince }} ago</div>{% endif %}

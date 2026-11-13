@@ -1,0 +1,10 @@
+<nav class="dash-qa" aria-label="Quick actions">
+    <span class="dash-qa-title"><i class="fas fa-bolt" aria-hidden="true"></i> Quick actions</span>
+    <div class="dash-qa-list">
+        {% for a in w.actions %}
+        <a href="{{ a.url }}" class="dash-qa-btn" title="{{ a.tooltip }}"><i class="fas {{ a.icon }}" aria-hidden="true"></i> {{ a.label }}</a>
+        {% empty %}
+        <span class="dash-qa-empty">No quick actions available. Use Customize to pick some.</span>
+        {% endfor %}
+    </div>
+</nav>

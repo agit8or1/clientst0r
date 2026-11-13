@@ -1,0 +1,23 @@
+<div class="dash-activity">
+    <div class="dash-activity-summary">
+        <span><span class="dash-dot dash-dot-opened" aria-hidden="true"></span> Opened <strong>{{ w.opened_total }}</strong></span>
+        <span><span class="dash-dot dash-dot-resolved" aria-hidden="true"></span> Resolved <strong>{{ w.resolved_total }}</strong></span>
+        <span class="dash-activity-trend" title="Tickets opened in the last 7 days compared with the 7 days before">
+            Last 7 days: {{ w.this_week }} opened
+            {% if w.trend > 0 %}<span class="dash-sub-danger"><i class="fas fa-arrow-up" aria-hidden="true"></i> {{ w.trend }} vs previous 7</span>
+            {% elif w.trend < 0 %}<span class="dash-sub-success"><i class="fas fa-arrow-down" aria-hidden="true"></i> {{ w.trend_abs }} vs previous 7</span>
+            {% else %}<span class="text-muted">same as previous 7</span>{% endif %}
+        </span>
+    </div>
+    <div class="dash-chart" role="img" aria-label="Tickets opened and resolved per day, last {{ w.window }} days: {{ w.opened_total }} opened, {{ w.resolved_total }} resolved">
+        {% for d in w.days %}
+        <div class="dash-chart-col" title="{{ d.day|date:'D j M' }}: {{ d.opened }} opened, {{ d.resolved }} resolved">
+            <div class="dash-chart-bars">
+                <span class="dash-chart-bar dash-chart-opened" style="height: {{ d.opened_pct }}%"></span>
+                <span class="dash-chart-bar dash-chart-resolved" style="height: {{ d.resolved_pct }}%"></span>
+            </div>
+            <span class="dash-chart-label">{{ d.day|date:"j" }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>

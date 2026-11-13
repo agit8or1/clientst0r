@@ -1,0 +1,17 @@
+<ul class="dash-stat-list">
+    {% for status, label, icon, tone, count in w.rows %}
+    {% if status != 'unknown' or count %}
+    <li>
+        <a href="{{ w.more_url }}?status={{ status }}" class="dash-stat">
+            <span><i class="fas {{ icon }} text-{{ tone }}" aria-hidden="true"></i> {{ label }}</span>
+            <strong>{{ count }}</strong>
+        </a>
+    </li>
+    {% endif %}
+    {% endfor %}
+</ul>
+{% if w.counts.down %}
+<a href="{{ w.more_url }}?status=down" class="btn btn-sm btn-danger w-100 mt-2">View down monitors</a>
+{% elif not w.counts.total %}
+<div class="dash-w-state">No website monitors for this customer.</div>
+{% endif %}
