@@ -348,26 +348,22 @@ def toggle_theme(request):
     """
     Toggle between light and dark theme.
     AJAX endpoint that switches theme and returns JSON response.
+
+    v3.17.677: a dark palette (Professional Dark, Dark, Dracula, Monokai)
+    switches to Default Blue; anything else, Nord included (it is a light
+    palette), switches to Professional Dark.
     """
     from django.http import JsonResponse
+
+    from .context_processors import TOGGLE_DARK_THEME, TOGGLE_LIGHT_THEME, is_dark_theme
 
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
 
     profile, created = UserProfile.objects.get_or_create(user=request.user)
 
-    # Define dark themes
-    dark_themes = ['dark', 'dracula', 'monokai', 'nord']
-
-    # Toggle theme
-    if profile.theme in dark_themes:
-        # Switch to light theme (default)
-        profile.theme = 'default'
-    else:
-        # Switch to dark theme
-        profile.theme = 'dark'
-
-    profile.save()
+    profile.theme = TOGGLE_LIGHT_THEME if is_dark_theme(profile.theme) else TOGGLE_DARK_THEME
+    profile.save(update_fields=['theme'])
 
     return JsonResponse({'success': True, 'theme': profile.theme})
 

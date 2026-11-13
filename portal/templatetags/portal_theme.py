@@ -27,7 +27,10 @@ def portal_theme_mode(context):
         return ''
     profile = getattr(user, 'profile', None)
     theme = getattr(profile, 'theme', '') or ''
-    if not theme or theme == 'default':
+    # 'professional' is the starting theme of every new profile (v3.17.677),
+    # so like 'default' before it, it says nothing about what this customer
+    # wants: the portal follows their system preference.
+    if not theme or theme in ('default', 'professional'):
         return ''
     return 'dark' if theme in DARK_THEMES else 'light'
 

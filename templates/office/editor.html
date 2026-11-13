@@ -1,5 +1,5 @@
 {% load static m365docs_tags %}<!DOCTYPE html>
-<html lang="{{ user_locale_code|default:'en' }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}dark{% else %}light{% endif %}">
+<html lang="{{ user_locale_code|default:'en' }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme_is_dark %}dark{% else %}light{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

@@ -1,6 +1,6 @@
 {% load static %}{% load i18n %}{% load navigation %}
 <!DOCTYPE html>
-<html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme == 'professional' or user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}dark{% else %}light{% endif %}" data-density="{{ user_density|default:'compact' }}">
+<html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme_is_dark %}dark{% else %}light{% endif %}" data-density="{{ user_density|default:'compact' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -8,7 +8,7 @@
     <title>{% block title %}{{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }} - IT Documentation Platform{% endblock %}</title>
     <meta name="description" content="Secure, Self-Hosted IT Documentation Platform for MSPs and IT Departments">
     <meta name="generator" content="Client St0r v{{ app_version }}">
-    <meta name="theme-color" content="#58a6ff">
+    <meta name="theme-color" content="{% if user_theme_is_dark %}#0a0e14{% else %}#58a6ff{% endif %}">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -145,7 +145,7 @@
                     <!-- Theme Toggle -->
                     <li class="nav-item">
                         <button class="btn btn-link nav-link" data-action="toggleTheme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" aria-label="Toggle between dark and light theme" style="border: none; background: none;">
-                            <i aria-hidden="true" id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
+                            <i aria-hidden="true" id="theme-icon" class="fas {% if user_theme_is_dark %}fa-sun{% else %}fa-moon{% endif %}"></i>
                         </button>
                     </li>
                     <!-- Live Clock -->
@@ -287,6 +287,13 @@
             0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.7); }
             50%  { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
             100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+
+        /* The pulse and the heartbeat are decoration; anyone who has asked
+           the system for less motion gets the still dot. */
+        @media (prefers-reduced-motion: reduce) {
+            .org-pulse-dot { animation: none; box-shadow: none; }
+            [style*="heartbeat"] { animation: none !important; }
         }
 
         /* Heartbeat animation for Support This Project link */
