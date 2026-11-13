@@ -31,27 +31,29 @@
     --gray-800: #212529;
     --gray-900: #0d1117;
 
-    /* Spacing */
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
-    --spacing-xxl: 3rem;
+    /* Spacing, radius and the fast transition read from the shared --ui-*
+       tokens in ui.css (v3.17.677); the values are unchanged (the root is
+       16px, so 0.25rem == 4px and so on). */
+    --spacing-xs: var(--ui-1, 0.25rem);
+    --spacing-sm: var(--ui-2, 0.5rem);
+    --spacing-md: var(--ui-4, 1rem);
+    --spacing-lg: var(--ui-6, 1.5rem);
+    --spacing-xl: var(--ui-8, 2rem);
+    --spacing-xxl: var(--ui-12, 3rem);
 
     /* Borders */
-    --border-radius: 0.375rem;
-    --border-radius-lg: 0.5rem;
-    --border-radius-xl: 0.75rem;
+    --border-radius: var(--ui-radius-sm, 0.375rem);
+    --border-radius-lg: var(--ui-radius, 0.5rem);
+    --border-radius-xl: var(--ui-radius-lg, 0.75rem);
 
     /* Shadows */
     --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+    --shadow-md: var(--ui-shadow-md, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+    --shadow-lg: var(--ui-shadow-lg, 0 1rem 3rem rgba(0, 0, 0, 0.175));
     --shadow-hover: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
 
     /* Transitions */
-    --transition-fast: 0.15s ease-in-out;
+    --transition-fast: var(--ui-transition, 0.15s ease-in-out);
     --transition-base: 0.3s ease-in-out;
     --transition-slow: 0.5s ease-in-out;
 }
@@ -1432,6 +1434,42 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
     color: #000 !important;
 }
 
+/* Professional Dark (v3.17.677): the dark-mode greys above are a generic
+   charcoal; this theme reads them from its own palette so the legacy rules
+   that use --gray-* (cards, forms, footer, empty states) match the rest. */
+[data-bs-theme="dark"][data-theme="professional"] {
+    --gray-50: var(--background-alt);
+    --gray-100: var(--surface);
+    --gray-200: var(--surface-hover);
+    --gray-300: var(--border-color);
+    --gray-400: var(--text-muted);
+    --gray-500: var(--text-muted);
+    --gray-600: var(--text-secondary);
+    --gray-700: #cfd6e0;
+    --gray-800: var(--text-primary);
+    --gray-900: #f5f7fa;
+    --primary-blue: var(--ui-primary);
+    --primary-blue-hover: var(--primary-hover);
+    --success-green: var(--ui-success);
+    --danger-red: var(--ui-danger);
+    --warning-yellow: var(--ui-warning);
+    --info-cyan: var(--ui-info);
+    --shadow-sm: var(--ui-shadow);
+    --shadow-md: var(--ui-shadow-md);
+    --shadow-lg: var(--ui-shadow-lg);
+}
+[data-bs-theme="dark"][data-theme="professional"] body {
+    background-color: var(--background);
+}
+[data-bs-theme="dark"][data-theme="professional"] .navbar-dark {
+    background-color: var(--sidebar-bg) !important;
+    border-bottom: 1px solid var(--border-color);
+}
+[data-bs-theme="dark"][data-theme="professional"] nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
+    background: transparent;
+    box-shadow: none;
+}
+
 /* Theme toggle button */
 .theme-toggle {
     position: relative;
@@ -1476,8 +1514,7 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 /* ===== Select2 Dark Mode Styling ===== */
 [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection,
 [data-theme="dracula"] .select2-container--bootstrap-5 .select2-selection,
-[data-theme="monokai"] .select2-container--bootstrap-5 .select2-selection,
-[data-theme="nord"] .select2-container--bootstrap-5 .select2-selection {
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-selection {
     background-color: #2b2b2b !important;
     border-color: #495057 !important;
     color: #ffffff !important;
@@ -1485,31 +1522,27 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 
 [data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown,
 [data-theme="dracula"] .select2-container--bootstrap-5 .select2-dropdown,
-[data-theme="monokai"] .select2-container--bootstrap-5 .select2-dropdown,
-[data-theme="nord"] .select2-container--bootstrap-5 .select2-dropdown {
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-dropdown {
     background-color: #2b2b2b !important;
     border-color: #495057 !important;
 }
 
 [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option,
 [data-theme="dracula"] .select2-container--bootstrap-5 .select2-results__option,
-[data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option,
-[data-theme="nord"] .select2-container--bootstrap-5 .select2-results__option {
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option {
     color: #ffffff !important;
 }
 
 [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
 [data-theme="dracula"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
-[data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
-[data-theme="nord"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
     background-color: #375a7f !important;
     color: #ffffff !important;
 }
 
 [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection__choice,
 [data-theme="dracula"] .select2-container--bootstrap-5 .select2-selection__choice,
-[data-theme="monokai"] .select2-container--bootstrap-5 .select2-selection__choice,
-[data-theme="nord"] .select2-container--bootstrap-5 .select2-selection__choice {
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-selection__choice {
     background-color: #375a7f !important;
     border-color: #2a4763 !important;
     color: #ffffff !important;
@@ -1517,8 +1550,7 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 
 [data-theme="dark"] .select2-search__field,
 [data-theme="dracula"] .select2-search__field,
-[data-theme="monokai"] .select2-search__field,
-[data-theme="nord"] .select2-search__field {
+[data-theme="monokai"] .select2-search__field {
     background-color: #2b2b2b !important;
     color: #ffffff !important;
 }
@@ -1556,8 +1588,7 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 
 [data-theme="dark"] .pagination .page-item.active .page-link,
 [data-theme="dracula"] .pagination .page-item.active .page-link,
-[data-theme="monokai"] .pagination .page-item.active .page-link,
-[data-theme="nord"] .pagination .page-item.active .page-link {
+[data-theme="monokai"] .pagination .page-item.active .page-link {
     background-color: #375a7f !important;
     border-color: #2a4763 !important;
     color: #ffffff !important;
@@ -1565,8 +1596,7 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 
 [data-theme="dark"] .pagination .page-link,
 [data-theme="dracula"] .pagination .page-link,
-[data-theme="monokai"] .pagination .page-link,
-[data-theme="nord"] .pagination .page-link {
+[data-theme="monokai"] .pagination .page-link {
     background-color: #2b2b2b;
     border-color: #495057;
     color: #adb5bd;
@@ -1574,28 +1604,30 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 
 [data-theme="dark"] .pagination .page-link:hover,
 [data-theme="dracula"] .pagination .page-link:hover,
-[data-theme="monokai"] .pagination .page-link:hover,
-[data-theme="nord"] .pagination .page-link:hover {
+[data-theme="monokai"] .pagination .page-link:hover {
     background-color: #1a1a1a;
     border-color: #495057;
     color: #ffffff;
 }
 
 /* ========================================================================
-   COMPACT DENSITY (v3.17.x — 2026-04-29)
-   ~30% reduction in vertical padding/margin across cards, forms, tables,
-   buttons, headings. Single-file site-wide override.
+   DENSITY (v3.17.x — 2026-04-29; per user since v3.17.677)
+   This used to be an always-on compact pass. The spacing now comes from the
+   density tokens in ui.css (section 1): html[data-density="compact"], the
+   default, keeps the values this block always had; "comfortable" (a choice
+   on the profile page) restores roomier, close-to-Bootstrap spacing. The
+   selectors are unchanged, so nothing that overrides them moves.
    ======================================================================== */
 
-/* 1. Card bodies */
+/* 1. Card bodies (inside <main>, ui.css section 6 takes over) */
 .card-body {
-    padding: 0.85rem 1rem;
+    padding: var(--ui-card-pad, 0.85rem) var(--ui-card-pad, 1rem);
 }
 
 /* 2. Card headers / footers */
 .card-header,
 .card-footer {
-    padding: 0.55rem 0.85rem;
+    padding: var(--ui-card-head-py, 0.55rem) var(--ui-card-head-px, 0.85rem);
 }
 
 /* 3. Heading bottom margins */
@@ -1607,19 +1639,23 @@ h1, h2, h3, h4, h5, h6,
 /* 4. Container vertical padding */
 .container,
 .container-fluid {
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    padding-top: var(--ui-container-py, 0.75rem);
+    padding-bottom: var(--ui-container-py, 0.75rem);
 }
 
 /* 5. Form rows / form groups (Bootstrap utility classes use !important) */
-.mb-3,
+.mb-3 {
+    margin-bottom: var(--ui-stack-3, 0.75rem) !important;
+}
 .mb-4 {
-    margin-bottom: 0.75rem !important;
+    margin-bottom: var(--ui-stack-4, 0.75rem) !important;
 }
 
-.row.g-3,
+.row.g-3 {
+    --bs-gutter-y: var(--ui-gutter-3, 0.75rem);
+}
 .row.g-4 {
-    --bs-gutter-y: 0.75rem;
+    --bs-gutter-y: var(--ui-gutter-4, 0.75rem);
 }
 
 /* 6. Tables — site-wide table-sm-equivalent density */
@@ -1647,12 +1683,12 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 
 /* 11. Nav tabs */
 .nav-tabs .nav-link {
-    padding: 0.4rem 0.75rem;
+    padding: var(--ui-tab-py, 0.4rem) var(--ui-tab-px, 0.75rem);
 }
 
 /* 12. List groups */
 .list-group-item {
-    padding: 0.55rem 0.85rem;
+    padding: var(--ui-list-py, 0.55rem) var(--ui-list-px, 0.85rem);
 }
 
 /* 13. Dashboard stat-card display numbers */
@@ -1691,18 +1727,21 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 /* Card body spacing — even tighter than phase 1 inside dashboard tiles */
 .card .card-body.py-2 { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
 .card .card-body.py-3 { padding-top: 0.55rem !important; padding-bottom: 0.55rem !important; }
+html[data-density="comfortable"] .card .card-body.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+html[data-density="comfortable"] .card .card-body.py-3 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
 
 /* Bootstrap utility-class column gutters that hard-code rems */
-.row.g-2 { --bs-gutter-y: 0.4rem; --bs-gutter-x: 0.4rem; }
+.row.g-2 { --bs-gutter-y: var(--ui-gutter-2, 0.4rem); --bs-gutter-x: var(--ui-gutter-2, 0.4rem); }
 
 /* Card header text + py utility */
 .card-header h5, .card-header .h5 { font-size: 0.95rem; }
 .card-header h6, .card-header .h6 { font-size: 0.82rem; }
 .card-header.py-2 { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+html[data-density="comfortable"] .card-header.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
 
 /* Section spacing — replace mb-3/mb-4 utility on page-level rows */
-.row.mb-3 { margin-bottom: 0.6rem !important; }
-.row.mb-4 { margin-bottom: 0.85rem !important; }
+.row.mb-3 { margin-bottom: var(--ui-row-stack-3, 0.6rem) !important; }
+.row.mb-4 { margin-bottom: var(--ui-row-stack-4, 0.85rem) !important; }
 
 /* Page-title h2 — slightly smaller, less vertical bloat */
 /* Page-title sizing now comes from .ui-page-title in ui.css. */

@@ -271,7 +271,7 @@
 [data-theme="dark"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning,
 [data-theme="dracula"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning,
 [data-theme="monokai"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning,
-[data-theme="nord"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning {
+[data-theme="professional"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning {
     color: #ffcd39;
     border-color: #ffcd39;
 }
@@ -284,10 +284,10 @@
     border: 0;
 }
 
-/* On dark themes the primary colour is muted, so the technician surface needs
+/* On dark themes (not Nord, which is a light palette) the primary colour is muted, so the technician surface needs
    a stronger tint to stay distinct from the customer bubble. */
 [data-theme="dark"] .tc-thread, [data-theme="dracula"] .tc-thread,
-[data-theme="monokai"] .tc-thread, [data-theme="nord"] .tc-thread {
+[data-theme="monokai"] .tc-thread, [data-theme="professional"] .tc-thread {
     --tc-tech-bg: color-mix(in srgb, var(--tc-primary) 38%, var(--tc-card));
     --tc-tech-border: color-mix(in srgb, var(--tc-primary) 85%, #ffffff);
 }

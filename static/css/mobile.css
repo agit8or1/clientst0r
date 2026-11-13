@@ -461,6 +461,10 @@
     outline: 3px solid rgba(13, 110, 253, 0.5);
     outline-offset: 2px;
 }
+/* A half-transparent blue ring nearly disappears on a dark page. */
+[data-bs-theme="dark"] *:focus-visible {
+    outline: 2px solid var(--ui-focus, #8fb4e8);
+}
 
 /* Skip to main content link */
 .skip-to-main {
