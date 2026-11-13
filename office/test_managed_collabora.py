@@ -545,3 +545,29 @@ class EngineChecksTests(EngineBase):
         results = managed_checks.run(ManagedOfficeService.get())
         probe = [c for c in results if c.key == 'browser']
         self.assertEqual(probe[0].status, 'pass')
+
+
+class EngineCommandTests(EngineBase):
+    def call(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('office_managed', *args, stdout=out)
+        return out.getvalue()
+
+    def test_queue_switch_engine_and_layout(self):
+        from django.core.management.base import CommandError
+        self.call('--queue', 'switch_engine', '--engine', 'collabora', '--user', self.su.username)
+        op = ManagedOfficeOperation.objects.get()
+        self.assertEqual((op.action, op.target_engine, op.requested_by), ('switch_engine', 'collabora', self.su))
+        ManagedOfficeOperation.objects.update(state='succeeded')
+        with self.assertRaises(CommandError):
+            self.call('--queue', 'set_layout', '--layout', 'same-host', '--user', self.su.username)
+        with self.assertRaises(CommandError):
+            self.call('--queue', 'set_layout', '--layout', 'same-host', '--accept-same-host')
+        self.assertEqual(ManagedOfficeOperation.objects.count(), 1)
+        self.call('--queue', 'set_layout', '--layout', 'same-host', '--accept-same-host',
+                  '--user', self.su.username)
+        self.assertEqual(ManagedOfficeService.get().same_host_acknowledged_by, self.su)
+        self.assertTrue(ManagedOfficeOperation.objects.filter(action='set_layout',
+                                                              target_layout='same-host').exists())

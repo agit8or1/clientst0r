@@ -190,10 +190,10 @@ class ManagedInstallerTests(SimpleTestCase):
         site = self.root / 'etc/nginx/sites-enabled/itdocs.conf'
         site.write_text('server { listen 80; server_name _; location / { proxy_pass http://127.0.0.1:8000; } }\n')
         before = site.read_text()
-        r = self.run_script(*self.cool_args())
+        r = self.run_script(*self.cool_args('--allow-untested-releases'))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         conf = (self.root / 'etc/clientst0r/office-service.conf').read_text()
-        for line in ('ENGINES=collabora', 'PROXY_LAYOUTS=same-host', 'PROXY_TLS=upstream',
+        for line in ('ALLOW_UNTESTED_RELEASES=yes', 'ENGINES=collabora', 'PROXY_LAYOUTS=same-host', 'PROXY_TLS=upstream',
                      'CALLBACK_ROUTE=upstream', 'CALLBACK_UPSTREAM_IP=192.0.2.10',
                      'COLLABORA_MEMORY_MB=1536', 'COLLABORA_CPUS=1.5', 'COLLABORA_BIND_PORT=9981'):
             self.assertIn(line + '\n', conf)

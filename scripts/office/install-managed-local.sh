@@ -20,6 +20,7 @@
 #                            [--tls certbot --certbot-email E]
 #                            [--tls upstream [--callback-upstream-ip IP]]
 #                            [--ca-file F] [--install-docker] [--app-user U]
+#                            [--allow-untested-releases]
 #                            [--dry-run] [--preflight-only]
 #   install-managed-local.sh --remove-units [--dry-run]
 #
@@ -81,7 +82,7 @@ BIND_PORT=8090; CPUS=""; MEMORY_MB=4096; RESERVE_MB=2048; SUBNET=172.31.250.0/28
 TLS=existing-cert; CERT_FILE=""; KEY_FILE=""; CERTBOT_EMAIL=""; CA_FILE=""
 INSTALL_DOCKER=0; APP_USER=""; DRY_RUN=0; PREFLIGHT_ONLY=0
 PROVIDER=onlyoffice; ENGINES=""; LAYOUTS=dedicated; CALLBACK_UPSTREAM_IP=""
-COOL_PORT=9981; COOL_CPUS=1.5; COOL_MEM=1536
+COOL_PORT=9981; COOL_CPUS=1.5; COOL_MEM=1536; ALLOW_UNTESTED=no
 
 say()  { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -152,6 +153,7 @@ parse_args() {
             --certbot-email) need_val "$@"; CERTBOT_EMAIL="$2"; shift ;;
             --ca-file) need_val "$@"; CA_FILE="$2"; shift ;;
             --install-docker) INSTALL_DOCKER=1 ;;
+            --allow-untested-releases) ALLOW_UNTESTED=yes ;;
             --app-user) need_val "$@"; APP_USER="$2"; shift ;;
             --dry-run) DRY_RUN=1 ;;
             --preflight-only) PREFLIGHT_ONLY=1 ;;
@@ -221,6 +223,7 @@ validate() {
         *) die "--tls existing-cert, certbot or upstream (the editor is always served over HTTPS: by this server's Nginx, or by the TLS device in front of it)" ;;
     esac
     [ -z "$CA_FILE" ] || [ -f "$CA_FILE" ] || die "--ca-file $CA_FILE does not exist"
+    [ "$ALLOW_UNTESTED" = no ] || warn "--allow-untested-releases: releases that clientst0r has not live-verified can be installed (every Collabora CODE release is untested so far)."
     if [ -z "$APP_USER" ] && [ -f "$(p "$ROOT_HELPER_CONF")" ]; then
         APP_USER="$(sed -n 's/^APP_USER=\([a-z_][a-z0-9_-]*\)$/\1/p' "$(p "$ROOT_HELPER_CONF")" | head -1)"
     fi
@@ -305,7 +308,7 @@ write_conf() {
             "$DEPLOYMENT_ID" "$APP_USER" "$OFFICE_HOST" "https://$(url_host "$CLIENTSTOR_URL")/"
         printf 'BIND_PORT=%s\nEDITION=%s\nCPUS=%s\nMEMORY_MB=%s\nRESERVE_MB=%s\nNETWORK_SUBNET=%s\n' \
             "$BIND_PORT" "$EDITION" "$CPUS" "$MEMORY_MB" "$RESERVE_MB" "$SUBNET"
-        printf 'ALLOW_UNTESTED_RELEASES=no\nPRIVATE_CA=%s\nMAINTENANCE_UPDATES=no\n' \
+        printf 'ALLOW_UNTESTED_RELEASES=%s\nPRIVATE_CA=%s\nMAINTENANCE_UPDATES=no\n' "$ALLOW_UNTESTED" \
             "$([ -n "$CA_FILE" ] && echo yes || echo no)"
         printf 'ENGINES=%s\nPROXY_LAYOUTS=%s\n' "$ENGINES" "$LAYOUTS"
         if has "$ENGINES" collabora; then
