@@ -594,11 +594,15 @@ def techs_logged_in(params):
 
 
 def monitors_down(params):
-    """Count of WebsiteMonitors currently in `down` or `error` state."""
+    """Count of enabled WebsiteMonitors currently `down`.
+
+    WebsiteMonitor.STATUS_CHOICES is active / warning / down / unknown;
+    there is no `error` status, so the old `status__in=['down', 'error']`
+    matched nothing extra and only implied a state that never exists."""
     try:
         from monitoring.models import WebsiteMonitor
         n = _scoped(WebsiteMonitor.objects.filter(
-            is_enabled=True, status__in=['down', 'error'],
+            is_enabled=True, status='down',
         ), params).count()
         return {
             'value': str(n),
