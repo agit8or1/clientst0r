@@ -372,7 +372,7 @@ URLs or content.
 
 ## Edit in Microsoft 365 (working-copy round trip)
 
-*Built on the development branch, not yet released. Verified only against a
+*Shipped in v3.17.671. Verified only against a
 fake Microsoft (see Tests); it has not been run against a real tenant.*
 
 A clientst0r Word, Excel or PowerPoint file (`.docx`, `.xlsx`, `.pptx`) can be

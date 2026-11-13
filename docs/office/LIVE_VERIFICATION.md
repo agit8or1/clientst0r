@@ -4,7 +4,7 @@
 
 Its results file is the only evidence `mark-tested` accepts. That command lifts the "untested" flag of one release in the helper's release list, and only for the exact image digest that passed.
 
-> **Status: built on the development branch, not yet released, and never run against a real editor.** The harness's own tests run offline: they use fake engines, fake checks and a fake editor page in a real headless Chromium. Whether the selectors, click positions and timings fit the real Collabora and ONLYOFFICE editors only shows on the first real run (see [What only a real run proves](#what-only-a-real-run-proves)).
+> **Status: shipped in v3.17.671, never run against a real editor yet.** The harness's own tests run offline: they use fake engines, fake checks and a fake editor page in a real headless Chromium. Whether the selectors, click positions and timings fit the real Collabora and ONLYOFFICE editors only shows on the first real run (see [What only a real run proves](#what-only-a-real-run-proves)).
 
 ## Contents
 

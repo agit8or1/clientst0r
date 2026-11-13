@@ -2376,7 +2376,7 @@ Collabora or Microsoft 365 service**.
   sync, no sharing links. Embedding Microsoft's editors directly over
   clientst0r-stored files (WOPI) is not offered (it requires Microsoft's
   partner program).
-  - **Edit in Microsoft 365** *(built on the development branch, not yet released; not yet verified against a real tenant)* —
+  - **Edit in Microsoft 365** *(shipped v3.17.671 — not yet verified against a real tenant)* —
     a working-copy round trip for clientst0r Word, Excel and PowerPoint files:
     the current revision (checksum verified) is uploaded as the user to their
     own OneDrive or an approved library / folder and opened in Microsoft 365;
@@ -2410,7 +2410,7 @@ Collabora or Microsoft 365 service**.
   any restart, backups are taken before updates, rollback uses a matching
   backup, uninstall keeps documents and editor data, and the app never gets
   Docker access.
-- **62.9 Managed Local Collabora (CODE)** *(built on the development branch, not yet released)* —
+- **62.9 Managed Local Collabora (CODE)** *(shipped v3.17.671 — untested against a real container)* —
   a second engine for the managed mode, one engine at a time and chosen only
   from the engines the root configuration allows. Pinned image digests
   (every CODE release untested until the live checklist passes), resource
@@ -2420,7 +2420,7 @@ Collabora or Microsoft 365 service**.
   automatically after install. Switching engines drains sessions and keeps
   every document. Labelled evaluation / development; licensed Collabora
   Online stays supported through the external provider.
-- **62.10 Reverse-proxy setup for managed editors** *(built on the development branch, not yet released)* —
+- **62.10 Reverse-proxy setup for managed editors** *(shipped v3.17.671 — untested against a real container)* —
   the root helper writes only its own Nginx files for the editor: a
   dedicated host name (TLS on this server, or on a device in front of it), or
   Collabora's opt-in same-host paths as a snippet the administrator includes
@@ -2432,12 +2432,12 @@ Collabora or Microsoft 365 service**.
   rewrite, update the provider's address, re-check) without reinstalling.
   Setup checks cover DNS, certificate, the Nginx files and all three
   reachability paths, including a browser probe.
-- **62.11 Capacity checks for managed editors** *(built on the development branch, not yet released)* —
+- **62.11 Capacity checks for managed editors** *(shipped v3.17.671 — untested against a real container)* —
   setup checks warn about, or refuse, an editor that would starve
   clientst0r of memory or CPU, with the verdict, limits and a recommendation
   per engine on the settings page.
 
-- **62.12 Live verification harness for managed editors** *(built on the development branch, not yet released; never run against a real editor)* —
+- **62.12 Live verification harness for managed editors** *(shipped v3.17.671 — not yet run against a real editor)* —
   one command that checks a managed Collabora or ONLYOFFICE editor with a
   real headless browser: create, open, type, save, close and reopen DOCX,
   XLSX and PPTX files and confirm the stored revision and its checksum; a

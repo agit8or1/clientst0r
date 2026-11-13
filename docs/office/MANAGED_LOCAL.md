@@ -9,7 +9,7 @@ Which engines this server may run is root-owned configuration (`ENGINES=`); the 
 
 It is **off by default**. A superuser turns it on in **Settings → Office Documents → Managed local editor**. A root administrator must first run a one-time setup on the server (see [Setup](#setup)).
 
-> **Status: not verified against a real container.** Everything below is covered by unit and integration tests that use protocol models: a fake `docker` binary, a fake helper socket, fake `nginx`/`systemctl`/`openssl` binaries, and fake ONLYOFFICE Docs and Collabora servers. The Collabora engine, the reverse-proxy setup and the capacity checks were built on the development branch and have not been run on a real host yet (see [Not yet verified live](#not-yet-verified-live)). The live suite and the browser checklist ([Live verification](#live-verification)) have **not been run**. Every release in the helper's list is marked `tested: False`, so the helper refuses to install any of them until the live checklist passes and a release is marked tested. The one exception is a disposable test VM whose root configuration sets `ALLOW_UNTESTED_RELEASES=yes`.
+> **Status: not verified against a real container.** Everything below is covered by unit and integration tests that use protocol models: a fake `docker` binary, a fake helper socket, fake `nginx`/`systemctl`/`openssl` binaries, and fake ONLYOFFICE Docs and Collabora servers. The Collabora engine, the reverse-proxy setup and the capacity checks shipped in v3.17.671 and have not been run on a real host yet (see [Not yet verified live](#not-yet-verified-live)). The live suite and the browser checklist ([Live verification](#live-verification)) have **not been run**. Every release in the helper's list is marked `tested: False`, so the helper refuses to install any of them until the live checklist passes and a release is marked tested. The one exception is a disposable test VM whose root configuration sets `ALLOW_UNTESTED_RELEASES=yes`.
 
 ## Contents
 
@@ -453,7 +453,7 @@ These prove that the code follows the documented protocols. They do **not** prov
 
 ## Live verification
 
-**Automated harness:** `scripts/office/live/run_live_checks.py` runs the browser and lifecycle checks below automatically, on a live install (the default local profile) or on a disposable VM, and is the evidence `mark-tested` needs to mark a release tested. See [LIVE_VERIFICATION.md](LIVE_VERIFICATION.md). It is built on the development branch and has not been run against a real editor yet.
+**Automated harness:** `scripts/office/live/run_live_checks.py` runs the browser and lifecycle checks below automatically, on a live install (the default local profile) or on a disposable VM, and is the evidence `mark-tested` needs to mark a release tested. See [LIVE_VERIFICATION.md](LIVE_VERIFICATION.md). It shipped in v3.17.671 and has not been run against a real editor yet.
 
 Status: **NOT RUN**. It needs a disposable Ubuntu 24.04 VM with at least 4 vCPU, 8 GB RAM and 40 GB disk, Docker, a DNS name and certificate for both host names, clientst0r installed, and `ALLOW_UNTESTED_RELEASES=yes` until a release is marked tested.
 
@@ -495,7 +495,7 @@ It runs these steps in order:
 
 ### Not yet verified live
 
-Built on the development branch and covered by tests with fakes only:
+Shipped in v3.17.671 and covered by tests with fakes only:
 
 - the Collabora CODE container itself: start-up with the generated `--o:` options, `aliasgroup1` enforcement, the mounted proof key being used (`/etc/coolwsd/proof_key`), file capabilities with `cap_drop: NET_RAW`, the host-side discovery health check, SIGTERM shutdown within 120 s;
 - Nginx: the rendered blocks on a real `nginx -t`, WebSocket upgrade through `/cool/…/ws`, Collabora's `/browser` paths loading in the same-host layout next to clientst0r's `location /`, header stripping not breaking the editor;
