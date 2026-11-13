@@ -26,6 +26,10 @@ def done(rc=0, out='ok', err=''):
     return subprocess.CompletedProcess([], rc, out, err)
 
 
+NOT_NEEDED = done(out='{"needed": false, "on": false}')
+NEEDED = done(out='{"needed": true, "on": false}')
+
+
 @override_settings(MIDDLEWARE=core.TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    ALLOWED_HOSTS=[APP_HOST, 'testserver'])
 class HostSetupViewTests(TestCase):
@@ -122,16 +126,41 @@ class HostSetupRunTests(TestCase):
     def test_same_host_runs_setup_then_the_include(self):
         self.queue()
         lease, _ = self.start()
-        with mock.patch('core.root_helper.run', side_effect=[done(out='installed'), done(out='included')]) as run:
+        with mock.patch('core.root_helper.run',
+                        side_effect=[NOT_NEEDED, done(out='installed'), done(out='included')]) as run:
             self.assertTrue(host_setup.run(lease))
-        self.assertEqual(run.call_args_list[0].args[0],
+        self.assertEqual(run.call_args_list[0].args[0], ['front-proxy', 'status'])
+        self.assertEqual(run.call_args_list[1].args[0],
                          ['office-setup', 'collabora', 'same-host', APP_HOST, 'docs-prod', '-', 'untested'])
-        self.assertEqual(run.call_args_list[1].args[0], ['office-site-include', 'on'])
+        self.assertEqual(run.call_args_list[2].args[0], ['office-site-include', 'on'])
         s = ManagedOfficeService.get()
         self.assertEqual(s.host_setup_state, 'succeeded')
         self.assertTrue(s.enabled)
         self.assertIn('installed', s.host_setup_output)
         self.assertIn('included', s.host_setup_output)
+
+    def test_same_host_moves_the_port_to_nginx_first_when_needed(self):
+        self.queue()
+        lease, _ = self.start()
+        with mock.patch('core.root_helper.run', side_effect=[
+                NEEDED, done(out='front proxy on'), done(out='installed'), done(out='included')]) as run:
+            self.assertTrue(host_setup.run(lease))
+        self.assertEqual([c.args[0][:2] for c in run.call_args_list],
+                         [['front-proxy', 'status'], ['front-proxy', 'on'], ['office-setup', 'collabora'],
+                          ['office-site-include', 'on']])
+        self.assertIn('front proxy on', ManagedOfficeService.get().host_setup_output)
+
+    def test_failed_front_proxy_stops_the_setup(self):
+        self.queue()
+        lease, _ = self.start()
+        with mock.patch('core.root_helper.run', side_effect=[
+                NEEDED, done(rc=1, out='', err='everything was put back')]) as run:
+            self.assertFalse(host_setup.run(lease))
+        self.assertEqual(run.call_count, 2)
+        s = ManagedOfficeService.get()
+        self.assertEqual(s.host_setup_state, 'failed')
+        self.assertFalse(s.enabled)
+        self.assertEqual(s.host_setup_output.count('everything was put back'), 1)
 
     def test_dedicated_has_no_include(self):
         self.queue(layout='dedicated', office_host='office.example.com')
@@ -144,9 +173,10 @@ class HostSetupRunTests(TestCase):
     def test_failure_is_recorded_and_service_stays_off(self):
         self.queue()
         lease, _ = self.start()
-        with mock.patch('core.root_helper.run', return_value=done(rc=1, out='', err='refused: x')) as run:
+        with mock.patch('core.root_helper.run',
+                        side_effect=[NOT_NEEDED, done(rc=1, out='', err='refused: x')]) as run:
             self.assertFalse(host_setup.run(lease))
-        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_count, 2)
         s = ManagedOfficeService.get()
         self.assertEqual(s.host_setup_state, 'failed')
         self.assertFalse(s.enabled)
@@ -172,7 +202,8 @@ class HostSetupRunTests(TestCase):
         # started when its run ends, so the setup runs in its own process.
         self.queue()
         with mock.patch('subprocess.Popen') as popen, \
-                mock.patch('core.root_helper.run', side_effect=[done(out='installed'), done(out='included')]), \
+                mock.patch('core.root_helper.run',
+                           side_effect=[NOT_NEEDED, done(out='installed'), done(out='included')]), \
                 mock.patch('office.managed.jobs.run_pending', return_value=None), \
                 mock.patch('office.managed.jobs.maybe_schedule_update'):
             call_command('office_managed', run_pending=True, stdout=open('/dev/null', 'w'))

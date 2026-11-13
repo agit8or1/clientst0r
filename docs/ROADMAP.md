@@ -2462,6 +2462,12 @@ Collabora or Microsoft 365 service**.
 **Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
 Microsoft 365 and Google Docs 1–2 weeks each.
 
+- **62.14 Front proxy on gunicorn's port** *(shipped v3.17.673 — not yet run on a real host)* —
+  for servers where the device in front talks to gunicorn's TCP port directly, the root helper's
+  `front-proxy on` moves that port to an Nginx site in front of gunicorn's unix socket (systemd
+  drop-in, health compared through the port and the socket, automatic rollback), so the same-host
+  editor locations can be added without any change to DNS or the device in front. Server setup
+  runs it first when it is needed.
 ## Phase 63 — RMM integration and technician workspace **(XL · RMM)** [in progress]
 
 One place for a technician to see a customer's devices, alerts and tickets,
@@ -2652,22 +2658,22 @@ per-ticket satisfaction survey (Phase 12). An optional module, off by
 default (Settings → System → Optional modules → Pulse checks). Setup and use:
 [docs/PULSE_CHECKS.md](PULSE_CHECKS.md).
 
-- **66.1 Pulse check templates** *(built, unreleased)* — name, intro text and
+- **66.1 Pulse check templates** *(shipped v3.17.673)* — name, intro text and
   up to twelve questions (1–5 rating, 0–10 likelihood to recommend, yes / no,
   free text), managed by MSP staff; each send keeps a copy of the questions it
   asked.
-- **66.2 Audience** *(built, unreleased)* — all active clients or chosen
+- **66.2 Audience** *(shipped v3.17.673)* — all active clients or chosen
   organizations; everyone with a portal account (optionally plus contacts
   with an e-mail address), people with chosen roles (owners, managers /
   administrators, editors, read-only, or named roles held as primary or
   additional role), or chosen users and contacts. MSP staff are never
   recipients.
-- **66.3 Sending** *(built, unreleased)* — send now with a recipient preview,
+- **66.3 Sending** *(shipped v3.17.673)* — send now with a recipient preview,
   or monthly / quarterly from the scheduler (once per period, safe to rerun);
   one single-use link per person that needs no sign-in and closes after a set
   number of days; portal users can also answer from a Feedback page; opt-out
   from the e-mail or the portal; audit log entries for create, edit and send.
-- **66.4 Results** *(built, unreleased)* — response rate, average rating,
+- **66.4 Results** *(shipped v3.17.673)* — response rate, average rating,
   NPS, yes / no share and comments per pulse check and per send, filterable
   by organization; a per-client trend card on the client record for MSP
   staff. Staff limited to some clients see only those clients' answers.

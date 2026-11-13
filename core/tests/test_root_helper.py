@@ -598,3 +598,178 @@ class OfficeSiteIncludeTests(SimpleTestCase):
         for bad in ([], ['yes'], ['on', 'x']):
             with self.assertRaises(self.h.HelperError):
                 self.h.cmd_office_site_include(self.CONF, bad)
+
+
+UNIT = """[Unit]
+Description=Client St0r Gunicorn
+
+[Service]
+Type=notify
+User=administrator
+ExecStart=/home/administrator/venv/bin/gunicorn \\
+    --workers 4 \\
+    --bind unix:/home/administrator/gunicorn.sock \\
+    --bind 0.0.0.0:8000 \\
+    --timeout 300 \\
+    config.wsgi:application
+# a comment after the command
+ExecReload=/bin/kill -s HUP $MAINPID
+"""
+
+
+class FrontProxyTests(SimpleTestCase):
+    """front-proxy moves gunicorn's TCP port to an Nginx site in front of its
+    unix socket, checks /health/ through the port, and puts everything back
+    when anything fails."""
+
+    CONF = {'APP_USER': 'administrator', 'APP_DIR': '/home/administrator',
+            'SERVICE': 'clientst0r-gunicorn.service'}
+
+    def setUp(self):
+        self.h = load_helper()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        nginx = self.tmp / 'nginx'
+        (nginx / 'sites-available').mkdir(parents=True)
+        (nginx / 'sites-enabled').mkdir()
+        self.itdocs = nginx / 'sites-available' / 'itdocs.conf'
+        self.itdocs.write_text(SITE)
+        os.symlink(self.itdocs, nginx / 'sites-enabled' / 'itdocs.conf')
+        systemd = self.tmp / 'systemd'
+        systemd.mkdir()
+        (systemd / 'clientst0r-gunicorn.service').write_text(UNIT)
+        self.h.NGINX_DIR = str(nginx)
+        self.h.NGINX_SITES_ENABLED = str(nginx / 'sites-enabled')
+        self.h.NGINX_SITES_AVAILABLE = str(nginx / 'sites-available')
+        self.h.SYSTEMD_DIR = str(systemd)
+        self.h.FRONT_STATE = str(self.tmp / 'front-proxy.state')
+        self.h.OFFICE_SERVICE_CONF = str(self.tmp / 'office-service.conf')
+        self.dropin = systemd / 'clientst0r-gunicorn.service.d' / self.h.FRONT_DROPIN
+        self.front = nginx / 'sites-available' / 'clientst0r-front'
+        self.front_link = nginx / 'sites-enabled' / 'clientst0r-front'
+        p = mock.patch.object(self.h.shutil, 'which', return_value='/usr/sbin/nginx')
+        p.start()
+        self.addCleanup(p.stop)
+        p = mock.patch('time.sleep')
+        p.start()
+        self.addCleanup(p.stop)
+
+    def switch(self, action, *, nginx_active=False, front_health=(200, '{"ok": true}'), nginx_t=0,
+               restart=0):
+        calls = []
+
+        def fake_run(argv, env=None, timeout=600, capture=False):
+            calls.append(argv)
+            rc = 0
+            if argv[:2] == ['systemctl', 'is-active']:
+                rc = 0 if nginx_active else 3
+            elif argv[0] == 'nginx':
+                rc = nginx_t
+            elif argv[:2] == ['systemctl', 'restart']:
+                rc = restart
+            return subprocess.CompletedProcess(argv, rc, '', 'emerg' if rc else '')
+
+        def fake_health(port=None, sock=None, host='localhost', addr='127.0.0.1'):
+            return (200, '{"ok": true}') if sock else front_health
+        with mock.patch.object(self.h, '_run', side_effect=fake_run), \
+                mock.patch.object(self.h, '_http_health', side_effect=fake_health):
+            if action == 'status':
+                return self.h.front_status(self.CONF), calls
+            return self.h.cmd_front_proxy(self.CONF, [action]), calls
+
+    def test_reads_the_unit_and_drops_only_the_tcp_bind(self):
+        tokens, sock, tcp = self.h.gunicorn_exec(self.CONF)
+        self.assertEqual(sock, '/home/administrator/gunicorn.sock')
+        self.assertEqual(tcp, ('0.0.0.0', 8000))
+        dropin = self.h.render_dropin(tokens)
+        self.assertIn('ExecStart=\nExecStart=/home/administrator/venv/bin/gunicorn', dropin)
+        self.assertIn('--bind unix:/home/administrator/gunicorn.sock', dropin)
+        self.assertNotIn('0.0.0.0:8000', dropin)
+        self.assertIn('--timeout 300', dropin)
+        self.assertNotIn('comment', dropin)
+
+    def test_refuses_units_it_cannot_read_exactly(self):
+        unit = Path(self.h.SYSTEMD_DIR) / 'clientst0r-gunicorn.service'
+        for bad in (UNIT.replace('--timeout 300', '--timeout "300"'),
+                    UNIT.replace('--bind 0.0.0.0:8000', '--bind 0.0.0.0:8000 --bind 127.0.0.1:8001'),
+                    UNIT.replace('--bind unix:/home/administrator/gunicorn.sock', ''),
+                    UNIT.replace('--bind 0.0.0.0:8000', '--bind example.com:8000'),
+                    UNIT.replace('/venv/bin/gunicorn', '/venv/bin/python')):
+            unit.write_text(bad)
+            with self.assertRaises(self.h.HelperError, msg=bad):
+                self.h.gunicorn_exec(self.CONF)
+
+    def test_status_says_when_it_is_needed(self):
+        status, _ = self.switch('status')
+        self.assertTrue(status['needed'])
+        self.assertFalse(status['on'])
+        self.assertEqual(status['tcp_bind'], '0.0.0.0:8000')
+        status, _ = self.switch('status', nginx_active=True)
+        self.assertFalse(status['needed'])
+
+    def test_on_moves_the_port_and_off_puts_it_back(self):
+        rc, calls = self.switch('on')
+        self.assertEqual(rc, 0)
+        site = self.front.read_text()
+        self.assertTrue(site.startswith(self.h.FRONT_MARKER))
+        self.assertIn('listen 8000 default_server;', site)
+        self.assertIn('server unix:/home/administrator/gunicorn.sock', site)
+        self.assertIn('X-Forwarded-For $proxy_add_x_forwarded_for;', site)
+        self.assertIn('X-Forwarded-Proto $http_x_forwarded_proto;', site)
+        self.assertIn('    location / {', site)          # where office-site-include adds the editor
+        self.assertTrue(self.front_link.is_symlink())
+        self.assertFalse((Path(self.h.NGINX_SITES_ENABLED) / 'itdocs.conf').exists())
+        self.assertNotIn('0.0.0.0:8000', self.dropin.read_text())
+        acts = [c for c in calls if c[0] in ('nginx', 'systemctl') and c[1:2] != ['is-active']]
+        self.assertEqual(acts, [['nginx', '-t'], ['systemctl', 'daemon-reload'],
+                                ['systemctl', 'restart', 'clientst0r-gunicorn.service'],
+                                ['systemctl', 'start', 'nginx'],
+                                ['systemctl', 'enable', '--quiet', 'nginx']])
+        # the front site is now the one clientst0r site office-site-include edits
+        self.assertEqual(self.h.app_site(self.CONF), str(self.front))
+        self.assertEqual(self.switch('on')[0], 0)            # second run: already on
+
+        rc, calls = self.switch('off', nginx_active=True)
+        self.assertEqual(rc, 0)
+        self.assertFalse(self.front.exists())
+        self.assertFalse(self.dropin.exists())
+        self.assertTrue((Path(self.h.NGINX_SITES_ENABLED) / 'itdocs.conf').is_symlink())
+        self.assertIn(['systemctl', 'stop', 'nginx'], calls)
+        self.assertLess(calls.index(['systemctl', 'stop', 'nginx']),
+                        calls.index(['systemctl', 'restart', 'clientst0r-gunicorn.service']))
+
+    def assert_put_back(self):
+        self.assertFalse(self.front.exists())
+        self.assertFalse(self.front_link.exists())
+        self.assertFalse(self.dropin.exists())
+        self.assertTrue((Path(self.h.NGINX_SITES_ENABLED) / 'itdocs.conf').is_symlink())
+        self.assertFalse(Path(self.h.FRONT_STATE).exists())
+
+    def test_health_mismatch_rolls_everything_back(self):
+        with self.assertRaises(self.h.HelperError) as e:
+            self.switch('on', front_health=(502, 'Bad Gateway'))
+        self.assertIn('put back', str(e.exception))
+        self.assert_put_back()
+
+    def test_rejected_nginx_config_changes_nothing_running(self):
+        with self.assertRaises(self.h.HelperError):
+            _, calls = self.switch('on', nginx_t=1)
+        self.assert_put_back()
+
+    def test_failed_gunicorn_restart_rolls_back(self):
+        with self.assertRaises(self.h.HelperError):
+            self.switch('on', restart=1)
+        self.assert_put_back()
+
+    def test_will_not_start_nginx_with_another_site_enabled(self):
+        other = Path(self.h.NGINX_SITES_AVAILABLE) / 'other'
+        other.write_text('server { listen 8080; }\n')
+        os.symlink(other, Path(self.h.NGINX_SITES_ENABLED) / 'other')
+        with self.assertRaises(self.h.HelperError):
+            self.switch('on')
+        self.assertFalse(self.front.exists())
+
+    def test_bad_arguments(self):
+        for bad in ([], ['yes'], ['on', 'x']):
+            with self.assertRaises(self.h.HelperError):
+                self.h.cmd_front_proxy(self.CONF, bad)

@@ -17,6 +17,7 @@ LEASE`` runs a claimed setup by hand.
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import uuid
@@ -35,6 +36,7 @@ ENGINES = ('collabora', 'onlyoffice')
 LAYOUTS = ('same-host', 'dedicated')
 SETUP_TIMEOUT = 45 * 60
 INCLUDE_TIMEOUT = 3 * 60
+FRONT_PROXY_TIMEOUT = 5 * 60
 STALE_AFTER = timezone.timedelta(minutes=60)
 OUTPUT_LIMIT = 20000
 
@@ -148,6 +150,25 @@ def _output(result):
     return ((result.stdout or '') + ('\n' + result.stderr if result.stderr else '')).strip()
 
 
+def _front_proxy_if_needed():
+    """Same-host needs an Nginx site in front of gunicorn to add the editor's
+    locations to. Where the device in front talks to gunicorn's TCP port
+    directly, the root helper's front-proxy moves that port to Nginx first.
+    Returns the root helper's result, or None when nothing had to change."""
+    status = root_helper.run(['front-proxy', 'status'], timeout=60)
+    if status is None:
+        return None
+    if status.returncode != 0:
+        return status
+    try:
+        needed = json.loads(status.stdout or '{}').get('needed')
+    except ValueError:
+        needed = False
+    if not needed:
+        return None
+    return root_helper.run(['front-proxy', 'on'], timeout=FRONT_PROXY_TIMEOUT)
+
+
 def run(lease):
     """The setup itself, in the process maybe_start() started."""
     service = ManagedOfficeService.get()
@@ -162,10 +183,16 @@ def run(lease):
         return False
     parts, ok = [], False
     try:
-        result = root_helper.run(helper_args(data), timeout=SETUP_TIMEOUT)
-        if result is None:
-            parts.append('The root helper is not installed on this server.')
+        front = _front_proxy_if_needed() if data['layout'] == 'same-host' else None
+        if front is not None:
+            parts.append(_output(front))
+        if front is not None and front.returncode != 0:
+            result = None
         else:
+            result = root_helper.run(helper_args(data), timeout=SETUP_TIMEOUT)
+            if result is None:
+                parts.append('The root helper is not installed on this server.')
+        if result is not None:
             parts.append(_output(result))
             ok = result.returncode == 0
             if ok and data['layout'] == 'same-host':

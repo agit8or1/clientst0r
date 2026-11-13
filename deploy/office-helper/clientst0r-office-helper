@@ -2010,9 +2010,17 @@ def op_preflight(conf, args):
     else:
         add('port', 'pass', f'port {port} is free (or used by this editor)')
     if conf['proxy_tls'] == 'upstream':
-        add('proxy', 'pass' if 80 in listeners else 'fail',
-            'Nginx listens on 80 behind the TLS device in front of this server' if 80 in listeners else
-            'nothing listens on 80: PROXY_TLS=upstream needs this server\'s Nginx on port 80')
+        # Port 80, or the port clientst0r's own Nginx site listens on (the
+        # root helper's front proxy takes over gunicorn's port, e.g. 8000).
+        site = clientstor_site(conf, detect_sites(conf))
+        site_ports = {int(m) for x in (site or {}).get('listen', [])
+                      for m in re.findall(r'(?:^|:)(\d{2,5})\b', x.split()[0])}
+        served = sorted((site_ports | {80}) & set(listeners))
+        add('proxy', 'pass' if served else 'fail',
+            f'Nginx listens on {", ".join(map(str, served))} behind the TLS device in front of this server'
+            if served else
+            'nothing listens on 80: PROXY_TLS=upstream needs this server\'s Nginx on port 80 (or '
+            'clientst0r\'s own Nginx site on its port)')
     elif 443 in listeners:
         add('proxy', 'pass', 'a web server listens on 443')
     else:

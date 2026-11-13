@@ -29,6 +29,7 @@ Usage (as root, normally via sudo from the app):
     clientst0r-root-helper apply-system-config
     clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested
     clientst0r-root-helper office-site-include on|off
+    clientst0r-root-helper front-proxy status | on | off
 
 With the managed ONLYOFFICE service configured (/etc/clientst0r/office-service.conf),
 `apt upgrade` and `apt upgrade-packages` leave the container engine alone, and
@@ -43,6 +44,16 @@ its clientst0r host name and deployment id can only change from a root shell.
 office-site-include adds (or removes) the include line for the managed
 editor's same-host snippet in clientst0r's own Nginx site, runs nginx -t and
 puts the previous file back if that fails.
+
+front-proxy is for hosts where the device in front of this server talks to
+gunicorn's own TCP port (no Nginx here). `on` moves that port to an Nginx
+site this helper writes, which sends everything to gunicorn's unix socket
+(so the managed editor's same-host locations can be added in front of
+it): it removes the TCP bind from gunicorn with a systemd drop-in, restarts
+gunicorn, starts Nginx, and compares /health/ through the port with
+/health/ on the socket. Anything else and it puts everything back. `off`
+undoes it. X-Forwarded-For is appended to and X-Forwarded-Proto/Host are
+passed through unchanged, so clientst0r sees the same client and scheme.
 
 Files (all root-owned, none writable by the app user):
     /etc/clientst0r/root-helper.conf      APP_USER, APP_DIR, SERVICE, REPO_URL
@@ -80,6 +91,11 @@ NGINX_DIR = '/etc/nginx'
 NGINX_SITES_ENABLED = '/etc/nginx/sites-enabled'
 INCLUDE_MARKER = '# clientst0r-root-helper: managed office editor (same-host)'
 OWN_SUDOERS = 'clientst0r-root-helper'
+NGINX_SITES_AVAILABLE = '/etc/nginx/sites-available'
+FRONT_NAME = 'clientst0r-front'
+FRONT_MARKER = '# clientst0r-root-helper: front proxy (front-proxy on). Do not edit; `front-proxy off` removes it.'
+FRONT_DROPIN = 'clientst0r-front-proxy.conf'
+FRONT_STATE = '/var/lib/clientst0r/root-helper/front-proxy.state'
 
 # Tests turn this off so they can run against files they own.
 REQUIRE_ROOT_OWNED = True
@@ -583,6 +599,351 @@ def cmd_office_site_include(conf, args):
 
 
 # ---------------------------------------------------------------------------
+# front proxy: Nginx on gunicorn's TCP port
+# ---------------------------------------------------------------------------
+
+BIND_TCP_RE = re.compile(r'^(?P<host>0\.0\.0\.0|127\.0\.0\.1|\[::\]|(\d{1,3}\.){3}\d{1,3}):(?P<port>\d{2,5})$')
+BIND_UNIX_RE = re.compile(r'^unix:(?P<path>/[A-Za-z0-9._/-]{1,200})$')
+
+
+def _unit_path(conf):
+    return os.path.join(SYSTEMD_DIR, conf['SERVICE'])
+
+
+def _dropin_path(conf):
+    return os.path.join(SYSTEMD_DIR, conf['SERVICE'] + '.d', FRONT_DROPIN)
+
+
+def gunicorn_exec(conf):
+    """(tokens of the unit's ExecStart, unix socket path, (host, port) of the
+    one TCP bind or None). Refuses anything it cannot read exactly."""
+    path = _unit_path(conf)
+    _check_trusted_file(path)
+    with open(path, encoding='utf-8') as f:
+        lines = f.read().splitlines()
+    command, collecting = [], False
+    for line in lines:
+        stripped = line.strip()
+        if not collecting and stripped.startswith('ExecStart='):
+            collecting, stripped = True, stripped[len('ExecStart='):]
+        elif not collecting:
+            continue
+        cont = stripped.endswith('\\')
+        command.append(stripped.rstrip('\\').strip())
+        if not cont:
+            break
+    text = ' '.join(c for c in command if c)
+    if not text or any(ch in text for ch in '"\'$;`|&<>'):
+        raise HelperError(f'{path}: ExecStart is missing or not a plain command')
+    tokens = text.split()
+    if not tokens[0].endswith('/gunicorn'):
+        raise HelperError(f'{path}: ExecStart does not run gunicorn')
+    sock, tcp = None, []
+    i = 0
+    while i < len(tokens):
+        t = tokens[i]
+        value = None
+        if t in ('--bind', '-b') and i + 1 < len(tokens):
+            value = tokens[i + 1]
+        elif t.startswith('--bind='):
+            value = t.split('=', 1)[1]
+        if value is not None:
+            m = BIND_UNIX_RE.match(value)
+            if m:
+                sock = m.group('path')
+            else:
+                m = BIND_TCP_RE.match(value)
+                if not m:
+                    raise HelperError(f'{path}: unexpected gunicorn bind {value}')
+                tcp.append((m.group('host'), int(m.group('port'))))
+        i += 1
+    if not sock or not sock.startswith(conf['APP_DIR'].rstrip('/') + '/'):
+        raise HelperError(f'{path}: gunicorn has no unix socket under {conf["APP_DIR"]}')
+    if len(tcp) > 1:
+        raise HelperError(f'{path}: gunicorn has more than one TCP bind')
+    return tokens, sock, (tcp[0] if tcp else None)
+
+
+def without_tcp_bind(tokens):
+    out, skip = [], False
+    for i, t in enumerate(tokens):
+        if skip:
+            skip = False
+            continue
+        if t in ('--bind', '-b') and i + 1 < len(tokens) and BIND_TCP_RE.match(tokens[i + 1]):
+            skip = True
+            continue
+        if t.startswith('--bind=') and BIND_TCP_RE.match(t.split('=', 1)[1]):
+            continue
+        out.append(t)
+    return out
+
+
+def render_dropin(tokens):
+    lines = []
+    for t in without_tcp_bind(tokens):
+        if lines and lines[-1].startswith('-') and ' ' not in lines[-1] and '=' not in lines[-1] \
+                and not t.startswith('-'):
+            lines[-1] += ' ' + t                      # an option and its value on one line
+        else:
+            lines.append(t)
+    body = ' \\\n    '.join(lines)
+    return (f'{FRONT_MARKER}\n# gunicorn keeps only its unix socket; Nginx (site {FRONT_NAME}) owns the port.\n'
+            f'[Service]\nExecStart=\nExecStart={body}\n')
+
+
+def render_front_site(sock, host, port):
+    listen = f'{port}' if host in ('0.0.0.0', '[::]') else f'{host}:{port}'
+    return '\n'.join([
+        FRONT_MARKER,
+        f'upstream clientst0r_front_app {{',
+        f'    server unix:{sock} fail_timeout=0;',
+        '}',
+        'server {',
+        f'    listen {listen} default_server;',
+        '    server_name _;',
+        '    server_tokens off;',
+        '    client_max_body_size 0;',
+        f'    access_log /var/log/nginx/{FRONT_NAME}-access.log;',
+        f'    error_log /var/log/nginx/{FRONT_NAME}-error.log;',
+        '    location / {',
+        '        proxy_pass http://clientst0r_front_app;',
+        '        proxy_http_version 1.1;',
+        '        proxy_set_header Connection "";',
+        '        proxy_set_header Host $http_host;',
+        '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+        '        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;',
+        '        proxy_set_header X-Forwarded-Host $http_x_forwarded_host;',
+        '        proxy_redirect off;',
+        '        proxy_buffering off;',
+        '        proxy_request_buffering off;',
+        '        proxy_connect_timeout 10s;',
+        '        proxy_send_timeout 310s;',
+        '        proxy_read_timeout 310s;',
+        '    }',
+        '}', ''])
+
+
+def _enabled_sites():
+    out = {}
+    for name in sorted(os.listdir(NGINX_SITES_ENABLED)):
+        path = os.path.join(NGINX_SITES_ENABLED, name)
+        out[name] = os.readlink(path) if os.path.islink(path) else None
+    return out
+
+
+def _front_paths():
+    return (os.path.join(NGINX_SITES_AVAILABLE, FRONT_NAME), os.path.join(NGINX_SITES_ENABLED, FRONT_NAME))
+
+
+def _nginx_active():
+    return _run(['systemctl', 'is-active', '--quiet', 'nginx'], timeout=30).returncode == 0
+
+
+def _http_health(port=None, sock=None, host='localhost', addr='127.0.0.1'):
+    """Status and body of GET /health/ as the device in front sends it
+    (X-Forwarded-Proto: https), over the TCP port or the unix socket."""
+    import http.client
+    import socket as socketlib
+
+    class UnixConnection(http.client.HTTPConnection):
+        def connect(self):
+            self.sock = socketlib.socket(socketlib.AF_UNIX, socketlib.SOCK_STREAM)
+            self.sock.settimeout(self.timeout)
+            self.sock.connect(sock)
+
+    try:
+        c = UnixConnection('localhost', timeout=15) if sock else \
+            http.client.HTTPConnection(addr, port, timeout=15)
+        c.request('GET', '/health/', headers={'Host': host, 'X-Forwarded-Proto': 'https'})
+        r = c.getresponse()
+        return r.status, r.read(2000).decode('utf-8', 'replace')
+    except OSError as exc:
+        return 0, str(exc)
+
+
+def _app_host():
+    url = (_office_conf() or {}).get('CLIENTSTOR_URL', '')
+    m = re.match(r'^https://([a-z0-9.-]+)/?$', url)
+    return m.group(1) if m else 'localhost'
+
+
+def _wait_same_health(sock, tcp, tries=20):
+    import time
+    bind_host, port = tcp
+    addr = '127.0.0.1' if bind_host in ('0.0.0.0', '[::]') else bind_host
+    host = _app_host()
+    detail = ''
+    for _ in range(tries):
+        base = _http_health(sock=sock, host=host)
+        front = _http_health(port=port, host=host, addr=addr)
+        if base[0] and base[0] < 500 and front[0] == base[0]:
+            return True, f'/health/ {front[0]} through port {port}, same as the socket'
+        detail = f'socket {base[0]}, port {port}: {front[0]} {front[1][:200]}'
+        time.sleep(1.5)
+    return False, detail
+
+
+def front_status(conf):
+    tokens, sock, tcp = gunicorn_exec(conf)
+    site, link = _front_paths()
+    dropin = _dropin_path(conf)
+    state = {}
+    if os.path.isfile(FRONT_STATE):
+        import json
+        with open(FRONT_STATE, encoding='utf-8') as f:
+            state = json.load(f)
+    on = os.path.isfile(dropin) and os.path.lexists(link)
+    current = None
+    if on and tcp:
+        with open(dropin, encoding='utf-8') as f:
+            current = f.read() == render_dropin(tokens)
+    return {'on': on, 'socket': sock, 'tcp_bind': f'{tcp[0]}:{tcp[1]}' if tcp else None,
+            'nginx_active': _nginx_active(), 'dropin_current': current,
+            'needed': bool(tcp) and not on and not _nginx_active(), 'state': state}
+
+
+def cmd_front_proxy(conf, args):
+    import json
+    if args == ['status']:
+        print(json.dumps(front_status(conf), sort_keys=True))
+        return 0
+    if args == ['on']:
+        return front_on(conf)
+    if args == ['off']:
+        return front_off(conf)
+    raise HelperError('front-proxy status|on|off')
+
+
+def front_on(conf):
+    import json
+    tokens, sock, tcp = gunicorn_exec(conf)
+    site, link = _front_paths()
+    dropin = _dropin_path(conf)
+    if os.path.isfile(dropin) and os.path.lexists(link):
+        print('front proxy already on')
+        return 0
+    if not tcp:
+        raise HelperError('gunicorn has no TCP bind to move; nothing to do')
+    if not shutil.which('nginx', path=SAFE_PATH):
+        raise HelperError('Nginx is not installed')
+    if os.path.exists(site) and not open(site, encoding='utf-8').read().startswith(FRONT_MARKER):
+        raise HelperError(f'{site} exists and was not written by this helper')
+    nginx_was_active = _nginx_active()
+    enabled = _enabled_sites()
+    marker = conf['APP_DIR'].rstrip('/') + '/'
+    app_sites = []
+    for name, target in enabled.items():
+        real = os.path.realpath(os.path.join(NGINX_SITES_ENABLED, name))
+        try:
+            text = open(real, encoding='utf-8').read()
+        except OSError:
+            continue
+        if any(marker in l and not l.lstrip().startswith('#') for l in text.splitlines()):
+            app_sites.append(name)
+        elif not nginx_was_active:
+            raise HelperError(f'Nginx is stopped and also has {name} enabled; starting it would serve '
+                              'that site too. Disable it first.')
+    base = _http_health(sock=sock, host=_app_host())
+    if not base[0] or base[0] >= 500:
+        raise HelperError(f'gunicorn does not answer /health/ on its socket ({base[0]}); not switching')
+
+    # Files first, checked by nginx -t before anything running changes.
+    disabled = {}
+    for name in app_sites:
+        disabled[name] = enabled[name]
+        os.unlink(os.path.join(NGINX_SITES_ENABLED, name))
+    _write_atomic(site, render_front_site(sock, *tcp), 0o644)
+    if not os.path.lexists(link):
+        os.symlink(site, link)
+
+    def restore_sites():
+        if os.path.lexists(link):
+            os.unlink(link)
+        if os.path.exists(site):
+            os.unlink(site)
+        for name, target in disabled.items():
+            p = os.path.join(NGINX_SITES_ENABLED, name)
+            if not os.path.lexists(p) and target:
+                os.symlink(target, p)
+
+    r = _run(['nginx', '-t'], capture=True, timeout=60)
+    if r.returncode != 0:
+        restore_sites()
+        raise HelperError(f'nginx -t rejected the front site; nothing was switched: {r.stderr.strip()[-300:]}')
+    os.makedirs(os.path.dirname(dropin), mode=0o755, exist_ok=True)
+    _write_atomic(dropin, render_dropin(tokens), 0o644)
+    _write_atomic(FRONT_STATE, json.dumps({'disabled_sites': disabled, 'nginx_was_active': nginx_was_active,
+                                           'port': tcp[1]}), 0o600)
+
+    def rollback(why):
+        if not nginx_was_active:
+            _run(['systemctl', 'stop', 'nginx'], timeout=60)
+        restore_sites()
+        if nginx_was_active:
+            _run(['systemctl', 'reload', 'nginx'], timeout=60)
+        if os.path.exists(dropin):
+            os.unlink(dropin)
+        if os.path.exists(FRONT_STATE):
+            os.unlink(FRONT_STATE)
+        _run(['systemctl', 'daemon-reload'], timeout=60)
+        _run(['systemctl', 'restart', conf['SERVICE']], timeout=180)
+        ok, detail = _wait_same_health(sock, tcp)
+        raise HelperError(f'{why}; everything was put back ({"gunicorn answers on the port again" if ok else "CHECK THE SITE: " + detail})')
+
+    _run(['systemctl', 'daemon-reload'], timeout=60)
+    print(f'switching port {tcp[1]} from gunicorn to Nginx (a few seconds without answers)', flush=True)
+    if _run(['systemctl', 'restart', conf['SERVICE']], timeout=180).returncode != 0:
+        rollback('gunicorn did not restart with only its socket')
+    started = _run(['systemctl', 'reload' if nginx_was_active else 'start', 'nginx'], timeout=60)
+    if started.returncode != 0:
+        rollback('Nginx did not start on the port')
+    ok, detail = _wait_same_health(sock, tcp)
+    if not ok:
+        rollback(f'/health/ through the port differs from the socket ({detail})')
+    _run(['systemctl', 'enable', '--quiet', 'nginx'], timeout=60)
+    print(f'front proxy on: {detail}')
+    return 0
+
+
+def front_off(conf):
+    import json
+    tokens, sock, _ = gunicorn_exec(conf)
+    site, link = _front_paths()
+    dropin = _dropin_path(conf)
+    state = {}
+    if os.path.isfile(FRONT_STATE):
+        with open(FRONT_STATE, encoding='utf-8') as f:
+            state = json.load(f)
+    if not os.path.exists(dropin) and not os.path.lexists(link):
+        print('front proxy already off')
+        return 0
+    if os.path.lexists(link):
+        os.unlink(link)
+    if os.path.exists(site):
+        os.unlink(site)
+    for name, target in (state.get('disabled_sites') or {}).items():
+        p = os.path.join(NGINX_SITES_ENABLED, name)
+        if target and not os.path.lexists(p):
+            os.symlink(target, p)
+    if state.get('nginx_was_active', False):
+        _run(['systemctl', 'reload', 'nginx'], timeout=60)
+    else:
+        _run(['systemctl', 'stop', 'nginx'], timeout=60)
+        _run(['systemctl', 'disable', '--quiet', 'nginx'], timeout=60)
+    if os.path.exists(dropin):
+        os.unlink(dropin)
+    if os.path.exists(FRONT_STATE):
+        os.unlink(FRONT_STATE)
+    _run(['systemctl', 'daemon-reload'], timeout=60)
+    rc = _run(['systemctl', 'restart', conf['SERVICE']], timeout=180).returncode
+    _, _, tcp = gunicorn_exec(conf)
+    ok, detail = _wait_same_health(sock, tcp) if tcp else (rc == 0, '')
+    print(f'front proxy off: {detail}' if ok else f'front proxy off, but CHECK THE SITE: {detail}')
+    return 0 if ok else 1
+
+
+# ---------------------------------------------------------------------------
 # system config the helper owns
 # ---------------------------------------------------------------------------
 
@@ -751,6 +1112,8 @@ def main(argv):
                 return cmd_office_setup(conf, args)
             if command == 'office-site-include':
                 return cmd_office_site_include(conf, args)
+            if command == 'front-proxy':
+                return cmd_front_proxy(conf, args)
         raise HelperError(f'unknown command: {command}')
     except HelperError as exc:
         print(f'clientst0r-root-helper: {exc}', file=sys.stderr)

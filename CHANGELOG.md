@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.673] - 2026-11-13
+
+### Added
+- **Pulse checks** (optional module, off by default — Settings → System → Optional modules). Short service-feedback surveys for the people at your clients, separate from the per-ticket CSAT survey. MSP staff create pulse checks under Clients → Pulse Checks: intro text, up to 12 questions (1–5 rating, 0–10 likelihood to recommend, yes/no, free text), the organizations (all clients or chosen ones) and the audience — everyone with a portal account (optionally plus contacts with an e-mail address), people with chosen roles (owners, managers/administrators, editors, read-only, or named roles), or chosen users and contacts. MSP staff and opted-out people are never sent one.
+- Pulse checks are sent now with a recipient preview, or repeat monthly / quarterly from the new scheduled task "Pulse Check Scheduled Sends" (`pulse_send_due`, once per period, safe to rerun). Each person gets a single-use link that needs no sign-in and closes after a set number of days; portal users can also answer from the new portal Feedback page. Opt-out from the e-mail link or the portal.
+- Pulse check results per check and per send: response rate, average rating, NPS, yes/no share and comments, filterable by organization; a Pulse checks card on the client record for MSP staff. Staff limited to some clients see only those clients' answers. Creating, editing and sending are audit-logged. Docs: `docs/PULSE_CHECKS.md`; roadmap Phase 66.
+- **Front proxy on gunicorn's port.** Root helper `front-proxy status|on|off`: where the device in front of this server talks to gunicorn's TCP port directly (no Nginx here), `on` moves that port to an Nginx site in front of gunicorn's unix socket (a systemd drop-in drops the TCP bind; the unit file is not changed), checks that `/health/` through the port answers exactly like the socket, and otherwise puts everything back. Client address and scheme reach clientst0r as before. Server setup for the managed editor runs it first for the same-host layout when it is needed, so the editor needs no DNS or front-device change. Not yet run on a real host.
+
+### Fixed
+- **Server setup from Settings never ran.** The scheduler is a systemd oneshot service, so the setup process it started in the background was stopped when its run ended, leaving the setup "running" with no output. The scheduler now runs a queued setup to the end in its own run.
+- **Managed editor setup checks** accept clientst0r's own Nginx site on its port (not only port 80) behind a TLS device.
+- **Dashboard fits the window.** Quick actions fit one row on wide screens (the grid asked for a column count Bootstrap does not have, so they wrapped to two rows), tiles, heading and stat cards are tighter, and the location map takes the height left in the window (160–420 px).
+- **Every page was at least 71 px taller than the window**: the sidebar was a full window high below the 71 px top bar. It now takes the height below the bar.
+
+### Migrations
+- `core 0098_pulse_enabled`, `pulse 0001_initial`.
+
 ## [3.17.672] - 2026-11-13
 
 ### Added
