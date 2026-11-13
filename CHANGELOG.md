@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.675] - 2026-11-13
+
+### Changed
+- **Add Document: one "What are you creating?" drop-down** instead of four cards. Rich text document (the form, as before) is the default; picking Word (.docx), Excel (.xlsx) or PowerPoint (.pptx) replaces the form with a name and Create, which makes the blank file in the organization (open it with Edit). Offered only to users who may create documents for the organization.
+
 ## [3.17.674] - 2026-11-13
 
 ### Changed

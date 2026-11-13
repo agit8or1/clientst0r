@@ -916,8 +916,9 @@ class ViewTests(OfficeTestBase):
         self.login(self.editor, self.org)
         page = self.client.get(reverse('docs:document_create'))
         self.assertContains(page, 'What are you creating?')
+        self.assertContains(page, '<select class="form-select" id="office-new-type"')
         for fmt in ('docx', 'xlsx', 'pptx'):
-            self.assertContains(page, reverse('office:new_document', args=[fmt]))
+            self.assertContains(page, f'data-action="{reverse("office:new_document", args=[fmt])}"')
         self.login(self.reader, self.org)       # may not create documents: not offered at all
         self.assertEqual(self.client.get(reverse('docs:document_create')).status_code, 403)
 

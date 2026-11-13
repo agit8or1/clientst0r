@@ -1,33 +1,37 @@
 {% if show %}
 <div class="mb-3 office-new-inline">
-  <div class="form-label mb-1">What are you creating?</div>
-  <div class="row g-2">
-    <div class="col-sm-6 col-lg-3">
-      <a href="#document-form" class="office-new-choice is-current d-block h-100 text-decoration-none">
-        <i class="fas fa-file-alt" aria-hidden="true"></i>
-        <span class="fw-semibold">Rich text document</span>
-        <small class="d-block text-muted">The form below: rich text, Markdown, diagram or an uploaded file.</small>
-      </a>
-    </div>
+  <label class="form-label" for="office-new-type">What are you creating?</label>
+  <select class="form-select" id="office-new-type" style="max-width: 26rem">
+    <option value="" selected>Rich text document (rich text, Markdown, diagram or an uploaded file)</option>
     {% for fmt, label in formats %}
-    <div class="col-sm-6 col-lg-3">
-      <form method="post" action="{% url 'office:new_document' fmt %}" class="office-new-choice h-100">
-        {% csrf_token %}
-        <i class="fas {% if fmt == 'docx' %}fa-file-word text-primary{% elif fmt == 'xlsx' %}fa-file-excel text-success{% else %}fa-file-powerpoint text-danger{% endif %}" aria-hidden="true"></i>
-        <label class="fw-semibold" for="office-inline-{{ fmt }}">{% if fmt == 'docx' %}Word{% elif fmt == 'xlsx' %}Excel{% else %}PowerPoint{% endif %} <span class="text-muted">(.{{ fmt }})</span></label>
-        <div class="input-group input-group-sm mt-1">
-          <input type="text" class="form-control" id="office-inline-{{ fmt }}" name="title" placeholder="Name" maxlength="200" required>
-          <button type="submit" class="btn btn-primary">Create</button>
-        </div>
-      </form>
-    </div>
+    <option value="{{ fmt }}" data-action="{% url 'office:new_document' fmt %}">{% if fmt == 'docx' %}Word document (.docx){% elif fmt == 'xlsx' %}Excel workbook (.xlsx){% else %}PowerPoint presentation (.pptx){% endif %}</option>
     {% endfor %}
-  </div>
-  <small class="text-muted d-block mt-1">Word, Excel and PowerPoint files open in the Office editor. Older .doc, .xls and .ppt files can be uploaded and opened; new files use the current formats.</small>
+  </select>
+  <form method="post" action="" id="office-new-form" class="mt-3" hidden>
+    {% csrf_token %}
+    <label class="form-label" for="office-new-title">Name</label>
+    <div class="input-group" style="max-width: 32rem">
+      <input type="text" class="form-control" id="office-new-title" name="title" placeholder="Name" maxlength="200" required>
+      <button type="submit" class="btn btn-primary" id="office-new-submit">Create</button>
+    </div>
+    <small class="text-muted d-block mt-1">Created blank in this organization; open it with Edit to work on it in the Office editor. Older .doc, .xls and .ppt files can be uploaded and opened; new files use the current formats.</small>
+  </form>
 </div>
-<style>
-.office-new-choice { display: block; padding: .6rem .75rem; border: 1px solid var(--bs-border-color, rgba(0,0,0,.125)); border-radius: .5rem; color: inherit; }
-.office-new-choice > i { font-size: 1.25rem; margin-right: .35rem; }
-.office-new-choice.is-current { border-color: var(--bs-primary, #0d6efd); }
-</style>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var type = document.getElementById('office-new-type');
+  var form = document.getElementById('office-new-form');
+  if (!type || !form) return;
+  function apply() {
+    var opt = type.options[type.selectedIndex];
+    var office = !!type.value;
+    form.hidden = !office;
+    if (office) form.action = opt.getAttribute('data-action');
+    // Everything else on the page belongs to the rich text form.
+    document.querySelectorAll('[data-office-richtext]').forEach(function (el) { el.hidden = office; });
+  }
+  type.addEventListener('change', apply);
+  apply();
+})();
+</script>
 {% endif %}

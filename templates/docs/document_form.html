@@ -144,13 +144,13 @@
             </div>
             <div class="card-body">
                 {% if action == 'Create' and not selected_template %}{% office_new_inline %}{% endif %}
-                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <div class="alert alert-info alert-dismissible fade show" role="alert" data-office-richtext>
                     <i class="fas fa-info-circle"></i> <strong>Upload Files:</strong>
                     Select <strong>"Uploaded File"</strong> from the Editor dropdown below to upload PDFs, images, Word/Excel documents, and other files (max 50MB).
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
 
-                <form method="post" id="document-form" enctype="multipart/form-data">
+                <form method="post" id="document-form" enctype="multipart/form-data" data-office-richtext>
                     {% csrf_token %}
                     {% include 'core/_form_org.html' %}
 
