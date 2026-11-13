@@ -1,0 +1,12 @@
+{% if by_org %}
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">By organization</h5></div>
+<div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Organization</th><th class="text-end">Response rate</th><th class="text-end">Average rating</th><th class="text-end">NPS</th></tr></thead>
+    <tbody>{% for row in by_org %}
+    <tr><td><a href="?org={{ row.organization.pk }}">{{ row.organization.name }}</a></td>
+        <td class="text-end">{% if row.summary.rate is not None %}{{ row.summary.rate }}% ({{ row.summary.answered }}/{{ row.summary.total }}){% else %}—{% endif %}</td>
+        <td class="text-end">{{ row.summary.average_rating|default_if_none:"—" }}</td>
+        <td class="text-end">{{ row.summary.nps|default_if_none:"—" }}</td></tr>
+    {% endfor %}</tbody>
+</table></div></div>
+{% endif %}

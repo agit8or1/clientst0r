@@ -1,0 +1,9 @@
+{% extends "portal/public_base.html" %}
+{% block title %}{{ send.pulse_check.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-8">
+{% include "pulse/_answer_form.html" %}
+<p class="text-center text-muted small mt-3">This link is just for you and works once. It does not need a password.
+{% if opt_out_token %}<a href="{% url 'portal:pulse_opt_out' opt_out_token %}">Stop feedback requests</a>{% endif %}</p>
+</div></div>
+{% endblock %}

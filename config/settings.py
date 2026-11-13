@@ -150,6 +150,7 @@ INSTALLED_APPS = [
     'hardware.apps.HardwareConfig',
     'office.apps.OfficeConfig',
     'contracts.apps.ContractsConfig',
+    'pulse.apps.PulseConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).

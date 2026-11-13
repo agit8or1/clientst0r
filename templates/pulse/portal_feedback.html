@@ -1,0 +1,28 @@
+{% extends "portal/base.html" %}
+{% block title %}Feedback{% endblock %}
+{% block content %}
+<h1 class="mb-3">Feedback</h1>
+<p class="text-muted">Short surveys about how our service is going for {{ organization.name }}.</p>
+<div class="card mb-4"><div class="card-header"><strong>Waiting for your answer</strong></div>
+{% if open_rows %}
+<ul class="list-group list-group-flush">{% for r in open_rows %}
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>{{ r.send.pulse_check.name }} <span class="small text-muted d-block">Open until {{ r.send.expires_at|date:"F j, Y" }}</span></span>
+        <a class="btn btn-sm btn-primary" href="{% url 'portal:pulse_answer' r.pk %}">Answer</a>
+    </li>{% endfor %}</ul>
+{% else %}<div class="card-body text-muted">Nothing to answer right now.</div>{% endif %}
+</div>
+{% if past_rows %}
+<div class="card mb-4"><div class="card-header"><strong>Earlier</strong></div>
+<ul class="list-group list-group-flush">{% for r in past_rows %}
+    <li class="list-group-item">{{ r.send.pulse_check.name }} <span class="small text-muted">— {% if r.responded_at %}answered {{ r.responded_at|date:"F j, Y" }}{% else %}closed {{ r.send.expires_at|date:"F j, Y" }}{% endif %}</span></li>
+{% endfor %}</ul></div>
+{% endif %}
+<form method="post" class="card">{% csrf_token %}<div class="card-body">
+    <div class="form-check form-switch">
+        <input type="checkbox" class="form-check-input" id="receive" name="receive" {% if receiving %}checked{% endif %} {% if not has_email %}disabled{% endif %}>
+        <label class="form-check-label" for="receive"><strong>E-mail me feedback requests</strong>
+            <span class="text-muted small d-block">Turn off to stop getting pulse checks.{% if not has_email %} Add an e-mail address to your account to change this.{% endif %}</span></label>
+    </div>
+</div>{% if has_email %}<div class="card-footer text-end"><button class="btn btn-primary" type="submit">Save</button></div>{% endif %}</form>
+{% endblock %}

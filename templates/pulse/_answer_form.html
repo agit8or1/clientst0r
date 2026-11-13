@@ -1,0 +1,56 @@
+{% load pulse_tags %}
+{% if state == 'answered' %}
+<div class="card"><div class="card-body text-center py-5">
+    <i class="fas fa-check-circle fa-3x text-success mb-3" aria-hidden="true"></i>
+    <h4>Already answered</h4>
+    <p class="text-muted">Thank you — your answers to "{{ send.pulse_check.name }}" were received{% if response.responded_at %} on {{ response.responded_at|date:"F j, Y" }}{% endif %}. Each request can be answered once.</p>
+</div></div>
+{% elif state == 'thanks' %}
+<div class="card"><div class="card-body text-center py-5">
+    <i class="fas fa-heart fa-3x text-success mb-3" aria-hidden="true"></i>
+    <h4>Thank you</h4>
+    <p class="text-muted">Your feedback for {{ organization.name }} goes straight to the team.</p>
+</div></div>
+{% elif state == 'expired' %}
+<div class="card"><div class="card-body text-center py-5">
+    <i class="fas fa-clock fa-3x text-muted mb-3" aria-hidden="true"></i>
+    <h4>This feedback request has closed</h4>
+    <p class="text-muted">It was open until {{ send.expires_at|date:"F j, Y" }}. You will get the next one when it is sent.</p>
+</div></div>
+{% else %}
+<div class="card"><div class="card-body p-4">
+    <h1 class="h4 mb-1">{{ send.pulse_check.name }}</h1>
+    <p class="text-muted small mb-3">{{ organization.name }} · open until {{ send.expires_at|date:"F j, Y" }}</p>
+    {% if send.intro %}<p style="white-space: pre-line;">{{ send.intro }}</p>{% endif %}
+    {% if errors %}<div class="alert alert-warning small" role="alert"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+    <form method="post">{% csrf_token %}
+    {% for q in questions %}{% with val=posted|posted_value:q.id %}
+    <fieldset class="mb-4">
+        <legend class="fs-6 fw-semibold">{{ forloop.counter }}. {{ q.text }}{% if not q.required %} <span class="text-muted fw-normal small">(optional)</span>{% endif %}</legend>
+        {% if q.kind == 'rating' %}
+            {% scale 1 5 as opts %}
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="small text-muted">Poor</span>
+                {% for n in opts %}<input type="radio" class="btn-check" name="q_{{ q.id }}" id="q{{ q.id }}_{{ n }}" value="{{ n }}" {% if val == n %}checked{% endif %}{% if q.required %} required{% endif %}><label class="btn btn-outline-primary" for="q{{ q.id }}_{{ n }}">{{ n }}</label>{% endfor %}
+                <span class="small text-muted">Excellent</span>
+            </div>
+        {% elif q.kind == 'nps' %}
+            {% scale 0 10 as opts %}
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+                {% for n in opts %}<input type="radio" class="btn-check" name="q_{{ q.id }}" id="q{{ q.id }}_{{ n }}" value="{{ n }}" {% if val == n %}checked{% endif %}{% if q.required %} required{% endif %}><label class="btn btn-sm btn-outline-primary" for="q{{ q.id }}_{{ n }}">{{ n }}</label>{% endfor %}
+            </div>
+            <div class="d-flex justify-content-between small text-muted mt-1" style="max-width: 32rem;"><span>Not at all likely</span><span>Extremely likely</span></div>
+        {% elif q.kind == 'yes_no' %}
+            <div class="d-flex gap-2">
+                <input type="radio" class="btn-check" name="q_{{ q.id }}" id="q{{ q.id }}_yes" value="yes" {% if val == 'yes' %}checked{% endif %}{% if q.required %} required{% endif %}><label class="btn btn-outline-primary" for="q{{ q.id }}_yes">Yes</label>
+                <input type="radio" class="btn-check" name="q_{{ q.id }}" id="q{{ q.id }}_no" value="no" {% if val == 'no' %}checked{% endif %}><label class="btn btn-outline-primary" for="q{{ q.id }}_no">No</label>
+            </div>
+        {% else %}
+            <textarea class="form-control" name="q_{{ q.id }}" rows="3" maxlength="4000" aria-label="{{ q.text }}"{% if q.required %} required{% endif %}>{{ val }}</textarea>
+        {% endif %}
+    </fieldset>
+    {% endwith %}{% endfor %}
+    <button type="submit" class="btn btn-primary px-4">Send feedback</button>
+    </form>
+</div></div>
+{% endif %}

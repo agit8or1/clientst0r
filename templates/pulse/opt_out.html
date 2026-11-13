@@ -1,0 +1,18 @@
+{% extends "portal/public_base.html" %}
+{% block title %}Stop feedback requests{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-6"><div class="card"><div class="card-body text-center py-5">
+    {% if invalid %}
+    <h4>This link is not valid</h4>
+    <p class="text-muted">Use the link from your most recent feedback e-mail.</p>
+    {% elif done %}
+    <i class="fas fa-check-circle fa-3x text-success mb-3" aria-hidden="true"></i>
+    <h4>Feedback requests stopped</h4>
+    <p class="text-muted">{{ email }} will not get pulse check e-mails any more. Other e-mail is not affected. Portal users can turn them back on from the Feedback page.</p>
+    {% else %}
+    <h4>Stop feedback requests?</h4>
+    <p class="text-muted">For {{ email }}: no more service-feedback (pulse check) e-mails. Other e-mail is not affected.</p>
+    <form method="post">{% csrf_token %}<button type="submit" class="btn btn-primary">Stop feedback requests</button></form>
+    {% endif %}
+</div></div></div></div>
+{% endblock %}

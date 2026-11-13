@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load contracts_tags %}
+{% load contracts_tags %}{% load pulse_tags %}
 
 {% block title %}{{ organization.name }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
@@ -306,6 +306,9 @@
 
     <!-- Contract documents (MSP staff with contracts_view only) -->
     <div class="col-md-12">{% org_contracts organization %}</div>
+
+    <!-- Pulse check trend (MSP staff only, while pulse checks are on) -->
+    <div class="col-md-12">{% org_pulse organization %}</div>
 
     <!-- Support Difficulty Ratings -->
     <div class="col-md-12 mb-4">

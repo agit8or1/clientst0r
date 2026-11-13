@@ -31,6 +31,7 @@ def organization_context(request):
             'psa_portal_escalation_enabled': getattr(settings, 'psa_portal_escalation_enabled', False),
             'psa_portal_customer_approvals_enabled': getattr(settings, 'psa_portal_customer_approvals_enabled', False),
             'psa_csat_enabled': getattr(settings, 'psa_csat_enabled', False),
+            'pulse_enabled': getattr(settings, 'pulse_enabled', False),
         }
         system_settings = settings
     except Exception:

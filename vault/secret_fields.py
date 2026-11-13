@@ -557,6 +557,7 @@ HASHED_SECRET_FIELDS = [
     ('api_mobile', 'MobileAuthToken', 'key_hash', 'hex64'),
     ('core', 'SecureNote', 'access_token_hash', 'hex64'),
     ('psa', 'TicketCSATSurvey', 'token_hash', 'hex64'),
+    ('pulse', 'PulseResponse', 'token_hash', 'hex64'),  # pulse check answer links
     ('statuspage', 'StatusPage', 'token_hash', 'hex64'),
     ('scheduling', 'SchedulerWallboard', 'token_hash', 'hex64'),
     ('psa', 'Quote', 'customer_token_hash', 'hex64'),

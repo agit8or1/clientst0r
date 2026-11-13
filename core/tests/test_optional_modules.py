@@ -31,6 +31,7 @@ EXPECTED_DEFAULTS = {
     'asset_age_warnings_enabled': False, 'warranty_checks_enabled': False,
     'firmware_checks_enabled': False,
     'reports_enabled': True, 'secure_notes_enabled': True,
+    'pulse_enabled': False,
 }
 
 

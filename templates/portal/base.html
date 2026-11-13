@@ -57,6 +57,9 @@
                 <a href="{% url 'portal:agreement_list' %}" {% if current == 'agreement_list' or current == 'agreement_detail' %}aria-current="page"{% endif %}><i class="fas fa-file-signature" aria-hidden="true"></i> Agreements</a>
                 {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
                 <a href="{% url 'portal:status' %}" {% if current == 'status' %}aria-current="page"{% endif %}><i class="fas fa-heart-pulse" aria-hidden="true"></i> Service Status</a>
+                {% if pulse_enabled %}
+                <a href="{% url 'portal:pulse_feedback' %}" {% if current == 'pulse_feedback' or current == 'pulse_answer' %}aria-current="page"{% endif %}><i class="fas fa-comment-dots" aria-hidden="true"></i> Feedback</a>
+                {% endif %}
                 {% if psa_portal_customer_approvals_enabled and request.portal_psa_enabled is not False %}
                 <a href="{% url 'portal:approvals_list' %}" title="Approvals waiting on you" {% if current == 'approvals_list' %}aria-current="page"{% endif %}><i class="fas fa-circle-check" aria-hidden="true"></i> Approvals</a>
                 {% endif %}

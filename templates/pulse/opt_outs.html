@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Pulse check opt-outs{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'pulse:check_list' %}">Pulse checks</a></li><li class="breadcrumb-item active">Opt-outs</li></ol></nav>
+<h2 class="h4">Opt-outs</h2>
+<p class="text-body-secondary small">These addresses asked not to get pulse checks, from the link in the e-mail or the portal's Feedback page. They are left out of every send. Only the person can turn requests back on (portal Feedback page).</p>
+<div class="table-responsive"><table class="table table-sm align-middle">
+    <thead><tr><th>E-mail</th><th>How</th><th>Since</th></tr></thead>
+    <tbody>{% for r in rows %}<tr><td>{{ r.email }}</td><td>{{ r.via|default:"—" }}</td><td>{{ r.created_at|date:"Y-m-d" }}</td></tr>
+    {% empty %}<tr><td colspan="3" class="text-body-secondary">Nobody has opted out.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

@@ -933,6 +933,7 @@ class SystemSetting(models.Model):
     scheduling_enabled = models.BooleanField(default=True, help_text='Enable Scheduling and Task Management')
     psa_enabled = models.BooleanField(default=False, help_text='Enable native PSA / Service Desk feature (off by default)')
     crm_enabled = models.BooleanField(default=False, help_text='Enable CRM / sales pipeline (leads, opportunities, campaigns, commissions). Off by default.')
+    pulse_enabled = models.BooleanField(default=False, help_text='Enable pulse checks: periodic service-feedback surveys sent to people at client organizations. Off by default.')
     psa_csat_enabled = models.BooleanField(
         default=False,
         help_text='Email a 1-5 star CSAT survey link to the requester when '
@@ -1213,6 +1214,8 @@ class ScheduledTask(models.Model):
         ('contracts_maintenance', 'Contract Reminders and Expirations'),
         # Edit in Microsoft 365: reminders and cleanup of idle sessions.
         ('m365_edit_sessions', 'Microsoft 365 Edit Sessions'),
+        # Pulse checks: monthly / quarterly service-feedback sends.
+        ('pulse_send_due', 'Pulse Check Scheduled Sends'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1758,6 +1761,15 @@ class ScheduledTask(models.Model):
             'task_type': 'office_purge_quarantine',
             'description': 'Delete unaccepted Office editor saves past their retention period and '
                            'expired diagnostics documents; mark expired edit sessions closed',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless pulse checks are on and a repeated check is
+            # due; one send per check per period however often it runs.
+            'task_type': 'pulse_send_due',
+            'description': 'Send repeated (monthly / quarterly) pulse checks that are due this period '
+                           '(only while pulse checks are turned on)',
             'interval_minutes': 60,
             'enabled': True,
         },

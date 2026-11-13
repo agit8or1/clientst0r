@@ -29,7 +29,7 @@ TEST_MIDDLEWARE = [
 ]
 
 ALL_FLAGS = ('psa_enabled', 'crm_enabled', 'workflows_enabled', 'inventory_enabled',
-             'scheduling_enabled', 'monitoring_enabled', 'vehicles_enabled')
+             'scheduling_enabled', 'monitoring_enabled', 'vehicles_enabled', 'pulse_enabled')
 
 GROUP_ORDER = ['my_work', 'tickets', 'clients', 'devices', 'alerts', 'tools', 'reports']
 
@@ -40,7 +40,7 @@ TICKETS = ['psa:ticket_list', 'psa:dispatch_board', 'psa:project_list', 'psa:ser
 CLIENTS = ['accounts:organization_list', 'core:customer_ops_current', 'docs:document_list',
            'docs:diagram_list', 'docs:document_drafts_list', 'readiness:overview',
            'vault:password_list', 'vault:access_rule_list', 'psa:contract_list', 'crm:home',
-           'contracts:dashboard']
+           'contracts:dashboard', 'pulse:check_list']
 DEVICES = ['assets:asset_list', 'integrations:rmm_devices', 'assets:device_workspace_home', 'hardware:device_list',
            'monitoring:rack_list']
 ALERTS = ['integrations:rmm_alerts', 'security_alerts:alert_list', 'monitoring:website_monitor_list']
@@ -70,7 +70,7 @@ STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
               'core:snyk_scans', 'accounts:access_management', 'core:webhook_list',
               'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts',
               'assets:device_workspace_home', 'inventory:inventory_dashboard',
-              'contracts:dashboard']
+              'contracts:dashboard', 'pulse:check_list']
 
 
 def urls(names):

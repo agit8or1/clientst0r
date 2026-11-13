@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Send {{ check.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'pulse:check_list' %}">Pulse checks</a></li><li class="breadcrumb-item"><a href="{% url 'pulse:check_detail' check.pk %}">{{ check.name }}</a></li><li class="breadcrumb-item active">Send</li></ol></nav>
+<h2 class="h4">Send "{{ check.name }}" now</h2>
+<p>This sends to <strong>{{ recipients|length }}</strong> {{ recipients|length|pluralize:"person,people" }} in {{ by_org|length }} organization{{ by_org|length|pluralize }}. Each gets their own link, open for {{ check.response_days }} day{{ check.response_days|pluralize }}.{% if opted_out %} {{ opted_out }} {{ opted_out|pluralize:"person,people" }} who opted out {{ opted_out|pluralize:"is,are" }} left out.{% endif %}</p>
+{% if recipients %}
+<form method="post" class="mb-3">{% csrf_token %}<button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane"></i> Send to {{ recipients|length }}</button> <a class="btn btn-outline-secondary" href="{% url 'pulse:check_detail' check.pk %}">Cancel</a></form>
+{% for item in by_org %}
+<div class="card mb-2"><div class="card-header"><strong>{{ item.organization.name }}</strong> <span class="badge text-bg-secondary">{{ item.people|length }}</span></div>
+<ul class="list-group list-group-flush">{% for p in item.people %}<li class="list-group-item small">{{ p.name|default:p.email }} &lt;{{ p.email }}&gt;{% if p.contact %} <span class="badge text-bg-light text-dark">contact</span>{% endif %}</li>{% endfor %}</ul></div>
+{% endfor %}
+{% else %}
+{% url 'pulse:check_edit' check.pk as edit_url %}
+{% include "core/_empty_state.html" with icon="fa-users-slash" title="Nobody matches this audience" text="Check the organizations and the roles or people chosen. Portal users need an active account with an e-mail address." action_url=edit_url action_label="Edit audience" %}
+{% endif %}
+{% endblock %}

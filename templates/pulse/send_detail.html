@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ check.name }} — {{ send.created_at|date:"Y-m-d" }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'pulse:check_list' %}">Pulse checks</a></li><li class="breadcrumb-item"><a href="{% url 'pulse:check_detail' check.pk %}">{{ check.name }}</a></li><li class="breadcrumb-item active">{{ send.created_at|date:"Y-m-d" }}</li></ol></nav>
+<h2 class="h4">{{ check.name }} <span class="text-body-secondary fs-6">sent {{ send.created_at|date:"Y-m-d H:i" }}</span></h2>
+<p class="small text-body-secondary">{{ send.get_trigger_display }}{% if send.sent_by %} by {{ send.sent_by.get_full_name|default:send.sent_by.username }}{% endif %} · {{ send.recipient_count }} recipient{{ send.recipient_count|pluralize }}, {{ send.emailed_count }} e-mailed{% if send.opted_out_count %}, {{ send.opted_out_count }} left out (opted out){% endif %} · {% if send.is_open %}open until {{ send.expires_at|date:"Y-m-d" }}{% else %}closed {{ send.expires_at|date:"Y-m-d" }}{% endif %}</p>
+{% include "pulse/_org_filter.html" %}
+{% if org %}<p class="small">Showing <strong>{{ org.name }}</strong> only. <a href="?">Show all</a></p>{% endif %}
+{% include "pulse/_summary.html" %}
+{% include "pulse/_by_org.html" %}
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">Recipients</h5></div>
+<div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Person</th><th>Organization</th><th>E-mail</th><th>Answered</th></tr></thead>
+    <tbody>{% for r in responses %}
+    <tr><td>{{ r.name|default:r.email }}<div class="small text-body-secondary">{{ r.email }}{% if r.contact_id %} · contact{% endif %}</div></td>
+        <td>{{ r.organization.name }}</td>
+        <td>{{ r.get_email_status_display }}</td>
+        <td>{% if r.responded_at %}{{ r.responded_at|date:"Y-m-d" }} <span class="small text-body-secondary">({{ r.responded_via }})</span>{% else %}—{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-body-secondary">No recipients.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}
