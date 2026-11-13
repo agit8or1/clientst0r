@@ -12,12 +12,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponseRedirect
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
-from core.decorators import require_admin
-from office import targets
+from integrations.ownership import integration_access
+from office import storage, targets
 
 from . import audit, editing
 from .views import _connection, _location, handles_microsoft_errors
@@ -55,14 +55,33 @@ def _session_back(session):
 
 
 @login_required
-@require_POST
+@require_http_methods(['GET', 'POST'])
 @handles_microsoft_errors
 def start(request, code, pk):
+    """GET: the confirmation step, naming the tenant (connection and owner)
+    and the location that will receive the working copy. POST: upload it and
+    open it in Microsoft 365."""
     target = targets.resolve_for(request.user, code, pk)
     conns = editing.edit_connections(request.user, target)
+    if not conns:
+        raise Http404('Not found')
+    if request.method == 'GET':
+        from integrations.models import M365DocsGrant
+        connected = set(M365DocsGrant.objects.filter(
+            user=request.user, connection__in=conns).values_list('connection_id', flat=True))
+        live = editing.live_sessions().filter(user=request.user,
+                                              target_key=editing.target_key(target)).first()
+        rev = storage.current(target)
+        options = [{'connection': c, 'owner': editing.owner_label(c),
+                    'location': c.docs_edit_location, 'connected': c.pk in connected,
+                    'preferred': i == 0} for i, c in enumerate(conns)]
+        response = render(request, 'integrations/m365docs/confirm_edit.html', {
+            'target': target, 'revision': rev, 'options': options, 'live': live,
+            'back_url': _file_page(target), 'here': request.get_full_path()})
+        response['Cache-Control'] = 'no-store'
+        return response
     wanted = request.POST.get('connection', '')
-    conn = next((c for c in conns if str(c.pk) == wanted), None) if wanted else \
-        (conns[0] if conns else None)
+    conn = next((c for c in conns if str(c.pk) == wanted), None)
     if conn is None:
         raise Http404('Not found')
     try:
@@ -144,13 +163,16 @@ def finish(request, sid):
 # ---------------------------------------------------------------------------
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_POST
 def edit_settings(request, pk):
-    conn = _connection(request, pk, configure=True)
+    conn = _connection(request, pk, configure=True, platform_ok=True)
     enabled = request.POST.get('docs_edit_enabled') == 'on'
     loc = _location(conn, request.POST.get('docs_edit_location'), required=False)
     cleanup = request.POST.get('docs_edit_cleanup', 'delete')
+    staff_tenant = request.POST.get('docs_edit_staff_tenant') or conn.docs_edit_staff_tenant
+    if conn.organization_id is None or staff_tenant not in dict(conn.DOCS_EDIT_STAFF_TENANT_CHOICES):
+        staff_tenant = conn.docs_edit_staff_tenant
     folder = (request.POST.get('docs_edit_folder_name') or '').strip()
     try:
         hours = int(request.POST.get('docs_edit_stale_hours') or 72)
@@ -177,17 +199,19 @@ def edit_settings(request, pk):
                                 'and a working-copy location.')
         return back
     before = [conn.docs_edit_enabled, conn.docs_edit_location_id, conn.docs_edit_folder_name,
-              conn.docs_edit_cleanup, conn.docs_edit_stale_hours]
+              conn.docs_edit_cleanup, conn.docs_edit_stale_hours, conn.docs_edit_staff_tenant]
     type(conn).objects.filter(pk=conn.pk).update(
         docs_edit_enabled=enabled, docs_edit_location=loc, docs_edit_folder_name=folder,
-        docs_edit_cleanup=cleanup, docs_edit_stale_hours=hours)
+        docs_edit_cleanup=cleanup, docs_edit_stale_hours=hours,
+        docs_edit_staff_tenant=staff_tenant)
     audit.log('m365_edit_settings', user=request.user, organization_id=conn.organization_id,
               object_type='integrations.m365connection', object_id=conn.pk,
               object_repr=conn.name, request=request,
               description=f'Edit in Microsoft 365 {"enabled" if enabled else "disabled"} on '
                           f'{conn.name}',
               extra={'before': before, 'after': [enabled, loc.pk if loc else None, folder,
-                                                 cleanup, hours]})
+                                                 cleanup, hours, staff_tenant],
+                     'owner': editing.owner_label(conn)})
     if not enabled:
         conn.refresh_from_db()
         editing.recheck_all('Edit in Microsoft 365 turned off')

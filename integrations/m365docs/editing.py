@@ -110,24 +110,54 @@ def connection_ready(connection) -> bool:
                 and loc.organization_id == connection.organization_id)
 
 
-def connection_allowed_for(connection, target) -> bool:
-    """Tenant isolation: only a connection the file's own organization owns.
-    A platform-owned connection or another customer's is never used (the
-    documents capability is per customer tenant)."""
-    return (connection.organization_id is not None
-            and connection.organization_id == target.organization_id)
+def _is_staff(user):
+    from psa.visibility import is_msp_staff
+    return is_msp_staff(user)
+
+
+def connection_allowed_for(connection, target, user) -> bool:
+    """Tenant isolation. Customer data never goes to another customer's tenant:
+
+    * a customer's own connection is used only for that customer's files;
+    * the platform-owned connection (the MSP's own tenant) only by MSP staff,
+      for files they may edit at their customer;
+    * a connection owned by any other customer is never used.
+    """
+    if connection.organization_id is None:
+        return _is_staff(user)
+    return connection.organization_id == target.organization_id
+
+
+def owner_label(connection) -> str:
+    return 'Platform (MSP)' if connection.organization_id is None else connection.organization.name
 
 
 def edit_connections(user, target):
-    """Connections through which `user` may edit `target` in Microsoft 365."""
+    """Connections through which `user` may edit `target` in Microsoft 365,
+    the preferred one first.
+
+    MSP staff: the file's customer's own connection and the platform
+    connection. When both qualify, the customer connection's
+    ``docs_edit_staff_tenant`` decides (default: platform). Customer users:
+    their own customer's connection only."""
     if not user_may_edit(user, target):
         return []
     from integrations.models import M365Connection
-    rows = M365Connection.objects.filter(
-        organization_id=target.organization_id, is_active=True, docs_enabled=True,
-        docs_access='readwrite', docs_edit_enabled=True).select_related('docs_edit_location')
-    return [c for c in rows if connection_ready(c) and access.can_use(user, c)
-            and connection_allowed_for(c, target)]
+    staff = _is_staff(user)
+    q = Q(organization_id=target.organization_id)
+    if staff:
+        q |= Q(organization__isnull=True)
+    rows = (M365Connection.objects.filter(q, is_active=True, docs_enabled=True,
+                                          docs_access='readwrite', docs_edit_enabled=True)
+            .select_related('docs_edit_location', 'organization').order_by('pk'))
+    conns = [c for c in rows if connection_ready(c) and access.can_use(user, c)
+             and connection_allowed_for(c, target, user)]
+    own = [c for c in conns if c.organization_id is not None]
+    platform = [c for c in conns if c.organization_id is None]
+    if not staff:
+        return own
+    prefer_customer = any(c.docs_edit_staff_tenant == 'customer' for c in own)
+    return own + platform if prefer_customer else platform + own
 
 
 def can_start(user, target, connection) -> bool:
@@ -144,7 +174,8 @@ def still_allowed(session) -> bool:
     except Exception:
         return False
     conn = session.connection
-    return (user_may_edit(session.user, target) and connection_allowed_for(conn, target)
+    return (user_may_edit(session.user, target)
+            and connection_allowed_for(conn, target, session.user)
             and access.can_use(session.user, conn) and access.writes_allowed(conn)
             and conn.docs_edit_enabled)
 
@@ -181,6 +212,9 @@ def _log(event, session, *, user=None, request=None, description='', extra=None,
               object_type=OBJECT_TYPE, object_id=None, object_repr=session.target_label,
               description=description, success=success,
               extra={'session': str(session.pk), 'connection': session.connection_id,
+                     'connection_name': session.connection.name,
+                     'connection_owner': owner_label(session.connection),
+                     'tenant_id': session.connection.tenant_id,
                      'target': session.target_key, 'drive_id': session.drive_id,
                      'item_id': session.item_id, **(extra or {})})
 
@@ -222,7 +256,8 @@ def start(user, target, connection, *, request=None):
     session on this file. Raises PermissionDenied, EditError, GraphError,
     oauth.NotConnected, access.NotPermitted."""
     Session = _model()
-    if not connection_allowed_for(connection, target) or not can_start(user, target, connection):
+    if not connection_allowed_for(connection, target, user) or \
+            not can_start(user, target, connection):
         raise PermissionDenied('Not allowed')
     rev = storage.ensure_current(target, user)
     if rev is None:

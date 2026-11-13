@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from core.decorators import require_admin
+from integrations.ownership import integration_access
 from core.middleware import get_request_organization
 from core.tenancy import get_org_object_or_404
 from office import creation, formats, targets
@@ -41,8 +41,26 @@ def _org(request):
     return org
 
 
-def _connection(request, pk, *, configure=False):
+def _connection(request, pk, *, configure=False, platform_ok=False):
+    """The connection `pk` the request may use (or configure).
+
+    A customer's own connection: looked up inside the selected customer, as
+    before. A platform-owned one (the MSP's own tenant) only where
+    ``platform_ok`` (settings, allowed locations, sign-in, Edit in Microsoft
+    365): MSP staff may use it from anywhere; it is configured only in global
+    view by platform administrators (integrations/ownership.py)."""
     M365Connection, _, _ = _models()
+    if platform_ok:
+        platform = M365Connection.objects.filter(pk=pk, organization__isnull=True).first()
+        if platform is not None:
+            if configure:
+                if get_request_organization(request) is not None or \
+                        not access.can_configure(request.user, platform):
+                    raise PermissionDenied('Platform integrations are managed by platform '
+                                           'administrators in global view.')
+            elif not access.can_use(request.user, platform):
+                raise Http404('Not found')
+            return platform
     conn = get_org_object_or_404(M365Connection, _org(request), pk=pk)
     if configure:
         if not access.can_configure(request.user, conn):
@@ -149,10 +167,10 @@ def _settings_context(request, conn, **extra):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_http_methods(['GET', 'POST'])
 def docs_settings(request, pk):
-    conn = _connection(request, pk, configure=True)
+    conn = _connection(request, pk, configure=True, platform_ok=True)
     if request.method == 'GET':
         return render(request, 'integrations/m365docs/settings.html',
                       _settings_context(request, conn))
@@ -226,12 +244,12 @@ def _site_lookup(request, conn, call):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_POST
 @handles_microsoft_errors
 def location_add(request, pk):
     _, M365AllowedLocation, _ = _models()
-    conn = _connection(request, pk, configure=True)
+    conn = _connection(request, pk, configure=True, platform_ok=True)
     if not conn.docs_enabled:
         raise services.ServiceError('Enable documents first.')
     kind = request.POST.get('kind', '')
@@ -287,10 +305,10 @@ def location_add(request, pk):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_POST
 def location_delete(request, pk, lid):
-    conn = _connection(request, pk, configure=True)
+    conn = _connection(request, pk, configure=True, platform_ok=True)
     loc = _location(conn, str(lid))
     audit.log('m365_location_remove', user=request.user, organization_id=conn.organization_id,
               object_type='integrations.m365allowedlocation', object_id=loc.pk,
@@ -303,12 +321,12 @@ def location_delete(request, pk, lid):
 
 
 @login_required
-@require_admin
+@integration_access('admin')
 @require_GET
 @handles_microsoft_errors
 def location_pick(request, pk):
     """Admin picker: a site's libraries, or the folders in a library, to allow."""
-    conn = _connection(request, pk, configure=True)
+    conn = _connection(request, pk, configure=True, platform_ok=True)
     site_id = request.GET.get('site', '')
     drive_id = request.GET.get('drive', '')
     item_id = request.GET.get('item', 'root') or 'root'
@@ -335,7 +353,7 @@ def location_pick(request, pk):
 @require_POST
 @handles_microsoft_errors
 def connect(request, pk):
-    conn = _connection(request, pk)
+    conn = _connection(request, pk, platform_ok=True)
     nxt = _safe_next(request, request.POST.get('next', ''), '')
     return HttpResponseRedirect(oauth.start(request, conn, nxt))
 
@@ -378,7 +396,9 @@ def callback(request):
 @require_POST
 def disconnect(request, pk):
     M365Connection, _, _ = _models()
-    conn = get_org_object_or_404(M365Connection, _org(request), pk=pk)
+    conn = M365Connection.objects.filter(pk=pk, organization__isnull=True).first()
+    if conn is None:
+        conn = get_org_object_or_404(M365Connection, _org(request), pk=pk)
     grant = _grant(request.user, conn)
     if grant is not None:
         oauth.disconnect(grant, request=request, user=request.user)

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Edit in Microsoft 365 - {{ target.filename }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{{ back_url }}">{{ target.filename }}</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Edit in Microsoft 365</li>
+</ol></nav>
+<h2 class="h4"><i class="fab fa-microsoft" aria-hidden="true"></i> Edit in Microsoft 365</h2>
+<p>A working copy of <strong class="text-break">{{ target.filename }}</strong>{% if revision %} (revision {{ revision.revision_number }}){% endif %} will be uploaded as you to the Microsoft 365 tenant and location below, and opened there in a new tab. clientst0r gets your changes only when you choose <em>Save back to clientst0r</em> on the file page. No sharing link is created.</p>
+{% if live %}<div class="alert alert-info">You already have an open edit session on this file; continuing opens that working copy again.</div>{% endif %}
+{% for o in options %}
+<div class="card mb-3{% if o.preferred %} border-primary{% endif %}" data-connection="{{ o.connection.pk }}">
+  <div class="card-body">
+    <h3 class="h6 mb-2">{{ o.connection.name }} {% if o.preferred %}<span class="badge bg-primary">preferred</span>{% endif %}</h3>
+    <dl class="row small mb-2">
+      <dt class="col-sm-4">Tenant owner</dt><dd class="col-sm-8">{{ o.owner }}</dd>
+      <dt class="col-sm-4">Tenant ID</dt><dd class="col-sm-8"><code>{{ o.connection.tenant_id }}</code></dd>
+      <dt class="col-sm-4">Working copy goes to</dt><dd class="col-sm-8">{% if o.location.kind == 'my_onedrive' %}Your own OneDrive in this tenant{% else %}{{ o.location }}{% endif %}{% if o.connection.docs_edit_folder_name %} / {{ o.connection.docs_edit_folder_name }}{% endif %}</dd>
+      <dt class="col-sm-4">When you finish</dt><dd class="col-sm-8">{{ o.connection.get_docs_edit_cleanup_display }}</dd>
+    </dl>
+    {% if o.connected %}
+    <form method="post" action="{% url 'integrations:m365edit_start' target.code target.pk %}" target="_blank" rel="noopener">{% csrf_token %}<input type="hidden" name="connection" value="{{ o.connection.pk }}">
+      <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-up-right-from-square" aria-hidden="true"></i> Upload and open in Microsoft 365</button></form>
+    {% else %}
+    <form method="post" action="{% url 'integrations:m365docs_connect' o.connection.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ here }}">
+      <button type="submit" class="btn btn-outline-primary btn-sm">Connect my Microsoft 365 documents first</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+<a href="{{ back_url }}" class="btn btn-outline-secondary">Cancel</a>
+{% endblock %}

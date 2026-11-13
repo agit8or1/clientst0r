@@ -1043,6 +1043,15 @@ class M365Connection(ConnectionOwnership, BaseModel):
                   "location's top level.")
     docs_edit_cleanup = models.CharField(max_length=10, choices=DOCS_EDIT_CLEANUP_CHOICES,
                                          default='delete')
+    DOCS_EDIT_STAFF_TENANT_CHOICES = [
+        ('platform', "The MSP's platform Microsoft 365 connection"),
+        ('customer', "This customer's own Microsoft 365 connection"),
+    ]
+    docs_edit_staff_tenant = models.CharField(
+        max_length=10, choices=DOCS_EDIT_STAFF_TENANT_CHOICES, default='platform',
+        help_text="On a customer's own connection: which tenant receives the working copy when "
+                  'MSP staff edit this customer\'s files and both qualify. Customer users always '
+                  "use the customer's own connection.")
     docs_edit_stale_hours = models.PositiveIntegerField(
         default=72,
         help_text='Edit sessions idle this long are reminded (or ended when nothing changed '
@@ -1110,8 +1119,9 @@ class M365AllowedLocation(models.Model):
     ]
     connection = models.ForeignKey(M365Connection, on_delete=models.CASCADE,
                                    related_name='docs_locations')
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
-                                     related_name='m365_docs_locations')
+    # Empty for a platform-owned connection (the MSP's own tenant).
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True,
+                                     blank=True, related_name='m365_docs_locations')
     kind = models.CharField(max_length=12, choices=KIND_CHOICES)
     site_id = models.CharField(max_length=300, blank=True)
     drive_id = models.CharField(max_length=300, blank=True)

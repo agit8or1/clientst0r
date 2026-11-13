@@ -136,6 +136,14 @@
       <select class="form-select form-select-sm mb-2" id="docs_edit_cleanup" name="docs_edit_cleanup">
         {% for value, label in connection.DOCS_EDIT_CLEANUP_CHOICES %}<option value="{{ value }}" {% if connection.docs_edit_cleanup == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
+      {% if connection.organization_id %}
+      <label class="form-label small mb-1" for="docs_edit_staff_tenant">When MSP staff edit this customer's files and the platform connection also qualifies, use</label>
+      <select class="form-select form-select-sm mb-2" id="docs_edit_staff_tenant" name="docs_edit_staff_tenant">
+        {% for value, label in connection.DOCS_EDIT_STAFF_TENANT_CHOICES %}<option value="{{ value }}" {% if connection.docs_edit_staff_tenant == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <p class="small text-muted mb-2">This is the platform (MSP) connection: only MSP staff use it, for files they may edit at a customer. Customer users never do.</p>
+      {% endif %}
       <label class="form-label small mb-1" for="docs_edit_stale_hours">Remind about idle sessions after (hours)</label>
       <input type="number" class="form-control form-control-sm mb-2" id="docs_edit_stale_hours" name="docs_edit_stale_hours" value="{{ connection.docs_edit_stale_hours }}" min="1" max="1440">
       <button type="submit" class="btn btn-sm btn-primary">Save</button>
