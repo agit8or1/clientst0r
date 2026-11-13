@@ -415,10 +415,13 @@ class PermissionAndIsolationTests(EditBase):
         self.assertEqual(self.start(conn=other).status_code, 404)
         with self.assertRaises(PermissionDenied):
             editing.start(self.tech, self.target, other)
-        # A platform-owned connection is not used either.
+        # A platform-owned connection: MSP staff only, never a customer user.
         M365Connection.objects.filter(pk=other.pk).update(organization=None)
         other.refresh_from_db()
-        self.assertFalse(editing.connection_allowed_for(other, self.target))
+        self.assertFalse(editing.connection_allowed_for(other, self.target, self.editor))
+        self.assertTrue(editing.connection_allowed_for(other, self.target, self.tech))
+        M365Connection.objects.filter(pk=other.pk).update(organization=self.other_org)
+        other.refresh_from_db()
         # Someone of another organization cannot reach the file at all.
         self.grant(self.outsider)
         self.assertEqual(self.start(self.outsider).status_code, 404)
@@ -556,3 +559,119 @@ class RoleRegistryTests(EditBase):
     def test_builtin_roles_stay_uncustomized(self):
         for rt in RoleTemplate.objects.exclude(seed_key=''):
             self.assertEqual(rt.compute_checksum(), rt.seed_checksum, rt.name)
+
+
+class PlatformConnectionTests(EditBase):
+    """The MSP's own (platform-owned) Microsoft 365 tenant."""
+
+    def setUp(self):
+        super().setUp()
+        self.platform = M365Connection(organization=None, name='MSP tenant',
+                                       tenant_id='99999999-8888-7777-6666-555555555555',
+                                       docs_enabled=True, docs_access='readwrite',
+                                       docs_sharepoint='all',
+                                       docs_sharepoint_host='contoso.sharepoint.com')
+        self.platform.set_credentials({'client_id': 'msp-app', 'client_secret': 'msp-secret'})
+        self.platform.save()
+        self.ploc = self.location('my_onedrive', conn=self.platform)
+        M365Connection.objects.filter(pk=self.platform.pk).update(
+            docs_edit_enabled=True, docs_edit_location=self.ploc, docs_edit_folder_name='')
+        self.platform.refresh_from_db()
+        self.grant(self.tech, conn=self.platform)
+
+    def test_staff_round_trip_through_platform_connection(self):
+        conns = editing.edit_connections(self.tech, self.target)
+        self.assertEqual([c.pk for c in conns], [self.platform.pk, self.conn.pk])   # default
+        resp = self.start(conn=self.platform)
+        self.assertEqual(resp.status_code, 302)
+        s = self.session()
+        self.assertEqual((s.connection, s.drive_id, s.organization_id),
+                         (self.platform, self.ms.my_drive_id, self.org.pk))
+        self.ms.edit(s.item_id, edited_docx())
+        self.post('save', s)
+        self.assertEqual([r.revision_number for r in self.revisions()], [1, 2])
+        self.post('finish', s)
+        s.refresh_from_db()
+        self.assertEqual(s.state, 'closed')
+        for event in ('m365_edit_start', 'm365_edit_save', 'm365_edit_finish'):
+            entry = AuditLog.objects.get(extra_data__office_event=event)
+            self.assertEqual(entry.extra_data['connection'], self.platform.pk)
+            self.assertEqual(entry.extra_data['connection_name'], 'MSP tenant')
+            self.assertEqual(entry.extra_data['connection_owner'], 'Platform (MSP)')
+            self.assertEqual(entry.organization_id, self.org.pk)
+
+    def test_customer_preference_puts_customer_tenant_first(self):
+        M365Connection.objects.filter(pk=self.conn.pk).update(docs_edit_staff_tenant='customer')
+        conns = editing.edit_connections(self.tech, self.target)
+        self.assertEqual([c.pk for c in conns], [self.conn.pk, self.platform.pk])
+
+    def test_confirm_step_names_the_tenant_before_upload(self):
+        self.login(self.tech)
+        resp = self.client.get(reverse('integrations:m365edit_start', args=['doc', self.target.pk]))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn('Platform (MSP)', body)
+        self.assertIn(self.platform.tenant_id, body)
+        self.assertIn('Your own OneDrive in this tenant', body)
+        self.assertIn(self.org.name, body)               # the customer's own option
+        self.assertLess(body.index('MSP tenant'), body.index(self.conn.name))
+        self.assertEqual(self.ms.graph_calls('PUT'), [])
+        self.assertFalse(M365EditSession.objects.exists())
+
+    def test_confirm_step_offers_connect_when_not_signed_in(self):
+        self.login(self.tech2)
+        resp = self.client.get(reverse('integrations:m365edit_start', args=['doc', self.target.pk]))
+        self.assertContains(resp, 'Connect my Microsoft 365 documents first')
+
+    def test_customer_user_never_uses_platform_connection(self):
+        role = RoleTemplate.objects.create(
+            name='Customer M365 editor', docs_view=True, docs_edit=True, files_view=True,
+            files_upload=True, office_edit_in_m365=True)
+        user = User.objects.create_user('cust-plat', 'cp@example.com', 'x')
+        Membership.objects.create(user=user, organization=self.org, role=Role.EDITOR,
+                                  role_template=role, is_active=True)
+        self.grant(user, conn=self.platform)
+        self.grant(user)
+        self.assertEqual([c.pk for c in editing.edit_connections(user, self.target)],
+                         [self.conn.pk])
+        self.assertEqual(self.start(user, conn=self.platform).status_code, 404)
+        with self.assertRaises(PermissionDenied):
+            editing.start(user, self.target, self.platform)
+        self.assertEqual(self.ms.graph_calls('PUT'), [])
+
+    def test_staff_refused_on_another_customers_connection(self):
+        other = self.make_connection(self.other_org, docs_edit_enabled=True)
+        loc = self.location('drive', conn=other)
+        M365Connection.objects.filter(pk=other.pk).update(docs_edit_location=loc)
+        other.refresh_from_db()
+        self.grant(self.tech, conn=other)
+        self.assertNotIn(other.pk, [c.pk for c in editing.edit_connections(self.tech, self.target)])
+        self.assertEqual(self.start(conn=other).status_code, 404)
+        with self.assertRaises(PermissionDenied):
+            editing.start(self.tech, self.target, other)
+        self.assertEqual(self.ms.graph_calls('PUT'), [])
+
+    def test_platform_settings_need_a_platform_admin_in_global_view(self):
+        url = reverse('integrations:m365edit_settings', args=[self.platform.pk])
+        data = {'docs_edit_location': self.ploc.pk, 'docs_edit_cleanup': 'keep',
+                'docs_edit_stale_hours': '5'}
+        # A customer's owner, inside the customer: refused.
+        self.login(self.owner)
+        resp = self.client.post(url, data)
+        self.assertIn(resp.status_code, (403, 404))
+        self.platform.refresh_from_db()
+        self.assertTrue(self.platform.docs_edit_enabled)
+        # A platform administrator in global view.
+        admin = User.objects.create_superuser('plat-admin', 'pa@example.com', 'x')
+        self.client.force_login(admin)
+        s = self.client.session
+        s.pop('current_organization_id', None)
+        s['global_view_mode'] = True
+        s.save()
+        resp = self.client.post(url, {**data, 'docs_edit_enabled': 'on'})
+        self.assertEqual(resp.status_code, 302)
+        self.platform.refresh_from_db()
+        self.assertEqual((self.platform.docs_edit_cleanup, self.platform.docs_edit_stale_hours),
+                         ('keep', 5))
+        entry = AuditLog.objects.get(extra_data__office_event='m365_edit_settings')
+        self.assertEqual(entry.extra_data['owner'], 'Platform (MSP)')
