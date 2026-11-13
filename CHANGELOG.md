@@ -5,9 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.17.669] - 2026-11-13
 
-Not released yet.
+Portal request types with dynamic forms, a separate customer portal sign-in with its own look and country policy, contract documents with built-in signing, and a roles, permission groups and access-settings system with per-customer enforcement across the application.
+
+**Access changes on upgrade — read before applying.** Permissions are now checked at the customer each record belongs to, and several pages became MSP-staff only. Customer users lose staff-only areas (procurement, dispatch, workflow rules, quote writing, inventory, vehicles, internal-only articles and similar); the built-in Editor role loses delete, sync and integration-test rights; Read-Only members and custom roles without API access lose their API keys; customers with the portal turned on get only the portal. After applying, review **Settings → Roles → Review** (`/accounts/roles/review/`): it lists staff without a global role, customer memberships with legacy write roles and organizations without an active owner. Nothing on that list changes access by itself.
 
 ### Added
 - **"What do you need help with?" in the customer portal.** New Ticket now opens a picker of request types grouped by category, with search; *General support* (the plain ticket form, which now takes attachments) is always there.
@@ -34,7 +36,8 @@ Not released yet.
 ### Fixed
 - `manage.py auto_update` waited only 5 minutes for the update script and reported "timed out" while the upgrade was still finishing (it took a little over 5 minutes on v3.17.668, including the backup's test restore). It now waits up to an hour, and the message says the upgrade may still be running.
 
-### Upgrading
+### Upgrade notes
+- Migrations (all additive or data-preserving): `psa.0084`–`0085` (request types), `accounts.0045`–`0046` (roles work: new permission flags, scope fields, review list, built-in role seeding; existing custom roles keep what they could do), `contracts.0001` (new app), `core.0095` (contract scheduler tasks) and `core.0096` (portal host name and per-surface country policy; existing country rules become staff rules and the portal inherits them).
 - Migrations `psa.0084` and `psa.0085` are additive. Existing request types get form version 1, and existing guided-request tickets get a submission record, so they show up in the filter and report. Existing forms, links and tickets keep working unchanged.
 
 ### Added (roles and access, roles-core)
@@ -102,7 +105,7 @@ Server-side checks now follow the role flags in the customer that owns each reco
 - **Aging report:** `billing_view_aging` is no longer MSP-staff only. Customer users with it see only their own account. The Aging Report tab shows only for people who hold the flag.
 - **Holidays:** the holiday pages open for anyone who holds `resourcing_manage_holidays` at any customer. Each holiday is still checked at its own customer.
 
-### Added (contract documents, Phase 65 — development branch, not yet released)
+### Added (contract documents, Phase 65)
 - **Contract documents** (`/contracts/`, MSP staff only): build a contract from a template, a copy or a blank page, with a rich-text editor (headings, lists, tables, page breaks), reorderable and optional sections, one-time and recurring line items, signers, attachments, merge fields and autosave with a saved indicator and conflict warning.
 - **Seven starter templates and a clause library.** The wording is sample text and each template carries a review note that blocks sending until it is replaced. Templates are versioned; contracts keep the text they were created from.
 - **Built-in signing** under `/sign/`: personal links without an account, parallel or sequential signers, internal countersignature from the staff account, typed or drawn signatures, consent and intent statements, decline with a reason, optional e-mailed code, phone-friendly page using only local assets, and a downloadable copy. Signatures are bound to the exact version and its SHA-256.
@@ -116,7 +119,6 @@ Server-side checks now follow the role flags in the customer that owns each reco
 ### Changed (contract documents)
 - Security headers keep a view's stricter `Referrer-Policy: no-referrer`; the request audit log skips `/sign/` (contract events are audited on their own, without tokens).
 
-Built on the development branch (`dev/portal-login`), not yet released.
 
 ### Added
 - **Customer portal sign-in at its own address**: `/portal/login/`, with portal sign-out, self-service password reset (`/portal/password-reset/`), first-password page for invitations (`/portal/set-password/…`), two-factor enrolment and backup codes (`/portal/account/two-factor/…`) and a lockout page (`/portal/locked/`). The same lockout counting (django-axes), password rules and two-factor sign-in apply as on the staff side.
