@@ -14,8 +14,12 @@ import json
 
 
 @login_required
+@require_admin
 def webhook_list(request):
-    """List all webhooks for the current organization."""
+    """List all webhooks for the current organization.
+
+    Admin only, like create/edit/delete: the list shows each webhook's URL,
+    and chat-service URLs carry their token."""
     org = get_request_organization(request)
     webhooks = Webhook.objects.filter(organization=org)
 
