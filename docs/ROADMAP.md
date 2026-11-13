@@ -2683,6 +2683,40 @@ default (Settings → System → Optional modules → Pulse checks). Setup and u
 **Sizing:** **M** — a new app (`pulse`) with its own models, staff pages,
 portal pages, one scheduled task and an optional-module switch.
 
+## Phase 67 — Interface, navigation and dashboard redesign **(L · usability)** [in progress]
+
+A cleaner, more compact interface over the same features, URLs and permissions.
+Plan and audit: [docs/plans/2026-11-ui-redesign.md](plans/2026-11-ui-redesign.md).
+Hiding a link stays presentation only; every page keeps its own server-side check.
+
+- **67.1 One navigation definition** *(planned)* — the sidebar, the settings
+  workspace, top-bar shortcuts and the account menu all come from
+  `core/navigation.py`; the separate settings menu is folded in; sidebar
+  groups Overview, Operations, Clients & Assets, Business, Tools & Automation,
+  Reports & Analytics and Administration.
+- **67.2 Every page has a path** *(planned)* — pages that were reachable only
+  by bookmark get a place in the navigation (or are documented as reached from
+  their parent page); members and roles reachable for the organization admins
+  the pages already admit; a test fails when a new page has no path.
+- **67.3 Compact page frame** *(planned)* — top bar that stays usable on
+  1366-px laptops; breadcrumb and section tabs on one row; shortcut pins in
+  the sidebar.
+- **67.4 Settings workspace** *(planned)* — nine settings categories with
+  secondary navigation, settings search, unsaved-change warnings.
+- **67.5 Dashboard that fits the window** *(planned)* — compact dashboard
+  (default) built from permission-checked widgets that fits 1366×768 and up
+  without page scrolling; the previous dashboard stays available as Classic.
+- **67.6 Dashboard customization** *(planned)* — show / hide, order and size
+  widgets by drag or keyboard, compact or comfortable density, restore
+  defaults, built-in role presets and administrator-set role defaults.
+- **67.7 Professional Dark theme** *(planned)* — default for new profiles,
+  wallpaper optional, shared design tokens; existing preferences kept.
+- **67.8 Validation** *(planned)* — role matrix with direct-URL denial checks,
+  viewport screenshots, regression suite.
+
+**Sizing:** **L** — navigation and settings, dashboard, visual system, then
+validation across roles and viewports.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2750,6 +2784,7 @@ portal pages, one scheduled task and an optional-module switch.
 | 64 — Roles, permission groups and access settings | L | in progress — registry, built-in roles, scope, delegation protection, role pages, upgrade review list and module enforcement shipped v3.17.669; pending flags await call sites | Phases 57 and 63 (RMM tiers); every module reads the permissions |
 | 65 — Contract documents and digital signing | L | in progress — 65.1–65.9 shipped v3.17.669; reviewed legal wording planned | PSA billing contracts, scheduler, mail settings, Phase 64 roles and permissions |
 | 66 — Client pulse checks | M | in progress — templates, audience, sending, results built (unreleased); export and reminders planned | portal, scheduler, mail settings, roles |
+| 67 — Interface, navigation and dashboard redesign | L | in progress — audit and plan done; navigation, settings, dashboard and theme planned | every page's navigation entry; roles and permissions (Phase 64) |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

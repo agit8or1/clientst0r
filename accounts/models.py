@@ -528,7 +528,10 @@ class UserProfile(BaseModel):
         ('pt-br', 'Portuguese (Brazil)'),
     ]
     locale = models.CharField(max_length=10, default='en-us', choices=LOCALE_CHOICES)
-    theme = models.CharField(max_length=30, default='default', choices=[
+    # v3.17.677 — new profiles start on Professional Dark; an existing profile
+    # keeps the theme it already holds (a field default only fills new rows).
+    theme = models.CharField(max_length=30, default='professional', choices=[
+        ('professional', 'Professional Dark'),
         ('dark', 'Dark Mode'),
         ('default', 'Default Blue'),
         ('dracula', 'Dracula'),
@@ -543,12 +546,13 @@ class UserProfile(BaseModel):
     ])
 
     # Background Settings
-    # v3.17.552 — a new profile starts on a preset (Navy Space) rather than no
-    # background at all. It is a starting point, not a policy: every control
-    # below stays the user's to change, and an existing profile keeps whatever
-    # it already holds because a field default only applies to a row that does
-    # not exist yet.
-    background_mode = models.CharField(max_length=20, default='preset', choices=[
+    # v3.17.677 — a new profile starts with no wallpaper (the plain surface of
+    # its theme); the presets, custom uploads and random images stay available
+    # as options. Before that (v3.17.552) new profiles started on Navy Space.
+    # Every control below stays the user's to change, and an existing profile
+    # keeps whatever it already holds because a field default only applies to
+    # a row that does not exist yet.
+    background_mode = models.CharField(max_length=20, default='none', choices=[
         ('custom', 'Custom Upload'),
         ('none', 'No Background Image'),
         ('preset', 'Preset Abstract Backgrounds'),
@@ -652,6 +656,25 @@ class UserProfile(BaseModel):
     shortcut_pins = models.JSONField(
         null=True, blank=True, default=None,
         help_text='Up to three shortcut-strip keys. Unset = defaults; empty list = none.',
+    )
+
+    # v3.17.677 — interface density and the dashboard (core/dashboard_widgets.py).
+    UI_DENSITY_CHOICES = [('compact', 'Compact'), ('comfortable', 'Comfortable')]
+    ui_density = models.CharField(
+        max_length=12, default='compact', choices=UI_DENSITY_CHOICES,
+        help_text='Compact fits more on screen; Comfortable adds spacing.',
+    )
+    DASHBOARD_VARIANT_CHOICES = [('modern', 'Dashboard'), ('classic', 'Classic dashboard')]
+    dashboard_variant = models.CharField(
+        max_length=12, default='modern', choices=DASHBOARD_VARIANT_CHOICES,
+        help_text='The classic dashboard stays available while the new one beds in.',
+    )
+    # {"order": [widget keys], "hidden": [keys], "sizes": {key: 1|2|3}}.
+    # Empty = this user's role default (or the built-in preset). Unknown keys
+    # are dropped and every widget's own permission check runs on each render.
+    dashboard_layout = models.JSONField(
+        default=dict, blank=True,
+        help_text='Per-user dashboard widget order, hidden widgets and sizes.',
     )
 
     # v3.17.233 — Customer-portal notification preferences.
