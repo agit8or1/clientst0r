@@ -5,6 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.670] - 2026-11-13
+
+### Fixed
+- **The v3.17.669 upgrade stopped at "Collecting static files".** The vendored Quill editor files referenced source maps (`quill.snow.css.map`, `quill.js.map`) that were not shipped, and the production static storage refuses a reference to a missing file. The references are removed. The database was already migrated, so an install that hit this needs `manage.py upgrade_apply --resume` after updating the files (or applying this release once the recovery panel allows it). A new test fails whenever a static file references a source map that is not in the repository.
+
 ## [3.17.669] - 2026-11-13
 
 Portal request types with dynamic forms, a separate customer portal sign-in with its own look and country policy, contract documents with built-in signing, and a roles, permission groups and access-settings system with per-customer enforcement across the application.
