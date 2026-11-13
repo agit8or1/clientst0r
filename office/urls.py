@@ -53,6 +53,7 @@ urlpatterns = [
     path('settings/install/', views_admin.install_page, name='install'),
     path('settings/managed/', views_managed.managed_page, name='managed'),
     path('settings/managed/toggle/', views_managed.managed_toggle, name='managed_toggle'),
+    path('settings/managed/host-setup/', views_managed.managed_host_setup, name='managed_host_setup'),
     path('settings/managed/action/', views_managed.managed_action, name='managed_action'),
     path('settings/managed/operations/<int:pk>/cancel/', views_managed.managed_cancel,
          name='managed_cancel'),

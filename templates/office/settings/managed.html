@@ -57,8 +57,37 @@
       {% endif %}
     </div>
 
-    <details class="card mb-4"{% if service.enabled and not service.helper_reachable %} open{% endif %}>
-      <summary class="card-header h6 mb-0">Server setup (one time, as root)</summary>
+    {% if host_setup_available %}
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="h6 mb-0">Set up this server</h2></div>
+      <div class="card-body small">
+        {% if service.host_setup_state %}
+        <p class="mb-1"><strong>Server setup</strong> — <span class="badge {% if service.host_setup_state == 'succeeded' %}text-bg-success{% elif service.host_setup_state == 'failed' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ service.get_host_setup_state_display }}</span>{% if service.host_setup_requested_by %} · requested by {{ service.host_setup_requested_by.username }}{% endif %}{% if service.host_setup_requested_at %} · {{ service.host_setup_requested_at|date:"Y-m-d H:i" }}{% endif %}{% if service.host_setup_finished_at %} · finished {{ service.host_setup_finished_at|date:"Y-m-d H:i" }}{% endif %}</p>
+        {% if host_setup_busy %}<p class="text-muted">Running through the root helper. Docker is downloaded on the first setup, so this can take several minutes; refresh the page to see the result.</p>{% endif %}
+        {% if service.host_setup_output %}<details{% if service.host_setup_state == 'failed' %} open{% endif %}><summary>Output</summary><pre class="border rounded p-2 text-break text-wrap" style="max-height: 24rem; overflow: auto;">{{ service.host_setup_output }}</pre></details>{% endif %}
+        {% endif %}
+        {% if not host_setup_busy %}
+        <p>Installs what the managed editor needs on this server, through the root helper and from this release's signed tag: Docker (only if absent), the Office service helper and the editor container's firewall, and the helper's own Nginx files. For the same-host layout it also adds one include line to clientst0r's Nginx site, after <code>nginx -t</code> passes. TLS is expected to end on a device in front of this server. No container is downloaded or started until you click Install.</p>
+        <form method="post" action="{% url 'office:managed_host_setup' %}" class="row g-2">{% csrf_token %}
+          <div class="col-sm-6"><label class="form-label" for="hs-engine">Engine</label>
+            <select class="form-select form-select-sm" id="hs-engine" name="engine"><option value="collabora">Collabora Online Development Edition (CODE)</option><option value="onlyoffice">ONLYOFFICE Docs</option></select></div>
+          <div class="col-sm-6"><label class="form-label" for="hs-layout">Address</label>
+            <select class="form-select form-select-sm" id="hs-layout" name="layout"><option value="same-host">Same host as clientst0r ({{ setup_defaults.app_host }}; Collabora only)</option><option value="dedicated">Dedicated host name</option></select></div>
+          <div class="col-sm-6"><label class="form-label" for="hs-office-host">Editor host name (dedicated only)</label>
+            <input class="form-control form-control-sm" id="hs-office-host" name="office_host" placeholder="office.example.com" autocomplete="off"></div>
+          <div class="col-sm-6"><label class="form-label" for="hs-dep">Deployment id</label>
+            <input class="form-control form-control-sm" id="hs-dep" name="deployment_id" value="{{ setup_defaults.deployment_id }}" autocomplete="off"></div>
+          <div class="col-12 form-check ms-1"><input class="form-check-input" type="checkbox" id="hs-same" name="accept_same_host" value="1"><label class="form-check-label" for="hs-same">Same host: I understand that the editor's front-end will run on clientst0r's own origin ({{ setup_defaults.app_host }}).</label></div>
+          <div class="col-12 form-check ms-1"><input class="form-check-input" type="checkbox" id="hs-untested" name="allow_untested" value="1"><label class="form-check-label" for="hs-untested">Allow editor releases that have not been live-verified yet (needed until the live checks pass).</label></div>
+          <div class="col-12"><button class="btn btn-sm btn-primary" type="submit" data-confirm="Set up this server for the managed editor? Docker and the Office service helper are installed as root.">Set up this server</button></div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <details class="card mb-4"{% if service.enabled and not service.helper_reachable and not host_setup_available %} open{% endif %}>
+      <summary class="card-header h6 mb-0">Server setup from a shell (one time, as root)</summary>
       <div class="card-body small">
         <p>Run these from a shell on this server as an administrator with sudo. They install Docker only when it is absent and you add <code>--install-docker</code>; an existing Docker is used as it is. Nothing is downloaded or started as a container until you click Install here.</p>
         {% for title, cmd in setup_commands %}<p class="mb-1 fw-semibold">{{ forloop.counter }}. {{ title }}</p><pre class="border rounded p-2 text-break text-wrap">{{ cmd }}</pre>{% endfor %}

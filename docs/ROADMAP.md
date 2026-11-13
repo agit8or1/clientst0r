@@ -2450,6 +2450,14 @@ Collabora or Microsoft 365 service**.
   optional disposable-VM profile that adds installation and reboot checks.
   Produces a JSON result and a report, and a release is marked tested only
   from a passing result for its exact image digest.
+- **62.13 Server setup for managed editors from Settings** *(shipped v3.17.672 — not yet run on a real host)* —
+  one form on the Managed page installs Docker (only if absent), the Office
+  service helper, the container firewall and the helper's Nginx files, and,
+  for the same-host layout, the include line in clientst0r's own site. It
+  runs through the root helper from the signed release (never the app
+  directory), with every argument checked again and `nginx -t` before any
+  reload; the web process only records the request, the scheduler runs it
+  in its own process, and the output and result are audited.
 
 **Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
 Microsoft 365 and Google Docs 1–2 weeks each.

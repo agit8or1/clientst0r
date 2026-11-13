@@ -24,6 +24,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from . import audit, diagnostics, drain, install_guidance
 from .managed import checks as managed_checks
+from .managed import host_setup
 from .managed import ipc, jobs
 from .managed import probe as managed_probe
 from .managed.provision import ProvisionError, managed_instance, status_engine
@@ -113,6 +114,8 @@ def _context(service, *, status=None, preflight=None, proxy=None):
         'backups': status.get('backups') or [],
         'weekdays': WEEKDAYS,
         'active_page': 'office_documents',
+        'host_setup_available': host_setup.available(),
+        'host_setup_busy': service.host_setup_state in ('queued', 'running'),
     }
 
 
@@ -137,7 +140,42 @@ def managed_page(request):
     service = ManagedOfficeService.get()
     status = jobs.refresh_status(timeout=10) if service.enabled else None
     service = ManagedOfficeService.get()
-    return _render(request, _context(service, status=status, proxy=_proxy_status(service)))
+    context = _context(service, status=status, proxy=_proxy_status(service))
+    app_host = request.get_host().split(':')[0].lower()
+    context['setup_defaults'] = {'app_host': app_host,
+                                 'deployment_id': host_setup.default_deployment_id(app_host)}
+    return _render(request, context)
+
+
+@login_required
+@superuser_required
+@require_POST
+def managed_host_setup(request):
+    """Queue the one-time server setup (Docker, the Office service helper,
+    its Nginx files). The scheduler runs it through the root helper; this
+    view only records the request. clientst0r's host name is the one this
+    request came in on (Django has already checked it against
+    ALLOWED_HOSTS)."""
+    if not host_setup.available():
+        messages.error(request, 'The root helper is not available on this server; use the commands below.')
+        return redirect('office:managed')
+    layout = request.POST.get('layout', '')
+    if layout == 'same-host' and request.POST.get('accept_same_host') != '1':
+        messages.error(request, 'Confirm that you understand the same-host risk first.')
+        return redirect('office:managed')
+    try:
+        host_setup.request_setup(
+            request.user, request=request, engine=request.POST.get('engine', ''), layout=layout,
+            app_host=request.get_host().split(':')[0], office_host=request.POST.get('office_host', ''),
+            deployment_id=request.POST.get('deployment_id', '').strip().lower(),
+            allow_untested=request.POST.get('allow_untested') == '1')
+    except host_setup.SetupError as e:
+        messages.error(request, str(e))
+        return redirect('office:managed')
+    messages.success(request, 'Server setup queued. The scheduler starts it within a minute; it can take '
+                              'several minutes (Docker is downloaded on first setup). Refresh this page '
+                              'to see the output.')
+    return redirect('office:managed')
 
 
 @login_required

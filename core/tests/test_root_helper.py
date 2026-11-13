@@ -268,6 +268,25 @@ class SelfUpdateTests(SimpleTestCase):
             self.h.self_update(self.conf, 'v1.1.3')
         self.assertEqual(Path(self.h.OFFICE_HELPER_PATH).read_text(), "print('old office')\n")
 
+    def test_office_installer_is_extracted_from_the_verified_tag(self):
+        scripts = self.origin / 'scripts' / 'office'
+        scripts.mkdir(parents=True)
+        (scripts / 'install-editor.sh').write_text('echo signed\n')
+        self.release('v1.0.2', "print('two')\n", office="print('office')\n")
+        self.h.self_update(self.conf, 'v1.0.2')
+        self.h.OFFICE_INSTALLER_DIR = str(self.tmp / 'office-installer')
+        script = self.h._extract_office_installer('v1.0.2')
+        self.assertEqual(Path(script).read_text(), 'echo signed\n')
+        self.assertTrue((self.tmp / 'office-installer' / 'deploy' / 'office-helper' /
+                         'clientst0r-office-helper').is_file())
+        # a later unsigned tag in the mirror is never used
+        (scripts / 'install-editor.sh').write_text('echo evil\n')
+        self.release('v1.0.3', "print('three')\n", signed=False)
+        self.h._git(os.path.join(self.h.STATE_DIR, 'mirror.git'), 'fetch', '-q', self.conf['REPO_URL'],
+                    'refs/tags/v1.0.3:refs/tags/v1.0.3')
+        with self.assertRaises(self.h.HelperError):
+            self.h._extract_office_installer('v1.0.3')
+
     def test_bad_tag_names_are_refused(self):
         for tag in ('main', 'v1.0', 'v1.0.0; id', '../v1.0.0'):
             with self.assertRaises(self.h.HelperError, msg=tag):
@@ -418,3 +437,164 @@ class ManagedOfficeEngineGuardTests(SimpleTestCase):
         self.assertEqual((kept, skipped), (['openssl'], ['docker.io', 'runc']))
         kept, skipped = without_editor_packages(['openssl', 'docker.io'], managed_office=False)
         self.assertEqual(skipped, [])
+
+
+class OfficeSetupTests(SimpleTestCase):
+    """office-setup: the installer runs with checked arguments only, and the
+    app can extend an office install but never re-point it."""
+
+    CONF = {'APP_USER': 'administrator', 'APP_DIR': '/home/administrator'}
+
+    def setUp(self):
+        self.h = load_helper()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.h.OFFICE_SERVICE_CONF = str(self.tmp / 'office-service.conf')
+
+    def argv(self, *args):
+        return self.h.office_setup_argv(self.CONF, list(args), '/x/install-editor.sh')
+
+    def test_same_host_collabora(self):
+        argv = self.argv('collabora', 'same-host', 'docs.example.com', 'prod-1', '-', 'untested')
+        self.assertEqual(argv, [
+            '/bin/bash', '/x/install-editor.sh', '--provider', 'collabora', '--mode', 'managed-local',
+            '--layouts', 'same-host', '--clientstor-url', 'https://docs.example.com/',
+            '--deployment-id', 'prod-1', '--tls', 'upstream', '--app-user', 'administrator',
+            '--install-docker', '--allow-untested-releases'])
+
+    def test_dedicated_needs_its_own_host(self):
+        argv = self.argv('onlyoffice', 'dedicated', 'docs.example.com', 'prod-1', 'office.example.com', 'tested')
+        self.assertEqual(argv[-2:], ['--hostname', 'office.example.com'])
+        self.assertNotIn('--allow-untested-releases', argv)
+        for bad in (('onlyoffice', 'dedicated', 'docs.example.com', 'prod-1', '-', 'tested'),
+                    ('onlyoffice', 'dedicated', 'docs.example.com', 'prod-1', 'docs.example.com', 'tested')):
+            with self.assertRaises(self.h.HelperError, msg=bad):
+                self.argv(*bad)
+
+    def test_bad_arguments_are_refused(self):
+        good = ['collabora', 'same-host', 'docs.example.com', 'prod-1', '-', 'tested']
+        for i, bad in [(0, 'docker'), (1, 'same-host;id'), (2, 'docs.example.com/x'),
+                       (2, '--hostname'), (2, 'localhost'), (3, '-rf'), (3, 'Prod 1'),
+                       (4, 'office.example.com'), (5, 'yes')]:
+            args = list(good)
+            args[i] = bad
+            with self.assertRaises(self.h.HelperError, msg=args):
+                self.argv(*args)
+        with self.assertRaises(self.h.HelperError):
+            self.argv('onlyoffice', 'same-host', 'docs.example.com', 'prod-1', '-', 'tested')
+        with self.assertRaises(self.h.HelperError):
+            self.argv(*good, '--dry-run')
+
+    def test_existing_install_cannot_be_repointed(self):
+        Path(self.h.OFFICE_SERVICE_CONF).write_text(
+            'DEPLOYMENT_ID=prod-1\nCLIENTSTOR_URL=https://docs.example.com/\n')
+        self.argv('collabora', 'same-host,dedicated', 'docs.example.com', 'prod-1', 'office.example.com', 'tested')
+        for host, dep in (('evil.example.com', 'prod-1'), ('docs.example.com', 'prod-2')):
+            with self.assertRaises(self.h.HelperError):
+                self.argv('collabora', 'same-host', host, dep, '-', 'tested')
+
+    def test_main_refuses_bad_office_setup_before_extracting(self):
+        with mock.patch.object(self.h, 'load_config', return_value=dict(self.CONF)), \
+                mock.patch.object(self.h, 'LOCK_PATH', str(self.tmp / 'lock')), \
+                mock.patch.object(self.h, '_extract_office_installer') as extract, \
+                mock.patch.object(self.h, '_run') as run:
+            rc = self.h.main(['office-setup', 'collabora', 'same-host', 'docs.example.com', 'x;id', '-', 'tested'])
+        self.assertEqual(rc, 1)
+        extract.assert_not_called()
+        run.assert_not_called()
+
+
+SITE = """upstream itdocs_app {
+    server unix:/home/administrator/gunicorn.sock fail_timeout=0;
+}
+
+server {
+    listen 80;
+    location /static/ {
+        alias /home/administrator/static_collected/;
+    }
+    location / {
+        proxy_pass http://itdocs_app;
+    }
+}
+
+# server {
+#     listen 443 ssl http2;
+#     location / {
+# }
+"""
+
+
+class OfficeSiteIncludeTests(SimpleTestCase):
+
+    CONF = {'APP_USER': 'administrator', 'APP_DIR': '/home/administrator'}
+
+    def setUp(self):
+        self.h = load_helper()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        nginx = self.tmp / 'nginx'
+        (nginx / 'sites-available').mkdir(parents=True)
+        (nginx / 'sites-enabled').mkdir()
+        (nginx / 'clientst0r-office').mkdir()
+        self.site = nginx / 'sites-available' / 'itdocs.conf'
+        self.site.write_text(SITE)
+        os.symlink(self.site, nginx / 'sites-enabled' / 'itdocs.conf')
+        other = nginx / 'sites-available' / 'other'
+        other.write_text('server { listen 8080; location / { return 204; } }\n')
+        os.symlink(other, nginx / 'sites-enabled' / 'other')
+        self.h.NGINX_DIR = str(nginx)
+        self.h.NGINX_SITES_ENABLED = str(nginx / 'sites-enabled')
+        self.h.OFFICE_SNIPPET = str(nginx / 'clientst0r-office' / 'same-host.conf')
+        Path(self.h.OFFICE_SNIPPET).write_text('')
+
+    def run_include(self, on, nginx_ok=True):
+        calls = []
+
+        def fake_run(argv, env=None, timeout=600, capture=False):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0 if (nginx_ok or argv[0] != 'nginx') else 1, '', 'emerg')
+        with mock.patch.object(self.h, '_run', side_effect=fake_run):
+            if nginx_ok:
+                self.assertEqual(self.h.cmd_office_site_include(self.CONF, ['on' if on else 'off']), 0)
+            else:
+                with self.assertRaises(self.h.HelperError):
+                    self.h.cmd_office_site_include(self.CONF, ['on' if on else 'off'])
+        return calls
+
+    def test_include_goes_before_the_active_root_location_only(self):
+        calls = self.run_include(True)
+        text = self.site.read_text()
+        self.assertEqual(text.count(f'include {self.h.OFFICE_SNIPPET};'), 1)
+        self.assertIn(f'    include {self.h.OFFICE_SNIPPET};  {self.h.INCLUDE_MARKER}\n    location / {{', text)
+        self.assertIn('#     location / {', text)
+        self.assertEqual(calls, [['nginx', '-t'], ['systemctl', 'reload', 'nginx']])
+        # the other site is not clientst0r's and is left alone
+        self.assertNotIn('include', (Path(self.h.NGINX_DIR) / 'sites-available' / 'other').read_text())
+
+    def test_second_run_changes_nothing_and_off_restores(self):
+        self.run_include(True)
+        self.assertEqual(self.run_include(True), [])
+        self.run_include(False)
+        self.assertEqual(self.site.read_text(), SITE)
+
+    def test_failed_nginx_test_puts_the_site_back(self):
+        calls = self.run_include(True, nginx_ok=False)
+        self.assertEqual(self.site.read_text(), SITE)
+        self.assertEqual(calls, [['nginx', '-t']])
+
+    def test_needs_the_snippet_and_one_app_site(self):
+        os.unlink(self.h.OFFICE_SNIPPET)
+        with self.assertRaises(self.h.HelperError):
+            self.h.cmd_office_site_include(self.CONF, ['on'])
+        Path(self.h.OFFICE_SNIPPET).write_text('')
+        second = Path(self.h.NGINX_DIR) / 'sites-available' / 'copy.conf'
+        second.write_text(SITE)
+        os.symlink(second, Path(self.h.NGINX_SITES_ENABLED) / 'copy.conf')
+        with self.assertRaises(self.h.HelperError):
+            self.h.cmd_office_site_include(self.CONF, ['on'])
+
+    def test_bad_arguments(self):
+        for bad in ([], ['yes'], ['on', 'x']):
+            with self.assertRaises(self.h.HelperError):
+                self.h.cmd_office_site_include(self.CONF, bad)

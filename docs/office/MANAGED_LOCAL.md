@@ -82,6 +82,15 @@ clientst0r (app user) ──unix socket, fixed verbs──▶ clientst0r-office-
 
 ## Setup
 
+**From Settings (servers with the root helper, the default for native installs).** Managed local editor → **Set up this server**: pick the engine and the address layout, accept the same-host warning if you use it, and choose whether releases that are not live-verified yet may be installed. Settings only records the request. Within a minute the scheduler starts `manage.py office_managed --host-setup-run` in its own process, which calls the root helper:
+
+- `clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested` runs `scripts/office/install-editor.sh --mode managed-local` from the signed release tag the root helper itself was installed from (its own mirror, the signature checked again), never from the app directory. TLS is always `upstream` and the app user comes from `/etc/clientst0r/root-helper.conf`. Docker is installed only if absent. Once the office service is configured, its clientst0r host name and deployment id can only be changed from a root shell.
+- For the same-host layout, `clientst0r-root-helper office-site-include on` adds the include line before each active `location / {` in the one enabled Nginx site that serves clientst0r (the one that names the app directory), runs `nginx -t`, puts the file back if that fails, and reloads Nginx. `off` removes the lines it added.
+
+clientst0r's host name is the one the request came in on. The output is shown on the page, and the request and the result are audited. On success managed local editing is turned on; then run Setup checks and Install as below. Other TLS modes (a certificate on this server, certbot) and installs without the root helper use the shell commands below.
+
+**From a shell (any install).**
+
 1. DNS: point the office host name at this server (or at the TLS device in front of it), and have a certificate for it: on this server (`--tls existing-cert`, `--tls certbot`) or on the device in front (`--tls upstream`). Collabora's same-host layout needs no new name or certificate.
 2. As an administrator with sudo, copy the installer and the helper from this release's **signed tag** into a root-owned directory. Never run them from the app directory, which the app user can write. The Managed Local ONLYOFFICE page shows the exact commands for this server:
 
@@ -221,6 +230,8 @@ Both are supported operations; neither loses documents.
 For a host like prod: 4 vCPU, 7 GB RAM (about 4 GB available), no Docker, Nginx on :80 only with `server_name _;` (`/etc/nginx/sites-enabled/itdocs.conf`, proxy to gunicorn, sets `X-Forwarded-Proto`), TLS terminated on an upstream device that clientst0r's host name resolves to. Start with same-host, move to a dedicated name later.
 
 1. **Back up** clientst0r as usual (database and `MEDIA_ROOT`).
+With the root helper (prod has it), steps 2–4 are one click: Managed page → **Set up this server** → Collabora CODE, same host, accept the warning and allow untested releases. Otherwise from a shell:
+
 2. **Copy the installer from the signed tag** (Managed page → Server setup shows the exact commands).
 3. **Preflight, then dry run, then install** (Docker is installed only with `--install-docker`, and an existing Docker is never replaced):
    ```

@@ -27,10 +27,22 @@ Usage (as root, normally via sudo from the app):
     clientst0r-root-helper apt update | upgrade | upgrade-packages PKG...
     clientst0r-root-helper self-update vX.Y.Z
     clientst0r-root-helper apply-system-config
+    clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested
+    clientst0r-root-helper office-site-include on|off
 
 With the managed ONLYOFFICE service configured (/etc/clientst0r/office-service.conf),
 `apt upgrade` and `apt upgrade-packages` leave the container engine alone, and
 self-update also replaces /usr/local/sbin/clientst0r-office-helper.
+
+office-setup runs scripts/office/install-editor.sh --mode managed-local from
+the release this helper was installed from (the signed tag in its own mirror,
+verified again), never from the app directory. Every argument is checked;
+TLS is always `upstream` (ends on a device in front of this server) and the
+app user comes from root-helper.conf. Once the office service is configured,
+its clientst0r host name and deployment id can only change from a root shell.
+office-site-include adds (or removes) the include line for the managed
+editor's same-host snippet in clientst0r's own Nginx site, runs nginx -t and
+puts the previous file back if that fails.
 
 Files (all root-owned, none writable by the app user):
     /etc/clientst0r/root-helper.conf      APP_USER, APP_DIR, SERVICE, REPO_URL
@@ -41,6 +53,7 @@ import fcntl
 import ipaddress
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -61,6 +74,11 @@ HELPER_REPO_PATH = 'deploy/root-helper/clientst0r-root-helper'
 OFFICE_HELPER_PATH = '/usr/local/sbin/clientst0r-office-helper'
 OFFICE_HELPER_REPO_PATH = 'deploy/office-helper/clientst0r-office-helper'
 OFFICE_SERVICE_CONF = '/etc/clientst0r/office-service.conf'
+OFFICE_INSTALLER_DIR = '/var/lib/clientst0r/root-helper/office-installer'
+OFFICE_SNIPPET = '/etc/nginx/clientst0r-office/same-host.conf'
+NGINX_DIR = '/etc/nginx'
+NGINX_SITES_ENABLED = '/etc/nginx/sites-enabled'
+INCLUDE_MARKER = '# clientst0r-root-helper: managed office editor (same-host)'
 OWN_SUDOERS = 'clientst0r-root-helper'
 
 # Tests turn this off so they can run against files they own.
@@ -86,6 +104,10 @@ SERVICE_RE = re.compile(r'^clientst0r-[a-z0-9-]{1,40}\.service$')
 REPO_RE = re.compile(r'^(https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+|file:///[A-Za-z0-9._/-]+)$')
 TAG_RE = re.compile(r'^v(\d{1,4})\.(\d{1,4})\.(\d{1,6})$')
 JAIL_RE = re.compile(r'^[A-Za-z0-9_.-]{1,64}$')
+HOST_RE = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$')
+DEPLOYMENT_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,40}$')
+OFFICE_ENGINES = ('collabora', 'onlyoffice')
+OFFICE_LAYOUTS = ('same-host', 'dedicated', 'same-host,dedicated', 'dedicated,same-host')
 # Debian package names, optionally with an :arch qualifier. Cannot start with
 # '-', so nothing here can be read by apt-get as an option.
 PKG_RE = re.compile(r'^[a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?$')
@@ -319,6 +341,21 @@ def installed_version():
         return ''
 
 
+def _verify_tag(mirror, tag):
+    r = _git(mirror, '-c', 'gpg.format=ssh',
+             '-c', f'gpg.ssh.allowedSignersFile={SIGNERS_PATH}',
+             'verify-tag', tag)
+    if r.returncode != 0:
+        raise HelperError(f'{tag} is not signed by a trusted release key; not installing')
+
+    # The signature covers the tag object, not the ref we fetched it by. Without
+    # this check, a ref named v9.9.9 could point at an older signed tag object
+    # and replay an old helper under a newer version number.
+    r = _git(mirror, 'cat-file', 'tag', tag)
+    if r.returncode != 0 or f'\ntag {tag}\n' not in '\n' + r.stdout:
+        raise HelperError(f'{tag}: the signed tag object is not named {tag}')
+
+
 def self_update(conf, tag):
     if not TAG_RE.match(tag):
         raise HelperError(f'not a release tag: {tag!r}')
@@ -340,18 +377,7 @@ def self_update(conf, tag):
     if r.returncode != 0:
         raise HelperError(f'could not fetch {tag}: {r.stderr.strip()[:300]}')
 
-    r = _git(mirror, '-c', 'gpg.format=ssh',
-             '-c', f'gpg.ssh.allowedSignersFile={SIGNERS_PATH}',
-             'verify-tag', tag)
-    if r.returncode != 0:
-        raise HelperError(f'{tag} is not signed by a trusted release key; not installing')
-
-    # The signature covers the tag object, not the ref we fetched it by. Without
-    # this check, a ref named v9.9.9 could point at an older signed tag object
-    # and replay an old helper under a newer version number.
-    r = _git(mirror, 'cat-file', 'tag', tag)
-    if r.returncode != 0 or f'\ntag {tag}\n' not in '\n' + r.stdout:
-        raise HelperError(f'{tag}: the signed tag object is not named {tag}')
+    _verify_tag(mirror, tag)
 
     r = _git(mirror, 'cat-file', 'blob', f'{tag}:{HELPER_REPO_PATH}')
     if r.returncode != 0:
@@ -390,6 +416,170 @@ def _update_office_helper(mirror, tag):
             return '; office helper unchanged'
     _write_atomic(OFFICE_HELPER_PATH, source, 0o755)
     return '; office helper updated'
+
+
+# ---------------------------------------------------------------------------
+# managed office editor: host setup and clientst0r's Nginx include
+# ---------------------------------------------------------------------------
+
+def _office_conf():
+    conf = {}
+    try:
+        with open(OFFICE_SERVICE_CONF, encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    conf[key.strip()] = value.strip()
+    except FileNotFoundError:
+        return None
+    return conf
+
+
+def office_setup_argv(conf, args, script):
+    """The installer command line for `office-setup`, from checked arguments only."""
+    if len(args) != 6:
+        raise HelperError('office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested')
+    engine, layouts, app_host, deployment, office_host, tested = args
+    if engine not in OFFICE_ENGINES:
+        raise HelperError(f'unknown office engine: {engine!r}')
+    if layouts not in OFFICE_LAYOUTS:
+        raise HelperError(f'unknown layouts: {layouts!r}')
+    if engine == 'onlyoffice' and layouts != 'dedicated':
+        raise HelperError('ONLYOFFICE runs only on a dedicated host name')
+    if not HOST_RE.match(app_host):
+        raise HelperError(f'not a host name: {app_host!r}')
+    if not DEPLOYMENT_RE.match(deployment):
+        raise HelperError(f'not a deployment id: {deployment!r}')
+    if 'dedicated' in layouts.split(','):
+        if not HOST_RE.match(office_host) or office_host == app_host:
+            raise HelperError('the dedicated layout needs its own office host name')
+    elif office_host != '-':
+        raise HelperError('an office host name is only used with the dedicated layout')
+    if tested not in ('tested', 'untested'):
+        raise HelperError('last argument must be tested or untested')
+    existing = _office_conf()
+    if existing is not None:
+        # The app may extend an install, never point it somewhere else.
+        old_host = re.sub(r'^https://|/$', '', existing.get('CLIENTSTOR_URL', ''))
+        if old_host != app_host or existing.get('DEPLOYMENT_ID', '') != deployment:
+            raise HelperError('the office service is already set up for another clientst0r host or '
+                              'deployment id; change that from a root shell')
+    argv = ['/bin/bash', script, '--provider', engine, '--mode', 'managed-local',
+            '--layouts', layouts, '--clientstor-url', f'https://{app_host}/',
+            '--deployment-id', deployment, '--tls', 'upstream',
+            '--app-user', conf['APP_USER'], '--install-docker']
+    if office_host != '-':
+        argv += ['--hostname', office_host]
+    if tested == 'untested':
+        argv.append('--allow-untested-releases')
+    return argv
+
+
+def _extract_office_installer(tag):
+    """scripts/office + deploy/office-helper from the verified tag, into a
+    fresh root-only directory."""
+    mirror = os.path.join(STATE_DIR, 'mirror.git')
+    if not TAG_RE.match(tag or '') or not os.path.isdir(mirror):
+        raise HelperError('the root helper has no verified release to install the office service from; '
+                          'run an update first')
+    _check_trusted_file(SIGNERS_PATH)
+    _verify_tag(mirror, tag)
+    shutil.rmtree(OFFICE_INSTALLER_DIR, ignore_errors=True)
+    os.makedirs(OFFICE_INSTALLER_DIR, mode=0o700)
+    archive = os.path.join(OFFICE_INSTALLER_DIR, 'release.tar')
+    r = _git(mirror, 'archive', '--format=tar', '-o', archive, tag, 'scripts/office', 'deploy/office-helper')
+    if r.returncode != 0:
+        raise HelperError(f'{tag} has no office installer: {r.stderr.strip()[:300]}')
+    r = _run(['tar', '-x', '--no-same-owner', '-f', archive, '-C', OFFICE_INSTALLER_DIR], capture=True)
+    os.unlink(archive)
+    if r.returncode != 0:
+        raise HelperError(f'could not unpack the office installer: {r.stderr.strip()[:300]}')
+    script = os.path.join(OFFICE_INSTALLER_DIR, 'scripts', 'office', 'install-editor.sh')
+    if not os.path.isfile(script):
+        raise HelperError(f'{tag} has no scripts/office/install-editor.sh')
+    return script
+
+
+def cmd_office_setup(conf, args):
+    office_setup_argv(conf, args, '-')          # refuse bad arguments before touching anything
+    tag = installed_version()
+    script = _extract_office_installer(tag)
+    argv = office_setup_argv(conf, args, script)
+    print(f'office-setup from {tag}', flush=True)
+    return _run(argv, env=APT_ENV, timeout=2400).returncode
+
+
+def app_site(conf):
+    """The one enabled Nginx site that serves clientst0r (it names APP_DIR)."""
+    marker = conf['APP_DIR'].rstrip('/') + '/'
+    found = []
+    try:
+        names = sorted(os.listdir(NGINX_SITES_ENABLED))
+    except FileNotFoundError:
+        raise HelperError(f'{NGINX_SITES_ENABLED} is missing')
+    for name in names:
+        real = os.path.realpath(os.path.join(NGINX_SITES_ENABLED, name))
+        if not real.startswith(NGINX_DIR.rstrip('/') + '/') or not os.path.isfile(real):
+            continue
+        with open(real, encoding='utf-8') as f:
+            text = f.read()
+        if INCLUDE_MARKER in text or any(marker in line and not line.lstrip().startswith('#')
+                                         for line in text.splitlines()):
+            found.append(real)
+    if len(found) != 1:
+        raise HelperError(f'expected one enabled Nginx site for clientst0r, found {len(found)}; '
+                          'add the include line by hand')
+    return found[0]
+
+
+LOCATION_ROOT_RE = re.compile(r'^(\s*)location\s+/\s*\{')
+
+
+def site_with_include(text, on):
+    """`text` with the include line before every active `location / {`
+    (on), or with the lines this helper added removed (off)."""
+    lines = [l for l in text.splitlines(keepends=True) if INCLUDE_MARKER not in l]
+    if not on:
+        return ''.join(lines)
+    out, added = [], 0
+    for line in lines:
+        m = LOCATION_ROOT_RE.match(line)
+        if m:
+            out.append(f'{m.group(1)}include {OFFICE_SNIPPET};  {INCLUDE_MARKER}\n')
+            added += 1
+        out.append(line)
+    if not added:
+        raise HelperError('no `location / {` block in the clientst0r site; add the include line by hand')
+    return ''.join(out)
+
+
+def cmd_office_site_include(conf, args):
+    if args not in (['on'], ['off']):
+        raise HelperError('office-site-include on|off')
+    on = args == ['on']
+    if on and not os.path.isfile(OFFICE_SNIPPET):
+        raise HelperError(f'{OFFICE_SNIPPET} is missing; set up the office service first')
+    path = app_site(conf)
+    with open(path, encoding='utf-8') as f:
+        before = f.read()
+    after = site_with_include(before, on)
+    if after == before:
+        print(f'{path}: already {"included" if on else "removed"}')
+        return 0
+    mode = stat.S_IMODE(os.stat(path).st_mode)
+    _write_atomic(path, after, mode)
+    r = _run(['nginx', '-t'], capture=True, timeout=60)
+    if r.returncode != 0:
+        _write_atomic(path, before, mode)
+        raise HelperError(f'nginx -t rejected the change; {path} was put back: {r.stderr.strip()[-300:]}')
+    r = _run(['systemctl', 'reload', 'nginx'], timeout=60)
+    if r.returncode != 0:
+        _write_atomic(path, before, mode)
+        _run(['systemctl', 'reload', 'nginx'], timeout=60)
+        raise HelperError(f'nginx did not reload; {path} was put back')
+    print(f'{path}: include {"added" if on else "removed"}; nginx reloaded')
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -557,6 +747,10 @@ def main(argv):
                 return self_update(conf, args[0])
             if command == 'apply-system-config' and not args:
                 return apply_system_config(conf)
+            if command == 'office-setup':
+                return cmd_office_setup(conf, args)
+            if command == 'office-site-include':
+                return cmd_office_site_include(conf, args)
         raise HelperError(f'unknown command: {command}')
     except HelperError as exc:
         print(f'clientst0r-root-helper: {exc}', file=sys.stderr)

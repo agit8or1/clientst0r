@@ -32,6 +32,8 @@ class Command(BaseCommand):
         g = parser.add_mutually_exclusive_group(required=True)
         g.add_argument('--run-pending', action='store_true')
         g.add_argument('--status', action='store_true')
+        g.add_argument('--host-setup-run', metavar='LEASE',
+                       help='Internal: run the server setup queued in Settings (started by --run-pending).')
         g.add_argument('--queue', choices=[a for a, _ in ManagedOfficeOperation.ACTIONS])
         parser.add_argument('--release', default='')
         parser.add_argument('--engine', default='', choices=['', 'onlyoffice', 'collabora'],
@@ -44,7 +46,15 @@ class Command(BaseCommand):
         parser.add_argument('--user', default='', help='Superuser the operation is recorded for.')
 
     def handle(self, *args, **opts):
+        if opts['host_setup_run']:
+            from office.managed import host_setup
+            ok = host_setup.run(opts['host_setup_run'])
+            self.stdout.write('server setup succeeded' if ok else 'server setup failed or not claimed')
+            return
         if opts['run_pending']:
+            from office.managed import host_setup
+            if host_setup.maybe_start():
+                self.stdout.write('server setup started')
             jobs.maybe_schedule_update()
             result = jobs.run_pending()
             self.stdout.write('no managed operation queued' if result is None

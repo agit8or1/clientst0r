@@ -567,6 +567,21 @@ class ManagedOfficeService(models.Model):
         default=3, help_text='Window start, server local time (0-23).')
     maintenance_hours = models.PositiveSmallIntegerField(default=2, help_text='Window length (1-6).')
 
+    # Host setup from Settings (office.managed.host_setup): Docker, the
+    # Office service helper and its Nginx files, installed by the root
+    # helper's office-setup from the signed release. Requested here, run by
+    # the scheduler in its own process.
+    HOST_SETUP_STATES = [('queued', 'Queued'), ('running', 'Running on the server'),
+                         ('succeeded', 'Succeeded'), ('failed', 'Failed')]
+    host_setup_state = models.CharField(max_length=20, choices=HOST_SETUP_STATES, blank=True)
+    host_setup_request = models.JSONField(default=dict, blank=True)
+    host_setup_output = models.TextField(blank=True)
+    host_setup_requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                                null=True, blank=True, related_name='+')
+    host_setup_requested_at = models.DateTimeField(null=True, blank=True)
+    host_setup_started_at = models.DateTimeField(null=True, blank=True)
+    host_setup_finished_at = models.DateTimeField(null=True, blank=True)
+
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                    null=True, blank=True, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.672] - 2026-11-13
+
+### Added
+- **Set up this server, from Settings.** Managed local editor → *Set up this server* installs what the managed editor needs without a root shell: Docker (only if absent), the Office service helper and its firewall unit, the helper's own Nginx files, and for Collabora's same-host layout the include line in clientst0r's Nginx site. The web request only records the request; the scheduler starts it in its own process within a minute, and the output and the result are shown on the page and audited. Managed local editing is turned on when it succeeds. Not yet run on a real host.
+- Root helper: `office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested` runs `scripts/office/install-editor.sh --mode managed-local` from the signed release tag the root helper was installed from (verified again, never the app directory), with TLS ending upstream and the app user from its own configuration; every argument is checked, and an existing office service cannot be pointed at another clientst0r host or deployment id. `office-site-include on|off` adds or removes the include line before each active `location / {` in the one enabled Nginx site that serves clientst0r, runs `nginx -t`, restores the file if that fails, and reloads Nginx.
+- `manage.py office_managed --host-setup-run` (internal; started by `--run-pending`). A migration adds the setup request, state and output to the managed service.
+
 ## [3.17.671] - 2026-11-13
 
 Managed Local Collabora (CODE), reverse-proxy setup and capacity checks for the managed editor, the live verification harness, and Edit in Microsoft 365. None of this has been run against a real editor container or a real Microsoft 365 tenant yet; every Collabora release in the helper list is still marked untested.
