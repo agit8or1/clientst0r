@@ -197,14 +197,23 @@ class ScheduledReportRecheckTests(TestCase):
         with mock.patch('core.mailer.get_smtp_connection', return_value=conn):
             call_command('run_scheduled_reports', verbosity=0)
 
+    # Reports are MSP tooling, so schedule creators are MSP staff. A creator
+    # who is deactivated, no longer staff, or lost reports_manage_scheduled
+    # pauses the schedule (reports.tests_authz_tech); a creator who still
+    # manages schedules but lost the report type's flag gets a failed run
+    # recorded and nothing sent.
+
+    def _creator(self, username, **flags):
+        user = _staff(username)
+        Membership.objects.create(user=user, organization=self.acme, role=Role.READONLY,
+                                  role_template=_role(f'R {username}', **flags))
+        return user
+
     def test_creator_who_lost_the_permission_gets_nothing_sent(self):
         from django.core import mail
         from reports.models import GeneratedReport
-        user = User.objects.create_user('authz_sched_u', 'u@acme.test', 'pw')
-        m = Membership.objects.create(user=user, organization=self.acme, role=Role.OWNER)
+        user = self._creator('authz_sched_u', reports_manage_scheduled=True, audit_view=False)
         sched = self._schedule('user_activity', user)
-        m.role = Role.READONLY  # no reports_manage_scheduled, no audit_view
-        m.save()
         mail.outbox = []
         self._run()
         gen = GeneratedReport.objects.get(scheduled_report=sched)
@@ -216,13 +225,14 @@ class ScheduledReportRecheckTests(TestCase):
 
     def test_deactivated_creator_stops_the_schedule(self):
         from reports.models import GeneratedReport
-        user = User.objects.create_user('authz_sched_gone', 'g@acme.test', 'pw')
-        Membership.objects.create(user=user, organization=self.acme, role=Role.OWNER)
+        user = self._creator('authz_sched_gone', reports_manage_scheduled=True, assets_view=True)
         sched = self._schedule('asset_summary', user)
         user.is_active = False
         user.save()
         self._run()
-        self.assertEqual(GeneratedReport.objects.get(scheduled_report=sched).status, 'failed')
+        sched.refresh_from_db()
+        self.assertFalse(sched.is_active)
+        self.assertFalse(GeneratedReport.objects.filter(scheduled_report=sched).exists())
 
     def test_ownerless_password_audit_is_refused(self):
         from reports.models import GeneratedReport
@@ -234,11 +244,8 @@ class ScheduledReportRecheckTests(TestCase):
 
     def test_creator_without_vault_view_gets_no_vault_figures(self):
         from reports.models import GeneratedReport
-        user = User.objects.create_user('authz_sched_nv', 'nv@acme.test', 'pw')
-        role = _role('AuthzSchedNoVault', reports_manage_scheduled=True, org_view_members=True,
-                     vault_view=False)
-        Membership.objects.create(user=user, organization=self.acme, role=Role.READONLY,
-                                  role_template=role)
+        user = self._creator('authz_sched_nv', reports_manage_scheduled=True, org_view_members=True,
+                             vault_view=False)
         sched = self._schedule('organization_metrics', user)
         self._run()
         gen = GeneratedReport.objects.get(scheduled_report=sched)
