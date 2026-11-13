@@ -189,11 +189,18 @@ class BuilderViewTests(_Base):
         self.assertEqual(self.item.published_version.number, 1)
 
     def test_customer_users_cannot_reach_builder(self):
+        # Customer portal users are sent to the portal from every staff page
+        # (PortalUserGuardMiddleware); nothing in the builder is reachable.
         c = _login(self.customer)
-        self.assertEqual(c.get('/psa/request-types/').status_code, 404)
-        self.assertEqual(c.get(f'/psa/request-types/{self.item.pk}/').status_code, 404)
+        for url in ('/psa/request-types/', f'/psa/request-types/{self.item.pk}/'):
+            r = c.get(url)
+            self.assertEqual(r.status_code, 302, url)
+            self.assertTrue(r['Location'].startswith('/portal/'), r['Location'])
+        before = ServiceCatalogItem.objects.get(pk=self.item.pk).published_version_id
         r = c.post(f'/psa/request-types/{self.item.pk}/', {'action': 'publish', 'schema_json': '[]'})
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r['Location'].startswith('/portal/'), r['Location'])
+        self.assertEqual(ServiceCatalogItem.objects.get(pk=self.item.pk).published_version_id, before)
 
     def test_starter_install_archive_restore_duplicate(self):
         c = _login(self.admin)
