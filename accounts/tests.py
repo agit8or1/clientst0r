@@ -230,6 +230,10 @@ class QuickActionsEditorTests(TestCase):
         from accounts.models import UserProfile
         from core.quick_actions import resolve_for_user
         from django.contrib.auth.models import User as _U
+        # Ordering and feature flags are under test here; the per-action
+        # permission checks (Phase 67) are covered in
+        # core/tests/test_dashboard_widgets.py.
+        _U.objects.filter(pk=self.user.pk).update(is_superuser=True)
         profile = UserProfile.objects.get(user=self.user)
         profile.quick_actions_config = ['wallboard', 'add_asset']
         profile.save()
@@ -245,6 +249,10 @@ class QuickActionsEditorTests(TestCase):
         from accounts.models import UserProfile
         from core.quick_actions import resolve_for_user
         from django.contrib.auth.models import User as _U
+        # Ordering and feature flags are under test here; the per-action
+        # permission checks (Phase 67) are covered in
+        # core/tests/test_dashboard_widgets.py.
+        _U.objects.filter(pk=self.user.pk).update(is_superuser=True)
         profile = UserProfile.objects.get(user=self.user)
         profile.quick_actions_config = ['new_ticket', 'add_asset']
         profile.save()
