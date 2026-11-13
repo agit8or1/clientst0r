@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-2">
-    <h2 class="mb-0"><i class="fas fa-tachometer-alt"></i> Dashboard{% if current_organization %}: {{ current_organization.name }}{% endif %}</h2>
+    <h3 class="mb-0"><i class="fas fa-tachometer-alt"></i> Dashboard{% if current_organization %}: {{ current_organization.name }}{% endif %}</h3>
     {% if psa_enabled %}
     <a href="{% url 'psa:my_work' %}" class="btn btn-primary btn-sm"><i class="fas fa-user-check"></i> My Work</a>
     {% endif %}
@@ -22,11 +22,11 @@
 {% endif %}
 
 <!-- Stats Cards -->
-<div class="row g-2 mb-3">
+<div class="row g-2 mb-2">
     <div class="col-md-3">
         <a href="{% url 'vault:password_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View all passwords in the vault">
             <div class="card bg-primary text-white h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-1 px-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0">{{ stats.passwords }}</h4>
@@ -41,7 +41,7 @@
     <div class="col-md-3">
         <a href="{% url 'assets:asset_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all assets">
             <div class="card bg-success text-white h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-1 px-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0">{{ stats.assets }}</h4>
@@ -56,7 +56,7 @@
     <div class="col-md-3">
         <a href="{% url 'docs:document_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View documentation and knowledge base">
             <div class="card bg-info text-white h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-1 px-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0">{{ stats.documents }}</h4>
@@ -71,7 +71,7 @@
     <div class="col-md-3">
         <a {% if section_view.monitoring_view %}href="{% url 'monitoring:website_monitor_list' %}" {% endif %}class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View website and service monitors">
             <div class="card bg-warning text-dark h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-1 px-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0">{{ stats.monitors }}</h4>
@@ -89,7 +89,7 @@
     <div class="col-md-3">
         <a href="{% url 'integrations:psa_companies' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View synced PSA companies">
             <div class="card bg-secondary text-white h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-1 px-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0">{{ stats.psa_companies }}</h4>
@@ -108,7 +108,7 @@
     <div class="col-md-3">
         <a href="{% url 'integrations:psa_tickets' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View active PSA tickets">
             <div class="card bg-danger text-white h-100 hover-scale" style="cursor: pointer; transition: transform 0.2s;">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-1 px-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0">{{ stats.psa_tickets }}</h4>
@@ -216,7 +216,7 @@
             <div class="card-header py-1">
                 <h6 class="mb-0 small"><i class="fas fa-globe"></i> Monitors</h6>
             </div>
-            <div class="card-body py-2 px-3">
+            <div class="card-body py-1 px-3">
                 <div class="d-flex justify-content-between mb-2">
                     <span><i class="fas fa-check-circle text-success"></i> Active</span>
                     <strong>{{ monitors_active }}</strong>
@@ -243,7 +243,7 @@
 
 
 <!-- Location Map -->
-<div class="card mb-3">
+<div class="card mb-2">
     <div class="card-header py-1 d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="fas fa-map-marked-alt"></i> Location map</h6>
         <div>
@@ -264,7 +264,7 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <div id="location-map" style="height: 260px; width: 100%; position: relative; z-index: 1; cursor: grab;"></div>
+        <div id="location-map" style="height: 210px; width: 100%; position: relative; z-index: 1; cursor: grab;"></div>
         <div id="map-message" class="text-center py-5 text-muted" style="display: none;">
             <i class="fas fa-map-marker-alt fa-2x mb-2"></i><br>
             <span id="map-message-text">Loading map...</span>
@@ -295,20 +295,45 @@
 document.addEventListener('DOMContentLoaded', function() {
     const mapDiv = document.getElementById('location-map');
 
-    // v3.17.559 — the map now sits below the working panels at 260px with an
-    // explicit expand. Leaflet caches container size, so every height change
-    // has to be followed by invalidateSize() or the tiles render into the old
-    // box and the view drifts off-centre.
-    const mapSizeBtn = document.getElementById('toggle-map-size');
-    if (mapSizeBtn && mapDiv) {
-        mapSizeBtn.addEventListener('click', function () {
-            const expanded = mapDiv.style.height === '560px';
-            mapDiv.style.height = expanded ? '260px' : '560px';
-            document.getElementById('map-size-text').textContent = expanded ? 'Expand' : 'Collapse';
+    // v3.17.559 — the map sits below the working panels with an explicit
+    // expand. v3.17.673: collapsed, it takes the height left in the window
+    // (160–420px) so the dashboard fits without scrolling. Leaflet caches
+    // container size, so every height change has to be followed by
+    // invalidateSize() or the tiles render into the old box and the view
+    // drifts off-centre.
+    const MAP_MIN = 160, MAP_MAX = 420, MAP_EXPANDED = 560;
+    let mapExpanded = false;
+    function fitMap() {
+        if (!mapDiv) return;
+        let h = MAP_EXPANDED;
+        if (!mapExpanded) {
+            // Room = window height less everything above the map and the
+            // card edge and footer below it.
+            const rect = mapDiv.getBoundingClientRect();
+            const footer = document.querySelector('.app-main footer') || document.querySelector('footer');
+            const below = footer ? footer.getBoundingClientRect().bottom - rect.bottom : 0;
+            h = Math.max(MAP_MIN, Math.min(MAP_MAX, window.innerHeight - (rect.top + window.scrollY) - below));
+        }
+        if (mapDiv.style.height !== h + 'px') {
+            mapDiv.style.height = h + 'px';
             const m = window.__dashboardMap;
             if (m && m.invalidateSize) {
                 setTimeout(function () { m.invalidateSize(); }, 210);
             }
+        }
+    }
+    fitMap();
+    let fitTimer = null;
+    window.addEventListener('resize', function () {
+        clearTimeout(fitTimer);
+        fitTimer = setTimeout(fitMap, 150);
+    });
+    const mapSizeBtn = document.getElementById('toggle-map-size');
+    if (mapSizeBtn && mapDiv) {
+        mapSizeBtn.addEventListener('click', function () {
+            mapExpanded = !mapExpanded;
+            document.getElementById('map-size-text').textContent = mapExpanded ? 'Collapse' : 'Expand';
+            fitMap();
         });
     }
     const messageDiv = document.getElementById('map-message');

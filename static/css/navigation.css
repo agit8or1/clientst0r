@@ -173,7 +173,8 @@
         width: 15.5rem;
         position: sticky;
         top: 0;
-        height: 100vh;
+        /* app_nav.js: the window height less the visible part of the top bar */
+        height: var(--app-nav-h, 100vh);
         align-self: flex-start;
     }
     .app-nav-backdrop { display: none; }

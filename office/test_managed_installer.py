@@ -116,12 +116,24 @@ class ManagedInstallerTests(SimpleTestCase):
         self.assertFalse((self.root / 'etc/clientst0r/office-service.conf').exists())
         self.assertNotIn('apt-get', self.calls())
 
+    def system_bin_without(self, *names):
+        """/usr/bin and /bin as symlinks, minus `names`: the host running the
+        tests may have the real program installed."""
+        out = self.tmp / 'sysbin'
+        out.mkdir(exist_ok=True)
+        for d in ('/bin', '/usr/bin'):
+            for entry in os.scandir(d):
+                if entry.name not in names and not (out / entry.name).exists():
+                    (out / entry.name).symlink_to(entry.path)
+        return str(out)
+
     def test_absent_docker_needs_the_flag_and_uses_the_ubuntu_archive(self):
         (self.bin / 'docker').unlink()
-        r = self.run_script(*self.args())
+        env = {'PATH': f'{self.bin}:{self.system_bin_without("docker", "dockerd")}'}
+        r = self.run_script(*self.args(), env=env)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('--install-docker', r.stdout)
-        r = self.run_script(*self.args('--install-docker'))
+        r = self.run_script(*self.args('--install-docker'), env=env)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn('install -y -q --no-install-recommends docker.io docker-compose-v2', self.calls())
 

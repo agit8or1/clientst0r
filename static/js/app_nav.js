@@ -8,6 +8,9 @@
  *    typing in a field, in a contenteditable, or with Ctrl/Alt/Meta held.
  *  - window.appToast(message, kind): visible feedback for actions that used
  *    to fail with only a console message.
+ *  - Sidebar height: the part of the window below the top bar, so a short
+ *    page fits without scrolling (a plain 100vh sidebar under the 71px bar
+ *    made every page at least that much taller than the window).
  *  - Busy state on POST form submit (spinner, aria-busy, double-submit
  *    guard); a form or button with data-no-busy opts out.
  *
@@ -385,4 +388,22 @@
     }
     // Back/forward cache: a restored page must not keep disabled buttons.
     window.addEventListener('pageshow', function (e) { if (e.persisted) clearBusy(); });
+
+    // ------------------------------------------------------ sidebar height
+    var nav = doc.getElementById('appNav');
+    var topBar = doc.querySelector('body > nav.navbar, nav.navbar');
+    if (nav && topBar) {
+        var queued = false;
+        var sizeNav = function () {
+            queued = false;
+            var below = Math.max(0, topBar.getBoundingClientRect().bottom);
+            doc.documentElement.style.setProperty('--app-nav-h', (window.innerHeight - below) + 'px');
+        };
+        var queue = function () {
+            if (!queued) { queued = true; window.requestAnimationFrame(sizeNav); }
+        };
+        sizeNav();
+        window.addEventListener('scroll', queue, { passive: true });
+        window.addEventListener('resize', queue);
+    }
 })();

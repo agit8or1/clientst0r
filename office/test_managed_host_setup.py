@@ -110,17 +110,12 @@ class HostSetupRunTests(TestCase):
         host_setup.request_setup(self.su, allow_untested=True, **fields)
 
     def start(self):
-        with mock.patch('subprocess.Popen') as popen:
-            lease = host_setup.maybe_start()
-        return lease, popen
+        return host_setup.maybe_start(), None
 
-    def test_scheduler_starts_it_once_in_its_own_process(self):
+    def test_scheduler_claims_it_once(self):
         self.queue()
-        lease, popen = self.start()
+        lease, _ = self.start()
         self.assertTrue(lease)
-        argv = popen.call_args.args[0]
-        self.assertEqual(argv[-3:], ['office_managed', '--host-setup-run', lease])
-        self.assertTrue(popen.call_args.kwargs['start_new_session'])
         self.assertEqual(ManagedOfficeService.get().host_setup_state, 'running')
         self.assertIsNone(self.start()[0])
 
@@ -172,9 +167,17 @@ class HostSetupRunTests(TestCase):
         self.assertIsNone(host_setup.maybe_start())
         self.assertEqual(ManagedOfficeService.get().host_setup_state, 'failed')
 
-    def test_run_pending_command_starts_it(self):
+    def test_run_pending_command_runs_it_to_the_end(self):
+        # The scheduler is a systemd oneshot service that stops everything it
+        # started when its run ends, so the setup runs in its own process.
         self.queue()
-        with mock.patch('subprocess.Popen'), mock.patch('office.managed.jobs.run_pending', return_value=None), \
+        with mock.patch('subprocess.Popen') as popen, \
+                mock.patch('core.root_helper.run', side_effect=[done(out='installed'), done(out='included')]), \
+                mock.patch('office.managed.jobs.run_pending', return_value=None), \
                 mock.patch('office.managed.jobs.maybe_schedule_update'):
             call_command('office_managed', run_pending=True, stdout=open('/dev/null', 'w'))
-        self.assertEqual(ManagedOfficeService.get().host_setup_state, 'running')
+        popen.assert_not_called()
+        s = ManagedOfficeService.get()
+        self.assertEqual(s.host_setup_state, 'succeeded')
+        self.assertIn('included', s.host_setup_output)
+        self.assertIsNone(host_setup.run_queued())

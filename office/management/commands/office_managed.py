@@ -53,8 +53,9 @@ class Command(BaseCommand):
             return
         if opts['run_pending']:
             from office.managed import host_setup
-            if host_setup.maybe_start():
-                self.stdout.write('server setup started')
+            setup = host_setup.run_queued()
+            if setup is not None:
+                self.stdout.write('server setup succeeded' if setup else 'server setup failed')
             jobs.maybe_schedule_update()
             result = jobs.run_pending()
             self.stdout.write('no managed operation queued' if result is None

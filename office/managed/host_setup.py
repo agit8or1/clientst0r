@@ -9,18 +9,18 @@ app directory, and checks every argument again.
 
 A deployment administrator requests the setup on the Managed page. The web
 process only records the request; the scheduler's ``office_managed
---run-pending`` starts ``office_managed --host-setup-run`` in its own
-process, which calls the root helper and stores the output here.
+--run-pending`` claims it and runs it to the end in that same process,
+which calls the root helper and stores the output here. (The scheduler is
+a systemd oneshot service: anything it started in the background would be
+stopped with it when its run ends.) ``office_managed --host-setup-run
+LEASE`` runs a claimed setup by hand.
 """
 from __future__ import annotations
 
-import os
 import re
 import subprocess
-import sys
 import uuid
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -111,8 +111,9 @@ def helper_args(data):
 
 
 def maybe_start():
-    """Called by the scheduler. Starts a queued setup in its own process and
-    fails one whose process has not reported for an hour."""
+    """Called by the scheduler. Claims a queued setup and returns its lease
+    (the caller then runs it), and fails one that has not reported for an
+    hour."""
     now = timezone.now()
     service = ManagedOfficeService.get()
     if service.host_setup_state == 'running' and service.host_setup_started_at \
@@ -128,18 +129,13 @@ def maybe_start():
     claimed = ManagedOfficeService.objects.filter(pk=1, host_setup_state='queued').update(
         host_setup_state='running', host_setup_started_at=now,
         host_setup_request={**service.host_setup_request, 'lease': lease})
-    if not claimed:
-        return None
-    try:
-        subprocess.Popen(
-            [sys.executable, os.path.join(settings.BASE_DIR, 'manage.py'), 'office_managed',
-             '--host-setup-run', lease],
-            cwd=settings.BASE_DIR, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, start_new_session=True)
-    except OSError as e:
-        _finish(False, f'Could not start the setup process: {e}')
-        return None
-    return lease
+    return lease if claimed else None
+
+
+def run_queued():
+    """Claim a queued setup and run it here; None when nothing was queued."""
+    lease = maybe_start()
+    return run(lease) if lease else None
 
 
 def _finish(ok, output):

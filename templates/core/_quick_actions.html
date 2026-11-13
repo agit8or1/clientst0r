@@ -10,14 +10,18 @@
     justify-content: center;
     text-align: center;
     text-decoration: none;
-    padding: 14px 8px;
+    padding: 8px 6px;
     border-radius: 9px;
     border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.125));
     background-color: var(--surface, var(--bs-body-bg, #fff));
     color: var(--bs-body-color, #212529);
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
     height: 100%;
-    min-height: 76px;
+    min-height: 58px;
+}
+/* Bootstrap stops at row-cols-6; up to eight shortcuts fit one row on wide screens. */
+@media (min-width: 1200px) {
+    .quick-actions-row > .col { flex: 0 0 auto; width: 12.5%; }
 }
 .quick-action-tile:hover,
 .quick-action-tile:focus {
@@ -28,9 +32,9 @@
     text-decoration: none;
 }
 .quick-action-tile .qa-icon {
-    font-size: 24px;
+    font-size: 20px;
     line-height: 1;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     color: var(--primary-color, var(--bs-primary, #0d6efd));
 }
 .quick-action-tile .qa-label {
@@ -50,7 +54,7 @@
 }
 </style>
 
-<div class="card mb-3 quick-actions-card">
+<div class="card mb-2 quick-actions-card">
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
         <div>
             <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
@@ -64,7 +68,7 @@
     </div>
     <div class="card-body py-2">
         {% if resolved_quick_actions %}
-        <div class="row row-cols-3 row-cols-md-5 row-cols-lg-8 g-2">
+        <div class="row row-cols-3 row-cols-md-5 row-cols-lg-6 g-2 quick-actions-row">
             {% for a in resolved_quick_actions %}
             <div class="col">
                 <a href="{{ a.url }}" class="quick-action-tile"
