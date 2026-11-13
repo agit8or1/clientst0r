@@ -8,9 +8,10 @@
 #
 #   install-editor.sh --provider onlyoffice|collabora-code|collabora-online
 #                     --mode same-server|separate-server
-#   install-editor.sh --mode managed-local ...  (ONLYOFFICE in a pinned Docker
-#                     container on the clientst0r server, run by clientst0r:
-#                     see install-managed-local.sh --help)
+#   install-editor.sh --mode managed-local ...  (ONLYOFFICE or Collabora in a
+#                     pinned Docker container, or Collabora from its own
+#                     packages with --runtime native, on the clientst0r
+#                     server, run by clientst0r: see install-managed-local.sh)
 #                     --hostname editor.example.com
 #                     --clientstor-url https://clientstor.example.com
 #                     [--clientstor-ip 192.0.2.10] [--ca-file /path/ca.pem]

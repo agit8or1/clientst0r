@@ -1,0 +1,24 @@
+# One package/configuration step for the native (no Docker) Collabora runtime
+# (COLLABORA_RUNTIME=native, docs/office/MANAGED_LOCAL.md "Native runtime").
+#
+# Started only by clientst0r-office-helper (as root, `systemctl start`), never
+# by the app: the app user cannot start system units. It runs outside the
+# helper's sandbox because apt writes /usr, /etc, /opt and /var/lib/dpkg. It
+# takes no arguments: it reads one request (an action from a fixed list and a
+# release id from the helper's compiled NATIVE_RELEASES) from the root-only
+# /var/lib/clientst0r-office/state/, deletes it, validates it again, runs it
+# and writes the result next to it.
+[Unit]
+Description=clientst0r Office native editor package step
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/clientst0r/office-service.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/clientst0r-office-helper native-run
+User=root
+UMask=0022
+TimeoutStartSec=1h
+PrivateTmp=yes
+ProtectHome=yes

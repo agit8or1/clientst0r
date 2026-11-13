@@ -2468,6 +2468,16 @@ Microsoft 365 and Google Docs 1–2 weeks each.
   drop-in, health compared through the port and the socket, automatic rollback), so the same-host
   editor locations can be added without any change to DNS or the device in front. Server setup
   runs it first when it is needed.
+- **62.15 Native Collabora runtime (no Docker)** *(built, unreleased — not yet run on a real host)* —
+  the managed Collabora editor can run from Collabora's own packages instead of a container,
+  chosen at setup (Settings → Set up this server, or `--runtime native`). The installer adds
+  Collabora's CODE apt repository with its signing key pinned by fingerprint; Install puts the
+  exact `coolwsd` and `code-brand` versions from the helper's release list in place, pins and
+  holds them, and runs the package's systemd service on a loopback port with memory and CPU
+  limits, the same editor settings as the container, a root-kept proof key and an nftables
+  rule that lets the editor's own user reach only clientst0r over HTTPS. Start, stop, update,
+  roll back, uninstall, logs, setup checks, layouts and engine switching work for both
+  runtimes. ONLYOFFICE keeps running in Docker.
 ## Phase 63 — RMM integration and technician workspace **(XL · RMM)** [in progress]
 
 One place for a technician to see a customer's devices, alerts and tickets,

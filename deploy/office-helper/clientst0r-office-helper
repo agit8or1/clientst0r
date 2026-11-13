@@ -59,14 +59,32 @@ Operations over the socket (the app's vocabulary, nothing else):
                          layout serves (from the root config). nginx -t, then
                          reload; restored on any failure
     proxy-remove         remove this helper's Nginx files (nginx -t, reload)
-    callback-check       from inside the container: can the editor reach
-                         clientst0r over verified HTTPS (the callback path)?
+    callback-check       from inside the container (native runtime: from this
+                         host as the editor's own "cool" user, through the same
+                         firewall rule): can the editor reach clientst0r over
+                         verified HTTPS (the callback path)?
+
+Runtimes (Collabora only; root config COLLABORA_RUNTIME=docker|native):
+
+    docker   the official image, pinned by digest, in a Compose project
+    native   Collabora's own packages (coolwsd + code-brand) from Collabora's
+             CODE apt repository, pinned to an exact version from
+             NATIVE_RELEASES and held, run as the package's systemd unit
+             coolwsd.service with this helper's drop-in (loopback port,
+             memory/CPU limits, hardening). Package installs and the files
+             under /etc that the native runtime needs are written by one
+             fixed unprivileged-input step, clientst0r-office-native.service
+             (`clientst0r-office-helper native-run`), which reads a request
+             (action + release id from the compiled list) from the root-only
+             state directory; this sandboxed helper cannot write /etc or /usr.
 
 Administrator-only, from a root shell (never over the socket):
 
     clientst0r-office-helper cli <operation> [...]   any of the above
     clientst0r-office-helper cli purge --confirm <DEPLOYMENT_ID>
     clientst0r-office-helper cli apply-firewall      (also run at boot)
+    clientst0r-office-helper native-run              (only from
+                                          clientst0r-office-native.service)
 
 Files:
     /etc/clientst0r/office-service.conf   root-owned settings (see the
@@ -101,7 +119,7 @@ import tarfile
 import time
 import urllib.request
 
-HELPER_VERSION = '2'
+HELPER_VERSION = '3'   # 3: native Collabora runtime
 
 # ---------------------------------------------------------------------------
 # Tested release list. The ONLY images this helper will ever run.
@@ -154,7 +172,37 @@ COLLABORA_RELEASES = [
      'digest': 'sha256:95f29f1c0a1778999125f53f058d968fe0afb37c95e32ebfb9f3444140faebd2',
      'compat': 'code-26.04', 'tested': False, 'published': '2026-11-07', 'engine': 'collabora'},
 ]
-ALL_RELEASES = RELEASES + COLLABORA_RELEASES
+for _r in RELEASES + COLLABORA_RELEASES:
+    _r['runtime'] = 'docker'
+
+# Collabora CODE as native packages (COLLABORA_RUNTIME=native), from
+# Collabora's CODE repository https://www.collaboraoffice.com/repos/
+# CollaboraOnline/CODE-deb (deb822 "Suites: ./"), signed with the key
+# 7EB1530818B7683284483B7BD8915E456E7C440E ("Collabora Productivity (Release
+# Package Signing Key)"), which the installer places in /etc/apt/keyrings
+# and names with Signed-By. Versions read 2026-11-13 from that repository's
+# Packages index (InRelease signature checked with the key above; both
+# coolwsd versions are still listed there). apt verifies each .deb against
+# the signed index; the amd64 sha256 of coolwsd 26.04.6.1-1 was checked by
+# hand against the index (08a470c6...a0aa). code-brand only depends on
+# "coolwsd (>= 1.6.10)": the pairing below is clientst0r's choice (the
+# newest brand of the same branch). The collaboraoffice* packages coolwsd
+# depends on (">= 26.04.x") are installed by apt as dependencies and held
+# with it. Untested: no native release has been run on a real host yet.
+NATIVE_PACKAGES = ('coolwsd', 'code-brand')
+NATIVE_RELEASES = [
+    {'id': '26.04.5.2-1-code-deb', 'version': '26.04.5.2.1', 'edition': 'code',
+     'packages': {'coolwsd': '26.04.5.2-1', 'code-brand': '26.04.5-3'},
+     'compat': 'code-26.04', 'tested': False, 'published': '2026-10-23'},
+    {'id': '26.04.6.1-1-code-deb', 'version': '26.04.6.1.1', 'edition': 'code',
+     'packages': {'coolwsd': '26.04.6.1-1', 'code-brand': '26.04.6-1'},
+     'compat': 'code-26.04', 'tested': False, 'published': '2026-11-07'},
+]
+for _r in NATIVE_RELEASES:
+    _r.update(engine='collabora', runtime='native', image='', digest='')
+
+ALL_RELEASES = RELEASES + COLLABORA_RELEASES + NATIVE_RELEASES
+RUNTIMES = ('docker', 'native')
 
 # Resource figures (docs/office/MANAGED_LOCAL.md, "Vendor facts"):
 # ONLYOFFICE: Docker image README "Recommended System Requirements": RAM 4 GB
@@ -212,6 +260,33 @@ HISTORY_FILE = STATE_DIR + '/history.jsonl'
 BACKUP_DIR = BASE_DIR + '/backups'
 RUN_DIR = '/run/clientst0r-office'
 LOCK_FILE = RUN_DIR + '/operation.lock'
+
+# Native Collabora runtime (COLLABORA_RUNTIME=native). The helper itself only
+# reads these; clientst0r-office-native.service writes them.
+NATIVE_UNIT = 'coolwsd.service'
+NATIVE_RUNNER_UNIT = 'clientst0r-office-native.service'
+NATIVE_REQUEST = STATE_DIR + '/native-request.json'
+NATIVE_RESULT = STATE_DIR + '/native-result.json'
+NATIVE_TARGETS = STATE_DIR + '/native-targets.json'
+COOL_USER = 'cool'                      # created by the coolwsd package (adduser --system)
+COOL_XML = '/etc/coolwsd/coolwsd.xml'
+COOL_ETC_PROOF_KEY = '/etc/coolwsd/proof_key'
+COOL_DROPIN_DIR = '/etc/systemd/system/coolwsd.service.d'
+COOL_DROPIN = COOL_DROPIN_DIR + '/clientst0r-office.conf'
+APT_SOURCE = '/etc/apt/sources.list.d/clientst0r-office-managed-collabora.sources'
+APT_KEYRING = '/etc/apt/keyrings/clientst0r-office-managed-collabora.gpg'
+APT_PREF = '/etc/apt/preferences.d/clientst0r-office-managed-collabora'
+COOL_REPO_ORIGIN = 'www.collaboraoffice.com'
+# The package's own ExecStart (coolwsd.service in coolwsd 26.04.5/26.04.6,
+# read from the .deb). The drop-in repeats it and adds the loopback port and
+# the TLS-termination options, so even the package's first start (before
+# coolwsd.xml is edited) listens on 127.0.0.1 only.
+COOL_EXEC = ['/usr/bin/coolwsd', '--version', '--o:sys_template_path=/opt/cool/systemplate',
+             '--o:child_root_path=/opt/cool/child-roots', '--o:file_server_root_path=/usr/share/coolwsd',
+             '--o:cache_files.path=/opt/cool/cache']
+NATIVE_ACTIONS = ('check', 'install', 'configure', 'remove')
+NATIVE_VERSION_RE = re.compile(r'^[0-9][0-9A-Za-z.+~]{0,40}-[0-9A-Za-z.+~]{1,20}$')
+COLLABORAOFFICE_PKG_RE = re.compile(r'^collaboraoffice[a-z0-9.+-]{0,60}$')
 
 # Nginx files this helper owns. Nothing else under /etc/nginx is ever written.
 NGINX_AVAILABLE = '/etc/nginx/sites-available'
@@ -281,7 +356,7 @@ CLI_ONLY_OPS = ('purge', 'apply-firewall')
 ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]{2,31}$')
 USER_RE = re.compile(r'^[a-z_][a-z0-9_-]{0,31}$')
 HOST_RE = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$')
-RELEASE_RE = re.compile(r'^[0-9]{1,3}(\.[0-9]{1,3}){2,4}-(community|enterprise|code)$')
+RELEASE_RE = re.compile(r'^[0-9]{1,3}(\.[0-9]{1,3}){2,4}(-[0-9]{1,3})?-(community|enterprise|code|code-deb)$')
 DIGEST_RE = re.compile(r'^sha256:[0-9a-f]{64}$')
 IMAGE_RE = re.compile(r'^docker\.io/onlyoffice/documentserver(-ee)?$')
 # Certificate paths from the root config: absolute, plain characters, inside
@@ -440,7 +515,9 @@ KNOWN_KEYS = {'DEPLOYMENT_ID', 'APP_USER', 'OFFICE_HOSTNAME', 'CLIENTSTOR_URL', 
               # engines + reverse proxy (Managed Local Collabora, helper version 2)
               'ENGINES', 'COLLABORA_BIND_PORT', 'COLLABORA_CPUS', 'COLLABORA_MEMORY_MB',
               'PROXY_LAYOUTS', 'PROXY_TLS', 'PROXY_CERT_FILE', 'PROXY_KEY_FILE',
-              'PROXY_MAX_BODY_MB', 'CALLBACK_ROUTE', 'CALLBACK_UPSTREAM_IP'}
+              'PROXY_MAX_BODY_MB', 'CALLBACK_ROUTE', 'CALLBACK_UPSTREAM_IP',
+              # native (no Docker) Collabora runtime
+              'COLLABORA_RUNTIME'}
 
 
 def _csv(raw, key, allowed, default):
@@ -553,6 +630,9 @@ def validate_config(raw):
             COOL_MIN_MEMORY_MB, 'clientst0r\'s floor for CODE')
     else:
         c['cool_memory_mb'], c['cool_cpus'] = 0, 0.0
+    c['cool_runtime'] = raw.get('COLLABORA_RUNTIME', 'docker')
+    if c['cool_runtime'] not in RUNTIMES:
+        raise HelperError(f'{CONF_PATH}: COLLABORA_RUNTIME must be docker or native')
 
     try:
         net = ipaddress.ip_network(raw.get('NETWORK_SUBNET', '172.31.250.0/28'), strict=True)
@@ -623,6 +703,22 @@ def validate_config(raw):
     return c
 
 
+def engine_runtime(conf, engine):
+    """The runtime the root config chooses for `engine` (for a new install).
+    ONLYOFFICE always runs in Docker."""
+    return conf.get('cool_runtime', 'docker') if engine == 'collabora' else 'docker'
+
+
+def current_runtime(conf, engine):
+    """The runtime `engine` runs with now: the installed record's when that
+    engine is installed, else the root config's."""
+    inst = installed()
+    if inst.get('release') and inst.get('state') != 'uninstalled' \
+            and (inst.get('engine') or 'onlyoffice') == engine:
+        return inst.get('runtime') or 'docker'
+    return engine_runtime(conf, engine)
+
+
 def engine_limits(conf, engine):
     if engine == 'collabora':
         return conf['cool_memory_mb'], conf['cool_cpus'], conf['cool_bind_port']
@@ -678,6 +774,8 @@ def public_config(c):
     out['engine_layouts'] = {e: [x for x in c['layouts'] if x in ENGINES[e]['layouts']]
                              for e in c['engines']}
     out['engine_memory_mb'], out['engine_cpus'], _port = engine_limits(c, addr['engine'])
+    out['collabora_runtime'] = c['cool_runtime']
+    out['runtime'] = current_runtime(c, addr['engine'])
     return out
 
 
@@ -700,12 +798,22 @@ def release_problem(r, conf):
     if r is None:
         return 'not in the tested release list'
     engine = r.get('engine', 'onlyoffice')
-    if not DIGEST_RE.match(r['digest']) or r['digest'] == PLACEHOLDER_DIGEST:
-        return 'has no pinned image digest (placeholder); this release cannot be installed'
-    if not re.match(ENGINES[engine]['image_re'], r['image']):
-        return 'names an image outside the official repositories'
+    runtime = r.get('runtime', 'docker')
+    if runtime == 'docker':
+        if not DIGEST_RE.match(r['digest']) or r['digest'] == PLACEHOLDER_DIGEST:
+            return 'has no pinned image digest (placeholder); this release cannot be installed'
+        if not re.match(ENGINES[engine]['image_re'], r['image']):
+            return 'names an image outside the official repositories'
+    else:
+        pk = r.get('packages') or {}
+        if engine != 'collabora' or set(pk) != set(NATIVE_PACKAGES) \
+                or not all(NATIVE_VERSION_RE.match(v) for v in pk.values()):
+            return 'has no pinned package versions; this release cannot be installed'
     if engine not in conf.get('engines', ('onlyoffice',)):
         return f'is a {ENGINES[engine]["label"]} release; ENGINES does not list {engine}'
+    if runtime != engine_runtime(conf, engine):
+        return (f'is for the {runtime} runtime; this server runs {ENGINES[engine]["label"]} with '
+                f'COLLABORA_RUNTIME={engine_runtime(conf, engine)}')
     if r['edition'] != engine_edition(conf, engine):
         return f'is the {r["edition"]} edition; this deployment is configured for {conf["edition"]}'
     if not r['tested'] and not conf['allow_untested']:
@@ -718,13 +826,15 @@ def version_key(r):
     return tuple(int(x) for x in r['version'].split('.'))
 
 
-def engine_releases(engine):
-    return [r for r in ALL_RELEASES if r['engine'] == engine]
+def engine_releases(engine, runtime=None):
+    return [r for r in ALL_RELEASES if r['engine'] == engine
+            and (runtime is None or r['runtime'] == runtime)]
 
 
 def default_release(conf, engine=None):
     engine = engine or active_engine(conf)
-    usable = [r for r in engine_releases(engine) if not release_problem(r, conf)]
+    usable = [r for r in engine_releases(engine, engine_runtime(conf, engine))
+              if not release_problem(r, conf)]
     return max(usable, key=version_key) if usable else None
 
 
@@ -1044,15 +1154,14 @@ def write_compose(conf, r):
 # firewall: the container may reach exactly one destination on 443
 # ---------------------------------------------------------------------------
 
-def render_nft(conf):
+def _docker_chains(conf):
     gw = conf['gateway']
     if conf['callback_route'] == 'upstream':
         # clientst0r's TLS is terminated on a device in front of this host:
         # the container may reach that one address on 443 (forwarded), and
         # nothing on this host itself.
         up = conf['upstream_ip']
-        return f"""table inet {NFT_TABLE} {{
-    chain input {{
+        return f"""    chain input {{
         type filter hook input priority filter - 1; policy accept;
         iifname "{BRIDGE}" ct state established,related accept
         iifname "{BRIDGE}" drop
@@ -1063,10 +1172,8 @@ def render_nft(conf):
         iifname "{BRIDGE}" ip daddr {up} tcp dport 443 accept
         iifname "{BRIDGE}" drop
     }}
-}}
 """
-    return f"""table inet {NFT_TABLE} {{
-    chain input {{
+    return f"""    chain input {{
         type filter hook input priority filter - 1; policy accept;
         iifname "{BRIDGE}" ct state established,related accept
         iifname "{BRIDGE}" ip daddr {gw} tcp dport 443 accept
@@ -1077,8 +1184,107 @@ def render_nft(conf):
         iifname "{BRIDGE}" ct state established,related accept
         iifname "{BRIDGE}" drop
     }}
-}}
 """
+
+
+def cool_ids():
+    """(uid, gid) of the coolwsd package's system user, or None before the
+    package (or the native install step) created it."""
+    if TEST_MODE:
+        v = os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_COOL_UID', '')
+        return (int(v), int(v)) if v.isdigit() else None
+    try:
+        pw = pwd.getpwnam(COOL_USER)
+    except KeyError:
+        return None
+    return pw.pw_uid, pw.pw_gid
+
+
+def _resolv_nameservers():
+    path = P('/etc/resolv.conf') if TEST_MODE else '/etc/resolv.conf'
+    out = []
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2 and parts[0] == 'nameserver':
+                    try:
+                        ip = ipaddress.ip_address(parts[1].split('%')[0])
+                    except ValueError:
+                        continue
+                    if not ip.is_loopback and not ip.is_multicast and not ip.is_unspecified:
+                        out.append(ip)
+    except OSError:
+        pass
+    return out[:3]
+
+
+def native_targets(conf):
+    """Where the native editor may open HTTPS connections: the TLS device in
+    front of this server (CALLBACK_ROUTE=upstream), or what clientst0r's host
+    name resolves to (gateway: this host's own Nginx). The last successful
+    resolution is kept, so a boot without DNS yet keeps the last addresses."""
+    if conf['callback_route'] == 'upstream':
+        return [ipaddress.ip_address(conf['upstream_ip'])]
+    found = []
+    try:
+        for a in socket.getaddrinfo(conf['clientstor_host'], 443, 0, socket.SOCK_STREAM):
+            ip = ipaddress.ip_address(a[4][0].split('%')[0])
+            if ip not in found and not ip.is_multicast and not ip.is_unspecified \
+                    and not ip.is_link_local:
+                found.append(ip)
+    except (OSError, UnicodeError, ValueError):
+        found = []
+    if found:
+        try:
+            write_atomic(P(NATIVE_TARGETS), json.dumps([str(x) for x in found[:8]]), 0o600)
+        except OSError:
+            pass
+        return found[:8]
+    cached = read_json(P(NATIVE_TARGETS), []) or []
+    out = []
+    for x in cached[:8]:
+        try:
+            out.append(ipaddress.ip_address(x))
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+def _native_chain(conf):
+    """Native runtime: the same rule as for the container, by owner instead
+    of by interface. Processes of the "cool" user (coolwsd, its forkit and
+    document processes) may answer connections made to them, look names up
+    (loopback resolver, or the resolv.conf name servers), talk to coolwsd's
+    own loopback port, and open HTTPS to clientst0r (CALLBACK_ROUTE target).
+    Everything else they send is dropped."""
+    ids = cool_ids()
+    if ids is None or conf['cool_runtime'] != 'native' or 'collabora' not in conf['engines']:
+        return ''
+    uid = ids[0]
+    lines = ['    chain output {',
+             '        type filter hook output priority filter - 1; policy accept;',
+             f'        meta skuid {uid} ct state established,related accept',
+             f'        meta skuid {uid} oifname "lo" udp dport 53 accept',
+             f'        meta skuid {uid} oifname "lo" tcp dport 53 accept',
+             f'        meta skuid {uid} oifname "lo" tcp dport {conf["cool_bind_port"]} accept']
+    dns = _resolv_nameservers()
+    for fam, kw in ((4, 'ip'), (6, 'ip6')):
+        servers = [str(x) for x in dns if x.version == fam]
+        if servers:
+            lines += [f'        meta skuid {uid} {kw} daddr {{ {", ".join(servers)} }} udp dport 53 accept',
+                      f'        meta skuid {uid} {kw} daddr {{ {", ".join(servers)} }} tcp dport 53 accept']
+    targets = native_targets(conf)
+    for fam, kw in ((4, 'ip'), (6, 'ip6')):
+        addrs = [str(x) for x in targets if x.version == fam]
+        if addrs:
+            lines.append(f'        meta skuid {uid} {kw} daddr {{ {", ".join(addrs)} }} tcp dport 443 accept')
+    lines += [f'        meta skuid {uid} drop', '    }']
+    return '\n'.join(lines) + '\n'
+
+
+def render_nft(conf):
+    return f'table inet {NFT_TABLE} {{\n' + _docker_chains(conf) + _native_chain(conf) + '}\n'
 
 
 def apply_firewall(conf):
@@ -1099,7 +1305,10 @@ def compose(engine, *args, timeout=600, check=True):
 
 
 def docker_available():
-    r = docker('version', '--format', '{{.Server.Version}}', timeout=20)
+    try:
+        r = docker('version', '--format', '{{.Server.Version}}', timeout=20)
+    except HelperError as e:            # not installed (native-only hosts)
+        return False, '', str(e)
     if r.returncode != 0:
         return False, '', redact(r.stderr.strip())[:300]
     c = docker('compose', 'version', '--short', timeout=20)
@@ -1110,7 +1319,10 @@ def docker_available():
 
 def container_state(engine):
     name = ENGINES[engine]['container']
-    r = docker('inspect', '--type', 'container', '--format', '{{json .}}', name, timeout=30)
+    try:
+        r = docker('inspect', '--type', 'container', '--format', '{{json .}}', name, timeout=30)
+    except HelperError:
+        return {'exists': False, 'name': name}
     if r.returncode != 0:
         return {'exists': False, 'name': name}
     try:
@@ -1252,6 +1464,423 @@ def history(event):
 
 
 # ---------------------------------------------------------------------------
+# native runtime (COLLABORA_RUNTIME=native): Collabora's packages + systemd
+# ---------------------------------------------------------------------------
+
+def native_release(release_id):
+    r = release(release_id)
+    return r if r is not None and r.get('runtime') == 'native' else None
+
+
+def systemd_show(unit, props):
+    r = run(['systemctl', 'show', unit, '--property=' + ','.join(props)], timeout=20)
+    out = {}
+    for line in (r.stdout or '').splitlines():
+        k, sep, v = line.partition('=')
+        if sep and k in props:
+            out[k] = v.strip()
+    return out
+
+
+def dpkg_version(pkg):
+    try:
+        r = run(['dpkg-query', '-W', '-f=${Status}|${Version}', pkg], timeout=20)
+    except HelperError:
+        return ''
+    status, _, version = (r.stdout or '').strip().partition('|')
+    if r.returncode != 0 or not status.endswith(' installed'):
+        return ''
+    return version if NATIVE_VERSION_RE.match(version) else ''
+
+
+def native_state(conf):
+    """The container_state() shape for the native service, so the app reads
+    one format: exists = the coolwsd package is installed."""
+    version = dpkg_version('coolwsd')
+    props = systemd_show(NATIVE_UNIT, ['ActiveState', 'SubState', 'Result', 'NRestarts',
+                                       'ExecMainStartTimestamp', 'UnitFileState'])
+    active = props.get('ActiveState', '')
+    running = bool(version) and active == 'active'
+    inst = installed()
+    rel = native_release(inst.get('release', '')) if inst.get('runtime') == 'native' else None
+    try:
+        restarts = int(props.get('NRestarts') or 0)
+    except ValueError:
+        restarts = 0
+    return {
+        'exists': bool(version),
+        'name': NATIVE_UNIT,
+        'runtime': 'native',
+        'state': ({'active': 'running', 'activating': 'starting', 'deactivating': 'stopping',
+                   'inactive': 'stopped', 'failed': 'failed'}.get(active, active or 'unknown')
+                  if version else 'not installed'),
+        'running': running,
+        'health': ('healthy' if healthcheck_http(conf, 'collabora') else 'unhealthy') if running else 'none',
+        'started_at': props.get('ExecMainStartTimestamp', ''),
+        'restart_count': restarts,
+        'image': f'coolwsd {version}' if version else '',
+        'package_version': version,
+        'release_label': rel['id'] if rel and rel['packages']['coolwsd'] == version else '',
+        'layout_label': '',
+        'oom_killed': props.get('Result') == 'oom-kill',
+        'enabled': props.get('UnitFileState', ''),
+    }
+
+
+def native_resources(conf):
+    props = ['MemoryCurrent', 'TasksCurrent', 'CPUUsageNSec']
+    a = systemd_show(NATIVE_UNIT, props)
+    t0 = time.monotonic()
+    out = {}
+    try:
+        mem = int(a.get('MemoryCurrent', ''))
+        limit = conf['cool_memory_mb'] * 1024 * 1024
+        out['memory'] = f'{mem / 1048576:.0f}MiB / {conf["cool_memory_mb"]}MiB'
+        out['memory_percent'] = f'{100.0 * mem / limit:.1f}%' if limit else ''
+    except ValueError:
+        pass
+    out['pids'] = a.get('TasksCurrent', '')
+    out['cpu_percent'] = ''
+    if not TEST_MODE:
+        time.sleep(0.5)
+        b = systemd_show(NATIVE_UNIT, props)
+        try:
+            used = int(b['CPUUsageNSec']) - int(a['CPUUsageNSec'])
+            out['cpu_percent'] = f'{100.0 * used / ((time.monotonic() - t0) * 1e9):.1f}%'
+        except (KeyError, ValueError, ZeroDivisionError):
+            pass
+    return out
+
+
+def native_wait_healthy(conf, progress, timeout=HEALTH_TIMEOUT):
+    deadline = time.monotonic() + (float(os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_WAIT', 0))
+                                   if TEST_MODE else timeout)
+    while True:
+        st = native_state(conf)
+        if st['running'] and st['health'] == 'healthy':
+            return True
+        if st['state'] == 'failed' or time.monotonic() >= deadline:
+            return False
+        progress(f'waiting for the editor to report healthy (service {st["state"]})')
+        time.sleep(0.05 if TEST_MODE else 5)
+
+
+def native_systemctl(*args, timeout=180, check=True):
+    """systemctl for the native service only: start, stop, enable, disable."""
+    if args[0] not in ('start', 'stop', 'restart', 'enable', 'disable', 'daemon-reload', 'mask',
+                       'unmask', 'is-active'):
+        raise HelperError('internal: systemctl verb not allowed')
+    return run(['systemctl', *args], timeout=timeout, check=check)
+
+
+def native_runner(conf, action, release_id, progress):
+    """Run one package/configuration step in clientst0r-office-native.service
+    (root, outside this helper's sandbox: apt needs /usr, /etc, /var/lib/dpkg
+    and /opt). The request names only an action from NATIVE_ACTIONS and a
+    release id from NATIVE_RELEASES; the step reads everything else from the
+    root config, exactly like this helper."""
+    if action not in NATIVE_ACTIONS or native_release(release_id) is None:
+        raise HelperError('internal: bad native step')
+    req = {'id': secrets.token_hex(8), 'action': action, 'release': release_id, 'at': now_iso()}
+    for path in (NATIVE_RESULT,):
+        if os.path.exists(P(path)):
+            os.unlink(P(path))
+    write_atomic(P(NATIVE_REQUEST), json.dumps(req), 0o600)
+    progress({'check': 'checking that the pinned packages are available (apt-get install -s)',
+              'install': f'installing Collabora packages for {release_id} (apt; pinned and held)',
+              'configure': 'writing coolwsd.xml, the proof key and the systemd drop-in',
+              'remove': 'removing the Collabora packages (configuration and data are kept)'}[action])
+    r = run(['systemctl', 'start', NATIVE_RUNNER_UNIT], timeout=3700)
+    if TEST_MODE:
+        native_run(conf)            # the unit's ExecStart, in-process for the test suite
+    res = read_json(P(NATIVE_RESULT), {}) or {}
+    if res.get('id') != req['id']:
+        raise HelperError(f'the native package step did not report a result ({NATIVE_RUNNER_UNIT}: '
+                          + (redact((r.stderr or '').strip())[-200:] or 'see journalctl -u ' + NATIVE_RUNNER_UNIT) + ')')
+    if not res.get('ok'):
+        raise HelperError(redact(str(res.get('error') or 'the native package step failed'))[:800])
+    return res
+
+
+# --- the step itself (runs as clientst0r-office-native.service) ------------
+
+APT_OPTS = ['-y', '-q', '--no-install-recommends', '-o', 'Dpkg::Options::=--force-confold']
+
+
+def _apt_env():
+    return dict(BASE_ENV, DEBIAN_FRONTEND='noninteractive', DEBCONF_NONINTERACTIVE_SEEN='true')
+
+
+def apt(*args, timeout=3000, check=True):
+    try:
+        r = subprocess.run(['apt-get', *args], env=_apt_env(), timeout=timeout, text=True,
+                           capture_output=True, stdin=subprocess.DEVNULL)
+    except FileNotFoundError:
+        raise HelperError('apt-get is not installed')
+    except subprocess.TimeoutExpired:
+        raise HelperError('apt-get timed out')
+    if check and r.returncode != 0:
+        raise HelperError(f'apt-get {args[0]} failed: {redact((r.stderr or r.stdout).strip())[-500:]}')
+    return r
+
+
+def native_pkg_args(r):
+    return [f'{name}={r["packages"][name]}' for name in NATIVE_PACKAGES]
+
+
+def held_packages():
+    names = list(NATIVE_PACKAGES)
+    r = run(['dpkg-query', '-W', '-f=${Package} ${Status}\\n', 'collaboraoffice*'], timeout=30)
+    for line in (r.stdout or '').splitlines():
+        parts = line.split()
+        if parts and parts[-1] == 'installed' and COLLABORAOFFICE_PKG_RE.match(parts[0]):
+            names.append(parts[0])
+    return names
+
+
+def render_apt_pref(r):
+    """Priority 1001 on the exact versions (apt never picks another one by
+    itself; the packages are also held), and 100 for everything else from
+    Collabora's repository, so it can never replace a distribution package."""
+    lines = ['# Managed by clientst0r-office-helper (native Collabora runtime). Do not edit:',
+             f'# rewritten for each install/update from the release list ({r["id"]}).', '']
+    for name in NATIVE_PACKAGES:
+        lines += [f'Package: {name}', f'Pin: version {r["packages"][name]}', 'Pin-Priority: 1001', '']
+    lines += ['Package: *', f'Pin: origin "{COOL_REPO_ORIGIN}"', 'Pin-Priority: 100', '']
+    return '\n'.join(lines)
+
+
+def render_dropin(conf):
+    """systemd drop-in for the package's coolwsd.service: loopback port and
+    TLS termination on the command line (so even the first start listens on
+    127.0.0.1 only), limits from the root config, and hardening the package's
+    unit does not already set. Not set on purpose: NoNewPrivileges (coolforkit
+    needs its file capabilities to build document jails), PrivateDevices and
+    ProtectClock (they restrict /dev, which the jails bind), SystemCallFilter
+    and RestrictNamespaces (coolforkit-ns uses namespaces)."""
+    port = conf['cool_bind_port']
+    execstart = COOL_EXEC + [f'--port={port}', '--o:net.listen=loopback', '--o:ssl.enable=false',
+                             '--o:ssl.termination=true']
+    return '\n'.join([
+        '# Managed by clientst0r-office-helper (native Collabora runtime). Do not edit:',
+        '# rewritten on every install, update and configuration step from',
+        '# /etc/clientst0r/office-service.conf.',
+        '[Unit]',
+        'After=clientst0r-office-firewall.service',
+        '',
+        '[Service]',
+        'ExecStart=',
+        'ExecStart=' + ' '.join(execstart),
+        f'MemoryMax={conf["cool_memory_mb"]}M',
+        'MemorySwapMax=0',
+        f'CPUQuota={int(round(conf["cool_cpus"] * 100))}%',
+        'TasksMax=2048',
+        'TimeoutStopSec=120',
+        'ProtectKernelModules=yes',
+        'ProtectKernelLogs=yes',
+        'RestrictRealtime=yes',
+        'LockPersonality=yes',
+        'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK',
+        'SyslogIdentifier=coolwsd',
+        '',
+    ])
+
+
+def edit_cool_xml(path, conf, layout):
+    """Set the same options the container gets (cool_options + its env) in
+    coolwsd.xml, with an XML parser (never string concatenation), keeping
+    the file's owner and mode."""
+    import xml.etree.ElementTree as ET
+    host = public_host(conf, layout)
+    if not HOST_RE.match(host or ''):
+        raise HelperError(f'no host name for the {layout} layout (set OFFICE_HOSTNAME)')
+    origin = f'https://{conf["clientstor_host"]}'
+    tree = ET.parse(path, parser=ET.XMLParser(target=ET.TreeBuilder(insert_comments=True)))
+    root = tree.getroot()
+    if root.tag != 'config':
+        raise HelperError(f'{COOL_XML} is not a coolwsd configuration')
+
+    def el(p):
+        node = root
+        for part in p.split('/'):
+            nxt = node.find(part)
+            if nxt is None:
+                nxt = ET.SubElement(node, part)
+            node = nxt
+        return node
+
+    def set_text(p, value):
+        el(p).text = value
+
+    set_text('server_name', host)
+    set_text('net/proto', 'IPv4')
+    set_text('net/listen', 'loopback')
+    set_text('net/content_security_policy', f'frame-ancestors {origin}')
+    set_text('ssl/enable', 'false')
+    set_text('ssl/termination', 'true')
+    groups = el('storage/wopi/alias_groups')
+    groups.set('mode', 'groups')
+    for child in list(groups):
+        if child.tag == 'group':
+            groups.remove(child)
+    group = ET.SubElement(groups, 'group')
+    ET.SubElement(group, 'host', {'allow': 'true'}).text = f'{origin}:443'
+    set_text('admin_console/enable', 'false')
+    set_text('admin_console/username', '')
+    set_text('admin_console/password', '')
+    set_text('security/enable_macros_execution', 'false')
+    set_text('num_prespawn_children', '1')
+    set_text('allow_update_popup', 'false')
+    # journald: stderr only, no colour codes, no trace burst at start-up.
+    set_text('logging/level', 'warning')
+    set_text('logging/level_startup', 'warning')
+    set_text('logging/color', 'false')
+    el('logging/file').set('enable', 'false')
+    st = os.stat(path)
+    tmp = path + f'.clientst0r-{os.getpid()}'
+    tree.write(tmp, encoding='utf-8', xml_declaration=True)
+    os.chmod(tmp, st.st_mode & 0o7777)
+    if not TEST_MODE:
+        os.chown(tmp, st.st_uid, st.st_gid)
+    os.replace(tmp, path)
+
+
+def ensure_proof_key():
+    """The WOPI proof key: generated once here and kept root-only
+    (COOL_PROOF_KEY); coolwsd reads a copy at /etc/coolwsd/proof_key."""
+    os.makedirs(P(COOL_DIR), mode=0o711, exist_ok=True)
+    key = P(COOL_PROOF_KEY)
+    if not os.path.exists(key):
+        tmp = key + '.new'
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        run(['openssl', 'genrsa', '-traditional', '-out', tmp, '2048'], timeout=120, check=True)
+        os.replace(tmp, key)
+    os.chmod(key, 0o400)
+    return key
+
+
+def native_configure(conf):
+    ids = cool_ids()
+    if ids is None:
+        raise HelperError(f'the {COOL_USER} user does not exist (is coolwsd installed?)')
+    xml = P(COOL_XML)
+    if not os.path.isfile(xml):
+        raise HelperError(f'{COOL_XML} is missing (is coolwsd installed?)')
+    edit_cool_xml(xml, conf, current_layout(conf, 'collabora'))
+    with open(ensure_proof_key(), encoding='ascii') as f:
+        key_text = f.read()
+    dest = P(COOL_ETC_PROOF_KEY)
+    tmp = dest + '.clientst0r'
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o400)
+    with os.fdopen(fd, 'w', encoding='ascii') as f:
+        f.write(key_text)
+    os.chmod(tmp, 0o400)
+    if not TEST_MODE:
+        os.chown(tmp, ids[0], ids[1])
+    os.replace(tmp, dest)
+    os.makedirs(P(COOL_DROPIN_DIR), mode=0o755, exist_ok=True)
+    write_atomic(P(COOL_DROPIN), render_dropin(conf), 0o644)
+    run(['systemctl', 'daemon-reload'], timeout=60, check=True)
+
+
+def native_install(conf, r):
+    if not os.path.exists(P(APT_SOURCE)) or not os.path.exists(P(APT_KEYRING)):
+        raise HelperError(f'Collabora\'s repository is not set up ({APT_SOURCE}); run the installer '
+                          'with --runtime native')
+    if cool_ids() is None:
+        # The package's postinst runs the same adduser (idempotent). Created
+        # first so that the firewall rule for this user is in place before
+        # the package can start anything.
+        run(['adduser', '--quiet', '--system', '--group', '--home', '/opt/cool', COOL_USER],
+            timeout=60, check=True)
+    os.makedirs(P(COOL_DROPIN_DIR), mode=0o755, exist_ok=True)
+    write_atomic(P(COOL_DROPIN), render_dropin(conf), 0o644)
+    apply_firewall(conf)
+    write_atomic(P(APT_PREF), render_apt_pref(r), 0o644)
+    run(['systemctl', 'daemon-reload'], timeout=60, check=True)
+    # The package starts coolwsd from its postinst; a runtime mask keeps it
+    # stopped until coolwsd.xml is configured (the helper starts it).
+    run(['systemctl', 'mask', '--runtime', NATIVE_UNIT], timeout=60, check=True)
+    try:
+        apt('update', '-q', check=False, timeout=600)
+        apt('install', *APT_OPTS, '--allow-downgrades', '--allow-change-held-packages',
+            *native_pkg_args(r))
+        run(['apt-mark', 'hold', *held_packages()], timeout=120, check=True)
+        native_configure(conf)
+    finally:
+        run(['systemctl', 'unmask', '--runtime', NATIVE_UNIT], timeout=60)
+    return {'packages': {n: dpkg_version(n) for n in NATIVE_PACKAGES}}
+
+
+def native_remove(conf, r):
+    run(['systemctl', 'disable', '--now', NATIVE_UNIT], timeout=180)
+    names = held_packages()
+    run(['apt-mark', 'unhold', *names], timeout=120)
+    apt('remove', '-y', '-q', *NATIVE_PACKAGES)
+    for path in (COOL_DROPIN, APT_PREF):
+        if os.path.exists(P(path)):
+            os.unlink(P(path))
+    run(['systemctl', 'daemon-reload'], timeout=60)
+    return {'removed': list(NATIVE_PACKAGES),
+            'left': [n for n in names if n not in NATIVE_PACKAGES]}
+
+
+def native_run(conf=None):
+    """ExecStart of clientst0r-office-native.service. Reads the one request
+    the helper left in its root-only state directory (and deletes it, so it
+    cannot be replayed), validates it again, runs it and writes the result."""
+    req = read_json(P(NATIVE_REQUEST), None)
+    if os.path.exists(P(NATIVE_REQUEST)):
+        _check_trusted(P(NATIVE_REQUEST), secret=True)
+        os.unlink(P(NATIVE_REQUEST))
+    if not isinstance(req, dict) or set(req) != {'id', 'action', 'release', 'at'} \
+            or not isinstance(req.get('id'), str) or not re.match(r'^[0-9a-f]{16}$', req['id']):
+        return 1
+    result = {'id': req['id'], 'ok': False, 'action': req.get('action'), 'finished_at': None}
+    try:
+        conf = conf or load_config()
+        r = native_release(req['release']) if isinstance(req['release'], str) else None
+        if req['action'] not in NATIVE_ACTIONS or r is None:
+            raise HelperError('refused: not an action/release from the fixed lists')
+        problem = release_problem(r, conf)
+        inst = installed()
+        if problem and req['action'] in ('check', 'install') \
+                and r['id'] not in (inst.get('release'), inst.get('previous_release')):
+            # The installed release (an update's automatic restore) and the
+            # one before it (rollback) may always be put back, as with
+            # Docker; anything else must pass the release gate.
+            raise HelperError(f'release {r["id"]} {problem}')
+        if req['action'] == 'check':
+            apt('update', '-q', check=False, timeout=600)
+            apt('install', '-s', *APT_OPTS, '--allow-downgrades', '--allow-change-held-packages',
+                *native_pkg_args(r))
+            result['detail'] = 'available'
+        elif req['action'] == 'install':
+            result.update(native_install(conf, r))
+        elif req['action'] == 'configure':
+            native_configure(conf)
+        else:
+            result.update(native_remove(conf, r))
+        result['ok'] = True
+    except HelperError as e:
+        result['error'] = redact(str(e))[:800]
+    except Exception as e:          # always report
+        result['error'] = f'internal error: {type(e).__name__}: {redact(str(e))[:300]}'
+    result['finished_at'] = now_iso()
+    write_atomic(P(NATIVE_RESULT), json.dumps(result), 0o600)
+    _log(f'native-run {req.get("action")} {req.get("release")}: '
+         f'{"ok" if result["ok"] else result.get("error", "")}')
+    return 0 if result['ok'] else 1
+
+
+def native_journal(lines):
+    r = run(['journalctl', f'--unit={NATIVE_UNIT}', f'--lines={int(lines)}', '--no-pager',
+             '--output=short-iso', '--quiet'], timeout=30)
+    return r
+
+
+# ---------------------------------------------------------------------------
 # capacity: will the editor starve clientst0r?
 # ---------------------------------------------------------------------------
 
@@ -1334,7 +1963,7 @@ def take_backup(conf, rel_id, reason, progress):
     r = release(rel_id)
     if r is None:
         raise HelperError(f'cannot back up: installed release {rel_id!r} is unknown')
-    st = container_state(r['engine'])
+    st = native_state(conf) if r.get('runtime') == 'native' else container_state(r['engine'])
     if st.get('running'):
         raise HelperError('internal: backups are taken only with the editor stopped')
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -1354,6 +1983,9 @@ def take_backup(conf, rel_id, reason, progress):
                  (INSTALLED_FILE, 'installed.json'), (PROXY_STATE_FILE, 'proxy.json')]
         if r['engine'] == 'onlyoffice':
             files += [(JWT_FILE, 'secrets/jwt.secret'), (LINK_FILE, 'secrets/securelink.secret')]
+        elif r.get('runtime') == 'native':
+            files += [(COOL_PROOF_KEY, 'secrets/collabora-proof_key'), (COOL_XML, 'native/coolwsd.xml'),
+                      (COOL_DROPIN, 'native/clientst0r-office.conf'), (APT_PREF, 'native/apt-preferences')]
         else:
             files += [(COOL_ADMIN_FILE, 'secrets/collabora-admin.secret'),
                       (COOL_PROOF_KEY, 'secrets/collabora-proof_key')]
@@ -1363,7 +1995,8 @@ def take_backup(conf, rel_id, reason, progress):
     with open(tar_path, 'rb') as f:
         os.fsync(f.fileno())
     manifest = {'id': bid, 'release': rel_id, 'digest': r['digest'], 'compat': r['compat'],
-                'edition': r['edition'], 'engine': r['engine'], 'reason': reason,
+                'edition': r['edition'], 'engine': r['engine'], 'runtime': r['runtime'],
+                'reason': reason,
                 'created_at': now_iso(), 'size': os.path.getsize(tar_path),
                 'helper_version': HELPER_VERSION}
     write_atomic(target + '/manifest.json', json.dumps(manifest, indent=1), 0o600)
@@ -1919,10 +2552,27 @@ def op_callback_check(conf, args):
     TCP to the callback destination and a verified TLS handshake for
     clientst0r's host name (the container's own trust store)."""
     engine = active_engine(conf)
+    host = conf['clientstor_host']
+    if current_runtime(conf, engine) == 'native':
+        # No container to step into: the same TLS handshake from this host,
+        # as the editor's own user, so the nftables rule for that user (and
+        # the host's trust store, which coolwsd uses too) is what is tested.
+        if not native_state(conf).get('running'):
+            raise HelperError('the editor service (coolwsd) is not running')
+        ids = cool_ids()
+        if ids is None:
+            raise HelperError(f'the {COOL_USER} user does not exist')
+        r = run(['setpriv', f'--reuid={ids[0]}', f'--regid={ids[1]}', '--clear-groups', '--',
+                 'openssl', 's_client', '-connect', f'{host}:443', '-servername', host,
+                 '-verify_hostname', host, '-verify_return_error', '-brief'], timeout=40)
+        text = redact(((r.stdout or '') + ' ' + (r.stderr or '')).strip())[-400:]
+        return {'ok': r.returncode == 0, 'engine': engine, 'runtime': 'native',
+                'target': ', '.join(f'{x}:443' for x in native_targets(conf)) or conf['clientstor_host'],
+                'route': conf['callback_route'], 'from': f'this host as user {COOL_USER}',
+                'detail': text}
     st = container_state(engine)
     if not st.get('running'):
         raise HelperError('the editor container is not running')
-    host = conf['clientstor_host']
     if engine == 'collabora':
         argv = ['exec', ENGINES[engine]['container'], 'openssl', 's_client', '-connect', f'{host}:443',
                 '-servername', host, '-verify_hostname', host, '-verify_return_error', '-brief']
@@ -1931,8 +2581,9 @@ def op_callback_check(conf, args):
                 '--max-time', '15', f'https://{host}/health/']
     r = docker(*argv, timeout=40)
     text = redact(((r.stdout or '') + ' ' + (r.stderr or '')).strip())[-400:]
-    return {'ok': r.returncode == 0, 'engine': engine, 'target': f'{conf["callback_target"]}:443',
-            'route': conf['callback_route'], 'detail': text}
+    return {'ok': r.returncode == 0, 'engine': engine, 'runtime': 'docker',
+            'target': f'{conf["callback_target"]}:443', 'route': conf['callback_route'],
+            'from': 'inside the container', 'detail': text}
 
 
 # ---------------------------------------------------------------------------
@@ -1948,6 +2599,7 @@ def _have(argv):
 
 def op_preflight(conf, args):
     engine = args.get('engine') or active_engine(conf)
+    runtime = current_runtime(conf, engine)
     checks = []
 
     def add(key, status, detail):
@@ -1976,16 +2628,20 @@ def op_preflight(conf, args):
     else:
         add('arch', 'fail', f'{arch}: the images are published for amd64 and arm64 only')
 
-    ok, version, detail = docker_available()
-    add('docker', 'pass' if ok else 'fail',
-        f'Docker {version}, Compose {detail}' if ok else
-        f'Docker is not usable: {detail}. Run scripts/office/install-editor.sh --mode managed-local '
-        '(it installs Docker only when none is present and never replaces an existing one).')
-    if _have(['nft', '--version']):
-        add('nftables', 'pass', 'nft available (container egress is restricted with it)')
+    if runtime == 'native':
+        ok = False
+        native_preflight(conf, add)
     else:
-        add('nftables', 'fail', 'nft is not installed; the container firewall cannot be applied')
-    if engine == 'collabora':
+        ok, version, detail = docker_available()
+        add('docker', 'pass' if ok else 'fail',
+            f'Docker {version}, Compose {detail}' if ok else
+            f'Docker is not usable: {detail}. Run scripts/office/install-editor.sh --mode managed-local '
+            '(it installs Docker only when none is present and never replaces an existing one).')
+    if _have(['nft', '--version']):
+        add('nftables', 'pass', 'nft available (the editor\'s egress is restricted with it)')
+    else:
+        add('nftables', 'fail', 'nft is not installed; the editor firewall cannot be applied')
+    if engine == 'collabora' and runtime == 'docker':
         if _have(['openssl', 'version']):
             add('openssl', 'pass', 'openssl available (generates the WOPI proof key)')
         else:
@@ -2004,7 +2660,7 @@ def op_preflight(conf, args):
 
     listeners = listening_ports()
     port = engine_limits(conf, engine)[2]
-    cs = container_state(engine) if ok else {}
+    cs = native_state(conf) if runtime == 'native' else (container_state(engine) if ok else {})
     if port in listeners and not cs.get('running'):
         add('port', 'fail', f'127.0.0.1:{port} is already in use by another program')
     else:
@@ -2038,10 +2694,11 @@ def op_preflight(conf, args):
     else:
         add('nginx', 'fail', 'Nginx is not installed')
 
-    overlap = subnet_conflict(conf)
-    add('subnet', 'fail' if overlap else 'pass',
-        f'{conf["subnet"]} overlaps {overlap}; set NETWORK_SUBNET' if overlap else
-        f'{conf["subnet"]} does not overlap a local route')
+    if runtime == 'docker':
+        overlap = subnet_conflict(conf)
+        add('subnet', 'fail' if overlap else 'pass',
+            f'{conf["subnet"]} overlaps {overlap}; set NETWORK_SUBNET' if overlap else
+            f'{conf["subnet"]} does not overlap a local route')
     layout = current_layout(conf, engine)
     host = public_host(conf, layout)
     for name, label in ((host, f'editor host name ({layout})'),
@@ -2057,11 +2714,40 @@ def op_preflight(conf, args):
     add('release', 'pass' if r else 'fail',
         f'will install {r["id"]}' if r else
         'no release in the list can be installed: ' + '; '.join(
-            f'{x["id"]} {release_problem(x, conf)}' for x in engine_releases(engine)))
+            f'{x["id"]} {release_problem(x, conf)}' for x in engine_releases(engine, runtime)))
     if engine == 'onlyoffice' and conf['edition'] == 'enterprise' and not os.path.exists(P(LICENSE_FILE)):
         add('license', 'fail', f'Enterprise edition: put the license file at {LICENSE_FILE}')
-    return {'engine': engine, 'checks': checks, 'passed': all(c['status'] != 'fail' for c in checks),
-            'capacity': cap}
+    return {'engine': engine, 'runtime': runtime, 'checks': checks,
+            'passed': all(c['status'] != 'fail' for c in checks), 'capacity': cap}
+
+
+def native_preflight(conf, add):
+    """Native runtime: Collabora's repository (set up by the installer),
+    systemd, and no coolwsd on this host that this helper did not install."""
+    if os.path.exists(P(APT_SOURCE)) and os.path.exists(P(APT_KEYRING)):
+        add('repository', 'pass', f'Collabora\'s CODE repository is configured ({APT_SOURCE}, '
+                                  f'signed-by {APT_KEYRING})')
+    else:
+        add('repository', 'fail', 'Collabora\'s repository is not configured: run '
+                                  'scripts/office/install-editor.sh --mode managed-local --runtime native')
+    if _have(['systemctl', '--version']):
+        add('systemd', 'pass', 'systemd available (coolwsd.service runs the editor)')
+    else:
+        add('systemd', 'fail', 'systemctl is not available')
+    version = dpkg_version('coolwsd')
+    inst = installed()
+    ours = inst.get('runtime') == 'native' and inst.get('release') and inst.get('state') != 'uninstalled'
+    if version and not ours:
+        add('packages', 'fail', f'coolwsd {version} is already installed on this host but not by this '
+                                'helper (for example by install-editor.sh --mode same-server); remove it '
+                                'or use that install instead')
+    else:
+        add('packages', 'pass', f'coolwsd {version} (installed by this helper)' if version else
+            'coolwsd is not installed yet (Install adds the pinned packages)')
+    if _have(['openssl', 'version']):
+        add('openssl', 'pass', 'openssl available (generates the WOPI proof key)')
+    else:
+        add('openssl', 'fail', 'openssl is not installed; the WOPI proof key cannot be generated')
 
 
 def listening_ports():
@@ -2102,26 +2788,34 @@ def subnet_conflict(conf):
 
 def op_status(conf, args):
     j = reconcile_journal()
-    ok, dver, cver = docker_available()
     engine = active_engine(conf)
-    st = container_state(engine) if ok else {'exists': False}
+    runtime = current_runtime(conf, engine)
+    docker_used = runtime == 'docker' or 'onlyoffice' in conf['engines']
+    ok, dver, cver = docker_available() if docker_used else (False, '', 'not used (native runtime)')
+    if runtime == 'native':
+        st = native_state(conf)
+    else:
+        st = container_state(engine) if ok else {'exists': False}
     inst = installed()
     rel = release(inst.get('release', ''))
-    newer = [r for r in engine_releases(engine) if rel is not None and rel['engine'] == engine
-             and version_key(r) > version_key(rel)]
+    newer = [r for r in engine_releases(engine, rel['runtime'] if rel else runtime)
+             if rel is not None and rel['engine'] == engine and version_key(r) > version_key(rel)]
     ps = proxy_state()
     return {
         'helper_version': HELPER_VERSION,
         'engine': engine,
+        'runtime': runtime,
         'config': public_config(conf),
         'docker': {'available': ok, 'version': dver, 'compose': cver if ok else '',
-                   'detail': '' if ok else cver},
+                   'detail': '' if ok else cver, 'used': docker_used},
         'installed': dict({k: inst.get(k) for k in ('release', 'version', 'digest', 'edition',
                                                     'installed_at', 'previous_release',
-                                                    'previous_backup', 'state')},
-                          engine=inst.get('engine') or ('onlyoffice' if inst.get('release') else None)),
+                                                    'previous_backup', 'state', 'packages')},
+                          engine=inst.get('engine') or ('onlyoffice' if inst.get('release') else None),
+                          runtime=(inst.get('runtime') or 'docker') if inst.get('release') else None),
         'container': st,
-        'resources': resources(engine) if st.get('running') else {},
+        'resources': (native_resources(conf) if runtime == 'native' else resources(engine))
+        if st.get('running') else {},
         'data_bytes': dir_size(P(DATA_DIR)) if os.path.isdir(P(DATA_DIR)) else 0,
         'operation': {k: j.get(k) for k in ('id', 'op', 'args', 'state', 'step', 'started_at',
                                             'finished_at', 'error', 'result')} if j else {},
@@ -2141,17 +2835,27 @@ def op_status(conf, args):
 
 def op_releases(conf, args):
     return {'releases': [dict({k: r[k] for k in ('id', 'version', 'edition', 'image', 'digest',
-                                                 'compat', 'tested', 'published', 'engine')},
+                                                 'compat', 'tested', 'published', 'engine', 'runtime')},
+                              packages=r.get('packages') or {},
                               problem=release_problem(r, conf)) for r in ALL_RELEASES],
             'installed': installed().get('release')}
 
 
 def op_logs(conf, args):
     lines = args.get('lines', 200)
-    r = docker('logs', '--tail', str(lines), '--timestamps',
-               ENGINES[active_engine(conf)]['container'], timeout=30)
-    if r.returncode != 0:
-        return {'log': '', 'detail': 'no container logs (is the editor installed?)'}
+    engine = active_engine(conf)
+    if current_runtime(conf, engine) == 'native':
+        r = native_journal(lines)
+        if r.returncode != 0:
+            return {'log': '', 'detail': 'no service logs (journalctl -u coolwsd)'}
+    else:
+        try:
+            r = docker('logs', '--tail', str(lines), '--timestamps', ENGINES[engine]['container'],
+                       timeout=30)
+        except HelperError as e:
+            return {'log': '', 'detail': str(e)}
+        if r.returncode != 0:
+            return {'log': '', 'detail': 'no container logs (is the editor installed?)'}
     text = redact((r.stdout or '') + (r.stderr or ''))
     if len(text.encode()) > MAX_LOG_BYTES:
         text = text.encode()[-MAX_LOG_BYTES:].decode('utf-8', 'ignore')
@@ -2193,19 +2897,26 @@ def op_install(conf, args, progress):
     if present and current != engine:
         raise HelperError(f'{ENGINES[current]["label"]} is installed. Uninstall it first (Switch engine '
                           'drains it, uninstalls it and installs the other; documents stay in clientst0r).')
+    runtime = engine_runtime(conf, engine)
+    if present and (inst.get('runtime') or 'docker') != runtime:
+        raise HelperError(f'{ENGINES[engine]["label"]} is installed with the '
+                          f'{inst.get("runtime") or "docker"} runtime and the root config now says '
+                          f'{runtime}: uninstall it first, then install again.')
     cap = capacity(conf, engine)
     if cap['verdict'] == 'fail':
         raise HelperError('refused, the editor would starve this server: ' + '; '.join(
             c['detail'] for c in cap['checks'] if c['status'] == 'fail'))
-    ok, _v, detail = docker_available()
-    if not ok:
-        raise HelperError(f'Docker is not usable: {detail}')
+    if runtime == 'docker':
+        ok, _v, detail = docker_available()
+        if not ok:
+            raise HelperError(f'Docker is not usable: {detail}')
     if current and current != engine:
         # Switching engines: keep the other engine's record (its release and
         # backups) for a later switch back; start from this engine's own.
         write_atomic(P(_engine_record_path(current)), json.dumps(inst, indent=1, sort_keys=True), 0o600)
         inst = read_json(P(_engine_record_path(engine)), {}) or {}
-    reuse = bool(inst.get('release')) and (inst.get('engine') or 'onlyoffice') == engine
+    reuse = bool(inst.get('release')) and (inst.get('engine') or 'onlyoffice') == engine \
+        and (inst.get('runtime') or 'docker') == runtime
     r = release(inst['release']) if reuse else default_release(conf, engine)
     if r is None:
         raise HelperError('no installable release: ' + '; '.join(
@@ -2213,9 +2924,11 @@ def op_install(conf, args, progress):
     problem = release_problem(r, conf) if not reuse else ''
     if problem:
         raise HelperError(f'release {r["id"]} {problem}')
+    if runtime == 'native':
+        return native_op_install(conf, inst, r, reuse, progress)
     pull(r, progress)
-    save_installed(dict(inst, state='installing', engine=engine, release=r['id'], version=r['version'],
-                        digest=r['digest'], edition=r['edition'],
+    save_installed(dict(inst, state='installing', engine=engine, runtime='docker', release=r['id'],
+                        version=r['version'], digest=r['digest'], edition=r['edition'],
                         installed_at=inst.get('installed_at') if reuse else now_iso()))
     _up(conf, r, progress)
     if not wait_healthy(conf, engine, progress):
@@ -2237,8 +2950,50 @@ def _require_installed():
     return inst, r
 
 
+def native_op_install(conf, inst, r, reuse, progress):
+    engine = 'collabora'
+    if not reuse:
+        version = dpkg_version('coolwsd')
+        if version:
+            raise HelperError(f'coolwsd {version} is already installed on this host but not by this helper; '
+                              'refusing to take it over')
+    save_installed(dict(inst, state='installing', engine=engine, runtime='native', release=r['id'],
+                        version=r['version'], digest='', edition=r['edition'],
+                        packages=dict(r['packages']),
+                        installed_at=inst.get('installed_at') if reuse else now_iso()))
+    native_runner(conf, 'install', r['id'], progress)
+    progress(f'starting {r["id"]} (coolwsd.service)')
+    native_systemctl('enable', NATIVE_UNIT)
+    native_systemctl('restart', NATIVE_UNIT, timeout=300)
+    if not native_wait_healthy(conf, progress):
+        save_installed(dict(installed(), state='unhealthy'))
+        raise HelperError('the editor did not become healthy; see the logs')
+    save_installed(dict(installed(), state='installed'))
+    _ensure_proxy(conf, engine, progress)
+    history({'event': 'install', 'release': r['id'], 'engine': engine, 'runtime': 'native'})
+    return {'release': r['id'], 'engine': engine, 'runtime': 'native', 'healthy': True}
+
+
+def native_start(conf, r, progress):
+    apply_firewall(conf)
+    native_runner(conf, 'configure', r['id'], progress)
+    progress('starting coolwsd.service')
+    native_systemctl('enable', NATIVE_UNIT)
+    native_systemctl('start', NATIVE_UNIT, timeout=300)
+    if not native_wait_healthy(conf, progress):
+        raise HelperError('the editor started but did not become healthy; see the logs')
+    return {'healthy': True}
+
+
+def native_stop(progress):
+    progress('stopping coolwsd.service (it saves open documents to clientst0r on shutdown)')
+    native_systemctl('stop', NATIVE_UNIT, timeout=180)
+
+
 def op_start(conf, args, progress):
     inst, r = _require_installed()
+    if r['runtime'] == 'native':
+        return native_start(conf, r, progress)
     if not os.path.exists(P(ENGINES[r['engine']]['compose_file'])):
         write_compose(conf, r)
     apply_firewall(conf)
@@ -2250,6 +3005,9 @@ def op_start(conf, args, progress):
 
 def op_stop(conf, args, progress):
     _inst, r = _require_installed()
+    if r['runtime'] == 'native':
+        native_stop(progress)
+        return {'stopped': True}
     prepare_for_shutdown(r['engine'], progress)
     progress('stopping the editor')
     stop_container(r['engine'])
@@ -2270,6 +3028,11 @@ def op_update(conf, args, progress):
         raise HelperError(f'release {args["release"]} {problem}')
     if target['engine'] != engine:
         raise HelperError('that release is for the other engine: use Switch engine')
+    if target['runtime'] != current['runtime']:
+        raise HelperError(f'that release is for the {target["runtime"]} runtime; the editor runs with '
+                          f'{current["runtime"]}')
+    if current['runtime'] == 'native':
+        return native_update(conf, inst, current, target, progress)
     if target['id'] == current['id']:
         st = container_state(engine)
         if st.get('running') and st.get('release_label') == target['id']:
@@ -2310,6 +3073,74 @@ def op_update(conf, args, progress):
                       f'{"the previous release is running again" if back else "the previous release did not come back either: see the logs"}')
 
 
+def native_update(conf, inst, current, target, progress):
+    """Native update: check the pinned packages are available before any
+    downtime, stop, back up the configuration, install the exact versions
+    (held), start, verify; if it never becomes healthy, put the previous
+    versions and the backup back automatically."""
+    if target['id'] == current['id']:
+        st = native_state(conf)
+        if st.get('running') and st.get('release_label') == target['id']:
+            return {'release': target['id'], 'changed': False}
+    if version_key(target) < version_key(current):
+        raise HelperError('that is an older release: use rollback, which restores the matching backup')
+    native_runner(conf, 'check', target['id'], progress)       # before any downtime
+    native_stop(progress)
+    backup = take_backup(conf, current['id'], 'pre-update', progress)
+    save_installed(dict(inst, state='updating', pending_release=target['id']))
+    try:
+        native_runner(conf, 'install', target['id'], progress)
+        native_systemctl('start', NATIVE_UNIT, timeout=300)
+        healthy = native_wait_healthy(conf, progress)
+    except HelperError:
+        healthy = False
+    if healthy:
+        save_installed({'state': 'installed', 'engine': 'collabora', 'runtime': 'native',
+                        'release': target['id'], 'version': target['version'], 'digest': '',
+                        'edition': target['edition'], 'packages': dict(target['packages']),
+                        'installed_at': now_iso(), 'previous_release': current['id'],
+                        'previous_backup': backup['id']})
+        prune_backups({backup['id']})
+        history({'event': 'update', 'from': current['id'], 'to': target['id'], 'backup': backup['id']})
+        return {'release': target['id'], 'previous_release': current['id'], 'backup': backup['id'],
+                'changed': True}
+    progress('the new release did not become healthy: restoring the previous release automatically')
+    native_systemctl('stop', NATIVE_UNIT, timeout=180, check=False)
+    back = False
+    try:
+        native_runner(conf, 'install', current['id'], progress)
+        restore_backup(backup, progress)
+        native_systemctl('start', NATIVE_UNIT, timeout=300)
+        back = native_wait_healthy(conf, progress)
+    except HelperError as e:
+        progress(f'restoring failed: {e}')
+    save_installed(dict(inst, state='installed' if back else 'unhealthy'))
+    history({'event': 'update_failed', 'from': current['id'], 'to': target['id'], 'restored': back})
+    raise HelperError(f'update to {target["id"]} failed health checks; '
+                      f'{"the previous release is running again" if back else "the previous release did not come back either: see the logs"}')
+
+
+def native_rollback(conf, inst, current, prev, manifest, progress):
+    native_runner(conf, 'check', prev['id'], progress)
+    native_stop(progress)
+    safety = take_backup(conf, current['id'], 'pre-rollback', progress)
+    native_runner(conf, 'install', prev['id'], progress)
+    restore_backup(manifest, progress)
+    native_systemctl('start', NATIVE_UNIT, timeout=300)
+    if not native_wait_healthy(conf, progress):
+        save_installed(dict(inst, state='unhealthy'))
+        raise HelperError(f'rolled back to {prev["id"]} but it did not become healthy; the configuration '
+                          f'from before the rollback is kept in backup {safety["id"]}')
+    save_installed({'state': 'installed', 'engine': 'collabora', 'runtime': 'native',
+                    'release': prev['id'], 'version': prev['version'], 'digest': '',
+                    'edition': prev['edition'], 'packages': dict(prev['packages']),
+                    'installed_at': now_iso(), 'previous_release': None, 'previous_backup': None,
+                    'rolled_back_from': current['id'], 'pre_rollback_backup': safety['id']})
+    prune_backups({safety['id'], manifest['id']})
+    history({'event': 'rollback', 'from': current['id'], 'to': prev['id'], 'kept': safety['id']})
+    return {'release': prev['id'], 'kept_backup': safety['id']}
+
+
 def op_rollback(conf, args, progress):
     inst, current = _require_installed()
     engine = current['engine']
@@ -2317,12 +3148,14 @@ def op_rollback(conf, args, progress):
     if not prev_id or not backup_id:
         raise HelperError('nothing to roll back to: no update with a backup was recorded')
     prev = release(prev_id)
-    if prev is None or prev['engine'] != engine:
+    if prev is None or prev['engine'] != engine or prev['runtime'] != current['runtime']:
         raise HelperError(f'release {prev_id} is no longer in the release list')
     manifest = next((b for b in list_backups() if b['id'] == backup_id), None)
     if manifest is None or manifest['release'] != prev_id or manifest['digest'] != prev['digest']:
         raise HelperError(f'backup {backup_id} is missing or was not taken from {prev_id}; '
                           'rolling back without it could break the editor\'s data')
+    if current['runtime'] == 'native':
+        return native_rollback(conf, inst, current, prev, manifest, progress)
     pull(prev, progress)
     prepare_for_shutdown(engine, progress)
     stop_container(engine, check=False)
@@ -2347,6 +3180,17 @@ def op_rollback(conf, args, progress):
 def op_uninstall(conf, args, progress):
     inst = installed()
     engine = inst.get('engine') or ('onlyoffice' if inst.get('release') else active_engine(conf))
+    runtime = (inst.get('runtime') or 'docker') if inst.get('release') else engine_runtime(conf, engine)
+    if runtime == 'native':
+        rel = native_release(inst.get('release', '')) or default_release(conf, 'collabora') \
+            or NATIVE_RELEASES[-1]
+        if dpkg_version('coolwsd'):
+            native_stop(progress)
+            native_runner(conf, 'remove', rel['id'], progress)
+        save_installed(dict(inst, state='uninstalled', engine=engine, runtime='native'))
+        history({'event': 'uninstall', 'engine': engine, 'runtime': 'native'})
+        return {'uninstalled': True, 'engine': engine, 'runtime': 'native', 'data_kept': BASE_DIR,
+                'secrets_kept': SECRETS_DIR, 'packages_removed': list(NATIVE_PACKAGES)}
     if os.path.exists(P(ENGINES[engine]['compose_file'])):
         prepare_for_shutdown(engine, progress)
         progress('removing the editor container (documents and editor data are kept)')
@@ -2379,7 +3223,20 @@ def op_set_layout(conf, args, progress):
                      0o600)
     inst = installed()
     recreated = False
-    if inst.get('release') and inst.get('state') != 'uninstalled' and engine == 'collabora':
+    if inst.get('release') and inst.get('state') != 'uninstalled' and engine == 'collabora' \
+            and inst.get('runtime') == 'native':
+        r = native_release(inst['release'])
+        if r is not None:
+            running = native_state(conf).get('running')
+            native_runner(conf, 'configure', r['id'], progress)
+            if running:
+                progress(f'restarting the editor for the {layout} layout')
+                native_systemctl('restart', NATIVE_UNIT, timeout=300)
+                recreated = True
+                if not native_wait_healthy(conf, progress):
+                    raise HelperError(f'the editor did not become healthy with the {layout} layout; '
+                                      f'switch back to {old} or see the logs')
+    elif inst.get('release') and inst.get('state') != 'uninstalled' and engine == 'collabora':
         r = release(inst['release'])
         if r is not None:
             st = container_state(engine)
@@ -2399,13 +3256,19 @@ def op_set_layout(conf, args, progress):
 def op_purge(conf, args, progress):
     if args.get('confirm') != conf['deployment_id']:
         raise HelperError('purge needs --confirm <DEPLOYMENT_ID>')
-    if any(container_state(e).get('exists') for e in ENGINE_IDS) \
+    if any(container_state(e).get('exists') for e in ENGINE_IDS) or dpkg_version('coolwsd') \
+            and installed().get('runtime') == 'native' \
             or installed().get('state') not in (None, 'uninstalled'):
         raise HelperError('uninstall first; purge only removes the data of an uninstalled editor')
     for d in (DATA_DIR, COOL_DIR, BACKUP_DIR, COMPOSE_DIR, STATE_DIR, SECRETS_DIR):
         shutil.rmtree(P(d), ignore_errors=True)
     for r in ALL_RELEASES:
-        docker('image', 'rm', image_ref(r), timeout=120)
+        if r['runtime'] != 'docker':
+            continue
+        try:
+            docker('image', 'rm', image_ref(r), timeout=120)
+        except HelperError:
+            break               # no Docker on this host
     run(['nft', 'delete', 'table', 'inet', NFT_TABLE], timeout=30)
     return {'purged': True}
 
@@ -2641,6 +3504,13 @@ def main(argv):
         return serve()
     if argv[:1] == ['cli']:
         return cli(argv[1:])
+    if argv == ['native-run']:
+        # clientst0r-office-native.service only (root; its request comes
+        # from this helper's root-only state directory).
+        if not TEST_MODE and os.geteuid() != 0:
+            return 2
+        os.umask(0o022)         # package files and /etc/coolwsd must stay readable
+        return native_run()
     if argv[:1] == ['version']:
         print(HELPER_VERSION)
         return 0

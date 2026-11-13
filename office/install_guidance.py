@@ -305,7 +305,7 @@ MANAGED_COPY_DIR = '/root/clientst0r-office-managed'
 
 
 def managed_commands(*, app_url='', office_host='', deployment_id='', engine='onlyoffice',
-                     layouts=('dedicated',), tls='existing-cert'):
+                     layouts=('dedicated',), tls='existing-cert', runtime='docker'):
     """Root setup for the managed local editor (docs/office/MANAGED_LOCAL.md).
 
     engine: 'onlyoffice' | 'collabora' (Collabora CODE). layouts: the helper's
@@ -344,6 +344,9 @@ def managed_commands(*, app_url='', office_host='', deployment_id='', engine='on
         args += ['--tls', 'upstream']
     if app_user:
         args += ['--app-user', app_user]
+    native = engine == 'collabora' and runtime == 'native'
+    if native:
+        args += ['--runtime', 'native']
     run_args = ' '.join(q(a) for a in args)
     script = f'{MANAGED_COPY_DIR}/scripts/office/install-editor.sh'
     commands = []
@@ -360,5 +363,6 @@ def managed_commands(*, app_url='', office_host='', deployment_id='', engine='on
                          f'{MANAGED_COPY_DIR}/  # then fix the layout to scripts/office + deploy/office-helper'))
     commands.append(('Preflight only (changes nothing)', f'sudo bash {script} {run_args} --preflight-only'))
     commands.append(('Dry run (prints every action)', f'sudo bash {script} {run_args} --dry-run'))
-    commands.append(('Set up (Docker only if absent: add --install-docker)', f'sudo bash {script} {run_args}'))
+    commands.append(('Set up (Collabora\'s packages, no Docker)' if native else
+                     'Set up (Docker only if absent: add --install-docker)', f'sudo bash {script} {run_args}'))
     return commands

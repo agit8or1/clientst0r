@@ -70,13 +70,49 @@ class HostSetupViewTests(TestCase):
         self.assertEqual(s.host_setup_state, 'queued')
         self.assertEqual(s.host_setup_request, {
             'engine': 'collabora', 'layout': 'same-host', 'app_host': APP_HOST,
-            'deployment_id': 'docs-prod', 'office_host': '', 'allow_untested': True})
+            'deployment_id': 'docs-prod', 'office_host': '', 'runtime': 'docker', 'allow_untested': True})
         self.assertEqual(s.same_host_acknowledged_by, self.su)
         self.assertEqual(s.engine, 'collabora')
         self.assertTrue(AuditLog.objects.filter(description__startswith='Server setup queued').exists())
         # a second request while one is queued is refused
         self.post()
         self.assertEqual(ManagedOfficeService.get().host_setup_requested_at, s.host_setup_requested_at)
+
+    def test_native_runtime_is_offered_and_recorded(self):
+        self.client.force_login(self.su)
+        page = self.client.get(reverse('office:managed'))
+        self.assertContains(page, 'name="runtime"')
+        self.assertContains(page, '<option value="native">Native (no Docker)</option>', html=True)
+        self.assertContains(page, 'no Docker')
+        self.post(runtime='native')
+        s = ManagedOfficeService.get()
+        self.assertEqual(s.host_setup_request['runtime'], 'native')
+        self.assertTrue(AuditLog.objects.filter(description__startswith='Server setup queued: collabora (native)').exists())
+
+    def test_managed_page_shows_the_native_runtime(self):
+        ManagedOfficeService.objects.update_or_create(pk=1, defaults={
+            'enabled': True, 'engine': 'collabora', 'helper_reachable': False, 'status': {
+                'runtime': 'native',
+                'config': {'engine': 'collabora', 'engines': ['collabora'], 'runtime': 'native',
+                           'collabora_runtime': 'native'},
+                'installed': {'release': '26.04.6.1-1-code-deb', 'engine': 'collabora', 'runtime': 'native',
+                              'state': 'installed',
+                              'packages': {'coolwsd': '26.04.6.1-1', 'code-brand': '26.04.6-1'}},
+                'container': {'exists': True, 'running': True, 'state': 'running', 'health': 'healthy'}}})
+        self.client.force_login(self.su)
+        page = self.client.get(reverse('office:managed'))
+        self.assertContains(page, 'Native: Collabora packages + systemd service (no Docker)')
+        self.assertContains(page, 'coolwsd 26.04.6.1-1')
+        self.assertContains(page, 'not yet run on a real host')
+        self.assertContains(page, '--runtime native')
+        self.assertNotContains(page, '>Image<')
+
+    def test_native_runtime_is_collabora_only(self):
+        self.client.force_login(self.su)
+        for bad in ({'runtime': 'native', 'engine': 'onlyoffice', 'layout': 'dedicated',
+                     'office_host': 'office.example.com'}, {'runtime': 'podman'}):
+            self.post(**bad)
+            self.assertEqual(ManagedOfficeService.get().host_setup_state, '', bad)
 
     def test_same_host_needs_the_acknowledgement(self):
         self.client.force_login(self.su)
@@ -161,6 +197,24 @@ class HostSetupRunTests(TestCase):
         self.assertEqual(s.host_setup_state, 'failed')
         self.assertFalse(s.enabled)
         self.assertEqual(s.host_setup_output.count('everything was put back'), 1)
+
+    def test_native_passes_the_runtime_docker_keeps_six_arguments(self):
+        self.assertEqual(host_setup.helper_args({
+            'engine': 'collabora', 'layout': 'same-host', 'app_host': APP_HOST, 'deployment_id': 'd-1',
+            'office_host': '', 'runtime': 'docker'}),
+            ['office-setup', 'collabora', 'same-host', APP_HOST, 'd-1', '-', 'tested'])
+        # requests queued before the runtime existed have no key: Docker
+        self.assertEqual(len(host_setup.helper_args({
+            'engine': 'collabora', 'layout': 'same-host', 'app_host': APP_HOST, 'deployment_id': 'd-1',
+            'office_host': ''})), 7)
+        self.queue(runtime='native')
+        lease, _ = self.start()
+        with mock.patch('core.root_helper.run',
+                        side_effect=[NOT_NEEDED, done(out='installed'), done(out='included')]) as run:
+            self.assertTrue(host_setup.run(lease))
+        self.assertEqual(run.call_args_list[1].args[0],
+                         ['office-setup', 'collabora', 'same-host', APP_HOST, 'docs-prod', '-', 'untested',
+                          'native'])
 
     def test_dedicated_has_no_include(self):
         self.queue(layout='dedicated', office_host='office.example.com')

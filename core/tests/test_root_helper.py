@@ -425,6 +425,26 @@ class ManagedOfficeEngineGuardTests(SimpleTestCase):
         self.assertNotIn('runc', calls[1])
         self.assertNotIn('upgrade', calls[1][-2:])
 
+    def test_native_collabora_only_leaves_docker_upgradable_but_not_the_editor(self):
+        Path(self.h.OFFICE_SERVICE_CONF).write_text('DEPLOYMENT_ID=x\nENGINES=collabora\nCOLLABORA_RUNTIME=native\n')
+        self.assertEqual(self.h.apt_argv(['upgrade-packages', 'docker.io'])[-1], 'docker.io')
+        with self.assertRaises(self.h.HelperError):
+            self.h.apt_argv(['upgrade-packages', 'coolwsd'])
+        calls = []
+
+        def run(argv, **kw):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, 'Inst coolwsd [1] (2 x)\nInst runc [1] (2 x)\n', '')
+        with mock.patch.object(self.h, '_run', side_effect=run):
+            self.assertEqual(self.h.cmd_apt(['upgrade']), 0)
+        self.assertEqual(calls[1][-1], 'runc')
+        self.assertNotIn('coolwsd', calls[1])
+        # ONLYOFFICE allowed too: Docker is needed again
+        Path(self.h.OFFICE_SERVICE_CONF).write_text(
+            'DEPLOYMENT_ID=x\nENGINES=collabora,onlyoffice\nCOLLABORA_RUNTIME=native\n')
+        with self.assertRaises(self.h.HelperError):
+            self.h.apt_argv(['upgrade-packages', 'docker.io'])
+
     def test_cmd_apt_upgrade_unchanged_without_the_service(self):
         with mock.patch.object(self.h, '_run',
                                return_value=subprocess.CompletedProcess([], 0, '', '')) as run:
@@ -484,6 +504,33 @@ class OfficeSetupTests(SimpleTestCase):
             self.argv('onlyoffice', 'same-host', 'docs.example.com', 'prod-1', '-', 'tested')
         with self.assertRaises(self.h.HelperError):
             self.argv(*good, '--dry-run')
+
+    def test_runtime_argument(self):
+        six = ['collabora', 'same-host', 'docs.example.com', 'prod-1', '-', 'tested']
+        # An app from before the runtime existed sends six arguments: Docker, as before.
+        self.assertEqual(self.argv(*six), self.argv(*six, 'docker'))
+        self.assertIn('--install-docker', self.argv(*six))
+        self.assertNotIn('--runtime', self.argv(*six))
+        native = self.argv(*six, 'native')
+        self.assertEqual(native[native.index('--runtime') + 1], 'native')
+        self.assertNotIn('--install-docker', native)
+        for bad in ('podman', 'native;id', '--install-docker', '', 'NATIVE'):
+            with self.assertRaises(self.h.HelperError, msg=bad):
+                self.argv(*six, bad)
+        with self.assertRaises(self.h.HelperError):
+            self.argv('onlyoffice', 'dedicated', 'docs.example.com', 'prod-1', 'office.example.com',
+                      'tested', 'native')
+        with self.assertRaises(self.h.HelperError):
+            self.argv(*six, 'native', 'extra')
+
+    def test_editor_packages_stay_out_of_apt_upgrades(self):
+        sim = ('Inst coolwsd [26.04.5.2-1] (26.04.6.1-1 CODE)\nInst code-brand [26.04.5-3] (26.04.6-1 x)\n'
+               'Inst collaboraofficebasis-core [26.04.5] (26.04.6 x)\nInst openssl [3.0.1] (3.0.2 x)\n')
+        argv, skipped = self.h.held_back_upgrade_argv(sim)
+        self.assertEqual(argv[-1], 'openssl')
+        self.assertEqual(skipped, ['coolwsd', 'code-brand', 'collaboraofficebasis-core'])
+        with self.assertRaises(self.h.HelperError):
+            self.h.apt_argv(['upgrade-packages', 'coolwsd'])
 
     def test_existing_install_cannot_be_repointed(self):
         Path(self.h.OFFICE_SERVICE_CONF).write_text(

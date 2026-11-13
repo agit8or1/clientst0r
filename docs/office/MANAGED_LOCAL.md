@@ -5,6 +5,8 @@ The managed local editor is one more way to edit Office documents in clientst0r.
 - **ONLYOFFICE Docs** ("Managed Local ONLYOFFICE"), Community or Enterprise;
 - **Collabora Online Development Edition** ("Managed Local Collabora (CODE)"), for **evaluation, development, home use and small teams**. Collabora does not recommend CODE for production. For production, use a licensed Collabora Online server through the existing external Collabora provider ([COLLABORA.md](COLLABORA.md)).
 
+Collabora can run in a Docker container (the default) or **natively**, from Collabora's own packages and a systemd service, with no Docker at all (`COLLABORA_RUNTIME=native`, see [Native Collabora runtime](#native-collabora-runtime-no-docker)). ONLYOFFICE always runs in Docker.
+
 Which engines this server may run is root-owned configuration (`ENGINES=`); the app only picks between those engine ids. The other ways keep working: an editor installed with `install-editor.sh` on this server or on a separate VM, an editor service that already runs, external ONLYOFFICE or Collabora Online (WOPI), and Microsoft 365.
 
 It is **off by default**. A superuser turns it on in **Settings → Office Documents → Managed local editor**. A root administrator must first run a one-time setup on the server (see [Setup](#setup)).
@@ -18,6 +20,7 @@ It is **off by default**. A superuser turns it on in **Settings → Office Docum
 - [Setup](#setup)
 - [Engines](#engines)
 - [Collabora CODE engine](#collabora-code-engine)
+- [Native Collabora runtime (no Docker)](#native-collabora-runtime-no-docker)
 - [Address layouts and the reverse proxy](#address-layouts-and-the-reverse-proxy)
 - [Capacity](#capacity)
 - [Switching engine or layout](#switching-engine-or-layout)
@@ -93,7 +96,7 @@ clientst0r (app user) ──unix socket, fixed verbs──▶ clientst0r-office-
 
   `front-proxy status` prints the state as JSON (including whether the drop-in still matches the unit); `front-proxy off` removes the site and the drop-in, re-enables the remembered sites, stops Nginx if it was stopped before, and restarts gunicorn with its port. If the gunicorn unit is changed later, run `front-proxy off` and `on` again so the drop-in matches it.
 
-- `clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested` runs `scripts/office/install-editor.sh --mode managed-local` from the signed release tag the root helper itself was installed from (its own mirror, the signature checked again), never from the app directory. TLS is always `upstream` and the app user comes from `/etc/clientst0r/root-helper.conf`. Docker is installed only if absent. Once the office service is configured, its clientst0r host name and deployment id can only be changed from a root shell.
+- `clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested [docker|native]` runs `scripts/office/install-editor.sh --mode managed-local` from the signed release tag the root helper itself was installed from (its own mirror, the signature checked again), never from the app directory. TLS is always `upstream` and the app user comes from `/etc/clientst0r/root-helper.conf`. Docker is installed only if absent. Once the office service is configured, its clientst0r host name and deployment id can only be changed from a root shell.
 - `office-setup` (below), then, for the same-host layout, `clientst0r-root-helper office-site-include on` adds the include line before each active `location / {` in the one enabled Nginx site that serves clientst0r (the one that names the app directory), runs `nginx -t`, puts the file back if that fails, and reloads Nginx. `off` removes the lines it added.
 
 clientst0r's host name is the one the request came in on. The output is shown on the page, and the request and the result are audited. On success managed local editing is turned on; then run Setup checks and Install as below. Other TLS modes (a certificate on this server, certbot) and installs without the root helper use the shell commands below.
@@ -117,6 +120,7 @@ clientst0r's host name is the one the request came in on. The output is shown on
    - `--layouts dedicated[,same-host]` (Collabora only for same-host; the first one is used at install), `--hostname` (optional when the layouts are only same-host)
    - `--tls existing-cert --cert-file F --key-file F` | `--tls certbot --certbot-email E` | `--tls upstream [--callback-upstream-ip IP]` (TLS ends on a device in front of this server; the IP defaults to what clientst0r's host name resolves to)
    - `--collabora-memory-mb` (default 1536), `--collabora-cpus` (default 1.5), `--collabora-bind-port` (default 9981)
+   - `--runtime docker|native` (Collabora only; native = Collabora's packages, no Docker; see [Native Collabora runtime](#native-collabora-runtime-no-docker))
    - `--allow-untested-releases` (writes `ALLOW_UNTESTED_RELEASES=yes`; needed for Collabora until a CODE release is live-verified)
    - `--edition enterprise --license-file license.lic`
    - `--ca-file ca.pem` (clientst0r uses a private CA)
@@ -178,6 +182,83 @@ Only one engine is installed at a time. `install` refuses while the other one is
 - **Firewall.** The same nftables table: the container may reach only clientst0r over HTTPS (`gateway:443`, or `CALLBACK_UPSTREAM_IP:443` with `CALLBACK_ROUTE=upstream`).
 - **Auto-configuration.** After a verified install, start, update, rollback, engine switch or layout switch, the job creates or updates one `EditorInstance(provider='collabora', mode='managed_local')`, enables the `collabora` provider, makes the instance the default only if there was none or the default was the other managed instance, and closes the other managed instance. External instances are never changed.
 - **Verification.** Collabora edits through a browser WebSocket, so the server-driven round trip cannot run the edit step. Verification requires: no failed step, discovery and session pass, and at least one WOPI step passes.
+
+## Native Collabora runtime (no Docker)
+
+> **Status: built, not run on a real host.** Everything in this section is covered by tests with fake `apt-get`, `apt-mark`, `dpkg-query`, `systemctl`, `journalctl`, `setpriv`, `adduser`, `nft` and `nginx` binaries (`office/test_managed_native.py`, `office/test_managed_installer.py`). No package has been installed and no `coolwsd` has been started by this code. Both native releases are `tested: False`.
+
+**Choosing it.** At setup: Settings → Managed local editor → **Set up this server** → Collabora runtime **Native (no Docker)**, or from a shell `install-editor.sh --mode managed-local --provider collabora --runtime native ...`. The root config then says `COLLABORA_RUNTIME=native`. The root helper's `office-setup` takes the runtime as an optional seventh argument (`docker` | `native`); without it the runtime is Docker, so an app from before this change still works with a newer root helper, and the app only sends the seventh argument for native. With native, Docker is not installed (unless ONLYOFFICE is also in `ENGINES`, for a later engine switch).
+
+**What the installer does** (root, once):
+- downloads Collabora's signing key from `https://collaboraoffice.com/downloads/gpg/collaboraonline-release-keyring.gpg` over HTTPS and trusts it only if the file holds exactly one primary key with fingerprint `7EB1530818B7683284483B7BD8915E456E7C440E`; writes it to `/etc/apt/keyrings/clientst0r-office-managed-collabora.gpg`;
+- writes the deb822 source `/etc/apt/sources.list.d/clientst0r-office-managed-collabora.sources` (`URIs: https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb`, `Suites: ./`, `Signed-By:` the keyring above);
+- installs `clientst0r-office-native.service` (see below) next to the helper's other units, adds `coolwsd`, `code-brand` and `collaboraoffice.*` to the unattended-upgrades blacklist, writes `COLLABORA_RUNTIME=native`;
+- refuses if Collabora was installed on this host by `install-editor.sh` in another mode (both would share the same packages);
+- installs **no** editor package. Install (Settings) does that.
+
+**Releases.** `NATIVE_RELEASES` in the helper pins exact package versions; the existing `ALLOW_UNTESTED_RELEASES` gate applies:
+
+| Release id | `coolwsd` | `code-brand` |
+|---|---|---|
+| `26.04.5.2-1-code-deb` | `26.04.5.2-1` | `26.04.5-3` |
+| `26.04.6.1-1-code-deb` | `26.04.6.1-1` | `26.04.6-1` |
+
+`code-brand` only depends on `coolwsd (>= 1.6.10)`, so the pairing is clientst0r's choice (the newest brand build of the same branch). `coolwsd` depends on the `collaboraoffice*` packages with `>=`, so apt installs the newest ones available at install time; they are held together with `coolwsd`. A release from the Docker list is refused for a native install and the other way round.
+
+**Install** (`install` verb, native): the helper checks capacity and that no `coolwsd` it did not install is present, then runs one step in `clientst0r-office-native.service`:
+1. creates the `cool` system user first if it is missing (the same `adduser --system --group --home /opt/cool cool` the package's postinst runs), so the firewall rule for that user exists before the package can start anything;
+2. writes the systemd drop-in and applies the firewall;
+3. writes `/etc/apt/preferences.d/clientst0r-office-managed-collabora`: priority 1001 on the two exact versions, priority 100 for everything else from `www.collaboraoffice.com` (the repository can never replace a distribution package);
+4. `systemctl mask --runtime coolwsd.service` (the package's postinst would start it with its default configuration), `apt-get update`, `apt-get install --no-install-recommends --allow-downgrades --allow-change-held-packages -o Dpkg::Options::=--force-confold coolwsd=V code-brand=V`, `apt-mark hold` on both and on every installed `collaboraoffice*` package;
+5. configures (below), then lifts the runtime mask.
+
+Then the helper enables and starts `coolwsd.service` and waits for `/hosting/discovery` on the loopback port.
+
+**Why a separate step unit.** The helper runs in a systemd sandbox (`ProtectSystem=full`) and cannot write `/usr`, `/etc` or `/opt`, which apt needs. `clientst0r-office-native.service` is a static oneshot (no `[Install]`, so nothing starts it at boot) that only root can start; the helper starts it with `systemctl start`. It takes no arguments: it reads one request from the root-only `/var/lib/clientst0r-office/state/native-request.json` (an action from `check | install | configure | remove` and a release id from the compiled list), deletes it so it cannot be replayed, validates it again, runs it and writes `native-result.json`. The app still only speaks the helper's socket vocabulary; no package name, version, path or command comes from it.
+
+**Configuration** (the `configure` step, also run at every Start and layout switch). `coolwsd.xml` is edited with Python's XML parser (comments, owner `cool` and mode kept), never by string concatenation, with the same settings the container gets:
+
+| Container (`--o:` / env) | `coolwsd.xml` |
+|---|---|
+| `server_name` | `server_name` = editor host (dedicated name, or clientst0r's host for same-host) |
+| `aliasgroup1=https://<clientst0r host>:443` | `storage.wopi.alias_groups` `mode="groups"`, one group, `host allow="true"` = `https://<clientst0r host>:443` |
+| `ssl.enable=false`, `ssl.termination=true`, `DONT_GEN_SSL_CERT` | `ssl.enable=false`, `ssl.termination=true` |
+| `net.content_security_policy=frame-ancestors https://<clientst0r host>` | same |
+| `admin_console.enable=false` | same, admin user name and password emptied (no admin secret exists) |
+| `security.enable_macros_execution=false`, `net.proto=IPv4`, `num_prespawn_children=1`, `logging.level=warning` | same |
+| published on `127.0.0.1:COLLABORA_BIND_PORT` only | `net.listen=loopback`, and `--port=COLLABORA_BIND_PORT` in the drop-in |
+| json-file logs | `logging.file enable="false"` (stderr → journald), `logging.color=false`, `logging.level_startup=warning` |
+
+`allow_update_popup` is set to false (updates go through the helper's release list). The **proof key** is generated once by the helper (`openssl genrsa`) and kept root-only at `/var/lib/clientst0r-office/collabora/proof_key` (0400); `coolwsd` reads a copy at `/etc/coolwsd/proof_key` (0400, owner `cool`), rewritten at every configure step, so the key the package's postinst generated is replaced.
+
+**systemd drop-in** `/etc/systemd/system/coolwsd.service.d/clientst0r-office.conf`: `ExecStart=` repeats the package's own command line (read from `coolwsd.service` in the 26.04.5/26.04.6 packages) and adds `--port=COLLABORA_BIND_PORT --o:net.listen=loopback --o:ssl.enable=false --o:ssl.termination=true`, so even the first start listens on 127.0.0.1 only; `MemoryMax=COLLABORA_MEMORY_MB`, `MemorySwapMax=0`, `CPUQuota=COLLABORA_CPUS×100%`, `TasksMax=2048`, `TimeoutStopSec=120`, `ProtectKernelModules`, `ProtectKernelLogs`, `RestrictRealtime`, `LockPersonality`, `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK`. The package's unit already sets `User=cool`, `ProtectSystem=strict`, `ReadWritePaths=/opt/cool /var/log`, `ProtectHome`, `PrivateTmp`, `ProtectControlGroups` and `CapabilityBoundingSet=CAP_FOWNER CAP_CHOWN CAP_SYS_CHROOT CAP_SYS_ADMIN`, `KillSignal=SIGINT`, `Restart=always`. Not added on purpose: `NoNewPrivileges` (the forkit needs its file capabilities to build document jails), `PrivateDevices`/`ProtectClock` (they restrict `/dev`, which the jails bind), `SystemCallFilter`/`RestrictNamespaces` (`coolforkit-ns` uses namespaces). Whether coolwsd starts with this drop-in is **unverified**.
+
+**Firewall.** The same `inet clientst0r_office` table gets an `output` chain keyed on the `cool` user's uid (`meta skuid`): established/related replies, DNS to the loopback resolver and to the `nameserver`s in `/etc/resolv.conf`, coolwsd's own loopback port, and TCP 443 to the callback target only: `CALLBACK_UPSTREAM_IP` with `CALLBACK_ROUTE=upstream`, or what clientst0r's host name resolves to with `gateway` (the last good resolution is kept in `state/native-targets.json` for boots without DNS). Everything else the editor's processes send is dropped. The firewall unit now runs `Before=docker.service coolwsd.service`.
+
+**Operations** (same verbs, same JSON shapes; `status`, `config` and `callback-check` add `runtime`):
+
+| Verb | Native runtime |
+|---|---|
+| `status` | `container` has the same keys from `systemctl show coolwsd.service` and `dpkg-query` (`exists` = package installed, `image` = `coolwsd <version>`, `oom_killed` = `Result=oom-kill`); health = discovery on `127.0.0.1:COLLABORA_BIND_PORT`; `resources` from the unit's cgroup (memory, tasks, CPU over 0.5 s); `docker.used=false` when Docker is not needed |
+| `start` / `stop` / `restart` | firewall + `configure` step, then `systemctl enable` + `start`; `systemctl stop` (coolwsd's SIGINT shutdown, 120 s) after the drain |
+| `logs` | `journalctl --unit=coolwsd.service --lines=N --output=short-iso`, redacted and capped like the container log |
+| `update` | `check` step (`apt-get install -s` of the exact versions) **before** any downtime, stop, backup (proof key, `coolwsd.xml`, drop-in, apt preferences, state), `install` step, start, health; unhealthy → the previous versions are installed again (`--allow-downgrades`) and the backup restored automatically |
+| `rollback` | the previous release's versions (downgrade) and its backup |
+| `uninstall` | stop, `systemctl disable`, `apt-mark unhold`, `apt-get remove coolwsd code-brand` (configuration files stay, as `remove` does); the drop-in and the apt preferences file are removed; secrets, proof key and backups are kept. The `collaboraoffice*` dependencies are left installed (unheld): `apt autoremove` removes them |
+| `set-layout` | `configure` (new `server_name`), then a restart if it was running |
+| `callback-check` | there is no container to step into: `setpriv --reuid=cool --regid=cool --clear-groups openssl s_client -connect <clientst0r host>:443 -verify_hostname … -verify_return_error` **from this host as the editor's own user**, so the nftables rule for that user and the host's trust store (which coolwsd uses) are what is tested |
+| `preflight` | no Docker or bridge-subnet checks; instead the repository files, systemd, and no foreign `coolwsd`; capacity uses the same rule (no container overhead) |
+| switch engine | to ONLYOFFICE (Docker) drains, uninstalls (removes the packages) and installs the container, as before |
+
+**Upgrades outside the helper.** `apt-mark hold` and the 1001 pins keep `apt upgrade` and unattended upgrades from moving the editor; the root helper's `apt upgrade` and `upgrade-packages` already skip `coolwsd`, `code-brand` and `collaboraoffice*` (`EDITOR_PKG_RE`), and `update_system_packages` does too. Note: the package's postinst writes `/etc/apt/apt.conf.d/25coolwsd`, a dpkg hook that rebuilds coolwsd's systemplate after every dpkg run; it is the vendor's and is left as it is.
+
+**Differences from Docker.** No image digest: integrity comes from apt's signed index (the key above); there is no container boundary, only the package's own sandbox and jails plus the drop-in; the editor's processes share the host's kernel, filesystem view (read-only outside `/opt/cool` and `/var/log`) and trust store; the release must still be in Collabora's repository at install/update time (the CODE repository is rolling; both pinned versions were present on 2026-11-13, older ones may disappear); `collaboraoffice*` dependency versions are whatever the repository offers at install time; backups hold configuration only (CODE keeps no documents).
+
+**Removing.** Uninstall (Settings) removes the packages; `install-managed-local.sh --remove-units` then also removes the source, the keyring and `clientst0r-office-native.service`.
+
+**What was verified, and what was not** (2026-11-13):
+- Verified here: the key at the URL above has fingerprint `7EB1530818B7683284483B7BD8915E456E7C440E` (uid "Collabora Productivity (Release Package Signing Key)") and is byte-identical to the one `install-editor.sh` already pins; the repository's `InRelease` carries a good signature from it; the signed `Packages` index lists `coolwsd` 26.04.5.2-1 and 26.04.6.1-1 and `code-brand` 26.04.5-3 and 26.04.6-1; the downloaded `coolwsd_26.04.6.1-1_amd64.deb` matches the index's SHA-256 (`08a470c6435677e69f40a5d12aa89cb17163bb7376f9cdaa8b59dc9fb416a0aa`); its `coolwsd.service`, `postinst` and `coolwsd.xml` were read for the unit settings, the `--port` option and the element names used above.
+- Not verified: the official SDK install page (`sdk.collaboraonline.com`) could not be read (bot check), and third-party guides disagree on details (an older `CODE-ubuntu2204` path, `collabora-online-brand` instead of `code-brand` for the licensed product); the key's provenance beyond the HTTPS download and its match with the earlier pin; any install, start, jail creation under the drop-in's hardening, AppArmor interplay, the `meta skuid` rule with the forkit's processes, or SIGINT shutdown on a real host. The live checklist below lists them.
 
 ## Address layouts and the reverse proxy
 
@@ -290,7 +371,7 @@ For scripts and the live-verification harness. Everything goes through these; no
 
 Async ops print the reply, then block until done and print the journal (`/var/lib/clientst0r-office/state/operation.json`: `id, op, args, state, step, error, result`). One operation at a time (`flock` on `/run/clientst0r-office/operation.lock`).
 
-**Root config keys** (`/etc/clientst0r/office-service.conf`, see `deploy/office-helper/office-service.conf.example`): `ENGINES`, `PROXY_LAYOUTS`, `PROXY_TLS`, `PROXY_CERT_FILE`, `PROXY_KEY_FILE`, `PROXY_MAX_BODY_MB`, `CALLBACK_ROUTE`, `CALLBACK_UPSTREAM_IP`, `COLLABORA_BIND_PORT`, `COLLABORA_CPUS`, `COLLABORA_MEMORY_MB`, plus the existing keys. Only root edits it (or re-runs the installer).
+**Root config keys** (`/etc/clientst0r/office-service.conf`, see `deploy/office-helper/office-service.conf.example`): `ENGINES`, `PROXY_LAYOUTS`, `PROXY_TLS`, `PROXY_CERT_FILE`, `PROXY_KEY_FILE`, `PROXY_MAX_BODY_MB`, `CALLBACK_ROUTE`, `CALLBACK_UPSTREAM_IP`, `COLLABORA_BIND_PORT`, `COLLABORA_CPUS`, `COLLABORA_MEMORY_MB`, `COLLABORA_RUNTIME` (`docker` | `native`), plus the existing keys. Only root edits it (or re-runs the installer).
 
 **App side:**
 - `manage.py office_managed --status` (refresh and print the helper status), `--run-pending` (advance the active operation; the scheduler task `office_managed_operations` runs it every minute), `--queue ACTION [--release R] [--engine E] [--layout L --accept-same-host] --user <superuser>`. Actions: `install`, `start`, `stop`, `restart`, `update`, `rollback`, `uninstall`, `switch_engine`, `set_layout`.
@@ -341,6 +422,7 @@ CLI: `manage.py office_managed --status | --run-pending | --queue ACTION [--rele
 - the root helper refuses `apt upgrade-packages` for `docker.io`, `docker-ce*`, `containerd*`, `runc` and the `docker-compose` packages;
 - `apt upgrade` upgrades everything else (planned with `apt-get -s upgrade`);
 - `update_system_packages` skips those packages too.
+- With only Collabora allowed and `COLLABORA_RUNTIME=native`, the root helper no longer holds the container engine back (nothing of the editor runs on it); the editor packages (`coolwsd`, `code-brand`, `collaboraoffice*`) are always skipped.
 
 Upgrading the engine restarts `dockerd`, and with it the editor, without saving open documents first. To upgrade it: **Stop** the editor here, upgrade the engine from a root shell, then **Start** it.
 
@@ -465,7 +547,10 @@ manage.py test office.test_managed_collabora_helper  # Collabora engine, nginx r
 manage.py test office.test_managed                   # IPC, SSRF rule, provisioning, jobs, drain, views
 manage.py test office.test_managed_collabora         # engine switch, layout switch, Collabora provisioning,
                                                      # proxy views, browser probe, setup checks, command
-manage.py test office.test_managed_installer         # install-managed-local.sh on a fake host
+manage.py test office.test_managed_installer         # install-managed-local.sh on a fake host (incl. --runtime native)
+manage.py test office.test_managed_native            # native Collabora runtime: packages, drop-in, coolwsd.xml,
+                                                     # firewall, lifecycle, logs, native-run request checks
+manage.py test office.test_managed_host_setup        # Settings server setup, runtime choice, office-setup argv
 manage.py test core.tests.test_root_helper     # engine guard + office-helper self-update
 ```
 
@@ -522,6 +607,7 @@ Shipped in v3.17.671 and covered by tests with fakes only:
 - the upstream callback route: the container reaching `https://<clientst0r host>` through the TLS device (hairpin) with verification; Docker's embedded DNS with the forward-drop rule;
 - capacity numbers on a real host under load (the 1536 MB / 1.5 CPU defaults are an estimate from the published sizing);
 - the browser probe across the upstream device;
-- engine and layout switches end to end, including the provider's browser URL change for users with an editor open.
+- engine and layout switches end to end, including the provider's browser URL change for users with an editor open;
+- the whole native runtime (not shipped yet): repository and key on a real host, `apt-get install` of the pinned versions with the runtime mask, coolwsd starting with the drop-in's hardening and `--port`, the edited `coolwsd.xml`, the copied proof key being used, the `meta skuid` firewall (including DNS and the forkit's processes), journald logging, `setpriv` callback check, update/rollback with downgrades, uninstall.
 
 The live harness (`scripts/office/live/`, developed separately) drives these through the [Automation interface](#automation-interface-helper-verbs-commands-jobs).

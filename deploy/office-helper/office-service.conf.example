@@ -45,6 +45,12 @@ ENGINES=onlyoffice
 #COLLABORA_BIND_PORT=9981
 #COLLABORA_CPUS=1.5
 #COLLABORA_MEMORY_MB=1536
+# docker (default): the official CODE image in a container. native: Collabora's
+# own packages (coolwsd + code-brand) from Collabora's CODE apt repository
+# (set up by install-editor.sh --runtime native), pinned and held, run as
+# coolwsd.service with the helper's systemd drop-in; no Docker needed.
+# ONLYOFFICE always runs in Docker.
+#COLLABORA_RUNTIME=docker
 
 # --- reverse proxy (written by the helper: its own files only) ------------
 # dedicated (recommended) and/or same-host (Collabora only: the editor's

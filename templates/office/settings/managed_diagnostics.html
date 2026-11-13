@@ -23,7 +23,8 @@
         {% if status %}
         <dl class="row small">
           <dt class="col-sm-4">Helper</dt><dd class="col-sm-8">{{ status.helper_version }}</dd>
-          <dt class="col-sm-4">Docker</dt><dd class="col-sm-8">{% if status.docker.available %}{{ status.docker.version }} · {{ status.docker.compose }}{% else %}<span class="text-danger">unavailable</span> {{ status.docker.detail }}{% endif %}</dd>
+          <dt class="col-sm-4">Runtime</dt><dd class="col-sm-8">{{ status.runtime|default:"docker" }}{% if status.runtime == 'native' %} (coolwsd.service){% endif %}</dd>
+          {% if status.runtime != 'native' or status.docker.used %}<dt class="col-sm-4">Docker</dt><dd class="col-sm-8">{% if status.docker.available %}{{ status.docker.version }} · {{ status.docker.compose }}{% else %}<span class="text-danger">unavailable</span> {{ status.docker.detail }}{% endif %}</dd>{% endif %}
           <dt class="col-sm-4">Installed</dt><dd class="col-sm-8">{{ status.installed.state|default:"not installed" }} {{ status.installed.release|default:"" }}{% if status.installed.installed_at %} · {{ status.installed.installed_at }}{% endif %}</dd>
           <dt class="col-sm-4">Image digest</dt><dd class="col-sm-8"><code class="text-break">{{ status.installed.digest|default:"—" }}</code></dd>
           <dt class="col-sm-4">Container</dt><dd class="col-sm-8">{% if status.container.exists %}{{ status.container.state }}, health {{ status.container.health }}, started {{ status.container.started_at }}, restarts {{ status.container.restart_count }}{% if status.container.oom_killed %}, killed: out of memory{% endif %}{% else %}none{% endif %}</dd>
