@@ -5,6 +5,19 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Edit in Microsoft 365** (built on the development branch, not yet released; not yet verified against a real tenant). A round trip for a clientst0r Word, Excel or PowerPoint file through the Microsoft 365 documents capability:
+  - The file page gains *Edit in Microsoft 365* when an administrator has turned it on for the customer's Microsoft 365 connection (read-and-write documents). The current revision is checked against its SHA-256, uploaded as the user (delegated sign-in, `conflictBehavior=fail`) into a working-copy folder in the user's own OneDrive or one approved library or folder, and opened in Microsoft 365 in a new tab. The session records the file, base revision and checksum, user, organization, Graph item id, eTag and cTag.
+  - *Save back to clientst0r* re-checks the user's permission, confirms it is the same Microsoft item inside the allowed location, downloads it from the tenant's SharePoint host and stores it as a new revision through the Office storage path (format check, scan hook). If the clientst0r file got a newer revision meanwhile, the Microsoft version is kept as an unaccepted save in the version history and the user is told. Saving the same content again, or a second click while a save runs, never creates a second revision.
+  - *Check for changes* shows whether the Microsoft copy changed (cTag) without importing. *Finish* (refused while the Microsoft copy has changes clientst0r lacks) and *Discard* end the session and delete the working copy, or keep it when the administrator chose that; no sharing link is ever created.
+  - Other people see "Being edited in Microsoft 365 by …" on the file page, and the ONLYOFFICE / Collabora editor shows the same warning. Reading and in-app editing are not blocked.
+  - Administrator settings on the connection's *Document settings* page: on/off, working-copy location, folder name, keep-or-delete policy (default delete) and the idle time for reminders.
+  - New scheduled task *Microsoft 365 Edit Sessions* (`manage.py m365_edit_sessions`, hourly): ends sessions whose user lost permission, deletes working copies the policy says to delete, and for idle sessions either ends them (no changes in Microsoft 365) or reminds the user. It never imports.
+  - New role permission `office_edit_in_m365` ("Customer users: edit Office files in Microsoft 365"), off for every role. Customer users need it in addition to edit permission on the file; MSP staff follow their edit permission. `docs/ROLES_AND_ACCESS.md` regenerated.
+  - Migrations: `accounts` 0047 (the permission; built-in roles keep their not-customized state), `integrations` 0042 (session table and connection settings), `core` 0097 (task type).
+
 ## [3.17.670] - 2026-11-13
 
 ### Fixed

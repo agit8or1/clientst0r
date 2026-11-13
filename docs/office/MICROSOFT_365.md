@@ -370,7 +370,180 @@ URLs or content.
   Microsoft 365…*.
 - No inline handlers or scripts; everything is plain forms and links.
 
-## Editing local files in Microsoft 365: not available
+## Edit in Microsoft 365 (working-copy round trip)
+
+*Built on the development branch, not yet released. Verified only against a
+fake Microsoft (see Tests); it has not been run against a real tenant.*
+
+A clientst0r Word, Excel or PowerPoint file (`.docx`, `.xlsx`, `.pptx`) can be
+edited in Microsoft 365 through a **working copy**. clientst0r stays the
+place the file lives; Microsoft 365 only ever holds a copy, and clientst0r
+gets its content back only when someone chooses **Save back to clientst0r**.
+
+Code: `integrations/m365docs/editing.py` (service), `views_edit.py` (views),
+`signals.py` (revocation), `integrations/management/commands/m365_edit_sessions.py`
+(scheduled task). Model `integrations.M365EditSession`
+(`integrations/migrations/0042_m365_edit_sessions.py`). Tests:
+`integrations/tests_m365edit.py`.
+
+### The flow
+
+1. **Start.** On the Office file page (`/office/f/<code>/<pk>/`) a user who
+   may edit the file chooses **Edit in Microsoft 365** (a form posted to a new
+   tab). clientst0r:
+   - re-checks permission and that the connection belongs to the file's
+     organization;
+   - reads the current revision and verifies it against its stored SHA-256;
+   - uploads it as the user (delegated token) into the working-copy folder
+     with `PUT …:/<name>:/content?@microsoft.graph.conflictBehavior=fail`, so
+     nothing is ever replaced (the name is `<file> (clientst0r edit).<ext>`,
+     with a random suffix if that exists);
+   - records the session: file, base revision and checksum, user,
+     organization, connection, location, drive id, item id, eTag and cTag;
+   - redirects to the item's `webUrl` (tenant SharePoint host only,
+     `Referrer-Policy: no-referrer`).
+   Starting again while a session is open reopens the same working copy.
+2. **Edit in Microsoft 365.** Co-authoring with other people happens in
+   Microsoft 365, under Microsoft's permissions for that working copy.
+3. **Check for changes** reads the item's cTag (content tag) and says whether
+   the content changed since clientst0r last had it. It imports nothing.
+4. **Save back to clientst0r:**
+   - only the session's owner can do it, and their edit permission is checked
+     again first (a lost permission revokes the session; nothing is
+     downloaded);
+   - the item is read again and must be the same drive and item id, a file,
+     inside the allowed location;
+   - the content is downloaded from the `downloadUrl` (tenant SharePoint
+     host, no bearer token) within the size limit;
+   - it is stored with `office.storage.save_or_quarantine` (format
+     validation, scan hook, edit permission re-checked inside the write
+     transaction), expected base = the session's base revision, or the
+     revision this session last saved. The revision's source is *Imported*;
+     the audit entry says it came from a Microsoft 365 edit session.
+   - **Stale base:** when the clientst0r file got a newer revision meanwhile,
+     the content is kept as an unaccepted save (quarantine, reason *stale*) in
+     the file's version history, where it can be downloaded or restored, and
+     the user is told. Nothing is overwritten.
+   - **Idempotent:** content identical to what the session already saved (or
+     to the base, before any save) creates no revision. A second save-back
+     while one runs is refused (a claim on the session row, 10-minute expiry).
+5. **Finish** ends the session. It is refused while the Microsoft copy has
+   changes clientst0r does not have (cTag differs): save back first, or
+   discard. **Discard** ends the session without saving. Then the working
+   copy is deleted (`DELETE /drives/{id}/items/{id}`, with `If-Match` on the
+   eTag just read for Finish; OneDrive / SharePoint keep it in the recycle
+   bin for their retention) or kept, as the administrator chose.
+
+### Visibility and locking
+
+- While a session is open, everyone who can see the file sees *Being edited
+  in Microsoft 365 by <name>* on the file page.
+- The ONLYOFFICE / Collabora editor page shows *Also being edited in
+  Microsoft 365 by …*.
+- Nothing is locked: reading, downloading and in-app editing still work. A
+  save-back based on an older revision becomes a conflict (above), never an
+  overwrite. Several people can each have their own session on the same
+  file; each save-back is checked against its own base.
+
+### Administrator settings
+
+On the connection's **Document settings** page (organization admin with
+`integrations_configure`), card *Edit in Microsoft 365*:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| Offer Edit in Microsoft 365 | off | Needs documents on and **read and write** access. Turning it off ends every open session (revoked). |
+| Working copies go to | — | One allowed location: each user's own OneDrive (private to that user), or one library or folder (visible to whoever Microsoft 365 lets see it there). A whole site is not accepted. |
+| Folder for working copies | `clientst0r working copies` | Created once in the location (`POST …/children`, `conflictBehavior=fail`; an existing folder of that name is reused). Empty: the location's top level. |
+| When a session ends | delete | `delete` or `keep` the working copy. |
+| Remind about idle sessions after | 72 hours | Used by the scheduled task. |
+
+Every change is audited (`m365_edit_settings`).
+
+### Permissions
+
+| Who | Needs |
+|---|---|
+| MSP staff | edit permission on the file (`docs.permissions.can_edit` for a Document, `files_upload` (+ `vault_edit` for a password's file) for an attachment, MSP staff + `files_upload` for a ticket attachment) and `docs_view` on the organization |
+| Customer users | the same, **plus** the role permission `office_edit_in_m365` (off for every role, never granted automatically). Without it the button is not shown. |
+
+The session URLs (`/integrations/m365/documents/edit/…`) are exempt from the
+`/integrations/` section gate (`integrations_view`); the views decide per
+file instead. Connecting one's own Microsoft 365 sign-in still happens on
+the existing documents pages, which keep that gate, so a customer user also
+needs whatever lets them reach *Documents → Microsoft 365* today.
+
+`office_edit_in_m365` was added in `accounts` 0047 (customer-assignable,
+elevated). Built-in roles do not hold it. `docs/ROLES_AND_ACCESS.md` is
+generated with `manage.py roles_matrix`.
+
+Revocation: membership, role, user-type and deactivation changes and file
+deletion revoke affected sessions at once (`m365docs/signals.py`, the same
+events as the in-app editors). Every session action re-checks permission
+as well, so a change the signals miss takes effect on the next action. A
+revoked session's working copy is deleted by the scheduled task when the
+policy is *delete*.
+
+### Tenant and customer isolation
+
+- Only a connection that the **file's own organization** owns is used. A
+  platform-owned Microsoft 365 connection, or another customer's, is never
+  used for a file (the documents capability is per customer tenant).
+- Sessions are looked up by id **and** owner; anyone else's session is a 404.
+- The working copy must stay inside the configured allowed location; the
+  allowed-locations rule (above) is applied at start, open, check and
+  save-back.
+
+### Scheduled task
+
+*Microsoft 365 Edit Sessions* (`m365_edit_sessions`, hourly;
+`manage.py m365_edit_sessions`):
+
+- revokes sessions whose user lost permission;
+- deletes working copies marked for deletion (for example after a revoke,
+  or when Finish could not reach Microsoft);
+- for sessions idle longer than the configured time: if the Microsoft copy
+  has no changes clientst0r lacks, ends the session and applies the
+  delete/keep policy; otherwise reminds the user once per idle period
+  (audit entry, plus e-mail when SMTP is configured).
+- It **never imports** anything.
+
+### Security notes
+
+- No sharing links, invitations or permission changes are ever made; the
+  HTTP layer refuses those endpoints whatever the caller asks.
+- Graph calls only to `graph.microsoft.com`, downloads only from the tenant's
+  SharePoint hosts, all through the SSRF-safe client (`m365docs/http.py`).
+- Tokens stay in the encrypted `M365DocsGrant`; they are never in a URL,
+  log line, audit entry or the session row. Download URLs are not stored.
+- Size limit: `OFFICE_MAX_FILE_MB` (and at most 250 MB, the single-PUT limit).
+- Checksums: the revision is verified before upload; every save-back records
+  the SHA-256 of what was stored.
+
+### Audit events
+
+| Event | AuditLog action |
+|---|---|
+| `m365_edit_start` | export |
+| `m365_edit_open` | read |
+| `m365_edit_save` (failures and conflicts with `success=False`) | import |
+| `m365_edit_finish`, `m365_edit_discard`, `m365_edit_revoked`, `m365_edit_ended`, `m365_edit_reminder`, `m365_edit_settings` | update |
+
+The Office storage path also writes its usual `save` / `quarantine` entries.
+
+### Limits of this approach
+
+- clientst0r gets content only when someone saves back. Changes made in
+  Microsoft 365 after the last save-back are not in clientst0r.
+- Whether `webUrl` opens the copy in Office for the web, and how often Office
+  for the web's autosave changes the cTag, are **unverified** against a real
+  tenant.
+- Uploads use a single `PUT` (Microsoft's limit 250 MB); upload sessions are
+  not implemented.
+- The working-copy location must be one of the connection's allowed
+  locations; a whole SharePoint site cannot be chosen.
+
+## Direct editing of stored files: not available
 
 Embedding Office for the web over files stored in clientst0r (Microsoft's WOPI
 host integration) requires Microsoft's **Cloud Storage Partner Program**.
@@ -383,14 +556,15 @@ host integration) requires Microsoft's **Cloud Storage Partner Program**.
 - A self-hosted deployment, where each customer stores the files, does not
   qualify.
 
-clientst0r therefore does not implement it. Edit local files with ONLYOFFICE
-or Collabora, and open Microsoft 365 files where they live. The settings page
-and the Microsoft 365 tab say this too.
+clientst0r therefore does not implement it. Use *Edit in Microsoft 365*
+(above), which works with a working copy, or edit stored files directly with
+ONLYOFFICE or Collabora.
 
 ## Limitations
 
 - No automatic sync in either direction, by design. Imported and exported
-  copies are independent.
+  copies are independent; an Edit in Microsoft 365 working copy comes back
+  only on *Save back to clientst0r*.
 - Uploads use a single `PUT`, which Microsoft limits to 250 MB. The
   clientst0r limit (`OFFICE_MAX_FILE_MB`) is normally lower. Upload sessions
   are not implemented.

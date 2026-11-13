@@ -2373,8 +2373,20 @@ Collabora or Microsoft 365 service**.
   scopes only, administrator-chosen libraries and folders, link and open
   SharePoint / OneDrive files in Microsoft 365, create in a chosen folder, and
   explicit import / export of copies. Linked files stay in Microsoft 365; no
-  sync, no sharing links. Editing clientst0r-stored files in Microsoft's
-  editors is not offered (it requires Microsoft's partner program).
+  sync, no sharing links. Embedding Microsoft's editors directly over
+  clientst0r-stored files (WOPI) is not offered (it requires Microsoft's
+  partner program).
+  - **Edit in Microsoft 365** *(built on the development branch, not yet released; not yet verified against a real tenant)* —
+    a working-copy round trip for clientst0r Word, Excel and PowerPoint files:
+    the current revision (checksum verified) is uploaded as the user to their
+    own OneDrive or an approved library / folder and opened in Microsoft 365;
+    *Save back to clientst0r* stores the Microsoft copy as a new revision on
+    request only (stale-base saves are kept as conflicts, double saves are
+    no-ops, permission re-checked); Finish / Discard delete or keep the copy
+    per administrator policy. Other users and the ONLYOFFICE / Collabora
+    editors show who is editing in Microsoft 365. Customer users need the new
+    `office_edit_in_m365` permission. A scheduled task reminds about or ends
+    idle sessions and never imports. No sharing links.
 - **62.5 Google Docs** *(planned)* — optional connector. Open a copy in
   Google Drive, then import the edited file back as a new version; files are
   never left shared in Drive.
