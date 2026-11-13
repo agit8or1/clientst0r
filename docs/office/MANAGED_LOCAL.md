@@ -453,6 +453,8 @@ These prove that the code follows the documented protocols. They do **not** prov
 
 ## Live verification
 
+**Automated harness:** `scripts/office/live/run_live_checks.py` runs the browser and lifecycle checks below automatically, on a live install (the default local profile) or on a disposable VM, and is the evidence `mark-tested` needs to mark a release tested. See [LIVE_VERIFICATION.md](LIVE_VERIFICATION.md). It is built on the development branch and has not been run against a real editor yet.
+
 Status: **NOT RUN**. It needs a disposable Ubuntu 24.04 VM with at least 4 vCPU, 8 GB RAM and 40 GB disk, Docker, a DNS name and certificate for both host names, clientst0r installed, and `ALLOW_UNTESTED_RELEASES=yes` until a release is marked tested.
 
 **Automated, opt-in:** `office/test_managed_live.py`. Run it on the VM as the app user:

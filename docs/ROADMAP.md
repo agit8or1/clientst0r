@@ -2422,6 +2422,20 @@ Collabora or Microsoft 365 service**.
   clientst0r of memory or CPU, with the verdict, limits and a recommendation
   per engine on the settings page.
 
+- **62.12 Live verification harness for managed editors** *(built on the development branch, not yet released; never run against a real editor)* —
+  one command that checks a managed Collabora or ONLYOFFICE editor with a
+  real headless browser: create, open, type, save, close and reopen DOCX,
+  XLSX and PPTX files and confirm the stored revision and its checksum; a
+  read-only user cannot save; two users edit at once; a long session with a
+  delayed save; restart, stop/start, update and rollback, and uninstall and
+  reinstall through clientst0r's own operations; and, in same-host path
+  mode, that clientst0r's session cookie never reaches the editor. Runs
+  safely on a live install by default (its own test organization and users,
+  removed at the end; refuses while real users have documents open), with an
+  optional disposable-VM profile that adds installation and reboot checks.
+  Produces a JSON result and a report, and a release is marked tested only
+  from a passing result for its exact image digest.
+
 **Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
 Microsoft 365 and Google Docs 1–2 weeks each.
 

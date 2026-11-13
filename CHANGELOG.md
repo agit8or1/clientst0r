@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - "Managed Local ONLYOFFICE" in Settings is now **Managed local editor**. A migration adds the engine, the same-host acknowledgement, and the engine and layout targets for operations.
 
+- **Live verification harness for managed office editors** (built on the development branch, not yet run against a real editor). `scripts/office/live/run_live_checks.py` checks a managed Collabora or ONLYOFFICE editor with headless Chromium:
+  - editing: DOCX, XLSX and PPTX create, open, type, force-save, close and reopen, with the stored revision, its sha256 and the typed text verified; read-only users refused by the browser page and by the server; two users editing at once; a long session with a delayed save;
+  - lifecycle through clientst0r's own queued operations: restart, stop/start while a document is open, a maintenance drain that stores an unsaved edit before restarting, update and rollback (skipped with the reason when the release list has fewer than two entries), and uninstall with data kept followed by a reinstall;
+  - same-host path mode: a check that clientst0r's session cookie is not forwarded to the editor paths.
+
+  The default *local* profile runs on a live install: it needs `--local-production-run` and the confirmed base URL, refuses while real users have documents open on the editor, creates and removes its own test organization and users, and never reboots, installs Docker or touches nginx or the firewall. An optional disposable-VM profile adds installation, container-engine restart and reboot steps; it resumes after a reboot. The run writes results JSON and a markdown report with screenshots, with secrets redacted. `mark-tested` changes a release to tested only from a passing result for its exact digest, as a working-tree diff for a person to review and commit. Guide: `docs/office/LIVE_VERIFICATION.md`.
+
 ## [3.17.670] - 2026-11-13
 
 ### Fixed
