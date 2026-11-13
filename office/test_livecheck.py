@@ -898,8 +898,9 @@ class BrowserWorkerTests(TestCase):
             r = b.call('open', ctx='a', detail_url='/office/f/doc/1/', mode='edit')
             self.assertTrue(r['opened'] and r['session_id'])
             b.call('wait_ready', ctx='a', editor=ed, timeout=60)
-            self.assertEqual(b.call('type', ctx='a', editor=ed, fmt='docx', text='MARK42')['state']['state'],
-                             'dirty')
+            typed = b.call('type', ctx='a', editor=ed, fmt='docx', text='MARK42')
+            self.assertEqual(typed['state']['state'], 'dirty')
+            self.assertEqual(typed['dismissed'], 1)     # the welcome dialog over the document
             self.assertTrue(b.call('save', ctx='a', editor=ed)['clicked'])
             st = b.call('wait_state', ctx='a', states=['saved', 'failed'], timeout=30)['state']
             self.assertEqual(st['state'], 'saved')

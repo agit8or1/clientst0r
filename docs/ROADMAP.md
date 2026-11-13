@@ -2437,7 +2437,7 @@ Collabora or Microsoft 365 service**.
   clientst0r of memory or CPU, with the verdict, limits and a recommendation
   per engine on the settings page.
 
-- **62.12 Live verification harness for managed editors** *(shipped v3.17.671 — not yet run against a real editor)* —
+- **62.12 Live verification harness for managed editors** *(shipped v3.17.671; first run against a real Collabora CODE container on 2026-11-13 found the welcome-dialog problem fixed in v3.17.674)* —
   one command that checks a managed Collabora or ONLYOFFICE editor with a
   real headless browser: create, open, type, save, close and reopen DOCX,
   XLSX and PPTX files and confirm the stored revision and its checksum; a

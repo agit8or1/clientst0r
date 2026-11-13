@@ -1,0 +1,33 @@
+{% if show %}
+<div class="mb-3 office-new-inline">
+  <div class="form-label mb-1">What are you creating?</div>
+  <div class="row g-2">
+    <div class="col-sm-6 col-lg-3">
+      <a href="#document-form" class="office-new-choice is-current d-block h-100 text-decoration-none">
+        <i class="fas fa-file-alt" aria-hidden="true"></i>
+        <span class="fw-semibold">Rich text document</span>
+        <small class="d-block text-muted">The form below: rich text, Markdown, diagram or an uploaded file.</small>
+      </a>
+    </div>
+    {% for fmt, label in formats %}
+    <div class="col-sm-6 col-lg-3">
+      <form method="post" action="{% url 'office:new_document' fmt %}" class="office-new-choice h-100">
+        {% csrf_token %}
+        <i class="fas {% if fmt == 'docx' %}fa-file-word text-primary{% elif fmt == 'xlsx' %}fa-file-excel text-success{% else %}fa-file-powerpoint text-danger{% endif %}" aria-hidden="true"></i>
+        <label class="fw-semibold" for="office-inline-{{ fmt }}">{% if fmt == 'docx' %}Word{% elif fmt == 'xlsx' %}Excel{% else %}PowerPoint{% endif %} <span class="text-muted">(.{{ fmt }})</span></label>
+        <div class="input-group input-group-sm mt-1">
+          <input type="text" class="form-control" id="office-inline-{{ fmt }}" name="title" placeholder="Name" maxlength="200" required>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  <small class="text-muted d-block mt-1">Word, Excel and PowerPoint files open in the Office editor. Older .doc, .xls and .ppt files can be uploaded and opened; new files use the current formats.</small>
+</div>
+<style>
+.office-new-choice { display: block; padding: .6rem .75rem; border: 1px solid var(--bs-border-color, rgba(0,0,0,.125)); border-radius: .5rem; color: inherit; }
+.office-new-choice > i { font-size: 1.25rem; margin-right: .35rem; }
+.office-new-choice.is-current { border-color: var(--bs-primary, #0d6efd); }
+</style>
+{% endif %}

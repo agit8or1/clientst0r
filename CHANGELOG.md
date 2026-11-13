@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.674] - 2026-11-13
+
+### Changed
+- **Add Document offers the Office formats.** The Create Document page starts with "What are you creating?": a rich text document (the form, as before), or a Word (.docx), Excel (.xlsx) or PowerPoint (.pptx) file created blank and opened in the Office editor. It is offered only to users who may create documents for the organization (the same check and the same create action as the New Office file menu on the Documents list). Older .doc, .xls and .ppt files can still be uploaded and opened.
+
+### Fixed
+- **Live checks with Collabora CODE.** The first run against a real Collabora CODE 26.04.6.1 container (managed, same-host layout, this server) opened documents in editing mode, but CODE's "What's new" welcome dialog covered the document and took the keyboard, so every typing step failed and the drain and restart steps waited on the sessions left open. The browser now closes that dialog with its own close button before typing, as a user would. (CODE cannot switch the dialog off outside home mode, which caps connections and documents.) The run's passing steps: install with the pinned digest, cookies not forwarded on the editor paths, read-only refused by browser and server.
+
 ## [3.17.673] - 2026-11-13
 
 ### Added

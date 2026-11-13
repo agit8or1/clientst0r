@@ -46,14 +46,26 @@ if (btn) btn.addEventListener('click', function () {
 
 FRAME = """<!doctype html><html><body style="margin:0">
 <div id="document-container" tabindex="0" style="width:100%%;height:690px;background:#eee"></div>
+%(welcome)s
 <script>
 var typed = '';
+// Like Collabora CODE's "What's new" dialog: an iframe over the document
+// that takes clicks and keys until its own close button is pressed.
+window.addEventListener('message', function (ev) {
+  if (ev.data === 'welcome-close') { var w = document.querySelector('.iframe-welcome-modal'); if (w) w.remove(); }
+});
 document.addEventListener('keydown', function (e) {
+  if (document.querySelector('.iframe-welcome-modal')) return;
   if (e.key.length === 1) { typed += e.key; parent.__typed = typed; parent.postMessage('modified', '*'); }
 });
 document.getElementById('document-container').addEventListener('click', function () { this.focus(); });
 parent.postMessage('loaded', '*');
 </script></body></html>"""
+
+WELCOME_IFRAME = ('<iframe class="iframe-welcome-modal" src="/welcome" '
+                  'style="position:absolute;left:0;top:0;width:100%;height:690px;border:0;background:#fff"></iframe>')
+WELCOME = """<!doctype html><html><body><h2>Explore the new version</h2>
+<button id="welcome-close" onclick="parent.postMessage('welcome-close', '*')">x</button></body></html>"""
 
 
 class Site:
@@ -61,6 +73,7 @@ class Site:
         self.saved = []
         self.fail_saves = False
         self.posts = []
+        self.welcome = True        # the editor frame starts with a welcome dialog over it
 
 
 def handler_for(site):
@@ -90,7 +103,9 @@ def handler_for(site):
                     'badge': '<span id="office-readonly-badge">Read-only</span>' if view else '',
                     'button': '' if view else '<button id="collabora-save-now" disabled>Save now</button>'})
             if self.path == '/frame':
-                return self._send(200, FRAME)
+                return self._send(200, FRAME % {'welcome': WELCOME_IFRAME if site.welcome else ''})
+            if self.path == '/welcome':
+                return self._send(200, WELCOME)
             return self._send(404, 'not found')
 
         def do_POST(self):

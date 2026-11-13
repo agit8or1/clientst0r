@@ -912,6 +912,15 @@ class ViewTests(OfficeTestBase):
         self.assertFalse(Document.objects.filter(title='nope').exists())
         self.assertEqual(self.client.post(reverse('office:new_document', args=['exe'])).status_code, 404)
 
+    def test_add_document_page_offers_the_office_formats(self):
+        self.login(self.editor, self.org)
+        page = self.client.get(reverse('docs:document_create'))
+        self.assertContains(page, 'What are you creating?')
+        for fmt in ('docx', 'xlsx', 'pptx'):
+            self.assertContains(page, reverse('office:new_document', args=[fmt]))
+        self.login(self.reader, self.org)       # may not create documents: not offered at all
+        self.assertEqual(self.client.get(reverse('docs:document_create')).status_code, 403)
+
     def test_new_attachment_on_asset(self):
         from assets.models import Asset
         asset = Asset.objects.create(organization=self.org, name='Server 1')

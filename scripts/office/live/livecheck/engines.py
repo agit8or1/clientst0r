@@ -66,6 +66,13 @@ COLLABORA_BROWSER = {
     'ready_frame': ['#document-container'],
     'settle_ms': 3000,
     'save_button': '#collabora-save-now',
+    # CODE shows a "What's new" welcome dialog over the document on a new
+    # browser profile and after each upgrade, and cannot switch it off outside
+    # home mode (which caps connections and documents). It takes the keyboard,
+    # so close it the way a user does: its own close button, inside the
+    # welcome iframe (browser/dist/welcome/welcome.html and bundle.js,
+    # 26.04.6.1). Each entry: frames inside the editor frame, then the button.
+    'dismiss_frame': [['iframe.iframe-welcome-modal', '#welcome-close']],
     'click': {'docx': (0.5, 0.5), 'xlsx': (0.3, 0.4), 'pptx': (0.6, 0.45)},
     'clicks': {'docx': 1, 'xlsx': 1, 'pptx': 2},
     'keys_before': {'docx': ['Control+End'], 'xlsx': ['Control+Home'], 'pptx': []},

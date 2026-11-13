@@ -67,6 +67,13 @@ def office_new_menu(context):
     }
 
 
+@register.inclusion_tag('office/_new_inline.html', takes_context=True)
+def office_new_inline(context):
+    """The Office formats as a choice on the Add Document page (same check and
+    the same create action as office_new_menu)."""
+    return office_new_menu(context)
+
+
 @register.inclusion_tag('office/_new_menu.html', takes_context=True)
 def office_new_attachment_menu(context, entity_type, entity_id):
     request = context.get('request')

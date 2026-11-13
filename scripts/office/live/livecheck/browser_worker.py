@@ -149,9 +149,40 @@ class Worker:
             p.wait_for_timeout(int(ed['settle_ms']))
         return {'seconds': round(time.time() - t0, 1), 'state': self._state(p)}
 
+    def _dismiss(self, p, ed, wait_ms=4000):
+        """Close dialogs the editor puts over the document (a welcome or
+        what's-new screen). Returns how many were closed."""
+        closed = 0
+        sels = ed.get('dismiss_frame') or []
+        if not sels:
+            return 0
+        frame = self._frame(p, ed)
+        deadline = time.time() + wait_ms / 1000
+        while time.time() < deadline:
+            hit = False
+            for sel in sels:
+                chain = [sel] if isinstance(sel, str) else list(sel)
+                scope = frame
+                for inner in chain[:-1]:
+                    scope = scope.frame_locator(inner)
+                loc = scope.locator(chain[-1])
+                try:
+                    if loc.count() and loc.first.is_visible():
+                        loc.first.click()
+                        closed += 1
+                        hit = True
+                        p.wait_for_timeout(500)
+                except Exception:
+                    continue
+            if hit:
+                deadline = time.time() + 1.0         # a second dialog may follow
+            p.wait_for_timeout(250)
+        return closed
+
     def type(self, req):
         p, ed = self.page(req), req['editor']
         fmt = req['fmt']
+        dismissed = self._dismiss(p, ed)
         box = p.locator(editor_frame_selector(ed)).first.bounding_box()
         if not box:
             raise RuntimeError('the editor frame has no size')
@@ -166,7 +197,7 @@ class Worker:
         for key in (ed.get('keys_after') or {}).get(fmt, []):
             p.keyboard.press(key)
         state = self._wait_state(p, ['dirty', 'saving', 'saved'], int(req.get('timeout', 20)))
-        return {'state': state}
+        return {'state': state, 'dismissed': dismissed}
 
     def save(self, req):
         p, ed = self.page(req), req['editor']
