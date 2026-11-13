@@ -34,15 +34,30 @@ def from_email():
     return mailer.default_from_email(_system()) or getattr(django_settings, 'DEFAULT_FROM_EMAIL', None)
 
 
-def base_url():
-    """The site's public address for links in e-mails: Settings → site URL,
-    else the SITE_URL setting. A signing link must be absolute, so with
-    neither set the e-mail fails (and is retried) instead of sending a
-    link that leads nowhere."""
+def staff_base_url():
+    """Settings → site URL, else SITE_URL: where staff open contracts. Never
+    the customer portal host, which does not serve staff pages."""
     from django.conf import settings as django_settings
 
     from core import mailer
     url = mailer.site_url(_system()) or str(getattr(django_settings, 'SITE_URL', '') or '').rstrip('/')
+    if not url.startswith(('https://', 'http://')):
+        raise MailNotConfigured('Set the site URL (Settings → General) so contract links can be e-mailed.')
+    return url
+
+
+def base_url():
+    """The public address for signing links in e-mails: the customer portal
+    host when one is set (signing pages are customer-facing), else Settings →
+    site URL, else the SITE_URL setting. A signing link must be absolute, so
+    with none set the e-mail fails (and is retried) instead of sending a
+    link that leads nowhere."""
+    from django.conf import settings as django_settings
+
+    from core import mailer
+    from core.portal_surface import portal_origin
+    url = (portal_origin() or mailer.site_url(_system())
+           or str(getattr(django_settings, 'SITE_URL', '') or '').rstrip('/'))
     if not url.startswith(('https://', 'http://')):
         raise MailNotConfigured('Set the site URL (Settings → General) so signing links can be e-mailed.')
     return url
@@ -91,7 +106,7 @@ def send_code(inv, code):
 
 def send_staff(to, subject, body, link_path=''):
     try:
-        link = (base_url() + link_path) if link_path else ''
+        link = (staff_base_url() + link_path) if link_path else ''
     except MailNotConfigured:   # staff can still find it in the app
         link = ''
     msg = EmailMessage(subject=subject, body=body + (f'\n\nOpen the contract: {link}' if link else ''),

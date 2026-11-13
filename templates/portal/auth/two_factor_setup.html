@@ -1,0 +1,44 @@
+{% extends "portal/base.html" %}
+{% load i18n %}
+{% block title %}Two-factor sign-in{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <h1 class="portal-page-title">Protect your account with two-factor sign-in</h1>
+    <div class="card mt-3"><div class="card-body p-4">
+      {% if request.session.2fa_optional %}
+      <div class="alert alert-info"><i class="fas fa-shield-alt" aria-hidden="true"></i> <strong>Recommended:</strong> a code from your phone keeps your account safe even if your password leaks.</div>
+      {% endif %}
+
+      {% if wizard.steps.current == 'welcome' %}
+        <p>When you sign in, you will enter your password and a short code from an authenticator app on your phone. Follow the steps to set it up.</p>
+      {% elif wizard.steps.current == 'method' %}
+        <p>Choose how you want to receive sign-in codes.</p>
+      {% elif wizard.steps.current == 'generator' %}
+        <p>Scan this QR code with an authenticator app (for example Google Authenticator, Microsoft Authenticator or your password manager).</p>
+        <p><img src="{{ QR_URL }}" alt="QR code for your authenticator app" class="bg-white p-2 rounded" width="200" height="200"></p>
+        <p class="small text-muted">Can't scan it? Enter this key in the app instead: <a href="{{ otpauth_url }}"><code>{{ secret_key }}</code></a></p>
+        <p>Then type the 6-digit code the app shows.</p>
+      {% elif wizard.steps.current == 'validation' %}
+        {% if challenge_succeeded %}<p>Enter the code we sent you.</p>
+        {% else %}<div class="alert alert-warning" role="alert">We could not send a code with that method. Go back and try again or choose another method.</div>{% endif %}
+      {% endif %}
+
+      <form action="" method="post" data-portal-once>
+        {% csrf_token %}
+        {% include "portal/auth/_wizard_forms.html" %}
+        <input type="submit" value="" hidden>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          {% if wizard.steps.prev %}
+          <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+          {% endif %}
+          <button type="submit" class="btn btn-primary">Next <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+          {% if request.session.2fa_optional %}
+          <a href="{% url 'portal:ticket_list' %}" class="btn btn-link ms-auto">Skip for now</a>
+          {% endif %}
+        </div>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

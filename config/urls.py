@@ -9,6 +9,7 @@ from django.conf import settings
 from two_factor.urls import urlpatterns as tf_urls
 
 from accounts.otp_views import BackupTokensView
+from accounts.views import StaffLoginView
 
 from core.views import privacy_policy as core_privacy_policy
 from core.views import beta_onboarding as core_beta_onboarding
@@ -41,6 +42,10 @@ urlpatterns = [
     # first so it wins; reverse() of the two_factor name still resolves here.
     path('account/two_factor/backup/tokens/', BackupTokensView.as_view(),
          name='backup_tokens_hashed'),
+    # Staff sign-in: the two_factor login with customer portal accounts
+    # refused (they sign in at /portal/login/). Same path and wizard prefix
+    # as two_factor:login, listed first so it wins.
+    path('account/login/', StaffLoginView.as_view(), name='staff_login'),
     path('', include(tf_urls)),
 
     # Legacy logout alias (for compatibility)
@@ -80,6 +85,8 @@ urlpatterns = [
     path('psa/workflows/', include('psa.support_workflows.urls')),
     path('psa/', include('psa.urls')),
     path('psa/ai/', include('psa_ai.urls')),
+    # Customer portal sign-in, password reset and 2FA (namespace portal_auth).
+    path('portal/', include('portal.auth_urls')),
     path('portal/', include('portal.urls')),
     path('resourcing/', include('resourcing.urls')),
     path('crm/', include('crm.urls')),

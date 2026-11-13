@@ -1799,6 +1799,20 @@ are built on top of them.
   form left open while another tab switched client is refused instead of
   being saved under the other client. Browser checks:
   `scripts/browser_tests/form_friction.py`.
+- **Separate customer portal sign-in and country policy** *(built on the
+  development branch, not yet released)* — customers sign in at
+  `/portal/login/` with their own password reset, two-factor enrolment and
+  lockout pages; the staff sign-in refuses customer portal accounts and the
+  portal sign-in refuses staff and superusers. Customer users who open a
+  staff page are sent to the portal. Firewall Settings gains a country policy
+  for the portal surface (portal pages, the portal sign-in and links sent to
+  customers) next to the existing rules, which keep governing the staff
+  backend, so the backend can be limited to fewer countries than customers
+  sign in from; it inherits the staff rules until changed. An optional portal
+  host name (Settings → General or `PORTAL_HOSTNAME`) serves the portal and
+  customer links on their own host, with staff pages there returning 404.
+  The portal and its sign-in pages have their own look with the customer's
+  logo and colour, light and dark.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

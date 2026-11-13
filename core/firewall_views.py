@@ -30,6 +30,9 @@ def firewall_settings(request):
         settings.ip_firewall_mode = request.POST.get('ip_firewall_mode', 'blocklist')
         settings.geoip_firewall_enabled = request.POST.get('geoip_firewall_enabled') == 'on'
         settings.geoip_firewall_mode = request.POST.get('geoip_firewall_mode', 'blocklist')
+        portal_mode = request.POST.get('portal_geoip_mode', settings.portal_geoip_mode)
+        if portal_mode in dict(FirewallSettings.PORTAL_GEOIP_MODES):
+            settings.portal_geoip_mode = portal_mode
         settings.bypass_for_staff = request.POST.get('bypass_for_staff') == 'on'
         settings.bypass_for_api = request.POST.get('bypass_for_api') == 'on'
         settings.log_blocked_requests = request.POST.get('log_blocked_requests') == 'on'
@@ -41,7 +44,8 @@ def firewall_settings(request):
 
     # Get rules and logs
     ip_rules = FirewallIPRule.objects.all()
-    country_rules = FirewallCountryRule.objects.all()
+    country_rules = FirewallCountryRule.objects.filter(surface=FirewallCountryRule.SURFACE_STAFF)
+    portal_country_rules = FirewallCountryRule.objects.filter(surface=FirewallCountryRule.SURFACE_PORTAL)
     recent_blocks = FirewallLog.objects.all()[:20]
 
     # Get statistics
@@ -60,6 +64,8 @@ def firewall_settings(request):
         'total_blocks_today': total_blocks_today,
         'ip_rules_count': ip_rules.count(),
         'country_rules_count': country_rules.count(),
+        'portal_country_rules_count': portal_country_rules.count(),
+        'portal_geoip_modes': FirewallSettings.PORTAL_GEOIP_MODES,
     }
 
     return render(request, 'core/firewall_settings.html', context)
@@ -124,10 +130,29 @@ def firewall_ip_rule_toggle(request, pk):
     return redirect('core:firewall_ip_rules')
 
 
+def _rule_surface(request):
+    """Which country list the page edits: 'staff' (default) or 'portal'.
+    Only those two values are accepted."""
+    value = request.POST.get('surface') or request.GET.get('surface') or ''
+    if value == FirewallCountryRule.SURFACE_PORTAL:
+        return FirewallCountryRule.SURFACE_PORTAL
+    return FirewallCountryRule.SURFACE_STAFF
+
+
+def _country_rules_redirect(surface):
+    from django.urls import reverse
+    url = reverse('core:firewall_country_rules')
+    if surface == FirewallCountryRule.SURFACE_PORTAL:
+        url += '?surface=portal'
+    return redirect(url)
+
+
 @login_required
 @user_passes_test(is_superuser)
 def firewall_country_rules(request):
-    """Manage country firewall rules."""
+    """Manage country firewall rules (staff list, or the portal list with
+    ?surface=portal)."""
+    surface = _rule_surface(request)
     if request.method == 'POST' and 'map_codes' in request.POST:
         # v3.17.522 — the world map posts the whole selection; reconcile against
         # it. Names come from our own ISO table, never from the browser: these
@@ -135,7 +160,8 @@ def firewall_country_rules(request):
         from core.geoip_map import name_for, normalise_codes
 
         selected = normalise_codes(request.POST.get('map_codes', ''))
-        existing = {r.country_code.upper(): r for r in FirewallCountryRule.objects.all()}
+        existing = {r.country_code.upper(): r
+                    for r in FirewallCountryRule.objects.filter(surface=surface)}
 
         added, removed = 0, 0
         for code in selected:
@@ -143,6 +169,7 @@ def firewall_country_rules(request):
                 FirewallCountryRule.objects.create(
                     country_code=code,
                     country_name=name_for(code) or code,
+                    surface=surface,
                     created_by=request.user,
                 )
                 added += 1
@@ -157,7 +184,7 @@ def firewall_country_rules(request):
                 f'Country rules updated from map: {added} added, {removed} removed.')
         else:
             messages.info(request, 'No country rule changes to apply.')
-        return redirect('core:firewall_country_rules')
+        return _country_rules_redirect(surface)
 
     if request.method == 'POST':
         # Add new country rule
@@ -169,6 +196,7 @@ def firewall_country_rules(request):
                 FirewallCountryRule.objects.create(
                     country_code=country_code,
                     country_name=country_name,
+                    surface=surface,
                     created_by=request.user
                 )
                 messages.success(request, f'Country rule added: {country_name} ({country_code})')
@@ -177,9 +205,9 @@ def firewall_country_rules(request):
         else:
             messages.error(request, 'Country code and name are required.')
 
-        return redirect('core:firewall_country_rules')
+        return _country_rules_redirect(surface)
 
-    rules = FirewallCountryRule.objects.all()
+    rules = FirewallCountryRule.objects.filter(surface=surface)
 
     # Common countries for quick add
     common_countries = [
@@ -216,7 +244,12 @@ def firewall_country_rules(request):
             ('rules', 'Countries with a rule', COLOR_SINGLE,
              'id_map_codes', active_codes),
         ),
-        'firewall_mode': firewall_settings.geoip_firewall_mode,
+        'firewall_mode': (firewall_settings.portal_geoip_mode
+                          if surface == FirewallCountryRule.SURFACE_PORTAL
+                          else firewall_settings.geoip_firewall_mode),
+        'rule_surface': surface,
+        'portal_geoip_mode': firewall_settings.portal_geoip_mode,
+        'portal_geoip_mode_display': firewall_settings.get_portal_geoip_mode_display(),
         'background_modes': SystemSetting.GEOIP_MAP_BACKGROUND_MODES,
         'background_patterns': SystemSetting.GEOIP_MAP_PATTERNS,
         **map_background_context(settings_obj),
@@ -273,10 +306,10 @@ def geoip_map_background(request):
 def firewall_country_rule_delete(request, pk):
     """Delete a country firewall rule."""
     rule = get_object_or_404(FirewallCountryRule, pk=pk)
-    country_name = rule.country_name
+    country_name, surface = rule.country_name, rule.surface
     rule.delete()
     messages.success(request, f'Country rule deleted: {country_name}')
-    return redirect('core:firewall_country_rules')
+    return _country_rules_redirect(surface)
 
 
 @login_required
@@ -290,7 +323,7 @@ def firewall_country_rule_toggle(request, pk):
 
     status = "enabled" if rule.is_active else "disabled"
     messages.success(request, f'Country rule {status}: {rule.country_name}')
-    return redirect('core:firewall_country_rules')
+    return _country_rules_redirect(rule.surface)
 
 
 @login_required

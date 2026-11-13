@@ -1,52 +1,69 @@
 {% load static %}
 {% load i18n %}
+{% load portal_theme %}
+{% portal_theme_mode as theme_mode %}
+{% portal_brand_name as msp_name %}
+{% portal_accent_color as accent %}
+{% with current=request.resolver_match.url_name %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"{% if theme_mode %} data-portal-theme="{{ theme_mode }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Customer Portal{% endblock %} — {{ organization.name|default:"Support" }}</title>
+    <meta name="color-scheme" content="light dark">
+    <title>{% block title %}Customer Portal{% endblock %} — {{ organization.name|default:msp_name }}</title>
     <link href="{% static 'vendor/bootstrap/5.3.0/css/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="{% static 'css/portal.css' %}">
+    {% if accent %}
+    {# The customer's own portal colour (validated hex), light and dark. #}
     <style>
-        body { background: #f6f8fa; }
-        .portal-nav { background: #fff; border-bottom: 1px solid #dee2e6; }
-        .portal-brand { font-weight: 600; color: #2c3e50; }
-        .portal-content { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-        {% if organization.portal_primary_color %}
-        :root { --bs-primary: {{ organization.portal_primary_color }}; --bs-link-color: {{ organization.portal_primary_color }}; }
-        .btn-primary {
-            background-color: {{ organization.portal_primary_color }};
-            border-color: {{ organization.portal_primary_color }};
-        }
-        .btn-primary:hover, .btn-primary:focus {
-            filter: brightness(0.92);
-            background-color: {{ organization.portal_primary_color }};
-            border-color: {{ organization.portal_primary_color }};
-        }
-        .bg-primary { background-color: {{ organization.portal_primary_color }} !important; }
-        .text-primary { color: {{ organization.portal_primary_color }} !important; }
-        a { color: {{ organization.portal_primary_color }}; }
-        {% endif %}
+        :root, :root[data-portal-theme="dark"] { --portal-accent: {{ accent }}; --portal-accent-contrast: #ffffff; }
+        @media (prefers-color-scheme: dark) { :root:not([data-portal-theme="light"]) { --portal-accent: {{ accent }}; --portal-accent-contrast: #ffffff; } }
     </style>
+    {% endif %}
     {% block extra_css %}{% endblock %}
+    <script src="{% static 'js/portal.js' %}"></script>
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
-<body>
-    <nav class="portal-nav py-3">
-        <div class="portal-content d-flex justify-content-between align-items-center">
-            <span class="portal-brand d-flex align-items-center gap-2">
-                {% if organization.logo %}
-                    <img src="{{ organization.logo.url }}" alt="{{ organization.name }}" style="height: 36px; max-width: 200px; object-fit: contain;">
-                {% else %}
-                    <i class="fas fa-life-ring"></i>
-                    <span>{{ organization.name|default:"Support Portal" }}</span>
+<body class="portal-body">
+    <a class="portal-skip-link" href="#portal-main">Skip to content</a>
+    <header class="portal-header">
+        <div class="portal-wrap">
+            <div class="portal-header-row">
+                <a class="portal-brand" href="{% url 'portal:ticket_list' %}">
+                    {% if organization.logo %}
+                        <img src="{{ organization.logo.url }}" alt="{{ organization.name }}">
+                    {% elif system_settings.custom_logo %}
+                        <img src="{{ system_settings.custom_logo.url }}" alt="{{ msp_name }}">
+                    {% else %}
+                        <span class="portal-brand-mark" aria-hidden="true"><i class="fas fa-life-ring"></i></span>
+                    {% endif %}
+                    <span class="portal-brand-name">
+                        {{ organization.name|default:"Support Portal" }}
+                        <span class="portal-brand-sub">Support portal{% if msp_name %} · {{ msp_name }}{% endif %}</span>
+                    </span>
+                </a>
+                <button type="button" class="portal-menu-toggle" data-portal-menu-toggle aria-controls="portal-nav" aria-expanded="false">
+                    <i class="fas fa-bars" aria-hidden="true"></i> Menu
+                </button>
+            </div>
+            <nav class="portal-nav" id="portal-nav" aria-label="Portal">
+                {% if request.portal_psa_enabled is not False %}
+                <a href="{% url 'portal:ticket_list' %}" {% if current == 'ticket_list' or current == 'ticket_detail' %}aria-current="page"{% endif %}><i class="fas fa-ticket" aria-hidden="true"></i> My Tickets</a>
                 {% endif %}
-            </span>
-            <div class="d-flex flex-wrap align-items-center justify-content-end">
+                <a href="{% url 'portal:kb_list' %}" {% if current == 'kb_list' or current == 'kb_detail' %}aria-current="page"{% endif %}><i class="fas fa-book" aria-hidden="true"></i> Knowledge Base</a>
+                <a href="{% url 'portal:vault_list' %}" {% if current == 'vault_list' or current == 'org_admin_vault' or current == 'org_admin_vault_item' %}aria-current="page"{% endif %}><i class="fas fa-key" aria-hidden="true"></i> Credentials</a>
+                <a href="{% url 'portal:agreement_list' %}" {% if current == 'agreement_list' or current == 'agreement_detail' %}aria-current="page"{% endif %}><i class="fas fa-file-signature" aria-hidden="true"></i> Agreements</a>
+                {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
+                <a href="{% url 'portal:status' %}" {% if current == 'status' %}aria-current="page"{% endif %}><i class="fas fa-heart-pulse" aria-hidden="true"></i> Service Status</a>
+                {% if psa_portal_customer_approvals_enabled and request.portal_psa_enabled is not False %}
+                <a href="{% url 'portal:approvals_list' %}" title="Approvals waiting on you" {% if current == 'approvals_list' %}aria-current="page"{% endif %}><i class="fas fa-circle-check" aria-hidden="true"></i> Approvals</a>
+                {% endif %}
+                <span class="portal-nav-spacer"></span>
                 {% if request.portal_memberships and request.portal_memberships|length > 1 %}
                 {# Customer switcher — users who belong to several customers. #}
-                <form method="post" action="{% url 'portal:switch_customer' %}" class="d-inline-flex align-items-center me-2 my-0" id="portal-customer-switcher">
+                <form method="post" action="{% url 'portal:switch_customer' %}" class="my-0" id="portal-customer-switcher">
                     {% csrf_token %}
                     <label for="portal-switch-org" class="visually-hidden">Customer</label>
                     <select name="organization_id" id="portal-switch-org" class="form-select form-select-sm" data-autosubmit title="Switch customer">
@@ -57,37 +74,43 @@
                     <noscript><button type="submit" class="btn btn-sm btn-outline-secondary ms-1">Switch</button></noscript>
                 </form>
                 {% endif %}
+                <a href="{% url 'portal:preferences' %}" title="Notification preferences" {% if current == 'preferences' %}aria-current="page"{% endif %}><i class="fas fa-cog" aria-hidden="true"></i><span class="visually-hidden">Notification preferences</span></a>
+                {% if request.user.is_authenticated %}
+                <a href="{% url 'portal_auth:password_change' %}" title="Change password" {% if current == 'password_change' %}aria-current="page"{% endif %}><i class="fas fa-key" aria-hidden="true"></i><span class="visually-hidden">Change password</span></a>
+                <a href="{% url 'portal_auth:two_factor_setup' %}" title="Sign-in security"><i class="fas fa-shield-halved" aria-hidden="true"></i><span class="visually-hidden">Sign-in security</span></a>
+                {% endif %}
                 {% if request.portal_psa_enabled is not False %}
-                <a href="{% url 'portal:ticket_list' %}" class="btn btn-link">My Tickets</a>
+                <a href="{% url 'portal:ticket_create' %}" class="portal-cta"><i class="fas fa-plus" aria-hidden="true"></i> New Ticket</a>
                 {% endif %}
-                <a href="{% url 'portal:kb_list' %}" class="btn btn-link"><i class="fas fa-book"></i> Knowledge Base</a>
-                <a href="{% url 'portal:vault_list' %}" class="btn btn-link"><i class="fas fa-key"></i> Credentials</a>
-                <a href="{% url 'portal:agreement_list' %}" class="btn btn-link"><i class="fas fa-file-signature"></i> Agreements</a>
-                {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
-                <a href="{% url 'portal:status' %}" class="btn btn-link"><i class="fas fa-heart-pulse"></i> Service Status</a>
-                {% if psa_portal_customer_approvals_enabled and request.portal_psa_enabled is not False %}
-                <a href="{% url 'portal:approvals_list' %}" class="btn btn-link" title="Approvals waiting on you"><i class="fas fa-circle-check"></i> Approvals</a>
-                {% endif %}
-                <a href="{% url 'portal:preferences' %}" class="btn btn-link" title="Notification preferences"><i class="fas fa-cog"></i></a>
-                {% if request.portal_psa_enabled is not False %}
-                <a href="{% url 'portal:ticket_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Ticket</a>
-                {% endif %}
-                <form method="post" action="{% url 'logout' %}" style="display:inline; margin:0;">
+                {% if request.user.is_authenticated %}
+                <form method="post" action="{% url 'portal_auth:logout' %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-link">Sign out</button>
+                    <button type="submit" class="portal-nav-button"><i class="fas fa-right-from-bracket" aria-hidden="true"></i> Sign out</button>
                 </form>
-            </div>
+                {% else %}
+                <a href="{% url 'portal_auth:login' %}"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign in</a>
+                {% endif %}
+            </nav>
         </div>
-    </nav>
-    <main class="portal-content">
-        {% if messages %}
-        {% for m in messages %}
-        <div class="alert alert-{{ m.tags|default:'info' }}">{{ m }}</div>
-        {% endfor %}
-        {% endif %}
-        {% block content %}{% endblock %}
+    </header>
+    <main class="portal-main" id="portal-main">
+        <div class="portal-wrap">
+            {% if messages %}
+            {% for m in messages %}
+            <div class="alert alert-{{ m.tags|default:'info' }}" role="status">{{ m }}</div>
+            {% endfor %}
+            {% endif %}
+            {% block content %}{% endblock %}
+        </div>
     </main>
+    <footer class="portal-footer">
+        <div class="portal-wrap portal-footer-row">
+            <span>{% if msp_name %}Support provided by {{ msp_name }}{% endif %}</span>
+            <span><i class="fas fa-lock" aria-hidden="true"></i> Secure customer portal</span>
+        </div>
+    </footer>
     <script src="{% static 'vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+{% endwith %}

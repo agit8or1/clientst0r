@@ -256,7 +256,9 @@ class GeoPrivacyTests(Fixture, TestCase):
         self.assertFalse(DispatchPosition.objects.filter(user=self.near_tech).exists())
         portal = Client()
         _login(portal, self.portal)
-        self.assertEqual(portal.get(reverse('field_ops:dispatch_sharing')).status_code, 404)
+        # Customer portal users never reach staff pages: sent to the portal.
+        r = portal.get(reverse('field_ops:dispatch_sharing'))
+        self.assertEqual((r.status_code, r.get('Location')), (302, '/portal/'))
 
     def test_freshness_and_retention(self):
         cfg = _geo_on(freshness_minutes=30, retention_hours=2)

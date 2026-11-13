@@ -1,0 +1,50 @@
+{% load static %}
+{% load portal_theme %}
+{% portal_theme_mode as theme_mode %}
+{% portal_brand_name as msp_name %}
+<!DOCTYPE html>
+<html lang="en"{% if theme_mode %} data-portal-theme="{{ theme_mode }}"{% endif %}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="robots" content="noindex">
+    <title>{% block title %}Sign in{% endblock %} — {{ msp_name }} customer portal</title>
+    <link href="{% static 'vendor/bootstrap/5.3.0/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="{% static 'css/portal.css' %}">
+    {% block extra_media %}{% endblock %}
+    <script src="{% static 'js/portal.js' %}"></script>
+    <script src="{% static 'js/csp-events.js' %}"></script>
+</head>
+<body class="portal-body">
+    <main class="portal-auth" id="portal-main">
+        <div class="portal-auth-card">
+            <div class="portal-auth-brand">
+                {% if system_settings.custom_logo %}
+                    <img src="{{ system_settings.custom_logo.url }}" alt="{{ msp_name }}">
+                {% else %}
+                    <span class="portal-brand-mark" aria-hidden="true"><i class="fas fa-life-ring"></i></span>
+                {% endif %}
+                <div>
+                    <h1 class="portal-auth-title">{% block heading %}Customer portal{% endblock %}</h1>
+                    <p class="portal-auth-lead">{% block lead %}{{ msp_name }} support{% endblock %}</p>
+                </div>
+            </div>
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }}" role="status">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    <footer class="portal-footer">
+        <div class="portal-wrap portal-footer-row">
+            <span>{% if msp_name %}Support provided by {{ msp_name }}{% endif %}</span>
+            <span><i class="fas fa-lock" aria-hidden="true"></i> Secure customer portal</span>
+        </div>
+    </footer>
+    <script src="{% static 'vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js' %}"></script>
+</body>
+</html>

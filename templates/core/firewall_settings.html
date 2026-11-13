@@ -151,8 +151,41 @@
                         <strong>GeoIP Provider:</strong> Uses ip-api.com (free service, 45 requests/minute)
                     </div>
 
+                    <div class="form-text mb-2">These rules govern the staff backend. The customer portal follows them too unless it has its own policy below.</div>
                     <a href="{% url 'core:firewall_country_rules' %}" class="btn btn-info">
                         <i class="fas fa-list"></i> Manage Country Rules ({{ country_rules_count }})
+                    </a>
+                </div>
+            </div>
+
+            <!-- Customer portal country policy -->
+            <div class="card mb-3" id="portal-geoip">
+                <div class="card-header py-2 bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-users"></i> Customer Portal Country Policy</h6>
+                </div>
+                <div class="card-body">
+                    <p class="form-text mt-0">
+                        Applies to portal pages, the portal sign-in and the links sent to customers
+                        (quote signing, satisfaction surveys, secure replies and secure notes, public
+                        status pages, unsubscribe links). Everything else is the staff backend and keeps
+                        the GeoIP rules above, so you can restrict the backend to fewer countries than
+                        your customers sign in from. Paths that are not recognised count as staff.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label" for="portal_geoip_mode"><strong>Portal policy</strong></label>
+                        <select name="portal_geoip_mode" id="portal_geoip_mode" class="form-select">
+                            {% for value, label in portal_geoip_modes %}
+                            <option value="{{ value }}" {% if settings.portal_geoip_mode == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            <strong>Same as the staff backend:</strong> the GeoIP switch, mode and country rules above (the default).<br>
+                            <strong>No country restriction:</strong> the portal is reachable from every country.<br>
+                            <strong>Allow / Block List:</strong> the portal uses its own country list, whether or not the staff GeoIP switch is on.
+                        </div>
+                    </div>
+                    <a href="{% url 'core:firewall_country_rules' %}?surface=portal" class="btn btn-success">
+                        <i class="fas fa-list"></i> Manage Portal Country Rules ({{ portal_country_rules_count }})
                     </a>
                 </div>
             </div>

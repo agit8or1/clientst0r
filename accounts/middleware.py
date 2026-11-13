@@ -21,7 +21,8 @@ class SessionIdleTimeoutMiddleware:
     60 min / 8 h. On expiry the user is logged out and sent to the login page.
     """
 
-    EXEMPT_PATHS = ['/account/login/', '/account/logout/', '/static/', '/media/', '/csp-report/']
+    EXEMPT_PATHS = ['/account/login/', '/account/logout/', '/static/', '/media/', '/csp-report/',
+                    '/portal/login/', '/portal/logout/']
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -92,6 +93,14 @@ class Enforce2FAMiddleware:
         '/admin/login/',
         '/static/',
         '/csp-report/',
+        # Customer portal sign-in, sign-out, password reset and its own 2FA
+        # enrolment pages (portal/auth_urls.py).
+        '/portal/login/',
+        '/portal/logout/',
+        '/portal/password-reset/',
+        '/portal/reset/',
+        '/portal/locked/',
+        '/portal/account/two-factor/',
     ]
     # What an authenticated-but-unverified session (user has a device, the
     # session never passed OTP) may still reach. Deliberately excludes
@@ -101,6 +110,8 @@ class Enforce2FAMiddleware:
         '/account/logout/',
         '/static/',
         '/csp-report/',
+        '/portal/login/',
+        '/portal/logout/',
     ]
 
     def __init__(self, get_response):
@@ -137,9 +148,12 @@ class Enforce2FAMiddleware:
                 from urllib.parse import urlencode
                 return redirect(f'{verify_url}?{urlencode({"next": request.get_full_path()})}')
             from django.contrib.auth.views import redirect_to_login
+            from core.portal_surface import is_portal_user
+            login_url = (reverse('portal_auth:login') if is_portal_user(request.user)
+                         else reverse('two_factor:login'))
             next_url = request.get_full_path()
             logout(request)
-            return redirect_to_login(next_url, reverse('two_factor:login'))
+            return redirect_to_login(next_url, login_url)
 
         # Skip for allowed paths
         if any(request.path.startswith(path) for path in self.ALLOWED_PATHS):
@@ -169,7 +183,10 @@ class Enforce2FAMiddleware:
 
         # Check if user has 2FA device configured
         if not user_has_device(request.user):
-            setup_url = reverse('two_factor:setup')
+            # Customer portal users enrol on the portal's own 2FA pages.
+            from core.portal_surface import is_portal_user
+            setup_url = (reverse('portal_auth:two_factor_setup') if is_portal_user(request.user)
+                         else reverse('two_factor:setup'))
 
             from core.security_policy import require_2fa
             if require_2fa():

@@ -170,7 +170,9 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
             out['no_smtp'] = True
             return out
     brand = brand_name(ss)
-    base = site_url(ss)
+    # Sent to customers: links go to the portal host when one is set.
+    from core.portal_surface import portal_site_url
+    base = portal_site_url(ss)
     from_email = default_from_email(ss)
 
     all_clear_orgs = set(SecurityDigestCustomerSetting.objects.filter(

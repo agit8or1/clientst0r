@@ -814,7 +814,8 @@ class PortalStatusPageTests(TestCase):
     def test_anonymous_is_sent_to_login(self):
         resp = Client().get('/portal/status/')
         self.assertEqual(resp.status_code, 302)
-        self.assertIn('/account/login/', resp['Location'])
+        # The portal's own sign-in, not the staff one.
+        self.assertIn('/portal/login/', resp['Location'])
 
     def test_user_of_another_client_does_not_see_this_page(self):
         from accounts.models import Membership, Role

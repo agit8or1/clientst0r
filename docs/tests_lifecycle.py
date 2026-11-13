@@ -250,6 +250,10 @@ class DraftVisibilityTests(_Base):
         self.assertEqual(c.get(f'/portal/kb/{self.draft.slug}/').status_code, 404)
 
     def test_drafts_list_shows_them(self):
+        # This customer has the portal on, so its customer users are portal
+        # users and stay on the portal; the drafts list is for MSP editors.
+        from psa.tests._base import _make_msp_tech
+        _make_msp_tech(self.editor)
         r = self.client_for(self.editor).get('/docs/lifecycle/drafts/')
         titles = [d.title for d in r.context['documents']]
         self.assertIn('zebracorn pending', titles)

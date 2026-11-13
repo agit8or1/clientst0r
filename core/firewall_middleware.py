@@ -22,8 +22,16 @@ class FirewallMiddleware(MiddlewareMixin):
         # Get firewall settings
         settings = FirewallSettings.get_settings()
 
+        # Which country policy applies: the staff backend's (the settings
+        # above) or the customer portal's (core/portal_surface.py). Decided
+        # from the resolved path and validated host only.
+        from core import portal_surface
+        surface = portal_surface.request_surface(request)
+        request.firewall_surface = surface
+        geoip_enabled, geoip_mode, geoip_surface = self.geoip_policy(settings, surface)
+
         # Skip if both firewalls are disabled
-        if not settings.ip_firewall_enabled and not settings.geoip_firewall_enabled:
+        if not settings.ip_firewall_enabled and not geoip_enabled:
             return None
 
         # Get client IP
@@ -59,9 +67,9 @@ class FirewallMiddleware(MiddlewareMixin):
                 return self.block_request(request, client_ip, '', '', ip_reason, settings)
 
         # Check GeoIP firewall
-        if settings.geoip_firewall_enabled:
+        if geoip_enabled:
             country_blocked, country_reason, country_code, country_name = self.check_geoip_firewall(
-                client_ip, settings
+                client_ip, settings, mode=geoip_mode, rule_surface=geoip_surface
             )
             if country_blocked:
                 return self.block_request(
@@ -129,14 +137,41 @@ class FirewallMiddleware(MiddlewareMixin):
 
         return False, ''
 
-    def check_geoip_firewall(self, client_ip, settings):
+    @staticmethod
+    def geoip_policy(settings, surface):
+        """(enabled, mode, rule surface) of the country policy for `surface`.
+
+        The staff backend uses geoip_firewall_enabled / geoip_firewall_mode
+        and the staff country list. The portal inherits exactly that unless
+        portal_geoip_mode says otherwise: 'off' (no country check) or an
+        allow/block list of its own, which applies whether or not the staff
+        country check is switched on.
+        """
+        from core.models import FirewallCountryRule, FirewallSettings
+        staff = (settings.geoip_firewall_enabled, settings.geoip_firewall_mode,
+                 FirewallCountryRule.SURFACE_STAFF)
+        if surface != FirewallCountryRule.SURFACE_PORTAL:
+            return staff
+        mode = getattr(settings, 'portal_geoip_mode', FirewallSettings.PORTAL_GEOIP_INHERIT)
+        if mode == FirewallSettings.PORTAL_GEOIP_OFF:
+            return False, '', FirewallCountryRule.SURFACE_PORTAL
+        if mode in ('allowlist', 'blocklist'):
+            return True, mode, FirewallCountryRule.SURFACE_PORTAL
+        return staff
+
+    def check_geoip_firewall(self, client_ip, settings, mode=None, rule_surface='staff'):
         """
         Check if country should be blocked based on GeoIP firewall rules.
+
+        `mode` and `rule_surface` come from geoip_policy(); without them the
+        staff policy applies.
 
         Returns:
             tuple: (blocked: bool, reason: str, country_code: str, country_name: str)
         """
         from core.models import FirewallCountryRule
+
+        mode = mode or settings.geoip_firewall_mode
 
         # Lookup country for IP
         country_code, country_name = self.geoip_lookup(client_ip)
@@ -144,20 +179,20 @@ class FirewallMiddleware(MiddlewareMixin):
         if not country_code:
             # GeoIP lookup failed - block or allow based on configuration
             # For security, we'll block if in allowlist mode
-            if settings.geoip_firewall_mode == 'allowlist':
+            if mode == 'allowlist':
                 return True, 'geoip_lookup_failed', '', ''
             else:
                 # Allow if in blocklist mode (can't verify country)
                 return False, '', '', ''
 
         # Get active rules
-        rules = FirewallCountryRule.objects.filter(is_active=True)
+        rules = FirewallCountryRule.objects.filter(is_active=True, surface=rule_surface)
         country_codes = set(rule.country_code.upper() for rule in rules)
 
         # Check if country matches any rule
         matches_rule = country_code.upper() in country_codes
 
-        if settings.geoip_firewall_mode == 'blocklist':
+        if mode == 'blocklist':
             # Block if country is in blocklist
             if matches_rule:
                 return True, 'country_blocklist', country_code, country_name
@@ -188,6 +223,7 @@ class FirewallMiddleware(MiddlewareMixin):
                 request_path=request.path,
                 request_method=request.method,
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                surface=getattr(request, 'firewall_surface', '') or '',
                 user=request.user if request.user.is_authenticated else None
             )
 

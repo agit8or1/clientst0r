@@ -80,6 +80,15 @@ else:
     allowed_hosts_env = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
     ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
 
+# Optional dedicated host for the customer portal (core/portal_surface.py).
+# When set here it overrides Settings -> General -> Portal host name and is
+# added to ALLOWED_HOSTS (and so to the CSRF origins generated below). A host
+# saved in the settings page instead must already be in ALLOWED_HOSTS; the
+# page refuses one that is not.
+PORTAL_HOSTNAME = os.getenv('PORTAL_HOSTNAME', '').strip().lower()
+if PORTAL_HOSTNAME and '*' not in ALLOWED_HOSTS and PORTAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(PORTAL_HOSTNAME)
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -161,10 +170,12 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'core.portal_surface.PortalHostMiddleware',  # optional dedicated portal host name
     'core.csrf_middleware.MultiDomainCsrfViewMiddleware',  # Custom CSRF for multi-domain support
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'core.firewall_middleware.FirewallMiddleware',  # IP and GeoIP firewall (after auth for request.user)
     'django_otp.middleware.OTPMiddleware',
+    'core.portal_surface.PortalUserGuardMiddleware',  # customer users stay on the portal surface
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
@@ -543,6 +554,9 @@ AXES_COOLOFF_TIME = 'core.security_policy.axes_cool_off'
 AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_URL = '/accounts/locked/'
+# Portal sign-in lockouts get the portal's own page; staff ones still go to
+# AXES_LOCKOUT_URL (portal/auth_views.py).
+AXES_LOCKOUT_CALLABLE = 'portal.auth_views.lockout_response'
 
 # Django Two-Factor Auth
 TWO_FACTOR_PATCH_ADMIN = False

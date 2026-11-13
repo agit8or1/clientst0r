@@ -127,7 +127,10 @@ class SecureReplyTests(TestCase):
         self.assertIn('Your secure replies', page)
         self.assertNotIn('7741', page)
         r = c.post(f'/psa/t/{self.ticket.ticket_number}/secure-replies/{reply.pk}/reveal/')
-        self.assertIn(r.status_code, (403, 404))
+        # Refused, or (portal users) sent to the portal without running the view.
+        self.assertIn(r.status_code, (302, 403, 404))
+        if r.status_code == 302:
+            self.assertEqual(r['Location'], '/portal/')
         self.assertNotIn('7741', r.content.decode())
 
     def test_bad_expired_or_revoked_tokens_are_refused(self):
