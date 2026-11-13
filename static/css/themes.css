@@ -4,6 +4,47 @@
  */
 
 /* ========================================
+   THEME: Professional Dark (v3.17.677, default for new profiles)
+   Deep charcoal-navy surfaces, one restrained blue accent, flat borders.
+   Every text colour here clears 4.5:1 on --background, --surface and
+   --surface-hover; --border-strong (form controls, meaningful outlines)
+   clears 3:1 on --surface. core/tests/test_theme_contrast.py checks it.
+   ======================================== */
+[data-theme="professional"] {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --link-color: #84b4ff;
+    --link-hover: #adcdff;
+    --primary-light: #1b2a44;
+    --secondary-color: #475467;
+    --success-color: #15803d;
+    --danger-color: #c62f3a;
+    --warning-color: #e0a526;
+    --info-color: #0369a1;
+    --background: #0e131a;
+    --background-alt: #0a0e14;
+    --surface: #151b24;
+    --surface-hover: #1c2430;
+    --surface-raised: #1a212c;
+    --text-primary: #e5e9f0;
+    --text-secondary: #aab4c3;
+    --text-muted: #8d99ab;
+    --border-color: #2a3443;
+    --border-strong: #64748a;
+    --sidebar-bg: #0a0e14;
+    --sidebar-text: #e5e9f0;
+    --sidebar-hover: #1a212c;
+    --card-bg: #151b24;
+    --card-shadow: rgba(0, 0, 0, 0.35);
+    --focus-ring: #7aa7ff;
+    /* Status ink: text and icons on tinted status grounds. */
+    --success-ink: #5cd394;
+    --warning-ink: #f0c35a;
+    --danger-ink: #ff8f8f;
+    --info-ink: #7cc7f2;
+}
+
+/* ========================================
    THEME: Default Blue (Original)
    ======================================== */
 [data-theme="default"] {
@@ -913,4 +954,479 @@ tr.low-stock-row > td {
     background-color: #2b2b2b !important;
     color: #f1f3f5 !important;
     border: 1px solid #444 !important;
+}
+
+/* ========================================
+   PROFESSIONAL DARK — component layer (v3.17.677)
+   ========================================
+   The palette above flows through every generic rule in this file. What is
+   left here is where the generic rules (or Bootstrap, or a vendor stylesheet)
+   pin a colour of their own, so Bootstrap's dark mode, the palette and the
+   shared --ui-* tokens in ui.css describe one look instead of three.
+   Scoped to [data-theme="professional"] so no other theme moves. */
+
+/* Bootstrap's own dark-mode variables, read from the palette. Everything that
+   reads --bs-* (navigation.css, dropdowns, modals, offcanvas, list groups,
+   DataTables' bootstrap5 skin, Select2's bs5 theme) follows from these. */
+[data-theme="professional"] {
+    --bs-body-bg: var(--surface);
+    --bs-body-bg-rgb: 21, 27, 36;
+    --bs-body-color: var(--text-primary);
+    --bs-body-color-rgb: 229, 233, 240;
+    --bs-emphasis-color: #f5f7fa;
+    --bs-emphasis-color-rgb: 245, 247, 250;
+    --bs-secondary-color: var(--text-secondary);
+    --bs-secondary-bg: var(--surface-raised);
+    --bs-tertiary-color: var(--text-muted);
+    --bs-tertiary-bg: var(--surface-hover);
+    --bs-border-color: var(--border-color);
+    --bs-border-color-translucent: rgba(148, 163, 184, 0.16);
+    --bs-heading-color: var(--text-primary);
+    --bs-link-color: var(--link-color);
+    --bs-link-color-rgb: 132, 180, 255;
+    --bs-link-hover-color: var(--link-hover);
+    --bs-link-hover-color-rgb: 173, 205, 255;
+    --bs-primary: var(--primary-color);
+    --bs-primary-rgb: 37, 99, 235;
+    --bs-primary-bg-subtle: #172540;
+    --bs-primary-border-subtle: #27406b;
+    --bs-primary-text-emphasis: var(--link-color);
+    --bs-success-bg-subtle: #0f2a1d;
+    --bs-success-border-subtle: #1d5236;
+    --bs-success-text-emphasis: var(--success-ink);
+    --bs-warning-bg-subtle: #2e2410;
+    --bs-warning-border-subtle: #5c4718;
+    --bs-warning-text-emphasis: var(--warning-ink);
+    --bs-danger-bg-subtle: #301619;
+    --bs-danger-border-subtle: #5e2a30;
+    --bs-danger-text-emphasis: var(--danger-ink);
+    --bs-info-bg-subtle: #0f2433;
+    --bs-info-border-subtle: #1c4560;
+    --bs-info-text-emphasis: var(--info-ink);
+    --bs-secondary-bg-subtle: #1a212c;
+    --bs-secondary-border-subtle: #2a3443;
+    --bs-secondary-text-emphasis: var(--text-secondary);
+    --bs-light-bg-subtle: #1a212c;
+    --bs-dark-bg-subtle: #0a0e14;
+    --bs-focus-ring-color: rgba(122, 167, 255, 0.45);
+    --bs-form-valid-color: var(--success-ink);
+    --bs-form-valid-border-color: #2f9e64;
+    --bs-form-invalid-color: var(--danger-ink);
+    --bs-form-invalid-border-color: #e0545e;
+    --bs-code-color: #f0a6c8;
+    color-scheme: dark;
+}
+
+/* Page vs surface: the page sits a step below the cards on it. */
+[data-theme="professional"] body:not(.has-background) {
+    background-color: var(--background) !important;
+}
+
+/* Cards and panels: flat surface, one hairline border, no gradient. */
+[data-theme="professional"] .card-header,
+[data-theme="professional"] .card-footer {
+    background-image: none !important;
+    box-shadow: none !important;
+    background-color: var(--surface-raised) !important;
+}
+[data-theme="professional"] .card {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Form controls: the stronger border is what tells an input from a card. */
+[data-theme="professional"] .form-control,
+[data-theme="professional"] .form-select,
+[data-theme="professional"] .input-group-text {
+    background-color: #10161e !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .form-control:focus,
+[data-theme="professional"] .form-select:focus {
+    background-color: #10161e !important;
+    border-color: var(--focus-ring) !important;
+    box-shadow: 0 0 0 3px rgba(122, 167, 255, 0.25) !important;
+}
+[data-theme="professional"] .form-control:disabled,
+[data-theme="professional"] .form-select:disabled,
+[data-theme="professional"] .form-control[readonly] {
+    background-color: var(--surface-raised) !important;
+    color: var(--text-secondary) !important;
+}
+[data-theme="professional"] .form-check-input {
+    background-color: #10161e;
+    border-color: var(--border-strong);
+}
+[data-theme="professional"] .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+[data-theme="professional"] .form-label,
+[data-theme="professional"] .col-form-label {
+    color: var(--text-primary);
+}
+[data-theme="professional"] .form-text {
+    color: var(--text-secondary) !important;
+}
+
+/* Tables: header row a step up, hover a step brighter, hairline rows. */
+[data-theme="professional"] .table {
+    --bs-table-color: var(--text-primary);
+    --bs-table-border-color: var(--border-color);
+    --bs-table-striped-bg: rgba(148, 163, 184, 0.04);
+    --bs-table-striped-color: var(--text-primary);
+    --bs-table-hover-bg: var(--surface-hover);
+    --bs-table-hover-color: var(--text-primary);
+    --bs-table-active-bg: var(--surface-hover);
+    --bs-table-active-color: var(--text-primary);
+}
+[data-theme="professional"] .table-light,
+[data-theme="professional"] .table-light > th,
+[data-theme="professional"] .table-light > td,
+[data-theme="professional"] .table > thead.table-light > tr > th,
+[data-theme="professional"] .table > thead.table-light > tr > td,
+[data-theme="professional"] .table > tfoot.table-light > tr > th,
+[data-theme="professional"] .table > tfoot.table-light > tr > td,
+[data-theme="professional"] .table-dark,
+[data-theme="professional"] .table > thead.table-dark > tr > th {
+    --bs-table-color: var(--text-primary);
+    --bs-table-bg: var(--surface-raised);
+    --bs-table-border-color: var(--border-color);
+    color: var(--text-primary) !important;
+    background-color: var(--surface-raised) !important;
+    border-color: var(--border-color) !important;
+}
+[data-theme="professional"] .table-hover > tbody > tr:hover > td,
+[data-theme="professional"] .table-hover > tbody > tr:hover > th {
+    background-color: var(--surface-hover) !important;
+}
+
+/* Light-pinned utility backgrounds become the raised surface. */
+[data-theme="professional"] .bg-light,
+[data-theme="professional"] .bg-white,
+[data-theme="professional"] pre.bg-light,
+[data-theme="professional"] .bg-light.rounded {
+    background-color: var(--surface-raised) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .bg-light.text-dark,
+[data-theme="professional"] .badge.bg-light,
+[data-theme="professional"] .badge.bg-light.text-dark {
+    background-color: #263040 !important;
+    color: var(--text-primary) !important;
+}
+/* .text-dark on a surface that is now dark would vanish; on an amber or
+   cyan fill it is still the right ink, so those keep it. (.border needs no
+   rule: Bootstrap reads --bs-border-color, set above, and a coloured
+   .border-danger etc. must keep its colour.) */
+[data-theme="professional"] .text-dark:not(.badge):not(.btn):not(.bg-warning):not(.bg-info):not(.text-bg-warning):not(.text-bg-info) {
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .bg-warning .text-dark,
+[data-theme="professional"] .bg-info .text-dark,
+[data-theme="professional"] .text-bg-warning .text-dark {
+    color: #1a1305 !important;
+}
+
+/* Alerts: a tinted ground with status ink, not a saturated slab. */
+[data-theme="professional"] .alert {
+    border-width: 1px;
+    border-left-width: 3px !important;
+}
+[data-theme="professional"] .alert-success {
+    background-color: var(--bs-success-bg-subtle) !important;
+    border-color: var(--bs-success-border-subtle) !important;
+    border-left-color: #2f9e64 !important;
+    color: #d4f2e1 !important;
+}
+[data-theme="professional"] .alert-danger {
+    background-color: var(--bs-danger-bg-subtle) !important;
+    border-color: var(--bs-danger-border-subtle) !important;
+    border-left-color: #e0545e !important;
+    color: #fbdcdc !important;
+}
+[data-theme="professional"] .alert-warning {
+    background-color: var(--bs-warning-bg-subtle) !important;
+    border-color: var(--bs-warning-border-subtle) !important;
+    border-left-color: var(--warning-color) !important;
+    color: #f7e7c2 !important;
+}
+[data-theme="professional"] .alert-info,
+[data-theme="professional"] .alert-primary {
+    background-color: var(--bs-info-bg-subtle) !important;
+    border-color: var(--bs-info-border-subtle) !important;
+    border-left-color: #3b9bd6 !important;
+    color: #d5ebf8 !important;
+}
+[data-theme="professional"] .alert-secondary,
+[data-theme="professional"] .alert-light,
+[data-theme="professional"] .alert-dark {
+    background-color: var(--surface-raised) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .alert p,
+[data-theme="professional"] .alert small,
+[data-theme="professional"] .alert strong,
+[data-theme="professional"] .alert h1, [data-theme="professional"] .alert h2,
+[data-theme="professional"] .alert h3, [data-theme="professional"] .alert h4,
+[data-theme="professional"] .alert h5, [data-theme="professional"] .alert h6 {
+    color: inherit !important;
+}
+[data-theme="professional"] .alert .alert-link,
+[data-theme="professional"] .alert a:not(.btn) {
+    color: inherit !important;
+    text-decoration: underline;
+}
+
+/* Status text utilities: the Bootstrap fills are tuned for light pages. */
+[data-theme="professional"] .text-success { color: var(--success-ink) !important; }
+[data-theme="professional"] .text-danger  { color: var(--danger-ink) !important; }
+[data-theme="professional"] .text-warning { color: var(--warning-ink) !important; }
+[data-theme="professional"] .text-info    { color: var(--info-ink) !important; }
+[data-theme="professional"] .text-primary { color: var(--link-color) !important; }
+[data-theme="professional"] .text-secondary { color: var(--text-secondary) !important; }
+
+/* Badges: solid fills keep white (or, for amber, near-black) text. */
+[data-theme="professional"] .badge.bg-warning,
+[data-theme="professional"] .badge.text-bg-warning,
+[data-theme="professional"] .bg-warning {
+    background-color: var(--warning-color) !important;
+    color: #1a1305 !important;
+}
+[data-theme="professional"] .badge.bg-info,
+[data-theme="professional"] .badge.text-bg-info {
+    background-color: var(--info-color) !important;
+    color: #fff !important;
+}
+[data-theme="professional"] .badge.bg-secondary {
+    background-color: #3a4556 !important;
+}
+[data-theme="professional"] .badge.bg-dark {
+    background-color: #263040 !important;
+}
+
+/* Outline buttons: the Bootstrap defaults are too dim on charcoal. */
+[data-theme="professional"] .btn-outline-primary {
+    --bs-btn-color: var(--link-color);
+    --bs-btn-border-color: #3d6fc4;
+    --bs-btn-hover-bg: var(--primary-color);
+    --bs-btn-hover-border-color: var(--primary-color);
+    --bs-btn-hover-color: #fff;
+}
+[data-theme="professional"] .btn-outline-secondary {
+    --bs-btn-color: var(--text-secondary);
+    --bs-btn-border-color: var(--border-strong);
+    --bs-btn-hover-bg: var(--surface-hover);
+    --bs-btn-hover-border-color: var(--border-strong);
+    --bs-btn-hover-color: var(--text-primary);
+}
+[data-theme="professional"] .btn-outline-success { --bs-btn-color: var(--success-ink); --bs-btn-border-color: #2f9e64; }
+[data-theme="professional"] .btn-outline-danger  { --bs-btn-color: var(--danger-ink);  --bs-btn-border-color: #c9505a; }
+[data-theme="professional"] .btn-outline-warning { --bs-btn-color: var(--warning-ink); --bs-btn-border-color: #b8891f; }
+[data-theme="professional"] .btn-outline-info    { --bs-btn-color: var(--info-ink);    --bs-btn-border-color: #2f86bd; }
+[data-theme="professional"] .btn-light {
+    background-color: var(--surface-raised) !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .btn-warning { color: #1a1305 !important; }
+[data-theme="professional"] .btn-info { color: #fff !important; }
+[data-theme="professional"] .btn-secondary:hover {
+    background-color: #566275 !important;
+    border-color: #566275 !important;
+}
+
+/* Dropdowns, modals, popovers, toasts, offcanvas. */
+[data-theme="professional"] .dropdown-menu {
+    background-color: var(--surface-raised) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+[data-theme="professional"] .dropdown-item:hover,
+[data-theme="professional"] .dropdown-item:focus {
+    background-color: var(--surface-hover) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .dropdown-item.active,
+[data-theme="professional"] .dropdown-item:active {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .dropdown-divider { border-color: var(--border-color); }
+[data-theme="professional"] .dropdown-header { color: var(--text-secondary); }
+[data-theme="professional"] .modal-content {
+    border: 1px solid var(--border-color);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+[data-theme="professional"] .modal-header,
+[data-theme="professional"] .modal-footer {
+    background-color: var(--surface-raised) !important;
+}
+[data-theme="professional"] .popover,
+[data-theme="professional"] .toast,
+[data-theme="professional"] .offcanvas {
+    --bs-popover-bg: var(--surface-raised);
+    --bs-popover-border-color: var(--border-color);
+    --bs-popover-header-bg: var(--surface-hover);
+    --bs-toast-bg: var(--surface-raised);
+    --bs-toast-header-bg: var(--surface-hover);
+    --bs-toast-header-color: var(--text-primary);
+    --bs-offcanvas-bg: var(--surface);
+    color: var(--text-primary);
+}
+
+/* List groups, nav tabs/pills, pagination, breadcrumbs, progress. */
+[data-theme="professional"] .list-group-item.active {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    border-color: var(--bs-primary-border-subtle) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .nav-pills .nav-link.active {
+    background-color: var(--primary-color) !important;
+    color: #fff !important;
+}
+[data-theme="professional"] .page-link {
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+[data-theme="professional"] .page-link:hover {
+    background-color: var(--surface-hover) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .pagination .page-item.active .page-link,
+[data-theme="professional"] .page-item.active .page-link {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #fff !important;
+}
+[data-theme="professional"] .page-item.disabled .page-link {
+    color: var(--text-muted) !important;
+    background-color: var(--surface) !important;
+}
+[data-theme="professional"] .breadcrumb { background-color: transparent !important; }
+[data-theme="professional"] .progress {
+    --bs-progress-bg: #232c39;
+}
+
+/* Code: quiet monospace blocks on the raised surface. */
+[data-theme="professional"] pre,
+[data-theme="professional"] code {
+    background-color: var(--surface-raised) !important;
+    color: #dbe3ee !important;
+}
+[data-theme="professional"] code { color: #f0a6c8 !important; }
+[data-theme="professional"] pre code { color: inherit !important; background: transparent !important; }
+
+/* Select2 (bootstrap-5 theme). */
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-selection {
+    background-color: #10161e !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+[data-theme="professional"] .select2-container--bootstrap-5.select2-container--open .select2-selection {
+    border-color: var(--focus-ring) !important;
+    box-shadow: 0 0 0 3px rgba(122, 167, 255, 0.25) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-selection__placeholder {
+    color: var(--text-muted) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-dropdown {
+    background-color: var(--surface-raised) !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-results__option {
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-results__option--selected {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+    background-color: #223252 !important;
+    border-color: #2f4772 !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="professional"] .select2-search__field,
+[data-theme="professional"] .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field {
+    background-color: #10161e !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text-primary) !important;
+}
+
+/* DataTables (bootstrap5 skin). */
+[data-theme="professional"] div.dataTables_wrapper div.dataTables_info,
+[data-theme="professional"] div.dataTables_wrapper div.dataTables_length label,
+[data-theme="professional"] div.dataTables_wrapper div.dataTables_filter label {
+    color: var(--text-secondary);
+}
+[data-theme="professional"] table.dataTable.table-striped > tbody > tr.odd > * {
+    box-shadow: inset 0 0 0 9999px rgba(148, 163, 184, 0.04);
+}
+[data-theme="professional"] table.dataTable.table-hover > tbody > tr:hover > * {
+    box-shadow: inset 0 0 0 9999px rgba(148, 163, 184, 0.06);
+}
+[data-theme="professional"] table.dataTable > tbody > tr.selected > * {
+    box-shadow: inset 0 0 0 9999px rgba(37, 99, 235, 0.35);
+    color: #fff;
+}
+
+/* Leaflet: controls, popups and attribution on the dark surface. */
+[data-theme="professional"] .leaflet-bar a,
+[data-theme="professional"] .leaflet-control-layers,
+[data-theme="professional"] .leaflet-control-layers-toggle {
+    background-color: var(--surface-raised);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="professional"] .leaflet-bar a:hover,
+[data-theme="professional"] .leaflet-bar a:focus {
+    background-color: var(--surface-hover);
+    color: var(--text-primary);
+}
+[data-theme="professional"] .leaflet-bar a.leaflet-disabled {
+    background-color: var(--surface);
+    color: var(--text-muted);
+}
+[data-theme="professional"] .leaflet-bar { border-color: var(--border-strong); }
+[data-theme="professional"] .leaflet-popup-content-wrapper,
+[data-theme="professional"] .leaflet-popup-tip {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+[data-theme="professional"] .leaflet-container a.leaflet-popup-close-button { color: var(--text-secondary); }
+[data-theme="professional"] .leaflet-control-attribution {
+    background: rgba(21, 27, 36, 0.85) !important;
+    color: var(--text-secondary);
+}
+[data-theme="professional"] .leaflet-control-attribution a { color: var(--link-color) !important; }
+
+/* Wallpaper users: the overlay is the theme's own page colour, so text on
+   the page (not in a card) stays readable over any photo. */
+[data-theme="professional"] body.has-background::before {
+    background-color: var(--background) !important;
+    opacity: 0.86;
+}
+[data-theme="professional"] body.has-background .card {
+    opacity: 1;
+}
+
+/* Footer and rules. */
+[data-theme="professional"] footer {
+    background-color: var(--background-alt) !important;
+    border-top: 1px solid var(--border-color);
+}
+[data-theme="professional"] hr { opacity: 1; }
+
+/* Selection. */
+[data-theme="professional"] ::selection {
+    background: rgba(37, 99, 235, 0.45);
+    color: #fff;
 }
