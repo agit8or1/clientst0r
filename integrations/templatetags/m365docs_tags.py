@@ -74,3 +74,40 @@ def m365_export_button(context, target):
     conns = access.connections_for(user, target.organization_id)
     show = any(access.can_export(user, c, target) for c in conns)
     return {'show': show, 'export_param': f'{target.code}:{target.pk}'}
+
+
+# ---------------------------------------------------------------------------
+# Edit in Microsoft 365 (m365docs.editing)
+# ---------------------------------------------------------------------------
+
+def _live_sessions(target):
+    from integrations.m365docs import editing
+    if target is None or getattr(target, 'kind', '') not in editing.EDIT_KINDS:
+        return []
+    return list(editing.live_for_target(target).order_by('opened_at'))
+
+
+@register.inclusion_tag('integrations/m365docs/_edit_panel.html', takes_context=True)
+def m365_edit_panel(context, target):
+    """On the Office file page: Edit in Microsoft 365, the user's own open
+    session with its actions, and who else is editing the file there."""
+    request, user, _org = _user_org(context)
+    if user is None or target is None or not getattr(user, 'is_authenticated', False):
+        return {'show': False}
+    from integrations.m365docs import editing
+    live = _live_sessions(target)
+    mine = next((s for s in live if s.user_id == user.pk), None)
+    others = [s for s in live if s.user_id != user.pk]
+    conns = editing.edit_connections(user, target) if mine is None else []
+    return {'show': bool(mine or others or conns), 'target': target, 'mine': mine,
+            'others': others, 'connections': conns, 'request': request,
+            'csrf_token': context.get('csrf_token')}
+
+
+@register.inclusion_tag('integrations/m365docs/_edit_notice.html', takes_context=True)
+def m365_edit_notice(context, target):
+    """In the ONLYOFFICE / Collabora editor: warn that the file is also being
+    edited in Microsoft 365 (reading and editing are not blocked)."""
+    _request, user, _org = _user_org(context)
+    live = _live_sessions(target)
+    return {'show': bool(live), 'sessions': live, 'user': user}

@@ -7,6 +7,10 @@ Standard AuditLog actions with the specific event in
     m365_connect (update)    m365_disconnect (update)
     m365_link (create)       m365_unlink (delete)      m365_open (read)
     m365_create (create)     m365_import (import)      m365_export (export)
+    Edit in Microsoft 365 (m365docs.editing): m365_edit_start (export),
+    m365_edit_open (read), m365_edit_save (import), m365_edit_finish /
+    m365_edit_discard / m365_edit_revoked / m365_edit_ended /
+    m365_edit_reminder / m365_edit_settings (update)
 
 Never logged: tokens, codes, PKCE verifiers, download URLs, file content.
 """
@@ -20,6 +24,7 @@ logger = get_logger('office.m365')
 ACTIONS = {
     'm365_link': 'create', 'm365_create': 'create', 'm365_unlink': 'delete',
     'm365_open': 'read', 'm365_import': 'import', 'm365_export': 'export',
+    'm365_edit_start': 'export', 'm365_edit_open': 'read', 'm365_edit_save': 'import',
 }
 
 

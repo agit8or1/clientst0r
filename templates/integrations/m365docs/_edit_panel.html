@@ -1,0 +1,29 @@
+{% if show %}
+<div class="card mb-3 border-primary-subtle" aria-label="Edit in Microsoft 365">
+  <div class="card-body py-2">
+    {% for s in others %}
+    <p class="small mb-2"><i class="fab fa-microsoft" aria-hidden="true"></i> Being edited in Microsoft 365 by <strong>{{ s.user.get_full_name|default:s.user.username }}</strong> since <span class="local-time" data-utc="{{ s.opened_at|date:'c' }}">{{ s.opened_at|date:"Y-m-d H:i" }}</span>. Their changes reach clientst0r only when they save back; a save based on an older revision is kept aside, never overwrites.</p>
+    {% endfor %}
+    {% if mine %}
+    <p class="small mb-2"><i class="fab fa-microsoft" aria-hidden="true"></i> <strong>You are editing this file in Microsoft 365</strong>{% if mine.state == 'open' %} (working copy <span class="text-break">{{ mine.item_name }}</span>, based on revision {{ mine.base_revision_number }}{% if mine.last_saved_revision %}; last saved back as revision {{ mine.last_saved_revision.revision_number }}{% endif %}){% else %} — the working copy is being prepared{% endif %}. clientst0r only gets your changes when you choose <em>Save back to clientst0r</em>.</p>
+    {% if mine.remote_changed %}<p class="small text-warning-emphasis mb-2">The Microsoft 365 copy had changes clientst0r does not have yet when last checked.</p>{% endif %}
+    {% if mine.last_conflict %}<p class="small text-danger-emphasis mb-2">The last save back conflicted with a newer clientst0r revision and was kept in the <a href="{% url 'office:target_versions' target.code target.pk %}">version history</a>.</p>{% endif %}
+    <div class="d-flex flex-wrap gap-2">
+      {% if mine.state == 'open' %}
+      <form method="post" action="{% url 'integrations:m365edit_open' mine.pk %}" target="_blank" rel="noopener">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-up-right-from-square" aria-hidden="true"></i> Open in Microsoft 365</button></form>
+      <form method="post" action="{% url 'integrations:m365edit_save' mine.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-success"><i class="fas fa-file-import" aria-hidden="true"></i> Save back to clientst0r</button></form>
+      <form method="post" action="{% url 'integrations:m365edit_check' mine.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-secondary">Check for changes</button></form>
+      <form method="post" action="{% url 'integrations:m365edit_finish' mine.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-secondary">Finish</button></form>
+      {% endif %}
+      <form method="post" action="{% url 'integrations:m365edit_finish' mine.pk %}">{% csrf_token %}<input type="hidden" name="discard" value="1"><button type="submit" class="btn btn-sm btn-outline-danger">Discard</button></form>
+    </div>
+    {% elif connections %}
+    {% for c in connections %}
+    <form method="post" action="{% url 'integrations:m365edit_start' target.code target.pk %}" target="_blank" rel="noopener" class="d-inline">{% csrf_token %}<input type="hidden" name="connection" value="{{ c.pk }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fab fa-microsoft" aria-hidden="true"></i> Edit in Microsoft 365{% if connections|length > 1 %} ({{ c.name }}){% endif %}</button></form>
+    {% endfor %}
+    <p class="small text-muted mb-0 mt-1">Uploads a private working copy of the current revision to {% with loc=connections.0.docs_edit_location %}{% if loc.kind == 'my_onedrive' %}your OneDrive{% else %}{{ loc.display_name }}{% endif %}{% endwith %} and opens it in a new tab. No sharing link is created. Come back here to save it back.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static m365docs_tags %}<!DOCTYPE html>
 <html lang="{{ user_locale_code|default:'en' }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}dark{% else %}light{% endif %}">
 <head>
   <meta charset="utf-8">
@@ -19,6 +19,7 @@
     <div class="small text-muted text-truncate">{{ organization.name|default:"System" }}{% if session.instance %} · {{ session.instance.get_provider_display }}{% endif %}</div>
   </div>
   {% if session.mode != 'edit' %}<span class="badge text-bg-secondary" id="office-readonly-badge"><i class="fas fa-lock" aria-hidden="true"></i> Read-only</span>{% endif %}
+  {% m365_edit_notice target %}
   <div id="office-collaborators" class="office-collaborators d-none d-md-flex" aria-label="People in this document" aria-live="polite"></div>
   <div id="office-save-status" class="office-save-status" role="status" aria-live="polite" data-state="{% if error %}failed{% elif session.mode == 'edit' %}clean{% else %}readonly{% endif %}">
     <span class="office-save-icon" aria-hidden="true"></span>

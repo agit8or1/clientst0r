@@ -263,6 +263,10 @@ class SectionPermissionMiddleware:
         # OAuth return leg from the accounting provider: the view's own
         # superuser/staff check and session state token decide it.
         '/integrations/accounting/oauth/callback/',
+        # Edit in Microsoft 365 session actions: gated per file by the views
+        # (office edit permission, docs_view, office_edit_in_m365 for
+        # customer users), not by the integrations section.
+        '/integrations/m365/documents/edit/',
     )
 
     def __init__(self, get_response):
