@@ -7,6 +7,25 @@ from django.db.utils import OperationalError, ProgrammingError
 from core.backgrounds import DEFAULT_COLOR, DEFAULT_PRESET, preset_url, random_url
 from core.models import SystemSetting
 
+# Palettes in static/css/themes.css that are dark, so the page also gets
+# Bootstrap's dark mode (data-bs-theme="dark"). Nord is a light palette (pale
+# grey page, dark text) despite its reputation; it was listed as dark here and
+# in two stylesheets until v3.17.677, which put light Bootstrap components on
+# it with white text.
+DARK_THEMES = frozenset({'professional', 'dark', 'dracula', 'monokai'})
+# The two ends of the navbar theme toggle.
+TOGGLE_DARK_THEME = 'professional'
+TOGGLE_LIGHT_THEME = 'default'
+# What a page renders with when there is no profile to ask (signed out).
+ANONYMOUS_THEME = 'default'
+DENSITIES = frozenset({'compact', 'comfortable'})
+DEFAULT_DENSITY = 'compact'
+
+
+def is_dark_theme(theme) -> bool:
+    return theme in DARK_THEMES
+
+
 LOCALE_LABELS = {
     'en-us': 'English (US)',
     'es':    'Spanish',
@@ -25,7 +44,8 @@ def user_theme(request):
     the profile at all. Everything else is enforced for every user, which is the
     point of a master setting.
     """
-    theme = 'default'
+    theme = ANONYMOUS_THEME
+    density = DEFAULT_DENSITY
     background_mode = 'none'
     background_url = None
     background_color = None
@@ -39,6 +59,9 @@ def user_theme(request):
     if request.user.is_authenticated and hasattr(request.user, 'profile'):
         profile = request.user.profile
         theme = profile.theme
+        density = getattr(profile, 'ui_density', DEFAULT_DENSITY)
+        if density not in DENSITIES:
+            density = DEFAULT_DENSITY
         tooltips_enabled = getattr(profile, 'tooltips_enabled', True)
         time_format = getattr(profile, 'time_format', '24')
 
@@ -67,6 +90,10 @@ def user_theme(request):
 
     return {
         'user_theme': theme,
+        # base.html: data-bs-theme on <html>, and the toggle's sun/moon icon.
+        'user_theme_is_dark': is_dark_theme(theme),
+        # base.html: data-density on <html> (ui.css density tokens).
+        'user_density': density,
         'user_background_mode': background_mode,
         'user_background_url': background_url,
         'user_background_color': background_color,

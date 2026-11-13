@@ -73,7 +73,7 @@ class BackgroundPolicyTests(TestCase):
         return s
 
     def test_the_policy_stays_user_controlled_by_default(self):
-        """v3.17.552 — Navy Space is a starting point, not a house style.
+        """v3.17.552 — a starting background is not a house style.
         Enforcing it system-wide would grey out everybody's own background
         controls, which is a decision an admin should make deliberately."""
         s = SystemSetting.get_settings()
@@ -248,18 +248,46 @@ class BackgroundPolicyViewTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# v3.17.552 — Navy Space as a soft per-user default
+# v3.17.552 — a soft per-user starting background; v3.17.677 — no wallpaper
 # ---------------------------------------------------------------------------
 
 class StartingBackgroundTests(TestCase):
-    """Navy Space is where a new profile starts, not where it is held."""
+    """Where a new profile starts, not where it is held.
 
-    def test_a_new_profile_starts_on_the_navy_space_preset(self):
+    v3.17.552–676 a new profile started on the Navy Space photo. Since
+    v3.17.677 it starts with no wallpaper, on the plain surface of its theme;
+    the presets, uploads, random images and solid colours stay available.
+    """
+
+    def test_a_new_profile_starts_without_a_wallpaper(self):
         from django.contrib.auth.models import User
         user = User.objects.create_user('freshuser', 'f@example.com', 'pw')
         profile = user.profile
-        self.assertEqual(profile.background_mode, 'preset')
+        self.assertEqual(profile.background_mode, 'none')
+        # The picker still has a sensible preset selected for whoever turns
+        # presets on.
         self.assertEqual(profile.preset_background, 'abstract-12')
+
+    def test_a_new_profile_renders_without_a_background(self):
+        from django.contrib.auth.models import User
+        user = User.objects.create_user('plainuser', 'pl@example.com', 'pw')
+        request = RequestFactory().get('/')
+        request.user = User.objects.get(pk=user.pk)
+        ctx = user_theme(request)
+        self.assertEqual(ctx['user_background_mode'], 'none')
+        self.assertIsNone(ctx['user_background_url'])
+        self.assertIsNone(ctx['user_background_color'])
+
+    def test_a_preset_is_still_one_choice_away(self):
+        from django.contrib.auth.models import User
+        user = User.objects.create_user('wallpaper', 'w@example.com', 'pw')
+        profile = user.profile
+        profile.background_mode = 'preset'
+        profile.save(update_fields=['background_mode'])
+        request = RequestFactory().get('/')
+        request.user = User.objects.get(pk=user.pk)
+        self.assertEqual(user_theme(request)['user_background_url'],
+                         preset_url('abstract-12'))
 
     def test_the_user_can_change_it(self):
         """The whole point of a soft default."""
@@ -276,15 +304,21 @@ class StartingBackgroundTests(TestCase):
 
     def test_an_existing_profile_is_not_repainted(self):
         """A field default applies only to a row that does not exist yet, so
-        somebody who had deliberately chosen 'no background' keeps it."""
+        somebody who started on (or chose) Navy Space before v3.17.677 keeps
+        it; saving the profile for another reason does not reset it."""
         from django.contrib.auth.models import User
         user = User.objects.create_user('settled', 's@example.com', 'pw')
         profile = user.profile
-        profile.background_mode = 'none'
-        profile.save(update_fields=['background_mode'])
+        profile.background_mode = 'preset'
+        profile.preset_background = 'abstract-12'
+        profile.save(update_fields=['background_mode', 'preset_background'])
 
         profile.refresh_from_db()
-        self.assertEqual(profile.background_mode, 'none')
+        profile.timezone = 'UTC'
+        profile.save()
+        profile.refresh_from_db()
+        self.assertEqual(profile.background_mode, 'preset')
+        self.assertEqual(profile.preset_background, 'abstract-12')
 
     def test_the_starting_preset_is_a_real_key(self):
         """A default pointing at a preset that does not exist would render as

@@ -33,13 +33,22 @@ PRESET_BACKGROUNDS: dict[str, tuple[str, str]] = {
 DEFAULT_PRESET = 'abstract-1'
 DEFAULT_COLOR = '#1a1a2e'
 
-# v3.17.552 — the preset a *new* profile or install starts on, as distinct from
-# DEFAULT_PRESET above, which is the fallback used when a stored key is unknown.
-# Kept separate deliberately: changing what new profiles start on should not
-# silently repoint every stale row that already holds a bad key.
+# The preset a profile has selected before its owner picks one, as distinct
+# from DEFAULT_PRESET above, which is the fallback used when a stored key is
+# unknown. Kept separate deliberately: changing it should not silently repoint
+# every stale row that already holds a bad key.
 #
-# Renamed from DEFAULT_INSTALL_PRESET (v3.17.551), which stopped being accurate
-# when this became the per-user starting point rather than a system-wide one.
+# Where it is used: the default of UserProfile.preset_background and of
+# SystemSetting.background_preset (the preset an administrator's "colour /
+# pattern" policy starts on).
+#
+# v3.17.552–676 new profiles also started *showing* it (background_mode
+# 'preset'). Since v3.17.677 a new profile starts with background_mode 'none'
+# (the plain surface of its theme), so this is only what the preset picker
+# shows selected when somebody switches to "Preset Abstract Backgrounds".
+# Existing profiles keep whatever mode and preset they hold.
+#
+# Renamed from DEFAULT_INSTALL_PRESET (v3.17.551).
 DEFAULT_STARTING_PRESET = 'abstract-12'  # Navy Space
 
 # Django `choices` for any field selecting a preset.

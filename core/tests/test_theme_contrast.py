@@ -11,7 +11,7 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 THEMES_CSS = Path(settings.BASE_DIR) / 'static' / 'css' / 'themes.css'
-DARK_THEMES = ('dark', 'dracula', 'monokai')
+DARK_THEMES = ('professional', 'dark', 'dracula', 'monokai')
 
 
 def all_themes():

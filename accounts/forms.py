@@ -273,7 +273,7 @@ class UserProfileForm(forms.ModelForm):
 
     class Meta:
         model = UserProfile
-        fields = ['phone', 'title', 'department', 'timezone', 'time_format', 'locale', 'theme', 'background_mode', 'background_color', 'preset_background', 'background_image', 'email_notifications', 'notification_frequency', 'notify_assigned_email', 'notify_assigned_sms', 'notify_scheduled_email', 'notify_scheduled_sms', 'tooltips_enabled', 'preferred_organization']
+        fields = ['phone', 'title', 'department', 'timezone', 'time_format', 'locale', 'theme', 'ui_density', 'background_mode', 'background_color', 'preset_background', 'background_image', 'email_notifications', 'notification_frequency', 'notify_assigned_email', 'notify_assigned_sms', 'notify_scheduled_email', 'notify_scheduled_sms', 'tooltips_enabled', 'preferred_organization']
         widgets = {
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -303,6 +303,10 @@ class UserProfileForm(forms.ModelForm):
                 'autocomplete': 'language'
             }),
             'theme': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'off'
+            }),
+            'ui_density': forms.Select(attrs={
                 'class': 'form-select',
                 'autocomplete': 'off'
             }),
@@ -413,10 +417,26 @@ class UserProfileForm(forms.ModelForm):
             self.fields['preferred_organization'].required = False
             self.fields['preferred_organization'].empty_label = '--- No preference (auto-select) ---'
 
+        # v3.17.677: Density sits beside Theme. Optional on the form so a save
+        # from anything that predates the field (an older cached page, an API
+        # client) keeps the stored value instead of failing validation.
+        if 'ui_density' in self.fields:
+            self.fields['ui_density'].required = False
+            self.fields['ui_density'].label = 'Density'
+            self.fields['ui_density'].help_text = (
+                'Compact fits more on screen; Comfortable adds spacing to '
+                'controls, cards and table rows.')
+
         # Debug logging (can be removed later)
         if self.instance and self.instance.pk:
             logger.debug(f"UserProfileForm: timezone={self.instance.timezone}, theme={self.instance.theme}")
     
+    def clean_ui_density(self):
+        value = self.cleaned_data.get('ui_density')
+        if not value:
+            return getattr(self.instance, 'ui_density', None) or 'compact'
+        return value
+
     def email_change_protected(self):
         from tech_access.services import email_is_protected
         return bool(self.user and email_is_protected(self.user))
