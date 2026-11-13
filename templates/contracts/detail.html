@@ -1,0 +1,120 @@
+{% extends "base.html" %}{% load static tz contracts_tags %}
+{% block title %}{{ c.reference }} — {{ c.title }}{% endblock %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">{{ c.reference }}</li></ol></nav>
+
+<div class="card card-body cd-page-head d-flex flex-row flex-wrap align-items-start gap-2 mb-3">
+    <div class="me-auto">
+        <h2 class="h3 mb-1">{{ c.title }} {{ c|status_badge }}</h2>
+        <div class="cd-page-sub small">{{ c.reference }} · {{ c.get_kind_display }} · client
+            {% if c.organization %}<a href="{% url 'accounts:organization_detail' c.organization.pk %}">{{ c.client_name }}</a>{% else %}{{ c.client_name }}{% endif %}
+            {% if c.owner %} · owner {{ c.owner.get_full_name|default:c.owner.username }}{% endif %}
+            {% if v %} · version {{ v.version_number }}{% endif %}
+            {% if c.related_contract %} · {{ c.get_relation_display|lower }} <a href="{% url 'contracts:detail' c.related_contract.pk %}">{{ c.related_contract.reference }}</a>{% endif %}</div>
+    </div>
+    <div class="d-flex flex-wrap gap-1" id="cd-actions">
+        {% if c.status == 'draft' and flags.edit_draft %}
+            <a class="btn btn-sm btn-primary" href="{% url 'contracts:edit' c.pk %}"><i class="fas fa-pen"></i> Edit draft</a>
+            {% if flags.view_pricing %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:preview' c.pk %}"><i class="fas fa-eye"></i> Preview</a>{% endif %}
+            {% if flags.submit_approval %}<form method="post" action="{% url 'contracts:submit' c.pk %}">{% csrf_token %}<button class="btn btn-sm btn-success" {% if issue_errors %}disabled title="Fix the items listed below first"{% endif %}><i class="fas fa-lock"></i> {% if signing.approval %}Freeze and request approval{% else %}Freeze, ready to send{% endif %}</button></form>{% endif %}
+        {% endif %}
+        {% if c.status == 'pending_approval' and flags.approve %}<a class="btn btn-sm btn-warning" href="{% url 'contracts:approve' c.pk %}"><i class="fas fa-check-double"></i> Review for approval</a>{% elif c.status == 'pending_approval' and flags.may_approve %}<span class="small text-body-secondary align-self-center">You wrote or submitted this version, so a colleague approves it.</span>{% endif %}
+        {% if c.status == 'ready_to_send' and flags.send %}<a class="btn btn-sm btn-primary" href="{% url 'contracts:send' c.pk %}"><i class="fas fa-paper-plane"></i> Send for signature</a>{% endif %}
+        {% for inv in can_countersign %}<a class="btn btn-sm btn-success" href="{% url 'contracts:invitation_countersign' inv.pk %}"><i class="fas fa-signature"></i> Countersign now</a>{% endfor %}
+        {% if v and v.pdf and flags.view_pricing %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:version_pdf' v.pk 'issued' %}" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Issued PDF</a>{% endif %}
+        {% if v and v.final_pdf and flags.download_signed %}<a class="btn btn-sm btn-outline-success" href="{% url 'contracts:version_pdf' v.pk 'signed' %}" target="_blank" rel="noopener"><i class="fas fa-file-signature"></i> Signed PDF</a>{% endif %}
+        {% if flags.edit_draft %}
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">More</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% if c.status != 'draft' and c.status != 'signed' and c.status != 'voided' and c.status != 'superseded' %}<li><a class="dropdown-item" href="{% url 'contracts:revise' c.pk %}">Revise (back to draft)</a></li>{% endif %}
+                <li><form method="post" action="{% url 'contracts:derive' c.pk 'clone' %}">{% csrf_token %}<button class="dropdown-item">Copy as a new draft</button></form></li>
+                {% if c.status == 'signed' %}
+                <li><form method="post" action="{% url 'contracts:derive' c.pk 'amend' %}">{% csrf_token %}<button class="dropdown-item">Amend</button></form></li>
+                <li><form method="post" action="{% url 'contracts:derive' c.pk 'renew' %}">{% csrf_token %}<button class="dropdown-item">Renew</button></form></li>
+                <li><form method="post" action="{% url 'contracts:derive' c.pk 'replace' %}" data-confirm="Create a replacement? When it is signed, this contract becomes Superseded.">{% csrf_token %}<button class="dropdown-item">Replace with a new contract</button></form></li>
+                {% if not c.billing_contract_id %}<li><form method="post" action="{% url 'contracts:billing' c.pk %}">{% csrf_token %}<button class="dropdown-item">Create a draft billing contract</button></form></li>{% endif %}
+                {% endif %}
+                {% if c.status == 'draft' and not versions %}<li><hr class="dropdown-divider"></li><li><form method="post" action="{% url 'contracts:delete' c.pk %}" data-confirm="Delete this draft? It was never issued.">{% csrf_token %}<button class="dropdown-item text-danger">Delete draft</button></form></li>{% endif %}
+                {% if flags.void and c.status != 'voided' and c.status != 'superseded' %}<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger" href="{% url 'contracts:void' c.pk %}">Void…</a></li>{% endif %}
+            </ul>
+        </div>
+        {% elif flags.void and c.status != 'voided' and c.status != 'superseded' %}<a class="btn btn-sm btn-outline-danger" href="{% url 'contracts:void' c.pk %}">Void…</a>{% endif %}
+    </div>
+</div>
+
+{% if c.status == 'voided' %}<div class="alert alert-dark">Voided {{ c.voided_at|date:"Y-m-d H:i" }}{% if c.voided_by %} by {{ c.voided_by.get_full_name|default:c.voided_by.username }}{% endif %}: {{ c.void_reason }}</div>{% endif %}
+{% if c.billing_contract_id %}<div class="alert alert-info py-2">Billing contract #{{ c.billing_contract_id }} was created from this contract (PSA → Contracts).</div>{% endif %}
+{% if c.status == 'draft' and issue_errors %}
+<div class="alert alert-warning"><strong>Before this can be issued:</strong><ul class="mb-0">{% for e in issue_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+{% if v and v.finalization_status and v.finalization_status != 'done' %}<div class="alert alert-warning py-2">Every signature is in; the final signed PDF is being prepared ({{ v.finalization_status }}{% if v.finalization_error %}: {{ v.finalization_error }}{% endif %}). It is retried automatically.</div>{% endif %}
+
+<div class="row g-3 mb-3">
+    {% if flags.view_pricing %}<div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body py-2"><div class="small text-body-secondary">One-time</div><div class="fs-5">{{ c.one_time_total|money:c.currency }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body py-2"><div class="small text-body-secondary">Recurring ({{ c.get_billing_frequency_display|lower }})</div><div class="fs-5">{{ c.recurring_total|money:c.currency }}</div></div></div></div>{% endif %}
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body py-2"><div class="small text-body-secondary">Term</div><div>{{ c.effective_date|date:"Y-m-d"|default:"—" }} → {{ c.expiration_date|date:"Y-m-d"|default:"—" }}</div>{% if c.acceptance_deadline %}<div class="small">Accept by {{ c.acceptance_deadline|date:"Y-m-d" }}</div>{% endif %}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body py-2"><div class="small text-body-secondary">Opened</div>
+        <div>{% if c.view_count %}{{ c.view_count }} likely view{{ c.view_count|pluralize }}{% else %}Not viewed yet{% endif %}</div>
+        <div class="small text-body-secondary">{% if c.last_viewed_at %}last {{ c.last_viewed_at|date:"Y-m-d H:i" }} · {% endif %}{{ c.link_request_count }} link request{{ c.link_request_count|pluralize }}</div></div></div></div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><strong>Signers</strong> <small class="text-body-secondary">{{ signing.order|title }} order{% if signing.verification %} · e-mail code required{% endif %}{% if signing.countersignature %} · countersignature required{% endif %}</small></div>
+    {% if invitations %}
+    <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Signer</th><th>Version</th><th>Status</th><th>E-mail</th><th>Opened</th><th>Signed / declined</th><th></th></tr></thead>
+        <tbody>{% for inv in invitations %}
+        <tr class="{% if inv.version_id != c.current_version_id %}text-body-secondary{% endif %}">
+            <td>{{ inv.name }}{% if inv.title %}, {{ inv.title }}{% endif %}<div class="small">{{ inv.email }} · {{ inv.get_role_display }}{% if inv.order %} · #{{ inv.order }}{% endif %}</div></td>
+            <td>v{{ inv.version.version_number }}</td>
+            <td>{{ inv|status_badge }}{% if inv.expires_at and inv.is_open %}<div class="small">link expires {{ inv.expires_at|date:"Y-m-d" }}</div>{% endif %}{% if inv.revoke_reason %}<div class="small">{{ inv.revoke_reason }}</div>{% endif %}</td>
+            <td class="small">{% if inv.delivery_status %}{{ inv.get_delivery_status_display }}{% if inv.delivery_error %}<div class="text-danger">{{ inv.delivery_error }}</div>{% endif %}{% else %}—{% endif %}{% if inv.send_count %}<div>sent {{ inv.send_count }}×{% if inv.reminders_sent %}, {{ inv.reminders_sent }} reminder{{ inv.reminders_sent|pluralize }}{% endif %}</div>{% endif %}</td>
+            <td class="small">{% if inv.view_count %}{{ inv.view_count }} likely view{{ inv.view_count|pluralize }}{% if inv.verified_view_count %}, {{ inv.verified_view_count }} verified{% endif %}<div>last {{ inv.last_viewed_at|date:"Y-m-d H:i" }}</div>{% elif inv.link_request_count %}link requested {{ inv.link_request_count }}× (no confirmed view){% else %}—{% endif %}</td>
+            <td class="small">{% if inv.sig %}{{ inv.sig.signed_at|date:"Y-m-d H:i" }} as "{{ inv.sig.printed_name }}"<div>{{ inv.sig.get_method_display }} · {{ inv.sig.get_verification_level_display }}</div>{% elif inv.declined_at %}Declined {{ inv.declined_at|date:"Y-m-d H:i" }}<div>{{ inv.decline_reason|default:"(no reason given)" }}</div>{% endif %}</td>
+            <td class="text-end">{% if flags.send or flags.manage_links %}{% if inv.is_open and inv.version_id == c.current_version_id %}
+                <div class="d-flex flex-wrap gap-1 justify-content-end">
+                {% if inv.status == 'active' and flags.send %}<form method="post" action="{% url 'contracts:invitation_resend' inv.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Resend</button></form>{% endif %}
+                {% if flags.manage_links %}{% if inv.status == 'active' %}<form method="post" action="{% url 'contracts:invitation_link' inv.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Make a new personal link to share yourself">Copy link</button></form>{% endif %}
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:invitation_replace' inv.pk %}">Replace signer</a>
+                <form method="post" action="{% url 'contracts:invitation_revoke' inv.pk %}" data-confirm="Withdraw every link sent to {{ inv.email }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Revoke</button></form>{% endif %}
+                </div>{% endif %}{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="card-body small text-body-secondary">Nobody has been invited yet.{% if c.status == 'draft' %} Add signers in the editor.{% endif %}</div>{% endif %}
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Timeline</strong> <small class="text-body-secondary">append-only; times are local (UTC on hover)</small></div>
+            <ul class="list-group list-group-flush cd-timeline">{% for e in events %}
+                <li class="list-group-item small"><span class="text-body-secondary" title="{{ e.at|date:'c' }} UTC {{ e.at|utc|date:'Y-m-d H:i:s' }}">{{ e.at|date:"Y-m-d H:i" }}</span>
+                    <span class="badge text-bg-light border">{{ e.get_kind_display }}</span> {{ e.message }}
+                    <span class="text-body-secondary">— {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}{{ e.actor_label|default:"System" }}{% endif %}{% if flags.view_audit and e.ip_address %} · {{ e.ip_address }}{% endif %}</span></li>
+            {% empty %}<li class="list-group-item small text-body-secondary">No events.</li>{% endfor %}</ul>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Versions</strong></div>
+            <ul class="list-group list-group-flush">{% for ver in versions %}
+                <li class="list-group-item small">
+                    <div class="d-flex justify-content-between"><span><strong>v{{ ver.version_number }}</strong> {{ ver|status_badge }}</span><span>{{ ver.issued_at|date:"Y-m-d H:i" }}</span></div>
+                    <div class="text-body-secondary text-break">SHA-256 <code>{{ ver.content_hash|truncatechars:20 }}</code>{% if ver.final_pdf_hash %} · signed PDF <code>{{ ver.final_pdf_hash|truncatechars:20 }}</code>{% endif %}</div>
+                    {% for a in ver.approvals.all %}<div>{{ a.get_decision_display }} by {{ a.decided_by_name }} {{ a.decided_at|date:"Y-m-d H:i" }}{% if a.comment %}: {{ a.comment }}{% endif %}</div>{% endfor %}
+                    <div class="d-flex flex-wrap gap-2 mt-1">
+                        {% if flags.view_pricing %}<a href="{% url 'contracts:version_snapshot' ver.pk %}" target="_blank" rel="noopener">Snapshot</a>{% endif %}
+                        {% if ver.pdf and flags.view_pricing %}<a href="{% url 'contracts:version_pdf' ver.pk 'issued' %}" target="_blank" rel="noopener">Issued PDF</a>{% endif %}
+                        {% if ver.final_pdf and flags.download_signed %}<a href="{% url 'contracts:version_pdf' ver.pk 'signed' %}" target="_blank" rel="noopener">Signed PDF</a>{% endif %}
+                        {% if flags.view_audit %}<a href="{% url 'contracts:version_evidence' ver.pk %}">Evidence package</a>{% endif %}
+                    </div></li>
+            {% empty %}<li class="list-group-item small text-body-secondary">Not issued yet. Freezing the draft creates version 1.</li>{% endfor %}</ul>
+        </div>
+        {% if attachments %}<div class="card mb-3"><div class="card-header"><strong>Attachments</strong></div><ul class="list-group list-group-flush">{% for a in attachments %}<li class="list-group-item small"><a href="{% url 'contracts:attachment_download' a.pk %}">{{ a.name }}</a> <span class="text-body-secondary">{{ a.size|filesizeformat }}</span></li>{% endfor %}</ul></div>{% endif %}
+        {% if jobs %}<div class="card mb-3"><div class="card-header"><strong>Background work</strong></div><ul class="list-group list-group-flush">{% for j in jobs %}<li class="list-group-item small">{{ j.get_kind_display }} — {{ j.get_status_display }}{% if j.attempts %} (attempt {{ j.attempts }} of {{ j.max_attempts }}){% endif %}{% if j.last_error %}<div class="text-danger">{{ j.last_error }}</div>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+        {% if related_from %}<div class="card mb-3"><div class="card-header"><strong>Related contracts</strong></div><ul class="list-group list-group-flush">{% for r in related_from %}<li class="list-group-item small"><a href="{% url 'contracts:detail' r.pk %}">{{ r.reference }}</a> {{ r.get_relation_display|lower }} — {{ r|status_badge }}</li>{% endfor %}</ul></div>{% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+/* Public signing page (no external assets) */
+.cs-body { background: #f3f5f7; color: #1d232a; font-size: 1rem; }
+.cs-header { background: #fff; border-top: 4px solid #1f4e79; border-bottom: 1px solid #dde2e6; }
+.cs-container { max-width: 920px; }
+.cs-card { border-radius: .5rem; }
+.cs-doc { overflow-wrap: anywhere; }
+.cs-doc table { display: block; max-width: 100%; overflow-x: auto; }
+.cs-pad { width: 100%; max-width: 600px; height: 180px; border: 1px dashed #8a96a3; border-radius: .4rem; background: #fff; touch-action: none; cursor: crosshair; display: block; }
+.cs-typed-sig { font-family: "Brush Script MT", "Segoe Script", cursive; font-size: 1.6rem; }
+.cs-code { max-width: 9rem; letter-spacing: .3em; font-size: 1.2rem; }
+details > summary { cursor: pointer; }
+@media (max-width: 575.98px) {
+    .cs-container { padding-left: 12px; padding-right: 12px; }
+    .cs-doc { padding: .75rem; font-size: .95rem; }
+    .cd-doc h1 { font-size: 1.35rem; }
+    .cs-sign-btn { font-size: 1.1rem; }
+}

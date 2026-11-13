@@ -571,19 +571,19 @@ Contract generator: drafts, approval, signing and evidence.
 
 | Key | Action | Sensitivity | Customer | Status | Description |
 |---|---|---|---|---|---|
-| `contracts_view` | View / list | elevated | staff only | pending | View contracts |
-| `contracts_view_pricing` | View / list | sensitive | staff only | pending | View commercial terms and pricing in contracts |
-| `contracts_edit_draft` | Edit | elevated | staff only | pending | Create and edit contract drafts |
-| `contracts_manage_templates` | Manage settings | sensitive | staff only | pending | Manage contract templates and reusable clauses |
-| `contracts_submit_approval` | Send / publish | elevated | staff only | pending | Submit a contract for internal approval |
-| `contracts_approve` | Approve | sensitive | staff only | pending | Approve a specific contract version |
-| `contracts_send` | Send / publish | sensitive | staff only | pending | Send / resend signing invitations |
-| `contracts_manage_links` | Send / publish | sensitive | staff only | pending | Generate / revoke signing links |
-| `contracts_countersign` | Sign / countersign | sensitive | staff only | pending | Countersign contracts for the provider |
-| `contracts_void` | Delete | sensitive | staff only | pending | Void or supersede a contract |
-| `contracts_download_signed` | Download | sensitive | staff only | pending | Download signed agreements |
-| `contracts_view_audit` | View audit history | sensitive | staff only | pending | View detailed signing audit evidence |
-| `contracts_settings` | Manage settings | critical | staff only | pending | Configure signing and contract notification settings |
+| `contracts_view` | View / list | elevated | staff only | enforced | View contracts |
+| `contracts_view_pricing` | View / list | sensitive | staff only | enforced | View commercial terms and pricing in contracts |
+| `contracts_edit_draft` | Edit | elevated | staff only | enforced | Create and edit contract drafts |
+| `contracts_manage_templates` | Manage settings | sensitive | staff only | enforced | Manage contract templates and reusable clauses |
+| `contracts_submit_approval` | Send / publish | elevated | staff only | enforced | Submit a contract for internal approval |
+| `contracts_approve` | Approve | sensitive | staff only | enforced | Approve a specific contract version |
+| `contracts_send` | Send / publish | sensitive | staff only | enforced | Send / resend signing invitations |
+| `contracts_manage_links` | Send / publish | sensitive | staff only | enforced | Generate / revoke signing links |
+| `contracts_countersign` | Sign / countersign | sensitive | staff only | enforced | Countersign contracts for the provider |
+| `contracts_void` | Delete | sensitive | staff only | enforced | Void or supersede a contract |
+| `contracts_download_signed` | Download | sensitive | staff only | enforced | Download signed agreements |
+| `contracts_view_audit` | View audit history | sensitive | staff only | enforced | View detailed signing audit evidence |
+| `contracts_settings` | Manage settings | critical | staff only | enforced | Configure signing and contract notification settings |
 
 ### Billing & finance
 
@@ -699,7 +699,7 @@ What a customer user may do in the portal beyond the basics.
 | `portal_agreements_view_org` | View / list | sensitive | yes | enforced | See coworkers' agreement signatures and their evidence (not only the user's own) |
 | `portal_billing_contact` | View / list | sensitive | yes | pending | Billing contact: see invoices and billing notices for the customer |
 | `portal_contract_review` | View / list | elevated | yes | pending | Contract reviewer: read contracts sent to the customer |
-| `portal_contract_sign` | Sign / countersign | sensitive | yes | pending | Authorized contract signer: sign contracts for the customer |
+| `portal_contract_sign` | Sign / countersign | sensitive | yes | enforced | Authorized contract signer: sign contracts for the customer |
 
 ## Module coverage
 

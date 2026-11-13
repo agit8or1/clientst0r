@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load static %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
+{% block title %}Clause library{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item active">Clauses</li></ol></nav>
+<div class="card card-body cd-page-head d-flex flex-row align-items-center mb-3"><h2 class="h4 mb-0 me-auto">Clause library</h2>{% if can_manage_any %}<a class="btn btn-sm btn-primary" href="{% url 'contracts:clause_new' %}"><i class="fas fa-plus"></i> New clause</a>{% endif %}</div>
+<p class="small text-body-secondary">Reusable sections you can insert while editing a contract or template. Sample clauses are starting points only.</p>
+<div class="list-group">{% for cl in clauses %}
+    <a class="list-group-item list-group-item-action {% if not cl.is_active %}text-body-secondary{% endif %}" href="{% url 'contracts:clause_edit' cl.pk %}">
+        <div class="d-flex justify-content-between"><strong>{{ cl.title }}</strong><span class="small">{% if cl.category %}{{ cl.category }} · {% endif %}{% if cl.organization %}{{ cl.organization.name }}{% else %}Every customer{% endif %}{% if cl.is_sample %} · sample{% endif %}{% if not cl.is_active %} · inactive{% endif %}</span></div>
+        <div class="small">{{ cl.body|striptags|truncatechars:180 }}</div></a>
+{% empty %}<div class="list-group-item text-body-secondary">No clauses yet.</div>{% endfor %}</div>
+{% endblock %}

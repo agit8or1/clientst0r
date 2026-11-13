@@ -39,7 +39,8 @@ MY_WORK = ['psa:my_work', 'core:dashboard', 'core:favorite_list', 'vault:persona
 TICKETS = ['psa:ticket_list', 'psa:dispatch_board', 'psa:project_list', 'psa:service_catalog']
 CLIENTS = ['accounts:organization_list', 'core:customer_ops_current', 'docs:document_list',
            'docs:diagram_list', 'docs:document_drafts_list', 'readiness:overview',
-           'vault:password_list', 'vault:access_rule_list', 'psa:contract_list', 'crm:home']
+           'vault:password_list', 'vault:access_rule_list', 'psa:contract_list', 'crm:home',
+           'contracts:dashboard']
 DEVICES = ['assets:asset_list', 'integrations:rmm_devices', 'assets:device_workspace_home', 'hardware:device_list',
            'monitoring:rack_list']
 ALERTS = ['integrations:rmm_alerts', 'security_alerts:alert_list', 'monitoring:website_monitor_list']
@@ -68,7 +69,8 @@ STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
               'integrations:integration_list', 'core:mobile_apps_admin',
               'core:snyk_scans', 'accounts:access_management', 'core:webhook_list',
               'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts',
-              'assets:device_workspace_home', 'inventory:inventory_dashboard']
+              'assets:device_workspace_home', 'inventory:inventory_dashboard',
+              'contracts:dashboard']
 
 
 def urls(names):

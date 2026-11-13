@@ -1,0 +1,27 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="same-origin">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Contract{% endblock %}</title>
+<link href="{% static 'vendor/bootstrap/5.3.0/css/bootstrap.min.css' %}" rel="stylesheet">
+<link href="{% static 'css/contract-sign.css' %}" rel="stylesheet">
+{% block head %}{% endblock %}
+</head>
+<body class="cs-body">
+<header class="cs-header" {% if brand_color %}style="border-top-color: {{ brand_color }}"{% endif %}>
+    <div class="container cs-container d-flex align-items-center justify-content-between py-2">
+        <span class="fw-semibold">{{ brand|default:"Contract" }}</span>
+        <span class="small text-body-secondary">Secure signing page</span>
+    </div>
+</header>
+<main class="container cs-container py-3">
+    {% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags|default:'info' }}{% endif %} py-2" role="status">{{ m }}</div>{% endfor %}{% endif %}
+    {% block content %}{% endblock %}
+</main>
+<footer class="container cs-container small text-body-secondary pb-4">This page is personal to the person it was sent to. Please do not forward the link.</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

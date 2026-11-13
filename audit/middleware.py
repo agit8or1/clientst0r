@@ -28,6 +28,9 @@ class AuditLoggingMiddleware(MiddlewareMixin):
         '/__debug__/',
         '/jsi18n/',
         '/admin/jsi18n/',
+        # Public contract signing pages: the path carries a signing token or
+        # invitation id. contracts.events writes its own audit entries.
+        '/sign/',
     ]
 
     # Methods that indicate data modification

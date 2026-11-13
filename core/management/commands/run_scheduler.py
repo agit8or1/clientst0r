@@ -63,6 +63,8 @@ COMMAND_TASKS = {
     'office_managed_operations': ('office_managed', ['--run-pending']),
     'upgrade_backup_prune': ('upgrade_backup', ['--prune', '--trigger', 'scheduler']),
     'snyk_cli_update_check': ('check_snyk_cli_update', []),
+    'contracts_jobs': ('contracts_jobs', []),
+    'contracts_maintenance': ('contracts_maintenance', []),
 }
 
 

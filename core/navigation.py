@@ -96,6 +96,17 @@ def _check_geo_admin(u, ctx):
     return u.is_superuser and _is_msp_staff(u)
 
 
+def _check_contracts(u, ctx):
+    """contracts.views.dashboard: MSP staff with contracts_view somewhere."""
+    from contracts import permissions as contract_perms
+    return _is_msp_staff(u) and contract_perms.has_any(u, contract_perms.VIEW)
+
+
+def _check_contract_settings(u, ctx):
+    from contracts import permissions as contract_perms
+    return _is_msp_staff(u) and contract_perms.has_any(u, contract_perms.SETTINGS)
+
+
 def _check_routing_manager(u, ctx):
     """psa.routing PERM_MANAGE: alert policy, support workflows admin."""
     from psa.routing.permissions import can_manage
@@ -293,6 +304,13 @@ SECTIONS = (
         Tab(_('Wallboards'), 'reports:wallboard_list', 'fa-tv'),
         Tab(_('Generate Reports'), 'reports:template_list', 'fa-file-pdf'),
         Tab(_('Report History'), 'reports:generated_list', 'fa-history'),
+    )),
+
+    Section('mod_contracts', 'modules', _('Contracts'), gate=_view_check(_check_contracts), tabs=(
+        Tab(_('Contracts'), 'contracts:dashboard', 'fa-file-signature'),
+        Tab(_('Templates'), 'contracts:template_list', 'fa-file-lines'),
+        Tab(_('Clauses'), 'contracts:clause_list', 'fa-paragraph'),
+        Tab(_('Settings'), 'contracts:settings', 'fa-sliders', gate=_view_check(_check_contract_settings)),
     )),
 
     # ---- Assets -----------------------------------------------------------
@@ -624,6 +642,8 @@ PRIMARY = (
               keywords='contracts quotes invoices aging'),
         Entry(_('CRM'), section='mod_crm', icon='fa-chart-pie',
               keywords='sales pipeline leads opportunities'),
+        Entry(_('Contract Documents'), section='mod_contracts', icon='fa-file-signature',
+              keywords='agreements signing e-signature msa sow proposals'),
     )),
     Group('devices', _('Devices'), 'fa-laptop', shortcut='d', entries=(
         Entry(_('All Assets'), section='assets_all', icon='fa-box', keywords='devices inventory'),

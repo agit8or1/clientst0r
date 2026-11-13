@@ -563,6 +563,9 @@ HASHED_SECRET_FIELDS = [
     ('otp_static', 'StaticToken', 'token', 'otp_static'),
     # Office edit-session access tokens (office.tokens, purpose office.access).
     ('office', 'AccessToken', 'token_hash', 'hex64'),
+    # Contract signing links and e-mailed signing codes (contracts.signing).
+    ('contracts', 'ContractAccessToken', 'token_hash', 'hex64'),
+    ('contracts', 'ContractInvitation', 'code_hash', 'hex64'),
 ]
 
 # Columns encrypted by their model with vault.encryption_v2 and a per-row AAD

@@ -1196,6 +1196,9 @@ class ScheduledTask(models.Model):
         ('office_managed_operations', 'Managed ONLYOFFICE Operations'),
         ('upgrade_backup_prune', 'Pre-upgrade Backup Cleanup'),
         ('snyk_cli_update_check', 'Snyk CLI Update Check'),
+        # Contract documents: e-mail / finalization jobs, and hourly upkeep.
+        ('contracts_jobs', 'Contract Jobs'),
+        ('contracts_maintenance', 'Contract Reminders and Expirations'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1770,6 +1773,22 @@ class ScheduledTask(models.Model):
                            'per new version (only when Snyk is enabled and the CLI is installed; '
                            'upgrading stays manual in Settings → Snyk)',
             'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            # Sends queued contract e-mail and finalizes signed contracts,
+            # with retries. Most jobs already ran inline when queued.
+            'task_type': 'contracts_jobs',
+            'description': 'Send queued contract invitation and reminder e-mails, finalize signed contracts '
+                           '(signed PDF and audit certificate) and send signed copies, retrying failures',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'contracts_maintenance',
+            'description': 'Expire contract links and acceptance deadlines, queue reminders, raise renewal and '
+                           'expiration alerts, apply contract access-log retention',
+            'interval_minutes': 60,
             'enabled': True,
         },
     ]

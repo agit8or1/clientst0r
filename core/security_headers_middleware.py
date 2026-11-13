@@ -43,7 +43,10 @@ class SecurityHeadersMiddleware:
             response['X-Frame-Options'] = 'DENY'
 
         # Referrer-Policy
-        if hasattr(settings, 'SECURE_REFERRER_POLICY'):
+        # A view that asks for a stricter policy (the contract signing pages,
+        # whose URLs are personal) keeps it.
+        if hasattr(settings, 'SECURE_REFERRER_POLICY') and \
+                response.get('Referrer-Policy') not in ('no-referrer', 'same-origin'):
             response['Referrer-Policy'] = settings.SECURE_REFERRER_POLICY
 
         return response

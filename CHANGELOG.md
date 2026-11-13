@@ -102,6 +102,20 @@ Server-side checks now follow the role flags in the customer that owns each reco
 - **Aging report:** `billing_view_aging` is no longer MSP-staff only. Customer users with it see only their own account. The Aging Report tab shows only for people who hold the flag.
 - **Holidays:** the holiday pages open for anyone who holds `resourcing_manage_holidays` at any customer. Each holiday is still checked at its own customer.
 
+### Added (contract documents, Phase 65 — development branch, not yet released)
+- **Contract documents** (`/contracts/`, MSP staff only): build a contract from a template, a copy or a blank page, with a rich-text editor (headings, lists, tables, page breaks), reorderable and optional sections, one-time and recurring line items, signers, attachments, merge fields and autosave with a saved indicator and conflict warning.
+- **Seven starter templates and a clause library.** The wording is sample text and each template carries a review note that blocks sending until it is replaced. Templates are versioned; contracts keep the text they were created from.
+- **Built-in signing** under `/sign/`: personal links without an account, parallel or sequential signers, internal countersignature from the staff account, typed or drawn signatures, consent and intent statements, decline with a reason, optional e-mailed code, phone-friendly page using only local assets, and a downloadable copy. Signatures are bound to the exact version and its SHA-256.
+- **Open tracking that tells scanners from people:** link requests, likely human views and verified views are recorded separately; HEAD requests, prefetch and preview headers, scanner and bot user agents and configured scanner networks never count as views. Alerts are de-duplicated with a cooldown for repeat views.
+- **Statuses enforced on the server** (draft → pending approval → ready → sent → viewed → partially signed → signed, plus declined, expired, voided, superseded); revise, amend, renew, replace and void with a reason; internal approval bound to the exact version.
+- **Issued and final signed PDFs** with an audit certificate and an evidence package; e-mail, reminder and finalization jobs with retries and idempotency; scheduler tasks "Contract Jobs" (every minute) and "Contract Reminders and Expirations" (hourly).
+- **Dashboard, client-record card and settings** (deployment defaults and per-customer overrides); a signed contract can create a draft PSA billing contract.
+- **Contract permissions enforced** through `accounts.contract_access.can_contract` with a separate permission per action (view, view pricing, edit drafts, templates, submit for approval, approve, send, signing links, countersign, void, signed copies, audit evidence, settings). Nobody approves a version they wrote or submitted (the "allow self-approval" setting is gone). Lists, the dashboard and the client card follow client and record scope. Alert recipients are checked when an alert is created and again before its e-mail goes out. Internal countersignatures need a signed-in staff account with `contracts_countersign`; a signed-in customer account signs only with `portal_contract_sign`. The contract permissions and `portal_contract_sign` are now marked enforced in the registry.
+- **Page headings** of the contract pages sit on a card surface, so they stay readable over a custom (for example dark, starry) background image.
+
+### Changed (contract documents)
+- Security headers keep a view's stricter `Referrer-Policy: no-referrer`; the request audit log skips `/sign/` (contract events are audited on their own, without tokens).
+
 ## [3.17.668] - 2026-11-12
 
 Office documents. Built and tested against protocol-accurate fakes; **not yet tested against a real ONLYOFFICE, Collabora or Microsoft 365 service**. Managed Local ONLYOFFICE is **untested**: it has never run against a real container.

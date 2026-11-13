@@ -1,0 +1,32 @@
+<div class="card mb-3 cd-section-card" data-section>
+    <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+        <input type="hidden" name="section-{{ i }}-key" value="{{ s.key }}">
+        <input type="hidden" name="section-{{ i }}-deleted" value="0" data-deleted>
+        <label class="visually-hidden" for="section-{{ i }}-order">Order</label>
+        <input type="number" step="1" class="form-control form-control-sm cd-order" style="width:4.5rem" id="section-{{ i }}-order" name="section-{{ i }}-order" value="{{ forloop_counter|default:i }}" data-order title="Order (lower comes first)">
+        <label class="visually-hidden" for="section-{{ i }}-title">Section heading</label>
+        <input class="form-control form-control-sm flex-grow-1 fw-semibold" style="min-width:12rem" id="section-{{ i }}-title" name="section-{{ i }}-title" value="{{ s.title }}" placeholder="Section heading" maxlength="200">
+        <select class="form-select form-select-sm" style="width:auto" name="section-{{ i }}-type" aria-label="Section type">
+            {% for k, l in section_types %}<option value="{{ k }}" {% if s.type == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select>
+        <div class="form-check form-switch mb-0" title="Include this section in the contract">
+            <input class="form-check-input" type="checkbox" role="switch" id="section-{{ i }}-include" name="section-{{ i }}-include" {% if s.include %}checked{% endif %}>
+            <label class="form-check-label small" for="section-{{ i }}-include">Include</label>
+        </div>
+        <div class="form-check mb-0" title="Optional section: offered but may be left out">
+            <input class="form-check-input" type="checkbox" id="section-{{ i }}-optional" name="section-{{ i }}-optional" {% if s.optional %}checked{% endif %}>
+            <label class="form-check-label small" for="section-{{ i }}-optional">Optional</label>
+        </div>
+        <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="Move or remove">
+            <button type="button" class="btn btn-outline-secondary" data-move="up" title="Move up" aria-label="Move up"><i class="fas fa-arrow-up"></i></button>
+            <button type="button" class="btn btn-outline-secondary" data-move="down" title="Move down" aria-label="Move down"><i class="fas fa-arrow-down"></i></button>
+            <button type="button" class="btn btn-outline-danger" data-remove-section title="Remove section" aria-label="Remove section"><i class="fas fa-trash"></i></button>
+        </div>
+    </div>
+    <div class="card-body">
+        <label class="visually-hidden" for="section-{{ i }}-body">Section text</label>
+        <textarea class="form-control cd-body font-monospace small" rows="8" id="section-{{ i }}-body" name="section-{{ i }}-body">{{ s.body }}</textarea>
+        <div class="cd-editor" hidden></div>
+        <p class="small text-body-secondary mt-2 mb-0 cd-type-note">{% if s.type == 'pricing' %}The pricing table from the line items is added after this text.{% elif s.type == 'signatures' %}Signature blocks for every signer are added after this text.{% endif %}</p>
+    </div>
+</div>

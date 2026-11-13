@@ -1,0 +1,97 @@
+{% extends "contracts/sign/base.html" %}{% load static %}
+{% block title %}{{ c.title }}{% endblock %}
+{% block head %}<style>{{ doc_css|safe }}</style>{% endblock %}
+{% block content %}
+<div id="cs-root" data-seen-url="{% url 'contract_sign:seen' inv.public_id %}" data-nonce="{{ nonce }}" data-csrf="{{ csrf_token }}">
+<div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+    <h1 class="h4 mb-0 me-auto">{{ c.title }}</h1>
+    <span class="small text-body-secondary">{{ c.reference }} · version {{ v.version_number }}</span>
+</div>
+<p class="small text-body-secondary">For {{ inv.name }}{% if inv.title %}, {{ inv.title }}{% endif %} · {{ c.client_name }}</p>
+
+{% if state == 'superseded' %}
+    <div class="alert alert-secondary">This version was replaced. If you still need to sign, you will receive a new link.</div>
+{% elif state == 'revoked' %}
+    <div class="alert alert-secondary">This link was withdrawn by the sender.</div>
+{% elif state == 'expired' %}
+    <div class="alert alert-warning">This link has expired. Ask the sender for a new one.</div>
+{% elif state == 'closed' %}
+    <div class="alert alert-secondary">This contract is no longer open for signing.</div>
+{% else %}
+    {% if state == 'signed' %}<div class="alert alert-success">You signed this contract{% if sig %} on {{ sig.signed_at|date:"Y-m-d H:i" }} as "{{ sig.printed_name }}"{% endif %}. {% if final_ready %}The final signed copy is ready to download.{% else %}{{ signed_count|add:1 }} of {{ total }} signatures are in; you will receive the final signed copy by e-mail when everyone has signed.{% endif %}</div>{% endif %}
+    {% if state == 'declined' %}<div class="alert alert-danger">You declined this contract{% if inv.decline_reason %}: “{{ inv.decline_reason }}”{% endif %}.</div>{% endif %}
+    {% if state == 'waiting' %}<div class="alert alert-info">You can read the contract now. It is not your turn to sign yet: you will get an e-mail when it is.</div>{% endif %}
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'contract_sign:download' inv.public_id %}">{% if final_ready and state == 'signed' %}Download the signed copy (PDF){% else %}Download a copy (PDF){% endif %}</a>
+        {% if state == 'open' and not signer_denial %}<a class="btn btn-sm btn-primary" href="#cs-sign">Go to signing</a>{% endif %}
+    </div>
+
+    <article class="card cs-card mb-3"><div class="card-body cs-doc">{{ v.rendered_html|safe }}</div></article>
+
+    {% if attachments %}<div class="card cs-card mb-3"><div class="card-body">
+        <h2 class="h6">Attachments</h2>
+        <ul class="mb-0">{% for a in attachments %}<li><a href="{% url 'contract_sign:attachment' inv.public_id a.id %}">{{ a.name }}</a> <span class="small text-body-secondary">({{ a.size|filesizeformat }})</span></li>{% endfor %}</ul>
+    </div></div>{% endif %}
+
+    {% if state == 'open' and signer_denial %}
+    <div class="alert alert-warning" id="cs-sign">{{ signer_denial }}</div>
+    {% elif state == 'open' %}
+    <section id="cs-sign" class="card cs-card mb-3"><div class="card-body">
+        <h2 class="h5">Sign</h2>
+        {% if needs_code %}
+            <p>Before signing, confirm that you can receive e-mail at <strong>{{ inv.email }}</strong>.</p>
+            <form method="post" action="{% url 'contract_sign:code' inv.public_id %}" class="mb-3">{% csrf_token %}
+                <button class="btn btn-outline-primary">{% if code_sent %}Send a new code{% else %}E-mail me a code{% endif %}</button></form>
+            {% if code_sent %}
+            <form method="post" action="{% url 'contract_sign:verify' inv.public_id %}" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
+                <div><label class="form-label" for="cs-code">6-digit code</label><input class="form-control cs-code" id="cs-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div>
+                <button class="btn btn-primary">Confirm</button></form>
+            {% endif %}
+        {% else %}
+        <form method="post" action="{% url 'contract_sign:sign' inv.public_id %}" id="cs-sign-form">{% csrf_token %}
+            <input type="hidden" name="version_id" value="{{ v.pk }}">
+            <input type="hidden" name="content_hash" value="{{ v.content_hash }}">
+            <div class="row g-2 mb-2">
+                <div class="col-sm-6"><label class="form-label" for="cs-name">Full name</label><input class="form-control" id="cs-name" name="printed_name" value="{{ inv.name }}" required maxlength="200" autocomplete="name"></div>
+                <div class="col-sm-6"><label class="form-label" for="cs-title">Title (optional)</label><input class="form-control" id="cs-title" name="title" value="{{ inv.title }}" maxlength="200" autocomplete="organization-title"></div>
+            </div>
+            <fieldset class="mb-2"><legend class="form-label fs-6 mb-1">Signature</legend>
+                <div class="btn-group mb-2" role="group" aria-label="How to sign">
+                    <input type="radio" class="btn-check" name="method" id="cs-typed" value="typed" checked data-sign-method>
+                    <label class="btn btn-outline-secondary btn-sm" for="cs-typed">Type</label>
+                    <input type="radio" class="btn-check" name="method" id="cs-drawn" value="drawn" data-sign-method>
+                    <label class="btn btn-outline-secondary btn-sm" for="cs-drawn">Draw</label>
+                </div>
+                <div data-pane="typed"><label class="visually-hidden" for="cs-typed-sig">Type your name as your signature</label>
+                    <input class="form-control cs-typed-sig" id="cs-typed-sig" name="typed_signature" maxlength="200" placeholder="Type your name" autocomplete="off"></div>
+                <div data-pane="drawn" hidden>
+                    <canvas class="cs-pad" width="600" height="180" aria-label="Draw your signature here" role="img"></canvas>
+                    <input type="hidden" name="signature_data" id="cs-sig-data">
+                    <button type="button" class="btn btn-sm btn-link px-0" data-clear-pad>Clear</button>
+                </div>
+            </fieldset>
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="cs-consent" name="consent" value="yes" required>
+                <label class="form-check-label small" for="cs-consent">{{ v.consent_text|linebreaksbr }}</label></div>
+            <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="cs-intent" name="intent" value="yes" required>
+                <label class="form-check-label small" for="cs-intent">{{ v.intent_text }}</label></div>
+            <p class="small text-body-secondary">Signing date: {{ today|date:"Y-m-d" }}. Your signature applies to version {{ v.version_number }} exactly as shown (fingerprint <code class="text-break">{{ v.content_hash|truncatechars:20 }}</code>).</p>
+            <button class="btn btn-success btn-lg w-100 cs-sign-btn">Sign the contract</button>
+        </form>
+        {% endif %}
+    </div></section>
+    {% endif %}
+
+    {% if state == 'open' or state == 'waiting' %}
+    <details class="card cs-card mb-3"><summary class="card-body py-2">I do not want to sign — decline</summary>
+        <form method="post" action="{% url 'contract_sign:decline' inv.public_id %}" class="card-body pt-0">{% csrf_token %}
+            <label class="form-label" for="cs-reason">Reason (optional, shared with the sender)</label>
+            <textarea class="form-control mb-2" id="cs-reason" name="reason" rows="3" maxlength="2000"></textarea>
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="cs-decline-ok" name="confirm" value="yes" required><label class="form-check-label" for="cs-decline-ok">I decline to sign this contract</label></div>
+            <button class="btn btn-outline-danger">Decline</button>
+        </form></details>
+    {% endif %}
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/contract-sign.js' %}"></script>{% endblock %}

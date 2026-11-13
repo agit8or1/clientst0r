@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Signing link{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Signing link</li></ol></nav>
+<div class="card card-body" style="max-width: 46rem">
+    <h2 class="h5">Personal signing link for {{ inv.name }}</h2>
+    <p class="small">This link is shown <strong>once</strong>; only a fingerprint of it is stored. Share it only with {{ inv.email }}: anyone who has it can open the contract. Opening it yourself is recorded as a link request.</p>
+    <div class="input-group mb-2"><input class="form-control font-monospace" id="cd-link" value="{{ link }}" readonly data-select-on-click aria-label="Signing link">
+        <button class="btn btn-outline-primary" type="button" data-copy-from="#cd-link" data-copied-text="Copied">Copy</button></div>
+    <p class="small text-body-secondary mb-3">Earlier links for this signer keep working until they expire or you revoke them.</p>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'contracts:detail' c.pk %}">Back to the contract</a>
+</div>
+{% endblock %}

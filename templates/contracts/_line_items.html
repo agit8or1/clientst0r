@@ -1,0 +1,10 @@
+<div class="card mb-3" id="cd-lines">
+    <div class="card-header d-flex justify-content-between align-items-center"><strong>Services and pricing</strong>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-add-line><i class="fas fa-plus"></i> Add line</button></div>
+    <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Description</th><th>Type</th><th>Qty</th><th>Unit price</th><th>Disc. %</th><th>Tax</th><th></th></tr></thead>
+        <tbody data-lines>{% for li in line_items %}{% with i=forloop.counter0 %}{% include "contracts/_line_item_row.html" %}{% endwith %}{% endfor %}</tbody>
+    </table></div>
+    <template id="tpl-line">{% with i="__i__" li=None %}{% include "contracts/_line_item_row.html" %}{% endwith %}</template>
+    <div class="card-footer small text-body-secondary">One-time and recurring charges are totalled separately. Recurring charges use the billing frequency. A "Pricing table" section shows them in the contract.</div>
+</div>

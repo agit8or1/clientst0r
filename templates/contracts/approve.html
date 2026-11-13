@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load static contracts_tags %}
+{% block title %}Approve {{ c.reference }}{% endblock %}
+{% block extra_css %}<link href="{% static 'css/contracts.css' %}" rel="stylesheet"><style>{{ doc_css|safe }}</style>{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:detail' c.pk %}">{{ c.reference }}</a></li><li class="breadcrumb-item active">Approval</li></ol></nav>
+<h2 class="h4 card card-body cd-page-head mb-3">Internal approval — version {{ v.version_number }}</h2>
+<p class="text-body-secondary small">Your decision is bound to this exact content (SHA-256 <code>{{ v.content_hash }}</code>). Any later change creates a new version that needs approval again.</p>
+<div class="row g-3">
+    <div class="col-lg-8"><div class="card"><div class="card-body cd-paper">{{ v.rendered_html|safe }}</div></div></div>
+    <div class="col-lg-4">
+        <form method="post" class="card card-body">{% csrf_token %}
+            <input type="hidden" name="content_hash" value="{{ v.content_hash }}">
+            <div class="mb-2 small">One-time {{ c.one_time_total|money:c.currency }} · recurring {{ c.recurring_total|money:c.currency }} ({{ c.get_billing_frequency_display|lower }})</div>
+            <label class="form-label" for="ap-comment">Comment (optional; required context for a rejection)</label>
+            <textarea class="form-control mb-3" id="ap-comment" name="comment" rows="4" maxlength="2000"></textarea>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success" name="decision" value="approve"><i class="fas fa-check"></i> Approve</button>
+                <button class="btn btn-outline-danger" name="decision" value="reject"><i class="fas fa-times"></i> Reject</button>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary mt-3" href="{% url 'contracts:version_pdf' v.pk 'issued' %}" target="_blank" rel="noopener">Open the PDF</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
