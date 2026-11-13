@@ -2383,7 +2383,10 @@ Collabora or Microsoft 365 service**.
     *Save back to clientst0r* stores the Microsoft copy as a new revision on
     request only (stale-base saves are kept as conflicts, double saves are
     no-ops, permission re-checked); Finish / Discard delete or keep the copy
-    per administrator policy. Other users and the ONLYOFFICE / Collabora
+    per administrator policy. MSP staff can use the platform (MSP) tenant or
+    the customer's own; customer users only their own customer's; another
+    customer's tenant is never used, and a confirm step names the receiving
+    tenant first. Other users and the ONLYOFFICE / Collabora
     editors show who is editing in Microsoft 365. Customer users need the new
     `office_edit_in_m365` permission. A scheduled task reminds about or ends
     idle sessions and never imports. No sharing links.

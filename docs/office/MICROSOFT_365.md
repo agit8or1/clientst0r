@@ -447,11 +447,14 @@ Code: `integrations/m365docs/editing.py` (service), `views_edit.py` (views),
 
 ### Administrator settings
 
-On the connection's **Document settings** page (organization admin with
-`integrations_configure`), card *Edit in Microsoft 365*:
+On the connection's **Document settings** page, card *Edit in Microsoft 365*
+(a customer's own connection: an administrator of that customer with
+`integrations_configure`; the platform connection: a platform administrator
+in global view):
 
 | Setting | Default | Meaning |
 |---|---|---|
+| When MSP staff edit this customer's files, use | platform | Only on a customer's own connection: which tenant is preferred when the platform connection also qualifies. |
 | Offer Edit in Microsoft 365 | off | Needs documents on and **read and write** access. Turning it off ends every open session (revoked). |
 | Working copies go to | — | One allowed location: each user's own OneDrive (private to that user), or one library or folder (visible to whoever Microsoft 365 lets see it there). A whole site is not accepted. |
 | Folder for working copies | `clientst0r working copies` | Created once in the location (`POST …/children`, `conflictBehavior=fail`; an existing folder of that name is reused). Empty: the location's top level. |
@@ -484,15 +487,46 @@ as well, so a change the signals miss takes effect on the next action. A
 revoked session's working copy is deleted by the scheduled task when the
 policy is *delete*.
 
-### Tenant and customer isolation
+### Which tenant receives the working copy
 
-- Only a connection that the **file's own organization** owns is used. A
-  platform-owned Microsoft 365 connection, or another customer's, is never
-  used for a file (the documents capability is per customer tenant).
+Integrations are platform-owned by default (integrations/ownership.py), so the
+MSP's own Microsoft 365 tenant is usually a **platform** connection
+(organization empty). The rules:
+
+| Who | Connections offered |
+|---|---|
+| MSP staff (user type Staff, Django staff, superuser) who may edit the file at its customer | the **platform** connection, and the file's customer's **own** connection, when each has documents (read and write) and Edit in Microsoft 365 on |
+| Customer users (with `office_edit_in_m365`) | their own customer's connection only — never the platform connection |
+
+- A connection owned by a **different customer** is never used, for anyone:
+  customer data never lands in another customer's tenant.
+- A customer's own connection is used only for that customer's files.
+- On the platform connection the working copy goes to the staff member's
+  own OneDrive in the MSP tenant, or the platform connection's allowed
+  library / folder.
+- When both qualify for a staff member, the customer connection's setting
+  *When MSP staff edit this customer's files … use* decides which is
+  preferred (default: the platform connection).
+- **Confirm step.** *Edit in Microsoft 365…* first shows a page (nothing is
+  uploaded yet) naming, for each qualifying connection, the connection, its
+  owner (*Platform (MSP)* or the customer), the tenant ID, where the copy
+  will go and the finish policy, with the preferred one first. The upload
+  starts only from that page. When the user has not connected their
+  Microsoft sign-in for that connection, the page offers *Connect my
+  Microsoft 365 documents first*.
 - Sessions are looked up by id **and** owner; anyone else's session is a 404.
-- The working copy must stay inside the configured allowed location; the
-  allowed-locations rule (above) is applied at start, open, check and
-  save-back.
+  The allowed-locations rule is applied at start, open, check and save-back.
+- Audit entries name the connection (`connection`, `connection_name`,
+  `connection_owner`, `tenant_id`) and are recorded on the file's customer.
+
+Platform connection administration (documents settings, allowed locations,
+Edit in Microsoft 365 settings) is done in **global view** by platform
+administrators: superuser, Django staff, or MSP staff whose global role grants
+`integrations_configure`. A customer's own connection stays managed inside
+that customer by an administrator with `integrations_configure`. The other
+document features (browse, link, create, import, export) remain per customer
+connection; the platform connection is used only for sign-in and Edit in
+Microsoft 365.
 
 ### Scheduled task
 
@@ -568,6 +602,8 @@ ONLYOFFICE or Collabora.
 - Uploads use a single `PUT`, which Microsoft limits to 250 MB. The
   clientst0r limit (`OFFICE_MAX_FILE_MB`) is normally lower. Upload sessions
   are not implemented.
+- The documents features other than Edit in Microsoft 365 (browse, link,
+  create, import, export) work on customer-owned connections only.
 - Commercial cloud only: `graph.microsoft.com`, `login.microsoftonline.com`,
   `*.sharepoint.com`.
 - Client-secret authentication only; certificate credentials are not
