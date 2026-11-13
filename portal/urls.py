@@ -11,6 +11,8 @@ app_name = 'portal'
 from statuspage.views import portal_status as _status_view  # noqa: E402
 from . import request_views as _request_views  # noqa: E402
 from . import agreement_views as _agreement_views  # noqa: E402
+# Pulse checks (service-feedback surveys). Each view 404s while they are off.
+from pulse import portal_views as _pulse_views  # noqa: E402
 
 urlpatterns = [
     path('', views.ticket_list, name='ticket_list'),
@@ -59,6 +61,12 @@ urlpatterns = [
     # Signed, no-login link in reminder e-mails: stop reminders for one agreement.
     path('agreements/reminders/unsubscribe/<str:token>/', _agreement_views.agreement_reminder_unsubscribe,
          name='agreement_reminder_unsubscribe'),
+    # Pulse checks: the portal user's own feedback requests, and the
+    # no-login e-mailed link (one response, single use) and opt-out link.
+    path('feedback/', _pulse_views.feedback, name='pulse_feedback'),
+    path('feedback/<int:pk>/', _pulse_views.answer, name='pulse_answer'),
+    path('feedback/r/<str:token>/', _pulse_views.respond, name='pulse_respond'),
+    path('feedback/opt-out/<str:token>/', _pulse_views.opt_out, name='pulse_opt_out'),
     # Customer switcher for users who belong to several customers.
     path('switch/', views.switch_customer, name='switch_customer'),
 ]

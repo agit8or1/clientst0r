@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ check.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'pulse:check_list' %}">Pulse checks</a></li><li class="breadcrumb-item active">{{ check.name }}</li></ol></nav>
+<div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
+    <div class="me-auto">
+        <h2 class="h4 mb-1">{{ check.name }} {% if check.is_active %}<span class="badge text-bg-success">On</span>{% else %}<span class="badge text-bg-secondary">Off</span>{% endif %}</h2>
+        <div class="small text-body-secondary">{{ check.get_audience_display }} · {% if check.all_organizations %}all clients{% else %}{{ check.organizations.count }} organization{{ check.organizations.count|pluralize }}{% endif %} · {{ check.get_schedule_display }}{% if check.is_recurring %} (day {{ check.send_day }}, from {{ check.starts_on|date:"Y-m-d" }}){% endif %} · {{ question_count }} question{{ question_count|pluralize }}</div>
+    </div>
+    {% if can_manage %}
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'pulse:check_edit' check.pk %}"><i class="fas fa-pen"></i> Edit</a>
+    <form method="post" action="{% url 'pulse:check_toggle' check.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">{% if check.is_active %}Turn off{% else %}Turn on{% endif %}</button></form>
+    {% if check.is_active %}<a class="btn btn-sm btn-primary" href="{% url 'pulse:check_send' check.pk %}"><i class="fas fa-paper-plane"></i> Send now…</a>{% endif %}
+    {% endif %}
+</div>
+{% if check.intro %}<p class="text-body-secondary" style="white-space: pre-line;">{{ check.intro }}</p>{% endif %}
+{% include "pulse/_org_filter.html" %}
+{% if org %}<p class="small">Showing <strong>{{ org.name }}</strong> only. <a href="?">Show all</a></p>{% endif %}
+{% include "pulse/_summary.html" %}
+{% include "pulse/_by_org.html" %}
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">Sends</h5></div>
+{% if sends %}
+<div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Sent</th><th>How</th><th>Open until</th><th class="text-end">Recipients</th><th class="text-end">Response rate</th><th class="text-end">Average rating</th><th class="text-end">NPS</th></tr></thead>
+    <tbody>{% for s in sends %}
+    <tr><td><a href="{% url 'pulse:send_detail' s.send.pk %}{% if org %}?org={{ org.pk }}{% endif %}">{{ s.send.created_at|date:"Y-m-d H:i" }}</a></td>
+        <td>{{ s.send.get_trigger_display }}{% if s.send.period_key %} ({{ s.send.period_key }}){% endif %}</td>
+        <td>{{ s.send.expires_at|date:"Y-m-d" }}</td>
+        <td class="text-end">{{ s.summary.total }}</td>
+        <td class="text-end">{% if s.summary.rate is not None %}{{ s.summary.rate }}%{% else %}—{% endif %}</td>
+        <td class="text-end">{{ s.summary.average_rating|default_if_none:"—" }}</td>
+        <td class="text-end">{{ s.summary.nps|default_if_none:"—" }}</td></tr>
+    {% endfor %}</tbody>
+</table></div>
+{% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="Not sent yet" text="Use Send now, or set a monthly or quarterly schedule." %}</div>{% endif %}
+</div>
+{% endblock %}

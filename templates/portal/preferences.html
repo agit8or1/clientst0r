@@ -65,6 +65,11 @@
     </div>
 </form>
 
+{% if pulse_enabled %}
+<p class="text-muted small mt-3">
+    Service feedback requests (pulse checks) are switched on or off on the <a href="{% url 'portal:pulse_feedback' %}">Feedback</a> page.
+</p>
+{% endif %}
 <p class="text-muted small mt-3">
     Changes apply to new emails — anything sent before you saved will still be in your inbox.
 </p>

@@ -1,0 +1,23 @@
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card card-body text-center"><div class="small text-body-secondary">Response rate</div><div class="fs-4 fw-semibold">{% if summary.rate is not None %}{{ summary.rate }}%{% else %}—{% endif %}</div><div class="small text-body-secondary">{{ summary.answered }} of {{ summary.total }}</div></div></div>
+    <div class="col-6 col-md-3"><div class="card card-body text-center"><div class="small text-body-secondary">Average rating (1-5)</div><div class="fs-4 fw-semibold">{{ summary.average_rating|default_if_none:"—" }}</div></div></div>
+    <div class="col-6 col-md-3"><div class="card card-body text-center"><div class="small text-body-secondary">NPS (-100 to 100)</div><div class="fs-4 fw-semibold">{{ summary.nps|default_if_none:"—" }}</div></div></div>
+    <div class="col-6 col-md-3"><div class="card card-body text-center"><div class="small text-body-secondary">Answers</div><div class="fs-4 fw-semibold">{{ summary.answered }}</div></div></div>
+</div>
+{% if summary.questions %}
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">By question</h5></div>
+<div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Question</th><th>Type</th><th class="text-end">Answers</th><th>Result</th></tr></thead>
+    <tbody>{% for q in summary.questions %}
+    <tr><td>{{ q.text }}</td><td class="small">{% if q.kind == 'rating' %}Rating 1-5{% elif q.kind == 'nps' %}NPS 0-10{% elif q.kind == 'yes_no' %}Yes / no{% else %}Text{% endif %}</td>
+        <td class="text-end">{{ q.count }}</td>
+        <td>{% if q.kind == 'rating' %}Average {{ q.average|default_if_none:"—" }}{% elif q.kind == 'nps' %}NPS {{ q.nps|default_if_none:"—" }} · average {{ q.average|default_if_none:"—" }}{% elif q.kind == 'yes_no' %}{% if q.yes_pct is not None %}{{ q.yes_pct }}% yes ({{ q.yes }} yes, {{ q.no }} no){% else %}—{% endif %}{% else %}{{ q.comments|length }} comment{{ q.comments|length|pluralize }}{% endif %}</td></tr>
+    {% endfor %}</tbody>
+</table></div></div>
+{% for q in summary.questions %}{% if q.kind == 'text' and q.comments %}
+<div class="card mb-3"><div class="card-header"><h6 class="mb-0">{{ q.text }}</h6></div>
+<ul class="list-group list-group-flush">{% for c in q.comments %}
+    <li class="list-group-item"><div class="text-break" style="white-space: pre-line;">{{ c.text }}</div><div class="small text-body-secondary">{{ c.response.name|default:c.response.email }} · {{ c.response.organization.name }} · {{ c.response.responded_at|date:"Y-m-d" }}</div></li>
+{% endfor %}</ul></div>
+{% endif %}{% endfor %}
+{% endif %}

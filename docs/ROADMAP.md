@@ -2644,6 +2644,39 @@ agreements and quote acceptance. Items 65.1–65.9 **shipped v3.17.669**.
 public signing pages; integrates with PSA billing contracts, the scheduler,
 mail settings and roles.
 
+## Phase 66 — Client pulse checks **(M · client relationship)** [in progress]
+
+Short, periodic service-feedback surveys the MSP sends to people at its
+client organizations, about the relationship as a whole. Separate from the
+per-ticket satisfaction survey (Phase 12). An optional module, off by
+default (Settings → System → Optional modules → Pulse checks). Setup and use:
+[docs/PULSE_CHECKS.md](PULSE_CHECKS.md).
+
+- **66.1 Pulse check templates** *(built, unreleased)* — name, intro text and
+  up to twelve questions (1–5 rating, 0–10 likelihood to recommend, yes / no,
+  free text), managed by MSP staff; each send keeps a copy of the questions it
+  asked.
+- **66.2 Audience** *(built, unreleased)* — all active clients or chosen
+  organizations; everyone with a portal account (optionally plus contacts
+  with an e-mail address), people with chosen roles (owners, managers /
+  administrators, editors, read-only, or named roles held as primary or
+  additional role), or chosen users and contacts. MSP staff are never
+  recipients.
+- **66.3 Sending** *(built, unreleased)* — send now with a recipient preview,
+  or monthly / quarterly from the scheduler (once per period, safe to rerun);
+  one single-use link per person that needs no sign-in and closes after a set
+  number of days; portal users can also answer from a Feedback page; opt-out
+  from the e-mail or the portal; audit log entries for create, edit and send.
+- **66.4 Results** *(built, unreleased)* — response rate, average rating,
+  NPS, yes / no share and comments per pulse check and per send, filterable
+  by organization; a per-client trend card on the client record for MSP
+  staff. Staff limited to some clients see only those clients' answers.
+- **66.5 Reports export and reminders** *(planned)* — CSV export of answers
+  and a reminder to people who have not answered.
+
+**Sizing:** **M** — a new app (`pulse`) with its own models, staff pages,
+portal pages, one scheduled task and an optional-module switch.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2710,6 +2743,7 @@ mail settings and roles.
 | 63 — RMM integration and technician workspace | XL | in progress — 63.1–63.10 v3.17.664; Rem0te revision 2 tested against Rem0te 0.30.1 (99/102), restart case pending | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
 | 64 — Roles, permission groups and access settings | L | in progress — registry, built-in roles, scope, delegation protection, role pages, upgrade review list and module enforcement shipped v3.17.669; pending flags await call sites | Phases 57 and 63 (RMM tiers); every module reads the permissions |
 | 65 — Contract documents and digital signing | L | in progress — 65.1–65.9 shipped v3.17.669; reviewed legal wording planned | PSA billing contracts, scheduler, mail settings, Phase 64 roles and permissions |
+| 66 — Client pulse checks | M | in progress — templates, audience, sending, results built (unreleased); export and reminders planned | portal, scheduler, mail settings, roles |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

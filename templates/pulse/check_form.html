@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{% if check %}Edit {{ check.name }}{% else %}New pulse check{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'pulse:check_list' %}">Pulse checks</a></li>{% if check %}<li class="breadcrumb-item"><a href="{% url 'pulse:check_detail' check.pk %}">{{ check.name }}</a></li>{% endif %}<li class="breadcrumb-item active">{% if check %}Edit{% else %}New{% endif %}</li></ol></nav>
+<h2 class="h4 mb-3">{% if check %}Edit pulse check{% else %}New pulse check{% endif %}</h2>
+<form method="post">{% csrf_token %}
+{% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">About</h5></div><div class="card-body">
+    <div class="mb-3"><label class="form-label" for="{{ form.name.id_for_label }}">Name</label>{{ form.name }}{{ form.name.errors }}</div>
+    <div class="mb-3"><label class="form-label" for="{{ form.intro.id_for_label }}">Intro text</label>{{ form.intro }}<div class="form-text">{{ form.intro.help_text }}</div>{{ form.intro.errors }}</div>
+    <div class="form-check form-switch">{{ form.is_active }} <label class="form-check-label" for="{{ form.is_active.id_for_label }}">On (can be sent; repeated sends run)</label></div>
+</div></div>
+
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">Questions</h5></div><div class="card-body">
+    <p class="text-body-secondary small">Keep it short: two to five questions get the most answers. Leave a row empty to drop it. Each send keeps a copy of the questions it asked, so editing here never changes past results.</p>
+    <div class="table-responsive"><table class="table table-sm align-middle">
+        <thead><tr><th style="width:60%">Question</th><th>Type</th><th>Required</th></tr></thead>
+        <tbody>{% for q in question_rows %}
+        <tr>
+            <td><input type="text" class="form-control form-control-sm" name="q_text_{{ q.index }}" value="{{ q.text }}" maxlength="500" aria-label="Question {{ forloop.counter }}"></td>
+            <td><select class="form-select form-select-sm" name="q_kind_{{ q.index }}" aria-label="Type of question {{ forloop.counter }}">{% for val, label in kind_choices %}<option value="{{ val }}" {% if q.kind == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+            <td><input type="checkbox" class="form-check-input" name="q_required_{{ q.index }}" {% if q.required %}checked{% endif %} aria-label="Question {{ forloop.counter }} required"></td>
+        </tr>
+        {% endfor %}</tbody>
+    </table></div>
+    <div class="form-text">Save to get more empty rows (up to 12 questions).</div>
+</div></div>
+
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">Who it goes to</h5></div><div class="card-body">
+    <div class="form-check mb-2">{{ form.all_organizations }} <label class="form-check-label" for="{{ form.all_organizations.id_for_label }}">All clients</label><div class="form-text">{{ form.all_organizations.help_text }}</div></div>
+    <div class="mb-3"><label class="form-label" for="{{ form.organizations.id_for_label }}">Or these organizations</label>{{ form.organizations }}<div class="form-text">Hold Ctrl / Cmd to choose several.</div>{{ form.organizations.errors }}</div>
+    <div class="mb-3"><label class="form-label">People</label>
+        {% for radio in form.audience %}<div class="form-check">{{ radio.tag }} <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label></div>{% endfor %}
+        {{ form.audience.errors }}
+    </div>
+    <div class="form-check mb-3 ms-3">{{ form.include_contacts }} <label class="form-check-label" for="{{ form.include_contacts.id_for_label }}">Also contacts with an e-mail address</label><div class="form-text">{{ form.include_contacts.help_text }}</div></div>
+    <div class="row g-3 ms-1">
+        <div class="col-md-6"><label class="form-label">Role groups</label>
+            {% for cb in form.audience_roles %}<div class="form-check">{{ cb.tag }} <label class="form-check-label" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label></div>{% endfor %}
+            <div class="form-text">Managers / administrators: members whose role can administer the organization.</div>
+            {{ form.audience_roles.errors }}
+        </div>
+        <div class="col-md-6"><label class="form-label" for="{{ form.audience_role_templates.id_for_label }}">{{ form.audience_role_templates.label }}</label>{{ form.audience_role_templates }}<div class="form-text">{{ form.audience_role_templates.help_text }}</div></div>
+        <div class="col-md-6"><label class="form-label" for="{{ form.specific_users.id_for_label }}">Chosen portal users</label>{{ form.specific_users }}{{ form.specific_users.errors }}</div>
+        <div class="col-md-6"><label class="form-label" for="{{ form.specific_contacts.id_for_label }}">Chosen contacts</label>{{ form.specific_contacts }}</div>
+    </div>
+    <p class="form-text mt-2">Role and person choices only apply when that option is picked above, and always within the organizations chosen. MSP staff and people who opted out are never sent pulse checks.</p>
+</div></div>
+
+<div class="card mb-3"><div class="card-header"><h5 class="mb-0">Schedule</h5></div><div class="card-body row g-3">
+    <div class="col-md-3"><label class="form-label" for="{{ form.schedule.id_for_label }}">Repeat</label>{{ form.schedule }}</div>
+    <div class="col-md-3"><label class="form-label" for="{{ form.send_day.id_for_label }}">Day of month</label>{{ form.send_day }}{{ form.send_day.errors }}</div>
+    <div class="col-md-3"><label class="form-label" for="{{ form.starts_on.id_for_label }}">Starting</label>{{ form.starts_on }}</div>
+    <div class="col-md-3"><label class="form-label" for="{{ form.response_days.id_for_label }}">Link open for (days)</label>{{ form.response_days }}{{ form.response_days.errors }}</div>
+    <div class="col-12 form-text">{{ form.send_day.help_text }} Repeated sends run from the scheduler, once per period.</div>
+</div></div>
+<div class="d-flex gap-2"><button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Save</button><a class="btn btn-outline-secondary" href="{% if check %}{% url 'pulse:check_detail' check.pk %}{% else %}{% url 'pulse:check_list' %}{% endif %}">Cancel</a></div>
+</form>
+{% endblock %}

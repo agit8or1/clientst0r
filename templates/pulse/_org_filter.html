@@ -1,0 +1,10 @@
+{% if org_choices %}
+<form method="get" class="d-flex gap-2 align-items-center mb-3">
+    <label for="pulse-org" class="small text-body-secondary">Organization</label>
+    <select name="org" id="pulse-org" class="form-select form-select-sm" style="max-width: 20rem">
+        <option value="">All</option>
+        {% for o in org_choices %}<option value="{{ o.pk }}" {% if org and org.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline-secondary" type="submit">Filter</button>
+</form>
+{% endif %}

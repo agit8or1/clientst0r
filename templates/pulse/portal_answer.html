@@ -1,0 +1,6 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ send.pulse_check.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'portal:pulse_feedback' %}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Feedback</a></p>
+{% include "pulse/_answer_form.html" %}
+{% endblock %}

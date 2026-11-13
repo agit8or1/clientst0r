@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Pulse checks{% endblock %}
+{% block content %}
+<div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
+    <h2 class="h4 mb-0 me-auto"><i class="fas fa-heart-pulse me-1"></i> Pulse checks</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'pulse:opt_out_list' %}">Opt-outs{% if opt_out_count %} <span class="badge text-bg-secondary">{{ opt_out_count }}</span>{% endif %}</a>
+    {% if can_create %}<a class="btn btn-sm btn-primary" href="{% url 'pulse:check_create' %}"><i class="fas fa-plus"></i> New pulse check</a>{% endif %}
+</div>
+<p class="text-body-secondary small">Short service-feedback surveys for the people at your clients: send by hand or monthly / quarterly, to everyone, to chosen roles (owners, managers) or to chosen people. Separate from the per-ticket satisfaction survey.</p>
+{% if rows %}
+<div class="table-responsive"><table class="table table-sm align-middle">
+    <thead><tr><th>Name</th><th>Audience</th><th>Schedule</th><th>Sends</th><th>Last sent</th><th class="text-end">Response rate</th><th>Status</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr>
+        <td><a href="{% url 'pulse:check_detail' r.check.pk %}">{{ r.check.name }}</a></td>
+        <td>{{ r.check.get_audience_display }}{% if r.check.all_organizations %} · all clients{% endif %}</td>
+        <td>{{ r.check.get_schedule_display }}</td>
+        <td>{{ r.check.send_total }}</td>
+        <td>{% if r.check.last_sent %}{{ r.check.last_sent|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+        <td class="text-end">{% if r.rate is not None %}{{ r.rate }}% <span class="text-body-secondary small">({{ r.answered }}/{{ r.total }})</span>{% else %}—{% endif %}</td>
+        <td>{% if r.check.is_active %}<span class="badge text-bg-success">On</span>{% else %}<span class="badge text-bg-secondary">Off</span>{% endif %}</td>
+    </tr>
+    {% endfor %}</tbody>
+</table></div>
+{% else %}
+{% url 'pulse:check_create' as new_url %}
+{% include "core/_empty_state.html" with icon="fa-heart-pulse" title="No pulse checks yet" text="Create one with a few questions, pick who it goes to, and send it now or let it repeat monthly or quarterly." action_url=new_url action_label="New pulse check" %}
+{% endif %}
+{% endblock %}

@@ -128,6 +128,17 @@ MODULES = (
         note='Needs outgoing email (Settings → Email / SMTP).',
     ),
     Module(
+        'pulse', 'Pulse checks', 'fa-heart-pulse',
+        'Service-feedback surveys sent to people at client organizations, by hand or monthly / quarterly.',
+        shows=('Clients → Pulse Checks for MSP staff',
+               'A Feedback page in the customer portal (requests to answer, opt-out switch)',
+               'A pulse check trend card on client records for MSP staff'),
+        settings_links=(('Pulse checks', 'pulse:check_list'),),
+        field='pulse_enabled', works_better_with=('portal',),
+        note='E-mailed links need outgoing email (Settings → Email / SMTP); without it, '
+             'portal users can still answer from the portal.',
+    ),
+    Module(
         'security_alerts', 'Security alerts', 'fa-shield-halved',
         'Alerts from security vendors, auto-ticket rules and vendor connections.',
         shows=('Modules → Security for MSP staff',),
