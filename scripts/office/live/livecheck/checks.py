@@ -658,9 +658,8 @@ def check_connectivity(ctx):
     Local profile: the office container is stopped through clientst0r
     (Stop drains first, so the edit made before it is stored). A save
     attempted afterwards must show the failure in the page, and after Start
-    a reopened editor saves again. ENGINES-HOOK: when the helper offers a
-    verb that blocks only the container's callbacks to clientst0r, use it
-    here instead (opts['connectivity'] == 'helper-block')."""
+    a reopened editor saves again. The helper has no verb that blocks only
+    the container's callbacks, so stopping the container is the test."""
     target = ctx.fx.new_document('docx', f'Live check connectivity {ctx.run_id}')
     ctx.remember_doc('connectivity', target)
     before = ctx.current(target).revision_number

@@ -953,7 +953,11 @@ class RealFactsTests(TestCase):
         finally:
             shutil.rmtree(root)
 
-    def test_engine_command_options(self):
-        eng = engines.get('onlyoffice')
-        self.assertIn('run_pending', eng._command_options())
-        self.assertEqual(eng._engine_kwargs(), {})     # no --engine switch on this base
+    def test_engine_matches_managed_collabora(self):
+        from office.management.commands.office_managed import Command
+        parser = Command().create_parser('manage.py', 'office_managed')
+        self.assertIn('engine', {a.dest for a in parser._actions})
+        eng = engines.get('collabora')
+        self.assertEqual(eng.nginx_candidates[0], '/etc/nginx/clientst0r-office/same-host.conf')
+        with open(engines.HELPER_FILE, encoding='utf-8') as fh:
+            self.assertIn(f'\n{eng.release_list_name} = [', fh.read())

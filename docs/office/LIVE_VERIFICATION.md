@@ -287,14 +287,14 @@ None of this has been run yet.
 
 ## Extension points for engines
 
-Everything engine-specific is in `scripts/office/live/livecheck/engines.py`: one class per engine. Points marked `ENGINES-HOOK` are assumptions about the managed Collabora engine, which is being built on its own branch. Confirm them when it lands:
+Everything engine-specific is in `scripts/office/live/livecheck/engines.py`: one class per engine.
 
-1. **Engine identity.** The helper's `status` names the engine in `config.engine` (or `engine`). The managed `EditorInstance` uses provider `collabora`.
-2. **CLI switch.** If `manage.py office_managed` gains `--engine`, the harness passes it automatically (it inspects the command's options).
-3. **Release list.** A Python list literal named `COLLABORA_RELEASES` in the helper file. Override with `--release-file` / `--release-list`, or change `CollaboraEngine.release_list_name`.
-4. **nginx block.** The file names in `CollaboraEngine.nginx_candidates`. The same-host block must clear `Cookie` on the editor paths.
-5. **Connectivity.** If the helper gains a verb that blocks only the container's callbacks to clientst0r (time-bounded, its own firewall rule), switch `check_connectivity` to it. Today the check stops the container through clientst0r.
-6. **Browser profile.** `COLLABORA_BROWSER` / `ONLYOFFICE_BROWSER`: frame selector, readiness selectors, click positions per format, keys, and the Save button.
+1. **Engine identity.** The helper's `status` names the engine in `config.engine`. The managed `EditorInstance` for the engine is found with `office.managed.provision.managed_instance(engine)`.
+2. **CLI switch.** `manage.py office_managed --engine` selects only the target of `switch_engine`. Every other operation acts on the engine that is installed, so the harness passes `--engine` only for that operation.
+3. **Release list.** The Collabora releases are the `COLLABORA_RELEASES` list literal in `deploy/office-helper/clientst0r-office-helper`; ONLYOFFICE's are `RELEASES`. `mark-tested` edits the list for the engine.
+4. **nginx block.** Same-host path mode reads `/etc/nginx/clientst0r-office/same-host.conf`, the snippet the helper writes, and checks that it clears `Cookie` on every editor path. If that file is not readable by the operator, pass `--nginx-conf FILE` with a readable copy.
+5. **Connectivity.** The helper has no verb that blocks only the container's callbacks to clientst0r, so the check stops the container through clientst0r.
+6. **Browser profile.** `COLLABORA_BROWSER` / `ONLYOFFICE_BROWSER`: frame selector, readiness selectors, click positions per format, keys, and the Save button (`#collabora-frame` and `#collabora-save-now` from `templates/office/collabora/editor.html`).
 
 ## Testing the harness
 

@@ -25,8 +25,10 @@ lifecycle step goes through clientst0r's own code paths):
 ONLYOFFICE matches the code on v3.17.670 exactly. Collabora follows the
 same managed design and is detected at run time: the helper status must
 name the engine (``config.engine == 'collabora'``) and the managed instance
-must use the ``collabora`` provider. ASSUMPTIONS to confirm against
-dev/office-engines are marked ``ENGINES-HOOK`` below.
+must use the ``collabora`` provider. Matched against the managed
+Collabora engine (helper ``COLLABORA_RELEASES``, the same-host snippet
+``/etc/nginx/clientst0r-office/same-host.conf``, ``office_managed --engine``
+for ``switch_engine``).
 """
 from __future__ import annotations
 
@@ -95,28 +97,20 @@ class ManagedEngine:
 
     def instance(self):
         from office.managed.provision import managed_instance
-        inst = managed_instance()
+        inst = managed_instance(self.provider)
         if inst is not None and inst.provider != self.provider:
             return None
         return inst
-
-    def _command_options(self):
-        """Options of ``office_managed`` (an engine switch, if the engines
-        branch adds one)."""
-        from office.management.commands.office_managed import Command
-        parser = Command().create_parser('manage.py', 'office_managed')
-        return {a.dest for a in parser._actions}
-
-    def _engine_kwargs(self):
-        # ENGINES-HOOK: if office_managed grows --engine, pass ours.
-        return {'engine': self.name} if 'engine' in self._command_options() else {}
 
     def queue(self, action, user, release=''):
         from django.core.management import call_command
         from office.managed import jobs
         out = io.StringIO()
+        # --engine only selects the target of switch_engine; every other
+        # operation acts on the engine that is installed.
+        extra = {'engine': self.name} if action == 'switch_engine' else {}
         call_command('office_managed', queue=action, release=release, user=user.username,
-                     stdout=out, **self._engine_kwargs())
+                     stdout=out, **extra)
         op = jobs.active()
         if op is None or op.action != action:
             raise RuntimeError(f'queued {action} but no matching active operation: {out.getvalue()[:300]}')
@@ -125,7 +119,7 @@ class ManagedEngine:
     def run_pending(self):
         from django.core.management import call_command
         out = io.StringIO()
-        call_command('office_managed', run_pending=True, stdout=out, **self._engine_kwargs())
+        call_command('office_managed', run_pending=True, stdout=out)
         return out.getvalue().strip()
 
     def operation(self, pk):
@@ -187,15 +181,10 @@ class CollaboraEngine(ManagedEngine):
     # Collabora Online's browser-facing paths (same-host path mode).
     editor_paths = ('/browser/', '/cool/', '/hosting/discovery', '/hosting/capabilities',
                     '/loleaflet/', '/lool/')
-    # ENGINES-HOOK: the Collabora release list. Assumed to be a second
-    # Python list literal in the same helper; override with --release-file
-    # / --release-list on mark-tested if dev/office-engines puts it elsewhere.
     release_list_name = 'COLLABORA_RELEASES'
-    # ENGINES-HOOK: the nginx block the root-helper operation installs.
-    nginx_candidates = ('/etc/nginx/snippets/clientst0r-office-collabora.conf',
-                        '/etc/nginx/sites-available/clientst0r-office-collabora',
-                        '/etc/nginx/sites-available/clientst0r-office-managed',
-                        '/etc/nginx/sites-enabled/itdocs.conf')
+    # The helper's same-host snippet first, then its dedicated-name site.
+    nginx_candidates = ('/etc/nginx/clientst0r-office/same-host.conf',
+                        '/etc/nginx/sites-available/clientst0r-office-managed')
 
     def release_matches(self, r):
         return 'collabora' in (r.get('image') or '') or r.get('engine') == 'collabora'

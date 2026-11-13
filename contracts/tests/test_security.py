@@ -111,8 +111,16 @@ class IsolationTests(ContractTestCase):
         self.assertEqual(r['Referrer-Policy'], 'no-referrer')
 
     def test_public_pages_are_rate_limited(self):
+        # django-ratelimit counts in fixed windows, so requests that straddle a
+        # window boundary split their count. More than twice the limit means at
+        # least one window goes over it, however slowly the suite runs.
+        from unittest import mock
+        from django.core.cache import cache
+        from contracts import public_views
+        cache.clear()
         cl = Client(**BROWSER)
-        codes = [cl.get('/sign/t/nope/').status_code for _ in range(32)]
+        with mock.patch.dict(public_views.RATES, {'open': '5/m'}):
+            codes = [cl.get('/sign/t/nope/').status_code for _ in range(11)]
         self.assertIn(429, codes)
 
 
