@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Managed Local ONLYOFFICE{% endblock %}
+{% block title %}Managed local editor{% endblock %}
 {% block content %}
-{% include "office/settings/_layout_start.html" with crumb="Managed Local ONLYOFFICE" %}
+{% include "office/settings/_layout_start.html" with crumb="Managed local editor" %}
 <div class="row">
   <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
   <div class="col-md-9">
 
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h1 class="h5 mb-0"><i class="fas fa-server" aria-hidden="true"></i> Managed Local ONLYOFFICE</h1>
+        <h1 class="h5 mb-0"><i class="fas fa-server" aria-hidden="true"></i> Managed local editor{% if service.enabled %} · {{ engine_label }}{% endif %}{% if is_code %} <span class="badge text-bg-warning">evaluation / development</span>{% endif %}</h1>
         <form method="post" action="{% url 'office:managed_toggle' %}">{% csrf_token %}
           {% if service.enabled %}
           <input type="hidden" name="enabled" value="0"><button class="btn btn-sm btn-outline-secondary" type="submit" data-confirm="Turn managed mode off? The container is left as it is.">Turn off</button>
@@ -19,11 +19,14 @@
         </form>
       </div>
       <div class="card-body">
-        <p class="small text-muted">One ONLYOFFICE Docs container, pinned to a release and image digest from clientst0r's release list, runs on this server for this deployment only. clientst0r keeps every document and revision; the editor only holds working copies. Lifecycle actions run through the root-owned Office service helper, which accepts a fixed list of operations and nothing else. Setup of the server side (Docker prerequisites, the helper socket, the office host name in Nginx) is a one-time root step: <code>scripts/office/install-editor.sh --mode managed-local</code>, see docs/office/MANAGED_LOCAL.md.</p>
+        <p class="small text-muted">One editor container (ONLYOFFICE Docs or Collabora Online Development Edition, one at a time), pinned to a release and image digest from clientst0r's release list, runs on this server for this deployment only. clientst0r keeps every document and revision; the editor only holds working copies. Lifecycle actions run through the root-owned Office service helper, which accepts a fixed list of operations and nothing else. Setup of the server side (Docker prerequisites, the helper socket, which engines and address layouts are allowed) is a one-time root step: <code>scripts/office/install-editor.sh --mode managed-local</code>, see docs/office/MANAGED_LOCAL.md.</p>
         {% if not service.enabled %}
         <p class="mb-0">Managed mode is <strong>off</strong>. External editors keep working either way.</p>
         {% else %}
+        {% if is_code %}<div class="alert alert-warning small py-2">Collabora Online Development Edition (CODE) is meant for evaluation, development, home use and small teams; Collabora does not recommend it for production. For production use a licensed Collabora Online server through the external Collabora provider (Office Documents → Editor instances).</div>{% endif %}
         <dl class="row small mb-0">
+          <dt class="col-sm-4">Engine</dt><dd class="col-sm-8">{{ engine_label }}{% if not engine_installed %} <span class="text-muted">(not installed yet)</span>{% endif %}</dd>
+          <dt class="col-sm-4">Address layout</dt><dd class="col-sm-8">{{ layout_label|default:layout }}</dd>
           <dt class="col-sm-4">Mode</dt><dd class="col-sm-8">Managed local container{% if instance %} · editor instance <a href="{% url 'office:instance_diagnostics' instance.pk %}">{{ instance.name }}</a>{% if not instance.enabled %} <span class="badge text-bg-secondary">closed to users</span>{% endif %}{% endif %}</dd>
           <dt class="col-sm-4">Helper</dt><dd class="col-sm-8">{% if service.helper_reachable %}reachable{% if status.helper_version %} (version {{ status.helper_version }}){% endif %}{% else %}<span class="text-danger">unreachable</span>{% if service.status_error %} — {{ service.status_error }}{% endif %}{% endif %}{% if service.status_at %} <span class="text-muted">· {{ service.status_at|date:"Y-m-d H:i" }}</span>{% endif %}</dd>
           <dt class="col-sm-4">Installation</dt><dd class="col-sm-8">{{ installed_state }}{% if status.installed.release %} · {{ status.installed.release }}{% endif %}</dd>
@@ -33,7 +36,7 @@
           <dt class="col-sm-4">Addresses</dt><dd class="col-sm-8">browser {{ status.config.browser_url|default:"—" }} · internal {{ status.config.internal_url|default:"—" }} · callbacks to {{ status.config.clientstor_url|default:"—" }}</dd>
           <dt class="col-sm-4">Health</dt><dd class="col-sm-8">{% if instance %}{{ instance.get_health_status_display }}{% if instance.last_check_at %} ({{ instance.last_check_at|date:"Y-m-d H:i" }}){% endif %}{% else %}—{% endif %}</dd>
           <dt class="col-sm-4">Last successful connection check</dt><dd class="col-sm-8">{% if service.last_connection_ok_at %}{{ service.last_connection_ok_at|date:"Y-m-d H:i" }}{% else %}never{% endif %}</dd>
-          <dt class="col-sm-4">Resources</dt><dd class="col-sm-8">{% if status.resources %}CPU {{ status.resources.cpu_percent }}, memory {{ status.resources.memory }} ({{ status.resources.memory_percent }}){% else %}not available{% endif %} · limits {{ status.config.cpus|default:"—" }} CPU, {{ status.config.memory_mb|default:"—" }} MB · data {{ status.data_bytes|filesizeformat }}</dd>
+          <dt class="col-sm-4">Resources</dt><dd class="col-sm-8">{% if status.resources %}CPU {{ status.resources.cpu_percent }}, memory {{ status.resources.memory }} ({{ status.resources.memory_percent }}){% else %}not available{% endif %} · limits {{ status.config.engine_cpus|default:"—" }} CPU, {{ status.config.engine_memory_mb|default:"—" }} MB · data {{ status.data_bytes|filesizeformat }}</dd>
           <dt class="col-sm-4">Updates</dt><dd class="col-sm-8">{% if updates %}{% for u in updates %}{{ u.id }}{% if not u.installable %} <span class="text-muted">({{ u.problem }})</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}none in the release list{% endif %}</dd>
           <dt class="col-sm-4">Editing sessions</dt><dd class="col-sm-8">{{ sessions.live }} open ({{ sessions.edit }} editing){% if sessions.stale %}, {{ sessions.stale }} expired but not confirmed closed{% endif %}{% if sessions.errors %}, <span class="text-danger">{{ sessions.errors }} with a save error</span>{% endif %} · {{ sessions.quarantined }} unaccepted save(s) in 30 days{% if sessions.quarantined %} (<a href="{% url 'office:quarantine_list' %}">recover</a>){% endif %}
             <div class="text-muted">Counted from clientst0r's own sessions. Before maintenance each one is checked with the editor; an unknown state postpones the operation.</div></dd>
@@ -59,7 +62,7 @@
       <div class="card-body small">
         <p>Run these from a shell on this server as an administrator with sudo. They install Docker only when it is absent and you add <code>--install-docker</code>; an existing Docker is used as it is. Nothing is downloaded or started as a container until you click Install here.</p>
         {% for title, cmd in setup_commands %}<p class="mb-1 fw-semibold">{{ forloop.counter }}. {{ title }}</p><pre class="border rounded p-2 text-break text-wrap">{{ cmd }}</pre>{% endfor %}
-        <p class="mb-0 text-muted">Replace the host name, certificate paths and deployment id with yours. Details, Enterprise license, private CA and removal: docs/office/MANAGED_LOCAL.md.</p>
+        <p class="mb-0 text-muted">Replace the host name, certificate paths and deployment id with yours. <code>--tls upstream</code>: TLS ends on a device in front of this server, the editor block listens on port 80 and no certificate is needed here. The installer never edits clientst0r's own Nginx site. Details, Enterprise license, private CA and removal: docs/office/MANAGED_LOCAL.md.</p>
       </div>
     </details>
 
@@ -91,9 +94,98 @@
       </div>
     </div>
 
+
+    <div class="card mb-4" id="managed-engine">
+      <div class="card-header"><h2 class="h6 mb-0">Engine and capacity</h2></div>
+      <div class="card-body">
+        <p class="small text-muted">The engines this server allows are fixed in the root configuration (<code>ENGINES</code>). Only one runs at a time. Switching drains editing sessions, uninstalls the running engine with its data and backups kept, installs the other and verifies it; documents and revisions stay in clientst0r.</p>
+        {% if status.capacity and status.capacity.host %}<p class="small mb-2">This server: {{ status.capacity.host.cpus }} CPU(s), {{ status.capacity.host.mem_total_mb }} MB RAM, {{ status.capacity.host.mem_available_mb }} MB available now, {{ status.capacity.host.swap_mb }} MB swap.</p>{% endif %}
+        <div class="row g-3">
+        {% for e in engines %}
+          <div class="col-md-6"><div class="border rounded p-2 h-100">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <strong>{{ e.label }}</strong>
+              {% if e.capacity.verdict %}<span class="badge {% if e.capacity.verdict == 'pass' %}text-bg-success{% elif e.capacity.verdict == 'fail' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{% if e.capacity.verdict == 'pass' %}fits{% elif e.capacity.verdict == 'fail' %}does not fit{% else %}fits, tight{% endif %}</span>{% endif %}
+            </div>
+            {% if e.id == 'collabora' %}<div class="small"><span class="badge text-bg-warning">evaluation / development</span></div>{% endif %}
+            {% if e.capacity.memory_limit_mb %}<div class="small">Limits: {{ e.capacity.memory_limit_mb }} MB memory, {{ e.capacity.cpus }} CPU</div>{% endif %}
+            {% if e.capacity.recommendation %}<div class="small fw-semibold mt-1">{{ e.capacity.recommendation }}</div>{% endif %}
+            {% if e.capacity.checks %}<ul class="small mb-2 ps-3">{% for c in e.capacity.checks %}<li>{% if c.status == 'fail' %}<span class="text-danger">fail:</span> {% elif c.status == 'warn' %}<span class="text-warning-emphasis">warning:</span> {% endif %}{{ c.detail }}</li>{% endfor %}</ul>{% endif %}
+            {% if e.id == engine %}
+            <span class="badge text-bg-primary">{% if engine_installed %}installed{% else %}selected{% endif %}</span>
+            {% else %}
+            <form method="post" action="{% url 'office:managed_engine' %}" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}
+              <input type="hidden" name="engine" value="{{ e.id }}">
+              {% if engine_installed %}<div><label class="form-label small" for="sw-{{ e.id }}">Type <code>switch</code></label><input class="form-control form-control-sm" id="sw-{{ e.id }}" name="confirm" autocomplete="off"></div>{% endif %}
+              <button class="btn btn-sm btn-outline-primary" type="submit"{% if operation or e.capacity.verdict == 'fail' %} disabled{% endif %}>{% if engine_installed %}Switch to {{ e.label }}{% else %}Select{% endif %}</button>
+            </form>
+            {% endif %}
+          </div></div>
+        {% empty %}
+          <div class="col-12 small text-muted">The helper has not reported its engines yet (update the helper with the installer, then refresh).</div>
+        {% endfor %}
+        </div>
+        <p class="small text-muted mt-2 mb-0">Guide: a server with 4 vCPU and 7 GB RAM (about 4 GB available) runs Collabora CODE with the default limits (1.5 CPU, 1536 MB); ONLYOFFICE Docs needs about 4 GB on its own and belongs on a separate VM there.</p>
+      </div>
+    </div>
+
+    <div class="card mb-4" id="managed-proxy">
+      <div class="card-header"><h2 class="h6 mb-0">Address and reverse proxy</h2></div>
+      <div class="card-body small">
+        <p class="text-muted">The helper writes only its own Nginx files (a dedicated site, and a snippet for the same-host layout), runs <code>nginx -t</code> before every reload and puts the previous files back if anything fails. It never edits clientst0r's own site.</p>
+        {% if layout == 'same-host' %}
+        <div class="alert alert-warning py-2"><strong>Same host as clientst0r.</strong> Collabora's front-end (<code>/browser</code>, <code>/hosting/discovery</code>, <code>/hosting/capabilities</code>, <code>/cool/</code>) is served on clientst0r's own origin. A flaw in the editor's front-end would run with clientst0r's origin. Mitigations in place: Cookie and Authorization headers are stripped before requests reach the editor and Set-Cookie is dropped from its replies, the editor may be framed only by clientst0r, its admin console and metrics are blocked, and its access log is off (the WOPI token is in the URL). A dedicated host name is still the recommended layout.{% if service.same_host_acknowledged_at %} Accepted by {{ service.same_host_acknowledged_by.username|default:"an administrator" }} on {{ service.same_host_acknowledged_at|date:"Y-m-d H:i" }}.{% endif %}</div>
+        {% endif %}
+        {% if proxy.error %}<p class="text-danger">Proxy status unavailable: {{ proxy.error }}</p>
+        {% elif proxy %}
+        <dl class="row mb-2">
+          <dt class="col-sm-4">Host name</dt><dd class="col-sm-8">{{ proxy.hostname }} ({{ layout_label|default:proxy.layout }}) · TLS: {% if proxy.tls == 'upstream' %}ends on the device in front of this server (Nginx listens on 80){% elif proxy.tls == 'letsencrypt' %}Let's Encrypt on this server{% else %}certificate files on this server{% endif %}</dd>
+          <dt class="col-sm-4">Configuration</dt><dd class="col-sm-8">{% if proxy.installed %}<span class="text-success">installed and current</span>{% else %}<span class="text-warning-emphasis">not installed or out of date</span>{% endif %}{% if proxy.problem %} — <span class="text-danger">{{ proxy.problem }}</span>{% endif %}</dd>
+          <dt class="col-sm-4">DNS</dt><dd class="col-sm-8">{{ proxy.hostname }} → {{ proxy.dns.editor|join:", "|default:"does not resolve" }}{% if proxy.dns.points_here %} (points here){% else %} <span class="text-warning-emphasis">(not this server or its TLS device)</span>{% endif %}</dd>
+          <dt class="col-sm-4">Certificate</dt><dd class="col-sm-8">{{ proxy.certificate.detail|default:"—" }}</dd>
+          <dt class="col-sm-4">clientst0r's site</dt><dd class="col-sm-8">{% if proxy.clientstor_site %}{{ proxy.clientstor_site.path }} (detected; never modified){% else %}not detected{% endif %}</dd>
+          {% if proxy.include_needed %}
+          <dt class="col-sm-4">Include line</dt><dd class="col-sm-8">{% if proxy.include_present %}<span class="text-success">present</span>{% else %}<span class="text-danger">missing</span> — add it once inside the server block that serves {{ proxy.hostname }}, then <code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code>{% endif %}<pre class="border rounded p-2 mt-1 mb-0">{{ proxy.include_line }}</pre></dd>
+          {% endif %}
+        </dl>
+        <details class="mb-2"><summary>Preview of the generated configuration</summary>
+          {% if proxy.preview.site %}<p class="mb-1 mt-2 fw-semibold">{{ proxy.files.site.path }}</p><pre class="border rounded p-2 text-break text-wrap">{{ proxy.preview.site }}</pre>{% endif %}
+          {% if proxy.preview.snippet %}<p class="mb-1 mt-2 fw-semibold">{{ proxy.files.snippet.path }}</p><pre class="border rounded p-2 text-break text-wrap">{{ proxy.preview.snippet }}</pre>{% endif %}
+        </details>
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+          <form method="post" action="{% url 'office:managed_proxy' %}">{% csrf_token %}<input type="hidden" name="action" value="install"><input type="hidden" name="hostname" value="{{ proxy.hostname }}"><button class="btn btn-sm btn-outline-primary" type="submit"{% if operation %} disabled{% endif %}>{% if proxy.installed %}Rewrite{% else %}Install{% endif %} proxy configuration</button></form>
+          <form method="post" action="{% url 'office:managed_proxy' %}" class="d-flex gap-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="remove">
+            <div><label class="form-label small" for="px-confirm">Type <code>remove</code></label><input class="form-control form-control-sm" id="px-confirm" name="confirm" autocomplete="off"></div>
+            <button class="btn btn-sm btn-outline-danger" type="submit"{% if operation %} disabled{% endif %}>Remove</button></form>
+        </div>
+        {% if proxy.layouts_allowed|length > 1 %}
+        <hr>
+        <h3 class="h6">Switch address layout</h3>
+        <p class="text-muted">Drains sessions, rewrites the proxy files, re-creates the editor container with the new public name (no reinstall, data kept), updates the provider's browser address and re-runs the checks. DNS and TLS for a dedicated name must exist first.</p>
+        {% for l in proxy.layouts_allowed %}{% if l != layout %}
+        <form method="post" action="{% url 'office:managed_layout' %}" class="mb-2">{% csrf_token %}<input type="hidden" name="layout" value="{{ l }}">
+          {% if l == 'same-host' %}<div class="form-check"><input class="form-check-input" type="checkbox" name="accept_same_host" value="1" id="accept-same-host" required> <label class="form-check-label" for="accept-same-host">I understand that the editor front-end will run on clientst0r's own origin, and accept that risk.</label></div>{% endif %}
+          <button class="btn btn-sm btn-outline-primary" type="submit"{% if operation %} disabled{% endif %} data-confirm="Switch the address layout? Open documents are saved first.">Switch to {% if l == 'same-host' %}same host as clientst0r{% else %}the dedicated host name{% endif %}</button>
+        </form>
+        {% endif %}{% endfor %}
+        {% endif %}
+        {% else %}<p class="text-muted mb-0">Available once the helper is reachable.</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="card mb-4" id="managed-probe">
+      <div class="card-header"><h2 class="h6 mb-0">Browser probe</h2></div>
+      <div class="card-body small">
+        <p class="text-muted">Checks from this browser that the editor's public address answers (it cannot be checked from the server, because only browsers use it).{% if last_probe %} Last result: <strong>{{ last_probe.extra_data.outcome }}</strong> on {{ last_probe.timestamp|date:"Y-m-d H:i" }}{% if last_probe.username %} by {{ last_probe.username }}{% endif %}.{% endif %}</p>
+        {{ probe_config|json_script:"managed-probe-config" }}
+        <button class="btn btn-sm btn-outline-primary" type="button" id="managed-probe-run"{% if not probe_config.url %} disabled{% endif %}>Run browser probe</button>
+        <span class="ms-2" id="managed-probe-result" role="status"></span>
+      </div>
+    </div>
+
     {% if checks %}
     <h2 class="h6">Setup checks</h2>
-    <p class="small text-muted">Browser → ONLYOFFICE is proven by the browser probe (recorded from an administrator's browser), clientst0r → ONLYOFFICE by the loopback health check, and ONLYOFFICE → clientst0r by the document-download check once installed.</p>
+    <p class="small text-muted">Browser → editor is proven by the browser probe below (recorded from an administrator's browser), clientst0r → editor by the loopback health check, and editor → clientst0r by the callback check (a TLS handshake from inside the container) and, once installed, the document-download check.</p>
     {% include "office/settings/_check_list.html" with checks=checks %}
     {% endif %}
 
@@ -137,4 +229,4 @@
   </div>
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/office-managed.js' %}"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/office-managed.js' %}"></script><script src="{% static 'js/office-managed-probe.js' %}"></script>{% endblock %}

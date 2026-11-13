@@ -304,8 +304,14 @@ def build(provider, mode, *, instance=None, editor_host='', app_url='', edition=
 MANAGED_COPY_DIR = '/root/clientst0r-office-managed'
 
 
-def managed_commands(*, app_url='', office_host='', deployment_id=''):
-    """Root setup for Managed Local ONLYOFFICE (docs/office/MANAGED_LOCAL.md).
+def managed_commands(*, app_url='', office_host='', deployment_id='', engine='onlyoffice',
+                     layouts=('dedicated',), tls='existing-cert'):
+    """Root setup for the managed local editor (docs/office/MANAGED_LOCAL.md).
+
+    engine: 'onlyoffice' | 'collabora' (Collabora CODE). layouts: the helper's
+    allowed layouts ('dedicated' and/or, Collabora only, 'same-host'). tls:
+    'existing-cert' | 'certbot' | 'upstream' (TLS ends on a device in front of
+    this server).
 
     The installer and the helper it installs as root are taken from this
     release's signed tag into a root-owned directory, never run from the app
@@ -314,12 +320,28 @@ def managed_commands(*, app_url='', office_host='', deployment_id=''):
     q = shlex.quote
     tag = _release_tag()
     origin = clean_origin_url(app_url) or 'https://clientst0r.example.com/'
-    host = clean_host(office_host) or 'office.example.com'
+    engine = engine if engine in ('onlyoffice', 'collabora') else 'onlyoffice'
+    layouts = [l for l in (layouts or ()) if l in ('dedicated', 'same-host')] or ['dedicated']
+    if engine == 'onlyoffice':
+        layouts = ['dedicated']
+    host = clean_host(office_host) or ('office.example.com' if 'dedicated' in layouts else '')
     dep = deployment_id if re.match(r'^[a-z0-9][a-z0-9-]{1,40}$', deployment_id or '') else 'my-deployment'
     app_user = _app_user()
-    args = ['--provider', 'onlyoffice', '--mode', 'managed-local', '--hostname', host,
-            '--clientstor-url', origin, '--deployment-id', dep, '--tls', 'existing-cert',
-            '--cert-file', f'/etc/ssl/certs/{host}.pem', '--key-file', f'/etc/ssl/private/{host}.key']
+    args = ['--provider', engine, '--mode', 'managed-local']
+    if layouts != ['dedicated']:
+        args += ['--layouts', ','.join(layouts)]
+    if host:
+        args += ['--hostname', host]
+    args += ['--clientstor-url', origin, '--deployment-id', dep]
+    if tls == 'upstream':
+        args += ['--tls', 'upstream']
+    elif tls == 'certbot':
+        args += ['--tls', 'certbot', '--certbot-email', 'admin@example.com']
+    elif host:
+        args += ['--tls', 'existing-cert', '--cert-file', f'/etc/ssl/certs/{host}.pem',
+                 '--key-file', f'/etc/ssl/private/{host}.key']
+    else:
+        args += ['--tls', 'upstream']
     if app_user:
         args += ['--app-user', app_user]
     run_args = ' '.join(q(a) for a in args)

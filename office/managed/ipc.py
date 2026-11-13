@@ -13,18 +13,26 @@ sent. Errors:
                         another operation is running).
 
 The JWT secret (op ``secret``) is returned to the caller and never logged.
+The only free-form value the app ever sends is a host name for
+``proxy-install``, checked here and again by the helper (it must equal the
+host name the root config assigns to the current layout).
 """
 from __future__ import annotations
 
 import json
+import re
 import socket
 
 from django.conf import settings
 
 SOCKET_PATH = '/run/clientst0r-office/helper.sock'
-OPS = ('preflight', 'status', 'releases', 'logs', 'secret',
-       'install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall')
-ASYNC_OPS = ('install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall')
+OPS = ('preflight', 'status', 'releases', 'logs', 'secret', 'proxy-status', 'proxy-install',
+       'proxy-remove', 'callback-check',
+       'install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall', 'set-layout')
+ASYNC_OPS = ('install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall', 'set-layout')
+ENGINES = ('onlyoffice', 'collabora')
+LAYOUTS = ('dedicated', 'same-host')
+HOST_RE = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$')
 MAX_REPLY = 2 * 1024 * 1024
 
 
@@ -91,6 +99,16 @@ def _validated(op, args):
     elif op == 'logs':
         if set(args) - {'lines'} or not isinstance(args.get('lines', 200), int):
             raise ValueError('logs takes only lines')
+    elif op in ('install', 'preflight'):
+        if set(args) - {'engine'} or args.get('engine', 'onlyoffice') not in ENGINES:
+            raise ValueError(f'{op} takes only an engine: {", ".join(ENGINES)}')
+    elif op == 'set-layout':
+        if set(args) != {'layout'} or args['layout'] not in LAYOUTS:
+            raise ValueError(f'set-layout takes one layout: {", ".join(LAYOUTS)}')
+    elif op == 'proxy-install':
+        if set(args) != {'hostname'} or not isinstance(args['hostname'], str) \
+                or not HOST_RE.match(args['hostname']):
+            raise ValueError('proxy-install takes one host name')
     elif args:
         raise ValueError(f'{op} takes no arguments')
     return {'op': op, 'args': args}
@@ -99,7 +117,9 @@ def _validated(op, args):
 def call(op, args=None, timeout=None):
     if op in ASYNC_OPS:
         raise ValueError('use submit() for lifecycle operations')
-    reply = _exchange(_validated(op, args), timeout or (60 if op == 'preflight' else 30))
+    reply = _exchange(_validated(op, args),
+                      timeout or (60 if op in ('preflight', 'proxy-install', 'proxy-remove',
+                                               'callback-check') else 30))
     if not reply.get('ok'):
         raise HelperRefused(str(reply.get('error') or 'refused')[:1000], busy=bool(reply.get('busy')))
     return reply.get('result') or {}

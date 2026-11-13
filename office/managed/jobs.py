@@ -1,4 +1,5 @@
-"""Background lifecycle operations for the managed ONLYOFFICE container.
+"""Background lifecycle operations for the managed editor container
+(ONLYOFFICE Docs or Collabora CODE; one engine at a time).
 
 The web request only enqueues (``enqueue``). The scheduler runs
 ``manage.py office_managed --run-pending`` every minute (core.ScheduledTask
@@ -30,6 +31,15 @@ Guarantees:
   provider is (re)configured from the helper status, the health check runs,
   and the server-driven round trip (open, edit, save, reopen through the
   real editor) must pass before the editor is opened to users again;
+* switch engine (``switch_engine``): drain the current engine's sessions,
+  helper ``uninstall`` (its data is kept), helper ``install`` with the other
+  engine, then verify and configure that engine's provider instance. The
+  phase is stored in ``result["phase"]`` so a resumed run continues where
+  it stopped. Documents never move: they are in clientst0r;
+* switch address layout (``set_layout``): drain, helper ``set-layout``
+  (rewrites the helper's Nginx files, re-creates the container with the new
+  server name; nothing is reinstalled), then the provider's browser URL is
+  updated and verified like after a restart;
 * every state change is audited.
 """
 from __future__ import annotations
@@ -51,8 +61,11 @@ from . import ipc
 
 log = logging.getLogger('office.managed')
 
-DRAIN_ACTIONS = ('stop', 'restart', 'update', 'rollback', 'uninstall')
-VERIFY_ACTIONS = ('install', 'start', 'restart', 'update', 'rollback')
+DRAIN_ACTIONS = ('stop', 'restart', 'update', 'rollback', 'uninstall', 'switch_engine', 'set_layout')
+VERIFY_ACTIONS = ('install', 'start', 'restart', 'update', 'rollback', 'switch_engine', 'set_layout')
+ENGINES = ('onlyoffice', 'collabora')
+LAYOUTS = ('dedicated', 'same-host')
+ENGINE_LABELS = {'onlyoffice': 'ONLYOFFICE', 'collabora': 'Collabora (CODE)'}
 MAX_SUBMITS = 3
 
 
@@ -85,16 +98,22 @@ def active():
         state__in=ManagedOfficeOperation.ACTIVE_STATES).first()
 
 
-def enqueue(action, *, user=None, release='', source='admin', request=None):
+def enqueue(action, *, user=None, release='', engine='', layout='', source='admin', request=None):
     """Queue `action`. Raises AlreadyActive when an operation is active."""
     if action not in dict(ManagedOfficeOperation.ACTIONS):
         raise ValueError(f'unknown action {action}')
     if action == 'update' and not release:
         raise ValueError('update needs a release')
+    if action == 'switch_engine' and engine not in ENGINES:
+        raise ValueError('switch_engine needs an engine')
+    if action == 'set_layout' and layout not in LAYOUTS:
+        raise ValueError('set_layout needs a layout')
     try:
         with transaction.atomic():
             op = ManagedOfficeOperation.objects.create(
                 action=action, target_release=release if action == 'update' else '',
+                target_engine=engine if action == 'switch_engine' else '',
+                target_layout=layout if action == 'set_layout' else '',
                 requested_by=user, source=source,
                 progress={'message': 'queued', 'steps': [{'at': timezone.now().isoformat(),
                                                           'message': 'queued'}]})
@@ -104,9 +123,12 @@ def enqueue(action, *, user=None, release='', source='admin', request=None):
                             f'already in progress.')
     audit.log('managed_operation', user=user, request=request, object_type='office.managed',
               object_id=op.pk, object_repr=op.get_action_display(),
-              description=f'Queued managed ONLYOFFICE operation: {op.get_action_display()}'
-                          + (f' to {release}' if release else '') + f' ({source})',
-              extra={'action': action, 'release': release, 'source': source})
+              description=f'Queued managed Office operation: {op.get_action_display()}'
+                          + (f' to {release}' if release else '')
+                          + (f' to {ENGINE_LABELS.get(engine, engine)}' if action == 'switch_engine' else '')
+                          + (f' to {layout}' if action == 'set_layout' else '') + f' ({source})',
+              extra={'action': action, 'release': release, 'engine': engine, 'layout': layout,
+                     'source': source})
     return op
 
 
@@ -117,7 +139,7 @@ def cancel(op, *, user=None, request=None):
     if n:
         audit.log('managed_operation', user=user, request=request, object_type='office.managed',
                   object_id=op.pk, object_repr=op.get_action_display(),
-                  description=f'Cancelled queued managed ONLYOFFICE operation {op.get_action_display()}')
+                  description=f'Cancelled queued managed Office operation {op.get_action_display()}')
     return bool(n)
 
 
@@ -170,10 +192,11 @@ class Runner:
         action = self.op.get_action_display()
         audit.log('managed_operation', user=self.op.requested_by, object_type='office.managed',
                   object_id=self.op.pk, object_repr=action, success=state == 'succeeded',
-                  description=f'Managed ONLYOFFICE operation {action}: {state}'
+                  description=f'Managed Office operation {action}: {state}'
                               + (f' - {error[:500]}' if error else ''),
                   extra={'action': self.op.action, 'state': state,
-                         'release': self.op.target_release, 'source': self.op.source})
+                         'release': self.op.target_release, 'engine': self.op.target_engine,
+                         'layout': self.op.target_layout, 'source': self.op.source})
 
     def time_left(self):
         return self.deadline - time.monotonic()
@@ -211,7 +234,7 @@ class Runner:
     def start(self):
         service = ManagedOfficeService.get()
         if not service.enabled:
-            return self.finish('failed', error='Managed Local ONLYOFFICE is turned off in Settings.')
+            return self.finish('failed', error='Managed local editing is turned off in Settings.')
         # A queued operation runs later, from the scheduler: recheck that the
         # administrator who asked for it still may (active superuser) before
         # anything is touched. Maintenance-window updates are the system's
@@ -221,6 +244,8 @@ class Runner:
             if requester is None or not (requester.is_active and requester.is_superuser):
                 return self.finish('failed', error='The administrator who queued this operation no '
                                                    'longer has platform administrator rights.')
+        if self.op.action in ('switch_engine', 'set_layout', 'install'):
+            refresh_status()        # decide from the helper's view, not a stale cache
         inst = self.instance()
         if self.op.action in DRAIN_ACTIONS and inst is not None:
             was = drain.block(inst)
@@ -231,7 +256,7 @@ class Runner:
             if outcomes:
                 self.say(f'Save requested for {len(outcomes)} open editing group(s).')
             return
-        if self.op.action in ('install', 'start', 'restart', 'update', 'rollback') and inst is not None:
+        if self.op.action in VERIFY_ACTIONS and inst is not None:
             # No drain needed (nothing runs), but keep users out until verified.
             was = drain.block(inst)
             self.save(result=dict(self.op.result or {}, was_enabled=was))
@@ -288,16 +313,69 @@ class Runner:
                                result={'helper': hop.get('result') or {}}) or True
         # succeeded
         self.save(result=dict(self.op.result or {}, helper=hop.get('result') or {}))
+        if self.op.action == 'switch_engine' and self.phase() == 'uninstall':
+            # The old engine is gone (its data kept): close its instance,
+            # then install the new engine.
+            inst = self.instance()
+            if inst is not None:
+                from office.models import EditorInstance
+                EditorInstance.objects.filter(pk=inst.pk).update(
+                    enabled=False, health_status='down',
+                    health_detail='Not running: the managed service switched engines.')
+            self.say(f'{ENGINE_LABELS.get(self.current_engine(), "The old engine")} is uninstalled '
+                     '(its data is kept); installing '
+                     f'{ENGINE_LABELS[self.op.target_engine]}.', helper_op_id='', helper_submits=0,
+                     result=dict(self.op.result or {}, phase='install'))
+            return True
+        if self.op.action == 'set_layout' and not (hop.get('result') or {}).get('recreated'):
+            # Nothing was running: the new address is used at the next Start,
+            # which verifies it and updates the provider.
+            return self.finish('succeeded', result={
+                'note': 'Layout saved. The editor is not running; Start it to use and verify the '
+                        'new address.'}) or True
         if self.op.action in VERIFY_ACTIONS:
             self.say('The server finished; verifying the editor.', state='verifying')
         else:
             self.after_down()
         return True
 
-    def submit(self):
-        args = {'release': self.op.target_release} if self.op.action == 'update' else None
+    def phase(self):
+        return (self.op.result or {}).get('phase') or 'uninstall'
+
+    def current_engine(self):
+        from .provision import ProvisionError, status_engine
         try:
-            hop = ipc.submit(self.op.action, args)
+            return status_engine(ManagedOfficeService.get().status or {})
+        except ProvisionError:
+            return ''
+
+    def helper_request(self):
+        """(helper op, args) for this operation's next server step."""
+        action = self.op.action
+        if action == 'update':
+            return 'update', {'release': self.op.target_release}
+        if action == 'set_layout':
+            return 'set-layout', {'layout': self.op.target_layout}
+        if action == 'switch_engine':
+            installed = (ManagedOfficeService.get().status or {}).get('installed') or {}
+            present = installed.get('release') and installed.get('state') != 'uninstalled'
+            if self.phase() == 'uninstall' and present \
+                    and (installed.get('engine') or 'onlyoffice') != self.op.target_engine:
+                return 'uninstall', None
+            if self.phase() != 'install':
+                self.save(result=dict(self.op.result or {}, phase='install'))
+            return 'install', {'engine': self.op.target_engine}
+        if action == 'install':
+            installed = (ManagedOfficeService.get().status or {}).get('installed') or {}
+            if not installed.get('release') or installed.get('state') == 'uninstalled':
+                return 'install', {'engine': ManagedOfficeService.get().engine}
+            return 'install', None
+        return action, None
+
+    def submit(self):
+        op_name, args = self.helper_request()
+        try:
+            hop = ipc.submit(op_name, args)
         except ipc.HelperRefused as e:
             if e.busy:
                 self.say('The server is busy with another operation; waiting.')
@@ -341,8 +419,19 @@ class Runner:
                                                'platform administrator account; run it from Diagnostics.')
         self.say('Healthy; running an open/edit/save round trip through the editor.')
         report = diagnostics.run_round_trip(inst, user, maintenance=True)
-        must_pass = [s for s in report.steps if s.key != 'callback']
-        failed = [s for s in must_pass if s.status != 'pass']
+        if inst.provider == 'collabora':
+            # Collabora edits only through a browser (WebSocket): the steps
+            # that need one are "not run" and stay so. Everything that ran
+            # must pass, and discovery and the WOPI host must have run.
+            ran = {s.key: s.status for s in report.steps}
+            failed = [s for s in report.steps if s.status == 'fail']
+            failed += [s for s in report.steps if s.key in ('discovery', 'session')
+                       and s.status != 'pass']
+            if not any(k.startswith('wopi_') and v == 'pass' for k, v in ran.items()):
+                failed += [s for s in report.steps if s.key.startswith('wopi_')][:1]
+        else:
+            must_pass = [s for s in report.steps if s.key != 'callback']
+            failed = [s for s in must_pass if s.status != 'pass']
         steps = [{'key': s.key, 'label': s.label, 'status': s.status, 'detail': s.detail[:300]}
                  for s in report.steps]
         if failed:

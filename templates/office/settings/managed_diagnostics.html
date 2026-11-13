@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Managed ONLYOFFICE diagnostics{% endblock %}
+{% block title %}Managed local editor diagnostics{% endblock %}
 {% block content %}
-{% include "office/settings/_layout_start.html" with crumb="Managed ONLYOFFICE diagnostics" %}
+{% include "office/settings/_layout_start.html" with crumb="Managed local editor diagnostics" %}
 <div class="row">
   <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="office_documents" %}</div>
   <div class="col-md-9">
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h1 class="h5 mb-0">Managed ONLYOFFICE diagnostics</h1>
+        <h1 class="h5 mb-0">Managed local editor diagnostics</h1>
         <div class="d-flex gap-2">
           <a class="btn btn-sm btn-outline-secondary" href="{% url 'office:managed' %}">Back</a>
           <a class="btn btn-sm btn-outline-primary" href="{% url 'office:managed_diagnostics' %}?lines={{ lines }}&amp;download=1">Download</a>

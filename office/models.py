@@ -531,9 +531,23 @@ class ManagedOfficeService(models.Model):
     its root-owned configuration are the source of truth; this row is a
     cache plus the administrator's app-side choices."""
 
+    ENGINES = [('onlyoffice', 'ONLYOFFICE Docs'),
+               ('collabora', 'Collabora Online Development Edition (CODE)')]
+    LAYOUTS = [('dedicated', 'Dedicated host name'),
+               ('same-host', 'Same host as clientst0r (Collabora only)')]
+
     enabled = models.BooleanField(
         default=False,
         help_text='Managed mode is off until a deployment administrator turns it on.')
+    # The engine the administrator chose. What is actually installed is the
+    # helper's status (status["engine"]); the root config decides which
+    # engines may be chosen at all (ENGINES=).
+    engine = models.CharField(max_length=20, choices=ENGINES, default='onlyoffice')
+    same_host_acknowledged_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='When an administrator accepted the same-host origin-sharing warning.')
+    same_host_acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                                  null=True, blank=True, related_name='+')
     instance = models.ForeignKey(EditorInstance, on_delete=models.SET_NULL, null=True,
                                  blank=True, related_name='+')
     status = models.JSONField(default=dict, blank=True,
@@ -561,7 +575,7 @@ class ManagedOfficeService(models.Model):
         db_table = 'office_managed_service'
 
     def __str__(self):
-        return 'Managed ONLYOFFICE service'
+        return 'Managed Office service'
 
     @classmethod
     def get(cls):
@@ -582,6 +596,10 @@ class ManagedOfficeOperation(models.Model):
     ACTIONS = [
         ('install', 'Install'), ('start', 'Start'), ('stop', 'Stop'), ('restart', 'Restart'),
         ('update', 'Update'), ('rollback', 'Roll back'), ('uninstall', 'Uninstall'),
+        # drain, uninstall the current engine (data kept), install the other
+        ('switch_engine', 'Switch engine'),
+        # drain, rewrite the proxy files, re-create the container
+        ('set_layout', 'Switch address layout'),
     ]
     STATES = [
         ('queued', 'Queued'),
@@ -599,6 +617,8 @@ class ManagedOfficeOperation(models.Model):
     lock_key = models.CharField(max_length=20, default='managed', editable=False)
     action = models.CharField(max_length=20, choices=ACTIONS)
     target_release = models.CharField(max_length=40, blank=True)
+    target_engine = models.CharField(max_length=20, blank=True)
+    target_layout = models.CharField(max_length=20, blank=True)
     state = models.CharField(max_length=20, choices=STATES, default='queued')
     source = models.CharField(max_length=20, choices=SOURCES, default='admin')
     requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
