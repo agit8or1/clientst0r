@@ -5,6 +5,18 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Managed Local Collabora (CODE).** The managed local editor can now run Collabora Online Development Edition as an alternative to ONLYOFFICE Docs, one at a time. The root configuration lists the engines a server may run (`ENGINES=`), and the app chooses only between them. The image is pinned by digest (both CODE releases in the list are untested until live verification), with memory and CPU limits, a loopback-only port, a firewall that lets the container reach only clientst0r over HTTPS, a WOPI allow-list for this deployment only, and an admin secret and proof key kept by root. After install, clientst0r configures its Collabora provider for it (proof keys required, TLS verified). CODE is labelled evaluation / development; for production, use licensed Collabora Online through the external Collabora provider. Switching engines drains open sessions and keeps every document.
+- **Reverse-proxy setup through the Office service helper.** New helper operations: `proxy-status`, `proxy-install`, `proxy-remove`, `set-layout` and `callback-check`. The helper writes only its own Nginx files and runs `nginx -t` before every reload, putting the previous files back if anything fails. It can serve the editor on a dedicated host name, with TLS either on this server or on a device in front of it (`PROXY_TLS=upstream`, port 80, no local certificate). For Collabora it can also use the same-host paths (`/browser`, `/hosting/discovery`, `/hosting/capabilities`, `/cool/`) through a snippet that the administrator includes once in clientst0r's site; clientst0r's own site is detected and never modified. Same-host is opt-in: it shows the shared-origin warning, needs an audited acceptance, and strips Cookie and Authorization headers on the editor paths. Switching between same-host and a dedicated name drains open sessions, rewrites the proxy files, re-creates the container, updates the provider's address and re-runs the checks, without reinstalling.
+- **Capacity checks.** For each engine, the setup checks and the Managed page show a verdict (fits, tight, does not fit) with the limits and a recommendation. Install is refused when the editor would leave clientst0r less than 1 GB of available memory or no CPU core. On a 4 vCPU / 7 GB host, Collabora CODE fits with its default limits (1536 MB, 1.5 CPU); ONLYOFFICE needs a separate VM.
+- **Browser probe and callback check** in the managed setup checks: one tests from the administrator's browser that the editor's public address answers, the other tests from inside the container that clientst0r can be reached over verified HTTPS.
+- `install-managed-local.sh` gains `--provider collabora`, `--engines`, `--layouts`, `--tls upstream` (with `--callback-upstream-ip`), the Collabora limit options and `--allow-untested-releases`. `manage.py office_managed --queue` takes `switch_engine --engine` and `set_layout --layout [--accept-same-host]`.
+
+### Changed
+- "Managed Local ONLYOFFICE" in Settings is now **Managed local editor**. A migration adds the engine, the same-host acknowledgement, and the engine and layout targets for operations.
+
 ## [3.17.670] - 2026-11-13
 
 ### Fixed

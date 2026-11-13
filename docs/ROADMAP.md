@@ -2395,6 +2395,32 @@ Collabora or Microsoft 365 service**.
   any restart, backups are taken before updates, rollback uses a matching
   backup, uninstall keeps documents and editor data, and the app never gets
   Docker access.
+- **62.9 Managed Local Collabora (CODE)** *(built on the development branch, not yet released)* —
+  a second engine for the managed mode, one engine at a time and chosen only
+  from the engines the root configuration allows. Pinned image digests
+  (every CODE release untested until the live checklist passes), resource
+  limits, loopback-only port, editor traffic limited to clientst0r over
+  HTTPS, WOPI allow-list restricted to the deployment, admin secret and proof
+  key held by root. The existing Collabora provider is configured
+  automatically after install. Switching engines drains sessions and keeps
+  every document. Labelled evaluation / development; licensed Collabora
+  Online stays supported through the external provider.
+- **62.10 Reverse-proxy setup for managed editors** *(built on the development branch, not yet released)* —
+  the root helper writes only its own Nginx files for the editor: a
+  dedicated host name (TLS on this server, or on a device in front of it), or
+  Collabora's opt-in same-host paths as a snippet the administrator includes
+  once. `nginx -t` before every reload and the previous files restored on
+  failure; clientst0r's own site is detected and never modified. Same-host
+  shows the shared-origin warning, needs an explicit, audited acceptance and
+  strips cookies and authorization headers on the editor paths. Switching
+  between same-host and a dedicated name is a supported operation (drain,
+  rewrite, update the provider's address, re-check) without reinstalling.
+  Setup checks cover DNS, certificate, the Nginx files and all three
+  reachability paths, including a browser probe.
+- **62.11 Capacity checks for managed editors** *(built on the development branch, not yet released)* —
+  setup checks warn about, or refuse, an editor that would starve
+  clientst0r of memory or CPU, with the verdict, limits and a recommendation
+  per engine on the settings page.
 
 **Sizing:** **L** — framework 1–2 weeks, ONLYOFFICE 1 week, Collabora 1 week,
 Microsoft 365 and Google Docs 1–2 weeks each.

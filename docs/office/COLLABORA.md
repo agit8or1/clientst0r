@@ -14,6 +14,12 @@ their package repository, and from collaboraonline.com. The official SDK site
 (sdk.collaboraonline.com) could not be read during development. Anything
 marked *unverified* should be checked against it before you rely on it.
 
+> **Managed mode.** clientst0r can also install and run Collabora Online
+> Development Edition (CODE) itself, on its own server, for evaluation and
+> small teams: see [MANAGED_LOCAL.md](MANAGED_LOCAL.md) (engine `collabora`,
+> dedicated or same-host layout). Licensed Collabora Online for production is
+> connected as described below.
+
 ## What is implemented
 
 | Area | Behaviour |

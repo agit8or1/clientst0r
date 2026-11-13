@@ -7,18 +7,20 @@ DEPLOYMENT_ID=acme-prod
 # The account clientst0r runs as; the only one allowed on the helper socket.
 APP_USER=clientstor
 # Dedicated HTTPS host name of the editor (browser-facing). Must differ from
-# clientst0r's own host name. The host's Nginx proxies it to 127.0.0.1:BIND_PORT.
+# clientst0r's own host name. The host's Nginx proxies it to the container's
+# loopback port. Optional when PROXY_LAYOUTS is only same-host.
 OFFICE_HOSTNAME=office.acme.example
 # clientst0r's own address, as the editor container must reach it for
 # document downloads and save callbacks (https, port 443, no path).
 CLIENTSTOR_URL=https://docs.acme.example/
-# Loopback port the container is published on (never on other interfaces).
+# Loopback port the ONLYOFFICE container is published on (never on other
+# interfaces).
 BIND_PORT=8090
 # community (AGPL, ONLYOFFICE Docs Community) or enterprise (needs
 # /etc/clientst0r/office/license.lic from ONLYOFFICE).
 EDITION=community
-# Limits for the container. MEMORY_MB + RESERVE_MB must fit in the host's RAM,
-# CPUS must leave at least one core for clientst0r.
+# Limits for the ONLYOFFICE container. MEMORY_MB + RESERVE_MB must fit in the
+# host's RAM, CPUS must leave at least one core for clientst0r.
 CPUS=2
 MEMORY_MB=4096
 RESERVE_MB=2048
@@ -34,3 +36,34 @@ PRIVATE_CA=no
 # yes allows clientst0r's maintenance window (Settings) to start updates.
 # Even then the app only starts one inside the window it is configured with.
 MAINTENANCE_UPDATES=no
+
+# --- engines (one runs at a time; the app chooses only among these) -------
+# onlyoffice, collabora (Collabora Online Development Edition) or both.
+ENGINES=onlyoffice
+# Collabora CODE: loopback port and limits. Defaults leave clientst0r
+# headroom on a 4 vCPU / 7 GB host.
+#COLLABORA_BIND_PORT=9981
+#COLLABORA_CPUS=1.5
+#COLLABORA_MEMORY_MB=1536
+
+# --- reverse proxy (written by the helper: its own files only) ------------
+# dedicated (recommended) and/or same-host (Collabora only: the editor's
+# /browser, /hosting/*, /cool/ paths on clientst0r's own host name, through
+# /etc/nginx/clientst0r-office/same-host.conf, which the administrator
+# includes once in clientst0r's server block). The first is used at install.
+PROXY_LAYOUTS=dedicated
+# upstream: TLS ends on a device in front of this server; the editor block
+# listens on 80 there. local-cert: PROXY_CERT_FILE/PROXY_KEY_FILE under
+# /etc/clientst0r/office/tls, /etc/ssl or /etc/letsencrypt/live.
+# letsencrypt: /etc/letsencrypt/live/<OFFICE_HOSTNAME>/ (certbot --webroot).
+PROXY_TLS=local-cert
+#PROXY_CERT_FILE=/etc/clientst0r/office/tls/office.acme.example.crt
+#PROXY_KEY_FILE=/etc/clientst0r/office/tls/office.acme.example.key
+#PROXY_MAX_BODY_MB=100
+
+# --- how the container reaches clientst0r (HTTPS 443 only) ----------------
+# gateway: this host's Nginx on the bridge gateway (TLS terminated here).
+# upstream: the TLS device in front of this server at CALLBACK_UPSTREAM_IP;
+# the container may reach that address on 443 and nothing else.
+CALLBACK_ROUTE=gateway
+#CALLBACK_UPSTREAM_IP=203.0.113.7
