@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.676] - 2026-11-13
+
+### Fixed
+- **Documents list: Excel and PowerPoint files are labelled correctly.** Uploaded or created .xlsx and .pptx files showed as "Word" (the icon too) because the check for Word ran first and every current Office file type contains "officedocument". Spreadsheets and presentations are now checked first. Only the label was wrong; the files and the editor were unaffected.
+
 ## [3.17.675] - 2026-11-13
 
 ### Changed
