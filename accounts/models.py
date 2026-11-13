@@ -441,6 +441,9 @@ def derive_legacy_flags(ns, role):
         'netconfig_view_configs': g('vault_view_password'),
         'integrations_view_synced_psa': g('integrations_view'),
         'docs_view_internal': False,
+        # Edit in Microsoft 365: new, customer users only when explicitly
+        # granted (MSP staff follow their edit permission on the file).
+        'office_edit_in_m365': False,
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1090,6 +1093,9 @@ class RoleTemplate(BaseModel):
         help_text='Approve discounts and pricing exceptions on quotes.')
     docs_view_internal = models.BooleanField(default=False,
         help_text='Customer users: see internal documentation.')
+    office_edit_in_m365 = models.BooleanField(default=False,
+        help_text='Customer users: edit Office files in Microsoft 365 (a working copy). '
+                  'MSP staff follow their edit permission on the file.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,

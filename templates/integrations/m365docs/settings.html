@@ -115,8 +115,43 @@
     {% endif %}
   </div>
 </div>
+<div class="card mb-3">
+  <div class="card-header">Edit in Microsoft 365 {% if connection.docs_edit_enabled %}<span class="badge bg-success">on</span>{% else %}<span class="badge bg-secondary">off</span>{% endif %}</div>
+  <div class="card-body">
+    <p class="small text-muted">Lets people who may edit a clientst0r Word, Excel or PowerPoint file send a working copy to Microsoft 365, edit it there (co-authoring happens in Microsoft 365) and save it back as a new clientst0r revision when they choose. Nothing is imported automatically, and no sharing link is ever created. Customer users also need the <code>office_edit_in_m365</code> role permission.</p>
+    <form method="post" action="{% url 'integrations:m365edit_settings' connection.pk %}">{% csrf_token %}
+      <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" role="switch" id="docs_edit_enabled" name="docs_edit_enabled" {% if connection.docs_edit_enabled %}checked{% endif %} {% if connection.docs_access != 'readwrite' %}disabled{% endif %}>
+        <label class="form-check-label" for="docs_edit_enabled">Offer Edit in Microsoft 365{% if connection.docs_access != 'readwrite' %} (needs read and write access){% endif %}</label>
+      </div>
+      <label class="form-label small mb-1" for="docs_edit_location">Working copies go to</label>
+      <select class="form-select form-select-sm mb-2" id="docs_edit_location" name="docs_edit_location">
+        <option value="">— choose an allowed location —</option>
+        {% for loc in locations %}{% if loc.kind != 'site' %}<option value="{{ loc.pk }}" {% if connection.docs_edit_location_id == loc.pk %}selected{% endif %}>{{ loc }}</option>{% endif %}{% endfor %}
+      </select>
+      <div class="form-text mb-2">Each user's own OneDrive keeps the copy private to that user. A library or folder is visible to whoever Microsoft 365 lets see it there.</div>
+      <label class="form-label small mb-1" for="docs_edit_folder_name">Folder for working copies</label>
+      <input class="form-control form-control-sm mb-2" id="docs_edit_folder_name" name="docs_edit_folder_name" value="{{ connection.docs_edit_folder_name }}" maxlength="120">
+      <label class="form-label small mb-1" for="docs_edit_cleanup">When a session ends</label>
+      <select class="form-select form-select-sm mb-2" id="docs_edit_cleanup" name="docs_edit_cleanup">
+        {% for value, label in connection.DOCS_EDIT_CLEANUP_CHOICES %}<option value="{{ value }}" {% if connection.docs_edit_cleanup == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% if connection.organization_id %}
+      <label class="form-label small mb-1" for="docs_edit_staff_tenant">When MSP staff edit this customer's files and the platform connection also qualifies, use</label>
+      <select class="form-select form-select-sm mb-2" id="docs_edit_staff_tenant" name="docs_edit_staff_tenant">
+        {% for value, label in connection.DOCS_EDIT_STAFF_TENANT_CHOICES %}<option value="{{ value }}" {% if connection.docs_edit_staff_tenant == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <p class="small text-muted mb-2">This is the platform (MSP) connection: only MSP staff use it, for files they may edit at a customer. Customer users never do.</p>
+      {% endif %}
+      <label class="form-label small mb-1" for="docs_edit_stale_hours">Remind about idle sessions after (hours)</label>
+      <input type="number" class="form-control form-control-sm mb-2" id="docs_edit_stale_hours" name="docs_edit_stale_hours" value="{{ connection.docs_edit_stale_hours }}" min="1" max="1440">
+      <button type="submit" class="btn btn-sm btn-primary">Save</button>
+    </form>
+  </div>
+</div>
 <p class="small text-muted">{{ grant_count }} user{{ grant_count|pluralize }} connected.</p>
-<div class="alert alert-secondary small"><strong>Editing local files in Microsoft 365 is not available.</strong> Opening files stored in clientst0r in Microsoft's own online editor requires Microsoft's Cloud Storage Partner Program, which is not open to self-hosted deployments. Use the ONLYOFFICE or Collabora editors for local files; Microsoft 365 files are opened where they live.</div>
+<div class="alert alert-secondary small"><strong>Direct editing of stored files is not available.</strong> Embedding Microsoft's online editor over files stored in clientst0r (WOPI) requires Microsoft's Cloud Storage Partner Program, which is not open to self-hosted deployments. Edit in Microsoft 365 above works with a working copy instead; ONLYOFFICE or Collabora edit stored files directly.</div>
 </div>
 </div>
 {% endblock %}

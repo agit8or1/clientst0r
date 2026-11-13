@@ -4,6 +4,7 @@ Integrations URL configuration
 from django.urls import path
 from . import rem0te_views, views
 from .m365docs import views as m365docs_views
+from .m365docs import views_edit as m365edit_views
 
 app_name = 'integrations'
 
@@ -89,6 +90,16 @@ urlpatterns = [
     path('m365/<int:pk>/documents/create/', m365docs_views.create_item, name='m365docs_create'),
     path('m365/<int:pk>/documents/import/', m365docs_views.import_item, name='m365docs_import'),
     path('m365/<int:pk>/documents/export/', m365docs_views.export_item, name='m365docs_export'),
+    path('m365/<int:pk>/documents/edit-settings/', m365edit_views.edit_settings,
+         name='m365edit_settings'),
+    path('m365/documents/edit/start/<str:code>/<int:pk>/', m365edit_views.start,
+         name='m365edit_start'),
+    path('m365/documents/edit/<uuid:sid>/open/', m365edit_views.open_session,
+         name='m365edit_open'),
+    path('m365/documents/edit/<uuid:sid>/check/', m365edit_views.check, name='m365edit_check'),
+    path('m365/documents/edit/<uuid:sid>/save/', m365edit_views.save, name='m365edit_save'),
+    path('m365/documents/edit/<uuid:sid>/finish/', m365edit_views.finish,
+         name='m365edit_finish'),
     path('m365/documents/', m365docs_views.home, name='m365docs_home'),
     path('m365/documents/callback/', m365docs_views.callback, name='m365docs_callback'),
     path('m365/documents/linked/<int:lid>/open/', m365docs_views.open_link,

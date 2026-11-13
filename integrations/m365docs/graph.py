@@ -165,6 +165,57 @@ class GraphClient:
         return self.json('PUT', path, params={'@microsoft.graph.conflictBehavior': 'fail'},
                          body=data, content_type=mime)
 
+    def child_by_name(self, drive_id, parent_id, name):
+        """The item called `name` directly in the parent folder (path addressing)."""
+        name = valid_name(name)
+        parent = 'root' if parent_id in ('', 'root', None) else f'items/{_q(valid_id(parent_id))}'
+        return self.json('GET', f'/drives/{_q(valid_id(drive_id))}/{parent}:/{quote(name, safe="")}',
+                         params={'$select': ITEM_SELECT})
+
+    def ensure_folder(self, drive_id, parent_id, name):
+        """The folder `name` in the parent, created when missing. Never renames
+        or replaces anything: conflictBehavior=fail, then the existing item is
+        read back and must be a folder."""
+        name = valid_name(name)
+        parent = 'root' if parent_id in ('', 'root', None) else f'items/{_q(valid_id(parent_id))}'
+        body = json.dumps({'name': name, 'folder': {},
+                           '@microsoft.graph.conflictBehavior': 'fail'}).encode()
+        try:
+            return self.json('POST', f'/drives/{_q(valid_id(drive_id))}/{parent}/children',
+                             body=body, content_type='application/json')
+        except GraphError as e:
+            if e.status != 409:
+                raise
+        existing = self.child_by_name(drive_id, parent_id, name)
+        if 'folder' not in existing:
+            raise GraphError(409, 'nameAlreadyExists', 'A file has the working-copy folder name')
+        return existing
+
+    def item_state(self, drive_id, item_id):
+        """Change-detection metadata of one item (eTag, cTag, size, last modified)."""
+        return self.item(drive_id, item_id,
+                         select='id,name,eTag,cTag,size,webUrl,file,parentReference,'
+                                'lastModifiedDateTime,lastModifiedBy')
+
+    def delete_item(self, drive_id, item_id, if_match=''):
+        """DELETE one item (OneDrive / SharePoint move it to the recycle bin).
+        With `if_match` (an eTag) Microsoft refuses with 412 when the item
+        changed since. A 404 counts as already gone."""
+        path = f'/drives/{_q(valid_id(drive_id))}/items/{_q(valid_id(item_id))}'
+        url = http.GRAPH_BASE + path
+        headers = {'Authorization': f'Bearer {self._token()}', 'Accept': 'application/json'}
+        if if_match:
+            headers['If-Match'] = if_match
+        res = http.send('DELETE', url, allowed_hosts={http.GRAPH_HOST}, headers=headers)
+        if res.status_code in (200, 204, 404):
+            return res.status_code != 404
+        try:
+            err = (json.loads(res.content or b'{}').get('error') or {})
+        except (ValueError, AttributeError):
+            err = {}
+        raise GraphError(res.status_code, str(err.get('code', ''))[:100],
+                         str(err.get('message', ''))[:300])
+
     # -- content --------------------------------------------------------------
     def download(self, drive_id, item_id, max_bytes, allowed_hosts):
         """(metadata, bytes). The pre-authenticated ``downloadUrl`` is fetched

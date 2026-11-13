@@ -474,6 +474,7 @@ Documents, diagrams and their publication.
 | `docs_delete` | Delete | elevated | no | enforced | Delete documents |
 | `docs_publish` | Send / publish | elevated | no | enforced | Publish / unpublish documents |
 | `docs_view_internal` | View / list | sensitive | yes | pending | Customer users: see internal documentation (internal blocks, MSP-written source and versions) |
+| `office_edit_in_m365` | Edit | elevated | yes | enforced | Customer users: edit Office files in Microsoft 365 through a working copy in OneDrive / SharePoint (MSP staff follow their edit permission on the file) |
 
 ### Knowledge base
 

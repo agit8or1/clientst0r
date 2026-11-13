@@ -201,6 +201,9 @@ PERMISSIONS: List[Permission] = [
     _p('docs_view_internal', 'docs', 'view', X, True,
        'Customer users: see internal documentation (internal blocks, MSP-written source and versions)',
        PENDING),
+    _p('office_edit_in_m365', 'docs', 'edit', E, True,
+       'Customer users: edit Office files in Microsoft 365 through a working copy in OneDrive / '
+       'SharePoint (MSP staff follow their edit permission on the file)'),
     _p('kb_view_articles', 'kb', 'view', S, True, 'View KB articles'),
     _p('kb_edit_articles', 'kb', 'edit', S, False, 'Create / edit / delete KB articles'),
     _p('kb_move_articles', 'kb', 'edit', S, False, 'Move KB articles between categories'),

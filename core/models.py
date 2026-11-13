@@ -1211,6 +1211,8 @@ class ScheduledTask(models.Model):
         # Contract documents: e-mail / finalization jobs, and hourly upkeep.
         ('contracts_jobs', 'Contract Jobs'),
         ('contracts_maintenance', 'Contract Reminders and Expirations'),
+        # Edit in Microsoft 365: reminders and cleanup of idle sessions.
+        ('m365_edit_sessions', 'Microsoft 365 Edit Sessions'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1756,6 +1758,15 @@ class ScheduledTask(models.Model):
             'task_type': 'office_purge_quarantine',
             'description': 'Delete unaccepted Office editor saves past their retention period and '
                            'expired diagnostics documents; mark expired edit sessions closed',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Edit in Microsoft 365 is used. Never imports.
+            'task_type': 'm365_edit_sessions',
+            'description': 'End Edit in Microsoft 365 sessions whose user lost permission, delete '
+                           'working copies the policy says to delete, and remind about (or end, '
+                           'when nothing changed) idle sessions; never imports',
             'interval_minutes': 60,
             'enabled': True,
         },

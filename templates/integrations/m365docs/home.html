@@ -39,5 +39,5 @@
 {% empty %}
 <p class="text-muted">Microsoft 365 documents are not enabled for this organization, or you lack permission. An administrator turns them on in the organization's Microsoft 365 connection (Documents (SharePoint/OneDrive)).</p>
 {% endfor %}
-<p class="small text-muted">Opening files that are stored in clientst0r in Microsoft's online editor is not available: it requires Microsoft's Cloud Storage Partner Program, which is not open to self-hosted deployments.</p>
+<p class="small text-muted">Files stored in clientst0r can be edited in Microsoft 365 through a working copy (<em>Edit in Microsoft 365</em> on the file page, when an administrator has turned it on). Embedding Microsoft's online editor directly over stored files is not available: it requires Microsoft's Cloud Storage Partner Program, which is not open to self-hosted deployments.</p>
 {% endblock %}

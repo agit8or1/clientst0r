@@ -65,6 +65,7 @@ COMMAND_TASKS = {
     'snyk_cli_update_check': ('check_snyk_cli_update', []),
     'contracts_jobs': ('contracts_jobs', []),
     'contracts_maintenance': ('contracts_maintenance', []),
+    'm365_edit_sessions': ('m365_edit_sessions', []),
 }
 
 

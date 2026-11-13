@@ -14,6 +14,10 @@ Permissions (all on the connection's organization):
                                           + read-write mode
     settings and allowed locations        org admin with integrations_configure
 
+A platform-owned connection (the MSP's own tenant, organization empty) is
+used only by MSP staff (sign-in and Edit in Microsoft 365) and configured
+only by platform administrators (integrations/ownership.py).
+
 Parents of a link: the organization's documents library (``org``), a
 Document (``doc:<pk>``), an asset (``asset:<pk>``) or a ticket
 (``ticket:<pk>``, MSP staff only — customers never see them).
@@ -60,10 +64,22 @@ def enabled(connection) -> bool:
 
 
 def can_use(user, connection) -> bool:
-    return enabled(connection) and _perm(user, connection.organization_id, 'docs_view')
+    """A customer's own connection: ``docs_view`` at that customer. A
+    platform-owned connection (the MSP's own tenant, organization empty):
+    MSP staff only; customer users never use it."""
+    if not enabled(connection):
+        return False
+    if connection.organization_id is None:
+        return bool(user and user.is_authenticated and user.is_active and _staff(user))
+    return _perm(user, connection.organization_id, 'docs_view')
 
 
 def can_configure(user, connection) -> bool:
+    """Platform-owned: platform administrators (integrations/ownership.py);
+    a customer's own: ``integrations_configure`` at that customer."""
+    if connection.organization_id is None:
+        from integrations.ownership import can_manage_platform
+        return can_manage_platform(user)
     return _perm(user, connection.organization_id, 'integrations_configure')
 
 

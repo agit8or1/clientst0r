@@ -2,7 +2,9 @@
 Integrations models - PSA connections and synced data
 """
 import json
+import uuid
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -1020,6 +1022,41 @@ class M365Connection(ConnectionOwnership, BaseModel):
         help_text="The tenant's SharePoint host, e.g. contoso.sharepoint.com. Links and "
                   'downloads are only followed to this host and its -my OneDrive host.')
 
+    # -- Edit in Microsoft 365 (a working-copy round trip for clientst0r
+    # files; integrations/m365docs/editing.py). Needs read-write documents.
+    DOCS_EDIT_CLEANUP_CHOICES = [
+        ('delete', 'Delete the working copy when the edit session ends'),
+        ('keep', 'Keep the working copy in Microsoft 365 when the edit session ends'),
+    ]
+    docs_edit_enabled = models.BooleanField(
+        default=False,
+        help_text='Offer "Edit in Microsoft 365" for clientst0r Word, Excel and PowerPoint '
+                  'files: a working copy is uploaded as the user and saved back on request.')
+    docs_edit_location = models.ForeignKey(
+        'M365AllowedLocation', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+        help_text="Where working copies go: each user's own OneDrive, or one allowed "
+                  'library or folder.')
+    docs_edit_folder_name = models.CharField(
+        max_length=120, blank=True, default='clientst0r working copies',
+        help_text='Folder created (once per user / location) for working copies. Empty: the '
+                  "location's top level.")
+    docs_edit_cleanup = models.CharField(max_length=10, choices=DOCS_EDIT_CLEANUP_CHOICES,
+                                         default='delete')
+    DOCS_EDIT_STAFF_TENANT_CHOICES = [
+        ('platform', "The MSP's platform Microsoft 365 connection"),
+        ('customer', "This customer's own Microsoft 365 connection"),
+    ]
+    docs_edit_staff_tenant = models.CharField(
+        max_length=10, choices=DOCS_EDIT_STAFF_TENANT_CHOICES, default='platform',
+        help_text="On a customer's own connection: which tenant receives the working copy when "
+                  'MSP staff edit this customer\'s files and both qualify. Customer users always '
+                  "use the customer's own connection.")
+    docs_edit_stale_hours = models.PositiveIntegerField(
+        default=72,
+        help_text='Edit sessions idle this long are reminded (or ended when nothing changed '
+                  'in Microsoft 365). Nothing is ever imported automatically.')
+
     objects = OrganizationManager()
 
     class Meta:
@@ -1082,8 +1119,9 @@ class M365AllowedLocation(models.Model):
     ]
     connection = models.ForeignKey(M365Connection, on_delete=models.CASCADE,
                                    related_name='docs_locations')
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
-                                     related_name='m365_docs_locations')
+    # Empty for a platform-owned connection (the MSP's own tenant).
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True,
+                                     blank=True, related_name='m365_docs_locations')
     kind = models.CharField(max_length=12, choices=KIND_CHOICES)
     site_id = models.CharField(max_length=300, blank=True)
     drive_id = models.CharField(max_length=300, blank=True)
@@ -1157,6 +1195,106 @@ class LinkedCloudDocument(models.Model):
         if self.asset_id:
             return 'asset'
         return 'org'
+
+
+class M365EditSession(models.Model):
+    """One user's "Edit in Microsoft 365" round trip for one clientst0r file.
+
+    A working copy of a known revision is uploaded to an allowed location as
+    the user (delegated token), edited in Microsoft 365, and brought back only
+    when the user asks ("Save back to clientst0r"), as a new revision through
+    office.storage (stale-base protection, format validation, scan hook,
+    quarantine). No tokens or download URLs are stored here.
+    """
+    STATE_CHOICES = [
+        ('starting', 'Starting'),
+        ('open', 'Open'),
+        ('closed', 'Finished'),
+        ('discarded', 'Discarded'),
+        ('revoked', 'Revoked'),
+        ('ended', 'Ended by cleanup'),
+        ('failed', 'Failed to start'),
+    ]
+    LIVE_STATES = ('starting', 'open')
+    COPY_CHOICES = [
+        ('none', 'Not uploaded'),
+        ('present', 'In Microsoft 365'),
+        ('kept', 'Kept in Microsoft 365 by policy'),
+        ('deleted', 'Deleted'),
+        ('delete_pending', 'Deletion pending'),
+        ('delete_failed', 'Could not be deleted'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     related_name='m365_edit_sessions')
+    connection = models.ForeignKey(M365Connection, on_delete=models.CASCADE,
+                                   related_name='edit_sessions')
+    location = models.ForeignKey(M365AllowedLocation, on_delete=models.SET_NULL, null=True,
+                                 blank=True, related_name='edit_sessions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='m365_edit_sessions')
+    # The clientst0r file (office.targets kinds; exactly one is set while it exists).
+    document = models.ForeignKey('docs.Document', on_delete=models.SET_NULL, null=True,
+                                 blank=True, related_name='m365_edit_sessions')
+    attachment = models.ForeignKey('files.Attachment', on_delete=models.SET_NULL, null=True,
+                                   blank=True, related_name='m365_edit_sessions')
+    ticket_attachment = models.ForeignKey('psa.TicketAttachment', on_delete=models.SET_NULL,
+                                          null=True, blank=True,
+                                          related_name='m365_edit_sessions')
+    target_key = models.CharField(max_length=60, db_index=True,
+                                  help_text='"<kind>:<pk>" of the clientst0r file.')
+    target_label = models.CharField(max_length=255, blank=True)
+    base_revision = models.ForeignKey('office.FileRevision', on_delete=models.SET_NULL,
+                                      null=True, blank=True, related_name='+')
+    base_revision_number = models.PositiveIntegerField(default=0)
+    base_sha256 = models.CharField(max_length=64, blank=True)
+    # The working copy in Microsoft 365.
+    drive_id = models.CharField(max_length=300, blank=True)
+    folder_id = models.CharField(max_length=300, blank=True)
+    item_id = models.CharField(max_length=300, blank=True)
+    item_name = models.CharField(max_length=500, blank=True)
+    web_url = models.URLField(max_length=2000, blank=True)
+    uploaded_etag = models.CharField(max_length=300, blank=True)
+    # Content tag (cTag) of the Microsoft copy whose content clientst0r holds
+    # (the upload, the last save-back, or a save-back kept as a conflict).
+    synced_ctag = models.CharField(max_length=300, blank=True)
+    synced_sha256 = models.CharField(max_length=64, blank=True)
+    remote_ctag = models.CharField(max_length=300, blank=True)
+    remote_changed = models.BooleanField(null=True, blank=True)
+    remote_checked_at = models.DateTimeField(null=True, blank=True)
+    # Save-backs.
+    last_saved_revision = models.ForeignKey('office.FileRevision', on_delete=models.SET_NULL,
+                                            null=True, blank=True, related_name='+')
+    last_saved_sha256 = models.CharField(max_length=64, blank=True)
+    last_saved_at = models.DateTimeField(null=True, blank=True)
+    save_count = models.PositiveIntegerField(default=0)
+    last_conflict = models.ForeignKey('office.QuarantinedSave', on_delete=models.SET_NULL,
+                                      null=True, blank=True, related_name='+')
+    saving_since = models.DateTimeField(null=True, blank=True)
+    # Lifecycle.
+    state = models.CharField(max_length=12, choices=STATE_CHOICES, default='starting',
+                             db_index=True)
+    working_copy = models.CharField(max_length=16, choices=COPY_CHOICES, default='none')
+    opened_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(default=timezone.now)
+    reminded_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    end_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'm365_edit_sessions'
+        ordering = ['-opened_at']
+        constraints = [models.UniqueConstraint(
+            fields=['user', 'target_key'], condition=models.Q(state__in=('starting', 'open')),
+            name='m365_edit_one_live_session_per_user_file')]
+        indexes = [models.Index(fields=['target_key', 'state'], name='m365_edit_target_state')]
+
+    def __str__(self):
+        return f'{self.target_label or self.target_key} ({self.get_state_display()})'
+
+    @property
+    def is_live(self):
+        return self.state in self.LIVE_STATES
 
 
 # ---------------------------------------------------------------------------
