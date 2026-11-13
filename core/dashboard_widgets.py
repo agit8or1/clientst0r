@@ -482,7 +482,8 @@ def build_ticket_activity(request, org):
     resolved = {}
     for r, c in qs.filter(Q(resolved_at__gte=start_dt) | Q(closed_at__gte=start_dt)).values_list(
             'resolved_at', 'closed_at'):
-        dt = r or c
+        # Resolved first, else closed: whichever falls in the window.
+        dt = r if r is not None and r >= start_dt else c
         if dt is None or dt < start_dt:
             continue
         d = timezone.localtime(dt).date()

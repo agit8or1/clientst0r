@@ -89,7 +89,7 @@
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
 }
-@media (max-width: 1599.98px) {
+@media (max-width: 1799.98px) {
     .dash-fit .dash-kpi-icon { display: none; }
     .dash-fit .dash-kpi { gap: 6px; padding: 5px 8px; }
 }
