@@ -59,7 +59,7 @@ class HelperHarness(SimpleTestCase):
         self._stub('ip', 'echo "[]"')
         (self.root / 'proc').mkdir()
         (self.root / 'proc' / 'meminfo').write_text(
-            'MemTotal:        7168000 kB\nMemAvailable:    5000000 kB\nSwapTotal:   2097152 kB\n')
+            'MemTotal:        7168000 kB\nMemAvailable:    6500000 kB\nSwapTotal:   2097152 kB\n')
         (self.root / 'etc').mkdir()
         (self.root / 'etc' / 'os-release').write_text('ID=ubuntu\nVERSION_ID="24.04"\n')
         self.docker_log = self.root / 'docker.log'

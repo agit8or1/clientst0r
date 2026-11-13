@@ -10,6 +10,8 @@ compose file the helper wrote), its state and health. Behaviour switches:
     FAKE_DOCKER_BAD_DIGEST=1         `image inspect` reports a different digest
     FAKE_DOCKER_SHUTDOWN_RC=<n>      exit code of prepare4shutdown
     FAKE_DOCKER_DOWN=1               the daemon is not running
+    FAKE_DOCKER_CALLBACK_RC=<n>      exit code of the in-container callback check
+The world has one container at a time (one managed engine at a time).
 """
 import json
 import os
@@ -57,25 +59,32 @@ if args[:1] == ['compose']:
     text = open(compose_file).read()
     image = re.search(r'^    image: "(.+)"$', text, re.M).group(1)
     rel = re.search(r'org\.clientst0r\.office\.release: "(.+)"$', text, re.M).group(1)
+    name = re.search(r'^    container_name: (.+)$', text, re.M).group(1)
+    layout = re.search(r'org\.clientst0r\.office\.layout: "(.+)"$', text, re.M)
     if cmd == 'up':
         if image not in world['images']:
             out(rc=1, err=f'pull access denied for {image} (not pulled; --pull never)')
         digest = image.split('@', 1)[1]
         healthy = digest != os.environ.get('FAKE_DOCKER_UNHEALTHY')
-        world['container'] = {'image': image, 'release': rel, 'running': True,
+        world['container'] = {'image': image, 'release': rel, 'running': True, 'name': name,
+                              'layout': layout.group(1) if layout else '',
                               'health': 'healthy' if healthy else 'unhealthy'}
         out()
+    mine = world['container'] and world['container'].get('name', 'clientst0r-office-ds') == name
     if cmd == 'stop':
-        if world['container']:
+        if mine:
             world['container'].update(running=False, health='none')
         out()
     if cmd == 'down':
-        world['container'] = None
+        if mine:
+            world['container'] = None
         out()
     out(rc=1, err=f'fake compose: unsupported {cmd}')
 
 if args[:1] == ['inspect']:
     c = world['container']
+    if c and c.get('name', 'clientst0r-office-ds') != args[-1]:
+        c = None
     if not c:
         out(rc=1, err='Error: No such container: clientst0r-office-ds')
     out(json.dumps({'State': {'Status': 'running' if c['running'] else 'exited',
@@ -83,7 +92,8 @@ if args[:1] == ['inspect']:
                               'StartedAt': '2026-11-12T00:00:00Z', 'OOMKilled': False},
                     'RestartCount': 0,
                     'Config': {'Image': c['image'],
-                               'Labels': {'org.clientst0r.office.release': c['release']}}}))
+                               'Labels': {'org.clientst0r.office.release': c['release'],
+                                          'org.clientst0r.office.layout': c.get('layout', '')}}}))
 if args[:1] == ['stats']:
     if not (world['container'] or {}).get('running'):
         out(rc=1)
@@ -103,6 +113,11 @@ if args[:2] == ['image', 'rm']:
     world['images'] = [i for i in world['images'] if i != args[2]]
     out()
 if args[:1] == ['exec']:
+    if args[2:3] in (['openssl'], ['curl']):
+        # callback-check from inside the container
+        rc = int(os.environ.get('FAKE_DOCKER_CALLBACK_RC', '0'))
+        out('Verification: OK' if rc == 0 else '', rc=rc,
+            err='' if rc == 0 else 'connect: Connection timed out')
     assert args[1:] == ['clientst0r-office-ds', 'documentserver-prepare4shutdown'], args
     out('shutdown prepared', rc=int(os.environ.get('FAKE_DOCKER_SHUTDOWN_RC', '0')))
 if args[:1] == ['logs']:

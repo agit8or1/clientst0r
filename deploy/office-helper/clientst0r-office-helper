@@ -1,7 +1,10 @@
 #!/usr/bin/python3 -I
 """
-clientst0r Office service helper: runs this deployment's one managed
-ONLYOFFICE Docs container ("Managed Local ONLYOFFICE").
+clientst0r Office service helper: runs this deployment's one managed editor
+container: ONLYOFFICE Docs ("Managed Local ONLYOFFICE") or Collabora Online
+Development Edition ("Managed Local Collabora (CODE)"). One engine is
+installed at a time; which engines the app may choose between is root-owned
+configuration (ENGINES=).
 
 It is a separate root program from clientst0r-root-helper on purpose (see
 docs/office/MANAGED_LOCAL.md, "Why a separate helper"):
@@ -27,10 +30,13 @@ docs/office/MANAGED_LOCAL.md, "Why a separate helper"):
 
 Operations over the socket (the app's vocabulary, nothing else):
 
-    preflight            read-only host checks
-    status               state, health, versions, resources, last operation
-    releases             the tested release list and what is installed
-    install              create/converge the container (idempotent)
+    preflight [{"engine": E}]   read-only host checks (incl. capacity for E)
+    status               state, health, versions, resources, capacity,
+                         reverse-proxy layout, last operation
+    releases             the tested release lists and what is installed
+    install [{"engine": E}]     create/converge the container (idempotent);
+                         E is "onlyoffice" or "collabora" and must be listed
+                         in ENGINES=. Another engine must be uninstalled first.
     start | stop | restart
     update  {"release": "<id from the release list>"}
     rollback             back to the release before the last update, from
@@ -38,8 +44,23 @@ Operations over the socket (the app's vocabulary, nothing else):
     logs    {"lines": 1..500}   bounded, redacted container log
     uninstall            remove the container; documents, editor data,
                          secrets and backups are kept
-    secret               the JWT secret, to the app user only (for the
-                         ONLYOFFICE provider settings); never logged
+    secret               the ONLYOFFICE JWT secret, to the app user only (for
+                         the provider settings); never logged. Collabora has
+                         no secret the app needs (its admin password stays here)
+    set-layout {"layout": "dedicated" | "same-host"}
+                         switch the editor's public address layout (one of
+                         PROXY_LAYOUTS=): rewrites this helper's own Nginx
+                         files, then recreates the container with the new
+                         server name. Data is kept; nothing is reinstalled.
+    proxy-status         read-only: the Nginx files this helper manages, the
+                         existing sites (never modified), certificate, DNS
+    proxy-install {"hostname": H}   (re)write this helper's Nginx files for the
+                         current layout; H must equal the host name that
+                         layout serves (from the root config). nginx -t, then
+                         reload; restored on any failure
+    proxy-remove         remove this helper's Nginx files (nginx -t, reload)
+    callback-check       from inside the container: can the editor reach
+                         clientst0r over verified HTTPS (the callback path)?
 
 Administrator-only, from a root shell (never over the socket):
 
@@ -51,8 +72,14 @@ Files:
     /etc/clientst0r/office-service.conf   root-owned settings (see the
                                           .example next to this file)
     /etc/clientst0r/office/               root-only secrets (0700)
-    /var/lib/clientst0r-office/           data, compose file, state, backups
+    /var/lib/clientst0r-office/           data, compose files, state, backups
     /run/clientst0r-office/               socket and operation lock
+    /etc/nginx/sites-available/clientst0r-office-managed   dedicated host
+                                          name server block (+ sites-enabled link)
+    /etc/nginx/clientst0r-office/same-host.conf   same-host locations; the
+                                          administrator includes it ONCE in
+                                          clientst0r's own server block (this
+                                          helper never edits that file)
 """
 import datetime
 import fcntl
@@ -74,7 +101,7 @@ import tarfile
 import time
 import urllib.request
 
-HELPER_VERSION = '1'
+HELPER_VERSION = '2'
 
 # ---------------------------------------------------------------------------
 # Tested release list. The ONLY images this helper will ever run.
@@ -106,16 +133,51 @@ RELEASES = [
      'compat': 'ds10-ee', 'tested': False, 'published': '2026-11-09'},
 ]
 
+for _r in RELEASES:
+    _r['engine'] = 'onlyoffice'
+
+# Collabora Online Development Edition (CODE), the official image
+# docker.io/collabora/code. digest = the multi-arch index digest, read
+# 2026-11-13 from registry-1.docker.io (Docker-Content-Digest) and the Docker
+# Hub tags API. CODE is a rolling development/evaluation build ("not
+# recommended for production environments", collaboraonline.com/code/);
+# licensed Collabora Online is used through the external Collabora instance
+# type instead. CODE keeps no persistent data of its own (documents live in
+# clientst0r), so a backup is configuration + state only.
+COLLABORA_RELEASES = [
+    {'id': '26.04.5.2.1-code', 'version': '26.04.5.2.1', 'edition': 'code',
+     'image': 'docker.io/collabora/code',
+     'digest': 'sha256:c7415b963e32eb0986a562583f154d36d3d7a461e1ddfb660a95e87094328acb',
+     'compat': 'code-26.04', 'tested': False, 'published': '2026-10-23', 'engine': 'collabora'},
+    {'id': '26.04.6.1.1-code', 'version': '26.04.6.1.1', 'edition': 'code',
+     'image': 'docker.io/collabora/code',
+     'digest': 'sha256:95f29f1c0a1778999125f53f058d968fe0afb37c95e32ebfb9f3444140faebd2',
+     'compat': 'code-26.04', 'tested': False, 'published': '2026-11-07', 'engine': 'collabora'},
+]
+ALL_RELEASES = RELEASES + COLLABORA_RELEASES
+
 # Resource figures (docs/office/MANAGED_LOCAL.md, "Vendor facts"):
-# Docker image README "Recommended System Requirements": RAM 4 GB or more,
-# dual-core 2 GHz, swap at least 2 GB, 2 GB free disk. Linux install page
-# minimum: RAM 2 GB, HDD 40 GB, swap 4 GB.
+# ONLYOFFICE: Docker image README "Recommended System Requirements": RAM 4 GB
+# or more, dual-core 2 GHz, swap at least 2 GB, 2 GB free disk. Linux install
+# page minimum: RAM 2 GB, HDD 40 GB, swap 4 GB.
 VENDOR_MIN_MEMORY_MB = 2048
 VENDOR_RECOMMENDED_MEMORY_MB = 4096
 VENDOR_MIN_CPUS = 2
+# Collabora publishes per-user sizing, not a fixed minimum: 1 vCPU per 15
+# active users and 50 MB RAM per active user (Collabora Online technical
+# documentation, as reproduced in openDesk's scaling guide). The floor below
+# is clientst0r's own: the base processes (coolwsd, forkit, one pre-spawned
+# document process) plus headroom; the default covers about 10 active users.
+COOL_MIN_MEMORY_MB = 1024
+COOL_DEFAULT_MEMORY_MB = 1536
+COOL_DEFAULT_CPUS = 1.5
 DISK_FAIL_GB = 10       # image + working data; below this nothing works
 DISK_WARN_GB = 40       # the Linux install page's figure
 DEFAULT_RESERVE_MB = 2048   # kept free for clientst0r, its database and Nginx
+# Capacity rule (both engines): after the editor's memory limit is taken out
+# of the memory available *now*, at least HOST_FREE_FAIL_MB must remain
+# (refused below that) and RESERVE_MB should remain (a warning below that).
+HOST_FREE_FAIL_MB = 1024
 
 # ---------------------------------------------------------------------------
 # Fixed names and paths
@@ -131,19 +193,39 @@ SECRETS_DIR = '/etc/clientst0r/office'
 JWT_FILE = SECRETS_DIR + '/jwt.secret'
 LINK_FILE = SECRETS_DIR + '/securelink.secret'
 ENV_FILE = SECRETS_DIR + '/ds.env'
+COOL_ADMIN_FILE = SECRETS_DIR + '/collabora-admin.secret'
+COOL_ENV_FILE = SECRETS_DIR + '/collabora.env'
 LICENSE_FILE = SECRETS_DIR + '/license.lic'          # enterprise only, placed by the admin
 CA_FILE = SECRETS_DIR + '/extra-ca-certs.pem'        # optional private CA (PEM)
 BASE_DIR = '/var/lib/clientst0r-office'
 DATA_DIR = BASE_DIR + '/data'
+COOL_DIR = BASE_DIR + '/collabora'
+COOL_PROOF_KEY = COOL_DIR + '/proof_key'
 COMPOSE_DIR = BASE_DIR + '/compose'
 COMPOSE_FILE = COMPOSE_DIR + '/compose.yaml'
+COOL_COMPOSE_FILE = COMPOSE_DIR + '/collabora.yaml'
 STATE_DIR = BASE_DIR + '/state'
 INSTALLED_FILE = STATE_DIR + '/installed.json'
+PROXY_STATE_FILE = STATE_DIR + '/proxy.json'
 JOURNAL_FILE = STATE_DIR + '/operation.json'
 HISTORY_FILE = STATE_DIR + '/history.jsonl'
 BACKUP_DIR = BASE_DIR + '/backups'
 RUN_DIR = '/run/clientst0r-office'
 LOCK_FILE = RUN_DIR + '/operation.lock'
+
+# Nginx files this helper owns. Nothing else under /etc/nginx is ever written.
+NGINX_AVAILABLE = '/etc/nginx/sites-available'
+NGINX_ENABLED = '/etc/nginx/sites-enabled'
+SITE_NAME = 'clientst0r-office-managed'
+SITE_FILE = NGINX_AVAILABLE + '/' + SITE_NAME
+SITE_LINK = NGINX_ENABLED + '/' + SITE_NAME
+SNIPPET_DIR = '/etc/nginx/clientst0r-office'
+SNIPPET_FILE = SNIPPET_DIR + '/same-host.conf'
+INCLUDE_LINE = f'include {SNIPPET_FILE};'
+ACME_DIR = '/var/www/clientst0r-office-acme'
+NGINX_MARKERS = ('# Managed by clientst0r-office-helper',
+                 '# Managed by clientst0r scripts/office/install-managed-local.sh')
+NGINX_MARKER = NGINX_MARKERS[0]
 
 # Editor volumes: (name under DATA_DIR, path in the container). The image
 # declares /var/log, /var/lib and /var/www/<company>/Data as volumes; the
@@ -154,6 +236,27 @@ VOLUMES_EE = [('db', '/var/lib/postgresql'), ('rabbitmq', '/var/lib/rabbitmq'),
               ('redis', '/var/lib/redis')]
 BACKUP_EXCLUDE = ('logs',)
 KEEP_BACKUPS = 3
+
+# The two engines. Everything about how each one runs is fixed here; the app
+# can only name one of the two keys.
+ENGINE_IDS = ('onlyoffice', 'collabora')
+ENGINES = {
+    'onlyoffice': {
+        'label': 'ONLYOFFICE Docs', 'project': PROJECT, 'container': CONTAINER,
+        'service': 'documentserver', 'compose_file': COMPOSE_FILE, 'inner_port': 80,
+        'health_path': '/healthcheck', 'image_re': r'^docker\.io/onlyoffice/documentserver(-ee)?$',
+        'layouts': ('dedicated',), 'stop_timeout': 360,
+    },
+    'collabora': {
+        'label': 'Collabora Online Development Edition (CODE)', 'project': 'clientst0r-office-cool',
+        'container': 'clientst0r-office-cool', 'service': 'coolwsd',
+        'compose_file': COOL_COMPOSE_FILE, 'inner_port': 9980,
+        'health_path': '/hosting/discovery', 'image_re': r'^docker\.io/collabora/code$',
+        'layouts': ('dedicated', 'same-host'), 'stop_timeout': 120,
+    },
+}
+LAYOUTS = ('dedicated', 'same-host')
+PROXY_TLS_MODES = ('upstream', 'local-cert', 'letsencrypt')
 
 SAFE_PATH = '/usr/sbin:/usr/bin:/sbin:/bin'
 # DOCKER_CONFIG: the unit sets ProtectHome, so the docker CLI keeps its
@@ -168,17 +271,22 @@ HEALTH_TIMEOUT = 600        # first start regenerates the font cache
 SHUTDOWN_TIMEOUT = 360      # README: prepare4shutdown "may take ... up to 5 minutes"
 STOP_GRACE = '6m'
 
-ASYNC_OPS = ('install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall')
-SYNC_OPS = ('preflight', 'status', 'releases', 'logs', 'secret')
+ASYNC_OPS = ('install', 'start', 'stop', 'restart', 'update', 'rollback', 'uninstall',
+             'set-layout')
+SYNC_OPS = ('preflight', 'status', 'releases', 'logs', 'secret', 'proxy-status',
+            'proxy-install', 'proxy-remove', 'callback-check')
 SOCKET_OPS = ASYNC_OPS + SYNC_OPS
 CLI_ONLY_OPS = ('purge', 'apply-firewall')
 
 ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]{2,31}$')
 USER_RE = re.compile(r'^[a-z_][a-z0-9_-]{0,31}$')
 HOST_RE = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$')
-RELEASE_RE = re.compile(r'^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}-(community|enterprise)$')
+RELEASE_RE = re.compile(r'^[0-9]{1,3}(\.[0-9]{1,3}){2,4}-(community|enterprise|code)$')
 DIGEST_RE = re.compile(r'^sha256:[0-9a-f]{64}$')
 IMAGE_RE = re.compile(r'^docker\.io/onlyoffice/documentserver(-ee)?$')
+# Certificate paths from the root config: absolute, plain characters, inside
+# the usual certificate directories or ours. Never a path the app sent.
+CERT_PATH_RE = re.compile(r'^/etc/(ssl|letsencrypt/live|clientst0r/office/tls)/[A-Za-z0-9._/-]{1,200}$')
 
 TEST_MODE = False
 TEST_ROOT = ''
@@ -200,6 +308,8 @@ def _enable_test_mode():
     TEST_MODE, TEST_ROOT, TEST_UID = True, root.rstrip('/'), os.getuid()
     BASE_ENV = dict(BASE_ENV, PATH=os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_PATH', SAFE_PATH),
                     HOME=TEST_ROOT, DOCKER_CONFIG=TEST_ROOT + '/docker-cli')
+    # The installer's test stubs (office/test_managed_installer.py) read these.
+    BASE_ENV.update({k: v for k, v in os.environ.items() if k.startswith('STUB_')})
 
 
 def P(path):
@@ -242,11 +352,6 @@ def run(argv, timeout=120, check=False, input_text=None):
 
 def docker(*args, timeout=120, check=False):
     return run(['docker', *args], timeout=timeout, check=check)
-
-
-def compose(*args, timeout=600, check=True):
-    return run(['docker', 'compose', '--project-name', PROJECT, '--file', P(COMPOSE_FILE),
-                *args], timeout=timeout, check=check)
 
 
 def _check_trusted(path, *, secret=False):
@@ -331,7 +436,49 @@ def load_config():
 
 KNOWN_KEYS = {'DEPLOYMENT_ID', 'APP_USER', 'OFFICE_HOSTNAME', 'CLIENTSTOR_URL', 'BIND_PORT',
               'EDITION', 'CPUS', 'MEMORY_MB', 'RESERVE_MB', 'NETWORK_SUBNET',
-              'ALLOW_UNTESTED_RELEASES', 'PRIVATE_CA', 'MAINTENANCE_UPDATES'}
+              'ALLOW_UNTESTED_RELEASES', 'PRIVATE_CA', 'MAINTENANCE_UPDATES',
+              # engines + reverse proxy (Managed Local Collabora, helper version 2)
+              'ENGINES', 'COLLABORA_BIND_PORT', 'COLLABORA_CPUS', 'COLLABORA_MEMORY_MB',
+              'PROXY_LAYOUTS', 'PROXY_TLS', 'PROXY_CERT_FILE', 'PROXY_KEY_FILE',
+              'PROXY_MAX_BODY_MB', 'CALLBACK_ROUTE', 'CALLBACK_UPSTREAM_IP'}
+
+
+def _csv(raw, key, allowed, default):
+    value = raw.get(key, default)
+    items = [x.strip() for x in value.split(',') if x.strip()]
+    if not items or len(set(items)) != len(items) or any(x not in allowed for x in items):
+        raise HelperError(f'{CONF_PATH}: {key} must be a comma-separated list of '
+                          f'{", ".join(allowed)}')
+    return tuple(items)
+
+
+def _limits(raw, conf, key_mem, key_cpus, default_mem, default_cpus, minimum, label):
+    try:
+        mem = int(raw.get(key_mem, str(default_mem)))
+        cpus = float(raw.get(key_cpus, str(default_cpus)))
+    except ValueError:
+        raise HelperError(f'{CONF_PATH}: {key_cpus} and {key_mem} must be numbers')
+    if mem < minimum:
+        raise HelperError(f'{CONF_PATH}: {key_mem} must be at least {minimum} ({label})')
+    total = _meminfo().get('MemTotal', 0)
+    if total and mem + conf['reserve_mb'] > total:
+        raise HelperError(f'{CONF_PATH}: {key_mem} {mem} + RESERVE_MB {conf["reserve_mb"]} '
+                          f'is more than this host\'s {total} MB')
+    ncpu = _cpu_count()
+    if not (0.5 <= cpus <= max(0.5, ncpu - 1)) or round(cpus, 2) != cpus:
+        raise HelperError(f'{CONF_PATH}: {key_cpus} must be 0.5-{max(0.5, ncpu - 1)} (one core stays '
+                          'for clientst0r), at most two decimals')
+    return mem, cpus
+
+
+def _port(raw, key, default):
+    try:
+        port = int(raw.get(key, str(default)))
+    except ValueError:
+        raise HelperError(f'{CONF_PATH}: {key} must be a number')
+    if not 1024 <= port <= 65535:
+        raise HelperError(f'{CONF_PATH}: {key} must be 1024-65535')
+    return port
 
 
 def validate_config(raw):
@@ -350,7 +497,14 @@ def validate_config(raw):
     c['app_user'] = need('APP_USER', USER_RE, 'a user name')
     if c['app_user'] == 'root':
         raise HelperError(f'{CONF_PATH}: APP_USER must not be root')
-    c['office_hostname'] = need('OFFICE_HOSTNAME', HOST_RE, 'a DNS host name').lower()
+    c['engines'] = _csv(raw, 'ENGINES', ENGINE_IDS, 'onlyoffice')
+    c['layouts'] = _csv(raw, 'PROXY_LAYOUTS', LAYOUTS, 'dedicated')
+    if 'same-host' in c['layouts'] and 'collabora' not in c['engines']:
+        raise HelperError(f'{CONF_PATH}: PROXY_LAYOUTS same-host is supported for Collabora only '
+                          '(ENGINES must list collabora)')
+    if c['layouts'] == ('same-host',) and 'onlyoffice' in c['engines']:
+        raise HelperError(f'{CONF_PATH}: ONLYOFFICE needs a dedicated host name: add dedicated to '
+                          'PROXY_LAYOUTS or remove onlyoffice from ENGINES')
 
     url = raw.get('CLIENTSTOR_URL', '')
     m = re.match(r'^https://([a-z0-9.-]+)(:([0-9]{2,5}))?/?$', url.lower())
@@ -360,19 +514,23 @@ def validate_config(raw):
     c['clientstor_host'] = m.group(1)
     c['clientstor_port'] = int(m.group(3) or 443)
     if c['clientstor_port'] != 443:
-        # The firewall opens exactly gateway:443 to the container.
+        # The firewall opens exactly one destination on 443 to the container.
         raise HelperError(f'{CONF_PATH}: CLIENTSTOR_URL must use port 443')
     c['clientstor_url'] = f'https://{c["clientstor_host"]}/'
-    if c['clientstor_host'] == c['office_hostname']:
-        raise HelperError(f'{CONF_PATH}: OFFICE_HOSTNAME must differ from clientst0r\'s host name '
-                          '(the editor gets its own origin)')
 
-    try:
-        c['bind_port'] = int(raw.get('BIND_PORT', '8090'))
-    except ValueError:
-        raise HelperError(f'{CONF_PATH}: BIND_PORT must be a number')
-    if not 1024 <= c['bind_port'] <= 65535:
-        raise HelperError(f'{CONF_PATH}: BIND_PORT must be 1024-65535')
+    host = raw.get('OFFICE_HOSTNAME', '').lower()
+    if 'dedicated' in c['layouts'] or host:
+        if not HOST_RE.match(host):
+            raise HelperError(f'{CONF_PATH}: OFFICE_HOSTNAME is missing or not a DNS host name')
+        if host == c['clientstor_host']:
+            raise HelperError(f'{CONF_PATH}: OFFICE_HOSTNAME must differ from clientst0r\'s host name '
+                              '(the editor gets its own origin)')
+    c['office_hostname'] = host
+
+    c['bind_port'] = _port(raw, 'BIND_PORT', 8090)
+    c['cool_bind_port'] = _port(raw, 'COLLABORA_BIND_PORT', 9981)
+    if c['cool_bind_port'] == c['bind_port']:
+        raise HelperError(f'{CONF_PATH}: COLLABORA_BIND_PORT must differ from BIND_PORT')
 
     c['edition'] = raw.get('EDITION', 'community')
     if c['edition'] not in ('community', 'enterprise'):
@@ -380,23 +538,21 @@ def validate_config(raw):
 
     try:
         c['reserve_mb'] = int(raw.get('RESERVE_MB', str(DEFAULT_RESERVE_MB)))
-        c['memory_mb'] = int(raw.get('MEMORY_MB', str(VENDOR_RECOMMENDED_MEMORY_MB)))
-        c['cpus'] = float(raw.get('CPUS', '2'))
     except ValueError:
         raise HelperError(f'{CONF_PATH}: CPUS, MEMORY_MB and RESERVE_MB must be numbers')
     if c['reserve_mb'] < 1024:
         raise HelperError(f'{CONF_PATH}: RESERVE_MB must leave at least 1024 MB for clientst0r')
-    if c['memory_mb'] < VENDOR_MIN_MEMORY_MB:
-        raise HelperError(f'{CONF_PATH}: MEMORY_MB must be at least {VENDOR_MIN_MEMORY_MB} '
-                          '(ONLYOFFICE\'s published minimum)')
-    total = _meminfo().get('MemTotal', 0)
-    if total and c['memory_mb'] + c['reserve_mb'] > total:
-        raise HelperError(f'{CONF_PATH}: MEMORY_MB {c["memory_mb"]} + RESERVE_MB {c["reserve_mb"]} '
-                          f'is more than this host\'s {total} MB')
-    ncpu = _cpu_count()
-    if not (0.5 <= c['cpus'] <= max(0.5, ncpu - 1)) or round(c['cpus'], 2) != c['cpus']:
-        raise HelperError(f'{CONF_PATH}: CPUS must be 0.5-{max(0.5, ncpu - 1)} (one core stays '
-                          'for clientst0r), at most two decimals')
+    if 'onlyoffice' in c['engines']:
+        c['memory_mb'], c['cpus'] = _limits(raw, c, 'MEMORY_MB', 'CPUS', VENDOR_RECOMMENDED_MEMORY_MB, 2,
+                                            VENDOR_MIN_MEMORY_MB, 'ONLYOFFICE\'s published minimum')
+    else:
+        c['memory_mb'], c['cpus'] = 0, 0.0
+    if 'collabora' in c['engines']:
+        c['cool_memory_mb'], c['cool_cpus'] = _limits(
+            raw, c, 'COLLABORA_MEMORY_MB', 'COLLABORA_CPUS', COOL_DEFAULT_MEMORY_MB, COOL_DEFAULT_CPUS,
+            COOL_MIN_MEMORY_MB, 'clientst0r\'s floor for CODE')
+    else:
+        c['cool_memory_mb'], c['cool_cpus'] = 0, 0.0
 
     try:
         net = ipaddress.ip_network(raw.get('NETWORK_SUBNET', '172.31.250.0/28'), strict=True)
@@ -416,6 +572,46 @@ def validate_config(raw):
             raise HelperError(f'{CONF_PATH}: {key} must be yes or no')
         c[name] = value == 'yes'
 
+    # Reverse proxy. upstream = TLS is terminated on another device in front
+    # of this server, which forwards plain HTTP to this server's Nginx on 80.
+    c['proxy_tls'] = raw.get('PROXY_TLS', 'local-cert')
+    if c['proxy_tls'] not in PROXY_TLS_MODES:
+        raise HelperError(f'{CONF_PATH}: PROXY_TLS must be one of {", ".join(PROXY_TLS_MODES)}')
+    for key, name in (('PROXY_CERT_FILE', 'cert_file'), ('PROXY_KEY_FILE', 'key_file')):
+        value = raw.get(key, '')
+        if value and (not CERT_PATH_RE.match(value) or '..' in value.split('/')):
+            raise HelperError(f'{CONF_PATH}: {key} must be a file under /etc/ssl/, '
+                              '/etc/letsencrypt/live/ or /etc/clientst0r/office/tls/')
+        c[name] = value
+    try:
+        c['max_body_mb'] = int(raw.get('PROXY_MAX_BODY_MB', '100'))
+    except ValueError:
+        raise HelperError(f'{CONF_PATH}: PROXY_MAX_BODY_MB must be a number')
+    if not 1 <= c['max_body_mb'] <= 1024:
+        raise HelperError(f'{CONF_PATH}: PROXY_MAX_BODY_MB must be 1-1024')
+
+    # How the container reaches clientst0r (callbacks, WOPI, downloads).
+    # gateway  = this host's Nginx on the bridge gateway:443 (needs local TLS)
+    # upstream = the TLS-terminating device in front of this server, at one
+    #            fixed IPv4 address, port 443 (PROXY_TLS=upstream setups)
+    c['callback_route'] = raw.get('CALLBACK_ROUTE', 'gateway')
+    if c['callback_route'] not in ('gateway', 'upstream'):
+        raise HelperError(f'{CONF_PATH}: CALLBACK_ROUTE must be gateway or upstream')
+    c['upstream_ip'] = ''
+    if c['callback_route'] == 'upstream':
+        try:
+            ip = ipaddress.ip_address(raw.get('CALLBACK_UPSTREAM_IP', ''))
+        except ValueError:
+            raise HelperError(f'{CONF_PATH}: CALLBACK_ROUTE=upstream needs CALLBACK_UPSTREAM_IP '
+                              '(the IPv4 address of the TLS proxy in front of this server)')
+        if ip.version != 4 or ip.is_loopback or ip.is_link_local or ip.is_multicast \
+                or ip.is_unspecified or ip in net \
+                or ip in ipaddress.ip_network('100.100.100.200/32'):
+            raise HelperError(f'{CONF_PATH}: CALLBACK_UPSTREAM_IP must be a unicast IPv4 address '
+                              'outside loopback, link-local and NETWORK_SUBNET')
+        c['upstream_ip'] = str(ip)
+    c['callback_target'] = c['upstream_ip'] or c['gateway']
+
     try:
         c['app_uid'] = pwd.getpwnam(c['app_user']).pw_uid
     except KeyError:
@@ -424,17 +620,65 @@ def validate_config(raw):
         c['app_uid'] = TEST_UID
     if TEST_MODE:
         c['app_uid'] = TEST_UID
-    c['internal_url'] = f'http://127.0.0.1:{c["bind_port"]}/'
-    c['browser_url'] = f'https://{c["office_hostname"]}/'
     return c
+
+
+def engine_limits(conf, engine):
+    if engine == 'collabora':
+        return conf['cool_memory_mb'], conf['cool_cpus'], conf['cool_bind_port']
+    return conf['memory_mb'], conf['cpus'], conf['bind_port']
+
+
+def proxy_state():
+    return read_json(P(PROXY_STATE_FILE), {}) or {}
+
+
+def current_layout(conf, engine=None):
+    engine = engine or active_engine(conf)
+    allowed = [x for x in conf['layouts'] if x in ENGINES[engine]['layouts']]
+    chosen = proxy_state().get('layout')
+    if chosen in allowed:
+        return chosen
+    return allowed[0] if allowed else 'dedicated'
+
+
+def public_host(conf, layout):
+    return conf['clientstor_host'] if layout == 'same-host' else conf['office_hostname']
+
+
+def active_engine(conf):
+    """The engine installed now (or the one to install by default)."""
+    inst = installed()
+    if inst.get('release') and inst.get('state') != 'uninstalled':
+        return inst.get('engine') or 'onlyoffice'
+    if inst.get('engine') in conf['engines']:
+        return inst['engine']
+    return conf['engines'][0]
+
+
+def addresses(conf, engine=None):
+    engine = engine or active_engine(conf)
+    layout = current_layout(conf, engine)
+    _mem, _cpus, port = engine_limits(conf, engine)
+    return {'engine': engine, 'layout': layout, 'browser_url': f'https://{public_host(conf, layout)}/',
+            'internal_url': f'http://127.0.0.1:{port}/'}
 
 
 def public_config(c):
     """What status may show the app: no secrets, no paths."""
-    return {k: c[k] for k in ('deployment_id', 'office_hostname', 'clientstor_url', 'browser_url',
-                              'internal_url', 'bind_port', 'edition', 'cpus', 'memory_mb',
-                              'reserve_mb', 'subnet', 'allow_untested', 'private_ca',
-                              'maintenance_updates')}
+    out = {k: c[k] for k in ('deployment_id', 'office_hostname', 'clientstor_url', 'bind_port',
+                             'edition', 'cpus', 'memory_mb', 'reserve_mb', 'subnet',
+                             'allow_untested', 'private_ca', 'maintenance_updates', 'engines',
+                             'layouts', 'proxy_tls', 'max_body_mb', 'callback_route',
+                             'cool_bind_port', 'cool_memory_mb', 'cool_cpus')}
+    out['engines'], out['layouts'] = list(c['engines']), list(c['layouts'])
+    addr = addresses(c)
+    out.update(engine=addr['engine'], layout=addr['layout'], browser_url=addr['browser_url'],
+               internal_url=addr['internal_url'])
+    out['engine_layouts'] = {e: [x for x in c['layouts'] if x in ENGINES[e]['layouts']]
+                             for e in c['engines']}
+    out['engine_memory_mb'], out['engine_cpus'], _port = engine_limits(c, addr['engine'])
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -442,20 +686,27 @@ def public_config(c):
 # ---------------------------------------------------------------------------
 
 def release(release_id):
-    for r in RELEASES:
+    for r in ALL_RELEASES:
         if r['id'] == release_id:
             return r
     return None
 
 
+def engine_edition(conf, engine):
+    return 'code' if engine == 'collabora' else conf['edition']
+
+
 def release_problem(r, conf):
     if r is None:
         return 'not in the tested release list'
+    engine = r.get('engine', 'onlyoffice')
     if not DIGEST_RE.match(r['digest']) or r['digest'] == PLACEHOLDER_DIGEST:
         return 'has no pinned image digest (placeholder); this release cannot be installed'
-    if not IMAGE_RE.match(r['image']):
-        return 'names an image outside the official ONLYOFFICE repositories'
-    if r['edition'] != conf['edition']:
+    if not re.match(ENGINES[engine]['image_re'], r['image']):
+        return 'names an image outside the official repositories'
+    if engine not in conf.get('engines', ('onlyoffice',)):
+        return f'is a {ENGINES[engine]["label"]} release; ENGINES does not list {engine}'
+    if r['edition'] != engine_edition(conf, engine):
         return f'is the {r["edition"]} edition; this deployment is configured for {conf["edition"]}'
     if not r['tested'] and not conf['allow_untested']:
         return ('has not passed clientst0r\'s live verification yet; set '
@@ -467,8 +718,13 @@ def version_key(r):
     return tuple(int(x) for x in r['version'].split('.'))
 
 
-def default_release(conf):
-    usable = [r for r in RELEASES if not release_problem(r, conf)]
+def engine_releases(engine):
+    return [r for r in ALL_RELEASES if r['engine'] == engine]
+
+
+def default_release(conf, engine=None):
+    engine = engine or active_engine(conf)
+    usable = [r for r in engine_releases(engine) if not release_problem(r, conf)]
     return max(usable, key=version_key) if usable else None
 
 
@@ -498,6 +754,33 @@ def ensure_secrets():
     write_atomic(P(ENV_FILE), f'JWT_SECRET={jwt}\nSECURE_LINK_SECRET={link}\n', 0o600)
 
 
+COOL_UID = 1001     # the image's "cool" user (Dockerfile: usermod -u 1001 cool)
+
+
+def ensure_cool_secrets():
+    """Collabora: an admin password (the image wants one; the admin console
+    is switched off) and the WOPI proof key, both generated here once and
+    kept root-owned. The proof key is mounted read-only so it survives
+    container re-creation: clientst0r verifies X-WOPI-Proof against it."""
+    os.makedirs(P(SECRETS_DIR), mode=0o700, exist_ok=True)
+    os.chmod(P(SECRETS_DIR), 0o700)
+    if not os.path.exists(P(COOL_ADMIN_FILE)):
+        write_atomic(P(COOL_ADMIN_FILE), _alnum_secret() + '\n', 0o600)
+    password = read_secret(COOL_ADMIN_FILE)
+    write_atomic(P(COOL_ENV_FILE), f'username=clientst0r-admin\npassword={password}\n', 0o600)
+    os.makedirs(P(COOL_DIR), mode=0o711, exist_ok=True)
+    key = P(COOL_PROOF_KEY)
+    if not os.path.exists(key):
+        tmp = key + '.new'
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        run(['openssl', 'genrsa', '-traditional', '-out', tmp, '2048'], timeout=120, check=True)
+        os.replace(tmp, key)
+    os.chmod(key, 0o400)
+    if not TEST_MODE:
+        os.chown(key, COOL_UID, COOL_UID)
+
+
 def read_secret(path):
     _check_trusted(P(path), secret=True)
     with open(P(path), encoding='ascii') as f:
@@ -509,7 +792,7 @@ def read_secret(path):
 
 def known_secrets():
     out = []
-    for path in (JWT_FILE, LINK_FILE):
+    for path in (JWT_FILE, LINK_FILE, COOL_ADMIN_FILE):
         try:
             with open(P(path), encoding='ascii') as f:
                 v = f.read().strip()
@@ -521,7 +804,8 @@ def known_secrets():
 
 
 JWT_LIKE = re.compile(r'eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}')
-QUERY_SECRETS = re.compile(r'((?:access_token|token|md5|shardkey|WOPISrc|filename)=)[^&\s"\']+', re.I)
+QUERY_SECRETS = re.compile(
+    r'((?:access_token|token|md5|shardkey|WOPISrc|filename|password)=)[^&\s"\']+', re.I)
 BEARER = re.compile(r'(Bearer\s+)[A-Za-z0-9._~+/=-]+', re.I)
 
 
@@ -537,17 +821,47 @@ def redact(text):
 
 
 # ---------------------------------------------------------------------------
-# compose file (generated from validated values only)
+# compose files (generated from validated values only)
 # ---------------------------------------------------------------------------
 
 def volumes(edition):
     return VOLUMES_COMMON + (VOLUMES_EE if edition == 'enterprise' else [])
 
 
-def render_compose(conf, r):
-    def q(value):
-        return json.dumps(str(value))          # a JSON string is a valid YAML scalar
+def engine_volumes(r):
+    """Data volumes a backup covers. CODE has none: documents live in
+    clientst0r and its configuration is generated from this helper's."""
+    return volumes(r['edition']) if r['engine'] == 'onlyoffice' else []
 
+
+def _q(value):
+    return json.dumps(str(value))          # a JSON string is a valid YAML scalar
+
+
+def _network_block(conf):
+    return [
+        'networks:',
+        '  office:',
+        f'    name: {NETWORK}',
+        '    driver: bridge',
+        '    driver_opts:',
+        f'      com.docker.network.bridge.name: {BRIDGE}',
+        '    ipam:',
+        '      config:',
+        f'        - subnet: {_q(conf["subnet"])}',
+        f'          gateway: {_q(conf["gateway"])}',
+        '',
+    ]
+
+
+def render_compose(conf, r):
+    if r['engine'] == 'collabora':
+        return render_cool_compose(conf, r)
+    return render_oo_compose(conf, r)
+
+
+def render_oo_compose(conf, r):
+    q = _q
     env = {
         'JWT_ENABLED': 'true', 'JWT_HEADER': 'Authorization', 'JWT_IN_BODY': 'false',
         'WOPI_ENABLED': 'false',
@@ -580,7 +894,7 @@ def render_compose(conf, r):
         '    ports:',
         f'      - {q(f"127.0.0.1:{conf["bind_port"]}:80")}',
         '    extra_hosts:',
-        f'      - {q(conf["clientstor_host"] + ":" + conf["gateway"])}',
+        f'      - {q(conf["clientstor_host"] + ":" + conf["callback_target"])}',
         '    volumes:',
     ]
     for name, inside in volumes(r['edition']):
@@ -608,24 +922,99 @@ def render_compose(conf, r):
         f'      org.clientst0r.office.release: {q(r["id"])}',
         '    networks:',
         '      - office',
-        'networks:',
-        '  office:',
-        f'    name: {NETWORK}',
-        '    driver: bridge',
-        '    driver_opts:',
-        f'      com.docker.network.bridge.name: {BRIDGE}',
-        '    ipam:',
-        '      config:',
-        f'        - subnet: {q(conf["subnet"])}',
-        f'          gateway: {q(conf["gateway"])}',
-        '',
     ]
-    return '\n'.join(lines)
+    return '\n'.join(lines + _network_block(conf))
+
+
+def cool_options(conf, layout):
+    """coolwsd options, passed as separate container arguments (the image's
+    start script hands "$@" to coolwsd unchanged, so a value with a space
+    such as the CSP stays one argument). Fixed here; nothing comes from the
+    app."""
+    origin = f'https://{conf["clientstor_host"]}'
+    return [
+        # TLS is terminated by Nginx (or the device in front of it).
+        '--o:ssl.enable=false', '--o:ssl.termination=true',
+        # Only clientst0r may frame the editor.
+        f'--o:net.content_security_policy=frame-ancestors {origin}',
+        # Only clientst0r is a WOPI host (aliasgroup1 below), in groups mode
+        # so the "first host that connects" rule never applies.
+        '--o:storage.wopi.alias_groups[@mode]=groups',
+        '--o:admin_console.enable=false',
+        '--o:security.enable_macros_execution=false',
+        '--o:net.proto=IPv4',
+        '--o:num_prespawn_children=1',
+        '--o:logging.level=warning',
+    ]
+
+
+def render_cool_compose(conf, r):
+    q = _q
+    layout = current_layout(conf, 'collabora')
+    host = public_host(conf, layout)
+    if not HOST_RE.match(host or ''):
+        raise HelperError(f'no host name for the {layout} layout (set OFFICE_HOSTNAME)')
+    env = {
+        'DONT_GEN_SSL_CERT': '1',
+        'aliasgroup1': f'https://{conf["clientstor_host"]}:443',
+        'server_name': host,
+    }
+    lines = [
+        '# Generated by clientst0r-office-helper. Do not edit: it is rewritten on',
+        '# every install, update, rollback and layout change from',
+        '# /etc/clientst0r/office-service.conf.',
+        f'name: {ENGINES["collabora"]["project"]}',
+        'services:',
+        '  coolwsd:',
+        f'    image: {q(image_ref(r))}',
+        f'    container_name: {ENGINES["collabora"]["container"]}',
+        '    restart: unless-stopped',
+        '    stop_grace_period: 2m',
+        '    env_file:',
+        f'      - {q(COOL_ENV_FILE)}',
+        '    environment:',
+    ]
+    lines += [f'      {k}: {q(v)}' for k, v in env.items()]
+    lines.append('    command:')
+    lines += [f'      - {q(o)}' for o in cool_options(conf, layout)]
+    lines += [
+        '    ports:',
+        f'      - {q(f"127.0.0.1:{conf["cool_bind_port"]}:9980")}',
+        '    extra_hosts:',
+        f'      - {q(conf["clientstor_host"] + ":" + conf["callback_target"])}',
+        '    volumes:',
+        f'      - {q(COOL_PROOF_KEY + ":/etc/coolwsd/proof_key:ro")}',
+        f'    cpus: {conf["cool_cpus"]}',
+        f'    mem_limit: {conf["cool_memory_mb"]}m',
+        f'    memswap_limit: {conf["cool_memory_mb"]}m',
+        '    pids_limit: 2048',
+        # No "no-new-privileges" here: coolforkit-caps carries file
+        # capabilities (cap_fowner, cap_chown, cap_sys_chroot; image
+        # Dockerfile) to build each document's jail, and no-new-privileges
+        # would strip them. Raw sockets are not needed.
+        '    cap_drop:',
+        '      - NET_RAW',
+        '    logging:',
+        '      driver: json-file',
+        '      options:',
+        '        max-size: "10m"',
+        '        max-file: "3"',
+        '    labels:',
+        f'      org.clientst0r.office.deployment: {q(conf["deployment_id"])}',
+        f'      org.clientst0r.office.release: {q(r["id"])}',
+        f'      org.clientst0r.office.layout: {q(layout)}',
+        '    networks:',
+        '      - office',
+    ]
+    return '\n'.join(lines + _network_block(conf))
 
 
 def prepare_dirs(conf, r):
     for d in (BASE_DIR, DATA_DIR, COMPOSE_DIR, STATE_DIR, BACKUP_DIR):
         os.makedirs(P(d), mode=0o700 if d != DATA_DIR and d != BASE_DIR else 0o711, exist_ok=True)
+    if r['engine'] == 'collabora':
+        ensure_cool_secrets()
+        return
     for name, _inside in volumes(r['edition']):
         os.makedirs(P(f'{DATA_DIR}/{name}'), mode=0o755, exist_ok=True)
     if r['edition'] == 'enterprise':
@@ -645,17 +1034,37 @@ def prepare_dirs(conf, r):
 
 
 def write_compose(conf, r):
-    ensure_secrets()
+    if r['engine'] == 'onlyoffice':
+        ensure_secrets()
     prepare_dirs(conf, r)
-    write_atomic(P(COMPOSE_FILE), render_compose(conf, r), 0o600)
+    write_atomic(P(ENGINES[r['engine']]['compose_file']), render_compose(conf, r), 0o600)
 
 
 # ---------------------------------------------------------------------------
-# firewall: the container may reach the host gateway on 443, nothing else
+# firewall: the container may reach exactly one destination on 443
 # ---------------------------------------------------------------------------
 
 def render_nft(conf):
     gw = conf['gateway']
+    if conf['callback_route'] == 'upstream':
+        # clientst0r's TLS is terminated on a device in front of this host:
+        # the container may reach that one address on 443 (forwarded), and
+        # nothing on this host itself.
+        up = conf['upstream_ip']
+        return f"""table inet {NFT_TABLE} {{
+    chain input {{
+        type filter hook input priority filter - 1; policy accept;
+        iifname "{BRIDGE}" ct state established,related accept
+        iifname "{BRIDGE}" drop
+    }}
+    chain forward {{
+        type filter hook forward priority filter - 1; policy accept;
+        iifname "{BRIDGE}" ct state established,related accept
+        iifname "{BRIDGE}" ip daddr {up} tcp dport 443 accept
+        iifname "{BRIDGE}" drop
+    }}
+}}
+"""
     return f"""table inet {NFT_TABLE} {{
     chain input {{
         type filter hook input priority filter - 1; policy accept;
@@ -683,6 +1092,12 @@ def apply_firewall(conf):
 # docker state
 # ---------------------------------------------------------------------------
 
+def compose(engine, *args, timeout=600, check=True):
+    e = ENGINES[engine]
+    return run(['docker', 'compose', '--project-name', e['project'], '--file', P(e['compose_file']),
+                *args], timeout=timeout, check=check)
+
+
 def docker_available():
     r = docker('version', '--format', '{{.Server.Version}}', timeout=20)
     if r.returncode != 0:
@@ -693,18 +1108,20 @@ def docker_available():
     return True, r.stdout.strip(), c.stdout.strip()
 
 
-def container_state():
-    r = docker('inspect', '--type', 'container', '--format', '{{json .}}', CONTAINER, timeout=30)
+def container_state(engine):
+    name = ENGINES[engine]['container']
+    r = docker('inspect', '--type', 'container', '--format', '{{json .}}', name, timeout=30)
     if r.returncode != 0:
-        return {'exists': False}
+        return {'exists': False, 'name': name}
     try:
         data = json.loads(r.stdout)
     except ValueError:
-        return {'exists': True, 'state': 'unknown'}
+        return {'exists': True, 'state': 'unknown', 'name': name}
     state = data.get('State') or {}
     labels = ((data.get('Config') or {}).get('Labels') or {})
     return {
         'exists': True,
+        'name': name,
         'state': state.get('Status', 'unknown'),
         'running': bool(state.get('Running')),
         'health': ((state.get('Health') or {}).get('Status')) or 'none',
@@ -712,12 +1129,14 @@ def container_state():
         'restart_count': data.get('RestartCount', 0),
         'image': (data.get('Config') or {}).get('Image', ''),
         'release_label': labels.get('org.clientst0r.office.release', ''),
+        'layout_label': labels.get('org.clientst0r.office.layout', ''),
         'oom_killed': bool(state.get('OOMKilled')),
     }
 
 
-def resources():
-    r = docker('stats', '--no-stream', '--format', '{{json .}}', CONTAINER, timeout=30)
+def resources(engine):
+    r = docker('stats', '--no-stream', '--format', '{{json .}}', ENGINES[engine]['container'],
+               timeout=30)
     if r.returncode != 0 or not r.stdout.strip():
         return {}
     try:
@@ -739,27 +1158,39 @@ def dir_size(path):
     return total
 
 
-def healthcheck_http(conf, timeout=5):
-    """GET http://127.0.0.1:<port>/healthcheck from the host; True on "true"."""
-    url = f'http://127.0.0.1:{conf["bind_port"]}/healthcheck'
+def healthcheck_http(conf, engine, timeout=5):
+    """From the host, over loopback: ONLYOFFICE GET /healthcheck answers
+    "true"; Collabora GET /hosting/discovery answers a WOPI discovery
+    document."""
+    _mem, _cpus, port = engine_limits(conf, engine)
+    url = f'http://127.0.0.1:{port}{ENGINES[engine]["health_path"]}'
     if TEST_MODE and os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_HEALTH'):
         return os.environ['CLIENTST0R_OFFICE_HELPER_TEST_HEALTH'] == 'true'
     try:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with opener.open(url, timeout=timeout) as resp:
-            return resp.status == 200 and resp.read(64).strip().lower() == b'true'
+            body = resp.read(65536)
+            if engine == 'collabora':
+                return resp.status == 200 and b'wopi-discovery' in body
+            return resp.status == 200 and body.strip().lower() == b'true'
     except Exception:
         return False
 
 
-def wait_healthy(conf, progress, timeout=HEALTH_TIMEOUT):
+def wait_healthy(conf, engine, progress, timeout=HEALTH_TIMEOUT):
     deadline = time.monotonic() + (float(os.environ.get('CLIENTST0R_OFFICE_HELPER_TEST_WAIT', 0))
                                    if TEST_MODE else timeout)
     while True:
-        st = container_state()
-        if st.get('exists') and st.get('health') == 'healthy' and healthcheck_http(conf):
+        st = container_state(engine)
+        # The CODE image has no curl for a container HEALTHCHECK; its health
+        # is the loopback discovery probe alone.
+        container_ok = st.get('health') == 'healthy' or (
+            engine == 'collabora' and st.get('running') and st.get('health') in ('none', 'healthy'))
+        if st.get('exists') and container_ok and healthcheck_http(conf, engine):
             return True
         if st.get('exists') and st.get('state') in ('exited', 'dead'):
+            return False
+        if st.get('exists') and st.get('health') == 'unhealthy' and time.monotonic() >= deadline:
             return False
         if time.monotonic() >= deadline:
             return False
@@ -768,13 +1199,18 @@ def wait_healthy(conf, progress, timeout=HEALTH_TIMEOUT):
         time.sleep(0.05 if TEST_MODE else 5)
 
 
-def prepare_for_shutdown(progress):
+def prepare_for_shutdown(engine, progress):
     """ONLYOFFICE's documented procedure before stopping Docs: disconnect
     users and save what they edited (docker exec <container>
-    documentserver-prepare4shutdown)."""
-    st = container_state()
+    documentserver-prepare4shutdown). Collabora saves modified documents to
+    the WOPI host itself when it receives SIGTERM; clientst0r has drained
+    sessions before any stop, and the stop timeout gives it time."""
+    st = container_state(engine)
     if not st.get('running'):
         progress('editor not running: nothing to prepare')
+        return
+    if engine == 'collabora':
+        progress('stopping Collabora (it saves any open document to clientst0r on shutdown)')
         return
     progress('asking the editor to save open documents and disconnect users '
              '(documentserver-prepare4shutdown; can take up to 5 minutes)')
@@ -782,6 +1218,11 @@ def prepare_for_shutdown(progress):
     if r.returncode != 0:
         raise HelperError('documentserver-prepare4shutdown failed; the editor was left running. '
                           + redact(r.stderr.strip())[-300:])
+
+
+def stop_container(engine, *, check=True):
+    t = ENGINES[engine]['stop_timeout']
+    return compose(engine, 'stop', '--timeout', str(t), timeout=t + 60, check=check)
 
 
 def pull(r, progress):
@@ -811,6 +1252,81 @@ def history(event):
 
 
 # ---------------------------------------------------------------------------
+# capacity: will the editor starve clientst0r?
+# ---------------------------------------------------------------------------
+
+def host_facts():
+    mem = _meminfo()
+    return {'mem_total_mb': mem.get('MemTotal', 0), 'mem_available_mb': mem.get('MemAvailable', 0),
+            'swap_mb': mem.get('SwapTotal', 0), 'cpus': _cpu_count()}
+
+
+def capacity(conf, engine):
+    """Checks + a verdict for running `engine` with its configured limits
+    next to clientst0r on this host. 'fail' refuses install."""
+    limit, cpus, _port = engine_limits(conf, engine)
+    h = host_facts()
+    total, avail, swap, ncpu = h['mem_total_mb'], h['mem_available_mb'], h['swap_mb'], h['cpus']
+    reserve = conf['reserve_mb']
+    checks = []
+
+    def add(key, status, detail):
+        checks.append({'key': key, 'status': status, 'detail': detail})
+
+    need = limit + reserve
+    add('memory', 'pass' if total >= need else 'fail',
+        f'{total} MB RAM; the editor is limited to {limit} MB and {reserve} MB stay for clientst0r '
+        f'(needs {need} MB)')
+    if avail:
+        after = avail - limit
+        if after < HOST_FREE_FAIL_MB:
+            add('memory_available', 'fail',
+                f'{avail} MB is available now; with the editor at its {limit} MB limit only {after} MB '
+                f'would be left for clientst0r and the rest of this server (at least '
+                f'{HOST_FREE_FAIL_MB} MB is required). Lower the limit, add RAM, or run the editor '
+                'on a separate VM.')
+        elif after < reserve:
+            add('memory_available', 'warn',
+                f'{avail} MB is available now; with the editor at its {limit} MB limit {after} MB '
+                f'would be left, under the {reserve} MB reserve for clientst0r.')
+        else:
+            add('memory_available', 'pass',
+                f'{avail} MB available now; {after} MB stay free with the editor at its limit.')
+    if engine == 'onlyoffice' and limit < VENDOR_RECOMMENDED_MEMORY_MB:
+        add('memory_limit', 'warn', f'MEMORY_MB {limit} is under ONLYOFFICE\'s recommended '
+                                    f'{VENDOR_RECOMMENDED_MEMORY_MB} MB for the Docker image')
+    if engine == 'collabora':
+        users = max(0, (limit - 750) // 50)
+        add('memory_limit', 'pass',
+            f'{limit} MB for CODE: base processes plus about {users} active users at Collabora\'s '
+            '50 MB per active user')
+    left = ncpu - cpus
+    add('cpu', 'fail' if left < 1 else ('warn' if left < 2 else 'pass'),
+        f'{ncpu} CPU(s); the editor is limited to {cpus}, {left:g} stay for clientst0r'
+        + (' (ONLYOFFICE recommends dual-core 2 GHz or better)' if engine == 'onlyoffice' else
+           f' (Collabora sizes 1 vCPU per 15 active users: about {int(cpus * 15)} here)'))
+    if engine == 'onlyoffice' and swap < 2048:
+        add('swap', 'warn', f'{swap} MB swap; ONLYOFFICE recommends at least 2 GB (Docker) / 4 GB (Linux)')
+    elif swap == 0:
+        add('swap', 'warn', 'no swap: if memory runs out the kernel kills processes (clientst0r '
+                            'included) instead of slowing down. The container limit keeps the '
+                            'editor inside its share.')
+    statuses = [c['status'] for c in checks]
+    verdict = 'fail' if 'fail' in statuses else ('warn' if 'warn' in statuses else 'pass')
+    label = ENGINES[engine]['label']
+    if verdict == 'fail':
+        rec = (f'{label} does not fit next to clientst0r on this server with these limits. Run it on '
+               'a separate VM (install-editor.sh --mode separate-server, or an existing editor '
+               'service), or add memory.')
+    elif verdict == 'warn':
+        rec = f'{label} fits with little headroom; watch memory and keep the limits as they are.'
+    else:
+        rec = f'{label} fits next to clientst0r with these limits.'
+    return {'engine': engine, 'memory_limit_mb': limit, 'cpus': cpus, 'host': h,
+            'verdict': verdict, 'checks': checks, 'recommendation': rec}
+
+
+# ---------------------------------------------------------------------------
 # backups (consistent: taken with the editor stopped)
 # ---------------------------------------------------------------------------
 
@@ -818,7 +1334,7 @@ def take_backup(conf, rel_id, reason, progress):
     r = release(rel_id)
     if r is None:
         raise HelperError(f'cannot back up: installed release {rel_id!r} is unknown')
-    st = container_state()
+    st = container_state(r['engine'])
     if st.get('running'):
         raise HelperError('internal: backups are taken only with the editor stopped')
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -828,21 +1344,28 @@ def take_backup(conf, rel_id, reason, progress):
     progress(f'backing up editor data and configuration ({bid})')
     tar_path = target + '/state.tar'
     with tarfile.open(tar_path, 'w') as tar:
-        for name, _inside in volumes(r['edition']):
+        for name, _inside in engine_volumes(r):
             if name in BACKUP_EXCLUDE:
                 continue
             src = P(f'{DATA_DIR}/{name}')
             if os.path.isdir(src):
                 tar.add(src, arcname=f'data/{name}')
-        for path, arc in ((COMPOSE_FILE, 'compose.yaml'), (INSTALLED_FILE, 'installed.json'),
-                          (JWT_FILE, 'secrets/jwt.secret'), (LINK_FILE, 'secrets/securelink.secret')):
+        files = [(ENGINES[r['engine']]['compose_file'], 'compose.yaml'),
+                 (INSTALLED_FILE, 'installed.json'), (PROXY_STATE_FILE, 'proxy.json')]
+        if r['engine'] == 'onlyoffice':
+            files += [(JWT_FILE, 'secrets/jwt.secret'), (LINK_FILE, 'secrets/securelink.secret')]
+        else:
+            files += [(COOL_ADMIN_FILE, 'secrets/collabora-admin.secret'),
+                      (COOL_PROOF_KEY, 'secrets/collabora-proof_key')]
+        for path, arc in files:
             if os.path.exists(P(path)):
                 tar.add(P(path), arcname=arc)
     with open(tar_path, 'rb') as f:
         os.fsync(f.fileno())
     manifest = {'id': bid, 'release': rel_id, 'digest': r['digest'], 'compat': r['compat'],
-                'edition': r['edition'], 'reason': reason, 'created_at': now_iso(),
-                'size': os.path.getsize(tar_path), 'helper_version': HELPER_VERSION}
+                'edition': r['edition'], 'engine': r['engine'], 'reason': reason,
+                'created_at': now_iso(), 'size': os.path.getsize(tar_path),
+                'helper_version': HELPER_VERSION}
     write_atomic(target + '/manifest.json', json.dumps(manifest, indent=1), 0o600)
     history({'event': 'backup', 'backup': bid})
     return manifest
@@ -881,7 +1404,7 @@ def restore_backup(manifest, progress):
             if '..' in parts or m.name.startswith('/') or bad_link \
                     or not (m.isdir() or m.isfile() or m.issym()):
                 raise HelperError(f'backup {manifest["id"]} contains an unexpected entry')
-        for name, _inside in volumes(r['edition']):
+        for name, _inside in engine_volumes(r):
             if name in BACKUP_EXCLUDE:
                 continue
             dest = P(f'{DATA_DIR}/{name}')
@@ -950,10 +1473,481 @@ def reconcile_journal():
 
 
 # ---------------------------------------------------------------------------
+# reverse proxy (Nginx): only this helper's own files, validated, tested
+# ---------------------------------------------------------------------------
+
+def _strip_comments(text):
+    return '\n'.join(line.split('#', 1)[0] for line in text.splitlines())
+
+
+def detect_sites(conf):
+    """Read-only look at /etc/nginx/sites-enabled: which file serves which
+    names, and whether clientst0r's site includes the same-host snippet.
+    Nothing here writes anything."""
+    out = []
+    d = P(NGINX_ENABLED)
+    if not os.path.isdir(d):
+        return out
+    for name in sorted(os.listdir(d)):
+        path = os.path.join(d, name)
+        try:
+            with open(path, encoding='utf-8', errors='replace') as f:
+                text = _strip_comments(f.read(512 * 1024))
+        except OSError:
+            continue
+        names = []
+        for group in re.findall(r'\bserver_name\s+([^;]+);', text):
+            names += group.split()
+        listens = [x.strip() for x in re.findall(r'\blisten\s+([^;]+);', text)]
+        real = os.path.realpath(path)
+        if TEST_MODE and real.startswith(TEST_ROOT):
+            real = real[len(TEST_ROOT):]
+        out.append({
+            'file': name, 'path': real, 'server_names': names[:20], 'listen': listens[:10],
+            'ours': name == SITE_NAME,
+            'default': '_' in names or any('default_server' in x for x in listens),
+            'includes_snippet': bool(re.search(r'^\s*include\s+' + re.escape(SNIPPET_FILE) + r'\s*;',
+                                               text, re.M)),
+        })
+    return out
+
+
+def clientstor_site(conf, sites):
+    for s in sites:
+        if not s['ours'] and conf['clientstor_host'] in s['server_names']:
+            return s
+    for s in sites:
+        if not s['ours'] and s['default']:
+            return s
+    return None
+
+
+def tls_files(conf, host):
+    if conf['proxy_tls'] == 'letsencrypt':
+        return f'/etc/letsencrypt/live/{host}/fullchain.pem', f'/etc/letsencrypt/live/{host}/privkey.pem'
+    if conf['proxy_tls'] == 'local-cert':
+        if not conf['cert_file'] or not conf['key_file']:
+            raise HelperError('PROXY_TLS=local-cert needs PROXY_CERT_FILE and PROXY_KEY_FILE in '
+                              f'{CONF_PATH}')
+        return conf['cert_file'], conf['key_file']
+    return None, None
+
+
+def cert_info(conf, host):
+    """For a certificate this server holds: present, valid now, matches the
+    host name. (PROXY_TLS=upstream: the certificate is on the device in
+    front; the app checks it over HTTPS instead.)"""
+    if conf['proxy_tls'] == 'upstream':
+        return {'mode': 'upstream', 'checked_here': False,
+                'detail': 'TLS is terminated on the device in front of this server.'}
+    try:
+        cert, key = tls_files(conf, host)
+    except HelperError as e:
+        return {'mode': conf['proxy_tls'], 'checked_here': True, 'ok': False, 'detail': str(e)}
+    if not os.path.exists(P(cert)) or not os.path.exists(P(key)):
+        return {'mode': conf['proxy_tls'], 'checked_here': True, 'ok': False, 'path': cert,
+                'detail': f'{cert} or its key is missing'}
+    r = run(['openssl', 'x509', '-in', P(cert), '-noout', '-enddate', '-checkend', '0',
+             '-checkhost', host], timeout=20)
+    text = (r.stdout or '') + (r.stderr or '')
+    matches = 'does match certificate' in text and 'NOT match' not in text
+    valid = 'will not expire' in text
+    m = re.search(r'notAfter=(.+)', text)
+    return {'mode': conf['proxy_tls'], 'checked_here': True, 'path': cert, 'ok': matches and valid,
+            'matches_host': matches, 'valid_now': valid, 'not_after': (m.group(1).strip() if m else ''),
+            'detail': ('valid for ' + host) if matches and valid else
+            ('does not cover ' + host if not matches else 'expired')}
+
+
+PROXY_HEADERS = [
+    'proxy_http_version 1.1;',
+    'proxy_set_header Host $host;',
+    'proxy_set_header X-Forwarded-Host $host;',
+    'proxy_set_header X-Forwarded-Proto https;',
+    'proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+    'proxy_set_header X-Real-IP $remote_addr;',
+    # clientst0r's session/CSRF cookies and any Authorization header never
+    # reach the editor, and the editor cannot set cookies on this host.
+    'proxy_set_header Cookie "";',
+    'proxy_set_header Authorization "";',
+    'proxy_hide_header Set-Cookie;',
+    'proxy_buffering off;',
+    'proxy_connect_timeout 10s;',
+    # Own headers here, so the server-level X-Frame-Options of clientst0r's
+    # site is not inherited (the editor is framed; its own CSP
+    # frame-ancestors names clientst0r only).
+    'add_header X-Content-Type-Options nosniff always;',
+    'add_header Referrer-Policy same-origin always;',
+]
+
+
+STRIP_LINES = ('proxy_set_header Cookie "";', 'proxy_set_header Authorization "";',
+               'proxy_hide_header Set-Cookie;')
+
+
+def _location(match, port, *, websocket=False, log=False, extra=(), strip=True):
+    body = [f'proxy_pass http://127.0.0.1:{port};'] + [
+        h for h in PROXY_HEADERS if strip or h not in STRIP_LINES]
+    if websocket:
+        body += ['proxy_set_header Upgrade $http_upgrade;', 'proxy_set_header Connection "Upgrade";',
+                 'proxy_read_timeout 36000s;', 'proxy_send_timeout 36000s;']
+    else:
+        body += ['proxy_read_timeout 3600s;', 'proxy_send_timeout 3600s;']
+    if not log:
+        # Collabora URLs carry the WOPI access token in their path/query.
+        body.append('access_log off;')
+    body += list(extra)
+    return [f'location {match} {{'] + ['    ' + x for x in body] + ['}']
+
+
+def cool_locations(conf):
+    """The paths Collabora Online serves, after its documented Nginx proxy
+    layout: static files (/browser), discovery and capabilities (/hosting),
+    the document WebSocket (/cool/.../ws and /cool/ws), and the rest of
+    /cool (download, upload, presentation, conversion). The admin console
+    and metrics are refused."""
+    port = conf['cool_bind_port']
+    body = f'client_max_body_size {conf["max_body_mb"]}m;'
+    out = []
+    for match in ('= /cool/getMetrics', '^~ /cool/adminws', '^~ /browser/dist/admin'):
+        out += [f'location {match} {{', '    return 403;', '}']
+    out += _location('^~ /browser/', port, extra=[body])
+    out += _location('^~ /hosting/discovery', port)
+    out += _location('^~ /hosting/capabilities', port)
+    out += _location('~ ^/cool/(.*/)?ws$', port, websocket=True)
+    out += _location('~ ^/(cool|lool)/', port, extra=[body])
+    return out
+
+
+def render_dedicated(conf, engine, host):
+    if not HOST_RE.match(host or ''):
+        raise HelperError('the dedicated layout needs OFFICE_HOSTNAME')
+    port = engine_limits(conf, engine)[2]
+    head = [NGINX_MARKER,
+            f'# {ENGINES[engine]["label"]}: {host} -> 127.0.0.1:{port} (loopback only).',
+            '# Rewritten by the helper (proxy-install / set-layout / install). clientst0r\'s own',
+            '# site is never edited.', '']
+    if engine == 'onlyoffice':
+        head += ['map $http_upgrade $clientst0r_office_managed_upgrade {', '    default upgrade;',
+                 "    '' close;", '}', '']
+        locations = _location('/', port, log=True, strip=False)[:-1] + [
+            '    proxy_set_header Upgrade $http_upgrade;',
+            '    proxy_set_header Connection $clientst0r_office_managed_upgrade;', '}']
+    else:
+        locations = cool_locations(conf) + ['location / {', '    return 404;', '}']
+    common = [f'server_name {host};', f'client_max_body_size {conf["max_body_mb"]}m;',
+              'server_tokens off;',
+              f'access_log /var/log/nginx/{SITE_NAME}-access.log;',
+              f'error_log /var/log/nginx/{SITE_NAME}-error.log;']
+    ind = lambda lines: ['    ' + x if x else '' for x in lines]   # noqa: E731
+    if conf['proxy_tls'] == 'upstream':
+        # TLS ends on the device in front; it forwards plain HTTP here.
+        server = ['server {', '    listen 80;', '    listen [::]:80;'] + ind(common) + [''] \
+            + ind(locations) + ['}']
+        return '\n'.join(head + server) + '\n'
+    cert, key = tls_files(conf, host)
+    if conf['proxy_tls'] == 'letsencrypt' and not os.path.exists(P(cert)):
+        # First run: serve only the ACME challenge so certbot --webroot can
+        # obtain the certificate; proxy-install again afterwards.
+        acme = ['server {', '    listen 80;', '    listen [::]:80;', f'    server_name {host};',
+                f'    location /.well-known/acme-challenge/ {{ root {ACME_DIR}; }}',
+                '    location / { return 404; }', '}']
+        return '\n'.join(head + ['# ACME-only until the certificate exists.'] + acme) + '\n'
+    plain = ['server {', '    listen 80;', '    listen [::]:80;', f'    server_name {host};',
+             f'    location /.well-known/acme-challenge/ {{ root {ACME_DIR}; }}',
+             '    location / { return 301 https://$host$request_uri; }', '}', '']
+    tls = ['server {', '    listen 443 ssl;', '    listen [::]:443 ssl;'] + ind(common) + [
+        f'    ssl_certificate {cert};', f'    ssl_certificate_key {key};',
+        '    ssl_protocols TLSv1.2 TLSv1.3;',
+        '    add_header Strict-Transport-Security "max-age=31536000" always;', ''] \
+        + ind(locations) + ['}']
+    return '\n'.join(head + plain + tls) + '\n'
+
+
+EMPTY_SNIPPET = (NGINX_MARKER + '\n# Same-host layout is not active. This file stays (empty) so an include of\n'
+                 '# it in clientst0r\'s server block keeps working.\n')
+
+
+def render_snippet(conf):
+    lines = [NGINX_MARKER,
+             '# Collabora Online on clientst0r\'s own host name (same-host layout).',
+             '# Included ONCE by the administrator inside clientst0r\'s server block:',
+             f'#     {INCLUDE_LINE}',
+             '# WARNING: the editor\'s front-end runs on clientst0r\'s origin. Cookies and',
+             '# Authorization are stripped towards the editor and Set-Cookie from it, but',
+             '# its JavaScript is same-origin with clientst0r. Prefer a dedicated host name.', '']
+    return '\n'.join(lines + cool_locations(conf)) + '\n'
+
+
+def render_proxy(conf, engine, layout):
+    """(site file text or None, snippet text)."""
+    if layout == 'same-host':
+        if engine != 'collabora':
+            raise HelperError('the same-host layout is supported for Collabora only')
+        return None, render_snippet(conf)
+    return render_dedicated(conf, engine, conf['office_hostname']), EMPTY_SNIPPET
+
+
+def _ours(path):
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            head = f.read(200)
+    except FileNotFoundError:
+        return True
+    return any(head.startswith(m) for m in NGINX_MARKERS)
+
+
+def _link_ok(path):
+    if not os.path.lexists(path):
+        return True
+    return os.path.islink(path) and os.readlink(path) in (SITE_FILE, P(SITE_FILE))
+
+
+def _read(path):
+    try:
+        with open(path, encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return None
+
+
+def nginx_test():
+    r = run(['nginx', '-t'], timeout=30)
+    return r.returncode == 0, redact((r.stderr or r.stdout or '').strip())[-400:]
+
+
+def _write_proxy_files(site_text, snippet_text):
+    os.makedirs(P(SNIPPET_DIR), mode=0o755, exist_ok=True)
+    os.chmod(P(SNIPPET_DIR), 0o755)
+    write_atomic(P(SNIPPET_FILE), snippet_text, 0o644)
+    if site_text is None:
+        if os.path.lexists(P(SITE_LINK)):
+            os.unlink(P(SITE_LINK))
+        if os.path.exists(P(SITE_FILE)):
+            os.unlink(P(SITE_FILE))
+    else:
+        write_atomic(P(SITE_FILE), site_text, 0o644)
+        if not os.path.lexists(P(SITE_LINK)):
+            os.symlink(P(SITE_FILE), P(SITE_LINK))
+
+
+def install_proxy(conf, engine, layout, progress=lambda s: None, *, hostname=None):
+    """Write this helper's Nginx files for (engine, layout), test, reload.
+    On any failure the previous files are put back and Nginx is not left
+    with a broken configuration."""
+    host = public_host(conf, layout)
+    if hostname is not None and hostname != host:
+        raise HelperError(f'the {layout} layout serves {host or "(no host name configured)"}, '
+                          f'not {hostname}')
+    if not HOST_RE.match(host or ''):
+        raise HelperError(f'no valid host name for the {layout} layout')
+    if layout not in conf['layouts'] or layout not in ENGINES[engine]['layouts']:
+        raise HelperError(f'the {layout} layout is not allowed for {ENGINES[engine]["label"]} '
+                          'here (PROXY_LAYOUTS)')
+    if not os.path.isdir(P(NGINX_AVAILABLE)) or not os.path.isdir(P(NGINX_ENABLED)):
+        raise HelperError('Nginx with sites-available/ and sites-enabled/ was not found')
+    site_text, snippet_text = render_proxy(conf, engine, layout)
+    sites = detect_sites(conf)
+    if layout == 'dedicated':
+        for s in sites:
+            if not s['ours'] and host in s['server_names']:
+                raise HelperError(f'{host} is already served by {s["file"]}; this helper does not '
+                                  'touch other sites')
+        cert, key = tls_files(conf, host)
+        if conf['proxy_tls'] == 'local-cert':
+            for path in (cert, key):
+                if not os.path.exists(P(path)):
+                    raise HelperError(f'certificate file {path} is missing (PROXY_TLS=local-cert)')
+    for path in (P(SITE_FILE), P(SNIPPET_FILE)):
+        if not _ours(path):
+            raise HelperError(f'{path} exists and was not written by clientst0r; refusing to replace it')
+    if not _link_ok(P(SITE_LINK)):
+        raise HelperError(f'{SITE_LINK} exists and is not this helper\'s link')
+    before = {'site': _read(P(SITE_FILE)), 'snippet': _read(P(SNIPPET_FILE)),
+              'link': os.path.lexists(P(SITE_LINK))}
+
+    def restore():
+        if before['snippet'] is None:
+            if os.path.exists(P(SNIPPET_FILE)):
+                os.unlink(P(SNIPPET_FILE))
+        else:
+            write_atomic(P(SNIPPET_FILE), before['snippet'], 0o644)
+        if before['site'] is None:
+            if os.path.exists(P(SITE_FILE)):
+                os.unlink(P(SITE_FILE))
+        else:
+            write_atomic(P(SITE_FILE), before['site'], 0o644)
+        if before['link'] and not os.path.lexists(P(SITE_LINK)):
+            os.symlink(P(SITE_FILE), P(SITE_LINK))
+        if not before['link'] and os.path.lexists(P(SITE_LINK)):
+            os.unlink(P(SITE_LINK))
+
+    progress(f'writing the Nginx configuration for {host} ({layout})')
+    _write_proxy_files(site_text, snippet_text)
+    ok, detail = nginx_test()
+    if not ok:
+        restore()
+        raise HelperError('nginx -t rejected the new configuration; the previous files were put back '
+                          'and Nginx was not reloaded: ' + detail)
+    r = run(['systemctl', 'reload', 'nginx'], timeout=60)
+    if r.returncode != 0:
+        restore()
+        if nginx_test()[0]:
+            run(['systemctl', 'reload', 'nginx'], timeout=60)
+        raise HelperError('reloading Nginx failed; the previous files were put back: '
+                          + redact(r.stderr.strip())[-300:])
+    site = clientstor_site(conf, sites)
+    include_present = bool(site and site['includes_snippet'])
+    state = {'installed': True, 'engine': engine, 'layout': layout, 'hostname': host,
+             'tls': conf['proxy_tls'], 'installed_at': now_iso(), 'include_present': include_present}
+    write_atomic(P(PROXY_STATE_FILE), json.dumps(state, indent=1, sort_keys=True), 0o600)
+    history({'event': 'proxy-install', 'engine': engine, 'layout': layout, 'host': host})
+    note = ''
+    if layout == 'same-host' and not include_present:
+        where = site['file'] if site else "clientst0r's Nginx site"
+        note = (f'Add "{INCLUDE_LINE}" once inside the server block of {where}, then run '
+                'nginx -t and reload Nginx. This helper never edits that file.')
+    return dict(state, note=note)
+
+
+def op_proxy_status(conf, args):
+    engine = active_engine(conf)
+    layout = current_layout(conf, engine)
+    host = public_host(conf, layout)
+    sites = detect_sites(conf)
+    site = clientstor_site(conf, sites)
+    try:
+        site_text, snippet_text = render_proxy(conf, engine, layout)
+        problem = ''
+    except HelperError as e:
+        site_text, snippet_text, problem = None, None, str(e)
+    cur_site, cur_snip = _read(P(SITE_FILE)), _read(P(SNIPPET_FILE))
+    files = {
+        'site': {'path': SITE_FILE, 'present': cur_site is not None, 'ours': _ours(P(SITE_FILE)),
+                 'enabled': os.path.lexists(P(SITE_LINK)) and _link_ok(P(SITE_LINK)),
+                 'current': cur_site == site_text},
+        'snippet': {'path': SNIPPET_FILE, 'present': cur_snip is not None,
+                    'ours': _ours(P(SNIPPET_FILE)), 'current': cur_snip == snippet_text},
+    }
+    dns = {}
+    for label, name in (('editor', host), ('clientstor', conf['clientstor_host'])):
+        try:
+            dns[label] = sorted({a[4][0] for a in socket.getaddrinfo(name, 443, 0, socket.SOCK_STREAM)})
+        except (OSError, UnicodeError):
+            dns[label] = []
+    local = local_addresses()
+    dns['points_here'] = bool(dns['editor']) and (
+        bool(set(dns['editor']) & local) or set(dns['editor']) == set(dns['clientstor'])
+        or (conf['upstream_ip'] and conf['upstream_ip'] in dns['editor']))
+    installed_ok = (files['snippet']['present'] and files['snippet']['current'] and (
+        layout == 'same-host' or (files['site']['current'] and files['site']['enabled'])))
+    return {
+        'engine': engine, 'layout': layout, 'hostname': host, 'tls': conf['proxy_tls'],
+        'layouts_allowed': [x for x in conf['layouts'] if x in ENGINES[engine]['layouts']],
+        'state': proxy_state(), 'files': files, 'installed': bool(installed_ok), 'problem': problem,
+        'sites': sites, 'clientstor_site': site, 'include_line': INCLUDE_LINE,
+        'include_needed': layout == 'same-host',
+        'include_present': bool(site and site['includes_snippet']),
+        'dns': dns, 'certificate': cert_info(conf, host) if layout == 'dedicated' else
+        {'mode': 'same-host', 'checked_here': False,
+         'detail': 'served with clientst0r\'s own certificate'},
+        'preview': {'site': site_text, 'snippet': snippet_text},
+    }
+
+
+def local_addresses():
+    r = run(['ip', '-j', 'addr', 'show'], timeout=10)
+    out = set()
+    try:
+        for dev in json.loads(r.stdout or '[]') if r.returncode == 0 else []:
+            for a in dev.get('addr_info') or []:
+                if a.get('local'):
+                    out.add(a['local'])
+    except (ValueError, AttributeError):
+        pass
+    return out
+
+
+def _with_lock(fn):
+    fd = acquire_lock()
+    if fd is None:
+        j = journal()
+        raise HelperError(f'another operation is running ({j.get("op", "?")}); try again when it '
+                          'has finished')
+    try:
+        return fn()
+    finally:
+        os.close(fd)
+
+
+def op_proxy_install(conf, args):
+    engine = active_engine(conf)
+    return _with_lock(lambda: install_proxy(conf, engine, current_layout(conf, engine),
+                                            hostname=args['hostname']))
+
+
+def op_proxy_remove(conf, args):
+    def remove():
+        for path in (P(SITE_FILE), P(SNIPPET_FILE)):
+            if not _ours(path):
+                raise HelperError(f'{path} was not written by clientst0r; refusing to remove it')
+        if not _link_ok(P(SITE_LINK)):
+            raise HelperError(f'{SITE_LINK} is not this helper\'s link')
+        before_site, before_snip = _read(P(SITE_FILE)), _read(P(SNIPPET_FILE))
+        had_link = os.path.lexists(P(SITE_LINK))
+        _write_proxy_files(None, EMPTY_SNIPPET)
+        ok, detail = nginx_test()
+        if not ok:
+            if before_snip is not None:
+                write_atomic(P(SNIPPET_FILE), before_snip, 0o644)
+            if before_site is not None:
+                write_atomic(P(SITE_FILE), before_site, 0o644)
+                if had_link and not os.path.lexists(P(SITE_LINK)):
+                    os.symlink(P(SITE_FILE), P(SITE_LINK))
+            raise HelperError('nginx -t failed after removing the office configuration; it was '
+                              'put back: ' + detail)
+        run(['systemctl', 'reload', 'nginx'], timeout=60)
+        st = dict(proxy_state(), installed=False, removed_at=now_iso())
+        write_atomic(P(PROXY_STATE_FILE), json.dumps(st, indent=1, sort_keys=True), 0o600)
+        history({'event': 'proxy-remove'})
+        return {'removed': True, 'kept': SNIPPET_FILE + ' (empty, so an include stays valid)'}
+    return _with_lock(remove)
+
+
+def op_callback_check(conf, args):
+    """From inside the running container, the editor -> clientst0r path:
+    TCP to the callback destination and a verified TLS handshake for
+    clientst0r's host name (the container's own trust store)."""
+    engine = active_engine(conf)
+    st = container_state(engine)
+    if not st.get('running'):
+        raise HelperError('the editor container is not running')
+    host = conf['clientstor_host']
+    if engine == 'collabora':
+        argv = ['exec', ENGINES[engine]['container'], 'openssl', 's_client', '-connect', f'{host}:443',
+                '-servername', host, '-verify_hostname', host, '-verify_return_error', '-brief']
+    else:
+        argv = ['exec', CONTAINER, 'curl', '-sS', '-o', '/dev/null', '-w', '%{http_code}',
+                '--max-time', '15', f'https://{host}/health/']
+    r = docker(*argv, timeout=40)
+    text = redact(((r.stdout or '') + ' ' + (r.stderr or '')).strip())[-400:]
+    return {'ok': r.returncode == 0, 'engine': engine, 'target': f'{conf["callback_target"]}:443',
+            'route': conf['callback_route'], 'detail': text}
+
+
+# ---------------------------------------------------------------------------
 # operations
 # ---------------------------------------------------------------------------
 
+def _have(argv):
+    try:
+        return run(argv, timeout=10).returncode == 0
+    except HelperError:
+        return False
+
+
 def op_preflight(conf, args):
+    engine = args.get('engine') or active_engine(conf)
     checks = []
 
     def add(key, status, detail):
@@ -980,71 +1974,86 @@ def op_preflight(conf, args):
         add('arch', 'pass' if arch == 'x86_64' else 'warn',
             arch + ('' if arch == 'x86_64' else ': the image is published for arm64; untested here'))
     else:
-        add('arch', 'fail', f'{arch}: the ONLYOFFICE image is published for amd64 and arm64 only')
+        add('arch', 'fail', f'{arch}: the images are published for amd64 and arm64 only')
 
     ok, version, detail = docker_available()
     add('docker', 'pass' if ok else 'fail',
         f'Docker {version}, Compose {detail}' if ok else
         f'Docker is not usable: {detail}. Run scripts/office/install-editor.sh --mode managed-local '
         '(it installs Docker only when none is present and never replaces an existing one).')
-    if run(['nft', '--version'], timeout=10).returncode == 0:
+    if _have(['nft', '--version']):
         add('nftables', 'pass', 'nft available (container egress is restricted with it)')
     else:
         add('nftables', 'fail', 'nft is not installed; the container firewall cannot be applied')
+    if engine == 'collabora':
+        if _have(['openssl', 'version']):
+            add('openssl', 'pass', 'openssl available (generates the WOPI proof key)')
+        else:
+            add('openssl', 'fail', 'openssl is not installed; the WOPI proof key cannot be generated')
 
-    mem = _meminfo()
-    total, avail, swap = mem.get('MemTotal', 0), mem.get('MemAvailable', 0), mem.get('SwapTotal', 0)
-    need = conf['memory_mb'] + conf['reserve_mb']
-    add('memory', 'pass' if total >= need else 'fail',
-        f'{total} MB RAM ({avail} MB available); the editor is limited to {conf["memory_mb"]} MB and '
-        f'{conf["reserve_mb"]} MB stay for clientst0r (needs {need} MB)')
-    if conf['memory_mb'] < VENDOR_RECOMMENDED_MEMORY_MB:
-        add('memory_limit', 'warn', f'MEMORY_MB {conf["memory_mb"]} is under ONLYOFFICE\'s recommended '
-                                    f'{VENDOR_RECOMMENDED_MEMORY_MB} MB for the Docker image')
-    if swap < 2048:
-        add('swap', 'warn', f'{swap} MB swap; ONLYOFFICE recommends at least 2 GB (Docker) / 4 GB (Linux)')
-    ncpu = _cpu_count()
-    add('cpu', 'pass' if ncpu >= VENDOR_MIN_CPUS + 1 else ('warn' if ncpu >= VENDOR_MIN_CPUS else 'fail'),
-        f'{ncpu} CPU(s); the editor is limited to {conf["cpus"]}, the rest stays for clientst0r '
-        '(ONLYOFFICE recommends dual-core 2 GHz or better)')
+    cap = capacity(conf, engine)
+    checks += cap['checks']
+    add('capacity', cap['verdict'], cap['recommendation'])
+
     target = P(BASE_DIR) if os.path.isdir(P(BASE_DIR)) else (P('/var/lib') if os.path.isdir(P('/var/lib')) else '/')
     st = os.statvfs(target)
     free_gb = st.f_bavail * st.f_frsize // (1024 ** 3)
-    add('disk', 'fail' if free_gb < DISK_FAIL_GB else ('warn' if free_gb < DISK_WARN_GB else 'pass'),
-        f'{free_gb} GB free for {BASE_DIR} (fails under {DISK_FAIL_GB} GB; ONLYOFFICE\'s Linux page '
-        f'asks for {DISK_WARN_GB} GB)')
+    fail_gb, warn_gb = (DISK_FAIL_GB, DISK_WARN_GB) if engine == 'onlyoffice' else (4, 10)
+    add('disk', 'fail' if free_gb < fail_gb else ('warn' if free_gb < warn_gb else 'pass'),
+        f'{free_gb} GB free for {BASE_DIR} (fails under {fail_gb} GB, warns under {warn_gb} GB)')
 
     listeners = listening_ports()
-    cs = container_state()
-    if conf['bind_port'] in listeners and not cs.get('running'):
-        add('port', 'fail', f'127.0.0.1:{conf["bind_port"]} is already in use by another program')
+    port = engine_limits(conf, engine)[2]
+    cs = container_state(engine) if ok else {}
+    if port in listeners and not cs.get('running'):
+        add('port', 'fail', f'127.0.0.1:{port} is already in use by another program')
     else:
-        add('port', 'pass', f'port {conf["bind_port"]} is free (or used by this editor)')
-    if 443 in listeners:
-        add('proxy', 'pass', 'a web server listens on 443 (the container reaches clientst0r through it)')
+        add('port', 'pass', f'port {port} is free (or used by this editor)')
+    if conf['proxy_tls'] == 'upstream':
+        add('proxy', 'pass' if 80 in listeners else 'fail',
+            'Nginx listens on 80 behind the TLS device in front of this server' if 80 in listeners else
+            'nothing listens on 80: PROXY_TLS=upstream needs this server\'s Nginx on port 80')
+    elif 443 in listeners:
+        add('proxy', 'pass', 'a web server listens on 443')
     else:
         add('proxy', 'fail', 'nothing listens on 443: the reverse proxy for clientst0r and the office '
-                             'host name must run on this VM')
+                             'host name must run on this VM (or set PROXY_TLS=upstream)')
+    if conf['callback_route'] == 'gateway' and 443 not in listeners:
+        add('callback', 'fail', 'CALLBACK_ROUTE=gateway sends the editor to this server\'s Nginx on 443, '
+                                'but nothing listens there. With TLS terminated in front of this '
+                                'server set CALLBACK_ROUTE=upstream and CALLBACK_UPSTREAM_IP.')
+    else:
+        add('callback', 'pass', f'the editor reaches clientst0r at {conf["callback_target"]}:443 '
+                                f'({conf["callback_route"]})')
+    if _have(['nginx', '-v']):
+        add('nginx', 'pass', 'Nginx present (the helper manages only its own office files)')
+    else:
+        add('nginx', 'fail', 'Nginx is not installed')
 
     overlap = subnet_conflict(conf)
     add('subnet', 'fail' if overlap else 'pass',
         f'{conf["subnet"]} overlaps {overlap}; set NETWORK_SUBNET' if overlap else
         f'{conf["subnet"]} does not overlap a local route')
-    for host, label in ((conf['office_hostname'], 'office host name'),
+    layout = current_layout(conf, engine)
+    host = public_host(conf, layout)
+    for name, label in ((host, f'editor host name ({layout})'),
                         (conf['clientstor_host'], 'clientst0r host name')):
+        if not name:
+            continue
         try:
-            addrs = sorted({a[4][0] for a in socket.getaddrinfo(host, 443, 0, socket.SOCK_STREAM)})
-            add('dns', 'pass', f'{label} {host} resolves to {", ".join(addrs[:4])}')
-        except OSError:
-            add('dns', 'fail', f'{label} {host} does not resolve from this host')
-    r = default_release(conf)
+            addrs = sorted({a[4][0] for a in socket.getaddrinfo(name, 443, 0, socket.SOCK_STREAM)})
+            add('dns', 'pass', f'{label} {name} resolves to {", ".join(addrs[:4])}')
+        except (OSError, UnicodeError):
+            add('dns', 'fail', f'{label} {name} does not resolve from this host')
+    r = default_release(conf, engine)
     add('release', 'pass' if r else 'fail',
         f'will install {r["id"]}' if r else
         'no release in the list can be installed: ' + '; '.join(
-            f'{x["id"]} {release_problem(x, conf)}' for x in RELEASES if x['edition'] == conf['edition']))
-    if conf['edition'] == 'enterprise' and not os.path.exists(P(LICENSE_FILE)):
+            f'{x["id"]} {release_problem(x, conf)}' for x in engine_releases(engine)))
+    if engine == 'onlyoffice' and conf['edition'] == 'enterprise' and not os.path.exists(P(LICENSE_FILE)):
         add('license', 'fail', f'Enterprise edition: put the license file at {LICENSE_FILE}')
-    return {'checks': checks, 'passed': all(c['status'] != 'fail' for c in checks)}
+    return {'engine': engine, 'checks': checks, 'passed': all(c['status'] != 'fail' for c in checks),
+            'capacity': cap}
 
 
 def listening_ports():
@@ -1086,43 +2095,53 @@ def subnet_conflict(conf):
 def op_status(conf, args):
     j = reconcile_journal()
     ok, dver, cver = docker_available()
-    st = container_state() if ok else {'exists': False}
+    engine = active_engine(conf)
+    st = container_state(engine) if ok else {'exists': False}
     inst = installed()
     rel = release(inst.get('release', ''))
-    newer = [r for r in RELEASES if r['edition'] == conf['edition'] and rel is not None
+    newer = [r for r in engine_releases(engine) if rel is not None and rel['engine'] == engine
              and version_key(r) > version_key(rel)]
+    ps = proxy_state()
     return {
         'helper_version': HELPER_VERSION,
+        'engine': engine,
         'config': public_config(conf),
         'docker': {'available': ok, 'version': dver, 'compose': cver if ok else '',
                    'detail': '' if ok else cver},
-        'installed': {k: inst.get(k) for k in ('release', 'version', 'digest', 'edition',
-                                               'installed_at', 'previous_release', 'previous_backup',
-                                               'state')},
+        'installed': dict({k: inst.get(k) for k in ('release', 'version', 'digest', 'edition',
+                                                    'installed_at', 'previous_release',
+                                                    'previous_backup', 'state')},
+                          engine=inst.get('engine') or ('onlyoffice' if inst.get('release') else None)),
         'container': st,
-        'resources': resources() if st.get('running') else {},
+        'resources': resources(engine) if st.get('running') else {},
         'data_bytes': dir_size(P(DATA_DIR)) if os.path.isdir(P(DATA_DIR)) else 0,
         'operation': {k: j.get(k) for k in ('id', 'op', 'args', 'state', 'step', 'started_at',
                                             'finished_at', 'error', 'result')} if j else {},
         'update_available': [{'id': r['id'], 'version': r['version'],
                               'installable': not release_problem(r, conf),
                               'problem': release_problem(r, conf)} for r in newer],
-        'backups': [{k: b[k] for k in ('id', 'release', 'reason', 'created_at', 'size')}
+        'backups': [{k: b.get(k) for k in ('id', 'release', 'reason', 'created_at', 'size', 'engine')}
                     for b in list_backups()],
         'secrets_present': os.path.exists(P(JWT_FILE)),
+        'host': host_facts(),
+        'capacity': {e: capacity(conf, e) for e in conf['engines']},
+        'proxy': {'layout': current_layout(conf, engine), 'managed': bool(ps.get('installed')),
+                  'engine': ps.get('engine'), 'hostname': ps.get('hostname'),
+                  'installed_at': ps.get('installed_at')},
     }
 
 
 def op_releases(conf, args):
     return {'releases': [dict({k: r[k] for k in ('id', 'version', 'edition', 'image', 'digest',
-                                                 'compat', 'tested', 'published')},
-                              problem=release_problem(r, conf)) for r in RELEASES],
+                                                 'compat', 'tested', 'published', 'engine')},
+                              problem=release_problem(r, conf)) for r in ALL_RELEASES],
             'installed': installed().get('release')}
 
 
 def op_logs(conf, args):
     lines = args.get('lines', 200)
-    r = docker('logs', '--tail', str(lines), '--timestamps', CONTAINER, timeout=30)
+    r = docker('logs', '--tail', str(lines), '--timestamps',
+               ENGINES[active_engine(conf)]['container'], timeout=30)
     if r.returncode != 0:
         return {'log': '', 'detail': 'no container logs (is the editor installed?)'}
     text = redact((r.stdout or '') + (r.stderr or ''))
@@ -1141,32 +2160,63 @@ def _up(conf, r, progress):
     write_compose(conf, r)
     apply_firewall(conf)
     progress(f'starting {r["id"]}')
-    compose('up', '--detach', '--remove-orphans', '--pull', 'never', timeout=600)
+    compose(r['engine'], 'up', '--detach', '--remove-orphans', '--pull', 'never', timeout=600)
+
+
+def _engine_record_path(engine):
+    return f'{STATE_DIR}/installed-{engine}.json'
+
+
+def _ensure_proxy(conf, engine, progress):
+    """When this helper manages the Nginx files and they were written for
+    another engine (an engine switch), rewrite them for this one."""
+    ps = proxy_state()
+    if ps.get('installed') and ps.get('engine') != engine:
+        install_proxy(conf, engine, current_layout(conf, engine), progress)
 
 
 def op_install(conf, args, progress):
+    inst = installed()
+    present = bool(inst.get('release')) and inst.get('state') != 'uninstalled'
+    current = (inst.get('engine') or 'onlyoffice') if inst.get('release') else None
+    engine = args.get('engine') or current or conf['engines'][0]
+    if engine not in conf['engines']:
+        raise HelperError(f'{engine} is not listed in ENGINES in {CONF_PATH}')
+    if present and current != engine:
+        raise HelperError(f'{ENGINES[current]["label"]} is installed. Uninstall it first (Switch engine '
+                          'drains it, uninstalls it and installs the other; documents stay in clientst0r).')
+    cap = capacity(conf, engine)
+    if cap['verdict'] == 'fail':
+        raise HelperError('refused, the editor would starve this server: ' + '; '.join(
+            c['detail'] for c in cap['checks'] if c['status'] == 'fail'))
     ok, _v, detail = docker_available()
     if not ok:
         raise HelperError(f'Docker is not usable: {detail}')
-    inst = installed()
-    r = release(inst.get('release', '')) if inst.get('release') else default_release(conf)
+    if current and current != engine:
+        # Switching engines: keep the other engine's record (its release and
+        # backups) for a later switch back; start from this engine's own.
+        write_atomic(P(_engine_record_path(current)), json.dumps(inst, indent=1, sort_keys=True), 0o600)
+        inst = read_json(P(_engine_record_path(engine)), {}) or {}
+    reuse = bool(inst.get('release')) and (inst.get('engine') or 'onlyoffice') == engine
+    r = release(inst['release']) if reuse else default_release(conf, engine)
     if r is None:
         raise HelperError('no installable release: ' + '; '.join(
-            f'{x["id"]} {release_problem(x, conf)}' for x in RELEASES if x['edition'] == conf['edition']))
-    problem = release_problem(r, conf) if not inst.get('release') else ''
+            f'{x["id"]} {release_problem(x, conf)}' for x in engine_releases(engine)))
+    problem = release_problem(r, conf) if not reuse else ''
     if problem:
         raise HelperError(f'release {r["id"]} {problem}')
     pull(r, progress)
-    save_installed(dict(inst, state='installing', release=r['id'], version=r['version'],
+    save_installed(dict(inst, state='installing', engine=engine, release=r['id'], version=r['version'],
                         digest=r['digest'], edition=r['edition'],
-                        installed_at=inst.get('installed_at') or now_iso()))
+                        installed_at=inst.get('installed_at') if reuse else now_iso()))
     _up(conf, r, progress)
-    if not wait_healthy(conf, progress):
+    if not wait_healthy(conf, engine, progress):
         save_installed(dict(installed(), state='unhealthy'))
         raise HelperError('the editor did not become healthy; see the logs')
     save_installed(dict(installed(), state='installed'))
-    history({'event': 'install', 'release': r['id']})
-    return {'release': r['id'], 'healthy': True}
+    _ensure_proxy(conf, engine, progress)
+    history({'event': 'install', 'release': r['id'], 'engine': engine})
+    return {'release': r['id'], 'engine': engine, 'healthy': True}
 
 
 def _require_installed():
@@ -1181,20 +2231,20 @@ def _require_installed():
 
 def op_start(conf, args, progress):
     inst, r = _require_installed()
-    if not os.path.exists(P(COMPOSE_FILE)):
+    if not os.path.exists(P(ENGINES[r['engine']]['compose_file'])):
         write_compose(conf, r)
     apply_firewall(conf)
-    compose('up', '--detach', '--pull', 'never', timeout=600)
-    if not wait_healthy(conf, progress):
+    compose(r['engine'], 'up', '--detach', '--pull', 'never', timeout=600)
+    if not wait_healthy(conf, r['engine'], progress):
         raise HelperError('the editor started but did not become healthy; see the logs')
     return {'healthy': True}
 
 
 def op_stop(conf, args, progress):
-    _require_installed()
-    prepare_for_shutdown(progress)
+    _inst, r = _require_installed()
+    prepare_for_shutdown(r['engine'], progress)
     progress('stopping the editor')
-    compose('stop', '--timeout', '360', timeout=420)
+    stop_container(r['engine'])
     return {'stopped': True}
 
 
@@ -1205,32 +2255,35 @@ def op_restart(conf, args, progress):
 
 def op_update(conf, args, progress):
     inst, current = _require_installed()
+    engine = current['engine']
     target = release(args['release'])
     problem = release_problem(target, conf)
     if problem:
         raise HelperError(f'release {args["release"]} {problem}')
+    if target['engine'] != engine:
+        raise HelperError('that release is for the other engine: use Switch engine')
     if target['id'] == current['id']:
-        st = container_state()
+        st = container_state(engine)
         if st.get('running') and st.get('release_label') == target['id']:
             return {'release': target['id'], 'changed': False}
     if version_key(target) < version_key(current):
         raise HelperError('that is an older release: use rollback, which restores the matching backup')
     pull(target, progress)                      # before any downtime
-    prepare_for_shutdown(progress)
+    prepare_for_shutdown(engine, progress)
     progress('stopping the editor')
-    compose('stop', '--timeout', '360', timeout=420, check=False)
+    stop_container(engine, check=False)
     backup = take_backup(conf, current['id'], 'pre-update', progress)
     save_installed(dict(inst, state='updating', pending_release=target['id']))
     try:
         _up(conf, target, progress)
-        healthy = wait_healthy(conf, progress)
+        healthy = wait_healthy(conf, engine, progress)
     except HelperError:
         healthy = False
     if healthy:
-        save_installed({'state': 'installed', 'release': target['id'], 'version': target['version'],
-                        'digest': target['digest'], 'edition': target['edition'],
-                        'installed_at': now_iso(), 'previous_release': current['id'],
-                        'previous_backup': backup['id']})
+        save_installed({'state': 'installed', 'engine': engine, 'release': target['id'],
+                        'version': target['version'], 'digest': target['digest'],
+                        'edition': target['edition'], 'installed_at': now_iso(),
+                        'previous_release': current['id'], 'previous_backup': backup['id']})
         prune_backups({backup['id']})
         history({'event': 'update', 'from': current['id'], 'to': target['id'], 'backup': backup['id']})
         return {'release': target['id'], 'previous_release': current['id'], 'backup': backup['id'],
@@ -1238,10 +2291,10 @@ def op_update(conf, args, progress):
     # Never became healthy, so nobody can have edited with it: put the old
     # release back with the data exactly as it was before the update.
     progress('the new release did not become healthy: restoring the previous release automatically')
-    compose('down', '--timeout', '60', timeout=180, check=False)
+    compose(engine, 'down', '--timeout', '60', timeout=180, check=False)
     restore_backup(backup, progress)
     _up(conf, current, progress)
-    back = wait_healthy(conf, progress)
+    back = wait_healthy(conf, engine, progress)
     save_installed(dict(inst, state='installed' if back else 'unhealthy'))
     history({'event': 'update_failed', 'from': current['id'], 'to': target['id'],
              'restored': back})
@@ -1251,31 +2304,32 @@ def op_update(conf, args, progress):
 
 def op_rollback(conf, args, progress):
     inst, current = _require_installed()
+    engine = current['engine']
     prev_id, backup_id = inst.get('previous_release'), inst.get('previous_backup')
     if not prev_id or not backup_id:
         raise HelperError('nothing to roll back to: no update with a backup was recorded')
     prev = release(prev_id)
-    if prev is None:
+    if prev is None or prev['engine'] != engine:
         raise HelperError(f'release {prev_id} is no longer in the release list')
     manifest = next((b for b in list_backups() if b['id'] == backup_id), None)
     if manifest is None or manifest['release'] != prev_id or manifest['digest'] != prev['digest']:
         raise HelperError(f'backup {backup_id} is missing or was not taken from {prev_id}; '
                           'rolling back without it could break the editor\'s data')
     pull(prev, progress)
-    prepare_for_shutdown(progress)
-    compose('stop', '--timeout', '360', timeout=420, check=False)
+    prepare_for_shutdown(engine, progress)
+    stop_container(engine, check=False)
     # The editor data since the update is kept, never overwritten blindly.
     safety = take_backup(conf, current['id'], 'pre-rollback', progress)
-    compose('down', '--timeout', '60', timeout=180, check=False)
+    compose(engine, 'down', '--timeout', '60', timeout=180, check=False)
     restore_backup(manifest, progress)
     _up(conf, prev, progress)
-    if not wait_healthy(conf, progress):
+    if not wait_healthy(conf, engine, progress):
         save_installed(dict(inst, state='unhealthy'))
         raise HelperError(f'rolled back to {prev_id} but it did not become healthy; the data from '
                           f'before the rollback is kept in backup {safety["id"]}')
-    save_installed({'state': 'installed', 'release': prev['id'], 'version': prev['version'],
-                    'digest': prev['digest'], 'edition': prev['edition'], 'installed_at': now_iso(),
-                    'previous_release': None, 'previous_backup': None,
+    save_installed({'state': 'installed', 'engine': engine, 'release': prev['id'],
+                    'version': prev['version'], 'digest': prev['digest'], 'edition': prev['edition'],
+                    'installed_at': now_iso(), 'previous_release': None, 'previous_backup': None,
                     'rolled_back_from': current['id'], 'pre_rollback_backup': safety['id']})
     prune_backups({safety['id'], manifest['id']})
     history({'event': 'rollback', 'from': current['id'], 'to': prev['id'], 'kept': safety['id']})
@@ -1284,25 +2338,65 @@ def op_rollback(conf, args, progress):
 
 def op_uninstall(conf, args, progress):
     inst = installed()
-    if os.path.exists(P(COMPOSE_FILE)):
-        prepare_for_shutdown(progress)
+    engine = inst.get('engine') or ('onlyoffice' if inst.get('release') else active_engine(conf))
+    if os.path.exists(P(ENGINES[engine]['compose_file'])):
+        prepare_for_shutdown(engine, progress)
         progress('removing the editor container (documents and editor data are kept)')
-        compose('down', '--timeout', '360', timeout=420, check=False)
+        t = ENGINES[engine]['stop_timeout']
+        compose(engine, 'down', '--timeout', str(t), timeout=t + 60, check=False)
     else:
-        docker('rm', '--force', CONTAINER, timeout=60)
-    save_installed(dict(inst, state='uninstalled'))
-    history({'event': 'uninstall'})
-    return {'uninstalled': True, 'data_kept': BASE_DIR, 'secrets_kept': SECRETS_DIR}
+        docker('rm', '--force', ENGINES[engine]['container'], timeout=60)
+    save_installed(dict(inst, state='uninstalled', engine=engine))
+    history({'event': 'uninstall', 'engine': engine})
+    return {'uninstalled': True, 'engine': engine, 'data_kept': BASE_DIR, 'secrets_kept': SECRETS_DIR}
+
+
+def op_set_layout(conf, args, progress):
+    """Switch between the dedicated host name and the same-host layout
+    without reinstalling: proxy files first (tested, restored on failure),
+    then the container is re-created with the new server name. The app
+    drains editing sessions before it asks for this."""
+    layout = args['layout']
+    engine = active_engine(conf)
+    if layout not in conf['layouts']:
+        raise HelperError(f'layout {layout} is not allowed by PROXY_LAYOUTS in {CONF_PATH}')
+    if layout not in ENGINES[engine]['layouts']:
+        raise HelperError(f'{ENGINES[engine]["label"]} supports only a dedicated host name')
+    old = current_layout(conf, engine)
+    ps = proxy_state()
+    if ps.get('installed'):
+        install_proxy(conf, engine, layout, progress)
+    else:
+        write_atomic(P(PROXY_STATE_FILE), json.dumps(dict(ps, layout=layout), indent=1, sort_keys=True),
+                     0o600)
+    inst = installed()
+    recreated = False
+    if inst.get('release') and inst.get('state') != 'uninstalled' and engine == 'collabora':
+        r = release(inst['release'])
+        if r is not None:
+            st = container_state(engine)
+            write_compose(conf, r)
+            if st.get('exists'):
+                progress(f're-creating the editor for the {layout} layout (data is kept)')
+                compose(engine, 'up', '--detach', '--pull', 'never', timeout=600)
+                recreated = True
+                if not wait_healthy(conf, engine, progress):
+                    raise HelperError(f'the editor did not become healthy with the {layout} layout; '
+                                      f'switch back to {old} or see the logs')
+    history({'event': 'set-layout', 'from': old, 'to': layout})
+    return {'layout': layout, 'previous_layout': old, 'recreated': recreated,
+            'proxy_managed': bool(ps.get('installed')), **addresses(conf, engine)}
 
 
 def op_purge(conf, args, progress):
     if args.get('confirm') != conf['deployment_id']:
         raise HelperError('purge needs --confirm <DEPLOYMENT_ID>')
-    if container_state().get('exists') or installed().get('state') not in (None, 'uninstalled'):
+    if any(container_state(e).get('exists') for e in ENGINE_IDS) \
+            or installed().get('state') not in (None, 'uninstalled'):
         raise HelperError('uninstall first; purge only removes the data of an uninstalled editor')
-    for d in (DATA_DIR, BACKUP_DIR, COMPOSE_DIR, STATE_DIR, SECRETS_DIR):
+    for d in (DATA_DIR, COOL_DIR, BACKUP_DIR, COMPOSE_DIR, STATE_DIR, SECRETS_DIR):
         shutil.rmtree(P(d), ignore_errors=True)
-    for r in RELEASES:
+    for r in ALL_RELEASES:
         docker('image', 'rm', image_ref(r), timeout=120)
     run(['nft', 'delete', 'table', 'inet', NFT_TABLE], timeout=30)
     return {'purged': True}
@@ -1312,7 +2406,9 @@ OPERATIONS = {
     'preflight': op_preflight, 'status': op_status, 'releases': op_releases, 'logs': op_logs,
     'secret': op_secret, 'install': op_install, 'start': op_start, 'stop': op_stop,
     'restart': op_restart, 'update': op_update, 'rollback': op_rollback,
-    'uninstall': op_uninstall, 'purge': op_purge,
+    'uninstall': op_uninstall, 'purge': op_purge, 'set-layout': op_set_layout,
+    'proxy-status': op_proxy_status, 'proxy-install': op_proxy_install,
+    'proxy-remove': op_proxy_remove, 'callback-check': op_callback_check,
 }
 
 
@@ -1322,8 +2418,9 @@ OPERATIONS = {
 
 def validate_request(req, *, cli=False):
     """(op, args) for a request, or HelperError. Nothing outside this
-    grammar is accepted, and no string the app sends reaches a command
-    line except a release id that equals one in RELEASES."""
+    grammar is accepted, and no string the app sends reaches a command line
+    or a file except values that equal a fixed choice (a release id from the
+    lists, an engine or layout name) or the configured host name."""
     if not isinstance(req, dict) or set(req) - {'op', 'args'}:
         raise HelperError('a request is {"op": ..., "args": {...}}')
     op = req.get('op')
@@ -1339,6 +2436,25 @@ def validate_request(req, *, cli=False):
                 or not RELEASE_RE.match(args['release']) or release(args['release']) is None:
             raise HelperError('update needs {"release": "<id from the release list>"}')
         return op, {'release': args['release']}
+    if op in ('install', 'preflight'):
+        if set(args) - {'engine'}:
+            raise HelperError(f'{op} takes only "engine"')
+        if 'engine' in args:
+            if not isinstance(args['engine'], str) or args['engine'] not in ENGINE_IDS:
+                raise HelperError('engine must be "onlyoffice" or "collabora"')
+            return op, {'engine': args['engine']}
+        return op, {}
+    if op == 'set-layout':
+        if set(args) != {'layout'} or not isinstance(args['layout'], str) \
+                or args['layout'] not in LAYOUTS:
+            raise HelperError('set-layout needs {"layout": "dedicated" | "same-host"}')
+        return op, {'layout': args['layout']}
+    if op == 'proxy-install':
+        host = args.get('hostname')
+        if set(args) != {'hostname'} or not isinstance(host, str) or len(host) > 253 \
+                or not HOST_RE.match(host):
+            raise HelperError('proxy-install needs {"hostname": "<the configured host name>"}')
+        return op, {'hostname': host}
     if op == 'logs':
         if set(args) - {'lines'}:
             raise HelperError('logs takes only "lines"')
@@ -1480,6 +2596,12 @@ def cli(argv):
         args = {}
         if op == 'update' and len(rest) == 1:
             args = {'release': rest[0]}
+        elif op in ('install', 'preflight') and len(rest) == 1:
+            args = {'engine': rest[0]}
+        elif op == 'set-layout' and len(rest) == 1:
+            args = {'layout': rest[0]}
+        elif op == 'proxy-install' and len(rest) == 1:
+            args = {'hostname': rest[0].lower()}
         elif op == 'logs' and len(rest) == 1 and rest[0].isdigit():
             args = {'lines': int(rest[0])}
         elif op == 'purge' and len(rest) == 2 and rest[0] == '--confirm':

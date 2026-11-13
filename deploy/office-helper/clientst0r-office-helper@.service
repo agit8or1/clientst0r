@@ -23,6 +23,9 @@ PrivateTmp=yes
 ProtectHome=yes
 ProtectSystem=full
 ReadWritePaths=/var/lib/clientst0r-office /etc/clientst0r/office /run
+# The helper's own Nginx files only (proxy-install / set-layout); the
+# helper code itself refuses any other file there. "-" = may not exist.
+ReadWritePaths=-/etc/nginx/sites-available -/etc/nginx/sites-enabled -/etc/nginx/clientst0r-office
 ProtectControlGroups=no
 RestrictSUIDSGID=yes
 LockPersonality=yes
