@@ -128,7 +128,7 @@
         }).catch(function () { /* keep the old figure */ });
     }
 
-    root.addEventListener('click', function (e) {
+    document.addEventListener('click', function (e) {
         var retry = e.target.closest('[data-dash-retry]');
         if (retry) {
             var art = retry.closest('.dash-w');
@@ -152,7 +152,7 @@
             if (icon) icon.classList.add('fa-spin');
             refreshBtn.disabled = true;
             var jobs = [];
-            root.querySelectorAll('.dash-w').forEach(function (a) { jobs.push(loadBody(a)); });
+            document.querySelectorAll('.dash-w[data-key]').forEach(function (a) { jobs.push(loadBody(a)); });
             root.querySelectorAll('[data-kpi]').forEach(function (k) { jobs.push(loadKpi(k)); });
             Promise.all(jobs).finally(function () {
                 if (icon) icon.classList.remove('fa-spin');
@@ -164,8 +164,15 @@
     // ------------------------------------------------------------------
     // Expand a widget to a large overlay (Esc or the backdrop closes it)
     // ------------------------------------------------------------------
+    // The shell's main column is its own stacking context, so the overlay,
+    // its backdrop and the customize panel live directly under <body>. An
+    // expanded widget leaves a placeholder in the grid and goes back to it.
     var backdrop = document.getElementById('dash-backdrop');
+    if (backdrop) document.body.appendChild(backdrop);
+    var customizePanel = document.getElementById('dash-customize');
+    if (customizePanel) document.body.appendChild(customizePanel);
     var expanded = null;
+    var placeholder = null;
 
     function collapse() {
         if (!expanded) return;
@@ -179,6 +186,11 @@
         }
         expanded.removeAttribute('role');
         expanded.removeAttribute('aria-modal');
+        if (placeholder && placeholder.parentNode) {
+            placeholder.parentNode.replaceChild(expanded, placeholder);
+        }
+        placeholder = null;
+        if (btn) btn.focus();
         expanded = null;
         if (backdrop) backdrop.hidden = true;
         document.body.classList.remove('dash-has-expanded');
@@ -189,6 +201,12 @@
         if (expanded) collapse();
         expanded = article;
         var btn = article.querySelector('[data-dash-expand]');
+        placeholder = document.createElement('div');
+        placeholder.className = 'dash-w dash-w-placeholder';
+        placeholder.setAttribute('data-size', article.getAttribute('data-size') || '1');
+        placeholder.setAttribute('aria-hidden', 'true');
+        article.parentNode.replaceChild(placeholder, article);
+        document.body.appendChild(article);
         article.classList.add('is-expanded');
         article.setAttribute('role', 'dialog');
         article.setAttribute('aria-modal', 'true');
@@ -203,7 +221,7 @@
         invalidateMaps();
     }
 
-    root.addEventListener('click', function (e) {
+    document.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-dash-expand]');
         if (!btn) return;
         var art = btn.closest('.dash-w');
@@ -219,7 +237,7 @@
     // follows its grid cell; Leaflet is told whenever the cell changes.
     // ------------------------------------------------------------------
     function invalidateMaps() {
-        root.querySelectorAll('[data-dash-map]').forEach(function (el) {
+        document.querySelectorAll('.dash [data-dash-map], .dash-w.is-expanded [data-dash-map]').forEach(function (el) {
             var m = maps.get(el);
             if (m && m.map) setTimeout(function () { m.map.invalidateSize(); }, 60);
         });
@@ -270,6 +288,8 @@
 
         function showMessage(text) {
             canvas.hidden = true;
+            var tools = el.querySelector('.dash-map-tools');
+            if (tools) tools.hidden = true;
             message.hidden = false;
             message.querySelector('span').textContent = text;
             if (devBtn) devBtn.hidden = true;

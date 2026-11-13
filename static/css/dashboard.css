@@ -16,7 +16,7 @@
     max-width: none;
 }
 
-.dash {
+.dash, .dash-w.is-expanded, .dash-customize {
     --dash-gap: 8px;
     --dash-pad: 8px 10px;
     --dash-radius: 8px;
@@ -25,6 +25,8 @@
     --dash-muted: var(--bs-secondary-color, #6c757d);
     --dash-accent: var(--primary-color, var(--bs-primary, #0d6efd));
     --dash-row-pad: 4px;
+}
+.dash {
     display: flex;
     flex-direction: column;
     gap: var(--dash-gap);
@@ -378,7 +380,9 @@ a.dash-bar-row:hover .dash-bar-label { color: var(--dash-accent); text-decoratio
 .dash-map-canvas { flex: 1 1 auto; min-height: 140px; position: relative; z-index: 1; cursor: grab; }
 .dash-popup { min-width: 200px; }
 [data-bs-theme="dark"] .dash .leaflet-popup-content-wrapper,
-[data-bs-theme="dark"] .dash .leaflet-popup-tip { background-color: #2b3035; color: #dee2e6; }
+[data-bs-theme="dark"] .dash .leaflet-popup-tip,
+[data-bs-theme="dark"] .dash-w.is-expanded .leaflet-popup-content-wrapper,
+[data-bs-theme="dark"] .dash-w.is-expanded .leaflet-popup-tip { background-color: #2b3035; color: #dee2e6; }
 
 /* ── Expanded widget ──────────────────────────────────── */
 .dash-backdrop {
@@ -388,6 +392,7 @@ a.dash-bar-row:hover .dash-bar-label { color: var(--dash-accent); text-decoratio
     z-index: 1055;
 }
 .dash-w.is-expanded {
+    font-size: .875rem;
     position: fixed;
     inset: 5vh 5vw;
     z-index: 1056;
@@ -395,6 +400,7 @@ a.dash-bar-row:hover .dash-bar-label { color: var(--dash-accent); text-decoratio
     box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
 }
 .dash-w.is-expanded .dash-w-title { font-size: 1rem; }
+.dash-w-placeholder { border-style: dashed; background: transparent; }
 body.dash-has-expanded { overflow: hidden; }
 
 /* The page footer stays (version line) but takes one slim line here. */
@@ -439,6 +445,9 @@ body.dash-page .app-main > footer small { font-size: .75rem; line-height: 1.4; }
     .dash-w[data-size="2"], .dash-w[data-size="3"] { grid-column: auto; }
     .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .dash-btn-text { display: none; }
+    .dash-head-actions { flex-wrap: nowrap; }
+    .dash-head-actions form { display: inline-flex !important; width: auto !important; margin: 0; }
+    .dash-head-actions .btn { width: auto !important; display: inline-flex !important; align-items: center; gap: 4px; margin: 0 !important; }
     .dash-w.is-expanded { inset: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {

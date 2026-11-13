@@ -24,18 +24,18 @@
             {% if psa_enabled %}
             <a href="{% url 'psa:my_work' %}" class="btn btn-primary btn-sm"><i class="fas fa-user-check" aria-hidden="true"></i> My Work</a>
             {% endif %}
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-refresh" title="Reload every widget">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-refresh" title="Reload every widget" aria-label="Refresh">
                 <i class="fas fa-rotate" aria-hidden="true"></i> <span class="dash-btn-text">Refresh</span>
             </button>
             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="offcanvas"
-                    data-bs-target="#dash-customize" aria-controls="dash-customize" id="dash-customize-btn">
+                    data-bs-target="#dash-customize" aria-controls="dash-customize" id="dash-customize-btn" aria-label="Customize">
                 <i class="fas fa-sliders" aria-hidden="true"></i> <span class="dash-btn-text">Customize</span>
             </button>
             <form method="post" action="{% url 'core:dashboard_variant_save' %}" class="d-inline">
                 {% csrf_token %}
                 <input type="hidden" name="variant" value="classic">
                 <button type="submit" class="btn btn-outline-secondary btn-sm"
-                        title="Switch to the previous dashboard layout (you can switch back at any time)">
+                        title="Switch to the previous dashboard layout (you can switch back at any time)" aria-label="Classic dashboard">
                     <i class="fas fa-table-columns" aria-hidden="true"></i> <span class="dash-btn-text">Classic dashboard</span>
                 </button>
             </form>

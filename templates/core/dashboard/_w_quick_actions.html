@@ -7,4 +7,5 @@
         <span class="dash-qa-empty">No quick actions available. Use Customize to pick some.</span>
         {% endfor %}
     </div>
+    {% if w.edit_url %}<a href="{{ w.edit_url }}" class="dash-w-btn" title="Choose quick actions" aria-label="Choose quick actions"><i class="fas fa-cog" aria-hidden="true"></i></a>{% endif %}
 </nav>

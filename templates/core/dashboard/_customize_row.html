@@ -1,6 +1,6 @@
 <li class="dash-c-row" draggable="true" data-key="{{ p.key }}">
     <span class="dash-c-grip" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
-    <label class="dash-c-label">
+    <label class="dash-c-label"{% if p.widget.description %} title="{{ p.widget.description }}"{% endif %}>
         <input type="checkbox" class="form-check-input" data-dash-show {% if not p.hidden %}checked{% endif %}>
         <i class="fas {{ p.widget.icon }}" aria-hidden="true"></i> {{ p.widget.label }}
     </label>
