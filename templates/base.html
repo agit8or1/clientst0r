@@ -1,6 +1,6 @@
 {% load static %}{% load i18n %}{% load navigation %}
 <!DOCTYPE html>
-<html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}dark{% else %}light{% endif %}">
+<html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme == 'professional' or user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}dark{% else %}light{% endif %}" data-density="{{ user_density|default:'compact' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -39,7 +39,7 @@
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
-<body class="{% if user_background_url or user_background_color %}has-background{% endif %}"{% if user.is_authenticated %} data-org-context="{{ current_organization.pk|default_if_none:'' }}" data-switch-url="{% url 'accounts:switch_organization' 0 %}" data-global-view-url="{% url 'accounts:switch_to_global_view' %}"{% endif %} {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
+<body class="{% block body_class %}{% endblock %}{% if user_background_url or user_background_color %} has-background{% endif %}"{% if user.is_authenticated %} data-org-context="{{ current_organization.pk|default_if_none:'' }}" data-switch-url="{% url 'accounts:switch_organization' 0 %}" data-global-view-url="{% url 'accounts:switch_to_global_view' %}"{% endif %} {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
 
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
@@ -197,7 +197,7 @@
     <div class="app-main">
     {% if user.is_authenticated %}{% include "core/_shortcut_strip.html" %}{% endif %}
 
-    <main id="main-content" class="container mt-4" tabindex="-1">
+    <main id="main-content" class="{% block main_class %}container mt-4{% endblock %}" tabindex="-1">
         {% csrf_token %}
         {% if messages %}
             {% for message in messages %}
