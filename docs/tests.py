@@ -1420,3 +1420,30 @@ class GlobalViewSharedSlugTests(TestCase):
         r = self.client.get('/docs/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, f'/docs/security-policy/?org={self.b.pk}')
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class FileTypeLabelTests(TestCase):
+    """v3.17.676: every OOXML MIME type contains 'officedocument', so the
+    list's Word check caught .xlsx and .pptx uploads too."""
+
+    def test_each_office_file_gets_its_own_label(self):
+        from core.models import Organization
+        org = Organization.objects.create(name='Labels Co', slug='labels-676')
+        ooxml = 'application/vnd.openxmlformats-officedocument.'
+        for title, mime in (('Letter', ooxml + 'wordprocessingml.document'),
+                            ('Licence renewals', ooxml + 'spreadsheetml.sheet'),
+                            ('Deck', ooxml + 'presentationml.presentation')):
+            Document.objects.create(organization=org, title=title, content_type='file',
+                                    file_type=mime, file_size=6072, is_published=True)
+        su = User.objects.create_superuser('su676', 'su676@x.com', 'pw-676-su!')
+        self.client.force_login(su)
+        s = self.client.session
+        s['current_organization_id'] = org.pk
+        s.save()
+        r = self.client.get('/docs/')
+        self.assertEqual(r.status_code, 200)
+        for label in ('fa-file-word fa-lg text-primary"></i> Word',
+                      'fa-file-excel fa-lg text-success"></i> Excel',
+                      'fa-file-powerpoint fa-lg text-warning"></i> PowerPoint'):
+            self.assertContains(r, label, count=1)

@@ -124,10 +124,6 @@
                         <div class="d-flex align-items-center justify-content-center h-100">
                             <i class="fas fa-file-pdf fa-5x text-danger"></i>
                         </div>
-                    {% elif 'word' in doc.file_type or 'document' in doc.file_type %}
-                        <div class="d-flex align-items-center justify-content-center h-100">
-                            <i class="fas fa-file-word fa-5x text-primary"></i>
-                        </div>
                     {% elif 'excel' in doc.file_type or 'spreadsheet' in doc.file_type %}
                         <div class="d-flex align-items-center justify-content-center h-100">
                             <i class="fas fa-file-excel fa-5x text-success"></i>
@@ -135,6 +131,11 @@
                     {% elif 'powerpoint' in doc.file_type or 'presentation' in doc.file_type %}
                         <div class="d-flex align-items-center justify-content-center h-100">
                             <i class="fas fa-file-powerpoint fa-5x text-warning"></i>
+                        </div>
+                    {# After the spreadsheet and slide checks: every OOXML type says 'officedocument'. #}
+                    {% elif 'word' in doc.file_type or 'document' in doc.file_type %}
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <i class="fas fa-file-word fa-5x text-primary"></i>
                         </div>
                     {% elif 'zip' in doc.file_type or 'compressed' in doc.file_type %}
                         <div class="d-flex align-items-center justify-content-center h-100">
@@ -228,14 +229,15 @@
                                     {% elif 'pdf' in doc.file_type %}
                                         <i class="fas fa-file-pdf fa-lg text-danger"></i> PDF
                                         {% if doc.file_size %}<br><small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
-                                    {% elif 'word' in doc.file_type or 'document' in doc.file_type %}
-                                        <i class="fas fa-file-word fa-lg text-primary"></i> Word
-                                        {% if doc.file_size %}<br><small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
                                     {% elif 'excel' in doc.file_type or 'spreadsheet' in doc.file_type %}
                                         <i class="fas fa-file-excel fa-lg text-success"></i> Excel
                                         {% if doc.file_size %}<br><small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
                                     {% elif 'powerpoint' in doc.file_type or 'presentation' in doc.file_type %}
                                         <i class="fas fa-file-powerpoint fa-lg text-warning"></i> PowerPoint
+                                        {% if doc.file_size %}<br><small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
+                                    {# After the spreadsheet and slide checks: every OOXML type says 'officedocument'. #}
+                                    {% elif 'word' in doc.file_type or 'document' in doc.file_type %}
+                                        <i class="fas fa-file-word fa-lg text-primary"></i> Word
                                         {% if doc.file_size %}<br><small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
                                     {% elif 'zip' in doc.file_type or 'compressed' in doc.file_type %}
                                         <i class="fas fa-file-archive fa-lg text-secondary"></i> Archive
