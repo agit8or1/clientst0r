@@ -1,0 +1,7 @@
+<a class="dash-kpi dash-tone-{{ w.tone|default:'primary' }}" data-kpi="{{ widget.key }}" title="{{ w.label }}{% if w.sub %}: {{ w.sub }}{% endif %}"{% if w.href %} href="{{ w.href }}"{% endif %}>
+    <span class="dash-kpi-icon" aria-hidden="true"><i class="fas {{ w.icon }}"></i></span>
+    <span class="dash-kpi-text">
+        <span class="dash-kpi-value">{{ w.value }}</span>
+        <span class="dash-kpi-label">{{ w.label }}{% if w.sub %} <span class="dash-kpi-sub{% if w.sub_tone %} dash-sub-{{ w.sub_tone }}{% endif %}">· {{ w.sub }}</span>{% endif %}</span>
+    </span>
+</a>

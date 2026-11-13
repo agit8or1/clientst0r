@@ -24,6 +24,13 @@ app_name = 'core'
 urlpatterns = [
     path('clients/switcher-search/', client_switcher.client_switcher_search, name='client_switcher_search'),
     path('dashboard/', dashboard_views.dashboard, name='dashboard'),
+    # Phase 67 compact dashboard: one widget's body (gate re-checked), the
+    # user's own layout, the classic/new switch and role default layouts.
+    path('dashboard/widget/<slug:key>/', dashboard_views.dashboard_widget, name='dashboard_widget'),
+    path('dashboard/layout/', dashboard_views.dashboard_layout_save, name='dashboard_layout_save'),
+    path('dashboard/variant/', dashboard_views.dashboard_variant_save, name='dashboard_variant_save'),
+    path('dashboard/role-default/', dashboard_views.dashboard_role_default_save,
+         name='dashboard_role_default_save'),
     # Technician workspace (core/workspace.py): open a device in its customer's
     # context, return from it, saved list views, recent devices.
     path('open/<slug:kind>/<int:pk>/', workspace.open_device, name='open_device'),

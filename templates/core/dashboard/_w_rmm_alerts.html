@@ -1,0 +1,18 @@
+{% if w.alerts %}
+<ul class="dash-list">
+    {% for a in w.alerts %}
+    <li>
+        <a href="{{ w.more_url }}?q={{ a.device.device_name|urlencode }}" class="dash-row">
+            <span class="dash-row-main">
+                <span class="badge dash-sev dash-sev-{{ a.severity }}">{{ a.get_severity_display }}</span>
+                <span class="dash-row-title">{{ a.device.device_name }}</span>
+                <span class="dash-row-sub">{{ a.message|truncatechars:90 }}</span>
+            </span>
+            <span class="dash-row-meta" title="{{ a.triggered_at }}">{{ a.triggered_at|timesince }}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> No active RMM alerts</div>
+{% endif %}

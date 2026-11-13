@@ -1,0 +1,21 @@
+<div class="dash-map" data-dash-map
+     data-locations-url="{{ w.locations_url }}"
+     {% if w.devices_url %}data-devices-url="{{ w.devices_url }}"{% endif %}
+     data-zoom="{{ w.map_default_zoom }}" data-dragging="{{ w.map_dragging_enabled|yesno:'true,false' }}">
+    <div class="dash-map-tools">
+        {% if w.devices_url %}
+        <button type="button" class="btn btn-sm btn-outline-primary" data-map-devices aria-pressed="false"
+                title="Show or hide RMM devices with location data on the map">
+            <i class="fas fa-laptop" aria-hidden="true"></i> <span>Show devices</span>
+        </button>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-map-drag hidden aria-pressed="false" title="Dragging disabled">
+            <i class="fas fa-lock" aria-hidden="true"></i> <span>Dragging disabled</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-info" data-map-satellite hidden aria-pressed="false" title="Satellite view">
+            <i class="fas fa-satellite" aria-hidden="true"></i> <span>Satellite view</span>
+        </button>
+    </div>
+    <div class="dash-map-canvas" data-map-canvas></div>
+    <div class="dash-w-state" data-map-message hidden><i class="fas fa-map-marker-alt" aria-hidden="true"></i> <span>Loading map…</span></div>
+</div>

@@ -1,0 +1,21 @@
+{% if w.task_rows %}
+<ul class="dash-list">
+    {% for row in w.task_rows %}
+    <li>
+        {% if row.url %}<a href="{{ row.url }}" class="dash-row">{% else %}<div class="dash-row">{% endif %}
+            <span class="dash-row-main">
+                <i class="fas {{ row.icon }} dash-row-icon" aria-hidden="true"></i>
+                <span class="dash-row-title">{{ row.title }}</span>
+                {% if row.context %}<span class="dash-row-sub">{{ row.context }}</span>{% endif %}
+            </span>
+            <span class="dash-row-meta">
+                {% if row.is_overdue %}<span class="badge bg-danger">Overdue</span>
+                {% elif row.days_until != None %}<span class="badge {% if row.days_until <= 7 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ row.days_until }}d</span>{% endif %}
+            </span>
+        {% if row.url %}</a>{% else %}</div>{% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> Nothing outstanding</div>
+{% endif %}

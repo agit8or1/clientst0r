@@ -1,0 +1,22 @@
+{% if w.schedule_days %}
+<ul class="dash-list">
+    {% for day in w.schedule_days %}
+    <li class="dash-list-day">{% if day.is_today %}Today{% else %}{{ day.day|date:"D j M" }}{% endif %}</li>
+    {% for item in day.items %}
+    <li>
+        {% if item.url %}<a href="{{ item.url }}" class="dash-row">{% else %}<div class="dash-row">{% endif %}
+            <span class="dash-row-main">
+                <i class="fas {{ item.icon }} dash-row-icon" aria-hidden="true"></i>
+                <span class="dash-row-title">{{ item.title }}</span>
+                {% if item.alerting %}<i class="fas fa-bell text-warning" title="Due soon" aria-label="Due soon"></i>{% endif %}
+                {% if item.context %}<span class="dash-row-sub">{{ item.context }}</span>{% endif %}
+            </span>
+            <span class="dash-row-meta">{{ item.when|date:"H:i" }}</span>
+        {% if item.url %}</a>{% else %}</div>{% endif %}
+    </li>
+    {% endfor %}
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-calendar-check" aria-hidden="true"></i> Nothing scheduled in the next 7 days</div>
+{% endif %}

@@ -180,12 +180,19 @@ class NavAndPageTests(_Base):
         from monitoring.models import WebsiteMonitor
         WebsiteMonitor.objects.create(organization=self.org_a, name='m', url='https://a.example',
                                       status='down')
+        classic = reverse('core:dashboard') + '?layout=classic'
         on = self._customer('sf_dash_on', self.all_on_a)
-        self.assertEqual(self._dashboard(on).context['stats']['monitors'], 1)
+        self.assertEqual(self._get(on, classic, self.org_a).context['stats']['monitors'], 1)
         off = self._customer('sf_dash_off', self.no_flag_a['monitoring_view'])
-        r = self._dashboard(off)
+        r = self._get(off, classic, self.org_a)
         self.assertEqual(r.context['stats']['monitors'], 0)
         self.assertEqual(r.context['monitors_down'], 0)
+        # The new dashboard (Phase 67) leaves the monitor widgets out entirely.
+        keys = {p.key for p in self._dashboard(off).context['kpis']}
+        keys |= {p.key for p in self._dashboard(off).context['grid']}
+        self.assertNotIn('kpi_monitors', keys)
+        self.assertNotIn('monitors', keys)
+        self.assertIn('kpi_monitors', {p.key for p in self._dashboard(on).context['kpis']})
 
     def test_asset_images_hidden_without_files_view(self):
         from assets.models import Asset

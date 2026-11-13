@@ -1,0 +1,19 @@
+<li class="dash-c-row" draggable="true" data-key="{{ p.key }}">
+    <span class="dash-c-grip" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+    <label class="dash-c-label"{% if p.widget.description %} title="{{ p.widget.description }}"{% endif %}>
+        <input type="checkbox" class="form-check-input" data-dash-show {% if not p.hidden %}checked{% endif %}>
+        <i class="fas {{ p.widget.icon }}" aria-hidden="true"></i> {{ p.widget.label }}
+    </label>
+    {% if sizes %}
+    <label class="visually-hidden" for="dash-size-{{ p.key }}">Width of {{ p.widget.label }}</label>
+    <select class="form-select form-select-sm dash-c-size" id="dash-size-{{ p.key }}" data-dash-size title="Width in columns">
+        <option value="1"{% if p.size == 1 %} selected{% endif %}>1 col</option>
+        <option value="2"{% if p.size == 2 %} selected{% endif %}>2 cols</option>
+        <option value="3"{% if p.size == 3 %} selected{% endif %}>3 cols</option>
+    </select>
+    {% endif %}
+    <span class="dash-c-move">
+        <button type="button" class="btn btn-sm btn-link" data-dash-up aria-label="Move {{ p.widget.label }} up"><i class="fas fa-arrow-up" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-sm btn-link" data-dash-down aria-label="Move {{ p.widget.label }} down"><i class="fas fa-arrow-down" aria-hidden="true"></i></button>
+    </span>
+</li>

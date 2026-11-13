@@ -298,7 +298,8 @@ def quick_actions_edit(request):
     POST keys: `selected[]` (list of action keys, in user-preferred order
     as the JS submits them — drag-to-reorder works in the form).
     """
-    from core.quick_actions import QUICK_ACTIONS_REGISTRY, DEFAULT_QUICK_ACTION_KEYS, get_action
+    from core.quick_actions import (
+        QUICK_ACTIONS_REGISTRY, DEFAULT_QUICK_ACTION_KEYS, action_allowed, clean_keys, get_action)
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
@@ -307,8 +308,8 @@ def quick_actions_edit(request):
             profile.save(update_fields=['quick_actions_config'])
             messages.success(request, 'Quick Actions reset to defaults.')
             return redirect('accounts:quick_actions_edit')
-        chosen = request.POST.getlist('selected')
-        valid = [k for k in chosen if get_action(k)]
+        # Known keys only, each once, capped (core.quick_actions.clean_keys).
+        valid = clean_keys(request.POST.getlist('selected'))
         profile.quick_actions_config = valid
         profile.save(update_fields=['quick_actions_config'])
         messages.success(request, f'Saved {len(valid)} Quick Actions.')
@@ -317,7 +318,7 @@ def quick_actions_edit(request):
     saved = profile.quick_actions_config or []
     if not saved:
         saved = list(DEFAULT_QUICK_ACTION_KEYS)
-    saved_keys = list(saved)
+    saved_keys = clean_keys(saved)
     saved_set = set(saved_keys)
 
     selected = []
@@ -328,7 +329,9 @@ def quick_actions_edit(request):
 
     available = []
     for action in QUICK_ACTIONS_REGISTRY:
-        if action['key'] not in saved_set:
+        # Offer only shortcuts whose page would let this user in (the
+        # dashboard drops the others when it renders).
+        if action['key'] not in saved_set and action_allowed(action, request):
             available.append({
                 'key': action['key'],
                 'label': action['label'],

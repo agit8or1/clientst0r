@@ -1,0 +1,17 @@
+{% if w.logs %}
+<ul class="dash-list">
+    {% for log in w.logs %}
+    <li>
+        <div class="dash-row">
+            <span class="dash-row-main">
+                <span class="dash-row-title"><strong>{% if log.username %}{{ log.username }}{% elif log.user %}{{ log.user.username }}{% else %}system{% endif %}</strong> {{ log.get_action_display|lower }}{% if log.object_repr %} {{ log.object_repr|truncatechars:60 }}{% endif %}</span>
+                {% if log.description %}<span class="dash-row-sub">{{ log.description|truncatechars:90 }}</span>{% endif %}
+            </span>
+            <span class="dash-row-meta" title="{{ log.timestamp }}">{{ log.timestamp|timesince }} ago</span>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state">No recorded activity for this customer yet.</div>
+{% endif %}

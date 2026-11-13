@@ -2840,3 +2840,26 @@ class SavedView(models.Model):
 
     def __str__(self):
         return f"{self.user_id} {self.list_key}: {self.name}"
+
+
+class DashboardRoleDefault(models.Model):
+    """Phase 67: an administrator's default dashboard layout for one built-in
+    role preset (core.dashboard_widgets.PRESET_KEYS). Applied to users of
+    that preset who have no layout of their own. Installation-wide, so only
+    superusers and MSP staff whose global role grants `roles_manage` save
+    it. The layout orders and hides widgets only; every widget's own
+    permission check still runs."""
+    from django.conf import settings as _settings
+
+    preset = models.CharField(max_length=20, unique=True)
+    layout = models.JSONField(default=dict, blank=True)
+    updated_by = models.ForeignKey(_settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'core_dashboard_role_defaults'
+        ordering = ['preset']
+
+    def __str__(self):
+        return f'Dashboard default: {self.preset}'
