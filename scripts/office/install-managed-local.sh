@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# clientst0r Managed Local ONLYOFFICE: one-time root setup on the clientst0r
-# server itself (docs/office/MANAGED_LOCAL.md). Usually started as
+# clientst0r managed local editor (ONLYOFFICE Docs or Collabora CODE): one-time
+# root setup on the clientst0r server itself (docs/office/MANAGED_LOCAL.md).
+# Usually started as
 #
 #   install-editor.sh --mode managed-local ...      (same options)
 #
-#   install-managed-local.sh --hostname office.example.com
+#   install-managed-local.sh [--provider onlyoffice|collabora]
+#                            [--engines onlyoffice,collabora]
+#                            [--layouts dedicated[,same-host]]
+#                            [--hostname office.example.com]
 #                            --clientstor-url https://clientstor.example.com
 #                            --deployment-id acme-prod
 #                            [--edition community|enterprise] [--license-file F]
 #                            [--bind-port 8090] [--cpus N] [--memory-mb N]
+#                            [--collabora-bind-port 9981] [--collabora-cpus N]
+#                            [--collabora-memory-mb N]
 #                            [--reserve-mb N] [--subnet 172.31.250.0/28]
 #                            [--tls existing-cert --cert-file F --key-file F]
 #                            [--tls certbot --certbot-email E]
+#                            [--tls upstream [--callback-upstream-ip IP]]
 #                            [--ca-file F] [--install-docker] [--app-user U]
 #                            [--dry-run] [--preflight-only]
 #   install-managed-local.sh --remove-units [--dry-run]
@@ -33,9 +40,13 @@
 #      ONLYOFFICE (Install), which runs the helper's fixed `install` verb.
 #   5. Stops unattended-upgrades from upgrading the container engine (it
 #      would restart the editor without saving open documents first).
-#   6. Writes a dedicated Nginx server block for the office host name that
-#      proxies to 127.0.0.1:BIND_PORT (WebSockets included), after nginx -t.
-#      clientst0r's own site is never edited.
+#   6. Asks the helper (clientst0r-office-helper cli proxy-install) to write
+#      its own Nginx files for the first layout in --layouts: a dedicated
+#      server block for the office host name, or the same-host snippet that
+#      the administrator includes ONCE in clientst0r's server block. nginx -t
+#      before every reload; restored on failure. clientst0r's own site is
+#      never edited. --tls upstream: TLS ends on a device in front of this
+#      server, the block listens on 80, no certificate is needed here.
 #   7. Runs the helper's preflight and prints it.
 #
 # It never prints or accepts secrets; the helper generates the JWT secret
@@ -61,11 +72,16 @@ SITE_LINK=/etc/nginx/sites-enabled/clientst0r-office-managed
 ACME_DIR=/var/www/clientst0r-office-acme
 ROOT_HELPER_CONF=/etc/clientst0r/root-helper.conf
 
+SNIPPET_DIR=/etc/nginx/clientst0r-office
+TLS_DIR=/etc/clientst0r/office/tls
+
 ACTION=install
 OFFICE_HOST=""; CLIENTSTOR_URL=""; DEPLOYMENT_ID=""; EDITION=community; LICENSE_FILE=""
 BIND_PORT=8090; CPUS=""; MEMORY_MB=4096; RESERVE_MB=2048; SUBNET=172.31.250.0/28
 TLS=existing-cert; CERT_FILE=""; KEY_FILE=""; CERTBOT_EMAIL=""; CA_FILE=""
 INSTALL_DOCKER=0; APP_USER=""; DRY_RUN=0; PREFLIGHT_ONLY=0
+PROVIDER=onlyoffice; ENGINES=""; LAYOUTS=dedicated; CALLBACK_UPSTREAM_IP=""
+COOL_PORT=9981; COOL_CPUS=1.5; COOL_MEM=1536
 
 say()  { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -80,6 +96,7 @@ owned_path() {
         "$CONF"|"$SECRETS"|"$SECRETS"/*|"$HELPER"|"$APT_HOLD"|"$SITE"|"$SITE_LINK") return 0 ;;
         "$UNIT_DIR"/clientst0r-office-helper.socket|"$UNIT_DIR"/clientst0r-office-helper@.service) return 0 ;;
         "$UNIT_DIR"/clientst0r-office-firewall.service) return 0 ;;
+        "$SNIPPET_DIR"/same-host.conf) return 0 ;;
     esac
     return 1
 }
@@ -111,7 +128,14 @@ parse_args() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --mode) need_val "$@"; [ "$2" = managed-local ] || die "this script only does --mode managed-local"; shift ;;
-            --provider) need_val "$@"; [ "$2" = onlyoffice ] || die "Managed Local supports --provider onlyoffice only"; shift ;;
+            --provider) need_val "$@"; case "$2" in onlyoffice|collabora) PROVIDER="$2" ;;
+                *) die "Managed Local supports --provider onlyoffice or collabora (Collabora CODE)" ;; esac; shift ;;
+            --engines) need_val "$@"; ENGINES="$2"; shift ;;
+            --layouts) need_val "$@"; LAYOUTS="$2"; shift ;;
+            --callback-upstream-ip) need_val "$@"; CALLBACK_UPSTREAM_IP="$2"; shift ;;
+            --collabora-bind-port) need_val "$@"; COOL_PORT="$2"; shift ;;
+            --collabora-cpus) need_val "$@"; COOL_CPUS="$2"; shift ;;
+            --collabora-memory-mb) need_val "$@"; COOL_MEM="$2"; shift ;;
             --hostname) need_val "$@"; OFFICE_HOST="$2"; shift ;;
             --clientstor-url) need_val "$@"; CLIENTSTOR_URL="$2"; shift ;;
             --deployment-id) need_val "$@"; DEPLOYMENT_ID="$2"; shift ;;
@@ -145,31 +169,56 @@ HOST_RE='^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$'
 
 url_host() { local r="${1#https://}"; r="${r%%/*}"; printf '%s' "${r%%:*}" | tr '[:upper:]' '[:lower:]'; }
 
+has() { case ",$1," in *",$2,"*) return 0 ;; esac; return 1; }
+
 validate() {
+    [ -n "$ENGINES" ] || ENGINES="$PROVIDER"
+    [[ "$ENGINES" =~ ^(onlyoffice|collabora)(,(onlyoffice|collabora))?$ ]] || die "--engines: onlyoffice, collabora or both"
+    [[ "$LAYOUTS" =~ ^(dedicated|same-host)(,(dedicated|same-host))?$ ]] || die "--layouts: dedicated, same-host or both"
+    if has "$LAYOUTS" same-host; then
+        has "$ENGINES" collabora || die "--layouts same-host is supported for Collabora only (--engines collabora)"
+        if [ "$LAYOUTS" = same-host ] && has "$ENGINES" onlyoffice; then
+            die "ONLYOFFICE needs a dedicated host name: add dedicated to --layouts"
+        fi
+    fi
     OFFICE_HOST="$(printf '%s' "$OFFICE_HOST" | tr '[:upper:]' '[:lower:]')"
-    [[ "$OFFICE_HOST" =~ $HOST_RE ]] || die "--hostname must be a DNS name (a dedicated one, e.g. office.example.com)"
+    if has "$LAYOUTS" dedicated || [ -n "$OFFICE_HOST" ]; then
+        [[ "$OFFICE_HOST" =~ $HOST_RE ]] || die "--hostname must be a DNS name (a dedicated one, e.g. office.example.com)"
+    fi
     [[ "$CLIENTSTOR_URL" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || \
         die "--clientstor-url must be https://<clientst0r host name>/ (port 443, no path)"
     local cs_host; cs_host="$(url_host "$CLIENTSTOR_URL")"
     [[ "$cs_host" =~ $HOST_RE ]] || die "--clientstor-url must use a host name, not an IP address"
     [ "$cs_host" != "$OFFICE_HOST" ] || \
-        die "The office host name must differ from clientst0r's: the editor must not share clientst0r's origin"
+        die "The office host name must differ from clientst0r's: the editor must not share clientst0r's origin (Collabora: use --layouts same-host to opt in to that knowingly)"
     [[ "$DEPLOYMENT_ID" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || die "--deployment-id: 2-41 of a-z 0-9 -"
     case "$EDITION" in community|enterprise) ;; *) die "--edition community or enterprise" ;; esac
     if [ "$EDITION" = enterprise ]; then
         [ -n "$LICENSE_FILE" ] && [ -f "$LICENSE_FILE" ] || die "--edition enterprise needs --license-file (license.lic from ONLYOFFICE)"
     fi
     [[ "$BIND_PORT" =~ ^[0-9]{4,5}$ ]] && [ "$BIND_PORT" -ge 1024 ] && [ "$BIND_PORT" -le 65535 ] || die "--bind-port 1024-65535"
-    [[ "$MEMORY_MB" =~ ^[0-9]+$ ]] && [[ "$RESERVE_MB" =~ ^[0-9]+$ ]] || die "--memory-mb/--reserve-mb are whole numbers"
+    [[ "$COOL_PORT" =~ ^[0-9]{4,5}$ ]] && [ "$COOL_PORT" -ge 1024 ] && [ "$COOL_PORT" -le 65535 ] \
+        && [ "$COOL_PORT" != "$BIND_PORT" ] || die "--collabora-bind-port 1024-65535, not --bind-port"
+    [[ "$MEMORY_MB" =~ ^[0-9]+$ ]] && [[ "$RESERVE_MB" =~ ^[0-9]+$ ]] && [[ "$COOL_MEM" =~ ^[0-9]+$ ]] \
+        || die "--memory-mb/--reserve-mb/--collabora-memory-mb are whole numbers"
     if [ -z "$CPUS" ]; then
         local n; n="$(nproc)"; CPUS=$(( n > 2 ? n - 1 : 1 )); [ "$CPUS" -le 4 ] || CPUS=4
     fi
-    [[ "$CPUS" =~ ^[0-9]+(\.[0-9])?$ ]] || die "--cpus is a number such as 2 or 1.5"
+    [[ "$CPUS" =~ ^[0-9]+(\.[0-9])?$ ]] && [[ "$COOL_CPUS" =~ ^[0-9]+(\.[0-9]{1,2})?$ ]] \
+        || die "--cpus/--collabora-cpus is a number such as 2 or 1.5"
     [[ "$SUBNET" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/(2[4-9])$ ]] || die "--subnet is a private IPv4 /24-/29"
     case "$TLS" in
         existing-cert) [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ] || die "--tls existing-cert needs --cert-file and --key-file" ;;
         certbot) [ -n "$CERTBOT_EMAIL" ] || die "--tls certbot needs --certbot-email" ;;
-        *) die "--tls existing-cert or certbot (the editor is always served over HTTPS by this server's Nginx)" ;;
+        upstream)
+            # TLS ends on a device in front of this server. The editor
+            # container then reaches clientst0r through that device.
+            if [ -z "$CALLBACK_UPSTREAM_IP" ]; then
+                CALLBACK_UPSTREAM_IP="$(getent ahostsv4 "$cs_host" 2>/dev/null | awk 'NR==1 {print $1}')"
+                [ -n "$CALLBACK_UPSTREAM_IP" ] && say "Callback route: $cs_host resolves to $CALLBACK_UPSTREAM_IP (the TLS device in front of this server); pass --callback-upstream-ip to choose another address."
+            fi
+            [[ "$CALLBACK_UPSTREAM_IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || die "--tls upstream needs --callback-upstream-ip (IPv4 of the TLS device in front of this server)" ;;
+        *) die "--tls existing-cert, certbot or upstream (the editor is always served over HTTPS: by this server's Nginx, or by the TLS device in front of it)" ;;
     esac
     [ -z "$CA_FILE" ] || [ -f "$CA_FILE" ] || die "--ca-file $CA_FILE does not exist"
     if [ -z "$APP_USER" ] && [ -f "$(p "$ROOT_HELPER_CONF")" ]; then
@@ -182,6 +231,10 @@ validate() {
         [ -f "$HELPER_SRC/$f" ] || die "missing $HELPER_SRC/$f"
     done
 }
+
+# The first layout is the one the helper starts with.
+first_layout() { printf '%s' "${LAYOUTS%%,*}"; }
+proxy_host() { if [ "$(first_layout)" = same-host ]; then url_host "$CLIENTSTOR_URL"; else printf '%s' "$OFFICE_HOST"; fi; }
 
 # --- host checks ---------------------------------------------------------------
 FAILS=0
@@ -216,15 +269,20 @@ host_checks() {
     fi
     if command -v nft >/dev/null 2>&1; then ok "nftables present"; else note "nftables missing: the nftables package will be installed"; fi
     local site
-    for site in "$(p /etc/nginx/sites-enabled)"/*; do
-        [ -e "$site" ] || continue
-        [ "$(basename "$site")" = clientst0r-office-managed ] && continue
-        if grep -qE "server_name[^;]*[[:space:]]$OFFICE_HOST([[:space:];]|$)" "$site" 2>/dev/null; then
-            bad "$OFFICE_HOST is already served by $(basename "$site")"
-        fi
-    done
-    if getent hosts "$OFFICE_HOST" >/dev/null 2>&1; then ok "$OFFICE_HOST resolves"
-    else note "$OFFICE_HOST does not resolve yet: create its DNS record (browsers need it; certbot needs it now)"; fi
+    if [ -n "$OFFICE_HOST" ]; then
+        for site in "$(p /etc/nginx/sites-enabled)"/*; do
+            [ -e "$site" ] || continue
+            [ "$(basename "$site")" = clientst0r-office-managed ] && continue
+            if grep -qE "server_name[^;]*[[:space:]]$OFFICE_HOST([[:space:];]|$)" "$site" 2>/dev/null; then
+                bad "$OFFICE_HOST is already served by $(basename "$site")"
+            fi
+        done
+        if getent hosts "$OFFICE_HOST" >/dev/null 2>&1; then ok "$OFFICE_HOST resolves"
+        else note "$OFFICE_HOST does not resolve yet: create its DNS record (browsers need it; certbot needs it now)"; fi
+    fi
+    if has "$LAYOUTS" same-host; then
+        note "--layouts same-host: Collabora's front-end will run on clientst0r's own origin ($(url_host "$CLIENTSTOR_URL")). Prefer a dedicated host name when DNS and TLS allow it."
+    fi
 }
 
 # --- actions -------------------------------------------------------------------
@@ -249,8 +307,27 @@ write_conf() {
             "$BIND_PORT" "$EDITION" "$CPUS" "$MEMORY_MB" "$RESERVE_MB" "$SUBNET"
         printf 'ALLOW_UNTESTED_RELEASES=no\nPRIVATE_CA=%s\nMAINTENANCE_UPDATES=no\n' \
             "$([ -n "$CA_FILE" ] && echo yes || echo no)"
+        printf 'ENGINES=%s\nPROXY_LAYOUTS=%s\n' "$ENGINES" "$LAYOUTS"
+        if has "$ENGINES" collabora; then
+            printf 'COLLABORA_BIND_PORT=%s\nCOLLABORA_CPUS=%s\nCOLLABORA_MEMORY_MB=%s\n' "$COOL_PORT" "$COOL_CPUS" "$COOL_MEM"
+        fi
+        case "$TLS" in
+            existing-cert)
+                printf 'PROXY_TLS=local-cert\nCALLBACK_ROUTE=gateway\n'
+                [ -z "$OFFICE_HOST" ] || printf 'PROXY_CERT_FILE=%s\nPROXY_KEY_FILE=%s\n' \
+                    "$TLS_DIR/$OFFICE_HOST.crt" "$TLS_DIR/$OFFICE_HOST.key" ;;
+            certbot) printf 'PROXY_TLS=letsencrypt\nCALLBACK_ROUTE=gateway\n' ;;
+            upstream) printf 'PROXY_TLS=upstream\nCALLBACK_ROUTE=upstream\nCALLBACK_UPSTREAM_IP=%s\n' "$CALLBACK_UPSTREAM_IP" ;;
+        esac
     } | write_file "$CONF" 0644
     run install -d -m 0700 "$(p "$SECRETS")"
+    if [ "$TLS" = existing-cert ] && [ -n "$OFFICE_HOST" ]; then
+        # The helper accepts certificate paths only from fixed directories,
+        # so the files are copied there (root-only key).
+        run install -d -m 0700 "$(p "$TLS_DIR")"
+        write_file "$TLS_DIR/$OFFICE_HOST.crt" 0644 < "$CERT_FILE"
+        write_file "$TLS_DIR/$OFFICE_HOST.key" 0600 < "$KEY_FILE"
+    fi
     if [ -n "$LICENSE_FILE" ]; then write_file "$SECRETS/license.lic" 0600 < "$LICENSE_FILE"; fi
     if [ -n "$CA_FILE" ]; then
         if ! dry; then grep -q 'BEGIN CERTIFICATE' "$CA_FILE" || die "--ca-file is not a PEM certificate"; fi
@@ -266,6 +343,9 @@ install_helper() {
         | write_file "$UNIT_DIR/clientst0r-office-helper.socket" 0644
     write_file "$UNIT_DIR/clientst0r-office-helper@.service" 0644 < "$HELPER_SRC/clientst0r-office-helper@.service"
     write_file "$UNIT_DIR/clientst0r-office-firewall.service" 0644 < "$HELPER_SRC/clientst0r-office-firewall.service"
+    # Directories the helper's sandbox may write (it cannot create them under /etc).
+    run install -d -m 0755 "$(p "$SNIPPET_DIR")"
+    run install -d -m 0755 "$(p "$ACME_DIR")"
     run systemctl daemon-reload
     run systemctl enable --now clientst0r-office-helper.socket
     run systemctl enable clientst0r-office-firewall.service
@@ -284,69 +364,42 @@ hold_engine() {
     } | write_file "$APT_HOLD" 0644
 }
 
-nginx_site() {
-    local tls="$1"
-    printf '%s\n# Managed Local ONLYOFFICE: %s -> 127.0.0.1:%s (loopback only).\n' "$MARKER" "$OFFICE_HOST" "$BIND_PORT"
-    printf '# clientst0r'"'"'s own server block is not edited.\n\n'
-    printf 'map $http_upgrade $clientst0r_office_managed_upgrade {\n    default upgrade;\n    %s close;\n}\n\n' "''"
-    printf 'server {\n    listen 80;\n    listen [::]:80;\n    server_name %s;\n' "$OFFICE_HOST"
-    printf '    location /.well-known/acme-challenge/ { root %s; }\n' "$ACME_DIR"
-    if [ "$tls" = acme-only ]; then printf '    location / { return 404; }\n}\n'; return 0; fi
-    printf '    location / { return 301 https://$host$request_uri; }\n}\n\n'
-    printf 'server {\n    listen 443 ssl;\n    listen [::]:443 ssl;\n    server_name %s;\n' "$OFFICE_HOST"
-    printf '    ssl_certificate %s;\n    ssl_certificate_key %s;\n    ssl_protocols TLSv1.2 TLSv1.3;\n' \
-        "$CERT_FILE" "$KEY_FILE"
-    printf '    client_max_body_size 200m;\n    server_tokens off;\n'
-    printf '    add_header X-Content-Type-Options nosniff always;\n'
-    printf '    add_header Strict-Transport-Security "max-age=31536000" always;\n'
-    printf '    access_log /var/log/nginx/clientst0r-office-managed-access.log;\n'
-    printf '    error_log /var/log/nginx/clientst0r-office-managed-error.log;\n\n'
-    printf '    # The editor'"'"'s welcome, example and admin pages are disabled in the container.\n'
-    printf '    location / {\n        proxy_pass http://127.0.0.1:%s;\n' "$BIND_PORT"
-    printf '        proxy_http_version 1.1;\n'
-    printf '        proxy_set_header Upgrade $http_upgrade;\n'
-    printf '        proxy_set_header Connection $clientst0r_office_managed_upgrade;\n'
-    printf '        proxy_set_header Host $host;\n'
-    printf '        proxy_set_header X-Forwarded-Host $host;\n'
-    printf '        proxy_set_header X-Forwarded-Proto https;\n'
-    printf '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n'
-    printf '        proxy_set_header X-Real-IP $remote_addr;\n'
-    printf '        proxy_buffering off;\n'
-    printf '        proxy_connect_timeout 10s;\n'
-    printf '        proxy_read_timeout 3600s;\n        proxy_send_timeout 3600s;\n    }\n}\n'
-}
-
-apply_site() {
-    local content="$1" backup=""
-    if [ -e "$(p "$SITE")" ] && ! dry; then backup="$(mktemp)"; cp "$(p "$SITE")" "$backup"; fi
-    printf '%s\n' "$content" | write_file "$SITE" 0644
-    run ln -sfn "$SITE" "$(p "$SITE_LINK")"
-    run install -d -m 0755 "$(p "$ACME_DIR")"
-    if dry; then say "+ nginx -t && systemctl reload nginx"; return 0; fi
-    if ! nginx -t >/dev/null 2>&1; then
-        if [ -n "$backup" ]; then cp "$backup" "$(p "$SITE")"; else rm -f -- "$(p "$SITE")" "$(p "$SITE_LINK")"; fi
-        die "nginx -t rejected the office server block; it was removed again and Nginx was not reloaded."
+helper_cli() {
+    # The helper, installed above, is the only writer of Nginx files.
+    if [ -n "$ROOT" ]; then
+        env CLIENTST0R_OFFICE_HELPER_TEST_ROOT="$ROOT" CLIENTST0R_OFFICE_HELPER_TEST_PATH="$PATH" \
+            python3 -I "$(p "$HELPER")" cli "$@"
+    else
+        "$HELPER" cli "$@"
     fi
-    [ -z "$backup" ] || rm -f -- "$backup"
-    run systemctl reload nginx
 }
 
 setup_site() {
+    local host; host="$(proxy_host)"
+    if dry; then say "+ $HELPER cli proxy-install $host  (writes only the helper's own Nginx files, nginx -t, reload)"; return 0; fi
     if [ "$TLS" = certbot ]; then
         command -v certbot >/dev/null 2>&1 || run apt-get install -y -q certbot
-        apply_site "$(nginx_site acme-only)"
-        run certbot certonly --webroot -w "$(p "$ACME_DIR")" -d "$OFFICE_HOST" --non-interactive \
+        helper_cli proxy-install "$host" >/dev/null || die "The helper could not install the ACME-only block for $host (see above); nothing else was changed in Nginx."
+        run certbot certonly --webroot -w "$(p "$ACME_DIR")" -d "$host" --non-interactive \
             --agree-tos -m "$CERTBOT_EMAIL" --deploy-hook 'systemctl reload nginx'
-        CERT_FILE="/etc/letsencrypt/live/$OFFICE_HOST/fullchain.pem"
-        KEY_FILE="/etc/letsencrypt/live/$OFFICE_HOST/privkey.pem"
+        [ -f "$(p "/etc/letsencrypt/live/$host/fullchain.pem")" ] || \
+            die "certbot did not produce /etc/letsencrypt/live/$host/fullchain.pem; the office host name serves only the ACME challenge until it does (re-run this script)."
     fi
-    apply_site "$(nginx_site tls)"
+    helper_cli proxy-install "$host" >/dev/null || \
+        die "nginx -t rejected the office configuration (or the helper refused it); it was put back and Nginx was not reloaded."
+    say "+ Nginx: the helper installed its configuration for $host ($(first_layout))."
+    if [ "$(first_layout)" = same-host ]; then
+        say ""
+        say "ONE MANUAL STEP (this script never edits clientst0r's own site): add this line inside the"
+        say "server block that serves $host, then run: nginx -t && systemctl reload nginx"
+        say "    include $SNIPPET_DIR/same-host.conf;"
+    fi
 }
 
 helper_preflight() {
     say ""; say "Helper preflight (the same checks as Settings -> Setup checks)"
     if dry; then say "+ $HELPER cli preflight"; return 0; fi
-    "$(p "$HELPER")" cli preflight || warn "The helper preflight did not run; see the error above."
+    helper_cli preflight || warn "The helper preflight did not run; see the error above."
 }
 
 do_install() {
@@ -366,8 +419,9 @@ do_install() {
     setup_site
     helper_preflight
     say ""
-    say "Done. Next, as a clientst0r superuser: Settings -> Office Documents -> Managed Local ONLYOFFICE,"
-    say "turn it on, run Setup checks, then Install. No container was pulled or started by this script."
+    say "Done. Next, as a clientst0r superuser: Settings -> Office Documents -> Managed local editor,"
+    say "turn it on, pick the engine, run Setup checks, then Install. No container was pulled or started"
+    say "by this script."
 }
 
 do_remove() {
@@ -388,6 +442,9 @@ do_remove() {
     remove_path "$UNIT_DIR/clientst0r-office-helper@.service"
     remove_path "$UNIT_DIR/clientst0r-office-firewall.service"
     remove_path "$HELPER"
+    # The helper's dedicated site goes; the same-host snippet stays (emptied
+    # by the container uninstall), so an include line in clientst0r's own
+    # site keeps passing nginx -t.
     remove_path "$SITE_LINK"
     remove_path "$SITE"
     remove_path "$APT_HOLD"

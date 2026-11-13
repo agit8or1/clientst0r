@@ -95,6 +95,14 @@ class ManagedInstallerTests(SimpleTestCase):
         calls = self.calls()
         self.assertIn('systemctl enable --now clientst0r-office-helper.socket', calls)
         self.assertIn('nginx -t', calls)
+        self.assertIn('systemctl reload nginx', calls)
+        # The helper wrote the site; the certificate was copied to the helper's directory.
+        self.assertIn('ssl_certificate /etc/clientst0r/office/tls/office.acme.example.crt;', site)
+        key = self.root / 'etc/clientst0r/office/tls/office.acme.example.key'
+        self.assertEqual(key.stat().st_mode & 0o777, 0o600)
+        self.assertIn('PROXY_TLS=local-cert\n', conf)
+        self.assertIn('ENGINES=onlyoffice\n', conf)
+        self.assertTrue((self.root / 'etc/nginx/clientst0r-office').is_dir())
         # Docker is present: never installed, changed, restarted; no container work.
         self.assertNotIn('apt-get install', calls.replace('apt-get install -y -q nftables', ''))
         self.assertNotIn('docker.service', calls)
@@ -125,7 +133,9 @@ class ManagedInstallerTests(SimpleTestCase):
                 (['--bind-port', '80'], 'bind-port'),
                 (['--edition', 'enterprise'], 'license-file'),
                 (['--jwt-secret', 'x'], 'never accepted'),
-                (['--provider', 'collabora-code'], 'onlyoffice only'),
+                (['--provider', 'collabora-code'], 'onlyoffice or collabora'),
+                (['--layouts', 'same-host'], 'Collabora only'),
+                (['--tls', 'upstream', '--callback-upstream-ip', 'x'], 'callback-upstream-ip'),
                 (['--tls', 'none-behind-proxy'], 'HTTPS')):
             args = self.args()
             args += extra
@@ -171,6 +181,59 @@ class ManagedInstallerTests(SimpleTestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn('Host checks', r.stdout)
 
+    def cool_args(self, *extra):
+        return ['--provider', 'collabora', '--layouts', 'same-host',
+                '--clientstor-url', 'https://docs.acme.example', '--deployment-id', 'acme-prod',
+                '--tls', 'upstream', *extra]
+
+    def test_collabora_same_host_behind_upstream_tls(self):
+        site = self.root / 'etc/nginx/sites-enabled/itdocs.conf'
+        site.write_text('server { listen 80; server_name _; location / { proxy_pass http://127.0.0.1:8000; } }\n')
+        before = site.read_text()
+        r = self.run_script(*self.cool_args())
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        conf = (self.root / 'etc/clientst0r/office-service.conf').read_text()
+        for line in ('ENGINES=collabora', 'PROXY_LAYOUTS=same-host', 'PROXY_TLS=upstream',
+                     'CALLBACK_ROUTE=upstream', 'CALLBACK_UPSTREAM_IP=192.0.2.10',
+                     'COLLABORA_MEMORY_MB=1536', 'COLLABORA_CPUS=1.5', 'COLLABORA_BIND_PORT=9981'):
+            self.assertIn(line + '\n', conf)
+        snippet = (self.root / 'etc/nginx/clientst0r-office/same-host.conf').read_text()
+        self.assertIn('location ^~ /browser/', snippet)
+        self.assertIn('proxy_set_header Cookie "";', snippet)
+        self.assertIn('include /etc/nginx/clientst0r-office/same-host.conf;', r.stdout)
+        self.assertEqual(site.read_text(), before)          # clientst0r's own site is never edited
+        self.assertFalse((self.root / 'etc/nginx/sites-available/clientst0r-office-managed').exists())
+        self.assertFalse((self.root / 'etc/clientst0r/office/tls').exists())
+
+    def test_collabora_dedicated_behind_upstream_tls_listens_on_80(self):
+        r = self.run_script(*self.cool_args('--layouts', 'dedicated', '--hostname', 'office.acme.example'))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        site = (self.root / 'etc/nginx/sites-available/clientst0r-office-managed').read_text()
+        self.assertIn('server_name office.acme.example;', site)
+        self.assertIn('listen 80;', site)
+        self.assertNotIn('ssl_certificate', site)
+        self.assertIn('proxy_pass http://127.0.0.1:9981', site)
+
+    def test_certbot_gets_the_challenge_block_first(self):
+        r = self.run_script('--hostname', 'office.acme.example', '--clientstor-url', 'https://docs.acme.example',
+                            '--deployment-id', 'acme-prod', '--tls', 'certbot', '--certbot-email', 'a@acme.example')
+        # The stub certbot writes no certificate: the script stops there.
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('did not produce', r.stderr)
+        calls = self.calls()
+        self.assertIn('certbot certonly --webroot', calls)
+        self.assertLess(calls.index('nginx -t'), calls.index('certbot certonly'))
+        site = (self.root / 'etc/nginx/sites-available/clientst0r-office-managed').read_text()
+        self.assertIn('ACME-only', site)
+
+    def test_later_switch_to_a_dedicated_name_reruns_with_both_layouts(self):
+        self.assertEqual(self.run_script(*self.cool_args()).returncode, 0)
+        r = self.run_script(*self.cool_args('--layouts', 'same-host,dedicated', '--hostname', 'office.acme.example'))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        conf = (self.root / 'etc/clientst0r/office-service.conf').read_text()
+        self.assertIn('PROXY_LAYOUTS=same-host,dedicated\n', conf)
+        self.assertIn('OFFICE_HOSTNAME=office.acme.example\n', conf)
+
     def test_remove_units_keeps_data_and_secrets(self):
         self.assertEqual(self.run_script(*self.args()).returncode, 0)
         data = self.root / 'var/lib/clientst0r-office/data'
@@ -182,5 +245,6 @@ class ManagedInstallerTests(SimpleTestCase):
         self.assertFalse((self.root / 'usr/local/sbin/clientst0r-office-helper').exists())
         self.assertFalse((self.root / 'etc/nginx/sites-enabled/clientst0r-office-managed').exists())
         self.assertFalse((self.root / 'etc/clientst0r/office-service.conf').exists())
+        self.assertTrue((self.root / 'etc/nginx/clientst0r-office/same-host.conf').exists())
         self.assertTrue(data.exists())
         self.assertTrue(secret.exists())
