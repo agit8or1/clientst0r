@@ -140,3 +140,19 @@ html.cmdk-open, html.cmdk-open body { overflow: hidden; }
     .cmdk:not([hidden]) .cmdk__panel { animation: cmdk-in .12s ease-out; }
 }
 @keyframes cmdk-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+/* The current page is a favorite: the top bar's star is filled in amber. */
+.navbar.app-topbar #favMenuToggle.is-starred i { color: var(--warning-color, #e0a526); }
+/* Loading rows in the Favorites / Recent menus. */
+.quick-menu__list[aria-busy="true"] .quick-menu__empty::before {
+    content: ''; display: inline-block; width: .8em; height: .8em; margin-right: 6px; vertical-align: -1px;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    animation: quick-spin .7s linear infinite;
+}
+@keyframes quick-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .quick-menu__list[aria-busy="true"] .quick-menu__empty::before { animation: none; } }
+.cmdk__msg.is-loading::before {
+    content: ''; display: inline-block; width: .8em; height: .8em; margin-right: 6px; vertical-align: -1px;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    animation: quick-spin .7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .cmdk__msg.is-loading::before { animation: none; } }
