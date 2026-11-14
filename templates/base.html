@@ -188,12 +188,6 @@
                 </ul>
                 {% else %}
                 <ul class="navbar-nav ms-auto">
-                    {# v3.17.473 — public beta-tester sign-up CTA #}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:beta_test_signup' %}" style="font-weight: 600;">
-                            📱 {% trans "Beta test the app" %}
-                        </a>
-                    </li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'two_factor:login' %}">{% trans "Login" %}</a></li>
                 </ul>
                 {% endif %}

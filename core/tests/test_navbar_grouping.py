@@ -66,14 +66,14 @@ REPORTS = ['reports:home']
 # Administration: one link, the settings center.
 SETTINGS_SU = ['core:settings_home']
 ACCOUNT = ['accounts:profile', 'resourcing:my_resourcing', 'core:help_index',
-           'core:beta_test_signup', 'core:install_app']
+           'core:install_app']
 
 # Destinations only MSP staff (or superusers) may see.
 STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
               'assets:vendor_list', 'core:settings_general', 'core:security_dashboard',
               'integrations:integration_list', 'core:mobile_apps_admin',
               'core:snyk_scans', 'accounts:access_management',
-              'core:beta_test_admin', 'integrations:rmm_devices', 'integrations:rmm_alerts',
+              'integrations:rmm_devices', 'integrations:rmm_alerts',
               'assets:device_workspace_home', 'inventory:inventory_dashboard',
               'contracts:dashboard', 'pulse:check_list', 'security_alerts:incident_list',
               'psa:dispatch_heatmap', 'psa:workflow_template_list', 'vault:reveal_request_list']

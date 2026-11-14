@@ -41,7 +41,7 @@ OLD_MENU_URL_NAMES = [
     'core:settings_snyk', 'accounts:access_management', 'core:settings_directory',
     'office:org_policy', 'core:webhook_list', 'integrations:integration_list',
     'integrations:rem0te_setup', 'core:settings_ai', 'psa_ai:profiles', 'core:settings_sms',
-    'office:settings', 'core:mobile_apps_admin', 'core:beta_test_admin',
+    'office:settings', 'core:mobile_apps_admin',
 ]
 # The one old settings entry that moved out: the client list is a work page.
 MOVED_OUT = {'accounts:organization_list': 'clients_all'}
@@ -197,7 +197,7 @@ class SettingsWorkspaceOnPagesTests(TestCase):
         self.login(staff, org=False)
         hrefs = index_hrefs(self.get('core:mobile_apps_admin'))
         self.assertIn(reverse('core:mobile_apps_admin'), hrefs)
-        for name in ('core:settings_general', 'core:beta_test_admin', 'accounts:access_management',
+        for name in ('core:settings_general', 'accounts:access_management',
                      'integrations:integration_list'):
             self.assertNotIn(reverse(name), hrefs, name)
         for href in hrefs:

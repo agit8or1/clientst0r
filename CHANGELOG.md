@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.681] - 2026-11-14
+
+### Removed
+- The beta-tester program: the public "Beta test the app" sign-up page (/core/beta-test/), the Beta tester requests page in Settings → System (/core/beta-testers/), the relay endpoint other installs used to forward sign-ups (/core/beta-test/upstream/), their links in the account menu, the signed-out top bar and Apps & Downloads, and the BETA_ADMIN_EMAIL / BETA_UPSTREAM_URL / Play test-link settings. Requests already stored are kept in the database. The /core/beta-onboarding/ instructions page is unchanged.
+
 ## [3.17.680] - 2026-11-14
 
 ### Added

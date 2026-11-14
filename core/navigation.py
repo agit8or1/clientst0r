@@ -798,7 +798,6 @@ SECTIONS = (
             keywords='upgrade version release'),
         Tab(_('Mobile Apps'), 'core:mobile_apps_admin', 'fa-mobile-alt', gate=_django_staff_or_superuser,
             keywords='android apk builds'),
-        Tab(_('Beta tester requests'), 'core:beta_test_admin', 'fa-user-check', gate=_superuser),
     )),
     Section('settings_maintenance', 'settings', _('Maintenance'), icon='fa-tools', render_tabs=False, tabs=(
         Tab(_('Maintenance'), 'core:maintenance', 'fa-tools', gate=_superuser, keywords='cleanup backup'),
@@ -838,7 +837,6 @@ SECTIONS = (
             dom_id='menu-install-pwa'),
         Tab(_('Android App (APK)'), 'core:download_mobile_app', 'fab fa-android',
             args=('android',), download=True),
-        Tab(_('Beta test the Android app'), 'core:beta_test_signup', 'fa-flask'),
         Tab(_('Browser Extension'), 'core:download_browser_extension', 'fa-puzzle-piece',
             download=True),
     )),
@@ -1278,7 +1276,7 @@ _WORK_PAGES = {
     'core:settings_home': 'settings',
 }
 _CORE_SETTINGS_PREFIXES = ('settings_', 'security_', 'system_', 'firewall', 'fail2ban', 'snyk',
-                           'webhook', 'maintenance', 'vault_visibility', 'mobile_apps', 'beta_test_admin',
+                           'webhook', 'maintenance', 'vault_visibility', 'mobile_apps',
                            'tag_', 'consult_requests', 'vault_import', 'package_scanner',
                            'python_scanner')
 
@@ -1619,8 +1617,6 @@ def _account_menu(ctx, workspace, nav_section, view_name=''):
     # The three controls that used to sit in the bar, with the same
     # accessible names (the visible label is the name) and tooltips.
     for label, icon, url_name, title in (
-            (_('Beta app'), 'fas fa-mobile-screen-button', 'core:beta_test_signup',
-             _('Beta-test the Android app')),
             (_('Install app'), 'fas fa-download', 'core:install_app',
              _('Install the app on your phone or desktop'))):
         try:

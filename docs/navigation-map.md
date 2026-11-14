@@ -187,7 +187,7 @@ open, and a warning before leaving a settings form with unsaved changes
 |---|---|---|
 | System → General, PSA | General (+ Customer Portal: host name, branding, layout, portal features and per-customer switches) | su; PSA also needs the psa module |
 | *(sidebar Settings → Asset Setup)* Equipment Catalog, Custom Fields & Types; Tags; Holidays | General | MSP staff; catalog managers; su; `resourcing_manage_holidays` |
-| System → System Status, Updates; Mobile → Mobile Apps, Beta testers | System | su; Mobile Apps: Django staff or su |
+| System → System Status, Updates; Mobile → Mobile Apps (Beta testers removed v3.17.681) | System | su; Mobile Apps: Django staff or su |
 | Security → Security, Security Dashboard, Technician Access, RMM Permissions, Firewall, Fail2ban, Snyk | Security (+ Security Features, Vault Visibility, Superuser Approval, Vulnerability Scans) | su; RMM Permissions: its policy readers |
 | Organizations & Access → Access Management, Directory, Office org policy | Organizations & Access (+ Users, Members, Roles, Audit Log, LDAP Group Mappings) | Access Management su (the old menu showed it to every signed-in user; the view redirects them); Members/Roles: org admins and roles readers; Office policy: org managers |
 | Organizations & Access → Organizations | moved to **Clients & Assets → Clients** | auth |
@@ -537,8 +537,8 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 | Help Us Grow (opens `#supportProjectModal`) | navbar Help Us Grow button (unchanged) and Account → Help → tab | auth |
 | Install App / Add to Home Screen (`#menu-install-pwa`) | Account → Apps & Downloads (landing); the tab carries `id="menu-install-pwa"` so the PWA install prompt still attaches; Install app navbar button unchanged | auth |
 | Android App (APK) | Account → Apps & Downloads → tab (download) | auth |
-| Beta test the Android app | Account → Apps & Downloads → tab; Beta app navbar button unchanged | auth |
-| Beta tester requests | Admin → Mobile → tab | su |
+| Beta test the Android app | Removed v3.17.681 | — |
+| Beta tester requests | Removed v3.17.681 (stored rows kept) | — |
 | Browser Extension | Account → Apps & Downloads → tab (download) | auth |
 | Sign Out (POST form to `logout`) | Account → Sign Out, same POST form with CSRF token | auth |
 
@@ -546,7 +546,7 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 
 | Control | Gate |
 |---|---|
-| Favorites, Beta app, Install app, Help Us Grow (modal) buttons | auth |
+| Favorites, Install app, Help Us Grow (modal) buttons (Beta app removed v3.17.681) | auth |
 | Global KB link | global_kb and not psa, staff/su |
 | Search form, theme toggle, clock | auth |
 | Client switcher (`core/_client_switcher.html`, `#orgDropdown`): active client / Global View pill, switch list, new "All clients" link | `current_organization or su or is_staff_user`; Global View entry su or is_staff_user; All clients psa or su |
