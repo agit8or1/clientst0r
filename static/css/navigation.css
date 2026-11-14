@@ -278,7 +278,9 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 .page-frame .section-tabs { flex: 0 1 auto; margin-left: auto; padding: 2px; }
 .page-frame .section-tabs__list .nav-link { padding: .2rem .6rem; font-size: .85rem; }
 @media (max-width: 767.98px) {
-    .page-frame .section-tabs { margin-left: 0; flex-basis: 100%; }
+    /* min-width: 0 lets the strip shrink to the row so its pills scroll
+       inside it instead of widening the page. */
+    .page-frame .section-tabs { margin-left: 0; flex-basis: 100%; min-width: 0; max-width: 100%; }
 }
 
 /* ==========================================================================
@@ -480,3 +482,29 @@ body.appnav-rail .app-nav__pin-edit { display: none; }
 @media (max-width: 575.98px) {
     .update-pill__ver { display: none; }
 }
+
+/* Below the lg breakpoint: brand left, then the update pill, then the
+   "more" toggler (search, notifications, help, client, account) — a
+   vertical ellipsis, so it is not a second ☰ beside the sidebar's. */
+@media (max-width: 991.98px) {
+    .app-topbar .navbar-brand { margin-right: auto; }
+    .app-topbar .update-pill { margin-inline: 0 .5rem; }
+    .app-topbar .navbar-toggler { padding: .35rem .75rem; }
+    .topbar-more-icon { font-size: 1.15rem; color: var(--sidebar-text, #fff); }
+}
+@media (max-width: 575.98px) {
+    .update-pill { padding: .2rem .55rem; font-size: .78rem; }
+    .update-pill__more { display: none; }
+    /* Room for ☰, logo, pill and ⋮ on one row down to 340px. */
+    .app-topbar .navbar-container { padding-left: 6px; padding-right: 6px; }
+    .app-topbar .app-nav-open.nav-link { padding-left: 8px; padding-right: 8px; }
+    .app-topbar .navbar-brand img { height: 24px !important; width: auto; }
+}
+
+/* Wide tables scroll inside their card (static/js/responsive_tables.js). */
+.table-autowrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Ticket list: the subject keeps a readable width when columns are tight
+   (browsers ignore min-width on table cells, so it sits on the link; the
+   table then scrolls sideways inside .ui-table-wrap). */
+.ticket-subject .ui-primary-cell { display: inline-block; min-width: 11rem; }

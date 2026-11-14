@@ -449,6 +449,15 @@ body.dash-page .app-main > footer small { font-size: .75rem; line-height: 1.4; }
     .dash-head-actions form { display: inline-flex !important; width: auto !important; margin: 0; }
     .dash-head-actions .btn { width: auto !important; display: inline-flex !important; align-items: center; gap: 4px; margin: 0 !important; }
     .dash-w.is-expanded { inset: 8px; }
+    /* Phones: a panel is as tall as its content (scrolling inside past
+       360px), so an empty list doesn't leave a tall blank box. The chart
+       and the map keep a fixed height because they fill their box. */
+    .dash:not(.dash-fit) .dash-w { height: auto; max-height: 360px; }
+    .dash:not(.dash-fit) .dash-w[data-key="ticket_activity"] { height: 240px; }
+    .dash:not(.dash-fit) .dash-w[data-key="map"] { height: 340px; max-height: none; }
+    /* mobile.css stretches buttons to the full row; the map's three tools
+       stay on one line. */
+    .dash-map-tools .btn { width: auto !important; flex: 0 0 auto; }
 }
 @media (prefers-reduced-motion: reduce) {
     .dash-kpi, .dash-qa-btn { transition: none; }

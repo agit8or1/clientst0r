@@ -124,15 +124,16 @@ Bootstrap columns that collapse awkwardly between breakpoints.
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
-                        <th style="width: 40%">Subject</th>
-                        <th>Client</th>
+                        {# On phones the less-used columns drop out (the client moves under the subject). #}
+                        <th>Subject</th>
+                        <th class="d-none d-sm-table-cell">Client</th>
                         <th>Priority</th>
                         <th>Status</th>
-                        <th>Queue</th>
-                        <th>Assignee</th>
+                        <th class="d-none d-md-table-cell">Queue</th>
+                        <th class="d-none d-md-table-cell">Assignee</th>
                         <th>Next</th>
-                        <th>Last activity</th>
-                        <th>Created</th>
+                        <th class="d-none d-lg-table-cell">Last activity</th>
+                        <th class="d-none d-lg-table-cell">Created</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -143,11 +144,12 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         strongest text in the row and carries the link. The ticket
                         number stays findable underneath in a quieter monospace.
                         {% endcomment %}
-                        <td class="ui-wrap">
+                        <td class="ui-wrap ticket-subject">
                             <a class="ui-primary-cell" href="{% url 'psa:ticket_detail' t.ticket_number %}">{{ t.subject }}</a>
                             <div class="ui-ref">{{ t.ticket_number }}</div>
+                            <div class="ui-org small d-sm-none">{{ t.organization.name|default:"—" }}</div>
                         </td>
-                        <td class="ui-wrap"><span class="ui-org">{{ t.organization.name|default:"—" }}</span></td>
+                        <td class="ui-wrap d-none d-sm-table-cell"><span class="ui-org">{{ t.organization.name|default:"—" }}</span></td>
                         {% comment %}
                         Tone comes from the operator's own configuration —
                         priority rank by sort_order, status by is_terminal /
@@ -155,14 +157,14 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         {% endcomment %}
                         <td><span class="ui-badge ui-badge--{{ t.priority|priority_tone }}">{{ t.priority|priority_label }}</span></td>
                         <td><span class="ui-badge ui-badge--{{ t.status|status_tone }}">{{ t.status.name }}</span></td>
-                        <td>{{ t.queue.name }}</td>
-                        <td class="ui-wrap">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+                        <td class="d-none d-md-table-cell">{{ t.queue.name }}</td>
+                        <td class="ui-wrap d-none d-md-table-cell">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
                         <td><span class="badge {{ t.next_badge }}" data-next="{{ t.next_step }}">{{ t.next_label }}</span></td>
-                        <td class="ui-wrap small" data-last-kind="{{ t.last_action.kind }}">
+                        <td class="ui-wrap small d-none d-lg-table-cell" data-last-kind="{{ t.last_action.kind }}">
                             <time datetime="{{ t.last_action.at|date:'c' }}" title="{{ t.last_action.at }}">{{ t.last_action.at|timesince }} ago</time>
                             <div class="text-muted">{{ t.last_action.kind|capfirst }}{% if t.last_action.by %} · {{ t.last_action.by }}{% endif %}</div>
                         </td>
-                        <td>
+                        <td class="d-none d-lg-table-cell">
                             <time datetime="{{ t.created_at|date:'c' }}" title="{{ t.created_at }}">{{ t.created_at|timesince }} ago</time>
                         </td>
                     </tr>

@@ -50,7 +50,8 @@ class UpdateBadgeTests(TestCase):
         self._seen(newer)
         html = self._page(self.su)
         self.assertIn('id="navUpdateBadge"', html)
-        self.assertIn('Update Available', html)
+        # "Available" is its own span so phones can show just "Update".
+        self.assertIn('Update<span class="update-pill__more"> Available</span>', html)
         self.assertIn(f'v{newer}', html)
         self.assertIn(reverse('core:system_updates'), html.split('id="navUpdateBadge"', 1)[0][-400:])
 
