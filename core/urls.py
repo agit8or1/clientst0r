@@ -98,8 +98,8 @@ urlpatterns = [
     path('favorites/', favorites_views.favorite_list, name='favorite_list'),
     path('favorites/toggle/<int:content_type_id>/<int:object_id>/', favorites_views.favorite_toggle, name='favorite_toggle'),
     # Command palette + top-bar Favorites / Recent menus (core/palette.py).
-    path('palette/', palette_views.palette_home, name='palette_home'),
-    path('palette/search/', palette_views.palette_search, name='palette_search'),
+    path('palette.json', palette_views.palette_home, name='palette_home'),
+    path('palette/search.json', palette_views.palette_search, name='palette_search'),
     path('palette/favorite/', palette_views.palette_favorite, name='palette_favorite'),
     path('favorites/check/<int:content_type_id>/<int:object_id>/', favorites_views.favorite_check, name='favorite_check'),
 
