@@ -686,3 +686,16 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
     .settings-center__search { flex-basis: 100%; margin-left: 0; }
     .settings-card__pages a { min-height: 38px; }
 }
+
+/* v3.17.680: the top bar gained Go to / Favorites / Recent. Between the
+   drawer breakpoint and wide screens there is no room for everything, so
+   drop the duplicates first: the shortcut icons repeat sidebar entries,
+   and the inline search box is covered by the Go to (Ctrl K) palette. */
+@media (min-width: 992px) and (max-width: 1439.98px) {
+    .navbar.app-topbar .topbar-shortcuts { display: none !important; }
+}
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    .navbar.app-topbar .topbar-search-item { display: none !important; }
+    .navbar.app-topbar .topbar-account__name { display: none; }
+    .app-topbar .update-pill__more { display: none; }
+}

@@ -571,7 +571,14 @@
         if (k === '?') { e.preventDefault(); showHelp(); }
         else if (k === '/') {
             var search = doc.querySelector('.nav-search input[name="q"]');
-            if (search) {
+            var paletteBtn = doc.getElementById('cmdkOpen');
+            var collapsed = doc.getElementById('navbarNav');
+            if (search && search.offsetParent === null && paletteBtn && paletteBtn.offsetParent !== null
+                    && !(collapsed && !collapsed.classList.contains('show') && DRAWER_MQ.matches)) {
+                // The inline box is hidden at this width; search lives in Go to.
+                e.preventDefault();
+                paletteBtn.click();
+            } else if (search) {
                 e.preventDefault();
                 var collapse = doc.getElementById('navbarNav');
                 if (collapse && !collapse.classList.contains('show') && search.offsetParent === null
