@@ -1,18 +1,23 @@
 {% load i18n %}
 {% comment %}
-Local navigation for the current section: the sibling pages that used to sit
-beside this one in the global menu. base.html renders it above the page
-content when the current page is one of the section's tabs; the list itself
-lives in core/navigation.py (SECTIONS).
+Local navigation for the current section (core/navigation.py SECTIONS via
+nav_state): the section's pages as one row of pills, and its Configure menu.
 
-Pills, not a menu: every entry is a plain link (or, for Help, the same modal
-the old account-menu entry opened), reachable by Tab and by touch.
+The row never wraps. Past navigation.STRIP_TABS pills the rest are in a
+"More" menu (the current page always stays a visible pill), and
+static/js/app_nav.js moves further pills into "More" when even those do not
+fit the row. Both menus are Bootstrap dropdowns: buttons with
+aria-expanded, arrow keys inside, Escape closes.
+
+Every entry is a plain link (or, for Help, the same modal the old
+account-menu entry opened), reachable by Tab and by touch.
 {% endcomment %}
-{% if tabs %}
-<nav class="section-tabs" aria-label="{% blocktrans with name=label %}{{ name }} pages{% endblocktrans %}">
-  <ul class="nav nav-pills section-tabs__list flex-wrap">
-    {% for t in tabs %}
-    <li class="nav-item">
+{% if tabs or configure %}
+<nav class="section-tabs" aria-label="{% blocktrans with name=label %}{{ name }} pages{% endblocktrans %}" data-section-tabs>
+  {% if tabs %}
+  <ul class="nav nav-pills section-tabs__list">
+    {% for t in visible %}
+    <li class="nav-item section-tabs__item">
       {% if t.modal %}
       <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#{{ t.modal }}"><i class="{{ t.icon }} fa-fw" aria-hidden="true"></i> {{ t.label }}</a>
       {% else %}
@@ -20,6 +25,36 @@ the old account-menu entry opened), reachable by Tab and by touch.
       {% endif %}
     </li>
     {% endfor %}
+    <li class="nav-item dropdown section-tabs__more"{% if not more %} hidden{% endif %}>
+      <button type="button" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"
+              id="sectionTabsMore" aria-haspopup="true">{% trans "More" %}<span class="visually-hidden"> {% blocktrans with name=label %}{{ name }} pages{% endblocktrans %}</span></button>
+      <ul class="dropdown-menu dropdown-menu-end section-tabs__menu" aria-labelledby="sectionTabsMore">
+        {% for t in more %}
+        <li class="section-tabs__item">
+          {% if t.modal %}
+          <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#{{ t.modal }}"><i class="{{ t.icon }} fa-fw" aria-hidden="true"></i> {{ t.label }}</a>
+          {% else %}
+          <a class="dropdown-item" href="{{ t.href }}"{% if t.dom_id %} id="{{ t.dom_id }}"{% endif %}><i class="{{ t.icon }} fa-fw" aria-hidden="true"></i> {{ t.label }}{% if t.download %} <span class="visually-hidden">({% trans "download" %})</span>{% endif %}</a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
   </ul>
+  {% endif %}
+  {% if configure %}
+  <div class="dropdown section-tabs__configure">
+    <button type="button" class="btn btn-sm section-tabs__configure-btn dropdown-toggle{% if configure_active %} active{% endif %}"
+            data-bs-toggle="dropdown" aria-expanded="false" id="sectionConfigure" aria-haspopup="true">
+      <i class="fas fa-sliders fa-fw" aria-hidden="true"></i> {% trans "Configure" %}{% if configure_active %}<span class="visually-hidden">: {{ configure_active.label }}</span>{% endif %}
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sectionConfigure">
+      <li><h6 class="dropdown-header">{% blocktrans with name=label %}{{ name }} configuration{% endblocktrans %}</h6></li>
+      {% for c in configure %}
+      <li><a class="dropdown-item{% if c.active %} active{% endif %}" href="{{ c.href }}"{% if c.active %} aria-current="page"{% endif %}><i class="{{ c.icon }} fa-fw" aria-hidden="true"></i> {{ c.label }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 </nav>
 {% endif %}

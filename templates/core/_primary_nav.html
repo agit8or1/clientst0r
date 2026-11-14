@@ -1,14 +1,24 @@
 {% load i18n %}{% comment %}
 Primary navigation sidebar. Built by core.navigation.primary_nav() — every
-group, entry and nested page here already passed the same gates the server
+section, entry and nested page here already passed the same gates the server
 applies, so nothing is drawn that would answer 403.
 
+Layout: the filter and the collapse control at the top, the nine work
+sections in a scrolling list, Administration pinned at the foot (one link to
+the settings center), then the keyboard-shortcuts button.
+
 Behaviour lives in static/js/app_nav.js:
-  * the filter box narrows the list as you type (labels + keywords); Enter
-    opens the first match, or runs a global search when nothing matches;
-  * group chevrons expand / collapse a group (remembered per browser);
-  * the collapse button shrinks the sidebar to an icon rail (remembered);
-  * below 992px the sidebar is a drawer opened from the bar's menu button.
+  * a section's header is a button: it expands / collapses the section and
+    never navigates. Only the current section starts expanded;
+  * the filter narrows the list as you type (labels + keywords), including
+    the pages that are not sidebar links (Configure pages, settings pages,
+    tabs) from pnav.extra; Enter opens the first match, or runs a global
+    search when nothing matches;
+  * the collapse button shrinks the sidebar to an icon rail (remembered;
+    the default from 768px to 1199px). In the rail a section's button opens
+    its pages as a flyout menu: Enter / Space / click open it, arrow keys
+    move, Escape closes it and returns focus to the button;
+  * below 768px the sidebar is a drawer opened from the bar's menu button.
 {% endcomment %}
 <aside class="app-nav" id="appNav" aria-label="{% trans 'Primary' %}" data-search-url="{% url 'core:search' %}">
     <div class="app-nav__head">
@@ -37,18 +47,32 @@ Behaviour lives in static/js/app_nav.js:
         <ul class="app-nav__groups">
             {% for g in pnav.groups %}{% include "core/_primary_nav_group.html" with g=g %}{% endfor %}
         </ul>
-        <p class="app-nav__empty small text-muted px-3" hidden>
+        {% if pnav.extra %}
+        {# Filter-only: pages reached from a section's tabs, Configure menu or the settings center. #}
+        <ul class="app-nav__extra" aria-label="{% trans 'More matching pages' %}" hidden>
+            {% for d in pnav.extra %}
+            <li data-filter="{{ d.label }} {{ d.keywords }} {{ d.section }} {{ d.group }}" hidden><a class="app-nav__xlink" href="{{ d.href }}"><i class="{{ d.icon|default:'fas fa-circle' }} fa-fw" aria-hidden="true"></i><span class="app-nav__text">{{ d.label }}</span><span class="app-nav__where">{{ d.group }}{% if d.section != d.group %} › {{ d.section }}{% endif %}</span></a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <p class="app-nav__empty small px-3" hidden>
             {% trans "No pages match." %}<br>
             <button type="button" class="btn btn-link btn-sm p-0" data-app-nav-search>{% trans "Search records instead" %}</button>
         </p>
-        {% if pnav.settings %}
-        <ul class="app-nav__groups app-nav__groups--settings">
-            {% include "core/_primary_nav_group.html" with g=pnav.settings %}
-        </ul>
-        {% endif %}
     </nav>
+    {% if pnav.settings %}{% with g=pnav.settings %}
+    <nav class="app-nav__pinned" aria-label="{% trans 'Administration' %}">
+        <ul class="app-nav__groups app-nav__groups--settings">
+            <li class="app-nav__group{% if g.active %} is-active{% endif %}" data-group="{{ g.key }}" data-href="{{ g.href }}" data-shortcut-key="{{ g.shortcut }}">
+                <a class="app-nav__link app-nav__admin-link{% if g.active %} active{% endif %}" href="{{ g.href }}" data-tip="{{ g.label }}"{% if g.href == request.path %} aria-current="page"{% endif %} aria-keyshortcuts="g {{ g.shortcut }}">
+                    <i class="{{ g.icon }} fa-fw" aria-hidden="true"></i><span class="app-nav__text">{{ g.label }}</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endwith %}{% endif %}
     <div class="app-nav__foot small">
-        <button type="button" class="btn btn-link btn-sm p-0 app-nav__help" data-shortcut-help aria-keyshortcuts="Shift+?">
+        <button type="button" class="btn btn-link btn-sm p-0 app-nav__help" data-shortcut-help aria-keyshortcuts="Shift+?" data-tip="{% trans 'Keyboard shortcuts' %}">
             <i class="fas fa-keyboard" aria-hidden="true"></i><span class="app-nav__text"> {% trans "Keyboard shortcuts" %} <kbd>?</kbd></span>
         </button>
     </div>

@@ -41,6 +41,10 @@
 </head>
 <body class="{% block body_class %}{% endblock %}{% if user_background_url or user_background_color %} has-background{% endif %}"{% if user.is_authenticated %} data-org-context="{{ current_organization.pk|default_if_none:'' }}" data-switch-url="{% url 'accounts:switch_organization' 0 %}" data-global-view-url="{% url 'accounts:switch_to_global_view' %}"{% endif %} {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
 
+    {% if user.is_authenticated %}
+    {# Sidebar width before first paint (static/js/app_nav.js keeps it in step): the remembered choice, else the icon rail from 768px to 1199px. #}
+    <script nonce="{{ csp_nonce }}">(function(){try{var w=window.innerWidth,p=null;try{p=window.localStorage.getItem('appnav.rail');}catch(e){}if(w>=768&&(p==='1'||(p!=='0'&&w<1200)))document.body.classList.add('appnav-rail');}catch(e){}})();</script>
+    {% endif %}
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
         <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Install Client St0r</p>
@@ -209,7 +213,32 @@
             {% endfor %}
         {% endif %}
 
-        {% if user.is_authenticated %}{% include "core/_work_context.html" %}{% endif %}
+        {% if user.is_authenticated %}
+        {% comment %}
+        The page frame row (core.navigation): where you are — Section › Workspace
+        › Page, from the sidebar registry — on the left, the section's tabs and
+        its Configure menu on the right. A detail page adds its own last crumb
+        by filling the breadcrumb_tail block with one
+        li class="breadcrumb-item active" aria-current="page" (e.g. T-10482).
+        A page that draws its own .breadcrumb keeps it and the trail steps
+        aside (navigation.css).
+        {% endcomment %}
+        {% if pnav.breadcrumbs or nav.tabs or nav.configure %}
+        <div class="page-frame{% if nav.tabs or nav.configure %} page-frame--tabs{% endif %}">
+            {% if pnav.breadcrumbs %}
+            <nav class="app-trail" aria-label="{% trans 'Breadcrumb' %}">
+                <ol class="breadcrumb app-trail__list mb-0">
+                    {% for c in pnav.breadcrumbs %}
+                    <li class="breadcrumb-item{% if not c.href %} active{% endif %}"{% if not c.href %} aria-current="page"{% endif %}>{% if c.href %}<a href="{{ c.href }}">{{ c.label }}</a>{% else %}{{ c.label }}{% endif %}</li>
+                    {% endfor %}{% block breadcrumb_tail %}{% endblock %}
+                </ol>
+            </nav>
+            {% endif %}
+            {% include "core/_section_tabs.html" with tabs=nav.tabs visible=nav.tabs_visible more=nav.tabs_more configure=nav.configure configure_active=nav.configure_active label=nav.section_label %}
+        </div>
+        {% endif %}
+        {% include "core/_work_context.html" %}
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 

@@ -1,9 +1,7 @@
 {% load i18n workspace_tags %}{% comment %}
-Above every page's content (base.html), in this order:
-  1. the page frame row: where you are (Group › Section › Page from the
-     sidebar registry) on the left, the section's tabs on the right (or
-     wrapping below on a narrow screen). A page that draws its own
-     .breadcrumb keeps it and the trail steps aside (navigation.css);
+Above every page's content, after base.html's page frame row (the
+breadcrumb trail and the section's tabs / Configure menu, drawn in base.html
+itself so pages can add a crumb through {% block breadcrumb_tail %}):
   2. on settings pages, the settings workspace (core/_settings_menu.html):
      category tabs, the category's pages and the settings search;
   3. the open-in-context trail — "Switched to <customer> to open <device>"
@@ -12,20 +10,6 @@ Above every page's content (base.html), in this order:
   4. the saved-views bar on registered dense lists (core.workspace
      SAVED_VIEW_LISTS).
 {% endcomment %}
-{% if pnav.breadcrumbs or nav.tabs %}
-<div class="page-frame{% if nav.tabs %} page-frame--tabs{% endif %}">
-{% if pnav.breadcrumbs %}
-<nav class="app-trail" aria-label="{% trans 'Breadcrumb' %}">
-    <ol class="breadcrumb app-trail__list mb-0">
-        {% for c in pnav.breadcrumbs %}
-        <li class="breadcrumb-item{% if not c.href %} active{% endif %}"{% if not c.href %} aria-current="page"{% endif %}>{% if c.href %}<a href="{{ c.href }}">{{ c.label }}</a>{% else %}{{ c.label }}{% endif %}</li>
-        {% endfor %}
-    </ol>
-</nav>
-{% endif %}
-{% include "core/_section_tabs.html" with tabs=nav.tabs label=nav.section_label %}
-</div>
-{% endif %}
 {% if pnav.workspace.current %}{% include "core/_settings_menu.html" with settings_frame=True %}{% endif %}
 
 {% work_context_trail as trail %}
