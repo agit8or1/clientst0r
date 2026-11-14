@@ -3,6 +3,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'security_alerts:overview' %}">Security Overview</a></li>
         <li class="breadcrumb-item"><a href="{% url 'security_alerts:incident_list' %}">Incidents</a></li>
         <li class="breadcrumb-item active">#{{ incident.pk }}</li>
     </ol>
@@ -28,6 +29,8 @@
         {% endif %}
     </div>
 </div></div>
+
+{% include "security_alerts/_related_device.html" %}
 
 {% if incident.description %}
 <div class="card mb-3"><div class="card-body">
