@@ -47,6 +47,9 @@
             timer = setTimeout(layout, 80);
         });
         layout();
+        // Icon and web fonts change the tab widths once they arrive.
+        window.addEventListener('load', layout);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
     }
 
     function init() {
