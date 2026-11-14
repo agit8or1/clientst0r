@@ -1690,7 +1690,9 @@ class ScheduledTask(models.Model):
             # v3.17.649: feeds the navbar's "update available" badge.
             'task_type': 'update_check',
             'description': 'Check GitHub for a newer Client St0r release',
-            'interval_minutes': 60,
+            # v3.17.678: every 15 minutes (was hourly) so the update pill
+            # appears soon after a release.
+            'interval_minutes': 15,
             'enabled': True,
         },
         {

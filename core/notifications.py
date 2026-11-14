@@ -13,7 +13,8 @@ so a number never points at a page the user cannot open:
 * unread secure notes (core.securenotes_views.secure_note_inbox: the
   module on; the inbox's own query);
 * unread contract notifications (contracts.views.dashboard: MSP staff with
-  contracts_view; only contracts the user may see).
+  contracts_view; only contracts the user may see);
+* a newer release found by the scheduled update check (superusers).
 
 Counts are cached per user and customer for a minute, so a page costs one
 cache read; the pages themselves always show live data.
@@ -148,4 +149,14 @@ def for_context(ctx):
             continue
         items.append({'key': name, 'label': label, 'icon': f'fas {icon}', 'href': href,
                       'count': counts[name]})
+    # A newer release the scheduled update check found (superusers only, the
+    # ones who can apply it; core.context_processors._update_badge).
+    badge = ctx.get('update_badge')
+    if badge and user.is_superuser:
+        try:
+            items.insert(0, {'key': 'update', 'label': _('Update available: v%(v)s') % {'v': badge['version']},
+                             'icon': 'fas fa-circle-arrow-up', 'href': reverse('core:system_updates'),
+                             'count': 1})
+        except NoReverseMatch:
+            pass
     return {'items': items, 'total': sum(i['count'] for i in items)}

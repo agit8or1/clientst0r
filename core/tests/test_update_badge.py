@@ -50,8 +50,24 @@ class UpdateBadgeTests(TestCase):
         self._seen(newer)
         html = self._page(self.su)
         self.assertIn('id="navUpdateBadge"', html)
-        self.assertIn(f'Update {newer}', html)
+        self.assertIn('Update Available', html)
+        self.assertIn(f'v{newer}', html)
         self.assertIn(reverse('core:system_updates'), html.split('id="navUpdateBadge"', 1)[0][-400:])
+
+    def test_pill_sits_outside_the_collapsible_menu(self):
+        """v3.17.678: beside the brand, so it shows at every width."""
+        self._seen(_bump(get_version()))
+        html = self._page(self.su)
+        self.assertIn('class="update-pill"', html)
+        self.assertLess(html.index('id="navUpdateBadge"'), html.index('id="navbarNav"'))
+
+    def test_bell_lists_the_update_for_superusers(self):
+        newer = _bump(get_version())
+        self._seen(newer)
+        html = self._page(self.su)
+        self.assertIn('data-note="update"', html)
+        self.assertIn(f'Update available: v{newer}', html)
+        self.assertNotIn('data-note="update"', self._page(self.plain))
 
     def test_hidden_when_running_that_version_or_newer(self):
         for seen in (get_version(), _bump(get_version(), -1), '', 'not-a-version'):
@@ -86,4 +102,4 @@ class UpdateBadgeTests(TestCase):
         ScheduledTask.get_or_create_defaults()
         task = ScheduledTask.objects.get(task_type='update_check')
         self.assertTrue(task.enabled)
-        self.assertEqual(task.interval_minutes, 60)
+        self.assertEqual(task.interval_minutes, 15)  # v3.17.678: was hourly

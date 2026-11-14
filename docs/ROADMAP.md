@@ -2709,7 +2709,7 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
 - **67.6 Dashboard customization** *(shipped v3.17.677)* — show / hide, order and size
   widgets by drag or keyboard, compact or comfortable density, restore
   defaults, built-in role presets and administrator-set role defaults.
-- **67.7 Professional Dark theme** *(shipped v3.17.677)* — default for new profiles,
+- **67.7 Professional Dark theme** *(shipped v3.17.677; every existing profile switched to it v3.17.678)* — default for new profiles,
   wallpaper optional, shared design tokens; existing preferences kept.
 - **67.8 Validation** *(partial — per-role navigation and dashboard tests, direct-URL checks and viewport screenshots v3.17.677; customer-role screenshots and a review period before the Classic dashboard is retired planned)* — role matrix with direct-URL denial checks,
   viewport screenshots, regression suite.

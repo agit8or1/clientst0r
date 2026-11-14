@@ -77,6 +77,16 @@
                     <img src="{% static 'images/logo-light.svg' %}" alt="{{ system_settings.custom_company_name|default:'Client St0r' }}" height="30">
                 {% endif %}
             </a>
+            {% if update_badge %}
+            {# Update available (superusers; core.context_processors._update_badge, fed by the scheduled update check). Outside the collapsible area so it shows at every width. #}
+            <a class="update-pill" href="{% url 'core:system_updates' %}" id="navUpdateBadge"
+               data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="{% blocktrans with v=update_badge.version %}Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}">
+                <i class="fas fa-circle-arrow-up" aria-hidden="true"></i>
+                <span class="update-pill__text">{% trans "Update Available" %}</span>
+                <span class="update-pill__ver">v{{ update_badge.version }}</span>
+            </a>
+            {% endif %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="{% if user.is_authenticated %}{% trans 'Toggle search, client and account controls' %}{% else %}{% trans 'Toggle navigation' %}{% endif %}">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -103,17 +113,6 @@
                                    aria-label="{% trans 'Search across tickets, devices, clients, passwords, assets, documents, and more' %}" aria-keyshortcuts="/">
                         </form>
                     </li>
-                    {% if update_badge %}
-                    <!-- Update available (superusers; core.context_processors._update_badge) -->
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center gap-1" href="{% url 'core:system_updates' %}" id="navUpdateBadge"
-                           data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="{% blocktrans with v=update_badge.version %}Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}">
-                            <i class="fas fa-circle-arrow-up text-warning" aria-hidden="true"></i>
-                            <span class="badge bg-warning text-dark">{% blocktrans with v=update_badge.version %}Update {{ v }}{% endblocktrans %}</span>
-                        </a>
-                    </li>
-                    {% endif %}
                     {% if nav_bell.items %}
                     <li class="nav-item dropdown topbar-notes">
                         <a class="nav-link nav-util position-relative" href="#" id="notifDropdown" role="button"

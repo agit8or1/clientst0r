@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.678] - 2026-11-14
+
+### Changed
+- **Everyone moves to Professional Dark with this update** (a one-time switch of every existing profile). Anyone can pick another theme afterwards on their profile or with the theme toggle in the account menu. Backgrounds are not changed: if Settings → General enforces a background for everyone, that still applies until it is set back to "user".
+- **"Update Available" alert.** When a newer release is published, superusers see a glowing amber **Update Available vX** pill beside the logo — at every window width, not hidden in the collapsed menu — plus an entry in the notifications bell. Both link to Settings → Updates and disappear once the update is applied. The glow is steady instead of pulsing for people who prefer reduced motion.
+- The update check runs every 15 minutes instead of hourly, so the alert appears soon after a release (an interval changed by hand is kept).
+
 ## [3.17.677] - 2026-11-14
 
 Interface, navigation and dashboard redesign (Phase 67). No URL changed and no permission was loosened: every page keeps its own check, and the navigation now mirrors those checks so it never offers a link the page would refuse. Plan and audit: docs/plans/2026-11-ui-redesign.md; old → new menu map: docs/navigation-map.md.

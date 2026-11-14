@@ -450,3 +450,33 @@ body.appnav-rail .app-nav__pin-edit { display: none; }
    label always shown (ui.css hides the label in the bar below 1800px). */
 .navbar .dropdown-item.nav-help-grow { gap: var(--bs-dropdown-item-padding-x, .5rem); }
 .navbar .dropdown-item .nav-help-grow__label { display: inline; }
+
+/* Update available pill (superusers): next to the brand at every width, with a
+   soft pulsing glow; a steady glow when reduced motion is preferred. */
+.update-pill {
+    display: inline-flex; align-items: center; gap: .4rem;
+    margin-inline: .25rem .5rem; padding: .25rem .7rem;
+    border-radius: 999px; border: 1px solid #f5c046;
+    background: #f5b301; color: #1a1300 !important;
+    font-weight: 700; font-size: .82rem; line-height: 1.2; white-space: nowrap;
+    text-decoration: none !important;
+    box-shadow: 0 0 6px 1px rgba(245, 179, 1, .55);
+    animation: update-pill-glow 1.8s ease-in-out infinite;
+}
+.update-pill:hover, .update-pill:focus-visible { background: #ffc933; }
+/* themes.css colours every non-button link (a:not(.btn):not(.nav-link)…,
+   !important); this selector outranks it so the pill keeps dark-on-amber. */
+.app-topbar a.update-pill:not(.btn):not(.nav-link),
+.app-topbar a.update-pill:not(.btn):not(.nav-link):hover { color: #1a1300 !important; }
+.update-pill:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.update-pill__ver { font-weight: 600; opacity: .8; }
+@keyframes update-pill-glow {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(245, 179, 1, .45); }
+    50% { box-shadow: 0 0 14px 5px rgba(245, 179, 1, .85); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .update-pill { animation: none; box-shadow: 0 0 10px 3px rgba(245, 179, 1, .7); }
+}
+@media (max-width: 575.98px) {
+    .update-pill__ver { display: none; }
+}
