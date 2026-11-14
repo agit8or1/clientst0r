@@ -1,0 +1,65 @@
+{% comment %}
+Ticket workspace → Approvals (psa/ticket_workspace.py approval_rows): pending
+approvals tied to a ticket the user can see, plus CAB votes awaiting them.
+Approve / Deny post to the existing psa:approval_decide (which re-checks
+everything) and appear only where it would accept the decision.
+{% endcomment %}
+<div class="card">
+    <div class="card-body p-0">
+        {% if approval_rows %}
+        <div class="ui-table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Ticket</th>
+                        <th class="d-none d-md-table-cell">Requester</th>
+                        <th class="d-none d-lg-table-cell">Requested</th>
+                        <th class="d-none d-md-table-cell">Approver</th>
+                        <th class="d-none d-sm-table-cell">Status</th>
+                        <th><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in approval_rows %}
+                    <tr data-approval="{{ a.kind }}-{{ a.pk }}">
+                        <td class="ui-wrap"><span class="ui-badge ui-badge--info">{{ a.type }}</span>
+                            <div class="small text-muted">{{ a.title|truncatechars:80 }}</div></td>
+                        <td class="ui-wrap ticket-subject">
+                            <a class="ui-primary-cell" href="{% url 'psa:ticket_detail' a.ticket.ticket_number %}">{{ a.ticket.subject|truncatechars:70 }}</a>
+                            <div class="ui-ref">{{ a.ticket.ticket_number }}</div>
+                            <div class="ui-org small">{{ a.client }}</div>
+                        </td>
+                        <td class="ui-wrap d-none d-md-table-cell">{{ a.requester|default:"—" }}</td>
+                        <td class="d-none d-lg-table-cell small">{% if a.requested_at %}<time datetime="{{ a.requested_at|date:'c' }}" title="{{ a.requested_at }}">{{ a.requested_at|timesince }} ago</time>{% else %}—{% endif %}</td>
+                        <td class="ui-wrap d-none d-md-table-cell small">{{ a.approver }}</td>
+                        <td class="d-none d-sm-table-cell"><span class="ui-badge ui-badge--{% if a.status_key == 'blocked' %}neutral{% else %}warn{% endif %}">{{ a.status }}</span></td>
+                        <td class="text-nowrap">
+                            {% if a.kind == 'cab' %}
+                            <a class="btn btn-sm btn-outline-primary" href="{{ a.vote_url }}">Vote</a>
+                            {% elif a.can_decide %}
+                            <form method="post" action="{% url 'psa:approval_decide' a.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button name="decision" value="approve" class="btn btn-sm btn-success">Approve</button>
+                                <button name="decision" value="deny" class="btn btn-sm btn-outline-danger">Deny</button>
+                            </form>
+                            {% else %}
+                            <span class="small text-muted">{{ a.blocked_reason }}</span>
+                            {% endif %}
+                            {% if a.history_url %}<a class="btn btn-sm btn-link" href="{{ a.history_url }}" title="Approval history"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i><span class="visually-hidden">History</span></a>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="ui-empty">
+            <i class="fas fa-circle-check ui-empty__icon" aria-hidden="true"></i>
+            <div class="ui-empty__title">No ticket approvals waiting</div>
+            <p class="ui-empty__body">Approvals not tied to a ticket (timesheets, invoices) are on My Work and the Approvals page.</p>
+            <a href="{% url 'psa:approval_list' %}" class="btn btn-outline-secondary">Open Approvals</a>
+        </div>
+        {% endif %}
+    </div>
+</div>

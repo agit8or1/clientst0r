@@ -1,0 +1,5 @@
+{# One ticket's SLA state (psa.my_work.sla_bucket_of via ticket_workspace.decorate_sla). #}
+{% if t.sla_bucket %}
+<span class="ui-badge ui-badge--{{ t.sla_tone }}" title="{% if t.sla_which %}{{ t.sla_which }} deadline{% else %}No SLA deadline on this ticket{% endif %}">{{ t.sla_bucket_label }}</span>
+{% if t.sla_left and t.sla_bucket != 'paused' %}<div class="tw-sla-left small {% if t.sla_bucket == 'breached' %}text-danger{% else %}text-muted{% endif %}">{{ t.sla_left }}</div>{% endif %}
+{% endif %}

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% load docs_extras %}
+{% load static docs_extras %}
 {% block title %}PSA — Dispatch Board{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ticket_workspace.css' %}">{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb mb-2">
@@ -11,7 +12,8 @@
 
 <div class="d-flex justify-content-between align-items-baseline mb-2">
     <h4 class="mb-0"><i class="fas fa-table-list me-2"></i>Dispatch Board</h4>
-    <small class="text-muted"><i class="fas fa-arrows-alt me-1"></i>Drag a ticket card to a tech row to reassign
+    <small class="text-muted"><a href="{{ unassigned_url }}" class="me-1" data-unassigned-link><i class="fas fa-user-plus me-1"></i>Unassigned queue ({{ unassigned_open_count }})</a>
+        · <i class="fas fa-arrows-alt me-1"></i>Drag a ticket card to a tech row{% if technicians %}, or pick a technician on an unassigned card,{% endif %} to reassign
         · <a href="{% url 'resourcing:shift_schedule' %}"><i class="fas fa-user-clock me-1"></i>Shift schedule</a>
         {% if geo_enabled %}· <span title="Distances use technicians' last shared positions (opt-in) and are estimates"><i class="fas fa-location-dot me-1"></i>Travel estimates on</span>{% endif %}
         {% if request.user.is_superuser %}· <a href="{% url 'field_ops:dispatch_geo_settings' %}">Dispatch locations</a>{% endif %}</small>
@@ -78,6 +80,7 @@
                         {% if can_assign %}{% include "psa/_dispatch_suggest_btn.html" with t=t ranking=skill_rankings|get_item:t.pk %}{% endif %}
                         <div class="dispatch-card-subject">{{ t.subject|truncatechars:35 }}</div>
                         {% with near=nearest_by_ticket|get_item:t.pk %}{% if near %}<div class="dispatch-nearest small text-muted" title="Nearest technician by last shared position (straight-line estimate)"><i class="fas fa-route me-1"></i>{{ near }}</div>{% endif %}{% endwith %}
+                        {% if t.can_assign %}<div class="dispatch-assign">{% include "psa/_assign_picker.html" with compact=True picker_suffix="-db" %}</div>{% endif %}
                     </div>
                     {% empty %}
                     <span class="text-muted">·</span>
@@ -92,6 +95,7 @@
                         {% if can_assign %}{% include "psa/_dispatch_suggest_btn.html" with t=t ranking=skill_rankings|get_item:t.pk %}{% endif %}
                         <div class="dispatch-card-subject">{{ t.subject|truncatechars:35 }}</div>
                         {% with near=nearest_by_ticket|get_item:t.pk %}{% if near %}<div class="dispatch-nearest small text-muted" title="Nearest technician by last shared position (straight-line estimate)"><i class="fas fa-route me-1"></i>{{ near }}</div>{% endif %}{% endwith %}
+                        {% if t.can_assign %}<div class="dispatch-assign">{% include "psa/_assign_picker.html" with compact=True picker_suffix="-db" %}</div>{% endif %}
                     </div>
                     {% empty %}
                     <span class="text-muted">·</span>
@@ -156,6 +160,7 @@
 </div>
 
 <div class="dispatch-toast" id="dispatch-toast" role="status"></div>
+{% if technicians %}{% include "psa/_assign_js.html" %}{% endif %}
 
 <style>
 .dispatch-grid { font-size: .8rem; table-layout: fixed; }
@@ -197,6 +202,7 @@
     transform: translateY(120%); transition: transform 200ms;
     box-shadow: 0 4px 12px rgba(0,0,0,.2);
 }
+.dispatch-toast:not(.show) { visibility: hidden; }
 .dispatch-toast.show { transform: translateY(0); }
 .dispatch-toast.error { background: var(--bs-danger); }
 </style>

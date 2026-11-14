@@ -1,0 +1,52 @@
+{% comment %}
+Ticket workspace → Overview (psa/ticket_workspace.py overview_counts). Every
+figure comes from the user's ticket scope, open tickets only, and links to
+the list that shows exactly those tickets.
+{% endcomment %}
+<form method="get" class="ui-filter-bar tw-filter-bar--narrow">
+    <input type="hidden" name="view" value="overview">
+    <div class="ui-field">
+        <label class="ui-field__label" for="ovClient">Client</label>
+        <select id="ovClient" name="client" class="form-select">
+            <option value="">All clients</option>
+            {% for c in available_clients %}
+            <option value="{{ c.id }}" {% if filter_values.client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field ui-field--auto">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Apply</button>
+    </div>
+</form>
+
+<div class="tw-tiles" role="list">
+    {% for tile in overview.tiles %}
+    <a role="listitem" class="tw-tile tw-tile--{{ tile.tone }}" href="{{ tile.href }}" data-tile="{{ tile.key }}">
+        <span class="tw-tile__label"><i class="fas {{ tile.icon }}" aria-hidden="true"></i> {{ tile.label }}</span>
+        <span class="tw-tile__value">{{ tile.count }}</span>
+    </a>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-stopwatch me-1" aria-hidden="true"></i> SLA state of open tickets</span>
+        <a class="small" href="{% url 'psa:ticket_list' %}?view=sla{% if filter_values.client %}&amp;client={{ filter_values.client }}{% endif %}">Open SLA view</a>
+    </div>
+    <div class="card-body">
+        {% if overview.open %}
+        <div class="tw-sla-bars">
+            {% for r in overview.sla_rows %}
+            <a class="tw-sla-bar" href="{{ r.href }}" data-sla-row="{{ r.key }}">
+                <span>{{ r.label }}</span>
+                <span class="tw-sla-bar__track" aria-hidden="true"><span class="tw-sla-bar__fill tw-sla-bar__fill--{{ r.tone }}" style="width: {{ r.pct }}%"></span></span>
+                <span class="tw-sla-bar__n">{{ r.count }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        <p class="small text-muted mb-0 mt-2">The deadline that counts is the first response until one is sent, then resolution. Paused tickets are in a status that stops the SLA clock; “No SLA” tickets have no deadline set.</p>
+        {% else %}
+        <div class="ui-empty py-2"><div class="ui-empty__title">No open tickets</div></div>
+        {% endif %}
+    </div>
+</div>

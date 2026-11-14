@@ -1,104 +1,52 @@
 {% extends "base.html" %}
-{% load psa_ui %}
-{% block title %}Tickets{% endblock %}
+{% load static psa_ui %}
+{% block title %}Tickets{% if view_label %} · {{ view_label }}{% endif %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ticket_workspace.css' %}">{% endblock %}
 {% block content %}
 
+{% comment %}
+The ticket workspace. ?view= (psa/ticket_workspace.py TICKET_VIEWS) picks the
+view; the section tabs above (core/navigation.py psa_tickets) link to each one
+and mark the current one, so back/forward and bookmarks land on the same tab.
+{% endcomment %}
 <div class="ui-page-head">
     <div class="ui-page-head__main">
-        <h1 class="ui-page-title"><i class="fas fa-ticket-alt"></i> Tickets</h1>
+        <h1 class="ui-page-title"><i class="fas fa-ticket-alt"></i> Tickets{% if view_label %} <span class="text-muted fw-normal">· {{ view_label }}</span>{% endif %}</h1>
         <p class="ui-page-sub">
             {% if filter_values.client %}
                 {% for c in available_clients %}{% if c.id|slugify == filter_values.client %}{{ c.name }} · {% endif %}{% endfor %}
-            {% else %}All clients · {% endif %}{{ tickets|length }} ticket{{ tickets|length|pluralize }}{% if tickets|length == 200 %} (newest 200){% endif %}
+            {% elif view != 'approvals' %}All clients · {% endif %}
+            {% if view == 'overview' %}{{ overview.open }} open ticket{{ overview.open|pluralize }}
+            {% elif view == 'approvals' %}{{ approval_rows|length }} waiting approval{{ approval_rows|length|pluralize }} on tickets
+            {% else %}{{ tickets|length }} ticket{{ tickets|length|pluralize }}{% if tickets|length == 200 %} (first 200){% endif %}
+            {% if view == 'unassigned' %} · open, nobody assigned{% elif view == 'sla' %} · open{% elif view == 'escalated' %} · open, escalated by the customer{% endif %}
+            {% endif %}
         </p>
     </div>
     <div class="ui-page-head__actions">
+        {% if view == 'approvals' %}<a href="{% url 'psa:approval_list' %}" class="btn btn-outline-secondary"><i class="fas fa-list"></i> All approvals</a>{% endif %}
+        {% if view == 'unassigned' and is_tech %}<a href="{% url 'psa:dispatch_board' %}" class="btn btn-outline-secondary"><i class="fas fa-table-list"></i> Dispatch Board</a>{% endif %}
         <a href="{% url 'psa:my_work' %}" class="btn btn-outline-primary"><i class="fas fa-user-check"></i> My Work</a>
         <a href="{% url 'psa:ticket_create' %}"class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
     </div>
 </div>
 
-{% comment %}
-Filter bar — every parameter is URL-driven so a view can be bookmarked.
-Controls share one height and wrap as a row rather than sitting in fixed
-Bootstrap columns that collapse awkwardly between breakpoints.
-{% endcomment %}
-<form method="get" class="ui-filter-bar">
-    <div class="ui-field ui-field--grow">
-        <label class="ui-field__label" for="tkQ">Search</label>
-        <input type="text" id="tkQ" name="q" value="{{ filter_values.q }}"
-               placeholder="Ticket number or subject…" class="form-control">
-    </div>
-    <div class="ui-field">
-        <label class="ui-field__label" for="tkClient">Client</label>
-        <select id="tkClient" name="client" class="form-select">
-            <option value="">All clients</option>
-            {% for c in available_clients %}
-            <option value="{{ c.id }}" {% if filter_values.client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="ui-field">
-        <label class="ui-field__label" for="tkStatus">Status</label>
-        <select id="tkStatus" name="status" class="form-select">
-            <option value="">Any status</option>
-            {% for s in available_statuses %}
-            <option value="{{ s.id }}" {% if filter_values.status == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="ui-field">
-        <label class="ui-field__label" for="tkPriority">Priority</label>
-        <select id="tkPriority" name="priority" class="form-select">
-            <option value="">Any priority</option>
-            {% for p in available_priorities %}
-            <option value="{{ p.id }}" {% if filter_values.priority == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }} ({{ p.code }})</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="ui-field">
-        <label class="ui-field__label" for="tkQueue">Queue</label>
-        <select id="tkQueue" name="queue" class="form-select">
-            <option value="">Any queue</option>
-            <optgroup label="Work queues">
-                {% for key, label in work_queues.items %}
-                <option value="{{ key }}" {% if work_queue == key %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </optgroup>
-            <optgroup label="Queues">
-            {% for q in available_queues %}
-            <option value="{{ q.id }}" {% if filter_values.queue == q.id|stringformat:"s" %}selected{% endif %}>{{ q.name }}</option>
-            {% endfor %}
-            </optgroup>
-        </select>
-    </div>
-    <div class="ui-field">
-        <label class="ui-field__label" for="tkAssigned">Assigned</label>
-        <select id="tkAssigned" name="assigned" class="form-select">
-            <option value="">Anyone</option>
-            <option value="me" {% if filter_values.assigned == "me" %}selected{% endif %}>Me</option>
-            <option value="unassigned" {% if filter_values.assigned == "unassigned" %}selected{% endif %}>Unassigned</option>
-        </select>
-    </div>
-    <div class="ui-field">
-        <label class="ui-field__label" for="tkRequestType">Request type</label>
-        <select id="tkRequestType" name="request_type" class="form-select">
-            <option value="">Any</option>
-            <option value="any" {% if filter_values.request_type == "any" %}selected{% endif %}>Any request form</option>
-            {% for rt in available_request_types %}
-            <option value="{{ rt.pk }}" {% if filter_values.request_type == rt.pk|stringformat:"s" %}selected{% endif %}>{{ rt.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="ui-field ui-field--auto">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Apply filters</button>
-    </div>
-    {% if has_filters %}
-    <div class="ui-field ui-field--auto">
-        <a href="{% url 'psa:ticket_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear</a>
-    </div>
-    {% endif %}
-</form>
+{% if view == 'overview' %}
+{% include "psa/_ticket_overview.html" %}
+{% elif view == 'approvals' %}
+{% include "psa/_ticket_approvals.html" %}
+{% else %}
+
+{% include "psa/_ticket_filters.html" %}
+
+{% if view == 'sla' and sla_counts %}
+<nav class="tw-chips" aria-label="SLA state">
+    <a href="?{% ticket_query_without 'sla' %}" class="btn btn-sm {% if not filter_values.sla %}btn-primary{% else %}btn-outline-secondary{% endif %}"{% if not filter_values.sla %} aria-current="true"{% endif %}>All open</a>
+    {% for key, label in sla_buckets.items %}
+    <a href="?{% ticket_query_without 'sla' sla=key %}" class="btn btn-sm {% if filter_values.sla == key %}btn-primary{% else %}btn-outline-secondary{% endif %}"{% if filter_values.sla == key %} aria-current="true"{% endif %}>{{ label }} <span class="badge text-bg-light">{{ sla_counts|count_for:key }}</span></a>
+    {% endfor %}
+</nav>
+{% endif %}
 
 {% if has_filters %}
 <div class="ui-applied">
@@ -107,13 +55,17 @@ Bootstrap columns that collapse awkwardly between breakpoints.
     {% for c in available_clients %}{% if filter_values.client == c.id|stringformat:"s" %}<span class="ui-chip"><i class="fas fa-building"></i> {{ c.name }}</span>{% endif %}{% endfor %}
     {% for s in available_statuses %}{% if filter_values.status == s.id|stringformat:"s" %}<span class="ui-chip">{{ s.name }}</span>{% endif %}{% endfor %}
     {% for p in available_priorities %}{% if filter_values.priority == p.id|stringformat:"s" %}<span class="ui-chip">{{ p.name }}</span>{% endif %}{% endfor %}
+    {% for tt in available_types %}{% if filter_values.type == tt.id|stringformat:"s" %}<span class="ui-chip"><i class="fas fa-tag"></i> {{ tt.name }}</span>{% endif %}{% endfor %}
     {% for q in available_queues %}{% if filter_values.queue == q.id|stringformat:"s" %}<span class="ui-chip">{{ q.name }}</span>{% endif %}{% endfor %}
     {% if work_queue %}{% for key, label in work_queues.items %}{% if key == work_queue %}<span class="ui-chip"><i class="fas fa-inbox"></i> {{ label }}</span>{% endif %}{% endfor %}{% endif %}
     {% if filter_values.request_type == "any" %}<span class="ui-chip"><i class="fas fa-clipboard-list"></i> Any request form</span>{% endif %}
     {% for rt in available_request_types %}{% if filter_values.request_type == rt.pk|stringformat:"s" %}<span class="ui-chip"><i class="fas fa-clipboard-list"></i> {{ rt.name }}</span>{% endif %}{% endfor %}
     {% if filter_values.assigned == "me" %}<span class="ui-chip">Assigned to me</span>{% endif %}
     {% if filter_values.assigned == "unassigned" %}<span class="ui-chip">Unassigned</span>{% endif %}
-    <a href="{% url 'psa:ticket_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i> Clear all</a>
+    {% for key, label in age_filters.items %}{% if filter_values.age == key %}<span class="ui-chip"><i class="fas fa-clock"></i> {{ label }}</span>{% endif %}{% endfor %}
+    {% for key, label in sla_buckets.items %}{% if filter_values.sla == key %}<span class="ui-chip"><i class="fas fa-stopwatch"></i> SLA: {{ label }}</span>{% endif %}{% endfor %}
+    {% for key, label in sorts.items %}{% if filter_values.sort == key %}<span class="ui-chip"><i class="fas fa-sort"></i> {{ label }}</span>{% endif %}{% endfor %}
+    <a href="{% url 'psa:ticket_list' %}{% if view %}?view={{ view }}{% endif %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i> Clear all</a>
 </div>
 {% endif %}
 
@@ -127,18 +79,34 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         {# On phones the less-used columns drop out (the client moves under the subject). #}
                         <th>Subject</th>
                         <th class="d-none d-sm-table-cell">Client</th>
-                        <th>Priority</th>
-                        <th>Status</th>
+                        <th{% if view %} class="d-none d-sm-table-cell"{% endif %}>Priority</th>
+                        <th{% if view %} class="d-none d-md-table-cell"{% endif %}>Status</th>
+                        {% if view == 'unassigned' %}
+                        <th class="d-none d-lg-table-cell">Category</th>
+                        <th class="d-none d-md-table-cell">Age</th>
+                        <th>SLA</th>
+                        {% if any_assign %}<th>Assign</th>{% endif %}
+                        {% elif view == 'sla' %}
+                        <th class="d-none d-md-table-cell">Assignee</th>
+                        <th>SLA</th>
+                        <th class="d-none d-lg-table-cell">Deadline</th>
+                        {% elif view == 'escalated' %}
+                        <th class="d-none d-md-table-cell">Assignee</th>
+                        <th>Escalated</th>
+                        <th class="d-none d-lg-table-cell">Reason</th>
+                        <th class="d-none d-md-table-cell">SLA</th>
+                        {% else %}
                         <th class="d-none d-md-table-cell">Queue</th>
                         <th class="d-none d-md-table-cell">Assignee</th>
                         <th>Next</th>
                         <th class="d-none d-lg-table-cell">Last activity</th>
                         <th class="d-none d-lg-table-cell">Created</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for t in tickets %}
-                    <tr>
+                    <tr data-ticket="{{ t.ticket_number }}"{% if view == 'unassigned' %} data-assign-row{% endif %}{% if t.sla_bucket %} data-sla="{{ t.sla_bucket }}"{% endif %}>
                         {% comment %}
                         Subject is the thing a technician scans for, so it is the
                         strongest text in the row and carries the link. The ticket
@@ -155,8 +123,23 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         priority rank by sort_order, status by is_terminal /
                         pauses_sla — never from parsing the label text.
                         {% endcomment %}
-                        <td><span class="ui-badge ui-badge--{{ t.priority|priority_tone }}">{{ t.priority|priority_label }}</span></td>
-                        <td><span class="ui-badge ui-badge--{{ t.status|status_tone }}">{{ t.status.name }}</span></td>
+                        <td{% if view %} class="d-none d-sm-table-cell"{% endif %}><span class="ui-badge ui-badge--{{ t.priority|priority_tone }}">{{ t.priority|priority_label }}</span></td>
+                        <td{% if view %} class="d-none d-md-table-cell"{% endif %}><span class="ui-badge ui-badge--{{ t.status|status_tone }}">{{ t.status.name }}</span></td>
+                        {% if view == 'unassigned' %}
+                        <td class="d-none d-lg-table-cell">{{ t.ticket_type.name|default:"—" }}</td>
+                        <td class="d-none d-md-table-cell"><time datetime="{{ t.created_at|date:'c' }}" title="{{ t.created_at }}">{{ t.created_at|timesince }}</time></td>
+                        <td>{% include "psa/_sla_cell.html" %}</td>
+                        {% if any_assign %}<td>{% include "psa/_assign_picker.html" %}</td>{% endif %}
+                        {% elif view == 'sla' %}
+                        <td class="ui-wrap d-none d-md-table-cell">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+                        <td>{% include "psa/_sla_cell.html" %}</td>
+                        <td class="d-none d-lg-table-cell small">{% if t.sla_due_at %}<time datetime="{{ t.sla_due_at|date:'c' }}">{{ t.sla_due_at|date:'M j, H:i' }}</time><div class="text-muted">{{ t.sla_which }}</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        {% elif view == 'escalated' %}
+                        <td class="ui-wrap d-none d-md-table-cell">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+                        <td class="small"><time datetime="{{ t.escalated_at|date:'c' }}" title="{{ t.escalated_at }}">{{ t.escalated_at|timesince }} ago</time>{% if t.escalated_by %}<div class="text-muted">by {{ t.escalated_by.get_full_name|default:t.escalated_by.username }}</div>{% endif %}</td>
+                        <td class="ui-wrap small d-none d-lg-table-cell tw-reason">{{ t.escalation_reason|default:"—"|truncatechars:160 }}</td>
+                        <td class="d-none d-md-table-cell">{% include "psa/_sla_cell.html" %}</td>
+                        {% else %}
                         <td class="d-none d-md-table-cell">{{ t.queue.name }}</td>
                         <td class="ui-wrap d-none d-md-table-cell">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
                         <td><span class="badge {{ t.next_badge }}" data-next="{{ t.next_step }}">{{ t.next_label }}</span></td>
@@ -167,6 +150,7 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         <td class="d-none d-lg-table-cell">
                             <time datetime="{{ t.created_at|date:'c' }}" title="{{ t.created_at }}">{{ t.created_at|timesince }} ago</time>
                         </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -178,7 +162,17 @@ Bootstrap columns that collapse awkwardly between breakpoints.
             <i class="fas fa-search ui-empty__icon" aria-hidden="true"></i>
             <div class="ui-empty__title">No tickets match these filters</div>
             <p class="ui-empty__body">Try widening the search, or clear the filters to see the whole queue.</p>
-            <a href="{% url 'psa:ticket_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear filters</a>
+            <a href="{% url 'psa:ticket_list' %}{% if view %}?view={{ view }}{% endif %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear filters</a>
+            {% elif view == 'unassigned' %}
+            <i class="fas fa-user-check ui-empty__icon" aria-hidden="true"></i>
+            <div class="ui-empty__title">Every open ticket has someone on it</div>
+            {% elif view == 'sla' %}
+            <i class="fas fa-stopwatch ui-empty__icon" aria-hidden="true"></i>
+            <div class="ui-empty__title">No open tickets</div>
+            {% elif view == 'escalated' %}
+            <i class="fas fa-arrow-up-right-dots ui-empty__icon" aria-hidden="true"></i>
+            <div class="ui-empty__title">No open escalated tickets</div>
+            <p class="ui-empty__body">Tickets land here when a customer escalates them from the portal.</p>
             {% else %}
             <i class="fas fa-inbox ui-empty__icon" aria-hidden="true"></i>
             <div class="ui-empty__title">No tickets yet</div>
@@ -189,4 +183,6 @@ Bootstrap columns that collapse awkwardly between breakpoints.
         {% endif %}
     </div>
 </div>
+{% if any_assign %}{% include "psa/_assign_js.html" %}{% endif %}
+{% endif %}
 {% endblock %}
