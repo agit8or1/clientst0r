@@ -6,6 +6,7 @@ import logging
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django_ratelimit.decorators import ratelimit
 from accounts.permission_utils import filter_by_org_perm, orgs_with_perm
 from core.middleware import get_request_organization
 from assets.models import Asset, Contact
@@ -17,6 +18,14 @@ logger = logging.getLogger('core')
 
 # Per content type, matching what the list pages already show.
 RESULT_LIMIT = 10
+# Longer queries are cut (every category runs several icontains on it).
+MAX_QUERY = 200
+# Per user, like the command palette's search (core.palette_views).
+SEARCH_RATE = '120/m'
+
+
+def _search_rate(group, request):
+    return SEARCH_RATE
 
 
 class SearchScope:
@@ -91,9 +100,15 @@ class SearchScope:
         live: published, not a pending draft, not archived. A customer user
         additionally sees only what the document list shows them
         (docs.permissions.visible_documents: no internal-only articles)."""
-        from docs.permissions import visible_documents
+        from docs.permissions import is_customer_user, visible_documents
         qs = visible_documents(self.permitted(Document, 'docs_view').published().filter(
             is_global=False), self.user)
+        if query is not None and is_customer_user(self.user):
+            # A customer matches the body they would receive: internal-only
+            # blocks are not part of it (docs.kb_visibility.text_search_q).
+            from docs.kb_visibility import text_search_q
+            return qs.filter(text_search_q(qs, query, customer_copy=True, fields=fields)
+                             ).select_related('organization')
         return self._text(qs, query, fields).select_related('organization')
 
     def global_kb(self, query, fields=('title', 'body')):
@@ -102,6 +117,10 @@ class SearchScope:
         only superusers and MSP staff can hold (same reach as the old
         staff-only rule, minus staff whose global role drops docs_view)."""
         if orgs_with_perm(self.user, 'docs_view') is not None:
+            return None
+        from core.models import SystemSetting
+        if not getattr(SystemSetting.get_settings(), 'global_kb_enabled', True):
+            # Module switched off: its pages are gone, so are its titles.
             return None
         return self._text(Document.objects.published().filter(is_global=True), query, fields)
 
@@ -164,7 +183,12 @@ class SearchScope:
         if not self.staff_user:
             return None
         from integrations.models import RMMDevice
-        qs = self.permitted(RMMDevice, 'assets_view').filter(
+        # The RMM pages live under /integrations/, so integrations_view
+        # (SectionPermissionMiddleware) decides them as well as assets_view:
+        # a technician role without it (tech_l1/l2/l3) is refused the RMM
+        # list and must not read device names and hostnames here either.
+        qs = filter_by_org_perm(self.permitted(RMMDevice, 'assets_view'), self.user,
+                                'integrations_view').filter(
             ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
         return self._text(qs, query, ('device_name', 'hostname', 'serial_number', 'ip_address')
                           ).select_related('organization')
@@ -180,6 +204,7 @@ class SearchScope:
 
 
 @login_required
+@ratelimit(group='core.global_search', key='user', rate=_search_rate, method='GET', block=False)
 def global_search(request):
     """
     Global search across all content types.
@@ -204,11 +229,13 @@ def global_search(request):
     """
     scope = SearchScope(request)
     org = scope.org
-    query = request.GET.get('q', '').strip()
+    query = request.GET.get('q', '').strip()[:MAX_QUERY]
     in_global_view = scope.in_global_view
+    limited = getattr(request, 'limited', False)
 
     results = {
         'query': query,
+        'rate_limited': limited,
         'assets': [],
         'contacts': [],
         'documents': [],
@@ -239,6 +266,9 @@ def global_search(request):
             return
         results['counts'][key] = qs.count()
         results[key] = list(qs[:RESULT_LIMIT])
+
+    if limited:
+        return render(request, 'core/search_results.html', results, status=429)
 
     if query and len(query) >= 2:
         take('assets', scope.assets(query))

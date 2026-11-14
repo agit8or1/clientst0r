@@ -16,7 +16,9 @@
         </div>
     </form>
 
-    {% if query %}
+    {% if rate_limited %}
+    <div class="alert alert-warning" role="alert">Too many searches in a short time. Wait a minute and try again.</div>
+    {% elif query %}
     <p class="text-muted">Found <strong>{{ total_count }}</strong> results for "<strong>{{ query }}</strong>"</p>
     {% endif %}
 </div>

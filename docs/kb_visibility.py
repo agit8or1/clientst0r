@@ -159,3 +159,50 @@ def client_text(document) -> str:
     """Plain text of what a customer sees (for portal search)."""
     import html as _html
     return _html.unescape(_TAGS.sub(' ', document.render_for_client()))
+
+
+# Rows re-checked in Python per text search: documents whose raw body
+# matches *and* carries an internal-block marker. Anything past this many is
+# left out (an under-return, never a disclosure).
+TEXT_RECHECK_LIMIT = 500
+
+
+def text_search_q(qs, query, *, customer_copy, fields=('title', 'body')):
+    """Q narrowing `qs` to documents matching `query` in `fields`.
+
+    For staff (``customer_copy=False``) a plain ``icontains`` on each field.
+    For a reader who gets the customer copy (customer users; staff exporting
+    a customer copy) the body only counts for the text they would actually
+    receive: a word that appears only inside an internal-only block
+    (``:::internal`` / ``class="kb-internal"``) must not make the document
+    match — the match itself would reveal that the internal note says it.
+    Documents without internal markers keep the database match; the few
+    whose raw body matches and carries a marker are re-checked against
+    `client_text`.
+    """
+    from django.db.models import Q
+    cond = Q(pk__in=[])
+    query = (query or '').strip()
+    if not query:
+        return cond
+    for f in fields:
+        if f != 'body':
+            cond |= Q(**{f'{f}__icontains': query})
+    if 'body' not in fields:
+        return cond
+    if not customer_copy:
+        return cond | Q(body__icontains=query)
+    marker = Q(body__icontains=INTERNAL_CLASS) | Q(body__icontains=':::')
+    cond |= Q(body__icontains=query) & ~marker
+    needle = query.lower()
+    ok = []
+    # A plain queryset over the candidates' pks: the caller's may carry
+    # select_related / prefetches that `.only()` cannot combine with.
+    candidates = qs.model._default_manager.filter(
+        pk__in=qs.filter(Q(body__icontains=query) & marker).values('pk'))
+    for doc in candidates.only('pk', 'body', 'content_type', 'title')[:TEXT_RECHECK_LIMIT]:
+        if not has_internal_blocks(doc) or needle in client_text(doc).lower():
+            ok.append(doc.pk)
+    if ok:
+        cond |= Q(pk__in=ok)
+    return cond
