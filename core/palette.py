@@ -313,7 +313,7 @@ def _rmm_item(d, next_url=''):
 
 
 def _client_item(o):
-    return _item(o.name, _rev('core:customer_ops', o.pk), 'fas fa-building', _('Client'))
+    return _item(o.name, _rev('accounts:organization_detail', o.pk), 'fas fa-building', _('Client'))
 
 
 def _doc_item(d):
