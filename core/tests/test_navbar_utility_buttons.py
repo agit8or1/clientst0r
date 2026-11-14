@@ -77,14 +77,14 @@ class TopBarTests(TestCase):
 
     def test_each_has_an_accessible_name(self):
         menu = account_menu(self._html())
-        for label in ('Beta app', 'Install app', 'Help Us Grow'):
+        for label in ('Install app', 'Help Us Grow'):
             self.assertIn(f'aria-label="{label}"', menu)
             # The visible label is the accessible name.
             self.assertRegex(menu, r'(?s)aria-label="%s">.*?%s\s*</' % (label, label))
 
     def test_each_has_a_descriptive_tooltip(self):
         menu = account_menu(self._html())
-        for phrase in ('Beta-test the Android app',
+        for phrase in (
                        'Install the app on your phone or desktop',
                        'Help us grow'):
             self.assertIn(phrase, menu)
@@ -194,3 +194,20 @@ class BetaTesterProgramRemovedTests(TestCase):
     def test_stored_requests_are_kept(self):
         from core.models import BetaTesterRequest
         self.assertTrue(BetaTesterRequest._meta.db_table)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class NavigationNeverFailsSilentlyTests(TestCase):
+    """v3.17.682: the {% primary_nav %} tag logs and swallows exceptions so a
+    broken menu can't take a page down — which also let v3.17.681 ship with no
+    sidebar or account menu at all. Pages must render it without that error."""
+
+    def test_sidebar_and_account_menu_render_without_errors(self):
+        User = get_user_model()
+        su = User.objects.create_user('nav_ok_su', 'n@x.test', 'pw', is_superuser=True, is_staff=True)
+        self.client.force_login(su)
+        with self.assertNoLogs('core.templatetags.navigation', level='ERROR'):
+            html = self.client.get(reverse('core:about')).content.decode()
+        self.assertIn('app-nav__group-btn', html)
+        self.assertIn('id="userDropdown"', html)
+        self.assertIn(reverse('core:install_app'), html)

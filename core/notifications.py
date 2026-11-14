@@ -154,8 +154,11 @@ def for_context(ctx):
     badge = ctx.get('update_badge')
     if badge and user.is_superuser:
         try:
-            items.insert(0, {'key': 'update', 'label': _('Update available: v%(v)s') % {'v': badge['version']},
-                             'icon': 'fas fa-circle-arrow-up', 'href': reverse('core:system_updates'),
+            label = (_('Security update available: v%(v)s') if badge.get('security')
+                     else _('Update available: v%(v)s')) % {'v': badge['version']}
+            items.insert(0, {'key': 'update', 'label': label,
+                             'icon': 'fas fa-shield-halved' if badge.get('security') else 'fas fa-circle-arrow-up',
+                             'href': reverse('core:system_updates'),
                              'count': 1})
         except NoReverseMatch:
             pass

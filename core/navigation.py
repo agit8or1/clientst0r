@@ -1614,11 +1614,13 @@ def _account_menu(ctx, workspace, nav_section, view_name=''):
                       'title': _('Members, roles and organization settings'),
                       'active': workspace['current'] is not None or view_name == 'core:settings_home'})
     items.append({'divider': True})
-    # The three controls that used to sit in the bar, with the same
-    # accessible names (the visible label is the name) and tooltips.
+    # The controls that used to sit in the bar, with the same accessible
+    # names (the visible label is the name) and tooltips. Keep the trailing
+    # comma: with one entry left, this must still be a tuple of tuples.
     for label, icon, url_name, title in (
             (_('Install app'), 'fas fa-download', 'core:install_app',
-             _('Install the app on your phone or desktop'))):
+             _('Install the app on your phone or desktop')),
+    ):
         try:
             items.append({'label': label, 'icon': icon, 'href': reverse(url_name), 'aria': label,
                           'title': title,

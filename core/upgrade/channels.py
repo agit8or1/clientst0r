@@ -123,9 +123,23 @@ def current_channel():
     return ch if ch in CHANNELS else 'stable'
 
 
+_SECURITY_HEADING_RE = re.compile(r'^\s{0,3}#{2,4}\s*security\b', re.IGNORECASE | re.MULTILINE)
+
+
+def is_security_release(rel) -> bool:
+    """A published release that carries security fixes: its notes (the
+    CHANGELOG section) have a "### Security" heading, or its title says so."""
+    if not isinstance(rel, dict):
+        return False
+    if _SECURITY_HEADING_RE.search(rel.get('body') or ''):
+        return True
+    return 'security' in (rel.get('name') or '').lower()
+
+
 def _stable_release(owner, name):
     releases = _get(f'{API}/{owner}/{name}/releases?per_page=30') or []
     best = None
+    security = None   # newest published release carrying security fixes
     for rel in releases:
         if rel.get('draft') or rel.get('prerelease'):
             continue
@@ -135,6 +149,8 @@ def _stable_release(owner, name):
         v = _parse(tag)
         if v and (best is None or v > best[0]):
             best = (v, rel)
+        if v and is_security_release(rel) and (security is None or v > security[0]):
+            security = (v, tag.lstrip('v'))
     if not best:
         return None
     rel = best[1]
@@ -157,6 +173,9 @@ def _stable_release(owner, name):
         'name': rel.get('name') or tag, 'published_at': rel.get('published_at'),
         'url': rel.get('html_url'), 'notes': rel.get('body') or '',
         'has_signature': signed,
+        # The newest release (of the last 30) with security fixes; the navbar
+        # badge turns red while the running version is older than it.
+        'security_version': security[1] if security else '',
     }
 
 
@@ -330,6 +349,7 @@ def _record_stable(stable):
         SystemSetting.get_settings()
         SystemSetting.objects.filter(pk=1).update(
             latest_release_version=str((stable or {}).get('version') or '')[:32],
+            latest_security_release_version=str((stable or {}).get('security_version') or '')[:32],
             latest_release_checked_at=timezone.now())
     except Exception:
         pass

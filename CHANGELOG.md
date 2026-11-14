@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.682] - 2026-11-14
+
+### Fixed
+- The sidebar and account menu were missing on every page in v3.17.681 (removing the beta-app item left the account-menu list malformed, and the navigation failed quietly). A test now fails if the navigation ever logs an error while rendering. v3.17.681 is marked as a pre-release on GitHub so update checks skip it.
+
+### Added
+- The Update Available pill turns red with a shield, reading "Security Update", while a release with security fixes is newer than the running version — even if a later, ordinary release is the newest. A release counts as security-related when its notes have a "Security" section or its title says so. The notifications bell and the dashboard's System status panel say "Security update" too. Other updates keep the amber pill.
+
 ## [3.17.681] - 2026-11-14
 
 ### Removed

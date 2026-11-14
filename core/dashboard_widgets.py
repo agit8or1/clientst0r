@@ -547,6 +547,14 @@ def build_system_status(request, org):
                 update = latest
         except Exception:
             update = ''
+    security_update = False
+    sec = (getattr(s, 'latest_security_release_version', '') or '').strip()
+    if update and sec:
+        try:
+            from packaging import version
+            security_update = version.parse(sec) > version.parse(current)
+        except Exception:
+            security_update = False
     db_ok = True
     try:
         with connection.cursor() as cur:
@@ -566,7 +574,7 @@ def build_system_status(request, org):
     except Exception:
         mem = None
     return {
-        'version': current, 'update': update,
+        'version': current, 'update': update, 'security_update': security_update,
         'last_check': getattr(s, 'latest_release_checked_at', None),
         'db_ok': db_ok, 'db_engine': connection.vendor,
         'disk': disk, 'mem': mem,

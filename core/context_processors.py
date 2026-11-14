@@ -180,4 +180,12 @@ def _update_badge(request, system_settings):
             return None
     except Exception:
         return None
-    return {'version': latest}
+    security = (getattr(system_settings, 'latest_security_release_version', '') or '').strip()
+    is_security = False
+    if security:
+        try:
+            is_security = version.parse(security) > version.parse(get_version())
+        except Exception:
+            is_security = False
+    return {'version': latest, 'security': is_security,
+            'security_version': security if is_security else ''}

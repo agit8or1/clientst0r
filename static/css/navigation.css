@@ -699,3 +699,21 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
     .navbar.app-topbar .topbar-account__name { display: none; }
     .app-topbar .update-pill__more { display: none; }
 }
+
+/* v3.17.682: red while a release with security fixes is waiting. */
+.update-pill.update-pill--security {
+    background: #d92d20; border-color: #f97066;
+    box-shadow: 0 0 6px 1px rgba(217, 45, 32, .6);
+    animation-name: update-pill-glow-security;
+}
+.update-pill.update-pill--security:hover,
+.update-pill.update-pill--security:focus-visible { background: #f04438; }
+.app-topbar a.update-pill.update-pill--security:not(.btn):not(.nav-link),
+.app-topbar a.update-pill.update-pill--security:not(.btn):not(.nav-link):hover { color: #fff !important; }
+@keyframes update-pill-glow-security {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(217, 45, 32, .5); }
+    50% { box-shadow: 0 0 16px 6px rgba(240, 68, 56, .9); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .update-pill.update-pill--security { animation: none; box-shadow: 0 0 10px 3px rgba(217, 45, 32, .75); }
+}
