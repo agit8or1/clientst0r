@@ -1,0 +1,20 @@
+{% if w.rows %}
+<ul class="dash-list dash-queue">
+    {% for t in w.rows %}
+    <li>
+        <a href="{{ t.url }}" class="dash-row dash-qrow">
+            <span class="dash-sla dash-sla-{{ t.sla_kind|default:'no_sla' }}" title="{{ t.sla_label }}" aria-label="{{ t.sla_label }}"></span>
+            <span class="dash-qrow-num">{{ t.number }}</span>
+            <span class="dash-row-main dash-qrow-main">
+                <span class="dash-row-title">{{ t.subject }}</span>
+                <span class="dash-row-sub">{{ t.status }}{% if t.priority %} · {{ t.priority }}{% endif %}{% if w.show_assignee and t.assignee %} · {{ t.assignee }}{% endif %}</span>
+            </span>
+            <span class="dash-row-meta" title="{{ t.sla_label }}">{% if t.due %}{% if t.late or t.sla_kind == 'breached' %}<span class="dash-sub-danger">overdue</span>{% elif t.sla_kind == 'paused' %}paused{% else %}in {{ t.due_in }}{% endif %}{% else %}no SLA{% endif %}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% if w.total > w.rows|length %}<div class="dash-w-foot">Showing {{ w.rows|length }} of {{ w.total }}{% if w.more_url %} · <a href="{{ w.more_url }}">open the list</a>{% endif %}</div>{% endif %}
+{% else %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> {{ w.empty }}</div>
+{% endif %}

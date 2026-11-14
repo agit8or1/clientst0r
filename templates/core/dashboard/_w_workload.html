@@ -1,0 +1,16 @@
+{% if w.rows %}
+<ul class="dash-bars">
+    {% for r in w.rows %}
+    <li>
+        <a href="{{ r.href }}" class="dash-bar-row">
+            <span class="dash-bar-label{% if r.unassigned %} dash-sub-warning{% endif %}">{{ r.name }}</span>
+            <span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill{% if r.unassigned %} dash-fill-warning{% endif %}" style="width: {{ r.pct }}%"></span></span>
+            <strong class="dash-bar-value" title="{{ r.count }} open{% if r.late %}, {{ r.late }} overdue{% endif %}">{{ r.count }}{% if r.late %}<span class="dash-sub-danger" aria-label="{{ r.late }} overdue"> ({{ r.late }})</span>{% endif %}</strong>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+<div class="dash-w-foot">Open tickets per technician (overdue in brackets){% if w.heatmap_url %} · <a href="{{ w.heatmap_url }}">Load heatmap</a>{% endif %}</div>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> No open tickets at this customer</div>
+{% endif %}

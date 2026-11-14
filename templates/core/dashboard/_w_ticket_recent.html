@@ -1,0 +1,17 @@
+{% if w.rows %}
+<ul class="dash-list">
+    {% for t in w.rows %}
+    <li>
+        <a href="{{ t.url }}" class="dash-row">
+            <span class="dash-row-main dash-qrow-main">
+                <span class="dash-row-title"><span class="dash-qrow-num">{{ t.number }}</span> {{ t.subject }}</span>
+                <span class="dash-row-sub">{{ t.status }}</span>
+            </span>
+            <span class="dash-row-meta" title="{{ t.when }}">{{ t.when|timesince }} ago</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state">No tickets at this customer yet.</div>
+{% endif %}

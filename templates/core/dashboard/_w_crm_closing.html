@@ -1,0 +1,17 @@
+{% if w.rows %}
+<ul class="dash-list">
+    {% for o in w.rows %}
+    <li>
+        <a href="{{ o.url }}" class="dash-row">
+            <span class="dash-row-main">
+                <span class="dash-row-title">{{ o.name }}</span>
+                <span class="dash-row-sub">{{ o.client }}{% if o.client %} · {% endif %}{{ o.stage }}</span>
+            </span>
+            <span class="dash-row-meta">{% if o.overdue %}<span class="badge bg-danger">{{ o.date|date:"j M" }}</span>{% else %}{{ o.date|date:"j M" }}{% endif %}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-calendar-check" aria-hidden="true"></i> Nothing expected to close in the next 30 days</div>
+{% endif %}
