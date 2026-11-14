@@ -71,14 +71,14 @@ def origin_for(request):
 def return_context(request):
     """What base.html needs: ``{'chip', 'origin', 'scope'}``.
 
-    ``chip`` is the validated return target from the query string (None
+    Empty for anyone who is not MSP staff. ``chip`` is the validated return target from the query string (None
     when absent, invalid, or the current page itself); ``origin`` the path
     links on this page should carry onward (the chip's target, or this page
     when it is a ticket); ``scope`` the path patterns of the pages that
     carry it (client workspace and device pages).
     """
     out = {'chip': None, 'origin': '', 'scope': ''}
-    if request is None:
+    if request is None or not _technician(request):
         return out
     chip = clean_return_to(request.GET.get(PARAM, ''))
     if chip is not None and chip['href'] == request.path:
@@ -87,6 +87,21 @@ def return_context(request):
     out['origin'] = chip['href'] if chip else origin_for(request)
     out['scope'] = ' '.join(scope_patterns())
     return out
+
+
+def _technician(request):
+    """The ticket → client → device workflow is MSP staff work; customers
+    get no chip and no link patterns in their pages."""
+    user = getattr(request, 'user', None)
+    if user is None or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    from psa.visibility import is_msp_staff
+    try:
+        return bool(is_msp_staff(user))
+    except Exception:
+        return False
 
 
 _SCOPE = None

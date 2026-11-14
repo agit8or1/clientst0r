@@ -110,6 +110,13 @@ class TicketWorkflowTests(_Fixture):
                                   'return_to': 'https://evil.example/psa/t/X/'})
         self.assertEqual(r['Location'], ws)
 
+    def test_customer_gets_no_chip_or_link_patterns(self):
+        _login(self.client, self.customer, self.a)
+        url = reverse('accounts:organization_detail', args=[self.a.pk])
+        html = self.client.get(url, {'return_to': self.ticket_path}).content.decode()
+        self.assertNotIn('returnCtx', html)
+        self.assertNotIn('return-ctx__link', html)
+
     def test_page_carries_the_scope_for_links(self):
         html = self.client.get(self.ticket_path).content.decode()
         m = re.search(r'id="returnCtx" data-return-origin="([^"]*)" data-return-scope="([^"]*)" hidden', html)
