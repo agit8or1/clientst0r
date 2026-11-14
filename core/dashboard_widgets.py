@@ -694,17 +694,21 @@ def _sla_window():
 
 def sla_counts(request, org):
     def compute():
+        # The buckets are psa.my_work.sla_bucket_qs, shared with the ticket
+        # list's ?sla= filter and its SLA tab.
+        from psa.my_work import sla_bucket_qs
         now, soon, end_today = _sla_window()
         qs = _with_deadline(_open_tickets(request, org))
         running = ~Q(status__pauses_sla=True)
+        b = sla_bucket_qs('dash_due', now)
         return qs.aggregate(
             open=Count('id'),
-            paused=Count('id', filter=Q(status__pauses_sla=True)),
-            overdue=Count('id', filter=running & Q(dash_due__lt=now)),
-            at_risk=Count('id', filter=running & Q(dash_due__gte=now, dash_due__lte=soon)),
+            paused=Count('id', filter=b['paused']),
+            overdue=Count('id', filter=b['breached']),
+            at_risk=Count('id', filter=b['at_risk']),
             due_today=Count('id', filter=running & Q(dash_due__gte=now, dash_due__lte=end_today)),
-            on_track=Count('id', filter=running & Q(dash_due__gt=soon)),
-            no_sla=Count('id', filter=running & Q(dash_due__isnull=True)),
+            on_track=Count('id', filter=b['on_track']),
+            no_sla=Count('id', filter=b['no_sla']),
         )
     return _memo(request, ('sla_counts', org.pk), compute)
 

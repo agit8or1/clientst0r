@@ -308,6 +308,8 @@ _office_templates = _view_check(_check_office_templates)
 _field_ops_admin = _view_check(_check_field_ops_admin)
 _timesheet_approver = _view_check(_check_timesheet_approver)
 _catalog_manager = _view_check(_check_catalog_manager)
+# psa.visibility.is_msp_staff: the ticket workspace views and the AI Inbox.
+_psa_tech = _view_check(lambda u, ctx: _is_msp_staff(u))
 
 
 def _global_kb_alone(ctx):
@@ -336,6 +338,11 @@ class Tab:
     # indexed here, never marked current here and not nested in the sidebar,
     # so the page keeps one place in the navigation.
     link_only: bool = False
+    # A view of the page chosen by its query string ((('view', 'sla'),)):
+    # the tab links to url?view=sla and is the current one only while the
+    # request carries those values. A sibling tab for the same page without
+    # a query is then not current (Tickets: All Tickets vs. its SLA view).
+    query: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -388,10 +395,24 @@ SECTIONS = (
     )),
 
     # ---- Service Desk ------------------------------------------------------
+    # The ticket workspace: All Tickets stays first (the sidebar's Tickets
+    # link keeps opening /psa/tickets/); the other views are the same list
+    # under ?view= (psa.views.TICKET_VIEWS), MSP technicians only, like the
+    # view itself. AI Inbox mirrors psa_ai.views.ai_inbox (AI on, MSP staff).
     Section('psa_tickets', 'psa', _('Tickets'), gate=_psa, also=('psa:ticket_create',), tabs=(
         Tab(_('All Tickets'), 'psa:ticket_list', 'fa-list', keywords='tickets helpdesk'),
+        Tab(_('Overview'), 'psa:ticket_list', 'fa-chart-simple', gate=_psa_tech,
+            query=(('view', 'overview'),), keywords='ticket counts summary'),
         Tab(_('My Queue'), 'psa:my_work', 'fa-inbox', link_only=True),
-        Tab(_('AI Inbox'), 'psa_ai:inbox', 'fa-wand-magic-sparkles', gate=_ai_enabled),
+        Tab(_('Unassigned'), 'psa:ticket_list', 'fa-user-plus', gate=_psa_tech,
+            query=(('view', 'unassigned'),), keywords='unassigned assign dispatch pick up'),
+        Tab(_('SLA'), 'psa:ticket_list', 'fa-stopwatch', gate=_psa_tech,
+            query=(('view', 'sla'),), keywords='sla at risk breached overdue deadline'),
+        Tab(_('Escalated'), 'psa:ticket_list', 'fa-arrow-up-right-dots', gate=_psa_tech,
+            query=(('view', 'escalated'),), keywords='escalated escalation l2 l3'),
+        Tab(_('Approvals'), 'psa:ticket_list', 'fa-circle-check', gate=_psa_tech,
+            query=(('view', 'approvals'),), keywords='ticket approvals pending cab'),
+        Tab(_('AI Inbox'), 'psa_ai:inbox', 'fa-wand-magic-sparkles', gate=_all(_ai_enabled, _psa_tech)),
     ), configure=(
         Tab(_('Recurring Tickets'), 'psa:recurring_list', 'fa-repeat'),
         Tab(_('Canned Replies'), 'psa:canned_reply_list', 'fa-magic'),
@@ -906,16 +927,27 @@ def _allowed(gate, ctx):
 
 def _href(tab):
     try:
-        return reverse(tab.url_name, args=tab.args)
+        href = reverse(tab.url_name, args=tab.args)
     except NoReverseMatch:
         return ''
+    if tab.query:
+        from urllib.parse import urlencode
+        href = f'{href}?{urlencode(tab.query)}'
+    return href
 
 
-def _is_current(tab, match):
+def _request_params(ctx):
+    request = ctx.get('request')
+    return getattr(request, 'GET', None) or {}
+
+
+def _is_current(tab, match, params=None):
     view_name = getattr(match, 'view_name', '')
     if view_name in tab.also:
         return True
     if tab.url_name != view_name:
+        return False
+    if tab.query and any((params or {}).get(k) != str(v) for k, v in tab.query):
         return False
     if tab.args:
         return tuple(str(a) for a in tab.args) == tuple(str(a) for a in match.args) or \
@@ -929,6 +961,10 @@ def _icon(name):
 
 def _resolve(tabs, ctx, match):
     out = []
+    params = _request_params(ctx)
+    # Pages whose current view is a query tab: their plain tab steps back.
+    viewed = {t.url_name for t in tabs if t.query and match is not None
+              and _allowed(t.gate, ctx) and _is_current(t, match, params)}
     for tab in tabs:
         if not _allowed(tab.gate, ctx):
             continue
@@ -946,7 +982,8 @@ def _resolve(tabs, ctx, match):
             'keywords': tab.keywords,
             'link_only': tab.link_only,
             'active': bool(match is not None and not tab.modal and not tab.link_only
-                           and _is_current(tab, match)),
+                           and _is_current(tab, match, params)
+                           and (tab.query or tab.url_name not in viewed)),
         })
     return out
 

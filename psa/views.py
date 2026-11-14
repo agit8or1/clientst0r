@@ -211,92 +211,197 @@ def ticket_list(request):
     Global ticket list with internal filtering. Filters are URL params:
       ?client=<org_id>&status=<status_id>&priority=<priority_id>
       &queue=<queue_id>&assigned=<user_id|me|unassigned>&q=<text>
+      &type=<ticket_type_id>&age=<1d|3d|7d|30d>&sla=<bucket>&sort=<key>
+    and ?view= picks a ticket-workspace view (psa/ticket_workspace.py:
+    overview, unassigned, sla, escalated, approvals — MSP technicians).
+    Unknown values are ignored, so a bookmark never breaks the page.
     """
+    from . import ticket_workspace as tw
+    from .my_work import SLA_BUCKETS, sla_bucket_qs
     qs = _scoped_ticket_qs(request)
+    view = tw.view_for(request)
 
     # Filters
     client_id = request.GET.get('client') or ''
+    if not client_id.isdigit():
+        client_id = ''
     status_id = request.GET.get('status') or ''
+    if not status_id.isdigit():
+        status_id = ''
     priority_id = request.GET.get('priority') or ''
+    if not priority_id.isdigit():
+        priority_id = ''
     queue_id = request.GET.get('queue') or ''
     assigned = request.GET.get('assigned') or ''
     search = (request.GET.get('q') or '').strip()
     request_type = request.GET.get('request_type') or ''
-    if request_type == 'any':
-        qs = qs.filter(service_request_submission__isnull=False)
-    elif request_type.isdigit():
-        qs = qs.filter(service_request_submission__catalog_item_id=int(request_type))
-    else:
-        request_type = ''
+    type_id = request.GET.get('type') or ''
+    if not type_id.isdigit():
+        type_id = ''
+    age = request.GET.get('age') or ''
+    if age not in tw.AGE_FILTERS:
+        age = ''
+    sla = request.GET.get('sla') or ''
+    if sla not in SLA_BUCKETS:
+        sla = ''
+    sort = request.GET.get('sort') or ''
+    if sort not in tw.SORTS:
+        sort = ''
 
-    if client_id:
-        qs = qs.filter(organization_id=client_id)
-    if status_id:
-        qs = qs.filter(status_id=status_id)
-    if priority_id:
-        qs = qs.filter(priority_id=priority_id)
+    if view == 'overview':
+        return render(request, 'psa/ticket_list.html', {
+            'view': view, 'view_label': tw.TICKET_VIEWS[view],
+            'overview': tw.overview_counts(request, qs, client_id),
+            'available_clients': _ticket_list_clients(request),
+            'filter_values': {'client': client_id},
+        })
+    if view == 'approvals':
+        return render(request, 'psa/ticket_list.html', {
+            'view': view, 'view_label': tw.TICKET_VIEWS[view],
+            'approval_rows': tw.approval_rows(request, qs),
+            'filter_values': {},
+        })
+
+    from .my_work import WORK_QUEUES, open_q
+    work_queue = queue_id if queue_id in WORK_QUEUES else ''
+    if not (work_queue or queue_id.isdigit()):
+        queue_id = ''
+    if request_type not in ('', 'any') and not request_type.isdigit():
+        request_type = ''
+    if view == 'unassigned':
+        assigned = 'unassigned'
+    params = {
+        'client': client_id, 'status': status_id, 'priority': priority_id,
+        'queue': queue_id, 'assigned': assigned, 'q': search,
+        'request_type': request_type, 'type': type_id, 'age': age,
+    }
+    qs = _filter_ticket_list(request, qs, params, user=request.user)
+    # The workspace views and an SLA filter are about live work: open only.
+    if view in ('unassigned', 'sla', 'escalated') or sla:
+        qs = qs.filter(open_q())
+    if view == 'escalated':
+        qs = qs.filter(escalated_at__isnull=False)
+    sla_counts = None
+    if view == 'sla':
+        # Chips above the SLA list: every bucket under the other filters.
+        from django.db.models import Count
+        sla_counts = qs.aggregate(**{k: Count('id', filter=q)
+                                     for k, q in sla_bucket_qs('sla_due_at').items()})
+    if sla:
+        qs = qs.filter(sla_bucket_qs('sla_due_at')[sla])
+
+    # Bound the page; full pagination is Phase 2 polish. Work queues and the
+    # SLA / unassigned views read soonest-SLA-first, like My Work.
+    from .activity import decorate
+    from .my_work import order_by_sla
+    from .visibility import is_msp_staff
+    qs = qs.select_related('status', 'priority', 'queue', 'organization', 'assigned_to', 'ticket_type',
+                           'escalated_by')
+    if not sort:
+        sort = ('deadline' if (work_queue or view in ('unassigned', 'sla'))
+                else 'escalated' if view == 'escalated' else 'newest')
+    if sort == 'deadline':
+        qs = order_by_sla(qs)
+    elif sort == 'age':
+        qs = qs.order_by('created_at')
+    elif sort == 'escalated':
+        qs = qs.order_by('-escalated_at')
+    else:
+        qs = qs.order_by('-created_at')
+    tickets = list(qs[:200])
+    # Last activity and whose move it is (v3.17.654).
+    tickets = decorate(tickets, include_internal=is_msp_staff(request.user))
+    staff = is_msp_staff(request.user)
+    technicians = []
+    if staff:
+        tw.decorate_sla(tickets)
+        technicians = tw.decorate_assign(request, tickets)
+
+    filters = {
+        'client': client_id, 'status': status_id, 'priority': priority_id,
+        'queue': queue_id, 'assigned': '' if view == 'unassigned' else assigned,
+        'q': search, 'request_type': request_type, 'type': type_id, 'age': age,
+        'sla': sla, 'sort': request.GET.get('sort') if request.GET.get('sort') in tw.SORTS else '',
+    }
+    return render(request, 'psa/ticket_list.html', {
+        'view': view,
+        'view_label': tw.TICKET_VIEWS.get(view, ''),
+        'is_tech': staff,
+        'tickets': tickets,
+        'technicians': technicians,
+        'any_assign': any(getattr(t, 'can_assign', False) or getattr(t, 'can_take', False)
+                          for t in tickets),
+        'available_clients': _ticket_list_clients(request),
+        'available_statuses': TicketStatus.objects.all(),
+        'available_priorities': TicketPriority.objects.all(),
+        'available_queues': Queue.objects.filter(is_active=True),
+        'available_types': TicketType.objects.filter(is_active=True),
+        'available_request_types': ServiceCatalogItem.objects.filter(
+            submissions__isnull=False).distinct().order_by('name').only('pk', 'name', 'organization'),
+        'age_filters': {k: v[0] for k, v in tw.AGE_FILTERS.items()},
+        'sla_buckets': SLA_BUCKETS,
+        'sorts': tw.SORTS,
+        'sla_counts': sla_counts,
+        'work_queues': WORK_QUEUES,
+        'work_queue': work_queue,
+        'filter_values': filters,
+        'has_filters': any([client_id, status_id, priority_id, queue_id,
+                            filters['assigned'], search, request_type, type_id, age, sla,
+                            filters['sort']]),
+    })
+
+
+def _filter_ticket_list(request, qs, p, user):
+    """Apply the ticket list's validated URL filters (``p``) to ``qs``. The
+    result carries psa.my_work.annotate_activity()'s columns (sla_due_at)."""
+    from django.db.models import Q
+    from . import ticket_workspace as tw
+    from .my_work import WORK_QUEUES, annotate_activity, apply_work_queue
+    rt = p['request_type']
+    if rt == 'any':
+        qs = qs.filter(service_request_submission__isnull=False)
+    elif rt:
+        qs = qs.filter(service_request_submission__catalog_item_id=int(rt))
+    if p['client']:
+        qs = qs.filter(organization_id=p['client'])
+    if p['status']:
+        qs = qs.filter(status_id=p['status'])
+    if p['priority']:
+        qs = qs.filter(priority_id=p['priority'])
+    if p['type']:
+        qs = qs.filter(ticket_type_id=int(p['type']))
+    if p['age']:
+        qs = qs.filter(created_at__lte=timezone.now() - tw.AGE_FILTERS[p['age']][1])
     # `queue` is either a Queue id or one of the My Work work queues
     # (open / waiting_us / waiting_customer / customer_replied), defined in
     # psa/my_work.py so these lists match the counts on My Work.
-    from .my_work import WORK_QUEUES, apply_work_queue
-    work_queue = queue_id if queue_id in WORK_QUEUES else ''
-    if work_queue:
-        qs = apply_work_queue(qs, work_queue)
-    elif queue_id.isdigit():
-        qs = qs.filter(queue_id=queue_id)
-    elif queue_id:
-        queue_id = ''
+    if p['queue'] in WORK_QUEUES:
+        qs = apply_work_queue(qs, p['queue'])
+    else:
+        if p['queue']:
+            qs = qs.filter(queue_id=p['queue'])
+        qs = annotate_activity(qs)
+    assigned = p['assigned']
     if assigned == 'me':
-        qs = qs.filter(assigned_to=request.user)
+        qs = qs.filter(assigned_to=user)
     elif assigned == 'unassigned':
         qs = qs.filter(assigned_to__isnull=True)
     elif assigned.isdigit():
         qs = qs.filter(assigned_to_id=int(assigned))
-    if search:
-        from django.db.models import Q
-        qs = qs.filter(Q(ticket_number__icontains=search) | Q(subject__icontains=search))
+    if p['q']:
+        qs = qs.filter(Q(ticket_number__icontains=p['q']) | Q(subject__icontains=p['q']))
+    return qs
 
-    # Bound the page; full pagination is Phase 2 polish. Work queues read
-    # soonest-SLA-first, like My Work.
-    from .activity import decorate
-    from .my_work import annotate_activity
-    from .visibility import is_msp_staff
-    qs = qs.select_related('status', 'priority', 'queue', 'organization', 'assigned_to')
-    if work_queue:
-        from .my_work import order_by_sla
-        tickets = order_by_sla(qs)[:200]
-    else:
-        tickets = annotate_activity(qs).order_by('-created_at')[:200]
-    # Last activity and whose move it is (v3.17.654).
-    tickets = decorate(tickets, include_internal=is_msp_staff(request.user))
 
-    # Filter dropdown options — limited to what makes sense for the user.
-    # For org-bound users, the client filter only shows their member orgs.
+def _ticket_list_clients(request):
+    """Client filter options — for org-bound users only their member orgs."""
     from core.models import Organization
     if request.user.is_superuser or getattr(request, 'is_staff_user', False):
-        available_clients = Organization.objects.filter(is_active=True).order_by('name')
-    elif hasattr(request.user, 'memberships'):
+        return Organization.objects.filter(is_active=True).order_by('name')
+    if hasattr(request.user, 'memberships'):
         ids = request.user.memberships.filter(is_active=True).values_list('organization_id', flat=True)
-        available_clients = Organization.objects.filter(id__in=list(ids), is_active=True).order_by('name')
-    else:
-        available_clients = Organization.objects.none()
-
-    return render(request, 'psa/ticket_list.html', {
-        'tickets': tickets,
-        'available_clients': available_clients,
-        'available_statuses': TicketStatus.objects.all(),
-        'available_priorities': TicketPriority.objects.all(),
-        'available_queues': Queue.objects.filter(is_active=True),
-        'available_request_types': ServiceCatalogItem.objects.filter(
-            submissions__isnull=False).distinct().order_by('name').only('pk', 'name', 'organization'),
-        'work_queues': WORK_QUEUES,
-        'work_queue': work_queue,
-        'filter_values': {
-            'client': client_id, 'status': status_id, 'priority': priority_id,
-            'queue': queue_id, 'assigned': assigned, 'q': search, 'request_type': request_type,
-        },
-        'has_filters': any([client_id, status_id, priority_id, queue_id, assigned, search, request_type]),
-    })
+        return Organization.objects.filter(id__in=list(ids), is_active=True).order_by('name')
+    return Organization.objects.none()
 
 
 def _record_ai_draft_decision(ticket, request, body, **kw):
@@ -5112,7 +5217,26 @@ def dispatch_board(request):
         except Exception:
             skill_rankings = {}
 
+    # Workflow: Dispatch Board → unassigned work → assignment. Unassigned
+    # open cards get the ticket workspace's assignment picker (the same
+    # psa:dispatch_assign endpoint drag-and-drop uses; shown only where it
+    # would accept), and the header links to the Unassigned view of the
+    # ticket list with a count from that list's own scope.
+    from . import ticket_workspace as tw
+    from .my_work import open_q
+    open_unassigned = [t for lane in list(unassigned_by_day.values())
+                       for t in lane if not (t.status_id and t.status.is_terminal)]
+    technicians = tw.decorate_assign(request, open_unassigned) if can_assign else []
+    unassigned_qs = _scoped_ticket_qs(request).filter(open_q(), assigned_to__isnull=True)
+    unassigned_url = reverse('psa:ticket_list') + '?view=unassigned'
+    if org is not None:
+        unassigned_qs = unassigned_qs.filter(organization=org)
+        unassigned_url += f'&client={org.pk}'
+
     return render(request, 'psa/dispatch_board.html', {
+        'technicians': technicians,
+        'unassigned_open_count': unassigned_qs.count(),
+        'unassigned_url': unassigned_url,
         'days': days,
         'rows': rows,
         'unassigned_by_day': [unassigned_by_day[d] for d in days],

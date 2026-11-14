@@ -1,0 +1,36 @@
+{% comment %}
+Inline assignment for one unassigned ticket (psa/ticket_workspace.py
+decorate_assign). `t.can_assign`: POSTs to psa:dispatch_assign — the
+dispatch board's endpoint, with its own checks (MSP staff, tickets_assign,
+eligible technician, ticket in scope). `t.can_take`: "Assign to me" through
+psa:ticket_quick_action (tickets_edit), which opens the ticket afterwards.
+psa/_assign_js.html wires the first kind up without a page load. `compact`
+(dispatch board cards): the picker alone, with "Me" as its first choice.
+{% endcomment %}
+{% if t.can_assign %}
+<form class="tw-assign" method="post" action="{% url 'psa:dispatch_assign' %}" data-assign-form>
+    {% csrf_token %}
+    <input type="hidden" name="ticket_number" value="{{ t.ticket_number }}">
+    {% if not compact %}
+    <button type="submit" name="assignee" value="{{ request.user.pk }}" class="btn btn-sm btn-outline-primary"
+            title="Assign {{ t.ticket_number }} to me">Take</button>
+    {% endif %}
+    {% if technicians %}
+    <label class="visually-hidden" for="assign-{{ t.pk }}{{ picker_suffix }}">Assign {{ t.ticket_number }} to a technician</label>
+    <select id="assign-{{ t.pk }}{{ picker_suffix }}" name="assignee_pick" class="form-select form-select-sm" data-assign-pick>
+        <option value="">Assign to…</option>
+        {% if compact %}<option value="{{ request.user.pk }}">Me</option>{% endif %}
+        {% for u in technicians %}
+        <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+    <span class="tw-assign__msg small" role="status" aria-live="polite"></span>
+</form>
+{% elif t.can_take %}
+<form class="tw-assign" method="post" action="{% url 'psa:ticket_quick_action' t.ticket_number %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="assign_me">
+    <button type="submit" class="btn btn-sm btn-outline-primary" title="Assign {{ t.ticket_number }} to me and open it">Assign to me</button>
+</form>
+{% endif %}
