@@ -2,16 +2,8 @@
 
 {% block title %}{{ device.device_name }} - RMM Device - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
+{% block breadcrumb_tail %}<li class="breadcrumb-item active" aria-current="page">{{ device.device_name }}</li>{% endblock %}
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'integrations:rmm_devices' %}">RMM Devices</a></li>
-        <li class="breadcrumb-item active">{{ device.device_name }}</li>
-    </ol>
-</nav>
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>
         <i class="fas fa-desktop"></i> {{ device.device_name }}

@@ -682,7 +682,7 @@ SECTIONS = (
     # Every gate is the page's own check.
     Section('settings_general', 'settings', _('General'), icon='fa-sliders-h', render_tabs=False, tabs=(
         Tab(_('General Settings'), 'core:settings_general', 'fa-sliders-h', gate=_superuser,
-            keywords='site name url timezone branding logo'),
+            keywords='site name url timezone branding logo company'),
         Tab(_('Customer Portal'), 'core:settings_portal', 'fa-door-open', gate=_superuser,
             keywords='portal customer client branding logo login sign-in background url host '
                      'hostname layout navigation theme colour color welcome support contact'),
@@ -700,7 +700,7 @@ SECTIONS = (
     Section('settings_access', 'settings', _('Users & Access'), icon='fa-users-cog',
             render_tabs=False, tabs=(
         Tab(_('Users'), 'accounts:user_list', 'fa-user', gate=_superuser,
-            also=('accounts:user_create', 'accounts:user_detail', 'accounts:user_edit')),
+            keywords='accounts people staff logins', also=('accounts:user_create', 'accounts:user_detail', 'accounts:user_edit')),
         Tab(_('Members'), 'accounts:member_list', 'fa-users', gate=_members_admin,
             keywords='invite team people'),
         Tab(_('Roles'), 'accounts:role_list', 'fa-id-badge', gate=_roles_reader,
@@ -708,9 +708,9 @@ SECTIONS = (
                                                     'accounts:permission_catalog', 'accounts:portal_access',
                                                     'accounts:access_explain')),
         Tab(_('Access Management'), 'accounts:access_management', 'fa-users-cog', gate=_superuser,
-            keywords='users roles permissions api keys'),
+            keywords='users roles permissions api keys tokens'),
         Tab(_('Directory Services'), 'core:settings_directory', 'fa-address-book', gate=_superuser,
-            keywords='ldap active directory azure'),
+            keywords='ldap active directory ad azure entra directory'),
         Tab(_('LDAP Group Mappings'), 'accounts:ldap_group_mappings', 'fa-sitemap', gate=_superuser,
             keywords='directory active directory ldap groups roles',
             also=('accounts:ldap_group_mapping_delete',)),
@@ -721,7 +721,7 @@ SECTIONS = (
         Tab(_('Security Dashboard'), 'core:security_dashboard', 'fa-chart-line', gate=_superuser,
             also=('core:package_scanner_dashboard', 'core:python_scanner_dashboard')),
         Tab(_('Security Settings'), 'core:settings_security', 'fa-shield-alt', gate=_superuser,
-            keywords='password policy session 2fa'),
+            keywords='password policy session 2fa mfa two-factor two factor authentication totp lockout login'),
         Tab(_('Security Features'), 'core:security_features', 'fa-list-check', gate=_superuser),
         Tab(_('Technician Access'), 'tech_access:index', 'fa-user-shield', gate=_superuser,
             keywords='l1 l2 l3 presets assignments',
@@ -732,7 +732,7 @@ SECTIONS = (
             also=('rmm_permissions:approvals', 'rmm_permissions:technician', 'rmm_permissions:customer')),
         Tab(_('Vault Visibility'), 'core:vault_visibility', 'fa-eye-slash', gate=_superuser),
         Tab(_('Firewall & GeoIP'), 'core:firewall_settings', 'fa-shield-halved', gate=_superuser,
-            keywords='ip rules country block', also=('core:firewall_ip_rules', 'core:firewall_country_rules',
+            keywords='geo geoip geo-blocking geoblock country allowlist blocklist ip rules block', also=('core:firewall_ip_rules', 'core:firewall_country_rules',
                                                      'core:firewall_logs')),
         Tab(_('Fail2ban'), 'core:fail2ban_status', 'fa-ban', gate=_superuser),
         Tab(_('Vulnerability Scans'), 'core:snyk_scans', 'fa-bug', gate=_superuser, keywords='snyk'),
@@ -748,7 +748,7 @@ SECTIONS = (
         Tab(_('Distributors'), 'integrations:distributor_list', 'fa-warehouse',
             gate=_django_staff_or_superuser, keywords='pricing stock suppliers'),
         Tab(_('Webhooks'), 'core:webhook_list', 'fa-bolt', gate=_org_admin,
-            also=('core:webhook_create', 'core:webhook_edit', 'core:webhook_delete',
+            keywords='events callbacks http notifications api', also=('core:webhook_create', 'core:webhook_edit', 'core:webhook_delete',
                   'core:webhook_deliveries')),
         Tab(_('Office Documents'), 'office:settings', 'fa-file-word', gate=_superuser,
             keywords='onlyoffice collabora editor',
@@ -763,9 +763,9 @@ SECTIONS = (
     # open to superusers while the switch is off (the card says so).
     Section('settings_ai', 'settings', _('AI Configuration'), icon='fa-robot', render_tabs=False, tabs=(
         Tab(_('AI & LLM'), 'core:settings_ai', 'fa-robot', gate=_superuser,
-            keywords='openai anthropic models optional ai provider'),
+            keywords='llm large language model openai anthropic models optional ai provider api key'),
         Tab(_('Ticket AI models'), 'psa_ai:profiles', 'fa-wand-magic-sparkles', gate=_superuser,
-            keywords='optional ai profiles'),
+            keywords='llm optional ai profiles models'),
     )),
     Section('settings_automation', 'settings', _('Automation'), icon='fa-gears', render_tabs=False, tabs=(
         Tab(_('Task Scheduler'), 'core:settings_scheduler', 'fa-clock', gate=_superuser,
@@ -779,14 +779,14 @@ SECTIONS = (
     Section('settings_email', 'settings', _('Communications'), icon='fa-envelope',
             render_tabs=False, tabs=(
         Tab(_('SMTP / Email'), 'core:settings_smtp', 'fa-envelope', gate=_superuser,
-            keywords='mail outgoing smtp'),
-        Tab(_('SMS Provider'), 'core:settings_sms', 'fa-sms', gate=_superuser, keywords='twilio text'),
+            keywords='email e-mail mail outgoing smtp server sender notifications'),
+        Tab(_('SMS Provider'), 'core:settings_sms', 'fa-sms', gate=_superuser, keywords='sms twilio text messages'),
         Tab(_('Consultation Requests'), 'core:consult_requests', 'fa-comments', gate=_superuser),
     )),
     Section('settings_features', 'settings', _('Modules'), icon='fa-puzzle-piece',
             render_tabs=False, tabs=(
         Tab(_('Feature Toggles'), 'core:settings_features', 'fa-toggle-on', gate=_superuser,
-            keywords='enable disable psa crm features'),
+            keywords='enable disable on off psa crm features modules'),
         Tab(_('Optional Modules'), 'core:settings_modules', 'fa-puzzle-piece', gate=_superuser),
         Tab(_('Field Ops'), 'field_ops:settings', 'fa-location-crosshairs', gate=_field_ops_admin,
             keywords='gps geofence retention'),
@@ -795,7 +795,7 @@ SECTIONS = (
         Tab(_('System Status'), 'core:system_status', 'fa-heartbeat', gate=_superuser,
             keywords='health services disk'),
         Tab(_('System Updates'), 'core:system_updates', 'fa-sync-alt', gate=_superuser,
-            keywords='upgrade version release'),
+            keywords='update upgrade version release'),
         Tab(_('Mobile Apps'), 'core:mobile_apps_admin', 'fa-mobile-alt', gate=_django_staff_or_superuser,
             keywords='android apk builds'),
         Tab(_('Beta tester requests'), 'core:beta_test_admin', 'fa-user-check', gate=_superuser),
@@ -804,7 +804,8 @@ SECTIONS = (
         Tab(_('Maintenance'), 'core:maintenance', 'fa-tools', gate=_superuser, keywords='cleanup backup'),
         Tab(_('Data Import'), 'imports:import_list', 'fa-file-import', gate=_superuser,
             keywords='migrate import', also=('imports:rehearsal_list',)),
-        Tab(_('Data Export'), 'core:settings_data_export', 'fa-file-export', gate=_superuser),
+        Tab(_('Data Export'), 'core:settings_data_export', 'fa-file-export', gate=_superuser,
+            keywords='export download backup csv'),
         Tab(_('Demo Data'), 'core:settings_kb_import', 'fa-database', gate=_superuser,
             keywords='sample knowledge base import'),
         Tab(_('Vault Import'), 'core:vault_import', 'fa-key', gate=_superuser, keywords='passwords csv'),
@@ -1678,6 +1679,11 @@ def primary_nav(ctx):
             for e in entries:
                 if e['key'] != view_name:
                     e['active'] = False
+        if view_name in DETAIL_PARENT and not any(e['active'] for e in entries):
+            # A record page (a ticket, an asset) lights the list it belongs to.
+            parent = next((e for e in entries if e['key'] == DETAIL_PARENT[view_name]), None)
+            if parent is not None:
+                parent['active'] = True
         if group.key == 'dashboard':
             pins, state['pin_edit'] = _overview_pins(ctx, probe, {e['href'] for e in entries}, path)
             entries += pins
@@ -1705,7 +1711,7 @@ def primary_nav(ctx):
         state['settings']['href'] = settings_home_url() or state['settings']['href']
     state['active_group'] = active_group
     state['workspace'] = settings_workspace(ctx, probe, match)
-    state['breadcrumbs'] = _breadcrumbs(state, path)
+    state['breadcrumbs'] = _breadcrumbs(state, path, view_name)
 
     by_key = {e['key']: e for g in state['groups'] for e in g['entries']}
     state['topbar'] = [
@@ -1738,7 +1744,23 @@ def primary_nav(ctx):
     return state
 
 
-def _breadcrumbs(state, path):
+# Record pages that are not tabs, and the sidebar entry (its key) whose list
+# they belong to: the entry lights up and the trail runs through it, e.g.
+# Service Desk › Tickets › PSA-2026-000022 (the page adds the last crumb).
+DETAIL_PARENT = {
+    'psa:ticket_detail': 'psa_tickets',
+    'psa:project_detail': 'psa_projects',
+    'assets:asset_detail': 'assets_all',
+    'assets:device_workspace': 'assets:device_workspace_home',
+    'integrations:rmm_device_detail': 'integrations:rmm_devices',
+}
+# Pages whose trail is the section alone, because the page itself adds the
+# record and its tab: the client workspace reads Clients › <client> › <tab>
+# rather than Clients › Client Workspace › <client> › <tab>.
+SECTION_ONLY_TRAIL = frozenset({'accounts:organization_detail'})
+
+
+def _breadcrumbs(state, path, view_name=''):
     """Section › workspace › page for the current page; the last crumb has
     no link when it is this page. Detail pages add their own last crumb
     through base.html's {% block breadcrumb_tail %}."""
@@ -1758,6 +1780,8 @@ def _breadcrumbs(state, path):
     else:
         trail = [{'label': group['label'], 'href': group['href']}]
         entry = next((e for e in group['entries'] if e['active']), None)
+        if view_name in SECTION_ONLY_TRAIL:
+            entry = None
         if entry is not None:
             if str(entry['label']) != str(group['label']):
                 trail.append({'label': entry['label'], 'href': entry['href']})

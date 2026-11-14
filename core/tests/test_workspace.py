@@ -467,9 +467,18 @@ class DeviceWorkspaceLinkTests(_Fixture):
         self.assertIn(reverse('assets:device_workspace', args=[self.asset.pk]), html)
         Ticket.objects.filter(pk=self.t_a.pk).update(related_asset=self.asset)
         self.t_a.refresh_from_db()
-        html = self.client.get(reverse('psa:ticket_detail', args=[self.t_a.ticket_number])).content.decode()
-        self.assertIn(reverse('assets:device_workspace', args=[self.asset.pk])
-                      + f'?ticket={self.t_a.ticket_number}', html)
+        ticket_path = reverse('psa:ticket_detail', args=[self.t_a.ticket_number])
+        html = self.client.get(ticket_path).content.decode()
+        # The ticket's asset opens through open_device (so it works whichever
+        # client is selected) and lands on the workspace with the ticket.
+        link = (reverse('core:open_device', args=['asset', self.asset.pk])
+                + f'?to=workspace&amp;ticket={self.t_a.ticket_number}&amp;next=')
+        self.assertIn(link, html)
+        resp = self.client.get(reverse('core:open_device', args=['asset', self.asset.pk]),
+                               {'to': 'workspace', 'ticket': self.t_a.ticket_number, 'next': ticket_path})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp['Location'], reverse('assets:device_workspace', args=[self.asset.pk])
+                         + f'?ticket={self.t_a.ticket_number}')
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
