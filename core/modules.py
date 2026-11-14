@@ -40,6 +40,11 @@ class Module:
     optional_ai: bool = False
     note: str = ''
     group: str = 'Service desk'
+    # url name of the page that switches this module when it is a
+    # SystemSetting boolean edited elsewhere (the portal feature switches
+    # live on Settings → Customer portal). The page shows its state and
+    # links there; it is not switched here.
+    managed_at: str = ''
 
 
 MODULES = (
@@ -91,34 +96,43 @@ MODULES = (
             '/portal/ for users of customers with the portal turned on',
             'Portal tickets, requests, knowledge base and status page',
         ),
-        settings_links=(('Per-customer PSA settings', 'psa:client_settings'),),
+        settings_links=(('Customer portal settings', 'core:settings_portal'),
+                        ('Per-customer PSA settings', 'psa:client_settings')),
         requires=('psa',),
-        note='Turned on per customer (Per-customer PSA settings → portal). There is '
-             'no global portal switch: the unused one on PSA settings was removed.',
+        note='Turned on per customer (Customer portal settings → Customers, or the '
+             'per-customer PSA settings). There is no global portal switch.',
     ),
     Module(
         'portal_announcements', 'Portal announcements', 'fa-bullhorn',
         'Announcements on the portal home page.',
         shows=('An announcements panel on the customer portal home',),
         field='psa_portal_announcements_enabled', requires=('psa',), works_better_with=('portal',),
+        settings_links=(('Customer portal settings', 'core:settings_portal'),),
+        managed_at='core:settings_portal',
     ),
     Module(
         'portal_voting', 'Portal "affected too" votes', 'fa-hand',
         'Portal users can mark a ticket they can see as affecting them too.',
         shows=('An "I\'m affected too" button on portal tickets',),
         field='psa_portal_voting_enabled', requires=('psa',), works_better_with=('portal',),
+        settings_links=(('Customer portal settings', 'core:settings_portal'),),
+        managed_at='core:settings_portal',
     ),
     Module(
         'portal_escalation', 'Portal escalation', 'fa-arrow-up',
         'Portal users can escalate one of their tickets.',
         shows=('An Escalate button on portal tickets',),
         field='psa_portal_escalation_enabled', requires=('psa',), works_better_with=('portal',),
+        settings_links=(('Customer portal settings', 'core:settings_portal'),),
+        managed_at='core:settings_portal',
     ),
     Module(
         'portal_approvals', 'Portal customer approvals', 'fa-circle-check',
         'Approvals flagged for the customer are shown to portal users to decide.',
         shows=('Approvals in the customer portal menu',),
         field='psa_portal_customer_approvals_enabled', requires=('psa',), works_better_with=('portal',),
+        settings_links=(('Customer portal settings', 'core:settings_portal'),),
+        managed_at='core:settings_portal',
     ),
     Module(
         'csat', 'Satisfaction surveys (CSAT)', 'fa-star',
@@ -355,7 +369,8 @@ def describe(settings):
             'works_better_with': [MODULES_BY_KEY[k] for k in m.works_better_with],
             'dependents_on': dependents_on(m, settings) if own_on else [],
             'detail': detail,
-            'switchable': bool(m.field),
+            'switchable': bool(m.field) and not m.managed_at,
+            'managed_at': _href(m.managed_at) if m.managed_at else '',
             'default': field_default(m),
             'links': [(label, _href(name)) for label, name in m.settings_links if _href(name)],
         })
@@ -374,7 +389,7 @@ def set_enabled(module, settings, enabled, user=None):
     stop working because this one was turned off (they keep their own
     setting), and the `works_better_with` modules that are off when this one
     is turned on."""
-    if not module.field:
+    if not module.field or module.managed_at:
         raise ValueError(f'{module.key} is managed on its own settings page')
     soft_missing = []
     if enabled:

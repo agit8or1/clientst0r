@@ -29,23 +29,11 @@
                         <div class="form-text">Base URL for email links and API callbacks</div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="portal_hostname" class="form-label">Customer portal host name <span class="badge bg-secondary">optional</span></label>
-                        {% if portal_hostname_env %}
-                        <input type="text" class="form-control" id="portal_hostname" value="{{ portal_hostname_env }}" readonly>
-                        <div class="form-text">Set by the PORTAL_HOSTNAME environment variable.</div>
-                        {% else %}
-                        <input type="text" class="form-control" id="portal_hostname" name="portal_hostname" value="{{ settings.portal_hostname }}" placeholder="portal.example.com" autocomplete="off" spellcheck="false">
-                        <div class="form-text">
-                            Leave empty to serve the customer portal at <code>/portal/</code> on this host.
-                            When set, the portal, its sign-in and the links sent to customers are served only on
-                            this host, staff pages there return 404, and portal links on the staff host redirect to it.
-                            Point the name's DNS and reverse proxy (and TLS certificate) at this server and add it to
-                            <code>ALLOWED_HOSTS</code> before saving. Separate country rules for the portal are in
-                            Firewall Settings.
-                        </div>
-                        {% endif %}
-                    </div>
+                    <p class="mb-3" data-portal-settings-link>
+                        <i class="fas fa-door-open" aria-hidden="true"></i>
+                        The customer portal's address, branding and layout are on
+                        <a href="{% url 'core:settings_portal' %}">Customer Portal settings</a>.
+                    </p>
 
                     <div class="mb-3">
                         <label for="default_timezone" class="form-label">Default Timezone</label>

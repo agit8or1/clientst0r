@@ -56,6 +56,14 @@
                         <label for="{{ form.logo.id_for_label }}" class="form-label">Logo</label>
                         {{ form.logo }}
                         {% if form.logo.errors %}<div class="invalid-feedback d-block">{{ form.logo.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">Also shown on this customer's portal pages.</small>
+                    </div>
+
+                    <div class="mb-3" id="portal-branding">
+                        <label for="{{ form.portal_primary_color.id_for_label }}" class="form-label">{{ form.portal_primary_color.label }}</label>
+                        {{ form.portal_primary_color }}
+                        {% if form.portal_primary_color.errors %}<div class="invalid-feedback d-block">{{ form.portal_primary_color.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">{{ form.portal_primary_color.help_text }}</small>
                     </div>
 
                     <div class="mb-3">

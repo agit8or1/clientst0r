@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% load portal_theme %}
+
+{% block title %}Customer Portal Settings - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+{% comment %}
+Settings → General → Customer Portal (core.portal_settings_views). One form
+for address, branding, layout and features; the customer list is a second
+form; the country policy is a read-only summary. The settings workspace
+header (and its unsaved-changes warning) comes from base.html.
+{% endcomment %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h1 class="h5 mb-0"><i class="fas fa-door-open" aria-hidden="true"></i> Customer Portal</h1>
+                <a class="btn btn-sm btn-outline-primary" href="{{ login_url }}" target="_blank" rel="noopener" data-open-portal>
+                    <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i> Open portal sign-in<span class="visually-hidden"> (opens in a new tab)</span>
+                </a>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">Where customers find their portal, how it looks, and what it offers.</p>
+                <nav aria-label="Sections on this page" class="small">
+                    <a href="#portal-address">Address</a> ·
+                    <a href="#portal-branding">Branding</a> ·
+                    <a href="#portal-layout">Layout</a> ·
+                    <a href="#portal-features">Features</a> ·
+                    <a href="#portal-customers">Customers</a> ·
+                    <a href="#portal-country">Country policy</a>
+                </nav>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" novalidate id="portalSettingsForm">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+            {# ------------------------------------------------------ Address #}
+            <div class="card mb-3" id="portal-address">
+                <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-globe" aria-hidden="true"></i> Address</h2></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="form-label d-block">Portal address</span>
+                        <a href="{{ effective_url }}" target="_blank" rel="noopener" class="text-break" data-effective-url>{{ effective_url }}<span class="visually-hidden"> (opens in a new tab)</span></a>
+                        <div class="form-text">
+                            {% if portal_hostname_env or settings.portal_hostname %}Served on its own host name.{% else %}Served at <code>/portal/</code> on the main host{% if settings.site_url %} (Site URL on General settings){% endif %}.{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="portal_hostname" class="form-label">Customer portal host name <span class="badge bg-secondary">optional</span></label>
+                        {% if portal_hostname_env %}
+                        <input type="text" class="form-control" id="portal_hostname" value="{{ portal_hostname_env }}" readonly aria-describedby="portal_hostname_help">
+                        <div class="form-text" id="portal_hostname_help" data-hostname-env>Set by the PORTAL_HOSTNAME environment variable, so it cannot be changed here.</div>
+                        {% else %}
+                        <input type="text" class="form-control{% if form.portal_hostname.errors %} is-invalid{% endif %}" id="portal_hostname" name="portal_hostname" value="{{ v.portal_hostname|default:'' }}" placeholder="portal.example.com" autocomplete="off" spellcheck="false" aria-describedby="portal_hostname_help">
+                        {% if form.portal_hostname.errors %}<div class="invalid-feedback d-block">{{ form.portal_hostname.errors|join:" " }}</div>{% endif %}
+                        <div class="form-text" id="portal_hostname_help">
+                            Leave empty to serve the customer portal at <code>/portal/</code> on this host.
+                            When set, the portal, its sign-in and the links sent to customers are served only on
+                            this host, staff pages there return 404, and portal links on the staff host redirect to it.
+                            Point the name's DNS and reverse proxy (and TLS certificate) at this server and add it to
+                            <code>ALLOWED_HOSTS</code> before saving. Separate country rules for the portal are in
+                            Firewall Settings.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# ----------------------------------------------------- Branding #}
+            <div class="card mb-3" id="portal-branding">
+                <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-paint-brush" aria-hidden="true"></i> Branding</h2></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="portal_name" class="form-label">Portal name</label>
+                            <input type="text" class="form-control{% if form.portal_name.errors %} is-invalid{% endif %}" id="portal_name" name="portal_name" maxlength="100" value="{{ v.portal_name|default:'' }}" placeholder="{{ settings.custom_company_name|default:settings.site_name }}" aria-describedby="portal_name_help">
+                            {% if form.portal_name.errors %}<div class="invalid-feedback d-block">{{ form.portal_name.errors|join:" " }}</div>{% endif %}
+                            <div class="form-text" id="portal_name_help">Shown on portal pages and in the footer. Empty: the custom company name, else the site name.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <span class="form-label d-block">Default accent colour</span>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="portal_accent_custom" name="portal_accent_custom" {% if v.portal_accent_custom %}checked{% endif %} data-toggles="portalAccentField">
+                                <label class="form-check-label" for="portal_accent_custom">Use my own accent colour</label>
+                            </div>
+                            <div id="portalAccentField">
+                                <label class="visually-hidden" for="portal_accent_color">Accent colour</label>
+                                <input type="color" class="form-control form-control-color{% if form.portal_accent_color.errors %} is-invalid{% endif %}" id="portal_accent_color" name="portal_accent_color" value="{{ v.portal_accent_color|default:'#0f766e' }}" aria-describedby="portal_accent_help">
+                            </div>
+                            {% if form.portal_accent_color.errors %}<div class="invalid-feedback d-block">{{ form.portal_accent_color.errors|join:" " }}</div>{% endif %}
+                            <div class="form-text" id="portal_accent_help">Buttons, links and the header stripe. A customer's own portal colour (on its customer settings) wins. Unticked: the standard teal, tuned for light and dark.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="portal_logo" class="form-label">Portal logo</label>
+                            {% if settings.portal_logo %}
+                            <div class="mb-2">
+                                <img src="{{ settings.portal_logo.url }}" alt="Current portal logo" class="border rounded p-2 bg-light" style="max-height: 56px; max-width: 220px; object-fit: contain;">
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" id="clear_portal_logo" name="clear_portal_logo">
+                                    <label class="form-check-label" for="clear_portal_logo">Remove the portal logo</label>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control{% if form.portal_logo.errors %} is-invalid{% endif %}" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/webp" aria-describedby="portal_logo_help">
+                            {% if form.portal_logo.errors %}<div class="invalid-feedback d-block">{{ form.portal_logo.errors|join:" " }}</div>{% endif %}
+                            <div class="form-text" id="portal_logo_help">PNG, JPEG or WebP, up to {{ logo_max_mb }} MB; a wide logo with a transparent background works best. Order on portal pages: the customer's own logo, this logo, the custom logo from General settings, then an icon.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <span class="form-label d-block">Support contact</span>
+                            <div class="mb-2">
+                                <label for="portal_support_email" class="form-label small mb-1">Email</label>
+                                <input type="email" class="form-control{% if form.portal_support_email.errors %} is-invalid{% endif %}" id="portal_support_email" name="portal_support_email" value="{{ v.portal_support_email|default:'' }}" placeholder="support@example.com" autocomplete="off">
+                                {% if form.portal_support_email.errors %}<div class="invalid-feedback d-block">{{ form.portal_support_email.errors|join:" " }}</div>{% endif %}
+                            </div>
+                            <div class="mb-2">
+                                <label for="portal_support_phone" class="form-label small mb-1">Phone</label>
+                                <input type="tel" class="form-control{% if form.portal_support_phone.errors %} is-invalid{% endif %}" id="portal_support_phone" name="portal_support_phone" maxlength="40" value="{{ v.portal_support_phone|default:'' }}" placeholder="+1 555 010 2000" autocomplete="off">
+                                {% if form.portal_support_phone.errors %}<div class="invalid-feedback d-block">{{ form.portal_support_phone.errors|join:" " }}</div>{% endif %}
+                            </div>
+                            <div>
+                                <label for="portal_support_url" class="form-label small mb-1">Support website <span class="text-muted">(optional)</span></label>
+                                <input type="url" class="form-control{% if form.portal_support_url.errors %} is-invalid{% endif %}" id="portal_support_url" name="portal_support_url" maxlength="500" value="{{ v.portal_support_url|default:'' }}" placeholder="https://example.com/support" autocomplete="off">
+                                {% if form.portal_support_url.errors %}<div class="invalid-feedback d-block">{{ form.portal_support_url.errors|join:" " }}</div>{% endif %}
+                            </div>
+                            <div class="form-text">All optional. Shown in the portal footer and on the sign-in page.</div>
+                        </div>
+
+                        <div class="col-12"><hr class="my-1"></div>
+
+                        <div class="col-md-6">
+                            <label for="portal_login_background" class="form-label">Sign-in page background</label>
+                            <select class="form-select" id="portal_login_background" name="portal_login_background" aria-describedby="portal_bg_help">
+                                {% for value, label in background_choices %}
+                                <option value="{{ value }}" {% if v.portal_login_background == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text" id="portal_bg_help">Behind the sign-in card on the portal sign-in, password reset and two-factor pages only.</div>
+
+                            <div class="mt-2 portal-bg-field" data-bg="color">
+                                <label for="portal_login_background_color" class="form-label small mb-1">Background colour</label>
+                                <input type="color" class="form-control form-control-color{% if form.portal_login_background_color.errors %} is-invalid{% endif %}" id="portal_login_background_color" name="portal_login_background_color" value="{{ v.portal_login_background_color|default:'#1f2937' }}">
+                                {% if form.portal_login_background_color.errors %}<div class="invalid-feedback d-block">{{ form.portal_login_background_color.errors|join:" " }}</div>{% endif %}
+                            </div>
+
+                            <div class="mt-2 portal-bg-field" data-bg="image">
+                                <label for="portal_login_background_image" class="form-label small mb-1">Background image</label>
+                                {% if settings.portal_login_background_image %}
+                                <div class="mb-2">
+                                    <img src="{{ settings.portal_login_background_image.url }}" alt="Current sign-in background" class="rounded border" style="max-width: 260px; max-height: 120px; object-fit: cover;">
+                                    <div class="form-check mt-1">
+                                        <input class="form-check-input" type="checkbox" id="clear_portal_login_background_image" name="clear_portal_login_background_image">
+                                        <label class="form-check-label" for="clear_portal_login_background_image">Remove the image</label>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <input type="file" class="form-control{% if form.portal_login_background_image.errors %} is-invalid{% endif %}" id="portal_login_background_image" name="portal_login_background_image" accept="image/png,image/jpeg,image/webp" aria-describedby="portal_bg_image_help">
+                                {% if form.portal_login_background_image.errors %}<div class="invalid-feedback d-block">{{ form.portal_login_background_image.errors|join:" " }}</div>{% endif %}
+                                <div class="form-text" id="portal_bg_image_help">PNG, JPEG or WebP, up to {{ background_max_mb }} MB. Wide images work best (1920&times;1080 or larger); the sign-in card stays readable on top.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="portal_login_message" class="form-label">Sign-in welcome message</label>
+                            <textarea class="form-control{% if form.portal_login_message.errors %} is-invalid{% endif %}" id="portal_login_message" name="portal_login_message" rows="4" maxlength="{{ message_max }}" aria-describedby="portal_message_help">{{ v.portal_login_message|default:'' }}</textarea>
+                            {% if form.portal_login_message.errors %}<div class="invalid-feedback d-block">{{ form.portal_login_message.errors|join:" " }}</div>{% endif %}
+                            <div class="form-text" id="portal_message_help">Plain text, up to {{ message_max }} characters; line breaks are kept. Shown above the sign-in form.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ------------------------------------------------------- Layout #}
+            <div class="card mb-3" id="portal-layout">
+                <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-table-columns" aria-hidden="true"></i> Layout</h2></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <fieldset class="col-md-4">
+                            <legend class="form-label fs-6">Navigation</legend>
+                            {% for value, label in navigation_choices %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="portal_navigation" id="portal_navigation_{{ value }}" value="{{ value }}" {% if v.portal_navigation == value %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_navigation_{{ value }}">{{ label }}</label>
+                            </div>
+                            {% endfor %}
+                            <div class="form-text">Side navigation shows on screens wider than a tablet; phones keep the Menu button.</div>
+                        </fieldset>
+                        <fieldset class="col-md-4">
+                            <legend class="form-label fs-6">Content width</legend>
+                            {% for value, label in width_choices %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="portal_content_width" id="portal_content_width_{{ value }}" value="{{ value }}" {% if v.portal_content_width == value %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_content_width_{{ value }}">{{ label }}{% if value == 'standard' %} (1120 px){% else %} (1440 px){% endif %}</label>
+                            </div>
+                            {% endfor %}
+                            <div class="form-text">Wide suits customers with long ticket lists on big screens.</div>
+                        </fieldset>
+                        <fieldset class="col-md-4">
+                            <legend class="form-label fs-6">Default theme</legend>
+                            {% for value, label in theme_choices %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="portal_default_theme" id="portal_default_theme_{{ value }}" value="{{ value }}" {% if v.portal_default_theme == value %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_default_theme_{{ value }}">{{ label }}</label>
+                            </div>
+                            {% endfor %}
+                            <div class="form-text">For visitors who have not picked a light or dark theme themselves, and on the sign-in pages.</div>
+                        </fieldset>
+                    </div>
+                </div>
+            </div>
+
+            {# ----------------------------------------------------- Features #}
+            <div class="card mb-3" id="portal-features">
+                <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-toggle-on" aria-hidden="true"></i> Features</h2></div>
+                <div class="card-body">
+                    {% if psa_on %}
+                    {% for f in features %}
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="{{ f.field }}" name="{{ f.field }}" {% if f.on %}checked{% endif %} aria-describedby="{{ f.field }}_help">
+                        <label class="form-check-label" for="{{ f.field }}">{{ f.label }}</label>
+                        <div class="form-text mt-0" id="{{ f.field }}_help">{{ f.help }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted mb-0" data-psa-off>The portal features need PSA. Turn PSA on in <a href="{% url 'core:settings_modules' %}">Optional Modules</a> to change them here.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                <small class="text-muted">
+                    {% if settings.updated_at %}Last updated: {{ settings.updated_at }}{% if settings.updated_by %} by {{ settings.updated_by.username }}{% endif %}{% endif %}
+                </small>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save" aria-hidden="true"></i> Save Changes</button>
+            </div>
+        </form>
+
+        {# -------------------------------------------------------- Customers #}
+        <div class="card mb-3" id="portal-customers">
+            <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-building" aria-hidden="true"></i> Customers</h2></div>
+            <div class="card-body">
+                {% if psa_on %}
+                <p class="small text-muted">The portal is off for a customer until it is turned on here (or on its per-customer PSA settings). Each customer's own colour and logo are on its customer settings.</p>
+                {% if customers %}
+                <form method="post" id="portalCustomersForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="customers">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-2">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col" class="text-center">Portal on</th>
+                                    <th scope="col" class="d-none d-md-table-cell">Portal colour</th>
+                                    <th scope="col"><span class="visually-hidden">Customer settings</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in customers %}
+                                <tr data-customer="{{ c.org.pk }}">
+                                    <td>{{ c.org.name }}{% if not c.org.is_active %} <span class="badge bg-secondary">inactive</span>{% endif %}</td>
+                                    <td class="text-center">
+                                        <input type="hidden" name="org_ids" value="{{ c.org.pk }}">
+                                        <input class="form-check-input" type="checkbox" name="portal_{{ c.org.pk }}" id="portal_{{ c.org.pk }}" {% if c.portal_on %}checked{% endif %}>
+                                        <label class="visually-hidden" for="portal_{{ c.org.pk }}">Customer portal on for {{ c.org.name }}</label>
+                                    </td>
+                                    <td class="d-none d-md-table-cell small">
+                                        {% with colour=c.org.portal_primary_color|portal_accent %}{% if colour %}<span class="d-inline-block rounded border align-middle" style="width: 1em; height: 1em; background: {{ colour }};" aria-hidden="true"></span> <code>{{ colour }}</code>{% else %}<span class="text-muted">Default</span>{% endif %}{% endwith %}
+                                        {% if c.org.logo %} · logo{% endif %}
+                                    </td>
+                                    <td class="text-end"><a href="{% url 'accounts:organization_edit' c.org.pk %}#portal-branding" class="small text-nowrap">Colour &amp; logo<span class="visually-hidden"> for {{ c.org.name }}</span></a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary"><i class="fas fa-save" aria-hidden="true"></i> Save customer switches</button>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0">No active customers yet.</p>
+                {% endif %}
+                {% else %}
+                <p class="text-muted mb-0" data-psa-off>The customer portal needs PSA. Turn PSA on in <a href="{% url 'core:settings_modules' %}">Optional Modules</a> to switch the portal on for customers.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# -------------------------------------------------- Country policy #}
+        <div class="card mb-3" id="portal-country">
+            <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-earth-americas" aria-hidden="true"></i> Country policy</h2></div>
+            <div class="card-body">
+                <p class="mb-1"><strong data-geoip-mode="{{ geoip.mode }}">{{ geoip.label }}</strong></p>
+                <p class="small text-muted mb-2">{{ geoip.detail }}</p>
+                <a href="{% url 'core:firewall_settings' %}#portal-geoip">Change it in Firewall Settings</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var bg = document.getElementById('portal_login_background');
+    var accent = document.getElementById('portal_accent_custom');
+    function sync() {
+        document.querySelectorAll('.portal-bg-field').forEach(function (el) {
+            el.hidden = !bg || el.dataset.bg !== bg.value;
+        });
+        var field = document.getElementById('portalAccentField');
+        if (field && accent) {
+            field.hidden = !accent.checked;
+        }
+    }
+    if (bg) { bg.addEventListener('change', sync); }
+    if (accent) { accent.addEventListener('change', sync); }
+    sync();
+})();
+</script>
+{% endblock %}

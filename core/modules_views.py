@@ -19,7 +19,7 @@ def settings_modules(request):
     if request.method == 'POST':
         module = modules.MODULES_BY_KEY.get(request.POST.get('module') or '')
         enabled = request.POST.get('enabled')
-        if module is None or not module.field or enabled not in ('on', 'off'):
+        if module is None or not module.field or module.managed_at or enabled not in ('on', 'off'):
             messages.error(request, 'Nothing was changed: unknown module or action.')
             return redirect('core:settings_modules')
         want = enabled == 'on'
