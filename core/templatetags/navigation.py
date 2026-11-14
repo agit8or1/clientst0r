@@ -18,7 +18,7 @@ def nav_state(context):
         return navigation.nav_state(context)
     except Exception:  # pragma: no cover - decoration must never take a page down
         logger.exception('nav_state failed')
-        return {'menu': '', 'section': '', 'section_label': '', 'tabs': []}
+        return navigation._empty_state()
 
 
 @register.simple_tag
@@ -43,6 +43,14 @@ def nav_matches(pnav, query, limit=8):
                 if href not in seen and all(w in text for w in words):
                     seen.add(href)
                     out.append({'label': label, 'href': href, 'where': where})
+    # Pages that are not sidebar links (Configure pages, settings pages,
+    # tabs): already gated the same way (core.navigation.destinations_for).
+    for d in pnav.get('extra') or []:
+        text = f"{d['label']} {d['keywords']} {d['section']} {d['group']}".lower()
+        if d['href'] not in seen and all(w in text for w in words):
+            seen.add(d['href'])
+            where = d['group'] if d['section'] == d['group'] else f"{d['group']} › {d['section']}"
+            out.append({'label': d['label'], 'href': d['href'], 'where': where})
     return out[:limit]
 
 
@@ -53,9 +61,7 @@ def primary_nav(context):
         return navigation.primary_nav(context)
     except Exception:  # pragma: no cover - decoration must never take a page down
         logger.exception('primary_nav failed')
-        return {'groups': [], 'settings': None, 'active_group': '', 'breadcrumbs': [],
-                'workspace': {'categories': [], 'current': None}, 'topbar': [], 'account': [],
-                'shortcuts': [], 'pin_edit': ''}
+        return navigation._empty_primary()
 
 
 @register.simple_tag(takes_context=True)

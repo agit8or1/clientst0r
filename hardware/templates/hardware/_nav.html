@@ -1,7 +1,7 @@
 <ul class="nav nav-pills hw-subnav mb-3 flex-wrap">
   <li class="nav-item"><a class="nav-link {% if section == 'devices' %}active{% endif %}" href="{% url 'hardware:device_list' %}"><i class="fas fa-server"></i> Devices</a></li>
   <li class="nav-item"><a class="nav-link {% if section == 'cables' %}active{% endif %}" href="{% url 'hardware:cable_list' %}"><i class="fas fa-ethernet"></i> Cables</a></li>
-  <li class="nav-item"><a class="nav-link {% if section == 'vlans' %}active{% endif %}" href="{% url 'hardware:vlan_list' %}"><i class="fas fa-layer-group"></i> VLANs</a></li>
+  <li class="nav-item"><a class="nav-link {% if section == 'vlans' %}active{% endif %}" href="{% url 'hardware:vlan_list' %}"><i class="fas fa-layer-group"></i> VLAN Ports</a></li>
   <li class="nav-item"><a class="nav-link {% if section == 'connectivity' %}active{% endif %}" href="{% url 'hardware:diagram' 'connectivity' %}"><i class="fas fa-project-diagram"></i> Connectivity</a></li>
   <li class="nav-item"><a class="nav-link {% if section == 'vlan' %}active{% endif %}" href="{% url 'hardware:diagram' 'vlan' %}"><i class="fas fa-sitemap"></i> VLAN view</a></li>
   <li class="nav-item"><a class="nav-link {% if section == 'labels' %}active{% endif %}" href="{% url 'hardware:labels' %}"><i class="fas fa-tags"></i> Labels</a></li>
