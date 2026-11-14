@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+Permission denied (Django's default 403 handler renders this for every
+PermissionDenied, e.g. accounts.middleware.SectionPermissionMiddleware).
+
+Deliberately generic: it never names the page, the record, the client or the
+permission that was missing, and it does not echo the URL or the exception
+text, so a 403 tells nobody more than "not for you". The way forward is the
+user's own dashboard, the previous page, or their administrator.
+{% endcomment %}
+{% block title %}{% trans "No access" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block content %}
+<section class="denied" aria-labelledby="deniedTitle" data-permission-denied>
+    <div class="denied__icon" aria-hidden="true"><i class="fas fa-lock"></i></div>
+    <h1 class="denied__title h4" id="deniedTitle">{% trans "You don't have access to this page" %}</h1>
+    <p class="denied__text text-body-secondary">
+        {% trans "Your role does not include it, or it belongs to a client or module that is not available to you." %}
+        {% trans "If you need it for your work, ask an administrator to review your access." %}
+    </p>
+    <div class="denied__actions">
+        {% if user.is_authenticated %}
+        <a class="btn btn-primary btn-sm" href="{% url 'core:dashboard' %}"><i class="fas fa-gauge-high" aria-hidden="true"></i> {% trans "Go to your dashboard" %}</a>
+        {% else %}
+        <a class="btn btn-primary btn-sm" href="{% url 'two_factor:login' %}"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> {% trans "Sign in" %}</a>
+        {% endif %}
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="history-back" hidden><i class="fas fa-arrow-left" aria-hidden="true"></i> {% trans "Back to the previous page" %}</button>
+    </div>
+    <p class="denied__code small text-body-secondary mb-0">{% trans "Error 403" %}</p>
+</section>
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var b = document.querySelector('[data-permission-denied] [data-action="history-back"]');
+    if (b && window.history.length > 1) {
+        b.hidden = false;
+        b.addEventListener('click', function () { window.history.back(); });
+    }
+})();
+</script>
+{% endblock %}

@@ -233,6 +233,18 @@
             {% include "core/_section_tabs.html" with tabs=nav.tabs visible=nav.tabs_visible more=nav.tabs_more configure=nav.configure configure_active=nav.configure_active label=nav.section_label %}
         </div>
         {% endif %}
+        {% comment %}
+        "Back to PSA-…" (core.return_to): shown while ?return_to= names a
+        ticket page; the value is validated and rebuilt on the server.
+        app_nav.js carries data-return-origin onto in-page links to the
+        client workspace and device pages (data-return-scope).
+        {% endcomment %}
+        {% return_context as back %}
+        {% if back.scope %}
+        <div class="return-ctx" id="returnCtx" data-return-origin="{{ back.origin }}" data-return-scope="{{ back.scope }}"{% if not back.chip %} hidden{% endif %}>
+            {% if back.chip %}<a class="return-ctx__link" href="{{ back.chip.href }}" data-return-link><i class="fas fa-arrow-left" aria-hidden="true"></i> {% blocktrans with ref=back.chip.label %}Back to {{ ref }}{% endblocktrans %}</a>{% endif %}
+        </div>
+        {% endif %}
         {% include "core/_work_context.html" %}
         {% endif %}
         {% block content %}{% endblock %}

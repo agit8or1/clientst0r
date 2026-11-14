@@ -17,6 +17,10 @@ which also warns before leaving a settings form with unsaved changes.
 {% endcomment %}{% if settings_frame and pnav.workspace.current %}{% with ws=pnav.workspace cur=pnav.workspace.current %}
 <nav class="settings-ws" id="settingsWorkspace" aria-label="{% trans 'Settings' %}" data-settings-ws>
     <div class="settings-ws__bar">
+        <a class="settings-ws__home" href="{% url 'core:settings_home' %}" data-settings-home
+           title="{% trans 'Every settings category (the settings center)' %}">
+            <i class="fas fa-table-cells-large fa-fw" aria-hidden="true"></i><span class="settings-ws__home-label">{% trans "All settings" %}</span>
+        </a>
         <ul class="nav nav-tabs settings-ws__cats" role="list">
             {% for c in ws.categories %}
             <li class="nav-item" data-settings-group="{{ c.key }}">
@@ -30,7 +34,8 @@ which also warns before leaving a settings form with unsaved changes.
             <label class="visually-hidden" for="settingsSearch">{% trans "Search settings" %}</label>
             <i class="fas fa-magnifying-glass settings-ws__search-icon" aria-hidden="true"></i>
             <input type="search" class="form-control form-control-sm" id="settingsSearch"
-                   placeholder="{% trans 'Find a setting…' %}" autocomplete="off" spellcheck="false" maxlength="60"
+                   placeholder="{% trans 'Find a setting… ( / )' %}" autocomplete="off" spellcheck="false" maxlength="60"
+                   aria-keyshortcuts="/"
                    aria-controls="settingsSearchResults" aria-describedby="settingsSearchStatus"
                    data-i18n-count="{% trans '__N__ matching settings pages' %}"
                    data-i18n-none="{% trans 'No settings pages match.' %}">

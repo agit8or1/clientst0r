@@ -177,7 +177,7 @@ class SettingsWorkspaceOnPagesTests(TestCase):
         self.assertIn('js/settings_ws.js', html)
         # Index entries carry their category and keywords for the filter.
         self.assertRegex(ws, r'data-label="SMTP / Email" data-where="Communications" '
-                             r'data-filter="SMTP / Email mail outgoing smtp')
+                             r'data-filter="SMTP / Email email e-mail mail outgoing smtp')
         js = (Path(django_settings.BASE_DIR) / 'static/js/settings_ws.js').read_text()
         self.assertIn('beforeunload', js)
         self.assertIn('data-no-dirty-check', js)

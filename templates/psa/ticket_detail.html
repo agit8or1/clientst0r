@@ -6,14 +6,8 @@
 {% load static %}
 {% block title %}PSA — {{ ticket.ticket_number }}{% endblock %}
 {% block extra_css %}{{ block.super }}<link href="{% static 'css/ticket_conversation.css' %}" rel="stylesheet">{% endblock %}
+{% block breadcrumb_tail %}<li class="breadcrumb-item active" aria-current="page">{{ ticket.ticket_number }}</li>{% endblock %}
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
-        <li class="breadcrumb-item active">{{ ticket.ticket_number }}</li>
-    </ol>
-</nav>
-
 {% if ticket.ticket_type and ticket.ticket_type.slug == 'change' %}
 {% with cr=ticket.change_request %}
 <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
@@ -48,9 +42,16 @@
         </h2>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <code class="small">{{ ticket.ticket_number }}</code>
+            {% if is_msp_staff %}
+            {# The client workspace (opens in this client's context); return_to keeps a "Back to" link to this ticket (core.return_to). #}
+            <a class="badge rounded-pill text-decoration-none" data-ticket-client href="{% url 'accounts:organization_detail' ticket.organization.id %}?return_to={{ request.path|urlencode }}" title="Open {{ ticket.organization.name }}'s client workspace" style="background:hsl({% widthratio ticket.organization.id 1 47 %}, 55%, 42%); color: white;">
+                <i class="fas fa-building me-1" aria-hidden="true"></i>{{ ticket.organization.name }}
+            </a>
+            {% else %}
             <span class="badge rounded-pill" style="background:hsl({% widthratio ticket.organization.id 1 47 %}, 55%, 42%); color: white;">
                 <i class="fas fa-building me-1"></i>{{ ticket.organization.name }}
             </span>
+            {% endif %}
             <small class="text-muted">opened {{ ticket.created_at|timesince }} ago{% if ticket.created_by %} by {{ ticket.created_by.username }}{% endif %}</small>
         </div>
     </div>
@@ -618,7 +619,7 @@
                     <dt class="col-5">Assignee</dt><dd class="col-7">{{ ticket.assigned_to.username|default:"—" }}</dd>
                     <dt class="col-5">Contact</dt><dd class="col-7">{{ ticket.contact|default:"—" }}</dd>
                     <dt class="col-5">Site</dt><dd class="col-7">{% if ticket_site %}{{ ticket_site.name }}{% if is_msp_staff and ticket_site_source %} <span class="text-muted small">({{ ticket_site_source }})</span>{% endif %}{% else %}—{% endif %}</dd>
-                    <dt class="col-5">Asset</dt><dd class="col-7">{% if ticket_asset %}{% if is_msp_staff %}<a href="{% url 'assets:device_workspace' ticket_asset.pk %}?ticket={{ ticket.ticket_number|urlencode }}" data-ticket-asset-workspace>{{ ticket_asset.name }}</a>{% else %}{{ ticket_asset.name }}{% endif %}{% else %}—{% endif %}</dd>
+                    <dt class="col-5">Asset</dt><dd class="col-7">{% if ticket_asset %}{% if is_msp_staff %}<a href="{% url 'core:open_device' 'asset' ticket_asset.pk %}?to=workspace&amp;ticket={{ ticket.ticket_number|urlencode }}&amp;next={{ request.path|urlencode }}" data-ticket-asset-workspace>{{ ticket_asset.name }}</a>{% else %}{{ ticket_asset.name }}{% endif %}{% else %}—{% endif %}</dd>
                     <dt class="col-5">Doc</dt><dd class="col-7">{{ ticket.related_documentation|default:"—" }}</dd>
                     <dt class="col-5">KB</dt><dd class="col-7">{{ ticket.related_kb_article|default:"—" }}</dd>
                     <dt class="col-5">Calendar</dt><dd class="col-7">{{ ticket.related_calendar_event|default:"—" }}</dd>
