@@ -37,7 +37,7 @@ def nav_matches(pnav, query, limit=8):
         for e in g['entries']:
             candidates = [(e['label'], e['href'], f"{e['label']} {e['keywords']} {g['label']}", g['label'])]
             candidates += [(c['label'], c['href'], f"{c['label']} {e['label']} {g['label']}",
-                            f"{g['label']} › {e['label']}") for c in e['children']]
+                            f"{g['label']} › {e['label']}") for c in (e.get('tabs') or e['children'])]
             for label, href, text, where in candidates:
                 text = str(text).lower()
                 if href not in seen and all(w in text for w in words):
@@ -53,4 +53,18 @@ def primary_nav(context):
         return navigation.primary_nav(context)
     except Exception:  # pragma: no cover - decoration must never take a page down
         logger.exception('primary_nav failed')
-        return {'groups': [], 'settings': None, 'active_group': '', 'breadcrumbs': []}
+        return {'groups': [], 'settings': None, 'active_group': '', 'breadcrumbs': [],
+                'workspace': {'categories': [], 'current': None}, 'topbar': [], 'account': [],
+                'shortcuts': [], 'pin_edit': ''}
+
+
+@register.simple_tag(takes_context=True)
+def nav_notifications(context):
+    """`{% nav_notifications as notes %}` — the top bar's bell
+    (core.notifications.for_context)."""
+    from core import notifications
+    try:
+        return notifications.for_context(context)
+    except Exception:  # pragma: no cover - decoration must never take a page down
+        logger.exception('nav_notifications failed')
+        return {'items': [], 'total': 0}

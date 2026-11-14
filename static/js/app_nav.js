@@ -301,7 +301,9 @@
 
     function goGroup(key) {
         if (!nav) return false;
-        var g = nav.querySelector('.app-nav__group[data-shortcut-key="' + key + '"] .app-nav__group-link');
+        // A group ("g s") or an entry ("g w", "g a": the first visible one).
+        var holder = nav.querySelector('[data-shortcut-key="' + key + '"]');
+        var g = holder && holder.querySelector('.app-nav__group-link, .app-nav__link');
         if (g) { window.location.href = g.href; return true; }
         return false;
     }

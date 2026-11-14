@@ -1,7 +1,7 @@
 {% load i18n %}{% comment %}
 Keyboard shortcut help (opened with ?, or the sidebar's "Keyboard shortcuts").
-The handlers are in static/js/app_nav.js; "g" shortcuts are only listed for
-groups this user's sidebar actually has. Shortcuts never fire while typing in
+The handlers are in static/js/app_nav.js; "g" shortcuts (core.navigation: groups and a few
+entries) are only listed for what this user's sidebar actually has. Shortcuts never fire while typing in
 a field, and modifier-key combinations are left to the browser.
 {% endcomment %}
 <div class="modal fade" id="shortcutHelp" tabindex="-1" aria-labelledby="shortcutHelpTitle" aria-hidden="true">
@@ -20,13 +20,12 @@ a field, and modifier-key combinations are left to the browser.
                     <div><dt><kbd>?</kbd></dt><dd>{% trans "Show this help" %}</dd></div>
                     <div><dt><kbd>Esc</kbd></dt><dd>{% trans "Close a menu or dialog, clear the filter" %}</dd></div>
                 </dl>
-                {% if pnav.groups %}
+                {% if pnav.shortcuts %}
                 <h3 class="h6 text-muted">{% trans "Go to — press g, then" %}</h3>
                 <dl class="shortcut-list">
-                    {% for g in pnav.groups %}{% if g.shortcut %}
-                    <div><dt><kbd>g</kbd> <kbd>{{ g.shortcut }}</kbd></dt><dd>{{ g.label }}</dd></div>
-                    {% endif %}{% endfor %}
-                    {% if pnav.settings %}<div><dt><kbd>g</kbd> <kbd>{{ pnav.settings.shortcut }}</kbd></dt><dd>{{ pnav.settings.label }}</dd></div>{% endif %}
+                    {% for s in pnav.shortcuts %}
+                    <div><dt><kbd>g</kbd> <kbd>{{ s.key }}</kbd></dt><dd>{{ s.label }}</dd></div>
+                    {% endfor %}
                 </dl>
                 {% endif %}
                 <h3 class="h6 text-muted">{% trans "In the menu filter" %}</h3>
