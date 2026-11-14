@@ -1,6 +1,114 @@
 # Navigation map: before → after
 
-## Primary sidebar (technician workspace)
+## 2026-11 regroup: six work groups, Administration, settings workspace, top bar
+
+**No URL changed and no authorization check was weakened.** Hiding a link is
+presentation only; every gate in `core/navigation.py` mirrors the page's own
+check, and `_PermProbe` now also reads the role-permission decorators on the
+view itself (`require_perm`, `require_perm_any_org`, `require_msp_wide_perm`,
+`require_routing_perm`, `require_admin`, the hardware `org_view` /
+`catalog_view`) so the sidebar never draws a link the server answers with 403.
+`core/tests/test_nav_roles.py` opens every drawn link for seven kinds of user;
+`core/tests/test_nav_reachability.py` checks that every landing page is linked
+or allow-listed with a reason.
+
+### Sidebar groups
+
+| Before (group → entry) | After (group → entry) | `g` key |
+|---|---|---|
+| My Work → Dashboard / My Work / Favorites | **Overview** → Dashboard / My Work / Favorites, then your pinned pages (the old shortcut strip under the bar) and "Edit pinned pages" | `g h`, `g w` |
+| Tickets → Tickets, Dispatch Board, Shifts & Locations, Projects, Service Management | **Operations** → same entries | `g t` |
+| Tools → Workflows, Scheduling | **Operations** → Workflows, Scheduling | |
+| Clients → All Clients, Customer Operations | **Clients & Assets** → Clients, Customer Operations | `g c` |
+| Devices → All Assets, RMM Devices, Device Workspace, Hardware & Ports, Infrastructure | **Clients & Assets** → Devices (All Assets), RMM Devices, Device Workspace, Hardware & Ports, Infrastructure | `g d` |
+| Clients → Documents, Diagrams, Review & Publishing, Documentation Readiness, Passwords, Vault Access Rules | **Clients & Assets** → same entries | |
+| My Work → My Vault, Secure Notes | **Clients & Assets** → My Vault, Secure Notes | |
+| Clients → Billing, CRM; Tools → Procurement | **Business** → Billing, Contract Documents, CRM, Pulse Checks, Procurement | `g b` |
+| Alerts → RMM Alerts, Security Alerts, Monitoring, Alert Policy | **Tools & Automation** → RMM Alerts, Security Alerts, Security Incidents *(new)*, Monitoring, Alert Policy | `g o`, `g a` |
+| Tools → Support Workflows, Inventory, Vehicles, Global KB | **Tools & Automation** → same entries | |
+| Reports → Reports | **Reports & Analytics** → Reports (+ Analytics, Software Compliance tabs) | `g r` |
+| Settings (long list with nested pages) | **Administration** at the foot: the nine settings categories only | `g s` |
+
+### Administration and the settings workspace
+
+`templates/core/_settings_menu.html` is no longer a left-hand column repeated
+in every settings template (it took `col-md-3` of the page); base.html draws
+it once, above the content, on any page of a settings category: the category
+tabs, the current category's pages, a search over every settings page you may
+open, and a warning before leaving a settings form with unsaved changes
+(`static/js/settings_ws.js`). `core/settings_groups.py` and the
+`settings_menu` template tags are gone; the categories are sections with
+`menu='settings'` in `core/navigation.py`.
+
+| Old settings menu (group → page) | New category | Gate (mirrors the view) |
+|---|---|---|
+| System → General, PSA | General | su; PSA also needs the psa module |
+| *(sidebar Settings → Asset Setup)* Equipment Catalog, Custom Fields & Types; Tags; Holidays | General | MSP staff; catalog managers; su; `resourcing_manage_holidays` |
+| System → System Status, Updates; Mobile → Mobile Apps, Beta testers | System | su; Mobile Apps: Django staff or su |
+| Security → Security, Security Dashboard, Technician Access, RMM Permissions, Firewall, Fail2ban, Snyk | Security (+ Security Features, Vault Visibility, Superuser Approval, Vulnerability Scans) | su; RMM Permissions: its policy readers |
+| Organizations & Access → Access Management, Directory, Office org policy | Organizations & Access (+ Users, Members, Roles, Audit Log, LDAP Group Mappings) | Access Management su (the old menu showed it to every signed-in user; the view redirects them); Members/Roles: org admins and roles readers; Office policy: org managers |
+| Organizations & Access → Organizations | moved to **Clients & Assets → Clients** | auth |
+| Integrations → Webhooks, Integrations, RMM · Rem0te, AI, Ticket AI models, Office Documents | Integrations (+ Accounting, Distributors) | Webhooks: Owner/Admin (`require_admin`, new on the list); the rest su; Accounting / Distributors: Django staff or su |
+| Integrations → SMS; System → SMTP | Email & Communications (+ Consultation Requests) | su |
+| System → Scheduler | Automation (+ Workflow Templates, Workflow Suggestions — OPTIONAL AI) | su; templates/suggestions: psa + MSP staff (+ `psa_ai_enabled`) |
+| System → Features, Modules | Features & Modules (+ Field Ops settings) | su; Field Ops: org admins |
+| System → Maintenance, Data Import, Data Export, KB import | Maintenance (+ Vault Import) | su |
+
+Customer-side administrators (Owner / Admin of their organization, not MSP
+staff) have no Administration group; the account menu shows **Organization
+settings**, which opens the same workspace with only the pages their role
+admits (Members, Roles, Webhooks, ...).
+
+### Top bar (expands at 992px)
+
+| Before | After |
+|---|---|
+| Brand, search, Favorites star, Beta app, Install app, Help Us Grow, clock, client switcher, account menu | Brand, **shortcuts** (Dashboard, My Work, Tickets, Clients, Devices, Projects, Reports — each only if its sidebar entry is drawn), search, **notifications bell**, **Help**, **Administration gear**, clock (very wide screens), client switcher, account menu |
+| Beta app / Install app / Help Us Grow buttons | account menu, same accessible names and tooltips |
+| Favorites star | Overview → Favorites |
+| Theme toggle | account menu |
+| Shortcut strip under the bar | pins in Overview |
+
+The bell adds up counts the app already keeps — PSA approvals, RMM approval
+requests, unread secure notes, contract notifications — each computed with its
+page's check and cached per user for 60 seconds (`core/notifications.py`).
+
+### Page frame
+
+The trail and the section tabs share one row (`.page-frame`); the settings
+workspace follows it. Pages that had their own "Dashboard › …" breadcrumb on
+settings and role pages lost it (one trail per page), `ticket_routing/_nav.html`
+keeps its tabs but not its breadcrumb, and `main` starts closer to the bar.
+
+### Orphans (audit of 2026-11, 35 pages with no link path)
+
+| Page | Resolution |
+|---|---|
+| `psa:my_timesheet`, `psa:timesheet_approval_queue` | Overview → My Work tabs (approvals: approvers only) |
+| `psa:dispatch_heatmap` | Operations → Dispatch Board → Load Heatmap (MSP staff) |
+| `field_ops:timeclock_dashboard` | Operations → Shifts & Locations → Timeclock (Django staff) |
+| `processes:runbook_dashboard` | Operations → Workflows → Runbook Dashboard (customer selected) |
+| `security_alerts:incident_list`, `playbook_list`, `threat_overview`, `reports:security_alert_mtta` | Tools & Automation → Security Incidents |
+| `security_alerts:siem_endpoint_list` | Security Alerts → SIEM Endpoints |
+| `vehicles:inventory_list` (+ the three redirect aliases in `also`) | Vehicles → Vehicle Inventory |
+| `reports:analytics_overview`, `reports:software_compliance_report` | Reports tabs (`reports_view_dashboards`; `assets_view` across every customer) |
+| `assets:network_scan_import` | Devices → Network Scan Import (customer selected) |
+| `monitoring:patch_panel_list`, `assets:port_config_list` | Infrastructure tabs |
+| `office:template_list` | Documents → Office Templates (org managers) |
+| `vault:reveal_request_list` | Passwords → Reveal Requests (staff) |
+| `core:secure_note_links_dashboard` | Secure Notes → Secret Links |
+| `core:documentation` | account menu → Help → Platform Documentation |
+| `resourcing:holiday_list`, `core:vault_import`, `core:consult_requests`, `field_ops:settings`, `integrations:accounting_list`, `integrations:distributor_list`, `psa:workflow_template_list`, `psa:workflow_suggestion_list`, `office:managed_diagnostics` | settings categories (above) |
+| `assets:relationship_map` | **not linked**: its template does not exist, the page answers 500 |
+| `core:help_features` | **not linked**: dead page, linked only from shadowed help templates |
+| `accounts:quick_add_menu` | **not linked**: legacy launcher, admins only |
+
+Every other unlinked landing page is in `ALLOWED_UNLINKED` in
+`core/tests/test_nav_reachability.py` with the page that links it.
+
+---
+
+## Primary sidebar (technician workspace, superseded by the 2026-11 regroup above)
 
 The dropdown menus in the top bar were replaced by a sidebar of seven
 technician groups — **My Work, Tickets, Clients, Devices, Alerts, Tools,
