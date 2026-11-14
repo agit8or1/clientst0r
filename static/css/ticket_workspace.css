@@ -59,8 +59,8 @@
 .tw-filter-bar--narrow .ui-field { max-width: 360px; }
 
 /* The filters' fold toggle exists for phones only. */
-.tw-filters__toggle { display: none; list-style: none; margin-bottom: 8px; }
+details.tw-filters > summary.tw-filters__toggle { display: none; list-style: none; margin-bottom: 8px; }
 .tw-filters__toggle::-webkit-details-marker { display: none; }
 @media (max-width: 575.98px) {
-    .tw-filters__toggle { display: inline-block; }
+    details.tw-filters > summary.tw-filters__toggle { display: inline-block; }
 }

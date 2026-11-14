@@ -133,7 +133,7 @@ and mark the current one, so back/forward and bookmarks land on the same tab.
                         {% elif view == 'sla' %}
                         <td class="ui-wrap d-none d-md-table-cell">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
                         <td>{% include "psa/_sla_cell.html" %}</td>
-                        <td class="d-none d-lg-table-cell small">{% if t.sla_due_at %}<time datetime="{{ t.sla_due_at|date:'c' }}">{{ t.sla_due_at|date:'M j, H:i' }}</time><div class="text-muted">{{ t.sla_which }}</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        <td class="d-none d-lg-table-cell small">{% if t.sla_due_at %}<time class="text-nowrap" datetime="{{ t.sla_due_at|date:'c' }}">{{ t.sla_due_at|date:'M j, H:i' }}</time><div class="text-muted">{{ t.sla_which }}</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         {% elif view == 'escalated' %}
                         <td class="ui-wrap d-none d-md-table-cell">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
                         <td class="small"><time datetime="{{ t.escalated_at|date:'c' }}" title="{{ t.escalated_at }}">{{ t.escalated_at|timesince }} ago</time>{% if t.escalated_by %}<div class="text-muted">by {{ t.escalated_by.get_full_name|default:t.escalated_by.username }}</div>{% endif %}</td>
