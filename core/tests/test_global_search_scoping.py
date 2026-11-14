@@ -52,6 +52,9 @@ class GlobalSearchScopingTests(TestCase):
         Document.objects.create(
             organization=cls.child, title='zebrafish runbook', body='body',
             is_published=True,
+            # The searching user is a customer user: they find what the
+            # document list shows them (docs.permissions.visible_documents).
+            is_client_visible=True,
         )
         pw = Password(organization=cls.child, title='zebrafish router',
                       username='admin')

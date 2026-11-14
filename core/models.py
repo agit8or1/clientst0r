@@ -2864,6 +2864,56 @@ class RecentDevice(models.Model):
         return f"{self.user_id} -> {self.kind}:{self.object_id} @ {self.opened_at}"
 
 
+class PageFavorite(models.Model):
+    """A page the user starred from the top bar's Favorites menu or the
+    command palette: a navigation destination (a module or settings page)
+    or a record page (ticket, project, document, report, device).
+
+    Records that already have a content-type favorite (passwords, assets,
+    clients) keep using `Favorite`; this table holds the rest by path only.
+    No label is stored: core.palette resolves every path again on each read,
+    against the user's current navigation and the record's own scoping, so a
+    revoked permission, a disabled module or a deleted record drops the entry
+    without touching this table.
+    """
+    from django.contrib.auth.models import User
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='page_favorites')
+    path = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'core_page_favorites'
+        unique_together = [['user', 'path']]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user_id} * {self.path}"
+
+
+class RecentPage(models.Model):
+    """A page the user opened, for the top bar's Recent menu and the command
+    palette. Path only (never a query string), one row per (user, path),
+    capped per user by core.palette.record_recent_page. Written only after
+    the page answered 200; re-checked on every read like PageFavorite.
+    Devices and clients keep their own tables (RecentDevice, RecentClient).
+    """
+    from django.contrib.auth.models import User
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_pages')
+    path = models.CharField(max_length=255)
+    visited_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = 'core_recent_pages'
+        unique_together = [['user', 'path']]
+        ordering = ['-visited_at']
+        indexes = [models.Index(fields=['user', '-visited_at'])]
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.path} @ {self.visited_at}"
+
+
 class SavedView(models.Model):
     """
     A technician's named filter set for a dense list (tickets, devices).

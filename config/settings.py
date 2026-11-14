@@ -190,6 +190,7 @@ MIDDLEWARE = [
     'audit.middleware.AuditLoggingMiddleware',
     'tech_access.middleware.ReadTrackingMiddleware',  # theft detection + containment
     'core.workspace.WorkspaceMiddleware',  # default saved list views + recent devices
+    'core.palette.RecentPageMiddleware',  # top-bar Recent menu + command palette
 ]
 
 # Optional middleware - only add if dependencies are installed
