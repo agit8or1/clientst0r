@@ -13,7 +13,7 @@
     <div>
         <h2 class="mb-1"><i class="fas fa-file-contract me-2"></i>{{ item.name }}</h2>
         <div class="text-muted small">
-            {{ item.client_org.name }} &middot;
+            {% if client_url %}<a href="{{ client_url }}">{{ item.client_org.name }}</a>{% else %}{{ item.client_org.name }}{% endif %} &middot;
             <strong>{{ item.get_contract_type_display }}</strong> &middot;
             {% if item.status == 'active' %}<span class="badge text-bg-success">Active</span>
             {% elif item.status == 'draft' %}<span class="badge text-bg-secondary">Draft</span>
@@ -22,6 +22,7 @@
             &middot;
             {{ item.start_date }} &rarr; {{ item.end_date|default:'open' }}
         </div>
+        {% if contract_doc_links %}<div class="small mt-1"><i class="fas fa-file-signature me-1" aria-hidden="true"></i>Contract document{{ contract_doc_links|length|pluralize }}: {% for label, href in contract_doc_links %}<a href="{{ href }}">{{ label|truncatechars:60 }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
     </div>
     <div>
         <a href="{% url 'psa:contract_edit' item.pk %}" class="btn btn-primary">
