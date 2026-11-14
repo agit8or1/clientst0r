@@ -36,6 +36,7 @@
          a fourth opinion. See the header of ui.css before extending it. -->
     <link href="{% static 'css/ui.css' %}" rel="stylesheet">
     <link href="{% static 'css/navigation.css' %}" rel="stylesheet">
+    <link href="{% static 'css/command_palette.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
@@ -105,6 +106,7 @@
                 </ul>
                 {% endif %}
                 <ul class="navbar-nav ms-auto align-items-lg-center" id="utilityNav">
+                    {% include "core/_topbar_quick.html" %}
                     <li class="nav-item topbar-search-item">
                         <form class="nav-search" action="{% url 'core:search' %}" method="get" role="search">
                             <i class="fas fa-search nav-search__icon" aria-hidden="true"></i>
@@ -321,6 +323,7 @@
          ? help overlay, busy states on submit, and visible errors for actions
          that used to fail silently. -->
     <script src="{% static 'js/app_nav.js' %}" defer></script>
+    <script src="{% static 'js/command_palette.js' %}" defer></script>
     <script src="{% static 'js/responsive_tables.js' %}" defer></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>

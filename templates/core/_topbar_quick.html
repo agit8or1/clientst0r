@@ -1,0 +1,97 @@
+{% load i18n %}{% comment %}
+Top-bar quick controls (included once from base.html inside #utilityNav,
+before the search box): the command palette button, Favorites and Recent.
+
+Nothing user-specific is rendered here: the menus and the palette fetch
+their rows from core:palette_home / core:palette_search when first opened
+(core/palette.py re-checks every row against the user's current access), so
+a page costs no extra queries and no labels sit in the HTML. The palette
+dialog itself is the <template> below; static/js/command_palette.js moves
+it to <body> so it is not trapped inside the collapsible navbar.
+{% endcomment %}
+<li class="nav-item topbar-quick" id="topbarQuick"
+    data-home-url="{% url 'core:palette_home' %}"
+    data-search-url="{% url 'core:palette_search' %}"
+    data-favorite-url="{% url 'core:palette_favorite' %}"
+    data-all-search-url="{% url 'core:search' %}"
+    data-favorites-url="{% url 'core:favorite_list' %}"
+    data-csrf="{{ csrf_token }}"
+    data-i18n-open="{% trans 'Search and commands' %}"
+    data-i18n-favorites="{% trans 'Favorites' %}"
+    data-i18n-recent="{% trans 'Recent' %}"
+    data-i18n-commands="{% trans 'Commands' %}"
+    data-i18n-pages="{% trans 'Pages' %}"
+    data-i18n-none="{% trans 'No matches.' %}"
+    data-i18n-loading="{% trans 'Loading…' %}"
+    data-i18n-error="{% trans 'Could not load. Try again.' %}"
+    data-i18n-limited="{% trans 'Too many searches — wait a moment.' %}"
+    data-i18n-everything="{% trans 'Search everything for “__Q__”' %}"
+    data-i18n-count="{% trans '__N__ results' %}"
+    data-i18n-no-favorites="{% trans 'No favorites yet. Star a page to keep it here.' %}"
+    data-i18n-no-recent="{% trans 'Pages and records you open appear here.' %}"
+    data-i18n-star="{% trans 'Add this page to favorites' %}"
+    data-i18n-unstar="{% trans 'Remove this page from favorites' %}"
+    data-i18n-starred="{% trans 'Added to favorites' %}"
+    data-i18n-unstarred="{% trans 'Removed from favorites' %}"
+    data-i18n-manage="{% trans 'Manage favorites' %}">
+    <button type="button" class="nav-link nav-util topbar-cmdk" id="cmdkOpen"
+            aria-haspopup="dialog" aria-controls="cmdkDialog" aria-keyshortcuts="Control+K Meta+K"
+            title="{% trans 'Search and commands (Ctrl K)' %}">
+        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+        <span class="topbar-cmdk__label">{% trans "Go to…" %}</span>
+        <kbd class="topbar-cmdk__kbd" aria-hidden="true" data-cmdk-kbd>Ctrl K</kbd>
+        <span class="visually-hidden">{% trans "Open search and commands" %}</span>
+    </button>
+</li>
+<li class="nav-item dropdown topbar-quick-menu" data-quick-menu="favorites">
+    <a class="nav-link nav-util" href="#" id="favMenuToggle" role="button" data-bs-toggle="dropdown"
+       data-bs-auto-close="outside" aria-expanded="false" title="{% trans 'Favorites' %}" aria-label="{% trans 'Favorites' %}">
+        <i class="fas fa-star" aria-hidden="true"></i><span class="d-lg-none ms-2">{% trans "Favorites" %}</span>
+    </a>
+    <div class="dropdown-menu dropdown-menu-end quick-menu" aria-labelledby="favMenuToggle">
+        <div class="quick-menu__head">
+            <span class="quick-menu__title">{% trans "Favorites" %}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary quick-menu__star" data-star-current hidden>
+                <i class="far fa-star" aria-hidden="true"></i> <span data-star-label>{% trans "Add this page" %}</span>
+            </button>
+        </div>
+        <ul class="quick-menu__list" data-quick-list aria-label="{% trans 'Favorites' %}" aria-busy="true"></ul>
+        <div class="quick-menu__foot"><a class="small" href="{% url 'core:favorite_list' %}">{% trans "Manage favorites" %}</a></div>
+    </div>
+</li>
+<li class="nav-item dropdown topbar-quick-menu" data-quick-menu="recent">
+    <a class="nav-link nav-util" href="#" id="recentMenuToggle" role="button" data-bs-toggle="dropdown"
+       aria-expanded="false" title="{% trans 'Recent' %}" aria-label="{% trans 'Recently opened' %}">
+        <i class="fas fa-clock-rotate-left" aria-hidden="true"></i><span class="d-lg-none ms-2">{% trans "Recent" %}</span>
+    </a>
+    <div class="dropdown-menu dropdown-menu-end quick-menu" aria-labelledby="recentMenuToggle">
+        <div class="quick-menu__head"><span class="quick-menu__title">{% trans "Recently opened" %}</span></div>
+        <ul class="quick-menu__list" data-quick-list aria-label="{% trans 'Recently opened' %}" aria-busy="true"></ul>
+    </div>
+</li>
+<template id="cmdkTemplate">
+    <div class="cmdk" id="cmdkDialog" role="dialog" aria-modal="true" aria-labelledby="cmdkTitle" hidden>
+        <div class="cmdk__backdrop" data-cmdk-close></div>
+        <div class="cmdk__panel">
+            <h2 class="visually-hidden" id="cmdkTitle">{% trans "Search and commands" %}</h2>
+            <div class="cmdk__bar">
+                <i class="fas fa-magnifying-glass cmdk__icon" aria-hidden="true"></i>
+                <input type="text" class="cmdk__input" id="cmdkInput" role="combobox" autocomplete="off"
+                       spellcheck="false" maxlength="100" aria-expanded="true" aria-controls="cmdkList"
+                       aria-autocomplete="list" aria-describedby="cmdkHint"
+                       placeholder="{% trans 'Search clients, tickets, devices, documents, pages…' %}"
+                       aria-label="{% trans 'Search clients, tickets, devices, documents, pages and commands' %}">
+                <button type="button" class="cmdk__close" data-cmdk-close aria-label="{% trans 'Close' %}">
+                    <span class="d-none d-sm-inline"><kbd>Esc</kbd></span><i class="fas fa-xmark d-sm-none" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="cmdk__list" id="cmdkList" role="listbox" aria-label="{% trans 'Results' %}"></div>
+            <div class="cmdk__status visually-hidden" role="status" aria-live="polite" data-cmdk-status></div>
+            <div class="cmdk__foot" id="cmdkHint">
+                <span><kbd>↑</kbd><kbd>↓</kbd> {% trans "move" %}</span>
+                <span><kbd>Enter</kbd> {% trans "open" %}</span>
+                <span><kbd>Esc</kbd> {% trans "close" %}</span>
+            </div>
+        </div>
+    </div>
+</template>

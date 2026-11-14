@@ -31,8 +31,10 @@ class SearchPermissionTests(TestCase):
         for i in range(12):
             Asset.objects.create(organization=cls.org, name=f'quokka-asset-{i:02d}')
         Contact.objects.create(organization=cls.org, first_name='Quokka', last_name='Smith')
+        # Client-visible: the searching users are customer users, who find
+        # what the document list shows them (visible_documents).
         Document.objects.create(organization=cls.org, title='quokka runbook',
-                                body='b', is_published=True)
+                                body='b', is_published=True, is_client_visible=True)
         Document.objects.create(organization=None, title='quokka global kb',
                                 body='b', is_published=True, is_global=True)
         for i in range(3):

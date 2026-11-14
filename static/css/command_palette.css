@@ -1,0 +1,142 @@
+/* Command palette (Ctrl+K) and the top bar's Favorites / Recent menus.
+   Markup: templates/core/_topbar_quick.html; behaviour: static/js/command_palette.js.
+   Colours come from the theme tokens (themes.css) so every theme, light or
+   dark, gets a matching panel; spacing from ui.css (--ui-*). */
+
+/* ---- top-bar trigger ---------------------------------------------------- */
+.navbar.app-topbar .topbar-cmdk {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: var(--ui-radius-sm, 6px); color: inherit;
+    height: 30px; padding: 0 8px !important; margin: 0 4px; font-size: var(--ui-text-sm, 13px);
+    white-space: nowrap; cursor: pointer;
+}
+.navbar.app-topbar .topbar-cmdk:hover { border-color: rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .06); }
+.navbar.app-topbar .topbar-cmdk:focus-visible { outline: 2px solid var(--focus-ring, #7aa7ff); outline-offset: 2px; }
+.topbar-cmdk__label { opacity: .85; }
+.topbar-cmdk__kbd {
+    font: 600 11px/1 var(--ui-font, inherit); padding: 3px 5px; border-radius: 4px;
+    background: rgba(255, 255, 255, .12); color: inherit; border: 0; box-shadow: none;
+}
+/* In the narrow desktop band the bar is crowded: icon + key hint only. */
+@media (min-width: 992px) and (max-width: 1499.98px) {
+    .topbar-cmdk__label { display: none; }
+}
+@media (max-width: 991.98px) {
+    /* Below 992px the palette has its own button beside the menu toggler. */
+    .navbar.app-topbar .topbar-quick { display: none !important; }
+}
+
+/* Phone / tablet button beside the menu toggler (added by the script). */
+.cmdk-mobile-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; margin-left: auto; margin-right: 4px;
+    background: transparent; border: 0; border-radius: var(--ui-radius-sm, 6px);
+    color: rgba(255, 255, 255, .9); font-size: 1.05rem;
+}
+.cmdk-mobile-btn:focus-visible { outline: 2px solid var(--focus-ring, #7aa7ff); outline-offset: 1px; }
+.cmdk-mobile-btn + .navbar-toggler { margin-left: 0; }
+
+/* ---- Favorites / Recent menus ----------------------------------------- */
+.navbar.app-topbar .quick-menu {
+    width: 22rem; max-width: calc(100vw - 16px); padding: 0;
+    overflow: hidden;
+}
+.quick-menu__head {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ui-2, 8px);
+    padding: var(--ui-2, 8px) var(--ui-3, 12px); border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, .1));
+}
+.quick-menu__title { font-weight: 600; font-size: var(--ui-text-sm, 13px); }
+.quick-menu__star { font-size: var(--ui-text-xs, 12px); padding: 2px 8px; white-space: nowrap; }
+.quick-menu__star[aria-pressed="true"] i { color: var(--warning-color, #e0a526); }
+.quick-menu__list { list-style: none; margin: 0; padding: 4px 0; max-height: min(60vh, 420px); overflow-y: auto; }
+.quick-menu__item { display: flex !important; align-items: flex-start; gap: 8px; padding: 6px var(--ui-3, 12px) !important; white-space: normal; }
+.quick-menu__item > i { margin-top: 3px; opacity: .75; }
+.quick-menu__text { display: flex; flex-direction: column; min-width: 0; }
+.quick-menu__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-menu__detail { font-size: var(--ui-text-xs, 12px); color: var(--text-muted, #6c757d); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-menu__empty { padding: 10px var(--ui-3, 12px); font-size: var(--ui-text-sm, 13px); color: var(--text-muted, #6c757d); }
+.quick-menu__foot { padding: 6px var(--ui-3, 12px); border-top: 1px solid var(--border-color, rgba(0, 0, 0, .1)); }
+@media (max-width: 991.98px) {
+    .navbar.app-topbar .quick-menu { width: 100%; max-width: none; position: static !important; }
+}
+
+/* ---- palette dialog ----------------------------------------------------- */
+html.cmdk-open, html.cmdk-open body { overflow: hidden; }
+.cmdk { position: fixed; inset: 0; z-index: 2000; }
+.cmdk[hidden] { display: none; }
+.cmdk__backdrop { position: absolute; inset: 0; background: rgba(5, 8, 14, .6); }
+.cmdk__panel {
+    position: relative; margin: 10vh auto 0; width: min(640px, calc(100vw - 32px));
+    max-height: 72vh; display: flex; flex-direction: column;
+    background: var(--surface, #fff); color: var(--text-primary, #1f2937);
+    border: 1px solid var(--border-strong, var(--border-color, #cbd5e1));
+    border-radius: var(--ui-radius, 8px); box-shadow: var(--ui-shadow-lg, 0 1rem 3rem rgba(0, 0, 0, .175));
+    overflow: hidden;
+}
+.cmdk__bar { display: flex; align-items: center; gap: var(--ui-2, 8px); padding: 0 var(--ui-3, 12px); border-bottom: 1px solid var(--border-color, #e5e7eb); }
+.cmdk__icon { color: var(--text-muted, #6b7280); }
+.cmdk__input {
+    flex: 1; min-width: 0; height: 48px; border: 0; outline: 0; background: transparent;
+    color: inherit; font-size: 15px;
+}
+.cmdk__input::placeholder { color: var(--text-muted, #6b7280); opacity: 1; }
+.cmdk__close {
+    background: transparent; border: 0; color: var(--text-muted, #6b7280); padding: 4px;
+    border-radius: var(--ui-radius-sm, 6px); min-width: 32px; min-height: 32px;
+}
+.cmdk__close:focus-visible, .cmdk__input:focus-visible { outline: 2px solid var(--focus-ring, #2563eb); outline-offset: 2px; }
+.cmdk__input:focus-visible { outline: 0; }
+.cmdk__bar:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring, #2563eb); }
+.cmdk__list { overflow-y: auto; overscroll-behavior: contain; padding: 4px 0 6px; flex: 1 1 auto; }
+.cmdk__group + .cmdk__group { border-top: 1px solid var(--border-color, #e5e7eb); margin-top: 4px; padding-top: 4px; }
+.cmdk__group-label {
+    padding: 6px var(--ui-3, 12px) 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--text-muted, #6b7280);
+}
+.cmdk__group-label:empty { display: none; }
+.cmdk__opt {
+    display: flex; align-items: center; gap: 10px; padding: 7px var(--ui-3, 12px);
+    color: inherit !important; text-decoration: none !important; cursor: pointer;
+    border-left: 2px solid transparent;
+}
+.cmdk .cmdk__list a.cmdk__opt,
+.cmdk .cmdk__list a.cmdk__opt:hover,
+.cmdk .cmdk__list a.cmdk__opt:visited { color: var(--text-primary, #1f2937) !important; }
+.cmdk__opt > i { color: var(--text-secondary, #4b5563); flex: 0 0 auto; }
+.cmdk__opt[aria-selected="true"] {
+    background: var(--surface-hover, #eef2f7); border-left-color: var(--primary-color, #2563eb);
+}
+.cmdk__opt-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.cmdk__opt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ui-text, 14px); }
+.cmdk__opt-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ui-text-xs, 12px); color: var(--text-muted, #6b7280); }
+.cmdk__opt-type {
+    flex: 0 0 auto; font-size: 11px; color: var(--text-muted, #6b7280);
+    border: 1px solid var(--border-color, #e5e7eb); border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+}
+.cmdk__msg { padding: 14px var(--ui-3, 12px); font-size: var(--ui-text-sm, 13px); color: var(--text-muted, #6b7280); }
+.cmdk__foot {
+    display: flex; gap: var(--ui-4, 16px); padding: 6px var(--ui-3, 12px); font-size: var(--ui-text-xs, 12px);
+    color: var(--text-muted, #6b7280); border-top: 1px solid var(--border-color, #e5e7eb);
+}
+.cmdk kbd {
+    font: 600 11px/1 var(--ui-font, inherit); padding: 2px 5px; margin-right: 2px; border-radius: 4px;
+    background: var(--surface-raised, #f3f4f6); color: var(--text-secondary, #374151);
+    border: 1px solid var(--border-color, #e5e7eb); box-shadow: none;
+}
+
+/* Phones: full screen, safe areas respected, no footer hints (touch). */
+@media (max-width: 575.98px) {
+    .cmdk__panel {
+        margin: 0; width: 100vw; height: 100vh; height: 100dvh; max-height: none; border-radius: 0; border: 0;
+        padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+    }
+    .cmdk__bar { padding-left: max(var(--ui-3, 12px), env(safe-area-inset-left)); padding-right: max(var(--ui-3, 12px), env(safe-area-inset-right)); }
+    .cmdk__input { height: 52px; font-size: 16px; /* no iOS zoom */ }
+    .cmdk__opt { padding-top: 10px; padding-bottom: 10px; }
+    .cmdk__foot { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .cmdk:not([hidden]) .cmdk__panel { animation: cmdk-in .12s ease-out; }
+}
+@keyframes cmdk-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
