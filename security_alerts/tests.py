@@ -791,6 +791,19 @@ class MTTAQueryTests(TestCase):
         self.assertEqual(row['unack_count'], 1)
         self.assertEqual(row['avg_mtta_minutes'], 15)
 
+    def test_siem_alert_without_connection(self):
+        """SIEM-ingested alerts have no vendor connection; the report used
+        to raise AttributeError on them (v3.17.681)."""
+        from reports.queries import security_alert_mtta
+        org = _make_org()
+        SecurityAlert.objects.create(connection=None, organization=org, external_id='siem-1',
+                                     severity='high', title='from siem')
+        today = date.today()
+        rows = security_alert_mtta(today, today)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['vendor'], 'SIEM')
+        self.assertEqual(rows[0]['unack_count'], 1)
+
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class SecurityAlertsStaffOnlyTests(TestCase):

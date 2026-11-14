@@ -17,6 +17,21 @@ from .forms import (
 from assets.models import Asset
 
 
+def _global_rows(request, qs, field='organization'):
+    """Global view (no client selected): the rows of every client this user
+    holds monitoring_view in, within their reach — the rule every other
+    cross-client list applies (accounts.permission_utils.filter_by_org_perm,
+    core.tenancy.accessible_org_ids). Before v3.17.681 global view returned
+    every client's rows to anyone allowed into /monitoring/."""
+    from accounts.permission_utils import filter_by_org_perm
+    from core.tenancy import accessible_org_ids
+    qs = filter_by_org_perm(qs, request.user, 'monitoring_view', field=field)
+    reach = accessible_org_ids(request)
+    if reach is not None:
+        qs = qs.filter(**{f'{field}_id__in': reach})
+    return qs
+
+
 def _org_get_or_404(model, org, **kwargs):
     """get_object_or_404 scoped to org. Skips org filter in global view (org=None)."""
     if org:
@@ -39,7 +54,7 @@ def website_monitor_list(request):
 
     if in_global_view:
         # Global view: show all monitors across all organizations
-        monitors = WebsiteMonitor.objects.all().select_related('organization')
+        monitors = _global_rows(request, WebsiteMonitor.objects.all()).select_related('organization')
     else:
         # Organization view: show only monitors for current org
         monitors = WebsiteMonitor.objects.filter(organization=org)
@@ -235,7 +250,7 @@ def expiration_list(request):
     org = get_request_organization(request)
     is_staff = getattr(request.user, 'is_staff', False)
     if not org and (request.user.is_superuser or is_staff):
-        expirations = Expiration.objects.all().select_related('organization').order_by('expires_at')
+        expirations = _global_rows(request, Expiration.objects.all()).select_related('organization').order_by('expires_at')
     else:
         expirations = Expiration.objects.filter(organization=org).order_by('expires_at')
 
@@ -326,7 +341,7 @@ def rack_list(request):
     org = get_request_organization(request)
     is_staff = getattr(request.user, 'is_staff', False)
     if not org and (request.user.is_superuser or is_staff):
-        racks = Rack.objects.all().select_related('organization')
+        racks = _global_rows(request, Rack.objects.all()).select_related('organization')
     else:
         racks = Rack.objects.filter(organization=org)
 
@@ -580,7 +595,7 @@ def subnet_list(request):
     org = get_request_organization(request)
     is_staff = getattr(request.user, 'is_staff', False)
     if not org and (request.user.is_superuser or is_staff):
-        subnets = Subnet.objects.all().select_related('organization')
+        subnets = _global_rows(request, Subnet.objects.all()).select_related('organization')
     else:
         subnets = Subnet.objects.filter(organization=org)
 
@@ -785,9 +800,9 @@ def network_closet_list(request):
     org = get_request_organization(request)
     is_staff = getattr(request.user, 'is_staff', False)
     if not org and (request.user.is_superuser or is_staff):
-        closets = Rack.objects.filter(
+        closets = _global_rows(request, Rack.objects.filter(
             rack_type__in=['network_closet', 'data_closet']
-        ).select_related('organization')
+        )).select_related('organization')
     else:
         closets = Rack.objects.filter(
             organization=org,
@@ -1016,7 +1031,7 @@ def wan_monitor_list(request):
 
     if in_global_view:
         # Global view: show all monitored WANs across all organizations
-        wans = WAN.objects.filter(monitoring_enabled=True).select_related(
+        wans = _global_rows(request, WAN.objects.filter(monitoring_enabled=True)).select_related(
             'organization', 'location'
         ).order_by('organization__name', 'location__name', 'name')
     else:
@@ -1048,7 +1063,7 @@ def wan_monitor_list(request):
     # Get all locations for filter dropdown
     if in_global_view:
         from locations.models import Location
-        locations = Location.objects.all().order_by('organization__name', 'name')
+        locations = _global_rows(request, Location.objects.all()).order_by('organization__name', 'name')
     else:
         locations = org.locations.all().order_by('name') if org else []
 
