@@ -81,6 +81,7 @@ class Palette:
         self.probe = navigation._PermProbe(self.ctx)
         self.scope = SearchScope(request)
         self._dest = None
+        self._dest_by_path = None
 
     # -- gates -------------------------------------------------------------
 
@@ -107,7 +108,9 @@ class Palette:
 
     @property
     def dest_by_path(self):
-        return {d['href'].split('?', 1)[0]: d for d in self.destinations}
+        if self._dest_by_path is None:
+            self._dest_by_path = {d['href'].split('?', 1)[0]: d for d in self.destinations}
+        return self._dest_by_path
 
 
 def _clean_dest(d):
