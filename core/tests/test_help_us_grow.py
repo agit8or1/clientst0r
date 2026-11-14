@@ -140,8 +140,10 @@ class RenderedPageTests(TestCase):
     # -- the entry button ----------------------------------------------------
 
     def test_the_navbar_carries_a_heart_labelled_help_us_grow(self):
+        """In the account menu since the top-bar redesign (it was a bar button)."""
         html = self._html()
-        self.assertIn('nav-link nav-util nav-help-grow', html)
+        menu = html.split('aria-labelledby="userDropdown"', 1)[1].split('</ul>', 1)[0]
+        self.assertIn('dropdown-item nav-help-grow', menu)
         self.assertIn('fas fa-heart nav-help-grow__heart', html)
         self.assertIn('>Help Us Grow<', html)
 

@@ -23,6 +23,19 @@ def strip(html):
     return m.group(1) if m else None
 
 
+def _has_args(view_name):
+    try:
+        reverse(view_name)
+        return False
+    except Exception:
+        return True
+
+
+def settings_ws(html):
+    m = re.search(r'<nav class="settings-ws"[^>]*>(.*?)</nav>', html, re.S)
+    return m.group(1) if m else None
+
+
 def ctx_for(user, view_name, args=(), **extra):
     """A template-context-like dict for navigation.nav_state()."""
     request = RequestFactory().get(reverse(view_name, args=args))
@@ -49,22 +62,50 @@ class EveryTabOpensTests(NavbarTestBase):
         self.client.get(reverse('accounts:switch_organization', args=[self.org.id]))
 
     def test_every_tab(self):
+        # Fetch every tab once; a settings page links exactly the pages of its
+        # category this user can open (the gates mirror the views' checks).
+        pages = {}
+        for section in navigation.SECTIONS:
+            for tab in section.tabs:
+                if tab.modal or tab.download:
+                    continue
+                url = reverse(tab.url_name, args=tab.args)
+                if url not in pages:
+                    r = self.client.get(url, follow=True)
+                    final = r.resolver_match.view_name if r.resolver_match else ''
+                    pages[url] = (r.status_code, final, r.content.decode())
+        reachable = {u for u, (code, final, _h) in pages.items()
+                     if code == 200 and final and not _has_args(final) and reverse(final) == u}
         checked = 0
         for section in navigation.SECTIONS:
             for tab in section.tabs:
                 if tab.modal or tab.download:
                     continue
                 url = reverse(tab.url_name, args=tab.args)
+                code, final, html = pages[url]
                 with self.subTest(section=section.key, url=url):
-                    r = self.client.get(url, follow=True)
-                    self.assertNotIn(r.status_code, (404, 500), url)
-                    if r.status_code != 200:
-                        continue
-                    final = r.resolver_match.view_name if r.resolver_match else ''
-                    if final != tab.url_name:
-                        continue  # redirected elsewhere (e.g. a setup step)
+                    self.assertNotIn(code, (404, 500), url)
+                    if code != 200 or final != tab.url_name:
+                        continue  # refused, or redirected elsewhere (e.g. a setup step)
                     checked += 1
-                    html = r.content.decode()
+                    if section.menu == 'settings':
+                        # Settings pages carry the settings workspace header
+                        # instead of a pill strip.
+                        self.assertIsNone(strip(html), url)
+                        ws = settings_ws(html)
+                        self.assertIsNotNone(ws, f'{url} lost the settings header')
+                        self.assertIn(f'data-settings-group="{section.key}"', ws)
+                        self.assertRegex(
+                            ws, r'class="nav-link settings-menu-item active" href="%s" '
+                            r'aria-current="page"' % re.escape(url))
+                        pills = ws.split('settings-ws__pages', 1)[1].split('</ul>', 1)[0]
+                        for sibling in section.tabs:
+                            href = reverse(sibling.url_name, args=sibling.args)
+                            if href in reachable:
+                                self.assertIn(f'href="{href}"', pills, href)
+                            elif href in pages:
+                                self.assertNotIn(f'href="{href}"', pills, href)
+                        continue
                     if not section.render_tabs or len(section.tabs) < 2:
                         self.assertIsNone(strip(html), url)
                         continue
@@ -84,7 +125,7 @@ class EveryTabOpensTests(NavbarTestBase):
 
     def test_sidebar_marks_the_current_group_entry_and_page(self):
         html = self.client.get(reverse('psa:recurring_list')).content.decode()
-        self.assertIn('<li class="app-nav__group is-active" data-group="tickets"', html)
+        self.assertIn('<li class="app-nav__group is-active" data-group="operations"', html)
         self.assertIn('<li class="app-nav__group" data-group="tools"', html)
         self.assertIn('class="app-nav__link active" href="%s"' % reverse('psa:ticket_list'), html)
         self.assertRegex(html, r'class="app-nav__sublink active" href="%s" aria-current="page"'
@@ -94,7 +135,7 @@ class EveryTabOpensTests(NavbarTestBase):
 
     def test_detail_pages_light_their_group_without_a_strip(self):
         html = self.client.get(reverse('psa:ticket_create')).content.decode()
-        self.assertIn('<li class="app-nav__group is-active" data-group="tickets"', html)
+        self.assertIn('<li class="app-nav__group is-active" data-group="operations"', html)
         self.assertIsNone(strip(html))
 
     def test_help_tabs_open_the_same_modals_the_menu_did(self):
@@ -123,7 +164,12 @@ class EveryTabOpensTests(NavbarTestBase):
 class RegistryTests(NavbarTestBase):
 
     def test_tab_budget(self):
+        """A pill row stays short. Settings categories are exempt: their pages
+        are a wrapping second row of the settings header, with a search."""
         for section in navigation.SECTIONS:
+            if section.menu == 'settings':
+                self.assertLessEqual(len(section.tabs), 12, section.key)
+                continue
             self.assertLessEqual(len(section.tabs), 7, section.key)
 
     def test_every_old_menu_destination_has_a_home(self):
@@ -181,7 +227,10 @@ class GateTests(NavbarTestBase):
         st = navigation.nav_state(ctx_for(self.customer, 'psa:service_catalog'))
         self.assertNotIn('Approvals', self.labels(st))
         self.assertNotIn('Knowledge Base', self.labels(st))
-        self.assertIn('Change Requests', self.labels(st))
+        # Change Requests / Problems / Releases follow change_view /
+        # problem_view / release_view, the checks inside those pages; this
+        # customer has no role, so none of them is offered.
+        self.assertNotIn('Change Requests', self.labels(st))
         st = navigation.nav_state(ctx_for(self.customer, 'docs:document_drafts_list'))
         self.assertNotIn('KB Analytics', self.labels(st))
 
@@ -195,11 +244,17 @@ class GateTests(NavbarTestBase):
     def test_technician_gets_staff_tabs_but_not_superuser_ones(self):
         st = navigation.nav_state(ctx_for(self.customer, 'psa:service_catalog', is_staff_user=True))
         self.assertIn('Approvals', self.labels(st))
-        st = navigation.nav_state(ctx_for(self.customer, 'accounts:organization_list',
-                                          is_staff_user=True))
-        self.assertEqual(st['tabs'], [])  # Access Management is superuser-only
-        st = navigation.nav_state(ctx_for(self.su, 'accounts:organization_list'))
-        self.assertEqual(self.labels(st), ['Organizations', 'Access Management'])
+        # Access Management is superuser-only; a technician on the category
+        # is not offered it.
+        section = navigation.SECTIONS_BY_KEY['settings_access']
+        tech = [str(t['label']) for t in navigation.resolve_tabs(
+            section, ctx_for(self.customer, 'accounts:access_management', is_staff_user=True))]
+        self.assertNotIn('Access Management', tech)
+        self.assertNotIn('Users', tech)
+        su = [str(t['label']) for t in navigation.resolve_tabs(
+            section, ctx_for(self.su, 'accounts:access_management'))]
+        self.assertIn('Access Management', su)
+        self.assertIn('Users', su)
 
     def test_feature_flags_hide_strips(self):
         st = navigation.nav_state(ctx_for(self.su, 'crm:home', crm_enabled=False))
