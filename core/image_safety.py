@@ -44,3 +44,66 @@ def open_image(fp):
     # MPO has no opener of its own (the JPEG factory returns it), so only pass
     # formats Pillow can actually open.
     return Image.open(fp, formats=sorted(f for f in ALLOWED_FORMATS if f in Image.OPEN))
+
+
+def sanitize_image(uploaded, *, max_bytes, max_edge, allowed, max_pixels=40_000_000,
+                   messages=None):
+    """A re-encoded copy of an uploaded image, or ValidationError.
+
+    Checks the size, decodes with the allow-listed decoders only, checks the
+    pixel count before decoding, applies the EXIF orientation, then writes a
+    fresh JPEG (PNG when it has transparency) no larger than `max_edge`
+    pixels under a random name. Re-encoding drops every metadata block and
+    anything appended to the original file. Used for asset photos
+    (assets.images) and portal branding (core.portal_settings_views).
+    `messages` overrides the wording: keys size, type, pixels, unreadable.
+    """
+    import io
+    import uuid
+
+    from django.core.exceptions import ValidationError
+    from django.core.files.base import ContentFile
+    from PIL import Image, ImageOps
+
+    msg = {
+        'size': f'Images can be at most {max_bytes // (1024 * 1024)} MB.',
+        'type': 'Upload a PNG, JPEG or WebP image.',
+        'pixels': 'That image is too large. Use one under 40 megapixels.',
+        'unreadable': 'The image could not be read.',
+    }
+    msg.update(messages or {})
+
+    size = getattr(uploaded, 'size', None)
+    if size is not None and size > max_bytes:
+        raise ValidationError(msg['size'])
+    try:
+        uploaded.seek(0)
+        probe = open_image(uploaded)
+        fmt = probe.format
+        width, height = probe.size
+        probe.verify()
+    except Exception:
+        raise ValidationError(msg['type'])
+    if fmt not in allowed:
+        raise ValidationError(msg['type'])
+    if width * height > max_pixels or width < 1 or height < 1:
+        raise ValidationError(msg['pixels'])
+
+    try:
+        uploaded.seek(0)
+        img = open_image(uploaded)
+        img.seek(0)                      # first frame of an animated GIF / WebP
+        img = ImageOps.exif_transpose(img)
+        has_alpha = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+        img = img.convert('RGBA' if has_alpha else 'RGB')
+        img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        if has_alpha:
+            img.save(out, format='PNG', optimize=True)
+            ext = 'png'
+        else:
+            img.save(out, format='JPEG', quality=85, optimize=True)
+            ext = 'jpg'
+    except Exception:
+        raise ValidationError(msg['unreadable'])
+    return ContentFile(out.getvalue(), name=f'{uuid.uuid4().hex}.{ext}')
