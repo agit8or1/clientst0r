@@ -8,7 +8,9 @@ destinations_for(). Gates are the pages' own; these tests pin that nothing
 new is offered to a user the page would refuse.
 """
 import re
+from pathlib import Path
 
+from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.template import RequestContext, Template
 from django.test import RequestFactory, TestCase, override_settings
@@ -180,6 +182,24 @@ class SidebarMarkupTests(NavbarTestBase):
         for name in ('psa:my_work', 'psa:my_timesheet', 'resourcing:my_leave', 'resourcing:my_resourcing',
                      'resourcing:my_billable_target', 'scheduling:my_tasks', 'resourcing:shift_schedule'):
             self.assertIn(reverse(name), nav['my_work'], name)
+
+    def test_client_workspace_lights_clients_without_a_second_strip(self):
+        """The workspace draws its own ?tab= strip; the frame adds none, the
+        Clients section is current and only Client Workspace is lit."""
+        for name in ('accounts:organization_detail', 'accounts:organization_edit',
+                     'accounts:organization_create', 'accounts:organization_delete',
+                     'accounts:organization_service_info', 'accounts:ownership_transfer',
+                     'accounts:member_add', 'accounts:member_edit', 'accounts:member_remove'):
+            self.assertEqual(navigation.section_for(name).key, 'clients_all', name)
+        html = self.client.get(reverse('accounts:organization_detail', args=[self.org.id])).content.decode()
+        self.assertIn('<li class="app-nav__group is-active" data-group="clients"', html)
+        active = re.findall(r'class="app-nav__(?:link|sublink) active" href="([^"]+)"', aside_of(html))
+        self.assertEqual(active, [reverse('accounts:organization_detail', args=[self.org.id])])
+        self.assertIsNone(strip(html))
+        # breadcrumb_tail sits inside the trail's <ol>, after the section crumbs.
+        base = (Path(django_settings.BASE_DIR) / 'templates/base.html').read_text()
+        ol = base.split('<ol class="breadcrumb app-trail__list', 1)[1].split('</ol>', 1)[0]
+        self.assertIn('{% endfor %}{% block breadcrumb_tail %}{% endblock %}', ol)
 
     def test_a_link_only_page_lights_one_place(self):
         html = self.client.get(reverse('scheduling:my_tasks')).content.decode()

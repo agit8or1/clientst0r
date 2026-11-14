@@ -472,7 +472,13 @@ SECTIONS = (
     # The organization list is every technician's "All clients" page (client
     # switcher) and a customer user's list of their organizations.
     Section('clients_all', 'clients', _('Clients'), tabs=(
-        Tab(_('All Clients'), 'accounts:organization_list', 'fa-building'),
+        # The client workspace (owned by the client-workspace pages) and its
+        # forms light Clients; the workspace draws its own ?tab= strip.
+        Tab(_('All Clients'), 'accounts:organization_list', 'fa-building', also=(
+            'accounts:organization_detail', 'accounts:organization_edit',
+            'accounts:organization_create', 'accounts:organization_delete',
+            'accounts:organization_service_info', 'accounts:ownership_transfer',
+            'accounts:member_add', 'accounts:member_edit', 'accounts:member_remove')),
     )),
 
     # ---- Assets & Network ----------------------------------------------------
@@ -1666,6 +1672,12 @@ def primary_nav(ctx):
             return None
         entries = [e for e in (_resolve_entry(en, ctx, match, probe, current_section)
                                for en in group.entries) if e is not None]
+        if view_name and any(e['active'] and e['key'] == view_name for e in entries):
+            # An entry for this exact page (Client Workspace on the selected
+            # client) wins over the section entry that also covers it.
+            for e in entries:
+                if e['key'] != view_name:
+                    e['active'] = False
         if group.key == 'dashboard':
             pins, state['pin_edit'] = _overview_pins(ctx, probe, {e['href'] for e in entries}, path)
             entries += pins
