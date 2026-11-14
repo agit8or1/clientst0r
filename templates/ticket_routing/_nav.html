@@ -1,10 +1,6 @@
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb mb-2">
-        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'ticket_routing:overview' %}">Ticket Routing</a></li>
-        {% if crumb %}<li class="breadcrumb-item active">{{ crumb }}</li>{% endif %}
-    </ol>
-</nav>
+{% comment %}Ticket routing's own tabs. Where-you-are is the page frame's trail
+(core/_work_context.html); this used to repeat it as a breadcrumb. `crumb` is
+no longer shown.{% endcomment %}
 <ul class="nav nav-tabs mb-3 small">
     <li class="nav-item"><a class="nav-link {% if tab == 'overview' %}active{% endif %}" href="{% url 'ticket_routing:overview' %}">Settings &amp; rules</a></li>
     <li class="nav-item"><a class="nav-link {% if tab == 'oncall' %}active{% endif %}" href="{% url 'ticket_routing:on_call' %}">On call</a></li>

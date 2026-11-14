@@ -3,13 +3,6 @@
 {% block title %}Compare roles - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
-        <li class="breadcrumb-item active">Compare</li>
-    </ol>
-</nav>
 <h2><i class="fas fa-columns"></i> Compare two roles</h2>
 
 <form method="get" class="row g-2 align-items-end mb-4">

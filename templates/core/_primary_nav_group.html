@@ -13,9 +13,9 @@
     </div>
     <ul class="app-nav__entries" id="appNavGroup-{{ g.key }}"{% if not g.active %} hidden{% endif %}>
         {% for e in g.entries %}
-        <li class="app-nav__entry" data-filter="{{ e.label }} {{ e.keywords }} {{ g.label }}">
+        <li class="app-nav__entry{% if e.pin %} app-nav__entry--pin{% endif %}" data-filter="{{ e.label }} {{ e.keywords }} {{ g.label }}"{% if e.shortcut %} data-shortcut-key="{{ e.shortcut }}"{% endif %}>
             <a class="app-nav__link{% if e.active %} active{% endif %}" href="{{ e.href }}" title="{{ e.label }}"{% if e.href == request.path %} aria-current="page"{% endif %}>
-                <i class="{{ e.icon }} fa-fw" aria-hidden="true"></i><span class="app-nav__text">{{ e.label }}</span>
+                <i class="{{ e.icon }} fa-fw" aria-hidden="true"></i><span class="app-nav__text">{{ e.label }}</span>{% if e.pin %}<span class="visually-hidden"> ({% trans "pinned" %})</span>{% endif %}
             </a>
             {% if e.children %}
             <ul class="app-nav__sub"{% if not e.active %} hidden{% endif %}>
@@ -26,5 +26,12 @@
             {% endif %}
         </li>
         {% endfor %}
+        {% if g.key == 'overview' and pnav.pin_edit %}
+        <li class="app-nav__entry app-nav__pin-edit" data-filter="{% trans 'Edit shortcuts pins' %} {{ g.label }}">
+            <a class="app-nav__pinlink" href="{{ pnav.pin_edit }}?next={{ request.get_full_path|urlencode }}">
+                <i class="fas fa-thumbtack fa-fw" aria-hidden="true"></i><span class="app-nav__text">{% trans "Edit pinned pages" %}</span>
+            </a>
+        </li>
+        {% endif %}
     </ul>
 </li>

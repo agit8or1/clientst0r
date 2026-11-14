@@ -4,20 +4,9 @@
 {% block title %}Why this access - Technician Access{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'core:settings_security' %}">Security</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'tech_access:index' %}">Technician Access</a></li>
-        <li class="breadcrumb-item active">Why</li>
-    </ol>
-</nav>
 
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="technician_access" %}
-    </div>
-    <div class="col-md-9">
+    <div class="col-12">
         <div class="card mb-3">
             <div class="card-header"><strong>Why can this technician do this here?</strong></div>
             <div class="card-body small">

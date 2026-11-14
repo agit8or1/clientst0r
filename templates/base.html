@@ -51,8 +51,18 @@
 
     <a href="#main-content" class="skip-to-main">Skip to main content</a>
     {% nav_state as nav %}
-    {% if user.is_authenticated %}{% primary_nav as pnav %}{% endif %}
-    <nav class="navbar navbar-expand-xxl navbar-dark">
+    {% if user.is_authenticated %}{% primary_nav as pnav %}{% nav_notifications as nav_bell %}{% endif %}
+    {% comment %}
+    Top bar (built from core.navigation like the sidebar; docs/navigation-map.md):
+    brand, shortcuts to the main sidebar entries (each drawn only when that
+    entry is in this user's sidebar), search, notifications (core.notifications:
+    existing counts only, each behind its page's own check), help, the
+    Administration gear, the client switcher and the account menu.
+    It expands from 992px; below that the sidebar is a drawer (☰) and the
+    toggler opens search, client and account controls. Between 992px and
+    1400px the shortcuts are icons with their names as labels and tooltips.
+    {% endcomment %}
+    <nav class="navbar navbar-expand-lg navbar-dark app-topbar">
         <div class="container-fluid navbar-container">
             {% if pnav.groups %}
             <button type="button" class="app-nav-open btn btn-link nav-link" id="appNavOpen"
@@ -72,62 +82,24 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% if user.is_authenticated %}
-                {% comment %}
-                Primary navigation is the sidebar (core/_primary_nav.html, built
-                from core.navigation.PRIMARY): My Work, Tickets, Clients,
-                Devices, Alerts, Tools, Reports, and Settings at its foot. The
-                bar keeps the brand, search, client switcher, utilities and the
-                account menu. docs/navigation-map.md maps every old menu entry.
-                {% endcomment %}
-                <ul class="navbar-nav ms-auto" id="utilityNav">
-                    {% if user.is_authenticated %}
-                    {% comment %}
-                    v3.17.585 — the utility controls are individual buttons again.
-
-                    v3.17.559 put Beta app / Install app / Support this project
-                    behind an ellipsis menu to stop the bar colliding with the
-                    search box; v3.17.580 then freed up real estate by grouping
-                    Security, CRM and Reports under the main "More" menu, so the
-                    room exists and a control nobody can see is a control nobody
-                    uses. They sit in their original order with their original
-                    icons and behaviour — Support still opens the same modal —
-                    and wrap onto a second row rather than collapsing back into
-                    an overflow menu. Do not confuse this cluster with the main
-                    navigation's Modules menu (formerly More), which is a
-                    different thing.
-                    {% endcomment %}
+                {% if pnav.topbar %}
+                <ul class="navbar-nav topbar-shortcuts d-none d-lg-flex" id="topbarShortcuts" aria-label="{% trans 'Shortcuts' %}">
+                    {% for t in pnav.topbar %}
                     <li class="nav-item">
-                        <a class="nav-link nav-util" href="{% url 'core:favorite_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Favorites' %}" aria-label="{% trans 'Favorites' %}">
-                            <i class="fas fa-star" aria-hidden="true"></i>
+                        <a class="nav-link topbar-link{% if t.active %} active{% endif %}" href="{{ t.href }}" data-topbar="{{ t.key }}"
+                           title="{{ t.label }}"{% if t.href == request.path %} aria-current="page"{% endif %}>
+                            <i class="{{ t.icon }} fa-fw" aria-hidden="true"></i><span class="topbar-link__text">{{ t.label }}</span>
                         </a>
                     </li>
-                    {# v3.17.484 — Beta-test the Android app CTA for logged-in users. #}
-                    <li class="nav-item">
-                        <a class="nav-link nav-util" href="{% url 'core:beta_test_signup' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Beta-test the Android app' %}" aria-label="{% trans 'Beta app' %}">
-                            <i class="fas fa-mobile-screen-button" aria-hidden="true"></i>
-                            <span class="d-xxl-none ms-2">{% trans "Beta app" %}</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link nav-util" href="{% url 'core:install_app' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Install the app on your phone or desktop' %}" aria-label="{% trans 'Install app' %}">
-                            <i class="fas fa-download" aria-hidden="true"></i>
-                            <span class="d-xxl-none ms-2">{% trans "Install app" %}</span>
-                        </a>
-                    </li>
-                    {% include "core/_help_us_grow_button.html" %}
-                    <!-- Global KB lives under PSA → Service Management → Knowledge Base when PSA is enabled; otherwise stays in the primary navbar -->
-                    {% if global_kb_enabled and not psa_enabled %}
-                        {% if is_staff_user or user.is_superuser %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'docs:global_kb_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Staff-only knowledge base shared across all organizations' %}"><i class="fas fa-book"></i> {% trans "Global KB" %}</a></li>
-                        {% endif %}
-                    {% endif %}
-
-                    <!-- Search Form -->
-                    <li class="nav-item">
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                <ul class="navbar-nav ms-auto align-items-lg-center" id="utilityNav">
+                    <li class="nav-item topbar-search-item">
                         <form class="nav-search" action="{% url 'core:search' %}" method="get" role="search">
                             <i class="fas fa-search nav-search__icon" aria-hidden="true"></i>
                             <input class="form-control" type="search" name="q"
-                                   placeholder="{% trans 'Search tickets, devices, clients… ( / )' %}"
+                                   placeholder="{% trans 'Search… ( / )' %}"
                                    aria-label="{% trans 'Search across tickets, devices, clients, passwords, assets, documents, and more' %}" aria-keyshortcuts="/">
                         </form>
                     </li>
@@ -142,41 +114,72 @@
                         </a>
                     </li>
                     {% endif %}
-                    <!-- Theme Toggle -->
-                    <li class="nav-item">
-                        <button class="btn btn-link nav-link" data-action="toggleTheme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" aria-label="Toggle between dark and light theme" style="border: none; background: none;">
-                            <i aria-hidden="true" id="theme-icon" class="fas {% if user_theme_is_dark %}fa-sun{% else %}fa-moon{% endif %}"></i>
-                        </button>
+                    {% if nav_bell.items %}
+                    <li class="nav-item dropdown topbar-notes">
+                        <a class="nav-link nav-util position-relative" href="#" id="notifDropdown" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false"
+                           title="{% trans 'Notifications' %}"
+                           aria-label="{% if nav_bell.total %}{% blocktrans count n=nav_bell.total %}Notifications: {{ n }} new{% plural %}Notifications: {{ n }} new{% endblocktrans %}{% else %}{% trans 'Notifications: nothing new' %}{% endif %}">
+                            <i class="fas fa-bell" aria-hidden="true"></i>
+                            {% if nav_bell.total %}<span class="topbar-count badge rounded-pill text-bg-danger" aria-hidden="true">{% if nav_bell.total > 99 %}99+{% else %}{{ nav_bell.total }}{% endif %}</span>{% endif %}
+                            <span class="d-lg-none ms-2">{% trans "Notifications" %}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end topbar-notes__menu" aria-labelledby="notifDropdown">
+                            {% for n in nav_bell.items %}
+                            <li><a class="dropdown-item d-flex align-items-center justify-content-between gap-3" href="{{ n.href }}" data-note="{{ n.key }}">
+                                <span><i class="{{ n.icon }} fa-fw me-1" aria-hidden="true"></i>{{ n.label }}</span>
+                                <span class="badge rounded-pill {% if n.count %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ n.count }}</span>
+                            </a></li>
+                            {% endfor %}
+                            {% if not nav_bell.total %}<li><hr class="dropdown-divider"></li><li><span class="dropdown-item-text small text-body-secondary">{% trans "Nothing new." %}</span></li>{% endif %}
+                        </ul>
                     </li>
-                    <!-- Live Clock -->
-                    <li class="nav-item d-none d-md-flex align-items-center px-2">
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link nav-util{% if nav.section == 'account_help' %} active{% endif %}" href="{% url 'core:help_index' %}" id="topbarHelp"
+                           data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Help and documentation' %}" aria-label="{% trans 'Help' %}">
+                            <i class="fas fa-circle-question" aria-hidden="true"></i><span class="d-lg-none ms-2">{% trans "Help" %}</span>
+                        </a>
+                    </li>
+                    {% if pnav.settings %}
+                    <li class="nav-item">
+                        <a class="nav-link nav-util{% if pnav.workspace.current %} active{% endif %}" href="{{ pnav.settings.href }}" id="topbarSettings"
+                           data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Administration and settings' %}" aria-label="{% trans 'Administration' %}">
+                            <i class="fas fa-gear" aria-hidden="true"></i><span class="d-lg-none ms-2">{% trans "Administration" %}</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <!-- Live Clock (wide screens) -->
+                    <li class="nav-item topbar-clock d-none d-xxl-flex align-items-center px-2">
                         <span id="nav-clock" class="text-white-50" style="font-size: 0.8rem; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; cursor: default;" data-bs-toggle="tooltip" data-bs-placement="bottom" title=""></span>
                     </li>
                     {% include "core/_client_switcher.html" %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle{% if nav.menu == 'account' %} active{% endif %}" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ user.username }}
+                        <a class="nav-link dropdown-toggle topbar-account{% if nav.menu == 'account' %} active{% endif %}" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="{{ user.username }}">
+                            <i class="fas fa-circle-user" aria-hidden="true"></i><span class="topbar-account__name">{{ user.username }}</span>
                             {% if is_staff_user %}
                             <span class="badge bg-primary ms-1">Staff</span>
                             {% endif %}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item{% if nav.section == 'account_profile' %} active{% endif %}" href="{% url 'accounts:profile' %}"{% if nav.section == 'account_profile' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'View and edit your user profile' %}"><i class="fas fa-user"></i> {% trans "My Profile" %}</a></li>
-                            <li><a class="dropdown-item{% if nav.section == 'account_work' %} active{% endif %}" href="{% url 'resourcing:my_resourcing' %}"{% if nav.section == 'account_work' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Skills, certifications, working hours, leave and billable target' %}"><i class="fas fa-user-graduate"></i> {% trans "My Work Details" %}</a></li>
-                            <li><a class="dropdown-item{% if nav.section == 'account_help' %} active{% endif %}" href="{% url 'core:help_index' %}"{% if nav.section == 'account_help' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Documentation, about, roadmap and bug reports' %}"><i class="fas fa-book"></i> {% trans "Help" %}</a></li>
-                            <li><a class="dropdown-item{% if nav.section == 'account_apps' %} active{% endif %}" href="{% url 'core:install_app' %}"{% if nav.section == 'account_apps' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Install the app, Android APK, beta testing and browser extension' %}"><i class="fas fa-download"></i> {% trans "Apps & Downloads" %}</a></li>
+                            {% for a in pnav.account %}
+                            {% if a.divider %}<li><hr class="dropdown-divider"></li>
+                            {% elif a.help_grow %}{% include "core/_help_us_grow_button.html" %}
+                            {% elif a.action %}<li><button type="button" class="dropdown-item" data-action="{{ a.action }}" title="{{ a.title }}"><i id="theme-icon" class="{{ a.icon }} fa-fw" aria-hidden="true"></i> {{ a.label }}</button></li>
+                            {% else %}<li><a class="dropdown-item{% if a.active %} active{% endif %}" href="{{ a.href }}"{% if a.active %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{{ a.title }}"{% if a.aria %} aria-label="{{ a.aria }}"{% endif %}><i class="{{ a.icon }} fa-fw" aria-hidden="true"></i> {{ a.label }}</a></li>
+                            {% endif %}
+                            {% endfor %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}" style="margin: 0;">
                                     {% csrf_token %}
                                     <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left; cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Sign out of your account' %}">
-                                        <i class="fas fa-sign-out-alt"></i> {% trans "Sign Out" %}
+                                        <i class="fas fa-sign-out-alt fa-fw" aria-hidden="true"></i> {% trans "Sign Out" %}
                                     </button>
                                 </form>
                             </li>
                         </ul>
                     </li>
-                    {% endif %}
                 </ul>
                 {% else %}
                 <ul class="navbar-nav ms-auto">
@@ -195,9 +198,8 @@
     <div class="app-layout{% if pnav.groups %} has-app-nav{% endif %}">
     {% if pnav.groups %}{% include "core/_primary_nav.html" %}{% endif %}
     <div class="app-main">
-    {% if user.is_authenticated %}{% include "core/_shortcut_strip.html" %}{% endif %}
 
-    <main id="main-content" class="{% block main_class %}container mt-4{% endblock %}" tabindex="-1">
+    <main id="main-content" class="{% block main_class %}container mt-2{% endblock %}" tabindex="-1">
         {% csrf_token %}
         {% if messages %}
             {% for message in messages %}
@@ -209,7 +211,6 @@
         {% endif %}
 
         {% if user.is_authenticated %}{% include "core/_work_context.html" %}{% endif %}
-        {% include "core/_section_tabs.html" with tabs=nav.tabs label=nav.section_label %}
         {% block content %}{% endblock %}
     </main>
 

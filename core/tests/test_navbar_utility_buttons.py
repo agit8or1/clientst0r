@@ -1,18 +1,21 @@
-"""The utility controls are visible buttons, not an overflow menu.
+"""The top bar: shortcuts, search, bell, help, gear, client switcher, account.
 
-Beta app, Install app and the support heart (relabelled "Help Us Grow"
-in v3.17.586) sat behind an ellipsis
-dropdown between the star and the search box (v3.17.559). A control nobody
-can see is a control nobody uses, and v3.17.580 freed the room by grouping
-Security, CRM and Reports under the main navigation's More menu.
-
-They are now individual buttons in their original order, with their original
-icons and behaviour. This is deliberately NOT the main navigation's Modules
-menu (`modulesDropdown`, formerly More), which stays a dropdown — see
-`test_navbar_grouping.py`.
+Beta app, Install app and the support heart ("Help Us Grow", v3.17.586) were
+visible buttons between the favorites star and the search box (v3.17.559 put
+them behind an ellipsis, v3.17.580 brought them back out). The top-bar
+redesign moves them into the account menu so the bar can carry the
+destinations people use all day: shortcuts derived from the sidebar's
+entries, search, the notification bell, help, settings and the client
+switcher. These tests pin that move deliberately — the three controls keep
+their accessible names, tooltips and behaviour, they are just one click
+deeper — and that the bar itself is labelled, ordered and expands at the
+992px (lg) breakpoint.
 """
+import re
+
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -25,10 +28,19 @@ TEST_MIDDLEWARE = [
 ]
 
 
+def account_menu(html):
+    return html.split('aria-labelledby="userDropdown"', 1)[1].split('</ul>', 1)[0]
+
+
+def utility_bar(html):
+    return html.split('id="utilityNav"', 1)[1].split('id="userDropdown"', 1)[0]
+
+
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class UtilityControlsAreVisibleTests(TestCase):
+class TopBarTests(TestCase):
 
     def setUp(self):
+        cache.clear()
         row = SystemSetting.get_settings()
         row.psa_enabled = True
         row.crm_enabled = True
@@ -38,107 +50,130 @@ class UtilityControlsAreVisibleTests(TestCase):
             'util_su', 'u@x.com', 'pw', is_staff=True, is_superuser=True)
         self.client.force_login(self.user)
 
-    def _html(self):
-        r = self.client.get(reverse('core:dashboard'))
+    def _html(self, name='core:dashboard'):
+        r = self.client.get(reverse(name))
         self.assertEqual(r.status_code, 200)
         return r.content.decode()
 
-    # -- the ellipsis menu is gone -------------------------------------------
+    # -- the three controls moved into the account menu ----------------------
 
-    def test_the_ellipsis_trigger_and_its_container_are_gone(self):
-        html = self._html()
-        self.assertNotIn('id="moreMenu"', html)
-        self.assertNotIn('aria-labelledby="moreMenu"', html)
+    def test_the_three_live_in_the_account_menu(self):
+        menu = account_menu(self._html())
+        self.assertIn(f'href="{reverse("core:beta_test_signup")}"', menu)
+        self.assertIn(f'href="{reverse("core:install_app")}"', menu)
+        self.assertIn('data-bs-target="#supportProjectModal"', menu)
 
-    def _utility_cluster(self, html):
-        """The stretch of markup between the star and the search box.
-
-        The user/account menu keeps its own copies of these destinations and
-        always has — those are legitimate, so assertions have to be scoped to
-        the cluster rather than to the whole page.
-        """
-        start = html.index(reverse('core:favorite_list'))
-        end = html.index('class="nav-search"', start)
-        return html[start:end]
-
-    def test_no_dropdown_wraps_the_utility_controls(self):
-        """
-        The three used to be `dropdown-item`s behind an ellipsis. If a
-        dropdown reappears in this stretch, something has put them back
-        behind a click.
-        """
-        cluster = self._utility_cluster(self._html())
-        self.assertNotIn('dropdown-menu', cluster)
-        self.assertNotIn('dropdown-toggle', cluster)
-        self.assertNotIn('dropdown-item', cluster)
-
-    def test_the_three_live_in_the_cluster_as_buttons(self):
-        cluster = self._utility_cluster(self._html())
-        self.assertEqual(cluster.count('nav-link nav-util'), 3,
-                         'expected beta app, install app and Help Us Grow as '
-                         'peers of the star')
-        self.assertIn(reverse('core:beta_test_signup'), cluster)
-        self.assertIn(reverse('core:install_app'), cluster)
-        self.assertIn('data-bs-target="#supportProjectModal"', cluster)
-
-    # -- the controls themselves ---------------------------------------------
-
-    def test_all_three_are_present_as_utility_buttons(self):
-        html = self._html()
-        cluster = html.split('nav-util', 1)[1]
-        self.assertIn(reverse('core:beta_test_signup'), cluster)
-        self.assertIn(reverse('core:install_app'), cluster)
-        self.assertIn('data-bs-target="#supportProjectModal"', cluster)
+    def test_they_are_no_longer_in_the_bar(self):
+        bar = utility_bar(self._html())
+        self.assertNotIn(reverse('core:beta_test_signup'), bar)
+        self.assertNotIn(reverse('core:install_app'), bar)
+        self.assertNotIn('supportProjectModal', bar)
+        self.assertNotIn('id="moreMenu"', bar)
 
     def test_they_keep_their_original_order(self):
-        html = self._html()
-        star = html.index(reverse('core:favorite_list'))
-        beta = html.index(reverse('core:beta_test_signup'), star)
-        install = html.index(reverse('core:install_app'), star)
-        support = html.index('data-bs-target="#supportProjectModal"', star)
-        self.assertLess(star, beta)
+        menu = account_menu(self._html())
+        beta = menu.index(reverse('core:beta_test_signup'))
+        install = menu.index(reverse('core:install_app'))
+        support = menu.index('data-bs-target="#supportProjectModal"')
         self.assertLess(beta, install)
         self.assertLess(install, support)
 
-    def test_support_still_opens_the_modal(self):
-        html = self._html()
-        self.assertIn('data-bs-toggle="modal"', html)
-        self.assertIn('id="supportProjectModal"', html)
-
-    # -- accessibility --------------------------------------------------------
-
-    def test_each_button_has_an_accessible_name(self):
-        html = self._html()
+    def test_each_has_an_accessible_name(self):
+        menu = account_menu(self._html())
         for label in ('Beta app', 'Install app', 'Help Us Grow'):
-            self.assertIn(f'aria-label="{label}"', html)
+            self.assertIn(f'aria-label="{label}"', menu)
+            # The visible label is the accessible name.
+            self.assertRegex(menu, r'(?s)aria-label="%s">.*?%s\s*</' % (label, label))
 
-    def test_each_button_has_a_descriptive_tooltip(self):
-        """The accessible name is terse; the tooltip says what it does."""
-        html = self._html()
+    def test_each_has_a_descriptive_tooltip(self):
+        menu = account_menu(self._html())
         for phrase in ('Beta-test the Android app',
                        'Install the app on your phone or desktop',
                        'Help us grow'):
-            self.assertIn(phrase, html)
+            self.assertIn(phrase, menu)
 
-    def test_the_modal_button_gets_a_tooltip_despite_its_toggle_being_taken(self):
-        """
-        `data-bs-toggle` is spoken for by the modal, so the tooltip is hooked
-        with `data-bs-tooltip` — which the initialiser has to look for.
-        """
+    def test_support_still_opens_the_modal_with_a_tooltip(self):
         html = self._html()
-        self.assertIn('data-bs-tooltip', html)
+        self.assertIn('id="supportProjectModal"', html)
+        self.assertIn('data-bs-tooltip', account_menu(html))
         self.assertIn("'[data-bs-toggle=\"tooltip\"], [data-bs-tooltip]'", html)
 
-    def test_the_icons_are_hidden_from_screen_readers(self):
+    def test_icons_are_hidden_from_screen_readers(self):
+        menu = account_menu(self._html())
+        for icon in re.findall(r'<i class="[^"]*"[^>]*>', menu):
+            self.assertIn('aria-hidden="true"', icon)
+
+    def test_sign_out_and_theme_toggle_stay(self):
+        menu = account_menu(self._html())
+        self.assertIn('Sign Out', menu)
+        self.assertIn('data-action="toggleTheme"', menu)
+
+    # -- the bar --------------------------------------------------------------
+
+    def test_bar_expands_at_lg(self):
         html = self._html()
-        cluster = html.split('nav-util', 1)[1][:2000]
-        self.assertIn('aria-hidden="true"', cluster)
+        self.assertIn('navbar navbar-expand-lg', html)
+        self.assertIn('id="topbarShortcuts"', html)
+        self.assertIn('d-lg-flex', html.split('id="topbarShortcuts"', 1)[0][-200:])
 
-    # -- the main navigation is a separate control ----------------------------
+    def test_shortcuts_come_from_the_sidebar_entries(self):
+        html = self._html('psa:ticket_list')
+        bar = html.split('id="topbarShortcuts"', 1)[1].split('</ul>', 1)[0]
+        hrefs = re.findall(r'href="([^"]+)"', bar)
+        self.assertEqual(hrefs, [reverse(n) for n in (
+            'core:dashboard', 'psa:my_work', 'psa:ticket_list', 'accounts:organization_list',
+            'assets:asset_list', 'psa:project_list', 'reports:home')])
+        self.assertRegex(bar, r'href="%s"[^>]*aria-current="page"' % reverse('psa:ticket_list'))
+        self.assertEqual(bar.count('aria-current="page"'), 1)
+        # Labels stay in the accessible tree when visually hidden.
+        self.assertIn('topbar-link__text', bar)
 
-    def test_the_main_navigation_is_the_sidebar_not_this_cluster(self):
-        """Primary navigation moved to the sidebar (core/_primary_nav.html);
-        none of it is in the utility cluster."""
+    def test_order_search_help_settings_switcher_account(self):
+        html = self._html()
+        bar = html.split('id="utilityNav"', 1)[1]
+        positions = [bar.index(marker) for marker in (
+            'class="nav-search', 'id="topbarHelp"', 'id="topbarSettings"',
+            'id="orgDropdown"', 'id="userDropdown"')]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_help_and_gear_are_named_links(self):
+        bar = utility_bar(self._html())
+        self.assertRegex(bar, r'id="topbarHelp"[^>]*aria-label="Help"')
+        self.assertRegex(bar, r'id="topbarSettings"[^>]*aria-label="Administration"')
+        self.assertIn(f'href="{reverse("core:settings_general")}"', bar)
+
+    def test_the_main_navigation_is_the_sidebar(self):
         html = self._html()
         self.assertIn('id="appNav"', html)
-        self.assertNotIn('app-nav__', self._utility_cluster(html))
+        self.assertNotIn('app-nav__', utility_bar(html))
+
+    def test_no_shortcut_strip(self):
+        self.assertNotIn('id="shortcutStrip"', self._html())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class TopBarForOtherUsersTests(TestCase):
+
+    def setUp(self):
+        cache.clear()
+        self.org = Organization.objects.create(name='Cust Co', slug='cust-co')
+
+    def login(self, user):
+        self.client.force_login(user)
+        s = self.client.session
+        s['2fa_prompted'] = True
+        s.save()
+
+    def test_customer_gets_no_gear_and_no_staff_shortcuts(self):
+        from accounts.models import Membership
+        u = get_user_model().objects.create_user('tb_cust', 'c@x.com', 'pw')
+        Membership.objects.create(user=u, organization=self.org, role='readonly')
+        self.login(u)
+        html = self.client.get(reverse('core:dashboard'), follow=True).content.decode()
+        self.assertNotIn('id="topbarSettings"', html)
+        bar = html.split('id="topbarShortcuts"', 1)[1].split('</ul>', 1)[0]
+        self.assertNotIn(reverse('reports:home'), bar)
+        self.assertNotIn(reverse('psa:my_work'), bar)
+        for href in set(re.findall(r'href="(/[^"#?]*)"', bar)):
+            with self.subTest(href=href):
+                self.assertNotEqual(self.client.get(href).status_code, 403, href)

@@ -3613,6 +3613,9 @@ def software_compliance_report(request):
             'require_count': len(require_gaps),
             'policy_count': len(policies),
             'by_severity': dict(by_sev),
+            # Summed here: a template filter argument that does not resolve
+            # (no critical rows) raises instead of defaulting.
+            'high_critical': by_sev['high'] + by_sev['critical'],
         },
     })
 

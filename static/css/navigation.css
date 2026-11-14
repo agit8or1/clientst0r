@@ -44,11 +44,10 @@
     .section-tabs__list .nav-link { padding: .5rem .75rem; }
 }
 
-/* In the collapsed drawer (below the xxl expand breakpoint) an open menu
-   pushes the entries below it down instead of covering them: themes.css makes
-   every .dropdown-menu absolute, which on a phone hid Operations…Admin under
-   the open PSA menu. */
-@media (max-width: 1399.98px) {
+/* In the collapsed bar (below the lg expand breakpoint) an open menu pushes
+   the entries below it down instead of covering them: themes.css makes every
+   .dropdown-menu absolute, which on a phone hid entries under an open menu. */
+@media (max-width: 991.98px) {
     .navbar .navbar-collapse .navbar-nav .dropdown-menu {
         position: static !important;
         transform: none !important;
@@ -124,7 +123,7 @@
     padding: 4px 8px;
     min-width: 0;
 }
-.app-nav a.app-nav__group-link { flex: 1 1 auto; font-weight: 600; }
+.app-nav a.app-nav__group-link { flex: 1 1 auto; font-weight: 600; font-size: .9rem; }
 .app-nav__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-nav a.app-nav__link { padding-left: 14px; }
 .app-nav a.app-nav__sublink { padding-left: 40px; min-height: 30px; font-size: .86rem; }
@@ -169,8 +168,8 @@
     .app-layout.has-app-nav { display: flex; align-items: stretch; }
     .app-layout.has-app-nav .app-main { flex: 1 1 auto; }
     .app-nav {
-        flex: 0 0 15.5rem;
-        width: 15.5rem;
+        flex: 0 0 16rem;
+        width: 16rem;
         position: sticky;
         top: 0;
         /* app_nav.js: the window height less the visible part of the top bar */
@@ -190,7 +189,8 @@
     body.appnav-rail .app-nav__foot { text-align: center; padding: 6px 0; }
 }
 @media (max-width: 991.98px) {
-    .app-nav-open { display: inline-flex; align-items: center; }
+    /* mobile.css stretches every .navbar .nav-link to the full row. */
+    .navbar .app-nav-open.nav-link { display: inline-flex; align-items: center; width: auto !important; flex: 0 0 auto; }
     .app-nav {
         position: fixed;
         top: 0; bottom: 0; left: 0;
@@ -202,7 +202,8 @@
     }
     body.appnav-open .app-nav { transform: none; visibility: visible; }
     body.appnav-open { overflow: hidden; }
-    .app-nav__close { display: inline-block; }
+    .app-nav__close { display: inline-block; width: auto !important; }
+    .app-nav__filter { flex: 1 1 auto !important; }
     .app-nav__collapse { display: none; }
     /* Touch targets */
     .app-nav a.app-nav__group-link, .app-nav a.app-nav__link { min-height: 42px; }
@@ -215,7 +216,7 @@
 
 /* Where-you-are trail. A page that draws its own breadcrumb keeps it, and
    this one steps aside so there is never two. */
-.app-trail .breadcrumb { font-size: .85rem; background: none; padding: 0; }
+.app-trail .breadcrumb { font-size: .85rem; background: none; padding: 0; margin: 0; }
 main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 
 /* Saved views bar */
@@ -258,3 +259,194 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 @media (max-width: 575.98px) {
     .mw-panel .list-group-item { flex-wrap: wrap; }
 }
+
+
+/* ==========================================================================
+   Page frame (core/_work_context.html): the trail on the left and the
+   section tabs on the right share one compact row; on a narrow screen the
+   tabs wrap below the trail.
+   ========================================================================== */
+.page-frame {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-bottom: .6rem;
+}
+.page-frame .app-trail { flex: 0 1 auto; min-width: 0; }
+.page-frame .section-tabs { flex: 0 1 auto; margin-left: auto; padding: 2px; }
+.page-frame .section-tabs__list .nav-link { padding: .2rem .6rem; font-size: .85rem; }
+@media (max-width: 767.98px) {
+    .page-frame .section-tabs { margin-left: 0; flex-basis: 100%; }
+}
+
+/* ==========================================================================
+   Settings workspace (core/_settings_menu.html): category tabs + search on
+   one row, the current category's pages below.
+   ========================================================================== */
+.settings-ws {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    margin-bottom: .75rem;
+}
+.settings-ws__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 6px 12px;
+    padding: 6px 8px 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.settings-ws__cats { flex: 1 1 auto; border-bottom: 0; gap: 2px; min-width: 0; }
+.settings-ws__cats .nav-link {
+    padding: .35rem .6rem;
+    font-size: .85rem;
+    white-space: nowrap;
+    color: var(--bs-body-color) !important;
+}
+.settings-ws__cats .nav-link.active {
+    color: var(--bs-emphasis-color) !important;
+    font-weight: 600;
+    background: var(--bs-body-bg);
+    border-color: var(--bs-border-color) var(--bs-border-color) var(--bs-body-bg);
+}
+.settings-ws__cats .nav-link:not(.active):hover { background: var(--bs-tertiary-bg); }
+.settings-ws__cats i { margin-right: 4px; }
+.settings-ws__search { position: relative; flex: 0 1 15rem; min-width: 11rem; margin-bottom: 6px; }
+.settings-ws__search-icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    font-size: .75rem; color: var(--bs-secondary-color); pointer-events: none;
+}
+.settings-ws__search input { padding-left: 26px; }
+.settings-ws__results {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 1050;
+    width: min(22rem, 90vw); margin: 0; padding: 4px;
+    background: var(--bs-body-bg); border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius); box-shadow: 0 6px 24px rgba(16, 24, 40, .18);
+}
+.settings-ws__result {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 6px 8px; border-radius: var(--bs-border-radius-sm);
+    color: var(--bs-body-color) !important; text-decoration: none;
+}
+.settings-ws__result:hover, .settings-ws__result:focus { background: var(--bs-tertiary-bg); outline: none; }
+.settings-ws__result:focus-visible { outline: 2px solid var(--bs-link-color); }
+.settings-ws__result-where { color: var(--bs-secondary-color); font-size: .8rem; white-space: nowrap; }
+.settings-ws__none { padding: 6px 8px; color: var(--bs-secondary-color); font-size: .85rem; }
+.settings-ws__pages { gap: 2px; padding: 4px 6px; flex-wrap: wrap; }
+.settings-ws__pages .nav-link { padding: .25rem .6rem; font-size: .85rem; white-space: nowrap; }
+.settings-ws__pages .nav-link:not(.active) { color: var(--bs-body-color) !important; }
+.settings-ws__pages .nav-link:not(.active):hover { background: var(--bs-tertiary-bg); }
+.settings-ws a:focus-visible { outline: 2px solid var(--bs-link-color); outline-offset: 1px; }
+/* On a phone the category tabs scroll sideways in one row. */
+@media (max-width: 767.98px) {
+    .settings-ws__cats { flex-wrap: nowrap; overflow-x: auto; flex-basis: 100%; scrollbar-width: thin; }
+    .settings-ws__search { flex-basis: 100%; }
+    .settings-ws__pages { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+}
+/* Below a wide desktop the category names give way to their icons, except
+   the current one; each keeps its name as the link text for assistive tech. */
+@media (min-width: 768px) and (max-width: 1499.98px) {
+    .settings-ws__cats .nav-link:not(.active) .settings-ws__cat-label {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    .settings-ws__cats .nav-link:not(.active) i { margin-right: 0; }
+}
+
+/* Pinned pages in the sidebar's Overview group, and the link that edits them. */
+.app-nav__entry--pin .app-nav__link i { color: var(--bs-secondary-color); }
+.app-nav a.app-nav__pinlink {
+    display: flex; align-items: center; gap: 8px;
+    padding: 2px 8px 2px 14px; min-height: 28px; font-size: .8rem;
+    color: var(--bs-secondary-color) !important; text-decoration: none;
+    border-radius: var(--bs-border-radius);
+}
+.app-nav a.app-nav__pinlink:hover { background: var(--bs-tertiary-bg); }
+body.appnav-rail .app-nav__pin-edit { display: none; }
+
+/* ==========================================================================
+   Top bar (base.html). It expands at Bootstrap's lg breakpoint (992px).
+   custom.css, mobile.css and ui.css still carry rules written for the old
+   1400px breakpoint that style 992-1399px as the collapsed drawer; the
+   rules below put the expanded bar back for that band.
+   ========================================================================== */
+@media (min-width: 992px) {
+    .navbar.app-topbar .navbar-collapse {
+        background: none;
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        max-height: none;
+        overflow: visible;
+    }
+    .navbar.app-topbar .navbar-nav {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        width: auto;
+        gap: 2px;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+    }
+    .navbar.app-topbar .navbar-nav .nav-item { width: auto; }
+    .navbar.app-topbar .navbar-nav > .nav-item > .nav-link { padding: 6px 8px !important; }
+    .navbar.app-topbar .navbar-nav > .nav-item > .nav-link.nav-util {
+        justify-content: center;
+        min-width: 32px;
+        padding: 0 7px !important;
+    }
+    .navbar.app-topbar .navbar-nav .dropdown-menu {
+        position: absolute !important;
+        width: auto;
+    }
+    .navbar.app-topbar .nav-search { flex: 0 1 220px; min-width: 120px; max-width: 220px; margin: 0 4px; }
+    .navbar.app-topbar .org-pill { max-width: 170px; justify-content: center; }
+    .navbar.app-topbar .navbar-nav .nav-link > i:first-child { display: inline-block !important; }
+    .navbar.app-topbar .navbar-brand { margin-right: 10px; }
+}
+.navbar.app-topbar .topbar-shortcuts { gap: 2px; }
+.navbar.app-topbar .topbar-link { gap: 6px; }
+.navbar.app-topbar .topbar-count {
+    position: absolute; top: 1px; right: -2px;
+    font-size: .62rem; padding: .2em .45em; line-height: 1;
+}
+.navbar.app-topbar .topbar-notes__menu { min-width: 18rem; }
+.navbar.app-topbar .topbar-account { gap: 6px; }
+/* custom.css caps #userDropdown at 120–150px with overflow hidden, which
+   clipped the Staff badge; only the name is truncated now. */
+.navbar.app-topbar #userDropdown { max-width: none; overflow: visible; }
+.navbar.app-topbar .topbar-account__name {
+    display: inline-block; max-width: 9rem; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+}
+/* Between 992px and a wide desktop the shortcuts and the account name are
+   icons; the text stays in the link for assistive technology and the title
+   gives the tooltip. */
+@media (min-width: 992px) and (max-width: 2047.98px) {
+    .navbar.app-topbar .topbar-link__text {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap;
+    }
+}
+@media (min-width: 992px) and (max-width: 1279.98px) {
+    .navbar.app-topbar .topbar-account__name {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    .navbar.app-topbar .nav-search { flex-basis: 160px; max-width: 160px; }
+    .navbar.app-topbar .org-pill { max-width: 140px; }
+}
+
+/* The wall clock only where the bar has room to spare. */
+@media (max-width: 2199.98px) {
+    .navbar.app-topbar .topbar-clock { display: none !important; }
+}
+
+/* Help Us Grow lives in the account menu now: a plain menu row with its
+   label always shown (ui.css hides the label in the bar below 1800px). */
+.navbar .dropdown-item.nav-help-grow { gap: var(--bs-dropdown-item-padding-x, .5rem); }
+.navbar .dropdown-item .nav-help-grow__label { display: inline; }

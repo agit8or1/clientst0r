@@ -1,208 +1,232 @@
-"""Grouped Settings sidebar (templates/core/_settings_menu.html).
+"""The settings workspace (templates/core/_settings_menu.html).
 
-The sidebar used to be one long list with three inline sub-headings. It is now
-five collapsible groups — System, Security, Organizations & Access,
-Integrations, Mobile — with only the group holding `active_page` expanded.
-These tests pin that nothing from the old list was dropped, that the template
-and core/settings_groups.py agree, and that gating still holds.
+Settings used to be a left-hand column of five collapsible groups
+(core/settings_groups.py), repeated in every settings template, plus a long
+Admin entry in the sidebar. They are now nine categories defined once in
+core/navigation.py (sections with menu='settings'): the sidebar's
+Administration group lists the categories, and every settings page carries a
+header with the category tabs, the current category's pages and a search.
+
+These tests pin that nothing from the old menu was dropped, that each page
+lights its own category, that a link is only drawn when the page's own check
+passes (the gate mismatches of the old menu are fixed), and that the page
+frame has one breadcrumb trail and no leftover left-hand menu.
 """
 import re
+from pathlib import Path
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
 from django.template.loader import render_to_string
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from core import settings_groups
+from core import navigation
+from core.models import Organization
 
 TEST_MIDDLEWARE = [
     m for m in django_settings.MIDDLEWARE
     if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m
 ]
 
-# Every link the menu carried before the regroup (v3.17.645).
+# Every link the old settings menu carried (core/settings_groups.py, v3.17.671).
 OLD_MENU_URL_NAMES = [
-    'core:settings_general', 'core:settings_features', 'core:settings_psa',
-    'core:settings_smtp', 'core:settings_sms', 'core:settings_scheduler',
-    'core:settings_security', 'core:firewall_settings', 'core:fail2ban_status',
-    'core:settings_snyk', 'integrations:integration_list',
-    'core:settings_directory', 'core:settings_ai', 'core:system_status',
-    'core:settings_kb_import', 'imports:import_list',
-    'core:settings_data_export', 'core:maintenance',
+    'core:settings_general', 'core:system_updates', 'core:system_status',
+    'core:settings_features', 'core:settings_modules', 'core:settings_psa',
+    'core:settings_scheduler', 'core:settings_smtp', 'core:maintenance',
+    'imports:import_list', 'core:settings_data_export', 'core:settings_kb_import',
+    'core:settings_security', 'tech_access:index', 'rmm_permissions:index',
+    'core:security_dashboard', 'core:firewall_settings', 'core:fail2ban_status',
+    'core:settings_snyk', 'accounts:access_management', 'core:settings_directory',
+    'office:org_policy', 'core:webhook_list', 'integrations:integration_list',
+    'integrations:rem0te_setup', 'core:settings_ai', 'psa_ai:profiles', 'core:settings_sms',
+    'office:settings', 'core:mobile_apps_admin', 'core:beta_test_admin',
 ]
+# The one old settings entry that moved out: the client list is a work page.
+MOVED_OUT = {'accounts:organization_list': 'clients_all'}
 
-GROUP_HEADINGS = {
-    'system': 'System',
-    'security': 'Security',
-    'access': 'Organizations & Access',
-    'integrations': 'Integrations',
-    'mobile': 'Mobile',
-}
+CATEGORIES = [
+    ('settings_general', 'General'), ('settings_system', 'System'),
+    ('settings_security', 'Security'), ('settings_access', 'Organizations & Access'),
+    ('settings_integrations', 'Integrations'), ('settings_automation', 'Automation'),
+    ('settings_email', 'Email & Communications'), ('settings_features', 'Features & Modules'),
+    ('settings_maintenance', 'Maintenance'),
+]
 
 User = get_user_model()
 
 
-def render_menu(user, active_page='', psa_enabled=True):
-    return render_to_string('core/_settings_menu.html', {
-        'user': user, 'active_page': active_page, 'psa_enabled': psa_enabled,
-    })
+def workspace(html):
+    m = re.search(r'<nav class="settings-ws"[^>]*>(.*?)</nav>', html, re.S)
+    return m.group(1) if m else None
 
 
-def group_block(html, key):
-    """The HTML of one group's collapse body."""
-    m = re.search(
-        r'<div class="collapse[^"]*" id="settings-group-%s">(.*?)</div>\s*</div>' % key,
-        html, re.S,
-    )
-    assert m, key
-    return m.group(1)
+def index_hrefs(html):
+    return re.findall(r'<li data-href="([^"]+)"', workspace(html) or '')
 
 
-def hrefs(html):
-    return re.findall(r'<a href="([^"]+)"', html)
+class SettingsRegistryTests(TestCase):
 
-
-class SettingsMenuStructureTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.su = User.objects.create_superuser('menu-su', 'su@example.com', 'x')
-        cls.staff = User.objects.create_user('menu-staff', 'st@example.com', 'x', is_staff=True)
-        cls.plain = User.objects.create_user('menu-plain', 'pl@example.com', 'x')
-
-    def test_every_old_link_still_present_for_superuser(self):
-        html = render_menu(self.su)
-        links = hrefs(html)
-        for name in OLD_MENU_URL_NAMES:
-            self.assertIn(reverse(name), links, name)
-
-    def test_template_matches_settings_groups_module(self):
-        html = render_menu(self.su)
-        for key in settings_groups.GROUP_ORDER:
-            expected = [reverse(u) for _p, u, _g in settings_groups.SETTINGS_GROUPS[key]]
-            self.assertEqual(hrefs(group_block(html, key)), expected, key)
-
-    def test_group_headings_order_and_counts(self):
-        html = render_menu(self.su)
-        positions = []
-        for key in settings_groups.GROUP_ORDER:
-            m = re.search(
-                r'data-settings-group="%s">.*?%s</span>.*?badge[^>]*>(\d+)<'
-                % (key, re.escape(GROUP_HEADINGS[key])), html, re.S)
-            self.assertIsNotNone(m, key)
-            positions.append(m.start())
-            self.assertEqual(int(m.group(1)), len(settings_groups.SETTINGS_GROUPS[key]), key)
-        self.assertEqual(positions, sorted(positions))
+    def test_nine_categories_in_order(self):
         self.assertEqual(
-            {k: len(v) for k, v in settings_groups.SETTINGS_GROUPS.items()},
-            {'system': 12, 'security': 7, 'access': 4, 'integrations': 7, 'mobile': 2},
-        )
+            [(k, str(navigation.SECTIONS_BY_KEY[k].label)) for k in navigation.SETTINGS_CATEGORIES],
+            CATEGORIES)
 
-    def test_priority_entries_head_their_group(self):
-        g = settings_groups.SETTINGS_GROUPS
-        self.assertEqual(g['security'][0][1], 'core:settings_security')
-        self.assertEqual(g['access'][0][1], 'accounts:access_management')
-        self.assertEqual(g['integrations'][0][1], 'core:webhook_list')
-        self.assertIn('core:system_updates', [u for _p, u, _g in g['system'][:2]])
+    def test_every_old_menu_page_has_a_category(self):
+        for name in OLD_MENU_URL_NAMES:
+            with self.subTest(name=name):
+                self.assertEqual(navigation.VIEW_INDEX[name].menu, 'settings', name)
+        for name, key in MOVED_OUT.items():
+            self.assertEqual(navigation.VIEW_INDEX[name].key, key)
 
-    def test_all_groups_collapsed_without_active_page(self):
-        html = render_menu(self.su, active_page='')
-        self.assertNotIn('collapse show', html)
-        self.assertNotIn('aria-expanded="true"', html)
-        self.assertEqual(html.count('aria-expanded="false"'), 5)
+    def test_each_page_has_one_category(self):
+        seen = {}
+        for key in navigation.SETTINGS_CATEGORIES:
+            for tab in navigation.SECTIONS_BY_KEY[key].tabs:
+                self.assertNotIn(tab.url_name, seen, tab.url_name)
+                seen[tab.url_name] = key
 
-    def test_active_group_expanded_and_item_highlighted(self):
-        cases = {
-            'general': ('system', 'core:settings_general'),
-            'firewall': ('security', 'core:firewall_settings'),
-            'directory': ('access', 'core:settings_directory'),
-            'ai': ('integrations', 'core:settings_ai'),
-            'kb_import': ('system', 'core:settings_kb_import'),
-            'snyk': ('security', 'core:settings_snyk'),
-        }
-        for page, (group, url_name) in cases.items():
-            with self.subTest(page=page):
-                html = render_menu(self.su, active_page=page)
-                self.assertIn('class="collapse show" id="settings-group-%s"' % group, html)
-                self.assertEqual(html.count('collapse show'), 1)
-                self.assertEqual(html.count('aria-expanded="true"'), 1)
-                self.assertIn('data-bs-target="#settings-group-%s"\n' % group
-                              + '                aria-expanded="true"', html)
-                active = re.findall(r'<a href="([^"]+)"[^>]*\bactive\b[^>]*aria-current="page"', html)
-                self.assertEqual(active, [reverse(url_name)])
+    def test_the_old_module_is_gone(self):
+        import importlib.util
+        self.assertIsNone(importlib.util.find_spec('core.settings_groups'))
 
-    def test_psa_entry_hidden_when_psa_disabled(self):
-        url = reverse('core:settings_psa')
-        self.assertIn(url, hrefs(render_menu(self.su, psa_enabled=True)))
-        html = render_menu(self.su, psa_enabled=False)
-        self.assertNotIn(url, hrefs(html))
-        self.assertRegex(html, r'(?s)data-settings-group="system">.*?badge[^>]*>11<')
-
-    def test_superuser_entries_hidden_for_non_superuser(self):
-        html = render_menu(self.staff)
-        links = hrefs(html)
-        self.assertNotIn(reverse('core:settings_general'), links)
-        self.assertNotIn(reverse('core:beta_test_admin'), links)
-        self.assertIn(reverse('core:mobile_apps_admin'), links)
-        self.assertIn(reverse('accounts:access_management'), links)
-        plain = hrefs(render_menu(self.plain))
-        self.assertNotIn(reverse('core:mobile_apps_admin'), plain)
-        self.assertEqual(hrefs(render_menu(AnonymousUser())), [])
-
-
-class SettingsGroupLandingTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.su = User.objects.create_superuser('land-su', 'lsu@example.com', 'x')
-        cls.staff = User.objects.create_user('land-staff', 'ls@example.com', 'x', is_staff=True)
-
-    def test_static_mapping_covers_five_groups_and_resolves(self):
-        self.assertEqual(tuple(settings_groups.GROUP_LANDING_URL_NAMES), settings_groups.GROUP_ORDER)
-        for key, name in settings_groups.GROUP_LANDING_URL_NAMES.items():
-            self.assertTrue(reverse(name).startswith('/'), key)
-
-    def test_landing_for_superuser(self):
-        expect = {
-            'system': 'core:settings_general',
-            'security': 'core:settings_security',
-            'access': 'accounts:access_management',
-            'integrations': 'core:webhook_list',
-            'mobile': 'core:mobile_apps_admin',
-        }
-        for key, name in expect.items():
-            self.assertEqual(settings_groups.landing_url_name(key, self.su), name)
-            self.assertEqual(settings_groups.landing_url(key, self.su), reverse(name))
-
-    def test_landing_skips_pages_user_cannot_open(self):
-        self.assertIsNone(settings_groups.landing_url_name('system', self.staff))
-        self.assertEqual(settings_groups.landing_url('security', self.staff), '')
-        self.assertEqual(settings_groups.landing_url_name('mobile', self.staff), 'core:mobile_apps_admin')
-        self.assertIsNone(settings_groups.landing_url_name('system', AnonymousUser()))
-
-    def test_every_active_page_maps_to_one_group(self):
-        pages = [p for entries in settings_groups.SETTINGS_GROUPS.values() for p, _u, _g in entries]
-        self.assertEqual(len(pages), len(set(pages)))
-        self.assertEqual(settings_groups.group_for_active_page('firewall'), 'security')
-        self.assertIsNone(settings_groups.group_for_active_page('nope'))
-
-    def test_template_tag(self):
-        from django.template import Context, Template
-        out = Template(
-            "{% load settings_menu %}{% settings_group_url 'integrations' %}|"
-            "{% settings_open_group 'ai' %}"
-        ).render(Context({'user': self.su}))
-        self.assertEqual(out, reverse('core:webhook_list') + '|integrations')
+    def test_include_without_the_frame_renders_nothing(self):
+        """Old `{% include "core/_settings_menu.html" with active_page=… %}`
+        calls are harmless: only base.html's frame draws the header."""
+        su = User.objects.create_superuser('inc-su', 'i@x.com', 'x')
+        self.assertEqual(render_to_string('core/_settings_menu.html',
+                                          {'user': su, 'active_page': 'general'}).strip(), '')
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
-class SettingsMenuOnRealPageTests(TestCase):
-    def test_general_settings_page_expands_system(self):
-        su = User.objects.create_superuser('page-su', 'p@example.com', 'x')
-        self.client.force_login(su)
-        resp = self.client.get(reverse('core:settings_general'))
-        self.assertEqual(resp.status_code, 200)
-        html = resp.content.decode()
-        self.assertIn('class="collapse show" id="settings-group-system"', html)
-        for key in settings_groups.GROUP_ORDER:
-            self.assertIn('id="settings-group-%s"' % key, html)
+class SettingsWorkspaceOnPagesTests(TestCase):
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='Set Co', slug='set-co')
+        from core.models import SystemSetting
+        row = SystemSetting.get_settings()
+        row.psa_enabled = True
+        row.save()
+
+    def login(self, user, org=True):
+        self.client.force_login(user)
+        s = self.client.session
+        s['2fa_prompted'] = True
+        s.save()
+        if org:
+            self.client.get(reverse('accounts:switch_organization', args=[self.org.id]))
+
+    def get(self, name, *args):
+        r = self.client.get(reverse(name, args=args))
+        self.assertEqual(r.status_code, 200, name)
+        return r.content.decode()
+
+    def test_superuser_reaches_every_old_page_from_the_workspace(self):
+        self.login(User.objects.create_superuser('ws-su', 'su@x.com', 'x'))
+        hrefs = index_hrefs(self.get('core:settings_general'))
+        for name in OLD_MENU_URL_NAMES:
+            with self.subTest(name=name):
+                self.assertIn(reverse(name), hrefs)
+
+    def test_each_page_lights_its_category_and_itself(self):
+        self.login(User.objects.create_superuser('ws-su2', 'su2@x.com', 'x'))
+        for name, key in (('core:settings_general', 'settings_general'),
+                          ('core:firewall_settings', 'settings_security'),
+                          ('core:settings_directory', 'settings_access'),
+                          ('core:settings_ai', 'settings_integrations'),
+                          ('core:settings_kb_import', 'settings_maintenance'),
+                          ('core:settings_snyk', 'settings_security'),
+                          ('core:settings_smtp', 'settings_email'),
+                          ('core:system_updates', 'settings_system')):
+            with self.subTest(name=name):
+                ws = workspace(self.get(name))
+                self.assertIsNotNone(ws, name)
+                self.assertRegex(ws, r'data-settings-group="%s">\s*<a class="nav-link active"[^>]*'
+                                     r'aria-current="true"' % key)
+                self.assertEqual(len(re.findall(r'class="nav-link[^"]*\bactive\b', ws)), 2, name)
+                self.assertIn('class="nav-link settings-menu-item active" href="%s" '
+                              'aria-current="page"' % reverse(name), ws)
+
+    def test_sub_pages_keep_their_category(self):
+        self.login(User.objects.create_superuser('ws-su3', 'su3@x.com', 'x'))
+        ws = workspace(self.get('core:firewall_ip_rules'))
+        self.assertRegex(ws, r'data-settings-group="settings_security">\s*<a class="nav-link active"')
+        self.assertIn('href="%s"' % reverse('core:firewall_settings'), ws)
+
+    def test_frame_has_one_trail_and_no_left_column(self):
+        self.login(User.objects.create_superuser('ws-su4', 'su4@x.com', 'x'))
+        for name in ('core:settings_general', 'core:firewall_settings', 'tech_access:index',
+                     'rmm_permissions:index', 'office:settings', 'core:security_dashboard',
+                     'accounts:role_list', 'core:tag_list'):
+            with self.subTest(name=name):
+                html = self.get(name)
+                main = html.split('id="main-content"', 1)[1]
+                self.assertEqual(len(re.findall(r'<ol class="breadcrumb', main)), 1, name)
+                self.assertNotIn('settings-group-system', html)
+                self.assertNotIn('class="col-md-3', main.split('settingsWorkspace', 1)[-1][:4000])
+
+    def test_search_and_unsaved_changes_guard(self):
+        self.login(User.objects.create_superuser('ws-su5', 'su5@x.com', 'x'))
+        html = self.get('core:settings_general')
+        ws = workspace(html)
+        self.assertIn('id="settingsSearch"', ws)
+        self.assertIn('<label class="visually-hidden" for="settingsSearch">', ws)
+        self.assertIn('role="status"', ws)
+        self.assertIn('js/settings_ws.js', html)
+        # Index entries carry their category and keywords for the filter.
+        self.assertRegex(ws, r'data-label="SMTP / Email" data-where="Email &amp; Communications" '
+                             r'data-filter="SMTP / Email mail outgoing smtp')
+        js = (Path(django_settings.BASE_DIR) / 'static/js/settings_ws.js').read_text()
+        self.assertIn('beforeunload', js)
+        self.assertIn('data-no-dirty-check', js)
+
+    def test_psa_off_drops_the_psa_page(self):
+        from core.models import SystemSetting
+        row = SystemSetting.get_settings()
+        row.psa_enabled = False
+        row.save()
+        self.login(User.objects.create_superuser('ws-su6', 'su6@x.com', 'x'))
+        self.assertNotIn(reverse('core:settings_psa'), index_hrefs(self.get('core:settings_general')))
+
+    def test_django_staff_gets_only_their_pages(self):
+        """Django is_staff (not superuser) opens Mobile Apps, not Access
+        Management (superuser-only in the view; the old menu showed it)."""
+        staff = User.objects.create_user('ws-staff', 'st@x.com', 'x', is_staff=True)
+        self.login(staff, org=False)
+        hrefs = index_hrefs(self.get('core:mobile_apps_admin'))
+        self.assertIn(reverse('core:mobile_apps_admin'), hrefs)
+        for name in ('core:settings_general', 'core:beta_test_admin', 'accounts:access_management',
+                     'integrations:integration_list'):
+            self.assertNotIn(reverse(name), hrefs, name)
+        for href in hrefs:
+            with self.subTest(href=href):
+                self.assertNotEqual(self.client.get(href).status_code, 403, href)
+
+    def test_customer_owner_sees_only_organization_pages(self):
+        from accounts.models import Membership
+        owner = User.objects.create_user('ws-owner', 'o@x.com', 'x')
+        Membership.objects.create(user=owner, organization=self.org, role='owner')
+        self.login(owner)
+        html = self.get('accounts:member_list')
+        hrefs = index_hrefs(html)
+        self.assertIn(reverse('accounts:member_list'), hrefs)
+        self.assertIn(reverse('core:webhook_list'), hrefs)   # require_admin: owners pass
+        for name in OLD_MENU_URL_NAMES:
+            if name in ('core:webhook_list', 'office:org_policy'):
+                continue
+            self.assertNotIn(reverse(name), hrefs, name)
+        for href in hrefs:
+            with self.subTest(href=href):
+                self.assertNotEqual(self.client.get(href).status_code, 403, href)
+        # No Administration group in the sidebar for a customer user.
+        self.assertNotIn('data-group="settings"', html)
+
+    def test_editor_is_not_offered_webhooks(self):
+        """The old menu showed Webhooks to every signed-in user; the list needs
+        the admin role now (core.webhook_views.webhook_list)."""
+        from accounts.models import Membership
+        editor = User.objects.create_user('ws-editor', 'e@x.com', 'x')
+        Membership.objects.create(user=editor, organization=self.org, role='editor')
+        self.login(editor)
+        html = self.get('core:dashboard')
+        self.assertNotIn(f'href="{reverse("core:webhook_list")}"', html)

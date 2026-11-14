@@ -1,23 +1,20 @@
 {% load i18n %}
 {% comment %}
-The "Help Us Grow" entry point in the navbar utility cluster.
+The "Help Us Grow" entry in the account menu (base.html). It sat in the top
+bar's utility cluster until the top-bar redesign moved the beta, install and
+Help Us Grow controls into the account menu (and the Help page's tabs).
 
-It is a peer of the star / beta app / install app buttons and keeps the
-`nav-util` footprint they share, plus `nav-help-grow` for the heartbeat and the
-label. `data-bs-toggle` belongs to the modal, so the tooltip is hooked with
-`data-bs-tooltip` — the initialiser in base.html looks for both.
-
-The label shows on a wide desktop and in the collapsed drawer; between those
-widths the navbar is tight and the heart carries it alone with the accessible
-name and tooltip intact. Widths and the heartbeat live in ui.css § navbar.
+`data-bs-toggle` belongs to the modal, so the tooltip is hooked with
+`data-bs-tooltip` — the initialiser in base.html looks for both. The heart
+keeps its heartbeat (ui.css § navbar; reduced motion gets none).
 {% endcomment %}
-<li class="nav-item">
-  <a class="nav-link nav-util nav-help-grow" href="#"
+<li>
+  <a class="dropdown-item nav-help-grow" href="#"
      data-bs-toggle="modal" data-bs-target="#supportProjectModal"
-     data-bs-tooltip data-bs-placement="bottom"
+     data-bs-tooltip data-bs-placement="left"
      title="{% trans 'Help us grow — share the project, star it, or sponsor development' %}"
      aria-label="{% trans 'Help Us Grow' %}">
-    <i class="fas fa-heart nav-help-grow__heart" aria-hidden="true"></i>
+    <i class="fas fa-heart nav-help-grow__heart fa-fw" aria-hidden="true"></i>
     <span class="nav-help-grow__label">{% trans "Help Us Grow" %}</span>
   </a>
 </li>

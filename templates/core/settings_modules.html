@@ -4,19 +4,10 @@
 {% block title %}{% trans "Optional Modules" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "Dashboard" %}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{% trans "Optional Modules" %}</li>
-    </ol>
-</nav>
 
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="modules" %}
-    </div>
 
-    <div class="col-md-9">
+    <div class="col-12">
         <div class="card mb-3">
             <div class="card-header">
                 <h1 class="h5 mb-0"><i class="fas fa-puzzle-piece" aria-hidden="true"></i> {% trans "Optional Modules" %}</h1>
