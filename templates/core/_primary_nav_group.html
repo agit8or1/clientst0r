@@ -1,32 +1,28 @@
-{% load i18n %}<li class="app-nav__group{% if g.active %} is-active{% endif %}" data-group="{{ g.key }}"{% if g.shortcut %} data-shortcut-key="{{ g.shortcut }}"{% endif %}>
-    <div class="app-nav__group-head">
-        <a class="app-nav__group-link{% if g.active %} active{% endif %}" href="{{ g.href }}" title="{{ g.label }}"{% if g.href == request.path %} aria-current="page"{% endif %}{% if g.shortcut %} aria-keyshortcuts="g {{ g.shortcut }}"{% endif %}>
-            <i class="{{ g.icon }} fa-fw" aria-hidden="true"></i><span class="app-nav__text">{{ g.label }}</span>
-        </a>
-        {% if g.entries|length > 1 or g.entries.0.children %}
-        <button type="button" class="app-nav__toggle" aria-expanded="{% if g.active %}true{% else %}false{% endif %}"
-                aria-controls="appNavGroup-{{ g.key }}"
-                aria-label="{% blocktrans with name=g.label %}Show {{ name }} pages{% endblocktrans %}">
-            <i class="fas fa-chevron-down" aria-hidden="true"></i>
-        </button>
-        {% endif %}
-    </div>
-    <ul class="app-nav__entries" id="appNavGroup-{{ g.key }}"{% if not g.active %} hidden{% endif %}>
+{% load i18n %}<li class="app-nav__group{% if g.active %} is-active{% endif %}" data-group="{{ g.key }}" data-href="{{ g.href }}"{% if g.shortcut %} data-shortcut-key="{{ g.shortcut }}"{% endif %}>
+    {# Expands / collapses the section (in the icon rail: opens it as a flyout). Never navigates. #}
+    <button type="button" class="app-nav__group-btn{% if g.active %} active{% endif %}" id="appNavBtn-{{ g.key }}"
+            aria-expanded="{% if g.active %}true{% else %}false{% endif %}" aria-controls="appNavGroup-{{ g.key }}"
+            data-tip="{{ g.label }}"{% if g.shortcut %} aria-keyshortcuts="g {{ g.shortcut }}"{% endif %}>
+        <i class="{{ g.icon }} fa-fw app-nav__group-icon" aria-hidden="true"></i><span class="app-nav__text">{{ g.label }}</span>
+        <i class="fas fa-chevron-down app-nav__chev" aria-hidden="true"></i>
+    </button>
+    <ul class="app-nav__entries" id="appNavGroup-{{ g.key }}" aria-labelledby="appNavBtn-{{ g.key }}"{% if not g.active %} hidden{% endif %}>
+        <li class="app-nav__flyout-head" aria-hidden="true">{{ g.label }}</li>
         {% for e in g.entries %}
         <li class="app-nav__entry{% if e.pin %} app-nav__entry--pin{% endif %}" data-filter="{{ e.label }} {{ e.keywords }} {{ g.label }}"{% if e.shortcut %} data-shortcut-key="{{ e.shortcut }}"{% endif %}>
-            <a class="app-nav__link{% if e.active %} active{% endif %}" href="{{ e.href }}" title="{{ e.label }}"{% if e.href == request.path %} aria-current="page"{% endif %}>
+            <a class="app-nav__link{% if e.active %} active{% endif %}" href="{{ e.href }}"{% if e.href == request.path %} aria-current="page"{% endif %}>
                 <i class="{{ e.icon }} fa-fw" aria-hidden="true"></i><span class="app-nav__text">{{ e.label }}</span>{% if e.pin %}<span class="visually-hidden"> ({% trans "pinned" %})</span>{% endif %}
             </a>
             {% if e.children %}
             <ul class="app-nav__sub"{% if not e.active %} hidden{% endif %}>
                 {% for c in e.children %}
-                <li data-filter="{{ c.label }} {{ e.label }} {{ g.label }}"><a class="app-nav__sublink{% if c.active %} active{% endif %}" href="{{ c.href }}"{% if c.active %} aria-current="page"{% endif %}>{{ c.label }}</a></li>
+                <li data-filter="{{ c.label }} {{ c.keywords }} {{ e.label }} {{ g.label }}"><a class="app-nav__sublink{% if c.active %} active{% endif %}" href="{{ c.href }}"{% if c.active %} aria-current="page"{% endif %}>{{ c.label }}</a></li>
                 {% endfor %}
             </ul>
             {% endif %}
         </li>
         {% endfor %}
-        {% if g.key == 'overview' and pnav.pin_edit %}
+        {% if g.key == 'dashboard' and pnav.pin_edit %}
         <li class="app-nav__entry app-nav__pin-edit" data-filter="{% trans 'Edit shortcuts pins' %} {{ g.label }}">
             <a class="app-nav__pinlink" href="{{ pnav.pin_edit }}?next={{ request.get_full_path|urlencode }}">
                 <i class="fas fa-thumbtack fa-fw" aria-hidden="true"></i><span class="app-nav__text">{% trans "Edit pinned pages" %}</span>

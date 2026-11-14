@@ -9,11 +9,57 @@
  *    leaving the page asks first (beforeunload). Submitting the form, or a
  *    form marked data-no-dirty-check, does not ask.
  *
+ *  - Settings center (templates/core/settings_home.html): the search
+ *    narrows the category cards to the pages whose label or keywords match
+ *    every word; Enter opens the first match, Escape clears.
+ *
  * CSP-safe (no inline handlers), no storage.
  */
 (function () {
     'use strict';
     var doc = document;
+
+    // ------------------------------------------------- settings center
+    var center = doc.querySelector('[data-settings-center]');
+    if (center) {
+        var cInput = doc.getElementById('settingsCenterSearch');
+        var cStatus = doc.getElementById('settingsCenterStatus');
+        var none = center.querySelector('.settings-center__none');
+        var cards = center.querySelectorAll('.settings-card');
+        var filterCards = function () {
+            var q = (cInput.value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            var words = q ? q.split(' ') : [];
+            var total = 0;
+            Array.prototype.forEach.call(cards, function (card) {
+                var shown = 0;
+                Array.prototype.forEach.call(card.querySelectorAll('li[data-filter]'), function (li) {
+                    var text = li.getAttribute('data-filter').toLowerCase();
+                    var hit = words.every(function (w) { return text.indexOf(w) !== -1; });
+                    li.hidden = !hit;
+                    if (hit) shown++;
+                });
+                card.hidden = !shown;
+                total += shown;
+            });
+            if (none) none.hidden = !(words.length && !total);
+            cStatus.textContent = !words.length ? '' : total
+                ? cInput.getAttribute('data-i18n-count').replace('__N__', total)
+                : cInput.getAttribute('data-i18n-none');
+        };
+        if (cInput) {
+            cInput.addEventListener('input', filterCards);
+            cInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    var first = center.querySelector('.settings-card:not([hidden]) li:not([hidden]) a');
+                    if (first && cInput.value.trim()) { e.preventDefault(); window.location.href = first.href; }
+                } else if (e.key === 'Escape') {
+                    cInput.value = '';
+                    filterCards();
+                }
+            });
+        }
+    }
+
     var ws = doc.querySelector('[data-settings-ws]');
     if (!ws) return;
 

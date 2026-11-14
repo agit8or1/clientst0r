@@ -1,6 +1,149 @@
 # Navigation map: before → after
 
-## 2026-11 regroup: six work groups, Administration, settings workspace, top bar
+## 2026-11 overhaul: ten sections, Configure menus, settings center
+
+**No URL or route name changed and no authorization check was weakened.**
+Every link is still drawn behind the gate that mirrors its page's own check
+(`core/navigation.py`), plus `_PermProbe` (the server's URL-prefix rules and
+the view's permission decorators). Hiding a link is presentation only.
+`core/tests/test_nav_reachability.py` proves every landing page is still
+linked (or allow-listed with the page that links it);
+`core/tests/test_nav_roles.py` opens every link the frame draws for seven
+kinds of user; `core/tests/test_nav_overhaul.py` covers the new pieces
+(sections per role, Configure menus, link-only tabs, the strip's More menu,
+breadcrumbs, the rail/flyout markup, the settings center and
+`destinations_for()`).
+
+### What changed in the frame
+
+* **Sidebar**: ten sections. Nine work sections in a scrolling list and
+  **Administration pinned at the foot** as one link to the new settings
+  center. A section header is a button: it expands / collapses and never
+  navigates; only the current section starts expanded (the old "remember
+  every open group" list is dropped). Expanded 248px, icon rail 64px; the
+  rail is the default from 768px to 1199px (an explicit choice is
+  remembered in `localStorage['appnav.rail']`: `1` rail, `0` expanded);
+  below 768px the sidebar is the drawer. In the rail a section's icon opens
+  its pages as a **flyout** (click / Enter / Space; arrow keys, Home / End;
+  Escape closes and returns focus), with tooltips on hover and keyboard
+  focus. The current link is scrolled into view inside the sidebar. Navy in
+  every theme with a teal accent; the content area follows the theme.
+* **Sidebar filter** also finds pages that are not sidebar links — tabs,
+  Configure pages, settings pages, account pages (`pnav.extra`, from
+  `destinations_for()`), so moving a page into a Configure menu does not
+  make it harder to find.
+* **Section tab strip** never wraps: past six pills the rest go into a
+  **More** menu (the current page always stays a pill), and `app_nav.js`
+  moves more pills into it when the row is too narrow. Beside it, the
+  section's **Configure** menu (`Section.configure`) on that section's pages.
+* **Breadcrumbs**: Section › Workspace › Page from the registry (e.g.
+  Service Desk › Tickets › All Tickets; Service Desk › Tickets › Recurring
+  Tickets). Detail pages can add their own last crumb with
+  `{% block breadcrumb_tail %}` (base.html).
+* **Settings center** (`core:settings_home`, `/core/settings/`, new): the
+  Administration landing — compact searchable cards, one per settings
+  category, each listing the pages this user may open (the same gates as
+  the settings workspace). The settings workspace header stays on every
+  settings page. The top-bar gear, the sidebar's Administration link and a
+  customer administrator's "Organization settings" open it. A user with no
+  settings page gets 403.
+* **`destinations_for(ctx)`** (and `request_context(request)` for views):
+  every destination the user may open, flat, from the same gated
+  navigation — for the command palette.
+* **Link-only tabs** (`Tab.link_only`): a shortcut in one section's strip to
+  a page whose home is another section (My Work → My Tasks lives in
+  Scheduling). They are not indexed, not nested in the sidebar and never
+  marked current there, so each page has one place.
+
+### Old → new (sidebar)
+
+| Before (group → entry → page) | After (section → workspace → page) | Notes |
+|---|---|---|
+| Overview → Dashboard | **Dashboard** → Overview | `g h` |
+| Overview → Favorites | Dashboard → Favorites | |
+| Overview → pinned pages, Edit pinned pages | Dashboard → pinned pages, Edit pinned pages | |
+| Overview → My Work → My Work | **My Work** → My Queue | `g w` |
+| Overview → My Work → My Timesheet | My Work → My Timesheet | |
+| Overview → My Work → Timesheet Approvals | My Work → Timesheet Approvals | approvers only |
+| Operations → Scheduling → My Tasks | My Work → My Tasks (shortcut); home stays Service Desk → Scheduling | scheduling on |
+| Operations → Shifts & Locations → Shift Schedule | My Work → My Schedule (shortcut); home stays Service Desk → Shifts & Locations | MSP staff + PSA |
+| Account menu → My Work Details → My Leave / My Resources / My Billable Target | My Work → My Leave / My Resources / My Billable Target (account menu entry kept) | |
+| Operations → Tickets → Tickets | **Service Desk** → Tickets → All Tickets | `g t` |
+| Operations → Tickets → AI Inbox | Service Desk → Tickets → AI Inbox | OPTIONAL AI |
+| Operations → Tickets → Recurring Tickets, Canned Replies, Email Ingestion, Workflow Rules, Workflow Flow Map | Service Desk → Tickets → **Configure** menu | same gates |
+| Operations → Dispatch Board → Dispatch Board, Routing Triage, Load Heatmap | Service Desk → Dispatch Board (tabs on its pages, not nested in the sidebar) | MSP staff |
+| Operations → Dispatch Board → Ticket Routing | Service Desk → Dispatch Board → Configure | MSP staff |
+| Operations → Shifts & Locations → Shift Schedule, Location Sharing, Timeclock | Service Desk → Shifts & Locations (tabs) | |
+| Operations → Shifts & Locations → Shift Templates, Dispatch Locations | Service Desk → Shifts & Locations → Configure | shift managers; geo admins |
+| Operations → Scheduling → All Tasks, My Tasks, Calendar | Service Desk → Scheduling | |
+| Operations → Scheduling → Wallboard | Service Desk → Scheduling → Configure | MSP staff |
+| Operations → Projects → Projects | Service Desk → Projects | |
+| Operations → Projects → Project Templates | Service Desk → Projects → Configure | |
+| Operations → Service Management → (7 tabs) | Service Desk → Service Management (same tabs; Knowledge Base is a shortcut to Knowledge & Vault → Knowledge Base) | |
+| Operations → Workflows → Workflows | Service Desk → Workflows → Runbooks | workflows on + docs_view |
+| Operations → Workflows → Runbook Dashboard | Service Desk → Workflows → Workflow Dashboard | client selected |
+| Tools & Automation → Support Workflows | Service Desk → Workflows → Support Workflows | PSA + routing managers |
+| Administration → Automation → Workflow Templates / Suggestions | unchanged; also shortcuts in Service Desk → Workflows (Templates, Suggestions) | Suggestions: OPTIONAL AI |
+| Clients & Assets → Clients | **Clients** → All Clients | `g c` |
+| *(new)* | Clients → Client Workspace (the selected client's page, `accounts:organization_detail`) | client selected |
+| Clients & Assets → Customer Operations | Clients → Customer Operations | |
+| Clients & Assets → Devices → All Assets, Serial Search, Network Scan Import | **Assets & Network** → All Assets | `g d` |
+| Clients & Assets → RMM Devices, Device Workspace | Assets & Network → RMM Devices, Device Workspace | MSP staff |
+| Clients & Assets → Hardware & Ports → Devices, Cables, Labels, Import / export | Assets & Network → Hardware & Ports | |
+| Hardware & Ports → VLANs (`/hardware/vlans/`) | Hardware & Ports → **VLAN Ports** | same VLAN records, seen from switch ports (tagged / untagged, VLAN groups) |
+| Hardware & Ports → Catalog | Hardware & Ports → Hardware Catalog | |
+| Hardware & Ports → Connectivity | Assets & Network → **Network Diagrams** → Physical Connectivity (+ VLAN View, previously only in the hardware page's own tabs) | |
+| Clients & Assets → Infrastructure → Racks, Network Closets, Patch Panels, Port Configurations | Assets & Network → Infrastructure | |
+| Infrastructure → IPAM, VLANs (`/monitoring/ipam/`, `/monitoring/vlans/`) | Assets & Network → **IPAM** → Subnets & IPs, VLANs (the canonical VLAN list, with subnets) | |
+| Tools & Automation → Inventory, Vehicles | Assets & Network → Inventory, Vehicles | |
+| Business → CRM | **Business** → CRM | `g b` |
+| Business → Billing → Contracts; Business → Contract Documents → Contracts, Templates, Clauses | Business → **Contracts** → PSA Contracts, Contract Documents, Templates, Clauses | one heading, two systems kept distinct |
+| Contract Documents → Settings | Business → Contracts → Configure → Contract Settings | contract settings permission |
+| Business → Billing → Quotes / Invoices | Business → Quotes; Business → Invoices | PSA |
+| Business → Billing → Aging Report, Billing Review | Business → Billing | aging readers; billing reviewers |
+| Business → Procurement → Requisitions, Purchase Orders, Back-orders | Business → Procurement | MSP staff + PSA |
+| Business → Procurement → Vendors | Business → **Vendors** (Procurement keeps a Vendors tab as a shortcut) | |
+| Business → Pulse Checks | Business → Pulse Checks | |
+| Clients & Assets → Documents → Documents, Office Templates | **Knowledge & Vault** → Documentation | `g k` |
+| Operations → Service Management → Knowledge Base (PSA on); Tools & Automation → Global KB (PSA off) | Knowledge & Vault → **Knowledge Base** — one entry: the PSA KB browser with PSA on, the global KB list with PSA off | staff only either way |
+| Clients & Assets → Diagrams, Review & Publishing, Documentation Readiness | Knowledge & Vault → same | |
+| Clients & Assets → Passwords → Passwords, Reveal Requests | Knowledge & Vault → **Password Vault** | |
+| Clients & Assets → Vault Access Rules | Knowledge & Vault → Password Vault → Configure → Vault Access Rules | `vault_manage_access_rules` |
+| Clients & Assets → My Vault, Secure Notes | Knowledge & Vault → My Vault, Secure Notes | |
+| Tools & Automation → Security Alerts → Security Alerts | **Security & Monitoring** → Security Alerts | `g a` |
+| Security Alerts → Vendor Connections, Auto-Ticket Rules, SIEM Endpoints, Weekly Digest | Security & Monitoring → Security Alerts → Configure | same gates |
+| Tools & Automation → Security Incidents → Incidents, Playbooks, Threat Overview, Alert Response Times | Security & Monitoring → Security Incidents (Playbooks → Incident Playbooks) | `security_alerts_view`; MTTA `reports_view_sla` |
+| Tools & Automation → RMM Alerts | Security & Monitoring → RMM Alerts | MSP staff |
+| Tools & Automation → Alert Policy | Security & Monitoring → Alert Policies | PSA + routing managers |
+| Tools & Automation → Monitoring → (5 tabs) | Security & Monitoring → Monitoring (Config Backups → Configuration Backups) | monitoring on |
+| Reports & Analytics → Reports → (7 tabs) | **Reports** → Reports (+ Security Response Analytics, a shortcut to the MTTA report) | `g r` |
+| Administration → nine category links | **Administration** (pinned) → the settings center | `g s` |
+
+Spec items with no page of their own (not invented): "Recent items"
+(recents live in the client switcher and, from the palette work, the
+header), "Security Overview", "Monitoring Status" and "Monitoring
+Configuration". The ticket tabs "Unassigned", "SLA", "Approvals" are filters
+of the ticket list (its saved-view presets), not separate pages.
+
+### Old → new (settings categories)
+
+| Before | After | Notes |
+|---|---|---|
+| General: General Settings, Customer Portal, PSA, Equipment Catalog, Custom Fields & Types, Tags, Holidays | **General** (same pages; Equipment Catalog last) | |
+| Organizations & Access: Access Management, Users, Members, Roles, Audit Log, Directory Services, LDAP Group Mappings | **Users & Access** (same pages) | |
+| Organizations & Access: Office Documents (organization) | **Integrations** → Office Documents (organization) | org managers |
+| Security (11 pages) | **Security** (Security Dashboard first) | superuser; RMM Permissions: policy readers |
+| Integrations: Integrations, RMM · Rem0te, Webhooks, Office Documents, Accounting, Distributors | **Integrations** | |
+| Integrations: AI & LLM, Ticket AI models | **AI Configuration** (tagged OPTIONAL AI; the card says when AI is off — the switch is General → PSA) | superuser, unchanged, so the provider can be set up before AI is switched on |
+| Automation | **Automation** | |
+| Email & Communications | **Communications** | |
+| Features & Modules | **Modules** | |
+| System | **System** | |
+| Maintenance | **Maintenance** | |
+
+---
+
+## 2026-11 regroup: six work groups, Administration, settings workspace, top bar (superseded by the overhaul above)
 
 **No URL changed and no authorization check was weakened.** Hiding a link is
 presentation only; every gate in `core/navigation.py` mirrors the page's own

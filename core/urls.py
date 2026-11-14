@@ -20,6 +20,7 @@ from . import modules_views
 from . import portal_settings_views
 from . import workspace
 from . import palette_views
+from . import settings_home_views
 
 app_name = 'core'
 
@@ -146,6 +147,9 @@ urlpatterns = [
     path('settings/firewall/country-rules/<int:pk>/toggle/', firewall_views.firewall_country_rule_toggle, name='firewall_country_rule_toggle'),
     path('settings/firewall/logs/', firewall_views.firewall_logs, name='firewall_logs'),
     path('settings/firewall/logs/clear/', firewall_views.firewall_logs_clear, name='firewall_logs_clear'),
+
+    # Settings center: the Administration landing (core/navigation.py).
+    path('settings/', settings_home_views.settings_home, name='settings_home'),
 
     # Fail2ban (superuser only)
     path('settings/fail2ban/', fail2ban_views.fail2ban_status, name='fail2ban_status'),

@@ -1,24 +1,32 @@
 /* Section tabs: the local navigation rendered above page content
    (templates/core/_section_tabs.html, core/navigation.py).
 
-   Same footprint as the hardware sub-nav so the two read as one pattern.
-   Colours come from Bootstrap variables, so every theme (light, dark,
-   dracula, monokai, ...) carries them without per-theme rules. */
-/* The strip sits on its own surface, like the breadcrumb card below it, so the
-   pills stay legible over a custom background image or colour. */
+   One row that never wraps: pills, a "More" menu for those that do not fit
+   (static/js/app_nav.js), and the section's "Configure" menu. Colours come
+   from Bootstrap variables, so every theme carries them. The strip sits on
+   its own surface so the pills stay legible over a custom background. */
 .section-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius);
-    padding: 4px;
+    border-radius: var(--ui-radius-sm, 6px);
+    padding: 2px;
 }
 .section-tabs__list {
-    gap: 4px;
+    flex: 1 1 auto;
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    gap: 2px;
 }
+.section-tabs__list > .nav-item { flex: 0 0 auto; }
 .section-tabs__list .nav-link {
-    padding: .35rem .7rem;
-    font-size: .9rem;
+    padding: .22rem .6rem;
+    font-size: .85rem;
     white-space: nowrap;
+    border-radius: var(--ui-radius-sm, 6px);
 }
 .section-tabs__list .nav-link:not(.active) {
     color: var(--bs-body-color) !important;
@@ -27,21 +35,29 @@
     color: var(--bs-link-color) !important;
     background: var(--bs-tertiary-bg);
 }
-.section-tabs__list .nav-link:focus-visible {
+.section-tabs__more > .nav-link { background: none; border: 0; }
+.section-tabs__more > .nav-link.show { background: var(--bs-tertiary-bg); }
+.section-tabs__menu { min-width: 12rem; }
+.section-tabs .nav-link:focus-visible,
+.section-tabs .btn:focus-visible {
     outline: 2px solid var(--bs-link-color);
     outline-offset: 1px;
+    box-shadow: none;
 }
-/* On a phone the pills scroll sideways in one row instead of stacking into
-   a tall block above the content; each stays a full-size touch target. */
+.section-tabs__configure { flex: 0 0 auto; }
+.section-tabs__configure-btn {
+    font-size: .85rem;
+    padding: .2rem .55rem;
+    color: var(--bs-secondary-color) !important;
+    border: 1px solid var(--bs-border-color);
+    white-space: nowrap;
+}
+.section-tabs__configure-btn:hover,
+.section-tabs__configure-btn.show { background: var(--bs-tertiary-bg); color: var(--bs-body-color) !important; }
+.section-tabs__configure-btn.active { color: var(--bs-emphasis-color) !important; border-color: var(--bs-primary); }
 @media (max-width: 575.98px) {
-    .section-tabs__list {
-        flex-wrap: nowrap !important;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: thin;
-        padding-bottom: 2px;
-    }
-    .section-tabs__list .nav-link { padding: .5rem .75rem; }
+    .section-tabs__list .nav-link { padding: .45rem .7rem; }
+    .section-tabs__configure-btn { padding: .4rem .6rem; }
 }
 
 /* In the collapsed bar (below the lg expand breakpoint) an open menu pushes
@@ -65,12 +81,27 @@
 /* ==========================================================================
    Primary sidebar (templates/core/_primary_nav.html, static/js/app_nav.js)
 
-   Desktop (>= 992px): a sticky column beside the content; `[` or the
-   chevron button shrinks it to an icon rail (body.appnav-rail).
-   Phone / tablet (< 992px): an off-canvas drawer opened from the bar's menu
-   button (body.appnav-open), with a backdrop.
-   Colours come from Bootstrap's variables so every theme carries them.
+   Navy in every theme, with a restrained teal accent; the content area
+   follows the theme. Desktop (>= 1200px): a 248px column beside the content;
+   `[` or the chevron button shrinks it to a 64px icon rail
+   (body.appnav-rail), whose section buttons open flyout menus. Tablet
+   (768-1199px): the rail by default. Phone (< 768px): an off-canvas drawer
+   opened from the bar's menu button (body.appnav-open), with a backdrop.
    ========================================================================== */
+:root {
+    --appnav-w: 15.5rem;          /* 248px */
+    --appnav-rail-w: 4rem;        /* 64px */
+    --appnav-bg: #0f1a2b;
+    --appnav-bg-raised: #15233a;
+    --appnav-border: #1f2f48;
+    --appnav-text: #c7d2e1;
+    --appnav-muted: #8394ad;
+    --appnav-strong: #f1f5fb;
+    --appnav-hover: rgba(255, 255, 255, .06);
+    --appnav-accent: #2bb5a8;
+    --appnav-active-bg: rgba(43, 181, 168, .14);
+    --appnav-focus: #6cc6ff;
+}
 .app-layout { display: block; }
 .app-main { min-width: 0; }
 /* With the sidebar taking room, Bootstrap's viewport-based container widths
@@ -78,82 +109,124 @@
 .app-layout.has-app-nav .app-main .container { max-width: 1320px; width: 100%; }
 
 .app-nav {
-    background: var(--bs-body-bg);
-    border-right: 1px solid var(--bs-border-color);
+    background: var(--appnav-bg);
+    color: var(--appnav-text);
+    border-right: 1px solid var(--appnav-border);
     display: flex;
     flex-direction: column;
-    font-size: .92rem;
+    font-size: .875rem;
     z-index: 1040;
+    color-scheme: dark;
 }
 .app-nav__head {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 10px 10px 6px;
+    padding: 8px 8px 6px;
 }
 .app-nav__filter { position: relative; flex: 1 1 auto; min-width: 0; }
 .app-nav__filter-icon {
     position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
-    font-size: .7rem; color: var(--bs-secondary-color); pointer-events: none;
+    font-size: .7rem; color: var(--appnav-muted); pointer-events: none;
 }
-.app-nav__filter input { padding-left: 26px; }
+.app-nav .app-nav__filter input {
+    padding-left: 26px;
+    background: var(--appnav-bg-raised) !important;
+    border-color: var(--appnav-border) !important;
+    color: var(--appnav-strong) !important;
+}
+.app-nav .app-nav__filter input::placeholder { color: var(--appnav-muted); }
 .app-nav__collapse, .app-nav__close {
-    color: var(--bs-secondary-color) !important;
+    color: var(--appnav-muted) !important;
     border: 1px solid transparent;
     flex: 0 0 auto;
 }
-.app-nav__collapse:hover, .app-nav__close:hover { background: var(--bs-tertiary-bg); }
+.app-nav__collapse:hover, .app-nav__close:hover { background: var(--appnav-hover); color: var(--appnav-strong) !important; }
 .app-nav__close { display: none; }
-.app-nav__body { flex: 1 1 auto; overflow-y: auto; padding: 4px 6px 8px; }
+.app-nav__body { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 2px 6px 8px; scrollbar-width: thin; scrollbar-color: #2a3c58 transparent; }
 .app-nav__groups { list-style: none; margin: 0; padding: 0; }
-.app-nav__groups--settings {
-    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--bs-border-color);
+.app-nav__group + .app-nav__group { margin-top: 1px; }
+
+/* A section header: a button that expands / collapses (never navigates). */
+.app-nav__group-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 34px;
+    padding: 4px 8px;
+    background: none;
+    border: 0;
+    border-radius: var(--ui-radius-sm, 6px);
+    color: var(--appnav-text);
+    font-weight: 600;
+    font-size: .86rem;
+    text-align: left;
+    position: relative;
 }
-.app-nav__group-head { display: flex; align-items: center; }
-.app-nav a.app-nav__group-link,
-.app-nav a.app-nav__link,
-.app-nav a.app-nav__sublink {
+.app-nav__group-btn:hover { background: var(--appnav-hover); color: var(--appnav-strong); }
+.app-nav__group-icon { color: var(--appnav-muted); width: 1.1rem; }
+.app-nav__group-btn.active, .app-nav__group-btn.active .app-nav__group-icon { color: var(--appnav-strong); }
+.app-nav__group-btn.active .app-nav__group-icon { color: var(--appnav-accent); }
+.app-nav__chev { margin-left: auto; font-size: .65rem; color: var(--appnav-muted); transition: transform .15s ease; }
+.app-nav__group-btn[aria-expanded="true"] .app-nav__chev { transform: rotate(180deg); }
+.app-nav.is-filtering .app-nav__chev { visibility: hidden; }
+
+#appNav a.app-nav__link,
+#appNav a.app-nav__sublink,
+#appNav a.app-nav__xlink {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--bs-body-color) !important;
+    color: var(--appnav-text) !important;
     text-decoration: none;
-    border-radius: var(--bs-border-radius);
-    min-height: 34px;
-    padding: 4px 8px;
+    border-radius: var(--ui-radius-sm, 6px);
+    min-height: 30px;
+    padding: 3px 8px;
     min-width: 0;
 }
-.app-nav a.app-nav__group-link { flex: 1 1 auto; font-weight: 600; font-size: .9rem; }
+#appNav a.app-nav__link i { color: var(--appnav-muted); width: 1.1rem; }
 .app-nav__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-nav a.app-nav__link { padding-left: 14px; }
-.app-nav a.app-nav__sublink { padding-left: 40px; min-height: 30px; font-size: .86rem; }
-.app-nav__entries, .app-nav__sub { list-style: none; margin: 0; padding: 0; }
-.app-nav a.app-nav__group-link:hover,
-.app-nav a.app-nav__link:hover,
-.app-nav a.app-nav__sublink:hover { background: var(--bs-tertiary-bg); }
-.app-nav a.app-nav__group-link.active { color: var(--bs-emphasis-color) !important; }
-.app-nav a.app-nav__link.active,
-.app-nav a.app-nav__sublink.active,
-.app-nav a[aria-current="page"] {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-emphasis-color) !important;
+#appNav a.app-nav__link { padding-left: 16px; }
+#appNav a.app-nav__sublink { padding-left: 44px; min-height: 27px; font-size: .82rem; color: var(--appnav-muted) !important; }
+.app-nav__entries, .app-nav__sub, .app-nav__extra { list-style: none; margin: 0; padding: 0 0 4px; }
+.app-nav__sub { padding: 0; }
+.app-nav__flyout-head { display: none; }
+#appNav a.app-nav__link:hover,
+#appNav a.app-nav__sublink:hover,
+#appNav a.app-nav__xlink:hover { background: var(--appnav-hover); color: var(--appnav-strong) !important; }
+#appNav a.app-nav__link.active,
+#appNav a.app-nav__sublink.active {
+    background: var(--appnav-active-bg);
+    color: var(--appnav-strong) !important;
     font-weight: 600;
 }
-.app-nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--bs-primary); }
-.app-nav__toggle {
-    background: none; border: 0; color: var(--bs-secondary-color);
-    width: 32px; height: 32px; border-radius: var(--bs-border-radius); flex: 0 0 auto;
-}
-.app-nav__toggle:hover { background: var(--bs-tertiary-bg); }
-.app-nav__toggle i { transition: transform .15s ease; }
-.app-nav__toggle[aria-expanded="true"] i { transform: rotate(180deg); }
-.app-nav.is-filtering .app-nav__toggle { visibility: hidden; }
-.app-nav__foot { padding: 6px 14px 10px; border-top: 1px solid var(--bs-border-color); }
-.app-nav__foot .btn-link { color: var(--bs-secondary-color) !important; text-decoration: none; }
-.app-nav kbd { font-size: .7rem; padding: 1px 4px; }
+#appNav a.app-nav__link.active i { color: var(--appnav-accent); }
+#appNav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--appnav-accent); }
+#appNav a.is-match .app-nav__text, #appNav a.app-nav__sublink.is-match { color: var(--appnav-strong); }
+
+/* Filter-only results (tabs, Configure and settings pages). */
+.app-nav__extra { border-top: 1px solid var(--appnav-border); margin-top: 6px; padding-top: 6px; }
+#appNav a.app-nav__xlink { flex-wrap: wrap; row-gap: 0; padding-left: 16px; }
+#appNav a.app-nav__xlink i { color: var(--appnav-muted); width: 1.1rem; }
+.app-nav__where { flex-basis: 100%; padding-left: calc(1.1rem + 8px); font-size: .72rem; color: var(--appnav-muted); line-height: 1.2; }
+.app-nav__empty { color: var(--appnav-muted); }
+.app-nav__empty .btn-link { color: var(--appnav-focus) !important; }
+
+/* Administration, pinned at the foot. */
+.app-nav__pinned { flex: 0 0 auto; padding: 6px 6px; border-top: 1px solid var(--appnav-border); }
+#appNav .app-nav__pinned a.app-nav__link { padding-left: 8px; font-weight: 600; }
+.app-nav__foot { flex: 0 0 auto; padding: 4px 14px 8px; }
+.app-nav__foot .btn-link { color: var(--appnav-muted) !important; text-decoration: none; font-size: .78rem; }
+.app-nav__foot .btn-link:hover { color: var(--appnav-strong) !important; }
+.app-nav kbd { font-size: .68rem; padding: 1px 4px; background: var(--appnav-bg-raised); color: var(--appnav-text); }
 
 /* Keyboard focus is always visible in the sidebar and the bars around it. */
-.app-nav a:focus-visible, .app-nav button:focus-visible, .app-nav input:focus-visible,
+.app-nav a:focus-visible, .app-nav button:focus-visible, .app-nav input:focus-visible {
+    outline: 2px solid var(--appnav-focus);
+    outline-offset: -2px;
+    box-shadow: none;
+}
 .app-nav-open:focus-visible, .saved-views a:focus-visible, .saved-views button:focus-visible,
 .app-trail a:focus-visible, .work-trail button:focus-visible {
     outline: 2px solid var(--bs-link-color);
@@ -161,15 +234,23 @@
     box-shadow: none;
 }
 
+/* Rail tooltips (app_nav.js; hover and keyboard focus). */
+.app-nav__tip {
+    position: fixed; z-index: 1085; pointer-events: none;
+    padding: 3px 8px; border-radius: 4px; font-size: .78rem; white-space: nowrap;
+    background: #0b1320; color: #f1f5fb; border: 1px solid var(--appnav-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .3);
+}
+
 .app-nav-open { display: none; color: var(--sidebar-text, #fff) !important; font-size: 1.15rem; padding: .25rem .6rem; }
 .app-nav-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 1039; }
 
-@media (min-width: 992px) {
+@media (min-width: 768px) {
     .app-layout.has-app-nav { display: flex; align-items: stretch; }
     .app-layout.has-app-nav .app-main { flex: 1 1 auto; }
     .app-nav {
-        flex: 0 0 16rem;
-        width: 16rem;
+        flex: 0 0 var(--appnav-w);
+        width: var(--appnav-w);
         position: sticky;
         top: 0;
         /* app_nav.js: the window height less the visible part of the top bar */
@@ -177,27 +258,71 @@
         align-self: flex-start;
     }
     .app-nav-backdrop { display: none; }
+
     /* Icon rail */
-    body.appnav-rail .app-nav { flex-basis: 3.6rem; width: 3.6rem; }
+    body.appnav-rail .app-nav { flex-basis: var(--appnav-rail-w); width: var(--appnav-rail-w); }
     body.appnav-rail .app-nav__filter,
-    body.appnav-rail .app-nav__text,
-    body.appnav-rail .app-nav__toggle,
-    body.appnav-rail .app-nav__entries { display: none !important; }
-    body.appnav-rail .app-nav__head { flex-direction: column; padding: 8px 4px; }
+    body.appnav-rail .app-nav__chev,
+    body.appnav-rail .app-nav__extra,
+    body.appnav-rail .app-nav__entries:not(.is-flyout) { display: none !important; }
+    /* Names stay in the accessibility tree; the tooltip shows them. */
+    body.appnav-rail .app-nav__group-btn > .app-nav__text,
+    body.appnav-rail .app-nav__pinned .app-nav__text,
+    body.appnav-rail .app-nav__foot .app-nav__text {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    body.appnav-rail .app-nav__head { flex-direction: column; padding: 8px 4px 4px; }
     body.appnav-rail .app-nav__collapse i { transform: rotate(180deg); }
-    body.appnav-rail .app-nav a.app-nav__group-link { justify-content: center; padding: 6px 0; }
-    body.appnav-rail .app-nav__foot { text-align: center; padding: 6px 0; }
+    body.appnav-rail .app-nav__body { padding: 2px 8px 8px; }
+    body.appnav-rail .app-nav__group-btn { justify-content: center; min-height: 40px; padding: 0; }
+    body.appnav-rail .app-nav__group-icon { font-size: 1rem; width: auto; }
+    body.appnav-rail .app-nav__group.is-active > .app-nav__group-btn { background: var(--appnav-active-bg); }
+    body.appnav-rail .app-nav__group.is-active > .app-nav__group-btn::before {
+        content: ''; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 3px;
+        border-radius: 0 2px 2px 0; background: var(--appnav-accent);
+    }
+    body.appnav-rail .app-nav__group-btn[aria-expanded="true"] { background: var(--appnav-hover); }
+    body.appnav-rail .app-nav__pinned { padding: 6px 8px; }
+    body.appnav-rail #appNav .app-nav__pinned a.app-nav__link { justify-content: center; padding: 0; min-height: 40px; }
+    body.appnav-rail #appNav .app-nav__pinned a.app-nav__link i { width: auto; font-size: 1rem; }
+    body.appnav-rail .app-nav__foot { text-align: center; padding: 4px 0 8px; }
+
+    /* A rail section's flyout menu (positioned by app_nav.js). */
+    .app-nav__entries.is-flyout {
+        position: fixed;
+        z-index: 1060;
+        width: 15rem;
+        overflow-y: auto;
+        padding: 4px;
+        background: var(--appnav-bg-raised);
+        border: 1px solid var(--appnav-border);
+        border-radius: var(--ui-radius-sm, 6px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+    }
+    .app-nav__entries.is-flyout .app-nav__flyout-head {
+        display: block; padding: 4px 8px 6px; font-size: .72rem; font-weight: 600;
+        letter-spacing: .04em; text-transform: uppercase; color: var(--appnav-muted);
+    }
+    #appNav .app-nav__entries.is-flyout a.app-nav__link { padding-left: 8px; }
+    .app-nav__entries.is-flyout .app-nav__sub { display: none; }
 }
-@media (max-width: 991.98px) {
+@media (min-width: 768px) and (max-width: 991.98px) {
+    /* The bar's menu button is for the phone drawer only. */
+    .navbar .app-nav-open.nav-link { display: none !important; }
+}
+@media (max-width: 767.98px) {
     /* mobile.css stretches every .navbar .nav-link to the full row. */
     .navbar .app-nav-open.nav-link { display: inline-flex; align-items: center; width: auto !important; flex: 0 0 auto; }
     .app-nav {
         position: fixed;
         top: 0; bottom: 0; left: 0;
         width: min(20rem, 86vw);
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
         transform: translateX(-105%);
         transition: transform .2s ease;
-        box-shadow: 0 0 24px rgba(0, 0, 0, .25);
+        box-shadow: 0 0 24px rgba(0, 0, 0, .35);
         visibility: hidden;
     }
     body.appnav-open .app-nav { transform: none; visibility: visible; }
@@ -206,12 +331,11 @@
     .app-nav__filter { flex: 1 1 auto !important; }
     .app-nav__collapse { display: none; }
     /* Touch targets */
-    .app-nav a.app-nav__group-link, .app-nav a.app-nav__link { min-height: 42px; }
-    .app-nav a.app-nav__sublink { min-height: 38px; }
-    .app-nav__toggle { width: 42px; height: 42px; }
+    .app-nav__group-btn, #appNav a.app-nav__link, #appNav a.app-nav__xlink { min-height: 42px; }
+    #appNav a.app-nav__sublink { min-height: 38px; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .app-nav, .app-nav__toggle i { transition: none; }
+    .app-nav, .app-nav__chev { transition: none; }
 }
 
 /* Where-you-are trail. A page that draws its own breadcrumb keeps it, and
@@ -262,9 +386,9 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 
 
 /* ==========================================================================
-   Page frame (core/_work_context.html): the trail on the left and the
-   section tabs on the right share one compact row; on a narrow screen the
-   tabs wrap below the trail.
+   Page frame (base.html): the trail on the left and the section tabs /
+   Configure menu on the right share one compact row; below 768px the strip
+   takes its own row under the trail.
    ========================================================================== */
 .page-frame {
     display: flex;
@@ -275,12 +399,9 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
     margin-bottom: .6rem;
 }
 .page-frame .app-trail { flex: 0 1 auto; min-width: 0; }
-.page-frame .section-tabs { flex: 0 1 auto; margin-left: auto; padding: 2px; }
-.page-frame .section-tabs__list .nav-link { padding: .2rem .6rem; font-size: .85rem; }
+.page-frame .section-tabs { flex: 0 1 auto; margin-left: auto; max-width: 100%; }
 @media (max-width: 767.98px) {
-    /* min-width: 0 lets the strip shrink to the row so its pills scroll
-       inside it instead of widening the page. */
-    .page-frame .section-tabs { margin-left: 0; flex-basis: 100%; min-width: 0; max-width: 100%; }
+    .page-frame .section-tabs { margin-left: 0; flex-basis: 100%; }
 }
 
 /* ==========================================================================
@@ -358,16 +479,16 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
     .settings-ws__cats .nav-link:not(.active) i { margin-right: 0; }
 }
 
-/* Pinned pages in the sidebar's Overview group, and the link that edits them. */
-.app-nav__entry--pin .app-nav__link i { color: var(--bs-secondary-color); }
-.app-nav a.app-nav__pinlink {
+/* Pinned pages in the sidebar's Dashboard section, and the link that edits them. */
+#appNav .app-nav__entry--pin .app-nav__link i { opacity: .8; }
+#appNav a.app-nav__pinlink {
     display: flex; align-items: center; gap: 8px;
-    padding: 2px 8px 2px 14px; min-height: 28px; font-size: .8rem;
-    color: var(--bs-secondary-color) !important; text-decoration: none;
-    border-radius: var(--bs-border-radius);
+    padding: 2px 8px 2px 16px; min-height: 26px; font-size: .76rem;
+    color: var(--appnav-muted) !important; text-decoration: none;
+    border-radius: var(--ui-radius-sm, 6px);
 }
-.app-nav a.app-nav__pinlink:hover { background: var(--bs-tertiary-bg); }
-body.appnav-rail .app-nav__pin-edit { display: none; }
+#appNav a.app-nav__pinlink:hover { background: var(--appnav-hover); color: var(--appnav-strong) !important; }
+.app-nav__entries.is-flyout .app-nav__pin-edit { display: none; }
 
 /* ==========================================================================
    Top bar (base.html). It expands at Bootstrap's lg breakpoint (992px).
@@ -508,3 +629,60 @@ body.appnav-rail .app-nav__pin-edit { display: none; }
    (browsers ignore min-width on table cells, so it sits on the link; the
    table then scrolls sideways inside .ui-table-wrap). */
 .ticket-subject .ui-primary-cell { display: inline-block; min-width: 11rem; }
+
+/* ==========================================================================
+   Settings center (templates/core/settings_home.html): the Administration
+   landing. Compact cards, one per category, in a responsive grid.
+   ========================================================================== */
+.settings-center__head {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+    margin-bottom: .75rem;
+}
+.settings-center__title { font-size: 1.15rem; font-weight: 600; margin: 0; }
+.settings-center__search { position: relative; flex: 0 1 20rem; min-width: 12rem; margin-left: auto; }
+.settings-center__search-icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    font-size: .75rem; color: var(--bs-secondary-color); pointer-events: none;
+}
+.settings-center__search input { padding-left: 26px; }
+.settings-center__grid {
+    /* Columns rather than a grid: cards of different lengths pack without
+       the gaps a row-aligned grid leaves. */
+    columns: 16rem;
+    column-gap: 10px;
+}
+.settings-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--ui-radius-sm, 6px);
+    padding: 8px 10px 6px;
+    min-width: 0;
+    break-inside: avoid;
+    margin-bottom: 10px;
+}
+.settings-card[hidden] { display: none; }
+.settings-card__title {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .9rem; font-weight: 600; margin: 0 0 4px;
+}
+.settings-card__title i { color: var(--bs-secondary-color); }
+.settings-center .settings-card__title a:not(.btn) { color: var(--bs-emphasis-color) !important; text-decoration: none; }
+.settings-center .settings-card__title a:hover { text-decoration: underline; }
+.settings-card__tag { font-size: .62rem; font-weight: 600; letter-spacing: .03em; }
+.settings-card__n { margin-left: auto; font-size: .75rem; font-weight: 400; color: var(--bs-secondary-color); }
+.settings-card__note { margin: 0 0 4px; color: var(--bs-secondary-color); }
+.settings-card__pages { list-style: none; margin: 0; padding: 0; }
+.settings-center .settings-card__pages a:not(.btn) {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 4px; border-radius: 4px; font-size: .84rem;
+    color: var(--bs-body-color) !important; text-decoration: none;
+}
+.settings-center .settings-card__pages a i { color: var(--bs-secondary-color); font-size: .78rem; }
+.settings-center .settings-card__pages a:not(.btn):hover { background: var(--bs-tertiary-bg); color: var(--bs-link-color) !important; }
+.settings-card a:focus-visible, .settings-center__search input:focus-visible {
+    outline: 2px solid var(--bs-link-color); outline-offset: 1px;
+}
+@media (max-width: 575.98px) {
+    .settings-center__search { flex-basis: 100%; margin-left: 0; }
+    .settings-card__pages a { min-height: 38px; }
+}
