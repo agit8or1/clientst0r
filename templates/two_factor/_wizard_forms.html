@@ -1,0 +1,23 @@
+{% comment %}
+Overrides two_factor's _wizard_forms.html, which renders the step's form with
+as_table: unstyled inputs beside their labels that ran past the card on
+phones. Each field is stacked (label, input, help, errors) and the inputs
+take the card's width; the look comes from .tf-field in _base_focus.html.
+Used by the staff sign-in (password, code and backup-code steps), the
+two-factor setup wizard and phone registration.
+{% endcomment %}
+{{ wizard.management_form }}
+{% if wizard.form.non_field_errors %}<div class="alert alert-danger py-2" role="alert">{{ wizard.form.non_field_errors }}</div>{% endif %}
+{% for field in wizard.form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in wizard.form.visible_fields %}
+<div class="tf-field mb-3">
+    {% if field.widget_type == 'checkbox' %}
+    <div class="form-check">{{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+    {% else %}
+    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% endif %}
+    {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
+    {% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:" " }}</div>{% endif %}
+</div>
+{% endfor %}

@@ -46,7 +46,25 @@
             margin-bottom: 0.5rem;
             font-size: 0.875rem;
         }
-        .form-control {
+        /* .tf-field: the two-factor wizard's fields (two_factor/_wizard_forms.html). */
+        .tf-field input:not([type=checkbox]):not([type=radio]),
+        .tf-field select {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            color: #1a202c;
+            background: #fff;
+        }
+        .tf-field input:not([type=checkbox]):not([type=radio]):focus,
+        .tf-field select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-control,
+        .tf-field input:not([type=checkbox]):not([type=radio]),
+        .tf-field select {
             border: 2px solid #e2e8f0;
             border-radius: 8px;
             padding: 0.75rem 1rem;
