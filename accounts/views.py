@@ -747,7 +747,20 @@ def organization_detail(request, org_id):
         {'slug': 'procedures', 'label': 'Procedures',  'icon': 'fa-clipboard-list'},
     ]
 
-    return render(request, 'accounts/organization_detail.html', {
+    # Client workspace (accounts/client_workspace.py): opening the page makes
+    # this the current client the way the client switcher does, when the
+    # user may switch to it; the tabs then show the module list pages' own
+    # querysets for it. Unknown or not-permitted tabs are a 404.
+    from . import client_workspace as cw
+    in_context = cw.follow_client(request, org)
+    workspace = cw.Workspace(request, org, in_context=in_context)
+    tab = (request.GET.get('tab') or 'overview').strip()
+    if tab not in cw.TAB_KEYS or not workspace.visible.get(tab):
+        from django.http import Http404
+        raise Http404('No such tab for this client.')
+
+    from core.client_switcher import has_all_client_access
+    context = {
         'organization': org,
         'members': members,
         'user_membership': membership,
@@ -755,7 +768,18 @@ def organization_detail(request, org_id):
         'support_ratings': ratings,
         'rating_choices': SupportRating.RATING_CHOICES,
         'services': SERVICES,
-    })
+        'ws_tab': tab,
+        'ws_tabs': workspace.tabs(tab),
+        'ws_in_context': in_context,
+        'ws_can_global_view': has_all_client_access(request),
+        'ws_actions': workspace.quick_actions(),
+        'ws_visible': workspace.visible,
+    }
+    if tab == 'overview':
+        context['ws'] = workspace.overview()
+    else:
+        context['ws'] = workspace.tab_data(tab)
+    return render(request, 'accounts/organization_detail.html', context)
 
 
 @login_required

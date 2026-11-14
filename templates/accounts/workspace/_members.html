@@ -1,0 +1,43 @@
+{# Members of this client: everyone who can open the client record sees them, as before. #}
+<section class="card cw-panel" id="cw-members">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0"><i class="fas fa-users" aria-hidden="true"></i> Members <span class="cw-count">{{ members|length }}</span></h2>
+        {% if user_membership.role == 'owner' or user.is_superuser %}
+        <a href="{% url 'accounts:member_add' organization.id %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-user-plus" aria-hidden="true"></i> Add Member
+        </a>
+        {% endif %}
+    </div>
+    {% if members %}
+    <div class="ui-table-wrap">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th>{% if user_membership.role == 'owner' or user.is_superuser %}<th class="ui-actions text-end">Actions</th>{% endif %}</tr></thead>
+            <tbody>
+            {% for member in members %}
+            <tr>
+                <td><i class="fas fa-user text-body-secondary" aria-hidden="true"></i> {{ member.user.get_full_name|default:member.user.username }}</td>
+                <td class="small">{{ member.user.email }}</td>
+                <td><span class="badge {% if member.role == 'owner' %}bg-danger{% elif member.role == 'admin' %}bg-warning text-dark{% elif member.role == 'editor' %}bg-info{% else %}bg-secondary{% endif %}">{{ member.get_role_display }}</span></td>
+                {% if user_membership.role == 'owner' or user.is_superuser %}
+                <td class="ui-actions text-end">
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'accounts:member_edit' organization.id member.id %}" class="btn btn-outline-secondary" title="Edit Role">
+                            <i class="fas fa-edit" aria-hidden="true"></i> Edit
+                        </a>
+                        {% if member.user != user %}
+                        <a href="{% url 'accounts:member_remove' organization.id member.id %}" class="btn btn-outline-danger" title="Remove">
+                            <i class="fas fa-user-times" aria-hidden="true"></i> Remove
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body"><p class="text-muted mb-0">No members found.</p></div>
+    {% endif %}
+</section>

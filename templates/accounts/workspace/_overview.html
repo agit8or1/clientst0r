@@ -1,0 +1,287 @@
+{% load contracts_tags %}{% load pulse_tags %}
+{% comment %}
+Client workspace Overview. Every data panel appears only when its tab is
+visible (accounts/client_workspace.py decides; counts and a few rows each).
+The client record itself (information, address, primary contact, sites,
+support difficulty, contract documents, pulse trend) is shown as before.
+{% endcomment %}
+
+{% if ws.kpis %}
+<div class="cw-kpis" id="cw-kpis">
+    {% for label, value, tab, tone in ws.kpis %}
+    <a class="cw-kpi{% if tone %} cw-kpi--{{ tone }}{% endif %}" href="?tab={{ tab }}">
+        <span class="cw-kpi__label">{{ label }}</span>
+        <span class="cw-kpi__value" data-kpi="{{ tab }}">{{ value }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="cw-grid">
+    {# -- client information -------------------------------------------- #}
+    <section class="card cw-panel" id="cw-info">
+        <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-info-circle" aria-hidden="true"></i> Company information</h2></div>
+        <div class="card-body">
+            <dl class="cw-dl">
+                <dt>Organization name</dt><dd>{{ organization.name }}</dd>
+                {% if organization.organization_type %}<dt>Organization type</dt><dd><span class="badge bg-info">{{ organization.organization_type }}</span></dd>{% endif %}
+                {% if organization.legal_name %}<dt>Legal name</dt><dd>{{ organization.legal_name }}</dd>{% endif %}
+                {% if organization.tax_id %}<dt>Tax ID / EIN</dt><dd>{{ organization.tax_id }}</dd>{% endif %}
+                <dt>Slug</dt><dd><code>{{ organization.slug }}</code></dd>
+                {% if organization.description %}<dt>Description</dt><dd>{{ organization.description }}</dd>{% endif %}
+                <dt>Status</dt><dd>{% if organization.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</dd>
+                <dt>Created</dt><dd>{{ organization.created_at|date:"F j, Y" }}</dd>
+                <dt>Members</dt><dd><a href="?tab=members"><strong>{{ members|length }}</strong> active member{{ members|length|pluralize }}</a></dd>
+                <dt>Security exposure</dt>
+                <dd>
+                    {% if organization.exposure_score >= 200 %}<span class="badge bg-danger">{{ organization.exposure_score }}</span> high
+                    {% elif organization.exposure_score >= 50 %}<span class="badge bg-warning text-dark">{{ organization.exposure_score }}</span> moderate
+                    {% else %}<span class="badge bg-success">{{ organization.exposure_score }}</span> low{% endif %}
+                    {% if organization.exposure_score_updated_at %}<small class="text-muted">· updated {{ organization.exposure_score_updated_at|date:"M j, H:i" }}</small>{% endif %}
+                </dd>
+            </dl>
+        </div>
+        <div class="card-footer cw-services" aria-label="Services">
+            {% for svc in services %}
+            <a href="{% url 'accounts:organization_service_info' organization.id svc.slug %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas {{ svc.icon }}" aria-hidden="true"></i> {{ svc.label }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# -- contact & address ---------------------------------------------- #}
+    <section class="card cw-panel" id="cw-contact">
+        <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-address-card" aria-hidden="true"></i> Contact &amp; address</h2></div>
+        <div class="card-body">
+            <p class="cw-subhead"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Address</p>
+            {% if organization.full_address %}
+            <address class="mb-2">
+                {% if organization.street_address %}{{ organization.street_address }}<br>{% endif %}
+                {% if organization.street_address_2 %}{{ organization.street_address_2 }}<br>{% endif %}
+                {% if organization.city or organization.state or organization.postal_code %}
+                    {{ organization.city }}{% if organization.city and organization.state %}, {% endif %}{{ organization.state }} {{ organization.postal_code }}<br>
+                {% endif %}
+                {% if organization.country %}{{ organization.country }}{% endif %}
+            </address>
+            {% else %}<p class="text-muted mb-2">No address on file</p>{% endif %}
+
+            <p class="cw-subhead"><i class="fas fa-phone" aria-hidden="true"></i> Contact information</p>
+            <dl class="cw-dl mb-2">
+                {% if organization.phone %}<dt>Phone</dt><dd><a href="tel:{{ organization.phone }}">{{ organization.phone }}</a></dd>{% endif %}
+                {% if organization.email %}<dt>Email</dt><dd><a href="mailto:{{ organization.email }}">{{ organization.email }}</a></dd>{% endif %}
+                {% if organization.website %}<dt>Website</dt><dd><a href="{{ organization.website }}" target="_blank" rel="noopener noreferrer">{{ organization.website }}</a></dd>{% endif %}
+                {% if not organization.phone and not organization.email and not organization.website %}<dd class="cw-dl__empty text-muted">No contact information on file</dd>{% endif %}
+            </dl>
+
+            <p class="cw-subhead"><i class="fas fa-user" aria-hidden="true"></i> Primary contact</p>
+            <dl class="cw-dl mb-0">
+                {% if organization.primary_contact_name %}<dt>Name</dt><dd>{{ organization.primary_contact_name }}{% if organization.primary_contact_title %}, {{ organization.primary_contact_title }}{% endif %}</dd>{% endif %}
+                {% if organization.primary_contact_email %}<dt>Email</dt><dd><a href="mailto:{{ organization.primary_contact_email }}">{{ organization.primary_contact_email }}</a></dd>{% endif %}
+                {% if organization.primary_contact_phone %}<dt>Phone</dt><dd><a href="tel:{{ organization.primary_contact_phone }}">{{ organization.primary_contact_phone }}</a></dd>{% endif %}
+                {% if not organization.primary_contact_name and not organization.primary_contact_email and not organization.primary_contact_phone %}<dd class="cw-dl__empty text-muted">No primary contact on file</dd>{% endif %}
+            </dl>
+        </div>
+    </section>
+
+    {# -- contacts ------------------------------------------------------- #}
+    {% if ws.contacts %}
+    <section class="card cw-panel" id="cw-contacts">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-address-book" aria-hidden="true"></i> Contacts <span class="cw-count">{{ ws.contacts.count }}</span></h2>
+            <a class="small" href="?tab=contacts">All</a>
+        </div>
+        {% if ws.contacts.rows %}
+        <ul class="cw-list">
+            {% for c in ws.contacts.rows %}
+            <li><a href="{% url 'assets:contact_detail' c.pk %}">{{ c.first_name }} {{ c.last_name }}</a>
+                <span class="cw-list__meta">{{ c.title }}{% if c.title and c.email %} · {% endif %}{{ c.email }}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}<div class="card-body text-muted small">No contacts yet.</div>{% endif %}
+    </section>
+    {% endif %}
+
+    {# -- open tickets + SLA ----------------------------------------------- #}
+    {% if ws.tickets %}
+    <section class="card cw-panel" id="cw-tickets">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-ticket-alt" aria-hidden="true"></i> Open tickets <span class="cw-count">{{ ws.tickets.open_count }}</span></h2>
+            <a class="small" href="?tab=tickets">All</a>
+        </div>
+        {% if ws.sla %}
+        <div class="cw-strip">
+            <span><i class="fas fa-stopwatch" aria-hidden="true"></i> SLA</span>
+            <a href="{{ ws.sla.url }}"><span class="ui-badge ui-badge--danger">{{ ws.sla.breached }} breached</span></a>
+            <a href="{{ ws.sla.url }}"><span class="ui-badge ui-badge--warn">{{ ws.sla.warning }} at risk</span></a>
+            <span class="ui-badge ui-badge--neutral">{{ ws.tickets.unassigned }} unassigned</span>
+        </div>
+        {% endif %}
+        {% if ws.tickets.rows %}
+        <ul class="cw-list">
+            {% for t in ws.tickets.rows %}
+            <li><a href="{% url 'psa:ticket_detail' t.ticket_number %}"><span class="ui-ref">{{ t.ticket_number }}</span> {{ t.subject|truncatechars:60 }}</a>
+                <span class="cw-list__meta">{{ t.status.name }} · {{ t.priority.name }} · {% if t.assigned_to %}{{ t.assigned_to.get_username }}{% else %}Unassigned{% endif %}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}<div class="card-body text-muted small">No open tickets.</div>{% endif %}
+    </section>
+    {% endif %}
+
+    {# -- devices: assets + RMM ------------------------------------------- #}
+    {% if ws.assets or ws.rmm %}
+    <section class="card cw-panel" id="cw-devices">
+        <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-server" aria-hidden="true"></i> Devices</h2></div>
+        <div class="card-body cw-stats">
+            {% if ws.assets %}<a class="cw-stat" href="?tab=assets"><span class="cw-stat__value">{{ ws.assets.count }}</span><span class="cw-stat__label">Managed assets</span></a>{% endif %}
+            {% if ws.rmm %}
+            <a class="cw-stat" href="?tab=rmm"><span class="cw-stat__value text-success">{{ ws.rmm.online }}</span><span class="cw-stat__label">RMM online</span></a>
+            <a class="cw-stat" href="?tab=rmm"><span class="cw-stat__value{% if ws.rmm.offline %} text-danger{% endif %}">{{ ws.rmm.offline }}</span><span class="cw-stat__label">RMM offline</span></a>
+            {% endif %}
+            {% if ws.documents %}<a class="cw-stat" href="?tab=documents"><span class="cw-stat__value">{{ ws.documents.count }}</span><span class="cw-stat__label">Documents</span></a>{% endif %}
+            {% if ws.passwords %}<a class="cw-stat" href="?tab=passwords"><span class="cw-stat__value">{{ ws.passwords.count }}</span><span class="cw-stat__label">Passwords</span></a>{% endif %}
+        </div>
+    </section>
+    {% elif ws.documents or ws.passwords %}
+    <section class="card cw-panel" id="cw-devices">
+        <div class="card-header"><h2 class="h6 mb-0"><i class="fas fa-book" aria-hidden="true"></i> Knowledge</h2></div>
+        <div class="card-body cw-stats">
+            {% if ws.documents %}<a class="cw-stat" href="?tab=documents"><span class="cw-stat__value">{{ ws.documents.count }}</span><span class="cw-stat__label">Documents</span></a>{% endif %}
+            {% if ws.passwords %}<a class="cw-stat" href="?tab=passwords"><span class="cw-stat__value">{{ ws.passwords.count }}</span><span class="cw-stat__label">Passwords</span></a>{% endif %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# -- contracts + renewals ------------------------------------------- #}
+    {% if ws.contracts %}
+    <section class="card cw-panel" id="cw-renewals">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-file-contract" aria-hidden="true"></i> Contracts <span class="cw-count">{{ ws.contracts.active_count }} active</span></h2>
+            <a class="small" href="?tab=contracts">All</a>
+        </div>
+        {% if ws.contracts.renewals %}
+        <div class="cw-strip"><span>Renewing in the next {{ ws.contracts.window }} days</span></div>
+        <ul class="cw-list">
+            {% for c in ws.contracts.renewals %}
+            <li><a href="{% url 'psa:contract_detail' c.pk %}">{{ c.name }}</a>
+                <span class="cw-list__meta">Ends {{ c.end_date|date:"Y-m-d" }}{% if c.auto_renew %} · auto-renews{% endif %}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}<div class="card-body text-muted small">No renewals in the next {{ ws.contracts.window }} days.</div>{% endif %}
+    </section>
+    {% endif %}
+
+    {# -- open invoices --------------------------------------------------- #}
+    {% if ws.invoices %}
+    <section class="card cw-panel" id="cw-invoices">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Open invoices <span class="cw-count">{{ ws.invoices.open_count }}</span></h2>
+            <a class="small" href="?tab=billing">All</a>
+        </div>
+        {% if ws.invoices.amounts %}<div class="cw-strip">{% for currency, amount in ws.invoices.amounts %}<span data-amount="{{ currency }}">Balance {{ currency }} {{ amount|floatformat:2 }}</span>{% endfor %}</div>{% endif %}
+        {% if ws.invoices.rows %}
+        <ul class="cw-list">
+            {% for i in ws.invoices.rows %}
+            <li><a href="{% url 'psa:invoice_detail' i.pk %}"><span class="ui-ref">{{ i.invoice_number }}</span> {{ i.title|truncatechars:50 }}</a>
+                <span class="cw-list__meta">{{ i.get_status_display }}{% if i.due_date %} · due {{ i.due_date|date:"Y-m-d" }}{% if i.due_date < ws.invoices.today %} <span class="text-danger">overdue</span>{% endif %}{% endif %}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}<div class="card-body text-muted small">No open invoices.</div>{% endif %}
+    </section>
+    {% endif %}
+
+    {# -- active projects ------------------------------------------------- #}
+    {% if ws.projects %}
+    <section class="card cw-panel" id="cw-projects">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-diagram-project" aria-hidden="true"></i> Active projects <span class="cw-count">{{ ws.projects.active_count }}</span></h2>
+            <a class="small" href="?tab=projects">All</a>
+        </div>
+        {% if ws.projects.rows %}
+        <ul class="cw-list">
+            {% for p in ws.projects.rows %}
+            <li><a href="{% url 'psa:project_detail' p.pk %}">{{ p.name }}</a>
+                <span class="cw-list__meta">{{ p.get_status_display }}{% if p.due_date %} · due {{ p.due_date|date:"Y-m-d" }}{% endif %}{% if p.owner %} · {{ p.owner.get_username }}{% endif %}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}<div class="card-body text-muted small">No active projects.</div>{% endif %}
+    </section>
+    {% endif %}
+
+    {# -- recent activity ------------------------------------------------- #}
+    {% if ws.activity %}
+    <section class="card cw-panel" id="cw-activity">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Recent activity</h2>
+            <a class="small" href="?tab=activity">All</a>
+        </div>
+        <ul class="cw-list">
+            {% for a in ws.activity %}
+            <li><a href="{{ a.url }}"><i class="fas {{ a.icon }} fa-fw text-body-secondary" aria-hidden="true"></i> {{ a.title|truncatechars:60 }}</a>
+                <span class="cw-list__meta">{{ a.kind }}{% if a.detail %} · {{ a.detail }}{% endif %} · {{ a.when|timesince }} ago</span></li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {# -- sites (locations) ----------------------------------------------- #}
+    <section class="card cw-panel cw-panel--wide" id="cw-sites">
+        <div class="card-header cw-panel__head">
+            <h2 class="h6 mb-0"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Locations{% if locations %} <span class="cw-count">{{ locations|length }}</span>{% endif %}</h2>
+            {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
+            <a href="{% url 'locations:location_create' %}?organization_id={{ organization.id }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus" aria-hidden="true"></i> Add Location
+            </a>
+            {% endif %}
+        </div>
+        {% if locations %}
+        <div class="ui-table-wrap">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead><tr><th>Site</th><th>Address</th><th>Type</th><th class="ui-actions text-end">Actions</th></tr></thead>
+                <tbody>
+                {% for location in locations %}
+                <tr>
+                    <td><a href="{% url 'locations:location_detail' location.id %}">{{ location.name }}</a>
+                        {% if location.is_primary %}<span class="ui-badge ui-badge--info">Primary</span>{% endif %}
+                        {% if location.status == 'inactive' %}<span class="badge bg-secondary">Inactive</span>
+                        {% elif location.status == 'planned' %}<span class="badge bg-warning text-dark">Planned</span>
+                        {% elif location.status == 'closed' %}<span class="badge bg-danger">Closed</span>{% endif %}
+                    </td>
+                    <td class="text-body-secondary small">{{ location.full_address|truncatewords:8 }}</td>
+                    <td>{% if location.location_type %}<span class="badge bg-info">{{ location.get_location_type_display }}</span>{% endif %}
+                        {% if location.floorplan_generated %}<span class="badge bg-success" title="Floor plan available"><i class="fas fa-map" aria-hidden="true"></i> Floor Plan</span>{% endif %}</td>
+                    <td class="ui-actions text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-outline-primary" title="View" aria-label="View {{ location.name }}"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                            {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
+                            <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-outline-secondary" title="Edit" aria-label="Edit {{ location.name }}"><i class="fas fa-edit" aria-hidden="true"></i></a>
+                            <a href="{% url 'locations:location_delete' location.id %}" class="btn btn-outline-danger" title="Delete" aria-label="Delete {{ location.name }}"><i class="fas fa-trash" aria-hidden="true"></i></a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card-body">
+            {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
+            {% url 'locations:location_create' as loc_create %}
+            {% include "core/_empty_state.html" with compact=True title="No locations yet." action_url=loc_create action_label="Add First Location" %}
+            {% else %}
+            {% include "core/_empty_state.html" with compact=True title="No locations yet." %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<!-- Contract documents (MSP staff with contracts_view only) -->
+{% org_contracts organization %}
+
+<!-- Pulse check trend (MSP staff only, while pulse checks are on) -->
+{% org_pulse organization %}
+
+{% include "accounts/workspace/_ratings.html" %}
+
