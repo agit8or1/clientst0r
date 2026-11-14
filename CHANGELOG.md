@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.679] - 2026-11-14
+
+### Added
+- Settings → General → Customer Portal: one page for the portal's address (host name, effective URL, open sign-in), branding (portal name, logo, default accent colour, sign-in background colour or image, welcome message, support email/phone/website), layout (top bar or side navigation, standard or wide content, default light/dark/system theme), portal features, per-customer portal on/off in bulk, and a country-policy summary.
+- A customer's own portal colour can be set on its customer settings.
+
+### Changed
+- The portal host name moved from General settings, and the four portal feature switches from Optional Modules, to Customer Portal settings (stored values unchanged).
+- Portal accent colours keep 4.5:1 contrast in light and dark themes; the portal ticket list scrolls sideways on phones.
+- Uploaded branding images are re-encoded (PNG/JPEG/WebP, size-capped); asset photos use the same sanitiser.
+- Phones: the top bar stays on one row with a distinct menu button, the Update pill shortens to "Update", wide tables scroll inside their own frame instead of widening the page, section tabs scroll sideways, dashboard panels get phone-sized heights, and the ticket list hides secondary columns on small screens (client shown under the subject).
+
+### Fixed
+- Sign-in: the username, password and code fields stay inside the form at every width.
+
 ## [3.17.678] - 2026-11-14
 
 ### Changed

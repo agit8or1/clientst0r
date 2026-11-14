@@ -2713,6 +2713,14 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   wallpaper optional, shared design tokens; existing preferences kept.
 - **67.8 Validation** *(partial — per-role navigation and dashboard tests, direct-URL checks and viewport screenshots v3.17.677; customer-role screenshots and a review period before the Classic dashboard is retired planned)* — role matrix with direct-URL denial checks,
   viewport screenshots, regression suite.
+- **67.9 Phones and the sign-in page** *(shipped v3.17.679)* — one-row top bar with a
+  distinct menu button, wide tables scroll inside their own frame, section tabs scroll
+  sideways, phone-sized dashboard panels, ticket list drops secondary columns on small
+  screens; sign-in fields stack full width at every size.
+- **67.10 Customer Portal settings** *(shipped v3.17.679)* — Settings → General → Customer
+  Portal: portal address, branding (name, logo, accent colour, sign-in background and
+  welcome message, support contact), layout (top or side navigation, content width,
+  default theme), portal features, per-customer portal on/off, country-policy summary.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
