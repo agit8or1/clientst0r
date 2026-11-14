@@ -17,6 +17,7 @@ from . import help_views
 from . import client_switcher
 from . import customer_ops_views
 from . import modules_views
+from . import portal_settings_views
 from . import workspace
 
 app_name = 'core'
@@ -162,6 +163,7 @@ urlpatterns = [
 
     # Admin Settings (superuser only)
     path('settings/general/', settings_views.settings_general, name='settings_general'),
+    path('settings/portal/', portal_settings_views.settings_portal, name='settings_portal'),
     path('settings/security/', settings_views.settings_security, name='settings_security'),
     path('settings/features/', settings_views.settings_features, name='settings_features'),
     path('settings/modules/', modules_views.settings_modules, name='settings_modules'),

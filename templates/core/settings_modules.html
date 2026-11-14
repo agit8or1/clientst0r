@@ -54,6 +54,8 @@
                         <button type="submit" class="btn btn-sm btn-primary">{% trans "Turn on" %}</button>
                         {% endif %}
                     </form>
+                    {% elif row.managed_at %}
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ row.managed_at }}" data-managed-at>{% trans "Change on its settings page" %}</a>
                     {% endif %}
                 </div>
 

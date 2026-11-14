@@ -349,21 +349,36 @@ class PortalHostnameTests(TestCase):
         self.assertEqual(portal_surface.portal_hostname(), 'env-portal.example.com')
         self.assertEqual(self.get('/core/dashboard/', 'env-portal.example.com').status_code, 404)
 
+    def _portal_settings_post(self, host_name):
+        # The host name is edited on Settings → Customer portal (it moved
+        # off Settings → General); the other fields are that form's defaults.
+        return self.client.post('/core/settings/portal/', {
+            'portal_hostname': host_name, 'portal_login_background': 'none',
+            'portal_navigation': 'top', 'portal_content_width': 'standard',
+            'portal_default_theme': 'system',
+        }, HTTP_HOST='staff.example.com')
+
     def test_settings_page_saves_hostname(self):
         self.client.force_login(self.admin)
-        r = self.client.post('/core/settings/general/', {
-            'site_name': 'MSP', 'site_url': 'https://staff.example.com',
-            'default_timezone': 'UTC', 'portal_hostname': 'staff.example.com',
-        }, HTTP_HOST='staff.example.com')
-        self.assertEqual(r.status_code, 302)
+        r = self._portal_settings_post('staff.example.com')
+        self.assertEqual(r.status_code, 200)  # form shown again with the error
+        self.assertContains(r, 'must differ from the host staff use')
         from core.models import SystemSetting
         # Refused: it is the staff host.
         self.assertEqual(SystemSetting.get_settings().portal_hostname, 'portal.example.com')
-        self.client.post('/core/settings/general/', {
+        r = self._portal_settings_post('')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(SystemSetting.get_settings().portal_hostname, '')
+
+    def test_general_settings_no_longer_change_hostname(self):
+        self.client.force_login(self.admin)
+        r = self.client.post('/core/settings/general/', {
             'site_name': 'MSP', 'site_url': 'https://staff.example.com',
             'default_timezone': 'UTC', 'portal_hostname': '',
         }, HTTP_HOST='staff.example.com')
-        self.assertEqual(SystemSetting.get_settings().portal_hostname, '')
+        self.assertEqual(r.status_code, 302)
+        from core.models import SystemSetting
+        self.assertEqual(SystemSetting.get_settings().portal_hostname, 'portal.example.com')
 
 
 @override_settings(MIDDLEWARE=NO_2FA_MIDDLEWARE, SECURE_SSL_REDIRECT=False,

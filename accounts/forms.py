@@ -36,7 +36,7 @@ class OrganizationForm(forms.ModelForm):
             'street_address', 'street_address_2', 'city', 'state', 'postal_code', 'country',
             'phone', 'email', 'website',
             'primary_contact_name', 'primary_contact_title', 'primary_contact_email', 'primary_contact_phone',
-            'logo', 'is_active'
+            'logo', 'portal_primary_color', 'is_active'
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Organization Name'}),
@@ -59,8 +59,14 @@ class OrganizationForm(forms.ModelForm):
             'primary_contact_phone': forms.TextInput(attrs={'class': 'form-control'}),
             'parent': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'portal_primary_color': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': '#0f766e', 'maxlength': 7,
+                'autocomplete': 'off', 'spellcheck': 'false'}),
         }
+        labels = {'portal_primary_color': 'Customer portal colour'}
         help_texts = {
+            'portal_primary_color': 'Accent colour of this customer\'s portal pages, as #rrggbb. '
+                                    'Empty: the default from Customer Portal settings.',
             'is_active': 'Inactive organizations are hidden from users',
             'parent': 'Optional. Set when this org is a branch/subsidiary of another. The parent will see this org\'s tickets, assets, etc. via inherited filtering.',
         }
@@ -75,6 +81,14 @@ class OrganizationForm(forms.ModelForm):
             self.fields['parent'].queryset = (
                 self.fields['parent'].queryset.exclude(pk__in=forbidden)
             )
+
+
+    def clean_portal_primary_color(self):
+        import re
+        value = (self.cleaned_data.get('portal_primary_color') or '').strip()
+        if value and not re.match(r'^#[0-9a-fA-F]{6}$', value):
+            raise forms.ValidationError('Enter a colour as #rrggbb, for example #0f766e.')
+        return value.lower()
 
 
 class MembershipForm(forms.ModelForm):
@@ -103,8 +117,14 @@ class MembershipForm(forms.ModelForm):
             'additional_roles': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
             'record_scope': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'portal_primary_color': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': '#0f766e', 'maxlength': 7,
+                'autocomplete': 'off', 'spellcheck': 'false'}),
         }
+        labels = {'portal_primary_color': 'Customer portal colour'}
         help_texts = {
+            'portal_primary_color': 'Accent colour of this customer\'s portal pages, as #rrggbb. '
+                                    'Empty: the default from Customer Portal settings.',
             'role': 'Basic role (used if no role template is selected)',
             'role_template': 'Optional: Select a role template for granular permissions',
             'additional_roles': 'Optional: more roles in this organization. Permissions add up.',

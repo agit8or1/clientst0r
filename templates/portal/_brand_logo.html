@@ -1,0 +1,1 @@
+{% comment %}Brand mark: the customer's logo, the portal logo, the app's custom logo, else an icon (core.portal_branding.PortalLook).{% endcomment %}{% if look.logo_url %}<img src="{{ look.logo_url }}" alt="{{ look.logo_alt }}">{% else %}<span class="portal-brand-mark" aria-hidden="true"><i class="fas fa-life-ring"></i></span>{% endif %}

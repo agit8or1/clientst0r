@@ -5,7 +5,13 @@
  * Colours are tokens on :root. Light by default; dark when the visitor's
  * system prefers it (unless the page is pinned light), or when the page is
  * pinned dark (data-portal-theme="dark", from a signed-in user's dark theme).
- * --portal-accent comes from the customer's portal colour when one is set.
+ * --portal-accent comes from the customer's portal colour when one is set,
+ * else from the portal's default accent (templates/portal/_look_style.html).
+ *
+ * Layout (Settings → General → Customer portal, core.portal_branding):
+ *   body.portal-nav-top | body.portal-nav-side   navigation in the top bar, or
+ *       a side column on wide screens (phones keep the Menu drawer either way);
+ *   body.portal-width-standard | .portal-width-wide   content width.
  */
 :root {
     --portal-accent: #0f766e;
@@ -212,7 +218,73 @@ body.portal-body {
     .portal-nav form select { width: 100%; }
 }
 
+/* Labels of the icon-only links (preferences, password, sign-in security):
+   read out in the top bar, shown in the phone drawer and the side column. */
+@media (min-width: 861px) {
+    .portal-nav-top .portal-nav .portal-nav-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+}
+
+/* ---- Side navigation (wide screens) ------------------------------------ */
+
+@media (min-width: 861px) {
+    body.portal-nav-side { padding-left: 252px; }
+    .portal-nav-side .portal-header {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 252px;
+        border-bottom: 0;
+        border-right: 1px solid var(--portal-border);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .portal-nav-side .portal-header > .portal-wrap {
+        max-width: none;
+        padding: 0 12px;
+        display: flex;
+        flex-direction: column;
+        flex: 1 0 auto;
+    }
+    .portal-nav-side .portal-header-row { min-height: 0; padding: 18px 4px 14px; }
+    .portal-nav-side .portal-brand { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .portal-nav-side .portal-brand img { max-width: 100%; }
+    .portal-nav-side .portal-brand-name { white-space: normal; overflow-wrap: anywhere; }
+    .portal-nav-side .portal-nav {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 2px;
+        flex: 1 0 auto;
+        padding: 4px 0 18px;
+    }
+    .portal-body.portal-nav-side .portal-nav a,
+    .portal-nav-side .portal-nav .portal-nav-button {
+        border-radius: 10px;
+        width: 100%;
+        justify-content: flex-start;
+        padding: 8px 12px;
+    }
+    .portal-nav-side .portal-nav .portal-cta { justify-content: center; margin-top: 6px; }
+    .portal-nav-side .portal-nav form { width: 100%; }
+    .portal-nav-side .portal-nav form select { width: 100%; }
+    .portal-nav-side .portal-nav .portal-nav-spacer { min-height: 12px; }
+}
+
 /* ---- Content ----------------------------------------------------------- */
+
+.portal-width-wide .portal-wrap { max-width: 1440px; }
 
 .portal-main { flex: 1 0 auto; padding: 28px 0 40px; }
 /* Older portal templates use .portal-content for their own wrappers. */
@@ -313,6 +385,13 @@ body.portal-body {
     font-size: 0.85rem;
     padding: 18px 0;
 }
+.portal-footer-contact {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+}
+.portal-footer-contact a { text-decoration: none; }
+.portal-footer-contact a:hover { text-decoration: underline; }
 .portal-footer-row {
     display: flex;
     flex-wrap: wrap;
@@ -388,6 +467,16 @@ body.portal-body {
     color: var(--portal-muted);
     text-align: center;
 }
+.portal-auth-welcome {
+    background: var(--portal-surface-2);
+    border-left: 3px solid var(--portal-accent);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+}
+.portal-auth-help { overflow-wrap: anywhere; }
 .portal-auth-note {
     margin-top: 16px;
     font-size: 0.8rem;

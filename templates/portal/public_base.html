@@ -2,6 +2,7 @@
 {% load portal_theme %}
 {% portal_theme_mode as theme_mode %}
 {% portal_brand_name as msp_name %}
+{% portal_look False as look %}
 {# Customer-facing pages reached from links sent to customers (secure #}
 {# messages, secure replies, unsubscribe links): the portal look, no staff UI. #}
 <!DOCTYPE html>
@@ -15,21 +16,18 @@
     <link href="{% static 'vendor/bootstrap/5.3.0/css/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="{% static 'css/portal.css' %}">
+    {% include "portal/_look_style.html" %}
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/portal.js' %}"></script>
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
-<body class="portal-body">
+<body class="portal-body portal-width-{{ look.width }}">
     <a class="portal-skip-link" href="#portal-main">Skip to content</a>
     <header class="portal-header">
         <div class="portal-wrap">
             <div class="portal-header-row">
                 <span class="portal-brand">
-                    {% if system_settings.custom_logo %}
-                        <img src="{{ system_settings.custom_logo.url }}" alt="{{ msp_name }}">
-                    {% else %}
-                        <span class="portal-brand-mark" aria-hidden="true"><i class="fas fa-life-ring"></i></span>
-                    {% endif %}
+                    {% include "portal/_brand_logo.html" %}
                     <span class="portal-brand-name">{{ msp_name }}<span class="portal-brand-sub">Customer support</span></span>
                 </span>
             </div>
@@ -45,12 +43,7 @@
             {% block content %}{% endblock %}
         </div>
     </main>
-    <footer class="portal-footer">
-        <div class="portal-wrap portal-footer-row">
-            <span>{% if msp_name %}Support provided by {{ msp_name }}{% endif %}</span>
-            <span><i class="fas fa-lock" aria-hidden="true"></i> Secure customer portal</span>
-        </div>
-    </footer>
+    {% include "portal/_footer.html" %}
     <script src="{% static 'vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>

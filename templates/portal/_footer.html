@@ -1,0 +1,14 @@
+{% comment %}Portal footer with the support contact from Settings → Customer portal. Include with look=<PortalLook>.{% endcomment %}
+<footer class="portal-footer">
+    <div class="portal-wrap portal-footer-row">
+        <span>{% if look.name %}Support provided by {{ look.name }}{% endif %}</span>
+        {% if look.has_contact %}
+        <span class="portal-footer-contact" data-portal-contact>
+            {% if look.support_email %}<a href="mailto:{{ look.support_email }}"><i class="fas fa-envelope" aria-hidden="true"></i> {{ look.support_email }}</a>{% endif %}
+            {% if look.support_phone %}<a href="{{ look.support_tel }}"><i class="fas fa-phone" aria-hidden="true"></i> {{ look.support_phone }}</a>{% endif %}
+            {% if look.support_url %}<a href="{{ look.support_url }}" target="_blank" rel="noopener noreferrer"><i class="fas fa-circle-question" aria-hidden="true"></i> Support site<span class="visually-hidden"> (opens in a new tab)</span></a>{% endif %}
+        </span>
+        {% endif %}
+        <span><i class="fas fa-lock" aria-hidden="true"></i> Secure customer portal</span>
+    </div>
+</footer>

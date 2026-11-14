@@ -143,10 +143,25 @@ class ModulesPageTests(TestCase):
         self.assertContains(r, 'data-module="ticket_ai" data-state="inactive"')
 
     def test_soft_dependency_warns(self):
+        r = self._post('pulse', 'on')
+        self.assertTrue(SystemSetting.get_settings().pulse_enabled)
+        self.assertContains(r, 'does little until Customer portal is on as well')
+
+    def test_portal_feature_switches_are_changed_on_portal_settings(self):
+        # Moved to Settings → Customer portal: shown here with their state
+        # and a link, not switched here.
         self._post('psa', 'on')
         r = self._post('portal_voting', 'on')
-        self.assertTrue(SystemSetting.get_settings().psa_portal_voting_enabled)
-        self.assertContains(r, 'does little until Customer portal is on as well')
+        self.assertFalse(SystemSetting.get_settings().psa_portal_voting_enabled)
+        self.assertContains(r, 'Nothing was changed')
+        html = self.client.get(self.url).content.decode()
+        portal_url = reverse('core:settings_portal')
+        for key in ('portal_announcements', 'portal_voting', 'portal_escalation', 'portal_approvals'):
+            block = html.split(f'data-module="{key}"', 1)[1].split('data-module=', 1)[0]
+            self.assertIn(f'href="{portal_url}" data-managed-at', block)
+            self.assertNotIn('name="enabled"', block)
+        with self.assertRaises(ValueError):
+            modules.set_enabled(modules.MODULES_BY_KEY['portal_voting'], SystemSetting.get_settings(), True)
 
     def test_managed_elsewhere_modules_cannot_be_switched_here(self):
         r = self._post('routing', 'on')

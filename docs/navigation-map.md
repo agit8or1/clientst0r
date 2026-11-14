@@ -42,7 +42,7 @@ open, and a warning before leaving a settings form with unsaved changes
 
 | Old settings menu (group → page) | New category | Gate (mirrors the view) |
 |---|---|---|
-| System → General, PSA | General | su; PSA also needs the psa module |
+| System → General, PSA | General (+ Customer Portal: host name, branding, layout, portal features and per-customer switches) | su; PSA also needs the psa module |
 | *(sidebar Settings → Asset Setup)* Equipment Catalog, Custom Fields & Types; Tags; Holidays | General | MSP staff; catalog managers; su; `resourcing_manage_holidays` |
 | System → System Status, Updates; Mobile → Mobile Apps, Beta testers | System | su; Mobile Apps: Django staff or su |
 | Security → Security, Security Dashboard, Technician Access, RMM Permissions, Firewall, Fail2ban, Snyk | Security (+ Security Features, Vault Visibility, Superuser Approval, Vulnerability Scans) | su; RMM Permissions: its policy readers |

@@ -573,6 +573,9 @@ SECTIONS = (
     Section('settings_general', 'settings', _('General'), icon='fa-sliders-h', render_tabs=False, tabs=(
         Tab(_('General Settings'), 'core:settings_general', 'fa-sliders-h', gate=_superuser,
             keywords='site name url timezone branding logo'),
+        Tab(_('Customer Portal'), 'core:settings_portal', 'fa-door-open', gate=_superuser,
+            keywords='portal customer client branding logo login sign-in background url host '
+                     'hostname layout navigation theme colour color welcome support contact'),
         Tab(_('PSA'), 'core:settings_psa', 'fa-ticket-alt', gate=_all(_superuser, _psa),
             keywords='tickets portal surfaces', also=('psa:settings', 'psa:client_settings')),
         Tab(_('Equipment Catalog'), 'assets:vendor_list', 'fa-database', gate=_msp_staff,
