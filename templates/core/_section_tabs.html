@@ -9,7 +9,7 @@ Pills, not a menu: every entry is a plain link (or, for Help, the same modal
 the old account-menu entry opened), reachable by Tab and by touch.
 {% endcomment %}
 {% if tabs %}
-<nav class="section-tabs mb-3" aria-label="{% blocktrans with name=label %}{{ name }} pages{% endblocktrans %}">
+<nav class="section-tabs" aria-label="{% blocktrans with name=label %}{{ name }} pages{% endblocktrans %}">
   <ul class="nav nav-pills section-tabs__list flex-wrap">
     {% for t in tabs %}
     <li class="nav-item">
