@@ -40,7 +40,7 @@
         <div class="card border-secondary">
             <div class="card-body py-2">
                 <div class="text-muted small text-uppercase">High/critical</div>
-                <div class="fs-4 fw-bold">{{ totals.by_severity.high|default:0|add:totals.by_severity.critical|default:0 }}</div>
+                <div class="fs-4 fw-bold">{{ totals.high_critical }}</div>
             </div>
         </div>
     </div>
