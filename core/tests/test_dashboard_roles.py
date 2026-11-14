@@ -280,9 +280,14 @@ class ServiceFigureTests(_Base):
         self.assertEqual(dw.build_kpi_my_open(req, self.org_a)['href'],
                          f'{base}?client={self.org_a.pk}&assigned=me&queue=open')
         self.assertEqual(dw.build_kpi_unassigned(req, self.org_a)['href'],
-                         f'{base}?client={self.org_a.pk}&assigned=unassigned&queue=open')
+                         f'{base}?client={self.org_a.pk}&view=unassigned')
+        # v3.17.681: the ticket list's saved views (dev/r681-tickets).
         self.assertEqual(dw.build_kpi_overdue(req, self.org_a)['href'],
-                         f'{base}?client={self.org_a.pk}&queue=open')
+                         f'{base}?client={self.org_a.pk}&view=sla&sla=breached')
+        self.assertEqual(dw.build_kpi_sla_risk(req, self.org_a)['href'],
+                         f'{base}?client={self.org_a.pk}&view=sla&sla=at_risk')
+        self.assertEqual(dw.build_kpi_escalated(req, self.org_a)['href'],
+                         f'{base}?client={self.org_a.pk}&view=escalated')
 
     def test_approvals_only_for_approvers(self):
         self.assertTrue(dw.gate_approvals(_req(self.root, self.org_a)))

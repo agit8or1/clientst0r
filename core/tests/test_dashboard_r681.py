@@ -212,6 +212,19 @@ class SalesWidgetTests(_Base):
 
 class ManagerWidgetTests(_Base):
 
+    def test_escalated_kpi_counts_open_escalated_tickets_of_this_customer(self):
+        now = timezone.now()
+        _ticket(self.org_a, 'Esc A', escalated_at=now)
+        _ticket(self.org_a, 'Not escalated')
+        _ticket(self.org_b, 'Esc B secret', escalated_at=now)
+        req = _req(self.user('service_manager'), self.org_a)
+        k = dw.build_kpi_escalated(req, self.org_a)
+        self.assertEqual(k['value'], 1)
+        self.assertTrue(k['href'].endswith(f'?client={self.org_a.pk}&view=escalated'))
+        for preset in (dw.PRESET_L2, dw.PRESET_L3, dw.PRESET_MANAGER):
+            self.assertNotIn('kpi_escalated', dw.preset_layout(preset)['hidden'], preset)
+        self.assertIn('kpi_escalated', dw.MSP_ONLY)
+
     def test_utilization_not_configured_without_targets(self):
         req = _req(self.user('service_manager'), self.org_a)
         self.assertTrue(dw.gate_utilization(req))

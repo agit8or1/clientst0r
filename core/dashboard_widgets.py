@@ -704,7 +704,8 @@ def sla_counts(request, org):
 
 def _ticket_list(org, **params):
     """The ticket list filtered by its own query parameters
-    (psa.views.ticket_list: client, assigned, queue)."""
+    (psa.views.ticket_list: client, assigned, queue, and the saved views
+    view=sla|unassigned|escalated|approvals with sla=at_risk|breached)."""
     from urllib.parse import urlencode
     return url('psa:ticket_list', query=urlencode(dict(client=org.pk, **params)))
 
@@ -717,20 +718,29 @@ def build_kpi_my_open(request, org):
 
 def build_kpi_sla_risk(request, org):
     n = sla_counts(request, org)['at_risk']
-    return _kpi(n, 'SLA at risk', 'fa-hourglass-half', _ticket_list(org, queue='open'),
+    return _kpi(n, 'SLA at risk', 'fa-hourglass-half', _ticket_list(org, view='sla', sla='at_risk'),
                 tone='warning' if n else 'secondary')
 
 
 def build_kpi_overdue(request, org):
     n = sla_counts(request, org)['overdue']
-    return _kpi(n, 'Overdue tickets', 'fa-circle-exclamation', _ticket_list(org, queue='open'),
+    return _kpi(n, 'Overdue tickets', 'fa-circle-exclamation',
+                _ticket_list(org, view='sla', sla='breached'),
                 tone='danger' if n else 'secondary')
 
 
 def build_kpi_unassigned(request, org):
     n = _open_tickets(request, org).filter(assigned_to__isnull=True).count()
     return _kpi(n, 'Unassigned tickets', 'fa-inbox',
-                _ticket_list(org, assigned='unassigned', queue='open'),
+                _ticket_list(org, view='unassigned'),
+                tone='warning' if n else 'secondary')
+
+
+def build_kpi_escalated(request, org):
+    """Open tickets escalated to a higher tier (escalated_at set), in the
+    same visible-tickets scope as the other service-desk figures."""
+    n = _open_tickets(request, org).filter(escalated_at__isnull=False).count()
+    return _kpi(n, 'Escalated tickets', 'fa-arrow-up-right-dots', _ticket_list(org, view='escalated'),
                 tone='warning' if n else 'secondary')
 
 
@@ -749,7 +759,7 @@ def build_kpi_approvals(request, org):
     queues = [q for q in _approval_queues(request) if q['count']]
     n = sum(q['count'] for q in queues)
     # One waiting queue: open it; several (or none): My Work lists them all.
-    href = queues[0]['url'] if len(queues) == 1 else url('psa:my_work')
+    href = queues[0]['url'] if len(queues) == 1 else _ticket_list(org, view='approvals')
     sub = ', '.join(f"{q['count']} {q['label'].lower()}" for q in queues[:2]) if len(queues) > 1 else ''
     return _kpi(n, 'Pending approvals', 'fa-circle-check', href,
                 tone='warning' if n else 'secondary', sub=sub)
@@ -1529,6 +1539,9 @@ WIDGETS = (
     Widget('kpi_approvals', 'Pending approvals', 'fa-circle-check', gate_approvals,
            build_kpi_approvals, _KPI_TPL, zone='kpi', lazy=True, expandable=False,
            description='The approval queues on My Work you can act on.'),
+    Widget('kpi_escalated', 'Escalated tickets', 'fa-arrow-up-right-dots', gate_staff_tickets,
+           build_kpi_escalated, _KPI_TPL, zone='kpi', expandable=False,
+           description='Open tickets escalated to a higher tier.'),
     Widget('kpi_due_today', 'Due today', 'fa-calendar-day', gate_staff_tickets,
            build_kpi_due_today, _KPI_TPL, zone='kpi', expandable=False,
            description='Open tickets whose SLA deadline falls later today.'),
@@ -1586,11 +1599,11 @@ WIDGETS = (
            description='Your open tickets at this customer, soonest SLA deadline first.'),
     Widget('unassigned_queue', 'Unassigned tickets', 'fa-inbox', gate_staff_tickets,
            build_unassigned_queue, _QUEUE_TPL, size=2, link='psa:ticket_list', link_client=True,
-           link_query='assigned=unassigned&queue=open',
+           link_query='view=unassigned',
            description='Open tickets nobody has picked up, soonest SLA deadline first.'),
     Widget('sla_overview', 'SLA overview', 'fa-stopwatch', gate_staff_tickets,
            build_sla_overview, 'core/dashboard/_w_sla_overview.html', lazy=True,
-           link='psa:ticket_list', link_client=True, link_query='queue=open'),
+           link='psa:ticket_list', link_client=True, link_query='view=sla'),
     Widget('workload', 'Technician workload', 'fa-people-group', gate_dispatch, build_workload,
            'core/dashboard/_w_workload.html', lazy=True, link='psa:dispatch_board',
            description='Open tickets per technician at this customer.'),
@@ -1693,16 +1706,16 @@ _PRESETS = {
     # other oversight roles): unassigned work first, workload, SLA
     # compliance, approvals, trends.
     PRESET_MANAGER: ('kpi_unassigned', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today',
-                     'kpi_approvals', 'kpi_my_open') + (
+                     'kpi_approvals', 'kpi_my_open', 'kpi_escalated') + (
         'unassigned_queue', 'workload', 'sla_overview', 'team_utilization', 'billing_summary',
         'reports'),
     # L3: escalated / advanced work, infrastructure and RMM.
     PRESET_L3: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_rmm_alerts',
-                'kpi_tasks') + (
+                'kpi_tasks', 'kpi_escalated') + (
         'my_queue', 'sla_overview', 'rmm_alerts', 'monitors', 'tasks'),
     # L2: own queue, SLA warnings, tasks, RMM alerts.
     PRESET_L2: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_unassigned',
-                'kpi_tasks') + (
+                'kpi_tasks', 'kpi_escalated') + (
         'my_queue', 'sla_overview', 'tasks', 'rmm_alerts', 'ticket_recent'),
     # L1: own queue, SLA warnings, tasks, own time.
     PRESET_L1: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_tasks') + (
@@ -1725,7 +1738,7 @@ _PRESETS = {
 # administrator saves for the customer preset: MSP-only data. Their gates
 # refuse customer users anyway; this keeps the preset honest.
 MSP_ONLY = frozenset({
-    'kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_unassigned', 'kpi_approvals',
+    'kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_unassigned', 'kpi_approvals', 'kpi_escalated',
     'kpi_due_today', 'kpi_crm_open', 'kpi_crm_leads', 'kpi_rmm_alerts', 'kpi_psa_companies',
     'kpi_psa_tickets', 'my_queue', 'unassigned_queue', 'sla_overview', 'workload', 'crm_pipeline',
     'crm_closing', 'my_time', 'rmm_alerts', 'system_status',
