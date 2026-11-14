@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block title %}{% trans "Administration" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block main_class %}container-fluid mt-2 settings-center-main{% endblock %}
+{% block content %}
+{% comment %}
+The settings center (core.settings_home_views.settings_home): every settings
+category this user may open, as compact cards listing their pages. The
+cards are navigation.settings_workspace(), so each link already passed its
+page's own check. The search filters the cards in the browser
+(static/js/settings_ws.js); nothing is fetched.
+{% endcomment %}
+<section class="settings-center" data-settings-center aria-labelledby="settingsCenterTitle">
+    <div class="settings-center__head">
+        <h1 class="settings-center__title" id="settingsCenterTitle"><i class="fas fa-gear" aria-hidden="true"></i> {% trans "Administration" %}</h1>
+        <span class="settings-center__count text-body-secondary small">{% blocktrans count n=page_count %}{{ n }} settings page{% plural %}{{ n }} settings pages{% endblocktrans %}</span>
+        <div class="settings-center__search" role="search">
+            <label class="visually-hidden" for="settingsCenterSearch">{% trans "Search settings" %}</label>
+            <i class="fas fa-magnifying-glass settings-center__search-icon" aria-hidden="true"></i>
+            <input type="search" class="form-control form-control-sm" id="settingsCenterSearch"
+                   placeholder="{% trans 'Find a setting…' %}" autocomplete="off" spellcheck="false" maxlength="60"
+                   aria-controls="settingsCenterGrid" aria-describedby="settingsCenterStatus"
+                   data-i18n-count="{% trans '__N__ matching settings pages' %}"
+                   data-i18n-none="{% trans 'No settings pages match.' %}">
+        </div>
+        <div id="settingsCenterStatus" class="visually-hidden" role="status" aria-live="polite"></div>
+    </div>
+    <div class="settings-center__grid" id="settingsCenterGrid">
+        {% for c in categories %}
+        <section class="settings-card" data-settings-group="{{ c.key }}" aria-labelledby="settingsCard-{{ c.key }}">
+            <h2 class="settings-card__title" id="settingsCard-{{ c.key }}">
+                <i class="{{ c.icon }} fa-fw" aria-hidden="true"></i>
+                <a href="{{ c.href }}">{{ c.label }}</a>
+                {% if c.optional_ai %}<span class="badge text-bg-secondary settings-card__tag">{% trans "OPTIONAL AI" %}</span>{% endif %}
+                <span class="settings-card__n">{{ c.tabs|length }}</span>
+            </h2>
+            {% if c.optional_ai and not c.ai_on %}
+            <p class="settings-card__note small">{% trans "AI features are off. They are switched on in General → PSA; these pages configure the provider and models." %}</p>
+            {% endif %}
+            <ul class="settings-card__pages">
+                {% for t in c.tabs %}
+                <li data-filter="{{ t.label }} {{ t.keywords }} {{ c.label }}"><a href="{{ t.href }}"><i class="{{ t.icon }} fa-fw" aria-hidden="true"></i> {{ t.label }}</a></li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endfor %}
+    </div>
+    <p class="settings-center__none text-body-secondary" hidden>{% trans "No settings pages match." %}</p>
+</section>
+<script src="{% static 'js/settings_ws.js' %}" defer></script>
+{% endblock %}
