@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.680] - 2026-11-14
+
+### Added
+- Navigation in ten sections: Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports, with Administration pinned at the bottom of the sidebar. Secondary tools (recurring tickets, canned replies, email ingestion, workflow rules, routing, security vendor connections, SIEM and more) sit in a Configure menu on their section's pages. Every page keeps its URL and its access rules.
+- Sidebar: navy in every theme, collapses to an icon rail with keyboard-accessible flyout menus (the rail is the default on tablets), remembers your choice, and only the current section starts open.
+- Section tabs stay on one row, with a More menu for the rest; breadcrumbs show Section › Workspace › Page.
+- Administration opens a searchable settings center with ten categories, each listing only the pages you may open.
+- Client workspace: the client page has tabs for Overview, Tickets, Assets, RMM, Contacts, Documents, Passwords (names only), Contracts, Billing, Projects, Activity and Members, a KPI row, renewals and open invoices, and quick actions that appear only when you may use them. Opening a client makes it your current client, with links back to all clients and the MSP-wide view.
+- Ctrl+K / Cmd+K command palette (also the Go to button): pages, settings and quick commands, plus clients, tickets by number or subject, devices by name, serial, hostname or asset tag, projects, documents, KB articles and reports, searched with each list page's own permission rules. Passwords are not searched.
+- Favorites (star any page) and Recent menus in the top bar; entries disappear when you lose access, the record is deleted or the module is switched off.
+- Dashboard: compact header with New Ticket, Log Time, Add Client, Create Project and Dispatch Board; a KPI row (my open tickets, SLA at risk, overdue, unassigned, pending approvals, due today); new panels for my ticket queue, SLA overview, technician workload, recently updated tickets, sales pipeline, opportunities closing soon and my time this week; default layouts for admin, manager/dispatcher, L1/L2/L3 technician, sales and customer roles.
+
+### Changed
+- Duplicate labels removed: hardware "VLAN Ports" vs IPAM "VLANs", one Contracts heading (PSA contracts and contract documents kept separate), one Knowledge Base entry.
+- The top bar drops its shortcut icons below 1440px and the inline search box below 1200px (Go to covers both); "/" opens Go to when the search box is hidden.
+
+### Security
+- Global search no longer shows customer users the titles of internal-only documents; it now uses the document list's own visibility rule.
+
 ## [3.17.679] - 2026-11-14
 
 ### Added

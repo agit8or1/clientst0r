@@ -2721,6 +2721,32 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   Portal: portal address, branding (name, logo, accent colour, sign-in background and
   welcome message, support contact), layout (top or side navigation, content width,
   default theme), portal features, per-customer portal on/off, country-policy summary.
+- **67.11 Ten-section navigation** *(shipped v3.17.680)* — Dashboard, My Work, Service Desk,
+  Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring, Reports, with
+  Administration pinned at the foot; navy sidebar with an icon rail and keyboard-accessible
+  flyouts (rail by default on tablets); per-section Configure menus for secondary tools; tab
+  strips that never wrap (More menu); breadcrumbs; duplicate labels removed (VLAN Ports vs
+  VLANs, one Contracts heading, one Knowledge Base entry). No URL changed.
+- **67.12 Settings center** *(shipped v3.17.680)* — Administration opens a searchable page of
+  ten categories (General, Users & Access, Security, Integrations, AI Configuration — OPTIONAL
+  AI, Automation, Communications, Modules, System, Maintenance), each listing only the pages
+  the user may open.
+- **67.13 Client workspace** *(shipped v3.17.680)* — the client page becomes a tabbed workspace
+  (Overview, Tickets, Assets, RMM, Contacts, Documents, Passwords — names only, Contracts,
+  Billing, Projects, Activity, Members) with a KPI row, renewals, open invoices, recent activity
+  and permission-aware quick actions; opening it makes the client current, with a way back to
+  the MSP-wide view.
+- **67.14 Command palette, Favorites and Recent** *(shipped v3.17.680)* — Ctrl+K / Cmd+K
+  searches pages, settings, clients, tickets, devices, projects, documents, KB and reports with
+  the list pages' own scoping (passwords excluded), plus quick commands; star any page; Recent
+  menu; entries vanish when access, the record or the module goes away.
+- **67.15 Dashboard KPIs and role layouts** *(shipped v3.17.680)* — compact header with quick
+  actions, KPI row (my open, SLA at risk, overdue, unassigned, pending approvals, due today),
+  my ticket queue, SLA overview, technician workload, sales pipeline, my time; default layouts
+  for admin, manager/dispatcher, L1/L2/L3 technician, sales and customer roles.
+- **67.16 Follow-ups** *(planned)* — Quotes and Contracts panels for sales; an L2 escalation
+  view; ticket-list SLA filters (Unassigned / SLA / Approvals as tabs); a Security Overview
+  landing; retire the Classic dashboard after the review period.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
