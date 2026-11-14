@@ -132,6 +132,67 @@ def annotate_activity(qs):
     )
 
 
+# -- SLA buckets ---------------------------------------------------------------
+#
+# One definition of "at risk / breached / on track / paused / no SLA", shared
+# by the ticket list's ``?sla=`` filter, its SLA tab and the dashboard's SLA
+# figures (core.dashboard_widgets.sla_counts), so a tile and the list it opens
+# can't disagree. It reads the deadline annotate_activity() computes
+# (``sla_due_at``: first response until one is made, then resolution) and the
+# status's ``pauses_sla`` flag; nothing here invents a deadline.
+#
+#   paused     status pauses the SLA clock (deadline or not)
+#   breached   clock running, deadline passed
+#   at_risk    clock running, deadline within core.workspace.SLA_SOON
+#   on_track   clock running, deadline further out
+#   no_sla     clock running, no deadline on the ticket
+#
+# Callers apply open_q() first; closed tickets have no live SLA state.
+
+SLA_BUCKETS = {
+    'breached': 'Breached',
+    'at_risk': 'At risk',
+    'on_track': 'On track',
+    'paused': 'Paused',
+    'no_sla': 'No SLA',
+}
+
+
+def sla_window(now=None):
+    """(now, now + SLA_SOON)."""
+    from django.utils import timezone
+    from core.workspace import SLA_SOON
+    now = now or timezone.now()
+    return now, now + SLA_SOON
+
+
+def sla_bucket_qs(field: str = 'sla_due_at', now=None) -> dict:
+    """{bucket: Q} over a queryset carrying the deadline as ``field``."""
+    now, soon = sla_window(now)
+    running = Q(status__pauses_sla=False)
+    return {
+        'breached': running & Q(**{f'{field}__lt': now}),
+        'at_risk': running & Q(**{f'{field}__gte': now, f'{field}__lte': soon}),
+        'on_track': running & Q(**{f'{field}__gt': soon}),
+        'paused': Q(status__pauses_sla=True),
+        'no_sla': running & Q(**{f'{field}__isnull': True}),
+    }
+
+
+def sla_bucket_of(ticket, now=None) -> str:
+    """The bucket of one ticket annotated by annotate_activity() — the same
+    rules as sla_bucket_qs(), for labelling rows."""
+    now, soon = sla_window(now)
+    if ticket.status_id and ticket.status.pauses_sla:
+        return 'paused'
+    due = getattr(ticket, 'sla_due_at', None)
+    if due is None:
+        return 'no_sla'
+    if due < now:
+        return 'breached'
+    return 'at_risk' if due <= soon else 'on_track'
+
+
 def customer_replied_q() -> Q:
     return (open_q()
             & Q(customer_activity_at__gt=EPOCH)

@@ -74,3 +74,15 @@ def nav_notifications(context):
     except Exception:  # pragma: no cover - decoration must never take a page down
         logger.exception('nav_notifications failed')
         return {'items': [], 'total': 0}
+
+
+@register.simple_tag(takes_context=True)
+def return_context(context):
+    """`{% return_context as back %}` — the validated "Back to PSA-…" target
+    (core.return_to): ``{chip, origin, scope}``."""
+    from core import return_to
+    try:
+        return return_to.return_context(context.get('request'))
+    except Exception:  # pragma: no cover - decoration must never take a page down
+        logger.exception('return_context failed')
+        return {'chip': None, 'origin': '', 'scope': ''}

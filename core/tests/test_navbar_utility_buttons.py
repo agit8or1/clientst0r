@@ -55,39 +55,36 @@ class TopBarTests(TestCase):
         self.assertEqual(r.status_code, 200)
         return r.content.decode()
 
-    # -- the three controls moved into the account menu ----------------------
+    # -- the controls moved into the account menu (the beta sign-up was
+    # removed in v3.17.681) ----------------------------------------------------
 
     def test_the_three_live_in_the_account_menu(self):
         menu = account_menu(self._html())
-        self.assertIn(f'href="{reverse("core:beta_test_signup")}"', menu)
         self.assertIn(f'href="{reverse("core:install_app")}"', menu)
         self.assertIn('data-bs-target="#supportProjectModal"', menu)
 
     def test_they_are_no_longer_in_the_bar(self):
         bar = utility_bar(self._html())
-        self.assertNotIn(reverse('core:beta_test_signup'), bar)
         self.assertNotIn(reverse('core:install_app'), bar)
         self.assertNotIn('supportProjectModal', bar)
         self.assertNotIn('id="moreMenu"', bar)
 
     def test_they_keep_their_original_order(self):
         menu = account_menu(self._html())
-        beta = menu.index(reverse('core:beta_test_signup'))
         install = menu.index(reverse('core:install_app'))
         support = menu.index('data-bs-target="#supportProjectModal"')
-        self.assertLess(beta, install)
         self.assertLess(install, support)
 
     def test_each_has_an_accessible_name(self):
         menu = account_menu(self._html())
-        for label in ('Beta app', 'Install app', 'Help Us Grow'):
+        for label in ('Install app', 'Help Us Grow'):
             self.assertIn(f'aria-label="{label}"', menu)
             # The visible label is the accessible name.
             self.assertRegex(menu, r'(?s)aria-label="%s">.*?%s\s*</' % (label, label))
 
     def test_each_has_a_descriptive_tooltip(self):
         menu = account_menu(self._html())
-        for phrase in ('Beta-test the Android app',
+        for phrase in (
                        'Install the app on your phone or desktop',
                        'Help us grow'):
             self.assertIn(phrase, menu)
@@ -177,3 +174,40 @@ class TopBarForOtherUsersTests(TestCase):
         for href in set(re.findall(r'href="(/[^"#?]*)"', bar)):
             with self.subTest(href=href):
                 self.assertNotEqual(self.client.get(href).status_code, 403, href)
+
+
+class BetaTesterProgramRemovedTests(TestCase):
+    """v3.17.681: the beta-tester sign-up, its requests page and the upstream
+    relay are gone; the stored request rows are kept (no data migration)."""
+
+    def test_routes_no_longer_exist(self):
+        from django.urls import NoReverseMatch
+        for name in ('core:beta_test_signup', 'core:beta_test_admin', 'core:beta_test_upstream'):
+            with self.assertRaises(NoReverseMatch):
+                reverse(name)
+
+    @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+    def test_old_urls_are_not_found(self):
+        for path in ('/core/beta-test/', '/core/beta-testers/', '/core/beta-test/upstream/'):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
+
+    def test_stored_requests_are_kept(self):
+        from core.models import BetaTesterRequest
+        self.assertTrue(BetaTesterRequest._meta.db_table)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class NavigationNeverFailsSilentlyTests(TestCase):
+    """v3.17.682: the {% primary_nav %} tag logs and swallows exceptions so a
+    broken menu can't take a page down — which also let v3.17.681 ship with no
+    sidebar or account menu at all. Pages must render it without that error."""
+
+    def test_sidebar_and_account_menu_render_without_errors(self):
+        User = get_user_model()
+        su = User.objects.create_user('nav_ok_su', 'n@x.test', 'pw', is_superuser=True, is_staff=True)
+        self.client.force_login(su)
+        with self.assertNoLogs('core.templatetags.navigation', level='ERROR'):
+            html = self.client.get(reverse('core:about')).content.decode()
+        self.assertIn('app-nav__group-btn', html)
+        self.assertIn('id="userDropdown"', html)
+        self.assertIn(reverse('core:install_app'), html)

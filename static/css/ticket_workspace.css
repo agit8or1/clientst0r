@@ -1,0 +1,66 @@
+/* Ticket workspace (psa/ticket_workspace.py): Overview tiles, SLA chips,
+   the inline assignment control. Tokens from ui.css; works in every theme. */
+
+.tw-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--ui-space-2, 8px);
+    margin-bottom: var(--ui-space-3, 12px);
+}
+.tw-tile {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius, 6px);
+    background: var(--ui-surface);
+    color: inherit; text-decoration: none;
+    min-width: 0;
+}
+.tw-tile:hover { border-color: var(--ui-border-strong, var(--ui-border)); background: var(--ui-surface-hover); color: inherit; }
+.tw-tile:focus-visible { outline: 2px solid var(--ui-focus, #0d6efd); outline-offset: 1px; }
+.tw-tile__label { font-size: var(--ui-text-xs, 12px); color: var(--ui-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-tile__label i { width: 1.1em; }
+.tw-tile__value { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tw-tile--danger { border-left: 3px solid var(--ui-danger); }
+.tw-tile--warning { border-left: 3px solid var(--ui-warning); }
+.tw-tile--primary { border-left: 3px solid var(--ui-primary, #0d6efd); }
+
+.tw-sla-bars { display: flex; flex-direction: column; gap: 6px; }
+.tw-sla-bar { display: grid; grid-template-columns: minmax(110px, 160px) 1fr 48px; align-items: center; gap: 8px; color: inherit; text-decoration: none; font-size: var(--ui-text-sm, 13px); }
+.tw-sla-bar:hover { color: inherit; text-decoration: underline; }
+.tw-sla-bar__track { height: 8px; border-radius: 4px; background: var(--ui-surface-hover); overflow: hidden; }
+.tw-sla-bar__fill { display: block; height: 100%; background: var(--ui-muted); }
+.tw-sla-bar__fill--danger { background: var(--ui-danger); }
+.tw-sla-bar__fill--warn { background: var(--ui-warning); }
+.tw-sla-bar__fill--active { background: var(--ui-success); }
+.tw-sla-bar__n { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* SLA bucket chips above the SLA list: one row, scrolls sideways on phones
+   instead of wrapping. */
+.tw-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; margin-bottom: var(--ui-space-2, 8px); }
+.tw-chips .btn { white-space: nowrap; }
+
+.tw-assign { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
+.tw-assign .form-select { min-width: 120px; max-width: 170px; }
+.tw-sla-left { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tw-reason { max-width: 320px; }
+
+/* Dispatch board: assignment picker on unassigned cards. */
+.dispatch-assign { margin-top: 2px; }
+.dispatch-assign .form-select { min-width: 0; font-size: .7rem; padding: 0 1.4rem 0 .3rem; height: 1.5rem; max-width: 100%; }
+
+/* Phones: the list's filters sit two to a row so the tickets stay near the top. */
+@media (max-width: 575.98px) {
+    .tw-filter-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tw-filter-bar .ui-field--grow,
+    .tw-filter-bar .ui-field--auto { grid-column: 1 / -1; }
+    .tw-filter-bar .ui-field { min-width: 0; }
+}
+.tw-filter-bar--narrow .ui-field { max-width: 360px; }
+
+/* The filters' fold toggle exists for phones only. */
+details.tw-filters > summary.tw-filters__toggle { display: none; list-style: none; margin-bottom: 8px; }
+.tw-filters__toggle::-webkit-details-marker { display: none; }
+@media (max-width: 575.98px) {
+    details.tw-filters > summary.tw-filters__toggle { display: inline-block; }
+}

@@ -201,6 +201,13 @@
         if (!nav) return;
         lastFocus = doc.activeElement;
         body.classList.add('appnav-open');
+        // A modal drawer: the page behind it is inert (no focus, no clicks,
+        // hidden from assistive tech) and does not scroll.
+        doc.documentElement.classList.add('appnav-lock');
+        nav.setAttribute('role', 'dialog');
+        nav.setAttribute('aria-modal', 'true');
+        each(doc.querySelectorAll('.app-main, .app-topbar .navbar-collapse, .app-topbar .navbar-brand, .app-topbar .update-pill'),
+            function (el) { el.setAttribute('inert', ''); el.setAttribute('data-appnav-inert', ''); });
         if (backdrop) backdrop.hidden = false;
         if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
         // Focus once the drawer is laid out (it is visibility:hidden until the
@@ -217,6 +224,12 @@
     function closeDrawer() {
         if (!drawerOpen()) return;
         body.classList.remove('appnav-open');
+        doc.documentElement.classList.remove('appnav-lock');
+        nav.removeAttribute('role');
+        nav.removeAttribute('aria-modal');
+        each(doc.querySelectorAll('[data-appnav-inert]'), function (el) {
+            el.removeAttribute('inert'); el.removeAttribute('data-appnav-inert');
+        });
         if (backdrop) backdrop.hidden = true;
         if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
         if (lastFocus && lastFocus.focus) lastFocus.focus();
@@ -521,6 +534,47 @@
             }
         });
         if (doc.fonts && doc.fonts.ready) doc.fonts.ready.then(fitAll);
+    }
+
+    // ------------------------------------------------ "Back to the ticket"
+    // base.html's #returnCtx (core.return_to) names the ticket this page was
+    // reached from — or this page, when it is a ticket. In-page links to the
+    // client workspace and device pages carry it on as ?return_to=, so the
+    // "Back to PSA-…" link follows the technician from ticket to client to
+    // device. The server validates the value again on every page; only
+    // same-origin links inside the page content are touched. The Device
+    // Workspace's own "Back to" (?ticket=) counts as an origin too.
+    var ret = doc.getElementById('returnCtx');
+    var wsBack = doc.querySelector('[data-ws-back-ticket]');
+    var retOrigin = ret ? ret.getAttribute('data-return-origin') : '';
+    if (!retOrigin && wsBack) {
+        try { retOrigin = new URL(wsBack.href, window.location.href).pathname; } catch (e) { retOrigin = ''; }
+    }
+    var retScope = ret ? (ret.getAttribute('data-return-scope') || '') : '';
+    if (retOrigin && /^\/[A-Za-z0-9\/_.~-]*$/.test(retOrigin) && retOrigin.indexOf('//') === -1) {
+        var scopeRes = retScope.split(/\s+/).filter(Boolean).map(function (p) {
+            var rx = p.replace(/[.*+?^$()|[\]\\]/g, '\\$&');
+            rx = rx.replace(/\{id\}/g, '\\d+').replace(/\{kind\}/g, '[a-z_]+');
+            return new RegExp('^' + rx + '$');
+        });
+        var mainEl = doc.getElementById('main-content');
+        var carry = function (e) {
+            var a = e.target && e.target.closest && e.target.closest('a[href]');
+            if (!a || !mainEl || !mainEl.contains(a) || a.hasAttribute('data-return-link')
+                    || a.hasAttribute('data-no-return')) return;
+            var url;
+            try { url = new URL(a.getAttribute('href'), window.location.href); } catch (err) { return; }
+            if (url.origin !== window.location.origin || url.searchParams.has('ticket')
+                    || url.searchParams.has('return_to')) return;
+            if (!scopeRes.some(function (rx) { return rx.test(url.pathname); })) return;
+            url.searchParams.set('return_to', retOrigin);
+            a.setAttribute('href', url.pathname + url.search + url.hash);
+        };
+        // Before the browser follows the link (mouse, touch, keyboard focus,
+        // or "open in new tab" from the context menu).
+        doc.addEventListener('pointerdown', carry, true);
+        doc.addEventListener('focusin', carry, true);
+        doc.addEventListener('contextmenu', carry, true);
     }
 
     // ---------------------------------------------------------- shortcuts

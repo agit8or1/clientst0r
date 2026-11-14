@@ -33,6 +33,8 @@ urlpatterns = [
     path('playbooks/', views.playbook_list, name='playbook_list'),
     # Phase 23 v3.17.359 — threat visibility dashboard
     path('threat-overview/', views.threat_overview, name='threat_overview'),
+    # v3.17.681 — operational Security Overview (read-only summary)
+    path('overview/', views.security_overview, name='overview'),
     # Phase 9.4 — weekly digest of unresolved alerts for customer contacts
     path('digest/', views.digest_subscriptions, name='digest_subscriptions'),
     path('digest/unsubscribe/<str:token>/', views.digest_unsubscribe, name='digest_unsubscribe'),

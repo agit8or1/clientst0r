@@ -18,7 +18,8 @@ page's own check. The search filters the cards in the browser
             <label class="visually-hidden" for="settingsCenterSearch">{% trans "Search settings" %}</label>
             <i class="fas fa-magnifying-glass settings-center__search-icon" aria-hidden="true"></i>
             <input type="search" class="form-control form-control-sm" id="settingsCenterSearch"
-                   placeholder="{% trans 'Find a setting…' %}" autocomplete="off" spellcheck="false" maxlength="60"
+                   placeholder="{% trans 'Find a setting… ( / )' %}" autocomplete="off" spellcheck="false" maxlength="60"
+                   aria-keyshortcuts="/"
                    aria-controls="settingsCenterGrid" aria-describedby="settingsCenterStatus"
                    data-i18n-count="{% trans '__N__ matching settings pages' %}"
                    data-i18n-none="{% trans 'No settings pages match.' %}">

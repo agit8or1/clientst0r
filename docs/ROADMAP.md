@@ -2744,6 +2744,9 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   actions, KPI row (my open, SLA at risk, overdue, unassigned, pending approvals, due today),
   my ticket queue, SLA overview, technician workload, sales pipeline, my time; default layouts
   for admin, manager/dispatcher, L1/L2/L3 technician, sales and customer roles.
+- **67.17 Security update alert** *(shipped v3.17.682)* — the update pill, bell and System status
+  panel turn red while a release with security fixes (a "Security" section in its notes) is
+  newer than the running version.
 - **67.16 Follow-ups** *(planned)* — Quotes and Contracts panels for sales; an L2 escalation
   view; ticket-list SLA filters (Unassigned / SLA / Approvals as tabs); a Security Overview
   landing; retire the Classic dashboard after the review period.

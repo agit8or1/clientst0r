@@ -158,7 +158,7 @@
 
     function message(text) {
         var p = doc.createElement('div');
-        p.className = 'cmdk__msg';
+        p.className = 'cmdk__msg' + (text === t('loading') ? ' is-loading' : '');
         p.textContent = text;
         list.appendChild(p);
     }
@@ -398,6 +398,26 @@
         if (label) label.textContent = state.favorited ? t('unstar') : t('star');
     }
 
+    // The top bar's star shows whether the current page is a favorite. Asked
+    // once, after the page has settled, and only where the star is visible;
+    // ?parts=current returns that state alone (core:palette_home).
+    var favToggle = doc.getElementById('favMenuToggle');
+    function markStar(state) {
+        if (!favToggle) return;
+        var on = !!(state && state.favorited);
+        favToggle.classList.toggle('is-starred', on);
+        favToggle.setAttribute('aria-label', on ? t('favorites') + ' — ' + t('starredHere') : t('favorites'));
+        favToggle.setAttribute('title', on ? t('starredHere') : t('favorites'));
+    }
+    if (favToggle && favToggle.offsetParent !== null) {
+        var askStar = function () {
+            getJSON(cfg.homeUrl + '?parts=current&path=' + encodeURIComponent(window.location.pathname))
+                .then(function (d) { markStar(d.current); }, function () { /* leave the plain star */ });
+        };
+        if (window.requestIdleCallback) window.requestIdleCallback(askStar, {timeout: 2500});
+        else window.setTimeout(askStar, 600);
+    }
+
     Array.prototype.forEach.call(doc.querySelectorAll('[data-quick-menu]'), function (holder) {
         var kind = holder.getAttribute('data-quick-menu');
         var ul = holder.querySelector('[data-quick-list]');
@@ -416,8 +436,12 @@
                 if (kind === 'favorites') {
                     fillMenu(ul, d.favorites || [], t('noFavorites'));
                     starButton(star, d.current);
+                    markStar(d.current);
                 } else {
-                    fillMenu(ul, d.recent || [], t('noRecent'));
+                    // Newest first (the server's order); the page you are on is left out.
+                    fillMenu(ul, (d.recent || []).filter(function (it) {
+                        return String(it.href || '').split(/[?#]/)[0] !== window.location.pathname;
+                    }), t('noRecent'));
                 }
             }, function () { fillMenu(ul, [], t('error')); });
         }
@@ -429,6 +453,7 @@
             getJSON(cfg.favoriteUrl, {method: 'POST', body: body, headers: {'X-CSRFToken': cfg.csrf}})
                 .then(function (d) {
                     starButton(star, d.current);
+                    markStar(d.current);
                     home = null;  // the palette's favorites are stale now
                     load();
                     if (window.appToast) window.appToast(d.current && d.current.favorited ? t('starred') : t('unstarred'), 'success');

@@ -19,6 +19,26 @@
     'use strict';
     var doc = document;
 
+    // "/" finds a setting on the settings center and on every settings page
+    // (the box shows the hint). Runs in the capture phase so app_nav.js,
+    // which otherwise sends "/" to the global search, sees it handled; the
+    // global search stays on Ctrl/Cmd+K and its own box.
+    var localSearch = doc.getElementById('settingsCenterSearch') || doc.getElementById('settingsSearch');
+    if (localSearch) {
+        doc.addEventListener('keydown', function (e) {
+            if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+            var t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'
+                      || t.isContentEditable)) return;
+            if (doc.querySelector('.modal.show') || localSearch.offsetParent === null) return;
+            e.preventDefault();
+            localSearch.focus();
+            localSearch.select();
+        }, true);
+        var globalBox = doc.querySelector('.nav-search input[name="q"]');
+        if (globalBox) globalBox.setAttribute('placeholder', globalBox.getAttribute('placeholder').replace(/\s*\(\s*\/\s*\)\s*$/, ''));
+    }
+
     // ------------------------------------------------- settings center
     var center = doc.querySelector('[data-settings-center]');
     if (center) {

@@ -1117,6 +1117,10 @@ class SystemSetting(models.Model):
     # available" badge must see what the scheduler's check found.
     latest_release_version = models.CharField(max_length=32, blank=True, default='')
     latest_release_checked_at = models.DateTimeField(null=True, blank=True)
+    # Newest release with security fixes (a "### Security" section in its
+    # notes) the check saw (v3.17.682); the badge turns red while it is newer
+    # than the running version.
+    latest_security_release_version = models.CharField(max_length=32, blank=True, default='')
 
     # Release channel (core/upgrade/channels.py). Stable installs signed,
     # published releases only; Preview also offers unreleased commits on main.

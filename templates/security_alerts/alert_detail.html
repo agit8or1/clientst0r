@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'security_alerts:alert_list' %}">Security</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'security_alerts:overview' %}">Security Overview</a></li>
         <li class="breadcrumb-item"><a href="{% url 'security_alerts:alert_list' %}">Alerts</a></li>
         <li class="breadcrumb-item active">#{{ alert.pk }}</li>
     </ol>
@@ -45,6 +45,22 @@
         </div>
     </div>
 </div>
+
+{% if incidents %}
+<div class="card mb-3">
+    <div class="card-header"><strong>Incident{{ incidents|length|pluralize }}</strong></div>
+    <ul class="list-group list-group-flush">
+        {% for inc in incidents %}
+        <li class="list-group-item d-flex justify-content-between gap-2 flex-wrap">
+            <a href="{% url 'security_alerts:incident_detail' inc.pk %}">#{{ inc.pk }} {{ inc.title|truncatechars:90 }}</a>
+            <small class="text-muted">{{ inc.get_severity_display }} · {{ inc.get_status_display }}</small>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% include "security_alerts/_related_device.html" %}
 
 {% if alert.description %}
 <div class="card mb-3"><div class="card-body">

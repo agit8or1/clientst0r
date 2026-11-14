@@ -24,9 +24,9 @@ ACTION = re.compile(
 # Hand corrections (the name says "action" but the page is a landing page,
 # or the reverse).
 TO_LANDING = {'core:favorite_list', 'core:webhook_list', 'core:system_status', 'core:fail2ban_status',
-              'core:settings_data_export', 'core:beta_test_admin', 'pulse:check_list',
+              'core:settings_data_export', 'pulse:check_list',
               'assets:network_scan_import', 'hardware:import_csv', 'accounts:quick_add_menu',
-              'core:beta_test_signup', 'core:install_app', 'core:download_browser_extension', 'home'}
+              'core:install_app', 'core:download_browser_extension', 'home'}
 NOT_LANDING = {'core:cleanup_old_snyk_scans', 'core:restart_application', 'core:client_switcher_search',
                'core:debug_version', 'vault:password_list_datatables', 'accounts:lockout',
                'backup_tokens_hashed', 'legacy_inbox', 'office:managed_progress', 'beta_onboarding',

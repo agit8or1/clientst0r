@@ -1,0 +1,13 @@
+{# Connection health rows: name, state pill, last sync. No error text (it may quote provider responses). #}
+{% if health.total %}
+<ul class="so-list">
+    {% for r in health.rows|slice:":6" %}
+    <li><span class="so-name">{{ r.name }}</span>
+        <span class="so-num"><span class="so-pill so-pill--{{ r.state }}">{% if r.state == 'working' %}Working{% elif r.state == 'partial' %}Partial{% elif r.state == 'broken' %}Sync error{% elif r.state == 'off' %}Off{% else %}Never synced{% endif %}</span>
+        {% if r.last_sync_at %}<span title="{{ r.last_sync_at }}">{{ r.last_sync_at|timesince }} ago</span>{% endif %}</span></li>
+    {% endfor %}
+</ul>
+{% if health.total > 6 %}<p class="so-note">and {{ health.total|add:"-6" }} more</p>{% endif %}
+{% else %}
+<div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — {{ empty }}</span></div>
+{% endif %}

@@ -35,6 +35,7 @@ None. A panel without a source is not drawn; My Work lists it once under
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta
 from urllib.parse import parse_qsl, urlencode
 
@@ -316,6 +317,7 @@ def open_device(request, kind, pk):
     detail = reverse(url_name, args=[obj.pk])
     if request.GET.get('to') == 'workspace' and _is_staff(request.user):
         detail = workspace_path(kind, obj) or detail
+    detail = _carry_ticket_context(request, detail)
     current = getattr(request, 'current_organization', None)
 
     from core.utils import descendant_org_ids
@@ -344,6 +346,27 @@ def open_device(request, kind, pk):
     }
     switch_session_org(request, target)
     return redirect(detail)
+
+
+_TICKET_REF_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9-]{0,31}$')
+
+
+def _carry_ticket_context(request, url):
+    """Keep the ticket a technician came from on the device page:
+    ``ticket`` (the Device Workspace validates it against the device) and
+    ``return_to`` (core.return_to: a ticket path, rebuilt with reverse()).
+    Anything that does not validate is dropped."""
+    from core.return_to import PARAM, clean_return_to
+    extra = {}
+    ticket = (request.GET.get('ticket') or '').strip()
+    if ticket and _TICKET_REF_RE.match(ticket) and '/workspace/' in url:
+        extra['ticket'] = ticket
+    back = clean_return_to(request.GET.get(PARAM, ''))
+    if back is not None:
+        extra[PARAM] = back['href']
+    if not extra:
+        return url
+    return url + ('&' if '?' in url else '?') + urlencode(extra)
 
 
 def context_trail(request):

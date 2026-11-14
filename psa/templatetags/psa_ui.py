@@ -68,3 +68,26 @@ def priority_label(priority):
         return ''
     name = (getattr(priority, 'name', '') or '').strip()
     return name or getattr(priority, 'code', '')
+
+
+@register.simple_tag(takes_context=True)
+def ticket_query_without(context, *drop, **override):
+    """The current query string minus ``drop`` keys, with ``override`` set
+    (empty values removed): links that change one filter and keep the rest
+    (the ticket list's SLA chips). urlencode escapes every value."""
+    from urllib.parse import urlencode
+    request = context.get('request')
+    params = request.GET.copy() if request is not None else {}
+    pairs = [(k, v) for k in params for v in params.getlist(k)
+             if k not in drop and k not in override and v != '']
+    pairs += [(k, str(v)) for k, v in override.items() if v not in ('', None)]
+    return urlencode(pairs)
+
+
+@register.filter
+def count_for(counts, key):
+    """counts[key] for a dict of counts; '' when missing."""
+    try:
+        return counts.get(key, '')
+    except AttributeError:
+        return ''
