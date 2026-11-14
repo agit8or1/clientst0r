@@ -2,7 +2,8 @@
 
 A landing page is a named GET page with no path arguments (see
 nav_landing_routes.py for how they are found). Each one must be linked by
-core/navigation.py — an entry, a section tab, or a tab's / section's `also`
+core/navigation.py — an entry, a section tab or Configure item, or a tab's /
+section's `also`
 (a sub-page that lights its parent) — or be listed in ALLOWED_UNLINKED below
 with the reason it has no link of its own: usually the page one level up that
 links it ("reached from X"), sometimes that it is an alias or a dead page.
@@ -20,6 +21,8 @@ from core.tests.nav_landing_routes import landing_routes
 BASE_HTML = {
     'home': 'the brand link',
     'core:search': 'the top-bar search form',
+    'core:settings_home': 'the settings center: the pinned Administration link, the top-bar gear '
+                          'and the account menu (navigation.settings_home_url())',
 }
 
 ALLOWED_UNLINKED = {
@@ -129,7 +132,7 @@ def linked_names():
                 names.add(e.url_name)
     for s in navigation.SECTIONS:
         names.update(s.also)
-        for t in s.tabs:
+        for t in list(s.tabs) + list(s.configure):
             if t.url_name:
                 names.add(t.url_name)
             names.update(t.also)

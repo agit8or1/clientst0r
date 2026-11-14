@@ -140,7 +140,7 @@ class TopBarTests(TestCase):
         bar = utility_bar(self._html())
         self.assertRegex(bar, r'id="topbarHelp"[^>]*aria-label="Help"')
         self.assertRegex(bar, r'id="topbarSettings"[^>]*aria-label="Administration"')
-        self.assertIn(f'href="{reverse("core:settings_general")}"', bar)
+        self.assertIn(f'href="{reverse("core:settings_home")}"', bar)
 
     def test_the_main_navigation_is_the_sidebar(self):
         html = self._html()

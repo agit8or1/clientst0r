@@ -18,6 +18,12 @@ from core import navigation
 from core.tests.test_navbar_grouping import ALL_FLAGS, TEST_MIDDLEWARE, NavbarTestBase
 
 
+# Sections whose tabs exclude each other, so at most one survives the gates:
+# Knowledge Base is one entry point, served by PSA (psa:kb_browse) or, with
+# PSA off, by the global KB (docs:global_kb_list).
+ONE_PILL_SECTIONS = {'docs_kb'}
+
+
 def strip(html):
     m = re.search(r'<nav class="section-tabs[^"]*"[^>]*>(.*?)</nav>', html, re.S)
     return m.group(1) if m else None
@@ -66,7 +72,7 @@ class EveryTabOpensTests(NavbarTestBase):
         # category this user can open (the gates mirror the views' checks).
         pages = {}
         for section in navigation.SECTIONS:
-            for tab in section.tabs:
+            for tab in list(section.tabs) + list(section.configure):
                 if tab.modal or tab.download:
                     continue
                 url = reverse(tab.url_name, args=tab.args)
@@ -78,9 +84,9 @@ class EveryTabOpensTests(NavbarTestBase):
                      if code == 200 and final and not _has_args(final) and reverse(final) == u}
         checked = 0
         for section in navigation.SECTIONS:
-            for tab in section.tabs:
-                if tab.modal or tab.download:
-                    continue
+            for tab in list(section.tabs) + list(section.configure):
+                if tab.modal or tab.download or tab.link_only:
+                    continue  # a shortcut: checked in the section it belongs to
                 url = reverse(tab.url_name, args=tab.args)
                 code, final, html = pages[url]
                 with self.subTest(section=section.key, url=url):
@@ -106,8 +112,24 @@ class EveryTabOpensTests(NavbarTestBase):
                             elif href in pages:
                                 self.assertNotIn(f'href="{href}"', pills, href)
                         continue
-                    if not section.render_tabs or len(section.tabs) < 2:
-                        self.assertIsNone(strip(html), url)
+                    if tab in section.configure:
+                        # A Configure page: the section strip with the
+                        # Configure menu marking this page.
+                        pills = strip(html)
+                        self.assertIsNotNone(pills, f'{url} lost its section frame')
+                        self.assertIn('id="sectionConfigure"', pills)
+                        self.assertRegex(pills, r'class="dropdown-item active" href="%s" '
+                                         r'aria-current="page"' % re.escape(url))
+                        continue
+                    if (not section.render_tabs or len(section.tabs) < 2
+                            or section.key in ONE_PILL_SECTIONS):
+                        # No pill row; a section with a Configure menu still
+                        # draws the frame for that menu.
+                        frame = strip(html)
+                        if section.configure and section.render_tabs:
+                            self.assertNotIn('section-tabs__list', frame or '', url)
+                        else:
+                            self.assertIsNone(frame, url)
                         continue
                     pills = strip(html)
                     self.assertIsNotNone(pills, f'{url} lost its section tabs')
@@ -125,17 +147,18 @@ class EveryTabOpensTests(NavbarTestBase):
 
     def test_sidebar_marks_the_current_group_entry_and_page(self):
         html = self.client.get(reverse('psa:recurring_list')).content.decode()
-        self.assertIn('<li class="app-nav__group is-active" data-group="operations"', html)
-        self.assertIn('<li class="app-nav__group" data-group="tools"', html)
+        self.assertIn('<li class="app-nav__group is-active" data-group="service_desk"', html)
+        self.assertIn('<li class="app-nav__group" data-group="security"', html)
         self.assertIn('class="app-nav__link active" href="%s"' % reverse('psa:ticket_list'), html)
-        self.assertRegex(html, r'class="app-nav__sublink active" href="%s" aria-current="page"'
+        # Recurring is a Configure page of Tickets: marked in that menu.
+        self.assertRegex(html, r'class="dropdown-item active" href="%s" aria-current="page"'
                          % re.escape(reverse('psa:recurring_list')))
         # The breadcrumb trail names the same place.
         self.assertIn('class="breadcrumb app-trail__list', html)
 
     def test_detail_pages_light_their_group_without_a_strip(self):
         html = self.client.get(reverse('psa:ticket_create')).content.decode()
-        self.assertIn('<li class="app-nav__group is-active" data-group="operations"', html)
+        self.assertIn('<li class="app-nav__group is-active" data-group="service_desk"', html)
         self.assertIsNone(strip(html))
 
     def test_help_tabs_open_the_same_modals_the_menu_did(self):
@@ -164,13 +187,15 @@ class EveryTabOpensTests(NavbarTestBase):
 class RegistryTests(NavbarTestBase):
 
     def test_tab_budget(self):
-        """A pill row stays short. Settings categories are exempt: their pages
-        are a wrapping second row of the settings header, with a search."""
+        """A pill row stays short: past STRIP_TABS the rest go into "More",
+        and secondary tools into Configure. Settings categories are exempt:
+        their pages are a wrapping row of the settings header, with a search."""
         for section in navigation.SECTIONS:
             if section.menu == 'settings':
                 self.assertLessEqual(len(section.tabs), 12, section.key)
                 continue
-            self.assertLessEqual(len(section.tabs), 7, section.key)
+            self.assertLessEqual(len(section.tabs), 9, section.key)
+            self.assertLessEqual(len(section.configure), 6, section.key)
 
     def test_every_old_menu_destination_has_a_home(self):
         """Everything the pre-condensed navbar linked is a navbar entry or a tab."""
@@ -205,7 +230,10 @@ class RegistryTests(NavbarTestBase):
 
     def test_hardware_and_monitoring_vlans_stay_distinct(self):
         self.assertEqual(navigation.section_for('hardware:vlan_list').key, 'assets_hardware')
-        self.assertEqual(navigation.section_for('monitoring:vlan_list').key, 'assets_infra')
+        self.assertEqual(navigation.section_for('monitoring:vlan_list').key, 'assets_ipam')
+        labels = {str(t.label) for s in navigation.SECTIONS for t in s.tabs
+                  if t.url_name in ('hardware:vlan_list', 'monitoring:vlan_list')}
+        self.assertEqual(labels, {'VLAN Ports', 'VLANs'})
         self.assertNotEqual(reverse('hardware:vlan_list'), reverse('monitoring:vlan_list'))
         self.assertEqual(navigation.menu_for('monitoring:rack_detail'), 'assets')
         self.assertEqual(navigation.menu_for('monitoring:website_monitor_detail'), 'ops')
@@ -273,4 +301,6 @@ class GateTests(NavbarTestBase):
 
     def test_signed_out_gets_nothing(self):
         st = navigation.nav_state(ctx_for(AnonymousUser(), 'core:about'))
-        self.assertEqual(st, {'menu': '', 'section': '', 'section_label': '', 'tabs': []})
+        self.assertEqual(st, navigation._empty_state())
+        self.assertEqual(st['tabs'], [])
+        self.assertEqual(st['configure'], [])

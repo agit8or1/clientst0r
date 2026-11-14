@@ -1,11 +1,12 @@
-"""The primary sidebar: which groups and entries, for whom.
+"""The primary sidebar: which sections and entries, for whom.
 
-Six work groups (Overview, Operations, Clients & Assets, Business, Tools &
-Automation, Reports & Analytics) and Administration at the foot, built from
-core.navigation.PRIMARY / ADMIN. Each entry lands on its section's first tab,
-a section's tabs are nested under it (core/navigation.py, tested in
-test_navbar_sections.py), and Administration lists the nine settings
-categories only. The before → after map is docs/navigation-map.md.
+Nine work sections (Dashboard, My Work, Service Desk, Clients, Assets &
+Network, Business, Knowledge & Vault, Security & Monitoring, Reports) and
+Administration pinned at the foot, built from core.navigation.PRIMARY /
+ADMIN. Each entry lands on its section's first tab, the current entry's tabs
+are nested under it (core/navigation.py, tested in test_navbar_sections.py),
+and Administration is one link to the settings center, whose cards are the
+ten settings categories. The before → after map is docs/navigation-map.md.
 
 The risk in a regrouping is a destination quietly disappearing or a staff
 destination leaking to customer users, so these tests assert on the rendered
@@ -32,36 +33,38 @@ TEST_MIDDLEWARE = [
 ALL_FLAGS = ('psa_enabled', 'crm_enabled', 'workflows_enabled', 'inventory_enabled',
              'scheduling_enabled', 'monitoring_enabled', 'vehicles_enabled', 'pulse_enabled')
 
-GROUP_ORDER = ['overview', 'operations', 'clients', 'business', 'tools', 'reports']
+GROUP_ORDER = ['dashboard', 'my_work', 'service_desk', 'clients', 'assets', 'business',
+               'knowledge', 'security', 'reports']
 
-# Entry landing pages per group, for a superuser with every module on and no
-# customer selected. Overview ends with the default pin (Tickets).
-OVERVIEW = ['core:dashboard', 'psa:my_work', 'core:favorite_list']
-OVERVIEW_STAFF = OVERVIEW + ['psa:ticket_list']
-OPERATIONS = ['psa:ticket_list', 'psa:dispatch_board', 'resourcing:shift_schedule',
-              'psa:project_list', 'psa:service_catalog', 'processes:process_list',
-              'scheduling:task_list']
-CLIENTS = ['accounts:organization_list', 'core:customer_ops_current', 'assets:asset_list',
-           'integrations:rmm_devices', 'assets:device_workspace_home', 'hardware:device_list',
-           'monitoring:rack_list', 'docs:document_list', 'docs:diagram_list',
-           'docs:document_drafts_list', 'readiness:overview', 'vault:password_list',
-           'vault:access_rule_list', 'vault:personal_vault_list', 'core:secure_note_inbox']
-BUSINESS = ['psa:contract_list', 'contracts:dashboard', 'crm:home', 'pulse:check_list',
-            'psa:requisition_list']
-TOOLS_SU = ['integrations:rmm_alerts', 'security_alerts:alert_list',
-            'security_alerts:incident_list', 'monitoring:website_monitor_list',
-            'ticket_routing:alerts', 'support_workflows:admin', 'inventory:inventory_dashboard',
-            'vehicles:vehicle_list']
+# Entry landing pages per section, for a superuser with every module on and
+# no customer selected. Dashboard ends with the default pin (Tickets).
+OVERVIEW = ['core:dashboard', 'core:favorite_list']
+# Default pins for a staff user (core.shortcut_strip): My Work and Tickets.
+OVERVIEW_STAFF = OVERVIEW + ['psa:my_work', 'psa:ticket_list']
+MY_WORK = ['psa:my_work', 'scheduling:my_tasks', 'psa:my_timesheet', 'psa:timesheet_approval_queue',
+           'resourcing:shift_schedule', 'resourcing:my_leave', 'resourcing:my_resourcing',
+           'resourcing:my_billable_target']
+OPERATIONS = ['psa:ticket_list', 'psa:dispatch_board', 'scheduling:task_list',
+              'resourcing:shift_schedule', 'psa:project_list', 'psa:service_catalog',
+              'processes:process_list']
+# Client Workspace opens the selected client (these tests select one).
+CLIENTS = ['accounts:organization_list', 'CURRENT_ORG', 'core:customer_ops_current']
+ASSETS = ['assets:asset_list', 'integrations:rmm_devices', 'assets:device_workspace_home',
+          'hardware:device_list', ('hardware:diagram', 'connectivity'), 'monitoring:rack_list',
+          'monitoring:subnet_list', 'inventory:inventory_dashboard', 'vehicles:vehicle_list']
+BUSINESS = ['crm:home', 'psa:contract_list', 'psa:quote_list', 'psa:invoice_list', 'psa:aging_report',
+            'psa:requisition_list', 'psa:vendor_list', 'pulse:check_list']
+KNOWLEDGE = ['docs:document_list', 'psa:kb_browse', 'docs:diagram_list', 'docs:document_drafts_list',
+             'readiness:overview', 'vault:password_list', 'vault:personal_vault_list',
+             'core:secure_note_inbox']
+TOOLS_SU = ['security_alerts:alert_list', 'security_alerts:incident_list', 'integrations:rmm_alerts',
+            'ticket_routing:alerts', 'monitoring:website_monitor_list']
 # A technician with no role: Security Alerts needs security_alerts_view
 # (@require_perm on the page), so it is not drawn.
-TOOLS = ['integrations:rmm_alerts', 'monitoring:website_monitor_list',
-         'inventory:inventory_dashboard', 'vehicles:vehicle_list']
+TOOLS = ['integrations:rmm_alerts', 'monitoring:website_monitor_list']
 REPORTS = ['reports:home']
-# Administration: the first page of each of the nine categories.
-SETTINGS_SU = ['core:settings_general', 'core:system_status', 'core:settings_security',
-               'accounts:access_management', 'integrations:integration_list',
-               'core:settings_scheduler', 'core:settings_smtp', 'core:settings_features',
-               'core:maintenance']
+# Administration: one link, the settings center.
+SETTINGS_SU = ['core:settings_home']
 ACCOUNT = ['accounts:profile', 'resourcing:my_resourcing', 'core:help_index',
            'core:beta_test_signup', 'core:install_app']
 
@@ -77,7 +80,7 @@ STAFF_ONLY = ['security_alerts:alert_list', 'crm:home', 'reports:home',
 
 
 def urls(names):
-    return [reverse(n) for n in names]
+    return [reverse(n[0], args=n[1:]) if isinstance(n, tuple) else reverse(n) for n in names]
 
 
 def sidebar(html):
@@ -153,18 +156,22 @@ class SuperuserSidebarTests(NavbarTestBase):
         self.assertEqual(list(self.nav), GROUP_ORDER + ['settings'])
 
     def test_each_group_holds_exactly_its_entries(self):
-        for key, expected in (('overview', OVERVIEW_STAFF), ('operations', OPERATIONS),
-                              ('clients', CLIENTS), ('business', BUSINESS), ('tools', TOOLS_SU),
+        for key, expected in (('dashboard', OVERVIEW_STAFF), ('my_work', MY_WORK),
+                              ('service_desk', OPERATIONS), ('clients', CLIENTS), ('assets', ASSETS),
+                              ('business', BUSINESS), ('knowledge', KNOWLEDGE), ('security', TOOLS_SU),
                               ('reports', REPORTS), ('settings', SETTINGS_SU)):
+            expected = [('accounts:organization_detail', self.org.id) if n == 'CURRENT_ORG' else n
+                        for n in expected]
             with self.subTest(group=key):
                 self.assertEqual(self.nav[key], urls(expected))
 
-    def test_administration_lists_categories_only(self):
-        """No nested pages under Administration: the categories open the
-        settings workspace, which carries the pages."""
+    def test_administration_is_one_link_to_the_settings_center(self):
+        """No settings pages in the sidebar: Administration opens the settings
+        center, whose cards are the categories (test_nav_overhaul.py)."""
         body = self.html.split('data-group="settings"', 1)[1].split('</ul>', 1)[0]
         self.assertNotIn('app-nav__sub', body)
-        self.assertEqual(len(self.nav['settings']), len(navigation.SETTINGS_CATEGORIES))
+        self.assertEqual(self.nav['settings'], [reverse('core:settings_home')])
+        self.assertEqual(len(navigation.ADMIN.entries), len(navigation.SETTINGS_CATEGORIES))
 
     def test_old_dropdowns_are_gone_but_the_account_menu_stays(self):
         for old in ('psaDropdown', 'opsDropdown', 'modulesDropdown', 'assetsDropdown',
@@ -182,11 +189,13 @@ class SuperuserSidebarTests(NavbarTestBase):
         self.assertIn('id="shortcutHelp"', self.html)        # ? overlay
         self.assertIn('js/app_nav.js', self.html)
         # Every entry carries filter text, nested tabs included.
-        self.assertIn('data-filter="Canned Replies Tickets Operations"', self.html)
+        self.assertIn('data-filter="Tickets psa helpdesk queue ai inbox Service Desk"', self.html)
+        # Configure pages are found by the filter too (filter-only list).
+        self.assertRegex(self.html, r'<li data-filter="Canned Replies [^"]*Tickets Service Desk" hidden>')
 
     def test_g_shortcuts(self):
         """Each group and the shortcut entries keep a `g <key>` target."""
-        for key in ('h', 't', 'c', 'b', 'o', 'r', 's', 'w', 'd', 'a'):
+        for key in ('h', 'w', 't', 'c', 'd', 'b', 'k', 'a', 'r', 's'):
             with self.subTest(key=key):
                 self.assertIn(f'data-shortcut-key="{key}"', self.html)
 
@@ -201,13 +210,16 @@ class SuperuserSidebarTests(NavbarTestBase):
                'hardware:device_list', 'monitoring:rack_list',
                'docs:document_list', 'docs:diagram_list', 'docs:document_drafts_list',
                'readiness:overview', 'vault:password_list', 'vault:personal_vault_list',
-               'core:secure_note_inbox', 'vault:access_rule_list', 'core:settings_general',
-               'accounts:organization_list', 'integrations:integration_list']
+               'core:secure_note_inbox', 'core:settings_general',
+               'accounts:organization_list']
         aside = aside_of(self.html)
         for name in old:
+            if name == 'core:settings_general':
+                continue  # a settings page: one click from the settings center
             self.assertIn(f'href="{reverse(name)}"', aside, name)
-        # Moved into the settings workspace (one click from its category).
-        for name in ('assets:vendor_list', 'core:security_dashboard', 'core:mobile_apps_admin'):
+        # In the settings workspace (one click from the settings center).
+        for name in ('assets:vendor_list', 'core:security_dashboard', 'core:mobile_apps_admin',
+                     'core:settings_general', 'integrations:integration_list'):
             self.assertEqual(navigation.VIEW_INDEX[name].menu, 'settings', name)
 
     def test_sign_out_is_still_a_post_form(self):
@@ -227,7 +239,7 @@ class SuperuserSidebarTests(NavbarTestBase):
         self.assertLess(self.html.index('id="utilityNav"'), self.html.index('id="appNav"'))
 
     def test_no_shortcut_strip_under_the_bar(self):
-        """Pins live in Overview now; the old strip is not drawn."""
+        """Pins live in Dashboard now; the old strip is not drawn."""
         self.assertNotIn('id="shortcutStrip"', self.html)
         self.assertIn('app-nav__entry--pin', self.html)
         self.assertIn('Edit pinned pages', self.html)
@@ -238,21 +250,34 @@ class TechnicianSidebarTests(NavbarTestBase):
 
     def setUp(self):
         super().setUp()
-        self.html = self.page(self.make_technician())
+        self.tech = self.make_technician()
+        self.html = self.page(self.tech)
         self.nav = sidebar(self.html)
+
+    def ctx(self):
+        from django.test import RequestFactory
+        from django.urls import resolve
+        request = RequestFactory().get(reverse('core:dashboard'))
+        request.resolver_match = resolve(request.path)
+        request.user = self.tech
+        request.is_staff_user = True
+        return navigation.request_context(request)
 
     def test_groups(self):
         self.assertEqual(list(self.nav), GROUP_ORDER + ['settings'])
-        self.assertEqual(self.nav['tools'], urls(TOOLS))
+        self.assertEqual(self.nav['security'], urls(TOOLS))
         # Reports Home needs a reports role flag; Software Compliance admits
         # MSP staff by the legacy rule (require_msp_wide_perm, legacy='staff').
         self.assertEqual(self.nav['reports'], urls(['reports:software_compliance_report']))
 
     def test_administration_holds_only_what_a_technician_may_open(self):
         # A category is listed only when some page in it passes its check.
-        self.assertEqual(self.nav['settings'],
-                         urls(['assets:vendor_list', 'office:org_policy',
-                               'psa:workflow_template_list']))
+        center = self.client.get(reverse('core:settings_home')).content.decode()
+        self.assertEqual(re.findall(r'class="settings-card" data-settings-group="([^"]+)"', center),
+                         ['settings_general', 'settings_integrations', 'settings_automation'])
+        for name in ('assets:vendor_list', 'office:org_policy', 'psa:workflow_template_list'):
+            self.assertIn(f'href="{reverse(name)}"', center, name)
+        self.assertEqual(self.nav['settings'], [reverse('core:settings_home')])
         aside = aside_of(self.html)
         for name in ('core:settings_general', 'core:security_dashboard', 'core:snyk_scans',
                      'core:mobile_apps_admin', 'accounts:access_management'):
@@ -274,20 +299,23 @@ class CustomerSidebarTests(NavbarTestBase):
             self.assertNotIn(f'href="{reverse(name)}"', self.html, name)
         self.assertNotIn(f'href="{reverse("assets:custom_field_list")}"', self.html)
         # Website monitoring was in the customer's menu before and stays.
-        self.assertIn(reverse('monitoring:website_monitor_list'), self.nav['tools'])
+        self.assertIn(reverse('monitoring:website_monitor_list'), self.nav['security'])
 
     def test_customer_keeps_what_they_saw_before(self):
         # Dispatch is MSP-staff-only: the server refuses it to customers.
-        self.assertIn(reverse('psa:ticket_list'), self.nav['operations'])
-        self.assertNotIn(reverse('psa:dispatch_board'), self.nav['operations'])
-        for name in ('assets:asset_list', 'hardware:device_list', 'monitoring:rack_list',
-                     'docs:document_list', 'vault:password_list'):
-            self.assertIn(reverse(name), self.nav['clients'], name)
+        self.assertIn(reverse('psa:ticket_list'), self.nav['service_desk'])
+        self.assertNotIn(reverse('psa:dispatch_board'), self.nav['service_desk'])
+        for name in ('assets:asset_list', 'hardware:device_list', 'monitoring:rack_list'):
+            self.assertIn(reverse(name), self.nav['assets'], name)
+        for name in ('docs:document_list', 'vault:password_list'):
+            self.assertIn(reverse(name), self.nav['knowledge'], name)
         self.assertIn(reverse('psa:contract_list'), self.nav['business'])
 
     def test_customer_owner_reaches_their_settings_from_the_account_menu(self):
         hrefs, _ = menu(self.html, 'userDropdown')
-        self.assertIn(reverse('accounts:member_list'), hrefs)
+        self.assertIn(reverse('core:settings_home'), hrefs)
+        center = self.client.get(reverse('core:settings_home')).content.decode()
+        self.assertIn(f'href="{reverse("accounts:member_list")}"', center)
 
     def test_nothing_drawn_that_the_server_would_refuse(self):
         """Every sidebar link a customer sees answers something other than 403."""
@@ -322,20 +350,21 @@ class ModuleToggleTests(NavbarTestBase):
     def test_everything_off(self):
         self.flags(**{f: False for f in ALL_FLAGS})
         nav = sidebar(self.page(self.make_superuser()))
-        self.assertNotIn('operations', nav)
+        # Service Desk keeps only Workflows' Support Workflows? No: it needs PSA too.
+        self.assertNotIn('service_desk', nav)
         # Contract documents are not behind a module flag; the rest of Business is.
         self.assertEqual(nav['business'], urls(['contracts:dashboard']))
         self.assertEqual(nav['reports'], urls(REPORTS))   # Reports is ungated
-        self.assertNotIn(reverse('psa:my_work'), nav['overview'])
-        self.assertIn(reverse('integrations:rmm_alerts'), nav['tools'])
+        self.assertNotIn(reverse('psa:my_work'), nav['my_work'])
+        self.assertIn(reverse('integrations:rmm_alerts'), nav['security'])
 
     def test_psa_off_drops_tickets_billing_procurement_and_security(self):
         self.flags(psa_enabled=False)
         nav = sidebar(self.page(self.make_superuser()))
-        self.assertNotIn(reverse('psa:ticket_list'), nav.get('operations', []))
+        self.assertNotIn(reverse('psa:ticket_list'), nav.get('service_desk', []))
         self.assertNotIn(reverse('psa:contract_list'), nav.get('business', []))
         self.assertNotIn(reverse('psa:requisition_list'), nav.get('business', []))
-        self.assertNotIn(reverse('security_alerts:alert_list'), nav['tools'])
+        self.assertNotIn(reverse('security_alerts:alert_list'), nav['security'])
 
     def test_crm_off(self):
         self.flags(crm_enabled=False)
@@ -343,46 +372,62 @@ class ModuleToggleTests(NavbarTestBase):
         self.assertNotIn(reverse('crm:home'), sidebar(html)['business'])
         self.assertNotIn(reverse('crm:pipeline'), aside_of(html))
 
-    def test_tools_follow_their_flags(self):
+    def test_inventory_and_vehicles_follow_their_flags(self):
         self.flags(vehicles_enabled=False, inventory_enabled=False)
         nav = sidebar(self.page(self.make_technician()))
-        self.assertEqual(nav['tools'], urls(['integrations:rmm_alerts',
-                                             'monitoring:website_monitor_list']))
+        self.assertNotIn(reverse('inventory:inventory_dashboard'), nav['assets'])
+        self.assertNotIn(reverse('vehicles:vehicle_list'), nav['assets'])
 
-    def test_global_kb_moves_into_tools_when_psa_is_off(self):
+    def test_one_knowledge_base_entry_whichever_module_serves_it(self):
         self.flags(psa_enabled=False, global_kb_enabled=True)
         nav = sidebar(self.page(self.make_superuser()))
-        self.assertIn(reverse('docs:global_kb_list'), nav['tools'])
+        self.assertIn(reverse('docs:global_kb_list'), nav['knowledge'])
+        self.assertNotIn(reverse('psa:kb_browse'), nav['knowledge'])
+        self.flags(psa_enabled=True)
+        nav = sidebar(self.page(self.make_superuser_again()))
+        self.assertIn(reverse('psa:kb_browse'), nav['knowledge'])
+        self.assertNotIn(reverse('docs:global_kb_list'), nav['knowledge'])
+
+    def make_superuser_again(self):
+        return get_user_model().objects.create_user('nav_su2', 'n2@x.com', 'pw', is_staff=True,
+                                                    is_superuser=True)
 
 
 class RegistryTests(TestCase):
 
     def test_every_section_with_a_sidebar_home_is_reachable(self):
-        """Every SECTION is an entry of some group, except the account-menu ones."""
+        """Every SECTION is an entry of some group, except the account-menu
+        ones and My Work, whose pages are entries of their own."""
         placed = {e.section for g in navigation.ALL_GROUPS for e in g.entries if e.section}
         account = {s.key for s in navigation.SECTIONS if s.menu == 'account'}
-        missing = {s.key for s in navigation.SECTIONS} - placed - account
+        entry_urls = {e.url_name for g in navigation.ALL_GROUPS for e in g.entries if e.url_name}
+        flat = {s.key for s in navigation.SECTIONS
+                if all(t.url_name in entry_urls for t in s.tabs if not t.link_only)}
+        missing = {s.key for s in navigation.SECTIONS} - placed - account - flat
         self.assertEqual(missing, set())
 
-    def test_nine_settings_categories(self):
+    def test_ten_settings_categories(self):
         self.assertEqual(list(navigation.SETTINGS_CATEGORIES),
-                         ['settings_general', 'settings_system', 'settings_security',
-                          'settings_access', 'settings_integrations', 'settings_automation',
-                          'settings_email', 'settings_features', 'settings_maintenance'])
+                         ['settings_general', 'settings_access', 'settings_security',
+                          'settings_integrations', 'settings_ai', 'settings_automation',
+                          'settings_email', 'settings_features', 'settings_system',
+                          'settings_maintenance'])
         self.assertEqual([e.section for e in navigation.ADMIN.entries],
                          list(navigation.SETTINGS_CATEGORIES))
 
     def test_group_for(self):
-        for name, group in (('psa:ticket_detail', 'operations'),
-                            ('psa:recurring_list', 'operations'),
-                            ('monitoring:rack_detail', 'clients'),
-                            ('monitoring:website_monitor_detail', 'tools'),
-                            ('integrations:rmm_device_detail', 'clients'),
+        for name, group in (('psa:ticket_detail', 'service_desk'),
+                            ('psa:recurring_list', 'service_desk'),
+                            ('monitoring:rack_detail', 'assets'),
+                            ('monitoring:website_monitor_detail', 'security'),
+                            ('integrations:rmm_device_detail', 'assets'),
                             ('integrations:rmm_detail', 'settings'),
                             ('core:settings_smtp', 'settings'),
                             ('assets:custom_field_list', 'settings'),
                             ('psa:contract_list', 'business'),
                             ('reports:home', 'reports'),
+                            ('resourcing:my_leave', 'my_work'),
+                            ('core:settings_home', 'settings'),
                             ('accounts:profile', '')):
             with self.subTest(name=name):
                 self.assertEqual(navigation.group_for(name), group)
@@ -449,18 +494,18 @@ class AddedPagesInSidebarTests(NavbarTestBase):
                 self.assertNotIn(f'href="{reverse(name)}"', aside)
 
     def test_active_group_of_the_added_pages(self):
-        for name, group in (('resourcing:shift_schedule', 'operations'),
-                            ('field_ops:dispatch_geo_settings', 'operations'),
+        for name, group in (('resourcing:shift_schedule', 'my_work'),
+                            ('field_ops:dispatch_geo_settings', 'service_desk'),
                             ('psa:billing_review', 'business'),
-                            ('assets:serial_search', 'clients'),
-                            ('ticket_routing:alerts', 'tools'),
-                            ('ticket_routing:alert_maintenance', 'tools'),
-                            ('support_workflows:admin', 'tools'),
-                            ('support_workflows:admin_new', 'tools'),
+                            ('assets:serial_search', 'assets'),
+                            ('ticket_routing:alerts', 'security'),
+                            ('ticket_routing:alert_maintenance', 'security'),
+                            ('support_workflows:admin', 'service_desk'),
+                            ('support_workflows:admin_new', 'service_desk'),
                             ('rmm_permissions:index', 'settings'),
                             ('rmm_permissions:approvals', 'settings'),
                             ('accounts:ldap_group_mappings', 'settings'),
                             ('integrations:rem0te_setup', 'settings'),
-                            ('security_alerts:digest_subscriptions', 'tools')):
+                            ('security_alerts:digest_subscriptions', 'security')):
             with self.subTest(page=name):
                 self.assertEqual(navigation.group_for(name), group)

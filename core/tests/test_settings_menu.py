@@ -2,10 +2,11 @@
 
 Settings used to be a left-hand column of five collapsible groups
 (core/settings_groups.py), repeated in every settings template, plus a long
-Admin entry in the sidebar. They are now nine categories defined once in
+Admin entry in the sidebar. They are now ten categories defined once in
 core/navigation.py (sections with menu='settings'): the sidebar's
-Administration group lists the categories, and every settings page carries a
-header with the category tabs, the current category's pages and a search.
+Administration link opens the settings center (core:settings_home, cards per
+category), and every settings page carries a header with the category tabs,
+the current category's pages and a search.
 
 These tests pin that nothing from the old menu was dropped, that each page
 lights its own category, that a link is only drawn when the page's own check
@@ -46,11 +47,11 @@ OLD_MENU_URL_NAMES = [
 MOVED_OUT = {'accounts:organization_list': 'clients_all'}
 
 CATEGORIES = [
-    ('settings_general', 'General'), ('settings_system', 'System'),
-    ('settings_security', 'Security'), ('settings_access', 'Organizations & Access'),
-    ('settings_integrations', 'Integrations'), ('settings_automation', 'Automation'),
-    ('settings_email', 'Email & Communications'), ('settings_features', 'Features & Modules'),
-    ('settings_maintenance', 'Maintenance'),
+    ('settings_general', 'General'), ('settings_access', 'Users & Access'),
+    ('settings_security', 'Security'), ('settings_integrations', 'Integrations'),
+    ('settings_ai', 'AI Configuration'), ('settings_automation', 'Automation'),
+    ('settings_email', 'Communications'), ('settings_features', 'Modules'),
+    ('settings_system', 'System'), ('settings_maintenance', 'Maintenance'),
 ]
 
 User = get_user_model()
@@ -67,7 +68,7 @@ def index_hrefs(html):
 
 class SettingsRegistryTests(TestCase):
 
-    def test_nine_categories_in_order(self):
+    def test_ten_categories_in_order(self):
         self.assertEqual(
             [(k, str(navigation.SECTIONS_BY_KEY[k].label)) for k in navigation.SETTINGS_CATEGORIES],
             CATEGORIES)
@@ -133,7 +134,8 @@ class SettingsWorkspaceOnPagesTests(TestCase):
         for name, key in (('core:settings_general', 'settings_general'),
                           ('core:firewall_settings', 'settings_security'),
                           ('core:settings_directory', 'settings_access'),
-                          ('core:settings_ai', 'settings_integrations'),
+                          ('core:settings_ai', 'settings_ai'),
+                          ('psa_ai:profiles', 'settings_ai'),
                           ('core:settings_kb_import', 'settings_maintenance'),
                           ('core:settings_snyk', 'settings_security'),
                           ('core:settings_smtp', 'settings_email'),
@@ -174,7 +176,7 @@ class SettingsWorkspaceOnPagesTests(TestCase):
         self.assertIn('role="status"', ws)
         self.assertIn('js/settings_ws.js', html)
         # Index entries carry their category and keywords for the filter.
-        self.assertRegex(ws, r'data-label="SMTP / Email" data-where="Email &amp; Communications" '
+        self.assertRegex(ws, r'data-label="SMTP / Email" data-where="Communications" '
                              r'data-filter="SMTP / Email mail outgoing smtp')
         js = (Path(django_settings.BASE_DIR) / 'static/js/settings_ws.js').read_text()
         self.assertIn('beforeunload', js)

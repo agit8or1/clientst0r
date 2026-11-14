@@ -4,7 +4,8 @@ For seven kinds of user — superuser, MSP technician with no role, technician
 with the RMM L1 role, Sales Representative, organization Owner (not a
 superuser), Customer Administrator and Customer Standard User — render the
 dashboard, collect every link the frame draws (sidebar, top-bar shortcuts,
-account menu, bell, and the settings workspace when the user has one) and
+account menu, bell, the sidebar filter's extra pages, the settings center
+cards and the settings workspace when the user has one) and
 open each. None may answer 403: hiding a link is presentation, but drawing
 one the page refuses is a broken promise. Customers additionally get no
 Reports or Administration group and no staff-only destination anywhere.
@@ -33,6 +34,9 @@ def frame_links(html):
     hrefs = set(re.findall(r'href="(/[^"#?]*)"', head))
     if ws:
         hrefs |= set(re.findall(r'(?:href|data-href)="(/[^"#?]*)"', ws.group(0)))
+    center = re.search(r'<section class="settings-center".*?</section>\s*<script', html, re.S)
+    if center:
+        hrefs |= set(re.findall(r'href="(/[^"#?]*)"', center.group(0)))
     # Static files, sign-out and language switching are not destinations.
     return sorted(h for h in hrefs if not h.startswith(('/static/', '/media/', '/i18n/')))
 
@@ -82,8 +86,8 @@ class RoleSidebarTests(NavbarTestBase):
         return r.content.decode()
 
     def settings_page(self, html):
-        """The first Administration category, or the account menu's
-        Organization settings, when the user has one."""
+        """The settings center: the Administration link, or the account
+        menu's Organization settings, when the user has one."""
         nav = sidebar(html)
         if nav.get('settings'):
             return nav['settings'][0]
@@ -102,7 +106,16 @@ class RoleSidebarTests(NavbarTestBase):
                 r = self.client.get(page, follow=True)
                 self.assertNotEqual(r.status_code, 403, (role, page))
                 if r.status_code == 200:
-                    links |= set(frame_links(r.content.decode()))
+                    center = r.content.decode()
+                    links |= set(frame_links(center))
+                    # And the first category, for its settings workspace header.
+                    first = re.search(r'<h2 class="settings-card__title"[^>]*>.*?href="([^"]+)"',
+                                      center, re.S)
+                    if first:
+                        r = self.client.get(first.group(1), follow=True)
+                        self.assertNotEqual(r.status_code, 403, (role, first.group(1)))
+                        if r.status_code == 200:
+                            links |= set(frame_links(r.content.decode()))
             self.assertTrue(links, role)
             for href in sorted(links):
                 with self.subTest(role=role, href=href):
@@ -125,11 +138,16 @@ class RoleSidebarTests(NavbarTestBase):
     def test_who_gets_administration(self):
         users = self.users()
         expect = {
-            'superuser': 9, 'tech': 3, 'tech_l1': 2, 'sales_rep': 1, 'org_owner': 6,
+            'superuser': 10, 'tech': 3, 'tech_l1': 2, 'sales_rep': 1, 'org_owner': 6,
         }
         for role, count in expect.items():
             with self.subTest(role=role):
-                self.assertEqual(len(sidebar(self.visit(users[role])).get('settings', [])), count)
+                html = self.visit(users[role])
+                center = self.settings_page(html)
+                self.assertEqual(center, reverse('core:settings_home'), role)
+                cards = re.findall(r'<section class="settings-card" data-settings-group=',
+                                   self.client.get(center).content.decode())
+                self.assertEqual(len(cards), count, role)
 
     def test_customer_admin_reaches_organization_settings_customer_user_does_not(self):
         users = self.users()
