@@ -2,7 +2,7 @@
 <ul class="dash-list">
     {% for o in w.rows %}
     <li>
-        <a href="{{ o.url }}" class="dash-row">
+        <a href="{{ o.url }}" class="dash-row" title="{{ o.name }}{% if o.client %} · {{ o.client }}{% endif %}">
             <span class="dash-row-main">
                 <span class="dash-row-title">{{ o.name }}</span>
                 <span class="dash-row-sub">{{ o.client }}{% if o.client %} · {% endif %}{{ o.stage }}</span>

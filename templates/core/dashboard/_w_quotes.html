@@ -1,0 +1,28 @@
+{% load humanize %}
+<ul class="dash-stat-list">
+    {% for r in w.rows %}
+    <li>
+        <a href="{{ r.href }}" class="dash-stat">
+            <span><span class="dash-dot dash-fill-{{ r.tone }}" aria-hidden="true"></span> {{ r.label }}</span>
+            <span class="dash-stat-figs"><strong>{{ r.count }}</strong>{% if r.value is not None and r.count %} <span class="dash-row-sub d-inline" title="Quote total">{{ r.value|floatformat:2|intcomma }}</span>{% endif %}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% if w.waiting %}
+<div class="dash-list-day">Waiting on the customer, oldest first</div>
+<ul class="dash-list">
+    {% for q in w.waiting %}
+    <li>
+        <a href="{{ q.url }}" class="dash-row" title="{{ q.number }} {{ q.title }}{% if q.client %} · {{ q.client }}{% endif %}">
+            <span class="dash-row-main dash-trunc">
+                <span class="dash-row-title">{{ q.number }} · {{ q.title }}</span>
+                <span class="dash-row-sub">{{ q.client }}{% if q.stale %} · <span class="dash-sub-warning">past valid date</span>{% endif %}</span>
+            </span>
+            <span class="dash-row-meta">{{ q.total|floatformat:2|intcomma }}{% if q.sent %}<span class="dash-row-sub" title="Sent {{ q.sent }}">{{ q.age }} ago</span>{% endif %}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+<div class="dash-w-foot">Open quote value {{ w.open_value|default:0|floatformat:2|intcomma }}{% if w.past_valid %} · {{ w.past_valid }} sent quote{{ w.past_valid|pluralize }} past the valid-until date{% endif %}</div>

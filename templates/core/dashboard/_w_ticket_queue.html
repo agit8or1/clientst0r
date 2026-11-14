@@ -2,7 +2,7 @@
 <ul class="dash-list dash-queue">
     {% for t in w.rows %}
     <li>
-        <a href="{{ t.url }}" class="dash-row dash-qrow">
+        <a href="{{ t.url }}" class="dash-row dash-qrow" title="{{ t.number }} {{ t.subject }}">
             <span class="dash-sla dash-sla-{{ t.sla_kind|default:'no_sla' }}" title="{{ t.sla_label }}" aria-label="{{ t.sla_label }}"></span>
             <span class="dash-qrow-num">{{ t.number }}</span>
             <span class="dash-row-main dash-qrow-main">

@@ -19,3 +19,8 @@ class CoreConfig(AppConfig):
         # Drop the cached Security settings whenever SystemSetting is saved.
         from core import security_policy
         security_policy._connect_signals()
+        # v3.17.681: a role's landing page applies to the first dashboard
+        # view after sign-in (core.dashboard_views.note_sign_in).
+        from django.contrib.auth.signals import user_logged_in
+        from core.dashboard_views import note_sign_in
+        user_logged_in.connect(note_sign_in, dispatch_uid='core.dashboard_landing')

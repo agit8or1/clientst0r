@@ -589,8 +589,9 @@ def build_2fa_warning(request, org):
 
 def build_quick_actions(request, org):
     from core.quick_actions import resolve_for_user
-    return {'actions': resolve_for_user(request.user, _qa_context(request), request=request),
-            'edit_url': url('accounts:quick_actions_edit')}
+    actions = [a for a in resolve_for_user(request.user, _qa_context(request), request=request)
+               if action_enabled(request, f"qa:{a.get('key', '')}")]
+    return {'actions': actions, 'edit_url': url('accounts:quick_actions_edit')}
 
 
 def _qa_context(request):
@@ -783,6 +784,18 @@ def _queue_rows(qs):
     return rows
 
 
+def short_age(when, now=None):
+    """'3d', '5h', '12m' since `when` (None for no date)."""
+    if when is None:
+        return ''
+    mins = max(0, int(((now or timezone.now()) - when).total_seconds() // 60))
+    if mins >= 1440:
+        return f'{mins // 1440}d'
+    if mins >= 60:
+        return f'{mins // 60}h'
+    return f'{mins}m'
+
+
 def _short_delta(delta):
     """'3d 4h', '4h 48m', '12m' (a deadline in the future)."""
     mins = max(0, int(delta.total_seconds() // 60))
@@ -912,11 +925,19 @@ def _crm_scope(request, qs):
 OPEN_STAGES = ('discovery', 'qualified', 'proposal', 'negotiation')
 
 
+def pipeline_url(request):
+    """The pipeline board needs crm_manage_pipeline (crm.views.pipeline_kanban);
+    a crm_view-only user gets the opportunity list instead of a 403."""
+    from accounts.permission_utils import user_has_perm
+    ok = _memo(request, 'crm_pipeline', lambda: bool(user_has_perm(request.user, 'crm_manage_pipeline')))
+    return url('crm:pipeline') if ok else url('crm:opportunity_list')
+
+
 def build_kpi_crm_open(request, org):
     from crm.models import Opportunity
     qs = _crm_scope(request, Opportunity.objects.filter(stage__in=OPEN_STAGES))
     n = qs.count()
-    return _kpi(n, 'Open opportunities', 'fa-handshake', url('crm:pipeline'), tone='primary')
+    return _kpi(n, 'Open opportunities', 'fa-handshake', pipeline_url(request), tone='primary')
 
 
 def build_kpi_crm_leads(request, org):
@@ -939,7 +960,7 @@ def build_crm_pipeline(request, org):
         rows.append({'label': labels.get(stage, stage), 'count': r['n'],
                      'value': r['value'] or 0, 'pct': round(100 * r['n'] / peak)})
     return {'rows': rows, 'total': sum(r['count'] for r in rows),
-            'value': sum((r['value'] for r in rows), 0), 'more_url': url('crm:pipeline')}
+            'value': sum((r['value'] for r in rows), 0), 'more_url': pipeline_url(request)}
 
 
 def build_crm_closing(request, org):
@@ -954,6 +975,436 @@ def build_crm_closing(request, org):
                       'overdue': o.expected_close_date < today,
                       'url': url('crm:opportunity_detail', o.pk)} for o in qs],
             'more_url': url('crm:opportunity_list')}
+
+
+# ---------------------------------------------------------------------------
+# Sales: quotes, PSA contracts, contract documents, won / lost, activity
+# ---------------------------------------------------------------------------
+#
+# Each figure is the source page's own queryset for the selected customer:
+#
+#   Quotes            psa.views.quote_list: PSA on, Quote.organization = the
+#                     selected customer. The dashboard is stricter than the
+#                     list (which any signed-in user may open): MSP staff
+#                     holding quotes_view for the customer.
+#   PSA contracts     psa.views.contract_list: PSA on, organization = the
+#                     selected customer; MSP staff only here. The list shows
+#                     no money, so neither does the widget.
+#   Contract docs     contracts.views.dashboard: contracts.permissions.scope
+#                     (organization and record scope) narrowed to the
+#                     selected customer and the customers below it; totals
+#                     only from contracts whose pricing the user may see.
+#   CRM               crm.views._scope_qs, crm_view (gate_crm).
+#
+# Not derivable, so not shown: a CRM "next follow-up" (SalesActivity has
+# no due date or planned flag; Opportunity.expected_close_date is the only
+# forward date and drives "closing soon"), renewal reminders as sent mail
+# (no reminder record exists; renewals are derived from end dates), and a
+# won / lost figure for deals closed without an actual close date.
+
+RECENT_DAYS = 30
+WON_LOST_DAYS = 90
+CONTRACT_EXPIRY_DAYS = 90   # contracts.views.dashboard "upcoming" window
+SALES_ROWS = 6
+
+
+def gate_quotes(request):
+    if not (gate_org(request) and psa_on(request) and is_staff(request)):
+        return False
+    return path_ok(request, url('psa:quote_list') or '/psa/quotes/') and org_perm(request, 'quotes_view')
+
+
+def gate_psa_contracts(request):
+    return (gate_org(request) and psa_on(request) and is_staff(request)
+            and path_ok(request, url('psa:contract_list') or '/psa/contracts/'))
+
+
+def gate_contract_docs(request):
+    # contracts.views.dashboard: @staff_required, contracts_view somewhere
+    # (permissions.has_any), the /contracts/ staff-only prefix.
+    if not (gate_org(request) and is_staff(request)
+            and path_ok(request, url('contracts:dashboard') or '/contracts/')):
+        return False
+    from contracts import permissions as cperms
+    return _memo(request, 'contracts_view', lambda: bool(cperms.has_any(request.user, cperms.VIEW)))
+
+
+def _quotes(request, org):
+    from psa.models import Quote
+    return Quote.objects.filter(organization=org)
+
+
+def _quote_figures(request, org):
+    def compute():
+        from django.db.models import Sum
+        from psa.models import PSAApproval
+        now = timezone.now()
+        qs = _quotes(request, org)
+        agg = qs.aggregate(
+            draft=Count('id', filter=Q(status='draft')),
+            sent=Count('id', filter=Q(status='sent')),
+            sent_value=Sum('total', filter=Q(status='sent')),
+            open_value=Sum('total', filter=Q(status__in=('draft', 'sent'))),
+            accepted=Count('id', filter=Q(status='accepted',
+                                          accepted_at__gte=now - timedelta(days=RECENT_DAYS))),
+            accepted_value=Sum('total', filter=Q(status='accepted',
+                                                 accepted_at__gte=now - timedelta(days=RECENT_DAYS))),
+            past_valid=Count('id', filter=Q(status='sent', valid_until__lt=timezone.localdate())),
+        )
+        agg['approval'] = (PSAApproval.objects
+                           .filter(object_type='psa.Quote', status__in=('pending', 'blocked'),
+                                   object_id__in=qs.exclude(status__in=('accepted', 'rejected'))
+                                   .values('pk'))
+                           .values('object_id').distinct().count())
+        agg['open'] = agg['draft'] + agg['sent']
+        return agg
+    return _memo(request, ('quotes', org.pk), compute)
+
+
+def build_kpi_quotes_open(request, org):
+    f = _quote_figures(request, org)
+    sub = f"{f['draft']} draft" if f['draft'] else ''
+    return _kpi(f['open'], 'Open quotes', 'fa-file-invoice-dollar', url('psa:quote_list'),
+                tone='primary', sub=sub)
+
+
+def build_kpi_quotes_waiting(request, org):
+    f = _quote_figures(request, org)
+    sub, tone = '', ''
+    if f['approval']:
+        sub, tone = f"{f['approval']} awaiting approval", 'warning'
+    return _kpi(f['sent'], 'Awaiting customer', 'fa-paper-plane',
+                url('psa:quote_list', query='status=sent'),
+                tone='info' if f['sent'] else 'secondary', sub=sub, sub_tone=tone)
+
+
+def build_quotes(request, org):
+    f = _quote_figures(request, org)
+    base = url('psa:quote_list')
+    rows = [
+        {'label': 'Draft', 'count': f['draft'], 'value': None, 'tone': 'secondary',
+         'href': f'{base}?status=draft' if base else ''},
+        {'label': 'Sent, awaiting the customer', 'count': f['sent'], 'value': f['sent_value'],
+         'tone': 'info', 'href': f'{base}?status=sent' if base else ''},
+        {'label': 'Awaiting internal approval', 'count': f['approval'], 'value': None,
+         'tone': 'warning', 'href': base},
+        {'label': f'Accepted (last {RECENT_DAYS} days)', 'count': f['accepted'],
+         'value': f['accepted_value'], 'tone': 'success',
+         'href': f'{base}?status=accepted' if base else ''},
+    ]
+    waiting = list(_quotes(request, org).filter(status='sent').select_related('client_org')
+                   .order_by('sent_at', 'created_at')[:SALES_ROWS])
+    today = timezone.localdate()
+    return {
+        'rows': rows, 'open_value': f['open_value'], 'past_valid': f['past_valid'],
+        'waiting': [{'number': q.quote_number, 'title': q.title,
+                     'client': q.client_org.name if q.client_org_id else '',
+                     'total': q.total, 'sent': q.sent_at, 'age': short_age(q.sent_at),
+                     'stale': bool(q.valid_until and q.valid_until < today),
+                     'url': url('psa:quote_detail', q.pk)} for q in waiting],
+        'more_url': base,
+    }
+
+
+def _psa_contracts(request, org):
+    from psa.models import Contract
+    return Contract.objects.filter(organization=org)
+
+
+def _renewal_window():
+    from accounts.client_workspace import RENEWAL_WINDOW_DAYS
+    return RENEWAL_WINDOW_DAYS
+
+
+def build_contract_renewals(request, org):
+    today = timezone.localdate()
+    days = _renewal_window()
+    qs = _psa_contracts(request, org)
+    agg = qs.aggregate(
+        active=Count('id', filter=Q(status='active')),
+        renewing=Count('id', filter=Q(status='active', auto_renew=True, end_date__gte=today,
+                                      end_date__lte=today + timedelta(days=days))),
+        expiring=Count('id', filter=Q(status='active', auto_renew=False, end_date__gte=today,
+                                      end_date__lte=today + timedelta(days=days))),
+        lapsed=Count('id', filter=Q(status='active', end_date__lt=today)),
+    )
+    rows = list(qs.filter(status='active', end_date__isnull=False,
+                          end_date__lte=today + timedelta(days=days))
+                .select_related('client_org').order_by('end_date')[:SALES_ROWS + 2])
+    return {
+        'agg': agg, 'days': days,
+        'rows': [{'name': c.name, 'client': c.client_org.name if c.client_org_id else '',
+                  'end': c.end_date, 'auto_renew': c.auto_renew,
+                  'past': c.end_date < today,
+                  'url': url('psa:contract_detail', c.pk)} for c in rows],
+        'more_url': url('psa:contract_list'),
+    }
+
+
+def build_kpi_contracts_expiring(request, org):
+    today = timezone.localdate()
+    days = _renewal_window()
+    n = _psa_contracts(request, org).filter(
+        status='active', end_date__gte=today, end_date__lte=today + timedelta(days=days)).count()
+    return _kpi(n, f'Contracts ending ({days} d)', 'fa-file-contract', url('psa:contract_list'),
+                tone='warning' if n else 'secondary')
+
+
+def _contract_docs_base(request, org):
+    from contracts import permissions as cperms
+    from contracts.models import ContractDocument
+    from core.utils import descendant_org_ids
+    return cperms.scope(ContractDocument.objects.all(), request.user).filter(
+        organization_id__in=descendant_org_ids(org))
+
+
+def _contract_doc_figures(request, org):
+    def compute():
+        from django.db.models import Sum
+        from contracts import permissions as cperms
+        from contracts.models import ContractDocument as D, ContractInvitation
+        now = timezone.now()
+        today = timezone.localdate()
+        base = _contract_docs_base(request, org)
+        agg = base.aggregate(
+            signing=Count('id', filter=Q(status__in=D.OPEN_FOR_SIGNING)),
+            stale=Count('id', filter=Q(status__in=D.OPEN_FOR_SIGNING,
+                                       sent_at__lte=now - timedelta(days=3))),
+            signed=Count('id', filter=Q(status=D.SIGNED,
+                                        signed_at__gte=now - timedelta(days=RECENT_DAYS))),
+            expiring=Count('id', filter=Q(status=D.SIGNED, expiration_date__gte=today,
+                                          expiration_date__lte=today + timedelta(
+                                              days=CONTRACT_EXPIRY_DAYS))),
+        )
+        agg['approval'] = cperms.scope(base, request.user, cperms.APPROVE).filter(
+            status=D.PENDING_APPROVAL).count()
+        agg['countersign'] = base.filter(
+            status=D.PARTIALLY_SIGNED, invitations__role='internal',
+            invitations__status=ContractInvitation.ACTIVE).values('pk').distinct().count()
+        agg['pricing'] = bool(cperms.has_any(request.user, cperms.PRICING))
+        agg['signed_recurring'] = None
+        if agg['pricing']:
+            priced = cperms.scope(base, request.user, cperms.PRICING)
+            agg['signed_recurring'] = priced.filter(
+                status=D.SIGNED, signed_at__gte=now - timedelta(days=RECENT_DAYS)
+            ).aggregate(v=Sum('recurring_total'))['v']
+        return agg
+    return _memo(request, ('contract_docs', org.pk), compute)
+
+
+def build_kpi_contracts_signing(request, org):
+    f = _contract_doc_figures(request, org)
+    sub, tone = '', ''
+    if f['stale']:
+        sub, tone = f"{f['stale']} sent 3+ days ago", 'warning'
+    return _kpi(f['signing'], 'Awaiting signature', 'fa-file-signature',
+                url('contracts:dashboard', query='status=open'),
+                tone='info' if f['signing'] else 'secondary', sub=sub, sub_tone=tone)
+
+
+def build_contract_docs(request, org):
+    from contracts.models import ContractDocument as D
+    f = _contract_doc_figures(request, org)
+    base = url('contracts:dashboard')
+    q = (lambda query: f'{base}?{query}' if base else '')
+    rows = [
+        {'label': 'Awaiting signature', 'count': f['signing'], 'tone': 'info', 'href': q('status=open')},
+        {'label': 'Awaiting internal approval', 'count': f['approval'], 'tone': 'warning',
+         'href': q(f'status={D.PENDING_APPROVAL}')},
+        {'label': 'Awaiting our countersignature', 'count': f['countersign'], 'tone': 'warning',
+         'href': q(f'status={D.PARTIALLY_SIGNED}')},
+        {'label': f'Signed (last {RECENT_DAYS} days)', 'count': f['signed'], 'tone': 'success',
+         'href': q(f'status={D.SIGNED}&date_field=signed')},
+        {'label': f'Expiring (next {CONTRACT_EXPIRY_DAYS} days)', 'count': f['expiring'],
+         'tone': 'secondary', 'href': q(f'status={D.SIGNED}&date_field=expiration')},
+    ]
+    follow = list(_contract_docs_base(request, org).filter(status__in=D.OPEN_FOR_SIGNING)
+                  .select_related('organization').order_by('sent_at')[:SALES_ROWS])
+    return {
+        'rows': rows, 'pricing': f['pricing'], 'signed_recurring': f['signed_recurring'],
+        'follow': [{'title': c.title, 'reference': c.reference,
+                    'client': c.organization.name if c.organization_id else c.organization_name,
+                    'status': c.get_status_display(), 'sent': c.sent_at, 'age': short_age(c.sent_at),
+                    'url': url('contracts:detail', c.pk)} for c in follow],
+        'more_url': base,
+    }
+
+
+def build_kpi_crm_won(request, org):
+    f = _won_lost(request, org)
+    return _kpi(f['won'], f'Won ({WON_LOST_DAYS} d)', 'fa-trophy',
+                url('crm:opportunity_list', query='stage=closed_won'), tone='success',
+                sub=f"{f['lost']} lost" if f['lost'] else '')
+
+
+def _won_lost(request, org):
+    def compute():
+        from django.db.models import Sum
+        from crm.models import Opportunity
+        since = timezone.localdate() - timedelta(days=WON_LOST_DAYS)
+        qs = _crm_scope(request, Opportunity.objects.filter(actual_close_date__gte=since))
+        agg = qs.aggregate(
+            won=Count('id', filter=Q(stage='closed_won')),
+            lost=Count('id', filter=Q(stage='closed_lost')),
+            won_value=Sum('estimated_value', filter=Q(stage='closed_won')),
+            lost_value=Sum('estimated_value', filter=Q(stage='closed_lost')),
+        )
+        closed = agg['won'] + agg['lost']
+        agg['rate'] = round(100 * agg['won'] / closed) if closed else None
+        return agg
+    return _memo(request, ('won_lost', org.pk), compute)
+
+
+def build_crm_won_lost(request, org):
+    f = _won_lost(request, org)
+    base = url('crm:opportunity_list')
+    return {'f': f, 'days': WON_LOST_DAYS,
+            'won_url': f'{base}?stage=closed_won' if base else '',
+            'lost_url': f'{base}?stage=closed_lost' if base else '',
+            'more_url': base}
+
+
+def build_crm_activity(request, org):
+    from crm.models import SalesActivity
+    rows = []
+    qs = (_crm_scope(request, SalesActivity.objects.all())
+          .select_related('lead', 'opportunity', 'client_org', 'user')
+          .order_by('-occurred_at')[:10])
+    for a in qs:
+        if a.opportunity_id:
+            target, href = a.opportunity.name, url('crm:opportunity_detail', a.opportunity_id)
+        elif a.lead_id:
+            target, href = a.lead.company_name, url('crm:lead_detail', a.lead_id)
+        elif a.client_org_id:
+            target, href = a.client_org.name, url('accounts:organization_detail', a.client_org_id)
+        else:
+            target, href = '', ''
+        rows.append({'kind': a.get_activity_type_display(), 'subject': a.subject,
+                     'target': target, 'when': a.occurred_at, 'age': short_age(a.occurred_at), 'url': href,
+                     'who': a.user.get_username() if a.user_id else ''})
+    return {'rows': rows, 'more_url': url('crm:home')}
+
+
+# ---------------------------------------------------------------------------
+# Manager: utilization, billing, reports
+# ---------------------------------------------------------------------------
+
+def gate_utilization(request):
+    # resourcing.views.capacity_report: require_msp_perm('reports_view_capacity').
+    if not gate_org(request):
+        return False
+    from resourcing.views import has_msp_perm
+    return _memo(request, 'capacity', lambda: bool(has_msp_perm(request.user, 'reports_view_capacity')))
+
+
+def build_team_utilization(request, org):
+    """This week's logged and billable hours per technician against the
+    billable target an administrator set (resourcing.BillableTarget).
+    Technicians without a target are not given the capacity report's
+    32-hour assumption: they are counted as "no target" instead."""
+    from decimal import Decimal
+
+    from django.db.models import Sum
+    from psa.models import TicketTimeEntry
+    from psa.visibility import msp_technicians
+    from resourcing.models import BillableTarget
+
+    today = timezone.localdate()
+    monday = today - timedelta(days=today.weekday())
+    techs = list(msp_technicians().filter(is_active=True).only('id', 'username', 'first_name',
+                                                               'last_name'))
+    targets = dict(BillableTarget.objects.filter(user__in=[t.pk for t in techs], is_active=True)
+                   .values_list('user_id', 'target_hours_per_week'))
+    logged = {r['user']: r for r in TicketTimeEntry.objects.filter(
+        user__in=list(targets), started_at__date__gte=monday, started_at__date__lte=today,
+        ended_at__isnull=False).values('user').annotate(
+            mins=Sum('duration_minutes'),
+            billable=Sum('duration_minutes', filter=Q(is_billable=True)))}
+    rows = []
+    tot_target = tot_billable = Decimal('0')
+    for t in techs:
+        target = targets.get(t.pk)
+        if not target:
+            continue
+        r = logged.get(t.pk, {})
+        billable = Decimal(r.get('billable') or 0) / 60
+        hours = Decimal(r.get('mins') or 0) / 60
+        pct = round(100 * billable / target) if target else None
+        rows.append({'name': t.get_full_name() or t.get_username(), 'target': float(target),
+                     'hours': round(float(hours), 1), 'billable': round(float(billable), 1),
+                     'pct': pct, 'bar': min(100, pct or 0),
+                     'tone': 'success' if pct is not None and pct >= 90 else
+                             'warning' if pct is not None and pct >= 60 else 'danger'})
+        tot_target += Decimal(target)
+        tot_billable += billable
+    rows.sort(key=lambda r: (r['pct'] is None, -(r['pct'] or 0)))
+    return {'rows': rows, 'no_target': len(techs) - len(rows), 'week_start': monday,
+            'team_pct': round(100 * tot_billable / tot_target) if tot_target else None,
+            'more_url': url('resourcing:capacity_report')}
+
+
+def gate_billing(request):
+    # psa.views.invoice_list: PSA on; rows limited to billing_view_invoices.
+    # MSP staff only on the dashboard (a customer sees their invoices in the
+    # portal).
+    return (gate_org(request) and psa_on(request) and is_staff(request)
+            and path_ok(request, url('psa:invoice_list') or '/psa/invoices/')
+            and org_perm(request, 'billing_view_invoices'))
+
+
+def build_billing_summary(request, org):
+    from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+    from accounts.permission_utils import orgs_with_perm
+    from psa.models import Invoice
+    qs = Invoice.objects.filter(organization=org)
+    allowed = orgs_with_perm(request.user, 'billing_view_invoices')
+    if allowed is not None:
+        qs = qs.filter(Q(client_org_id__in=allowed) | Q(organization_id__in=allowed))
+    today = timezone.localdate()
+    month = today.replace(day=1)
+    bal = ExpressionWrapper(F('total') - F('amount_paid'),
+                            output_field=DecimalField(max_digits=12, decimal_places=2))
+    open_q = Q(status__in=('sent', 'partial', 'overdue'))
+    late_q = open_q & (Q(status='overdue') | Q(due_date__lt=today))
+    agg = qs.aggregate(
+        open=Count('id', filter=open_q), open_balance=Sum(bal, filter=open_q),
+        overdue=Count('id', filter=late_q), overdue_balance=Sum(bal, filter=late_q),
+        draft=Count('id', filter=Q(status='draft')),
+        invoiced_month=Sum('total', filter=Q(invoice_date__gte=month) & ~Q(status__in=('draft', 'void'))),
+    )
+    base = url('psa:invoice_list')
+    return {'agg': agg, 'month': month,
+            'open_url': f'{base}?status=sent' if base else '',
+            'overdue_url': f'{base}?status=overdue' if base else '',
+            'draft_url': f'{base}?status=draft' if base else '',
+            'more_url': base}
+
+
+def gate_reports(request):
+    return gate_org(request) and _setting(request, 'reports_enabled', True) and is_staff(request)
+
+
+def build_reports(request, org):
+    """Links to the report pages the sidebar's Reports group offers this
+    user: the sidebar's own resolution of that one group
+    (core.navigation._resolve_entry with the group and entry gates and the
+    server's URL rules), not the whole sidebar."""
+    from core import navigation as nav
+    ctx = nav.request_context(request)
+    group = next((g for g in nav.PRIMARY if g.key == 'reports'), None)
+    links = []
+    if group is None or not nav._allowed(group.gate, ctx):
+        return {'links': links, 'more_url': ''}
+    probe = nav._PermProbe(ctx)
+    for en in group.entries:
+        e = nav._resolve_entry(en, ctx, None, probe, None)
+        if e is None:
+            continue
+        for item in (e.get('children') or [e]):
+            if item.get('href') and item['href'] not in {l['href'] for l in links}:
+                links.append({'label': str(item['label']), 'href': item['href'],
+                              'icon': item.get('icon') or 'fas fa-chart-column'})
+    return {'links': links[:12], 'more_url': links[0]['href'] if links else ''}
 
 
 # ---------------------------------------------------------------------------
@@ -991,6 +1442,8 @@ def header_actions(request):
     """The header's primary actions this user's checks allow (fails closed)."""
     out = []
     for key, label, icon, name, check in HEADER_ACTIONS:
+        if not action_enabled(request, f'header:{key}'):
+            continue
         try:
             ok = bool(check(request))
         except Exception:
@@ -1030,16 +1483,20 @@ class Widget:
     link: str = ''            # url name of the page behind the widget
     link_client: bool = False  # add ?client=<selected customer> (PSA lists)
     link_query: str = ''       # further ticket-list filters (assigned, queue)
+    link_fallback: str = ''    # url name used when the user may not open `link`
 
-    def link_url(self, org):
-        if not self.link:
+    def link_url(self, org, fallback=False):
+        name = self.link_fallback if fallback else self.link
+        if not name:
             return ''
+        if fallback:
+            return url(name)
         parts = []
         if self.link_client and org is not None:
             parts.append(f'client={org.pk}')
         if self.link_query:
             parts.append(self.link_query)
-        return url(self.link, query='&'.join(parts))
+        return url(name, query='&'.join(parts))
 
     def allowed(self, request) -> bool:
         try:
@@ -1079,6 +1536,22 @@ WIDGETS = (
            _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_crm_leads', 'Active leads', 'fa-user-plus', gate_crm, build_kpi_crm_leads,
            _KPI_TPL, zone='kpi', expandable=False),
+
+    Widget('kpi_quotes_open', 'Open quotes', 'fa-file-invoice-dollar', gate_quotes,
+           build_kpi_quotes_open, _KPI_TPL, zone='kpi', expandable=False,
+           description='Draft and sent quotes of this customer.'),
+    Widget('kpi_quotes_waiting', 'Quotes awaiting customer', 'fa-paper-plane', gate_quotes,
+           build_kpi_quotes_waiting, _KPI_TPL, zone='kpi', expandable=False,
+           description='Sent quotes the customer has not accepted or rejected yet.'),
+    Widget('kpi_contracts_signing', 'Awaiting signature', 'fa-file-signature', gate_contract_docs,
+           build_kpi_contracts_signing, _KPI_TPL, zone='kpi', lazy=True, expandable=False,
+           description='Contract documents sent and not yet fully signed.'),
+    Widget('kpi_contracts_expiring', 'Contracts ending', 'fa-file-contract', gate_psa_contracts,
+           build_kpi_contracts_expiring, _KPI_TPL, zone='kpi', expandable=False,
+           description='Active PSA contracts whose end date falls in the renewal window.'),
+    Widget('kpi_crm_won', 'Deals won', 'fa-trophy', gate_crm, build_kpi_crm_won, _KPI_TPL,
+           zone='kpi', expandable=False,
+           description='Opportunities closed won (and lost) in the last 90 days.'),
 
     Widget('kpi_tickets', 'Open tickets', 'fa-ticket', gate_tickets, build_kpi_tickets,
            _KPI_TPL, zone='kpi', expandable=False),
@@ -1126,11 +1599,39 @@ WIDGETS = (
            link='psa:ticket_list', link_client=True),
     Widget('crm_pipeline', 'Sales pipeline', 'fa-filter-circle-dollar', gate_crm,
            build_crm_pipeline, 'core/dashboard/_w_crm_pipeline.html', lazy=True,
-           link='crm:pipeline'),
+           link='crm:pipeline', link_fallback='crm:opportunity_list'),
     Widget('crm_closing', 'Opportunities closing soon', 'fa-calendar-check', gate_crm,
            build_crm_closing, 'core/dashboard/_w_crm_closing.html', lazy=True,
            link='crm:opportunity_list',
            description='Open opportunities expected to close within 30 days (or overdue).'),
+    Widget('quotes', 'Quotes', 'fa-file-invoice-dollar', gate_quotes, build_quotes,
+           'core/dashboard/_w_quotes.html', lazy=True, link='psa:quote_list',
+           description='Draft, sent, awaiting approval and recently accepted quotes.'),
+    Widget('contract_docs', 'Contract signatures', 'fa-file-signature', gate_contract_docs,
+           build_contract_docs, 'core/dashboard/_w_contract_docs.html', lazy=True,
+           link='contracts:dashboard',
+           description='Contract documents awaiting signature, approval or countersignature.'),
+    Widget('contract_renewals', 'Contract renewals', 'fa-file-contract', gate_psa_contracts,
+           build_contract_renewals, 'core/dashboard/_w_contract_renewals.html', lazy=True,
+           link='psa:contract_list',
+           description='Active PSA contracts ending or auto-renewing soon.'),
+    Widget('crm_won_lost', 'Won and lost', 'fa-trophy', gate_crm, build_crm_won_lost,
+           'core/dashboard/_w_crm_won_lost.html', lazy=True, link='crm:opportunity_list',
+           description='Opportunities closed in the last 90 days and the win rate.'),
+    Widget('crm_activity', 'Recent sales activity', 'fa-comments-dollar', gate_crm,
+           build_crm_activity, 'core/dashboard/_w_crm_activity.html', lazy=True, link='crm:home',
+           description='Calls, emails, meetings and notes logged in the CRM.'),
+    Widget('team_utilization', 'Team utilization', 'fa-gauge-high', gate_utilization,
+           build_team_utilization, 'core/dashboard/_w_team_utilization.html', lazy=True,
+           link='resourcing:capacity_report',
+           description="Billable hours this week against each technician's billable target."),
+    Widget('billing_summary', 'Billing summary', 'fa-file-invoice', gate_billing,
+           build_billing_summary, 'core/dashboard/_w_billing_summary.html', lazy=True,
+           link='psa:invoice_list',
+           description='Open and overdue invoices of this customer (billing_view_invoices).'),
+    Widget('reports', 'Reports', 'fa-chart-column', gate_reports, build_reports,
+           'core/dashboard/_w_reports.html', lazy=True, expandable=False,
+           description='The report pages your role may open.'),
     Widget('my_time', 'My time this week', 'fa-clock', gate_my_time, build_my_time,
            'core/dashboard/_w_my_time.html', lazy=True, link='psa:my_timesheet'),
 
@@ -1193,7 +1694,8 @@ _PRESETS = {
     # compliance, approvals, trends.
     PRESET_MANAGER: ('kpi_unassigned', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today',
                      'kpi_approvals', 'kpi_my_open') + (
-        'unassigned_queue', 'workload', 'sla_overview', 'ticket_activity'),
+        'unassigned_queue', 'workload', 'sla_overview', 'team_utilization', 'billing_summary',
+        'reports'),
     # L3: escalated / advanced work, infrastructure and RMM.
     PRESET_L3: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_rmm_alerts',
                 'kpi_tasks') + (
@@ -1205,9 +1707,14 @@ _PRESETS = {
     # L1: own queue, SLA warnings, tasks, own time.
     PRESET_L1: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_tasks') + (
         'my_queue', 'sla_overview', 'tasks', 'ticket_recent', 'my_time'),
-    # Sales: pipeline, leads, deals closing, follow-up tasks.
-    PRESET_SALES: ('kpi_crm_open', 'kpi_crm_leads', 'kpi_tasks', 'kpi_approvals') + (
-        'crm_pipeline', 'crm_closing', 'tasks', 'schedule', 'ticket_activity'),
+    # Sales: pipeline, quotes, signatures, renewals, what closed and what
+    # was done.
+    # (Contracts ending is in the Contract renewals panel; its figure is
+    # addable.)
+    PRESET_SALES: ('kpi_crm_open', 'kpi_crm_leads', 'kpi_quotes_open', 'kpi_quotes_waiting',
+                   'kpi_contracts_signing', 'kpi_crm_won') + (
+        'crm_pipeline', 'quotes', 'contract_docs', 'crm_closing', 'contract_renewals',
+        'crm_activity'),
     # Customer users: customer-facing widgets only (each also gated).
     PRESET_CUSTOMER: ('kpi_tickets', 'kpi_assets', 'kpi_documents', 'kpi_passwords',
                       'kpi_monitors') + (
@@ -1222,10 +1729,15 @@ MSP_ONLY = frozenset({
     'kpi_due_today', 'kpi_crm_open', 'kpi_crm_leads', 'kpi_rmm_alerts', 'kpi_psa_companies',
     'kpi_psa_tickets', 'my_queue', 'unassigned_queue', 'sla_overview', 'workload', 'crm_pipeline',
     'crm_closing', 'my_time', 'rmm_alerts', 'system_status',
+    'kpi_quotes_open', 'kpi_quotes_waiting', 'kpi_contracts_signing', 'kpi_contracts_expiring',
+    'kpi_crm_won', 'quotes', 'contract_docs', 'contract_renewals', 'crm_won_lost', 'crm_activity',
+    'team_utilization', 'billing_summary', 'reports',
 })
 
 _PRESET_SIZES = {
     PRESET_CUSTOMER: {'map': 1},
+    # Six panels on a 3 x 2 grid: the unassigned queue takes one cell here.
+    PRESET_MANAGER: {'unassigned_queue': 1},
 }
 
 
@@ -1250,8 +1762,30 @@ _LEGACY_TEMPLATES = {
 }
 
 
+def builtin_preset_for_role(role):
+    """The built-in rule for an MSP role: seed key, RMM tier, then the legacy
+    system templates by name. '' when none applies."""
+    seed = (role.seed_key or '').strip()
+    tier = (getattr(role, 'rmm_tier', '') or '').strip()
+    if seed in ('org_owner', 'org_admin') or tier == 'platform_admin':
+        return PRESET_ADMIN
+    if seed in ('service_manager', 'billing_finance', 'auditor'):
+        return PRESET_MANAGER
+    if seed in ('sales_rep', 'sales_manager'):
+        return PRESET_SALES
+    if seed in ('tech_l1', 'tech_l2', 'tech_l3'):
+        return {'tech_l1': PRESET_L1, 'tech_l2': PRESET_L2, 'tech_l3': PRESET_L3}[seed]
+    if tier in ('l1', 'l2', 'l3'):
+        return {'l1': PRESET_L1, 'l2': PRESET_L2, 'l3': PRESET_L3}[tier]
+    if not seed and getattr(role, 'is_system_template', False):
+        return _LEGACY_TEMPLATES.get(role.name, '')
+    return ''
+
+
 def preset_for_user(user, organization=None):
-    """Which built-in preset suits this user's actual role."""
+    """Which preset suits this user's actual role: an administrator's
+    mapping for the user's global role (core.DashboardRoleMapping), else the
+    built-in rules below. Customer users always get the customer preset."""
     if user.is_superuser:
         return PRESET_ADMIN
     from psa.visibility import is_msp_staff
@@ -1259,22 +1793,12 @@ def preset_for_user(user, organization=None):
     if is_msp_staff(user):
         role = getattr(profile, 'global_role_template', None) if profile is not None else None
         if role is not None:
-            seed = (role.seed_key or '').strip()
-            tier = (getattr(role, 'rmm_tier', '') or '').strip()
-            if seed in ('org_owner', 'org_admin') or tier == 'platform_admin':
-                return PRESET_ADMIN
-            if seed in ('service_manager', 'billing_finance', 'auditor'):
-                return PRESET_MANAGER
-            if seed in ('sales_rep', 'sales_manager'):
-                return PRESET_SALES
-            if seed in ('tech_l1', 'tech_l2', 'tech_l3'):
-                return {'tech_l1': PRESET_L1, 'tech_l2': PRESET_L2, 'tech_l3': PRESET_L3}[seed]
-            if tier in ('l1', 'l2', 'l3'):
-                return {'l1': PRESET_L1, 'l2': PRESET_L2, 'l3': PRESET_L3}[tier]
-            if not seed and getattr(role, 'is_system_template', False):
-                legacy = _LEGACY_TEMPLATES.get(role.name)
-                if legacy:
-                    return legacy
+            mapped = _role_mapping(role.pk)
+            if mapped in PRESET_LABELS:
+                return mapped
+            builtin = builtin_preset_for_role(role)
+            if builtin:
+                return builtin
         if user.is_staff and (profile is None or not profile.is_staff_user()):
             return PRESET_ADMIN  # Django staff without a role: full reach
         return PRESET_L2
@@ -1325,29 +1849,129 @@ def clean_layout(raw):
     return {'order': order, 'hidden': hidden, 'sizes': sizes}, errors
 
 
-def role_default(preset):
+def _role_rows():
     try:
         from core.models import DashboardRoleDefault
-        row = DashboardRoleDefault.objects.filter(preset=preset).first()
+        return {r.preset: r for r in DashboardRoleDefault.objects.all()}
+    except Exception:
+        return {}
+
+
+def _role_mapping(role_id):
+    try:
+        from core.models import DashboardRoleMapping
+        preset = (DashboardRoleMapping.objects.filter(role_template_id=role_id)
+                  .values_list('preset', flat=True).first())
     except Exception:
         return None
+    return preset if preset in PRESET_LABELS else None
+
+
+def _role_row(preset, request=None):
+    rows = _memo(request, 'role_rows', _role_rows) if request is not None else _role_rows()
+    return rows.get(preset)
+
+
+def role_default(preset, row=False):
+    if row is False:
+        row = _role_row(preset)
     if row is None or not row.layout:
         return None
     return clean_layout(row.layout)[0]
+
+
+# ---------------------------------------------------------------------------
+# Role configuration (v3.17.681)
+# ---------------------------------------------------------------------------
+#
+# Per preset an administrator may also (core.DashboardRoleDefault):
+#   disabled_widgets  widgets users of the role can neither see nor add back
+#                     (the widget endpoint answers 404 for them too)
+#   disabled_actions  header actions ('header:<key>') and quick actions
+#                     ('qa:<key>') removed for the role
+#   landing           a page opened after sign-in instead of the dashboard
+#   sidebar_mode      the sidebar's default (expanded / rail); a user's own
+#                     choice in the browser wins
+# All of them only take away from what the gates and view checks allow.
+
+SIDEBAR_MODES = ('expanded', 'rail')
+# The 2FA banner is a security notice, never something a role switches off.
+UNDISABLEABLE = frozenset(w.key for w in WIDGETS if not w.hideable)
+
+
+def clean_disabled_widgets(raw):
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out = []
+    for k in raw[:MAX_LAYOUT_KEYS * 2]:
+        if isinstance(k, str) and k in BY_KEY and k not in UNDISABLEABLE and k not in out:
+            out.append(k)
+    return out
+
+
+def action_keys():
+    """Every action key a role configuration can remove."""
+    from core.quick_actions import QUICK_ACTIONS_REGISTRY
+    return ([(f'header:{k}', label) for k, label, _i, _n, _c in HEADER_ACTIONS]
+            + [(f"qa:{a['key']}", a['label']) for a in QUICK_ACTIONS_REGISTRY])
+
+
+def clean_disabled_actions(raw):
+    if not isinstance(raw, (list, tuple)):
+        return []
+    known = {k for k, _l in action_keys()}
+    out = []
+    for k in raw[:200]:
+        if isinstance(k, str) and k in known and k not in out:
+            out.append(k)
+    return out
+
+
+def user_preset(request):
+    return _memo(request, 'preset', lambda: preset_for_user(request.user, current_org(request)))
+
+
+def role_config(request):
+    """The administrator's configuration for this user's preset (memoised
+    per request): {'row', 'disabled_widgets', 'disabled_actions', 'landing',
+    'sidebar_mode'}."""
+    def compute():
+        row = _role_row(user_preset(request), request)
+        return {
+            'row': row,
+            'disabled_widgets': frozenset(clean_disabled_widgets(getattr(row, 'disabled_widgets', None))),
+            'disabled_actions': frozenset(getattr(row, 'disabled_actions', None) or ()),
+            'landing': (getattr(row, 'landing', '') or '').strip(),
+            'sidebar_mode': getattr(row, 'sidebar_mode', '') if getattr(row, 'sidebar_mode', '')
+            in SIDEBAR_MODES else '',
+        }
+    return _memo(request, 'role_config', compute)
+
+
+def widget_available(request, widget):
+    """The widget's own gate, and not switched off for the user's role."""
+    if widget.key in role_config(request)['disabled_widgets']:
+        return False
+    return widget.allowed(request)
+
+
+def action_enabled(request, key):
+    """`key` ('header:new_ticket', 'qa:<key>') is not removed for the role."""
+    return key not in role_config(request)['disabled_actions']
 
 
 def effective_layout(request):
     """(layout, source, preset): the user's own layout, else the role default
     an administrator saved for their preset, else the built-in preset."""
     user = request.user
-    preset = preset_for_user(user, current_org(request))
+    preset = user_preset(request)
     profile = getattr(user, 'profile', None)
     own = getattr(profile, 'dashboard_layout', None) if profile is not None else None
     base = preset_layout(preset)
     if own:
         layout, source = clean_layout(own)[0], 'personal'
     else:
-        layout = role_default(preset)
+        layout = role_default(preset, role_config(request)['row'])
         source = 'role' if layout else 'preset'
         layout = layout or base
         if source == 'role' and preset == PRESET_CUSTOMER:
@@ -1389,7 +2013,7 @@ def visible_widgets(request, layout=None):
     out = []
     for key in layout['order']:
         w = BY_KEY.get(key)
-        if w is None or not w.allowed(request):
+        if w is None or not widget_available(request, w):
             continue
         out.append(Placed(widget=w, size=sizes.get(key, w.size),
                           hidden=w.hideable and key in hidden))

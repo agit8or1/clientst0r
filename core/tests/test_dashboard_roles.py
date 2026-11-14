@@ -130,9 +130,13 @@ class RolePresetTests(_Base):
 
     def test_dispatcher_defaults(self):
         shown = self._shown(self.user('service_manager'))
+        # v3.17.681: Ticket trends gave way to Team utilization (and Billing
+        # summary / Reports where the role may see them); trends stay addable.
         for key in ('unassigned_queue', 'workload', 'sla_overview', 'kpi_unassigned',
-                    'kpi_approvals', 'kpi_sla_risk', 'ticket_activity'):
+                    'kpi_approvals', 'kpi_sla_risk', 'team_utilization'):
             self.assertIn(key, shown)
+        self.assertIn('ticket_activity', {p.key for p in dw.visible_widgets(
+            _req(self.user('service_manager'), self.org_a))})
 
     def test_admin_defaults(self):
         shown = self._shown(self.root)

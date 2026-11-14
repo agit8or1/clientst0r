@@ -83,6 +83,7 @@
                 <button type="button" class="btn btn-outline-primary btn-sm" id="dash-c-role-save">Save as role default</button>
                 <button type="button" class="btn btn-outline-danger btn-sm" id="dash-c-role-clear">Clear role default</button>
             </div>
+            <p class="dash-c-note mt-2 mb-0"><a href="{% url 'core:dashboard_role_settings' %}?preset={{ layout_preset }}">Role dashboards</a>: available panels, landing page, sidebar and actions per role.</p>
         </fieldset>
         {% endif %}
     </div>
