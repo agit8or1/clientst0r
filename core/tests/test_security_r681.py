@@ -698,3 +698,27 @@ class FavoriteRedirectHardeningTests(R681Base):
         r = c.post(reverse('core:favorite_toggle', args=[ct.pk, self.asset_a.pk]),
                    HTTP_REFERER='http://testserver/assets/')
         self.assertTrue(r['Location'].endswith('/assets/'))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WorkspaceMembersFlagTests(R681Base):
+    """HARDENING (pre-existing since before v3.17.680): the client record
+    listed every member's name and email to anyone who could open it,
+    whether or not their role grants `org_view_members` ("View organization
+    members"). Customer Standard User / Read-Only do not hold it."""
+
+    def test_member_list_needs_org_view_members(self):
+        c = self.login(self.cust_user, self.a)
+        r = self.workspace(c, self.a)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertNotIn('r681_cadmin@cust.test', html)
+        self.assertNotIn('data-key="members"', html)
+        self.assertEqual(self.workspace(c, self.a, 'members').status_code, 404)
+
+    def test_member_list_shown_with_the_flag(self):
+        for user in (self.cust_admin, self.su, self.l1, self.sales):
+            c = self.login(user, self.a)
+            r = self.workspace(c, self.a, 'members')
+            self.assertEqual(r.status_code, 200, user.username)
+            self.assertIn('r681_cuser@cust.test', r.content.decode(), user.username)

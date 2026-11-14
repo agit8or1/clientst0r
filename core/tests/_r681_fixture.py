@@ -33,8 +33,16 @@ Q = 'qzx'
 
 
 def builtin(key):
+    """The built-in role `key` as accounts.role_seeds defines it. Seeded by
+    migration; re-seeded from the same definitions when a --keepdb run lost
+    the migration rows (a TransactionTestCase flush elsewhere)."""
     from accounts.models import RoleTemplate
-    return RoleTemplate.objects.get(seed_key=key, organization__isnull=True)
+    row = RoleTemplate.objects.filter(seed_key=key, organization__isnull=True).first()
+    if row is None:
+        from accounts.role_seeds import seed_builtin_roles
+        seed_builtin_roles(RoleTemplate)
+        row = RoleTemplate.objects.get(seed_key=key, organization__isnull=True)
+    return row
 
 
 def staff(username, template_key=None):

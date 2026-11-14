@@ -31,7 +31,7 @@ support difficulty, contract documents, pulse trend) is shown as before.
                 {% if organization.description %}<dt>Description</dt><dd>{{ organization.description }}</dd>{% endif %}
                 <dt>Status</dt><dd>{% if organization.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</dd>
                 <dt>Created</dt><dd>{{ organization.created_at|date:"F j, Y" }}</dd>
-                <dt>Members</dt><dd><a href="?tab=members"><strong>{{ members|length }}</strong> active member{{ members|length|pluralize }}</a></dd>
+                {% if ws_visible.members %}<dt>Members</dt><dd><a href="?tab=members"><strong>{{ members|length }}</strong> active member{{ members|length|pluralize }}</a></dd>{% endif %}
                 <dt>Security exposure</dt>
                 <dd>
                     {% if organization.exposure_score >= 200 %}<span class="badge bg-danger">{{ organization.exposure_score }}</span> high

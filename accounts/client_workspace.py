@@ -188,9 +188,23 @@ class Workspace:
         except Exception:
             return False
 
-    def _gate(self, key):
-        if key in ('overview', 'members'):
+    def can_view_members(self):
+        """The member list (names, emails, roles): `org_view_members` for
+        this client ("View organization members"), as the role editor
+        describes it. Superusers always; a membership role that manages
+        members (owner / admin) keeps it so the Add / Edit / Remove
+        buttons stay reachable."""
+        if self.user.is_superuser or self.has('org_view_members'):
             return True
+        from accounts.models import Membership
+        return Membership.objects.filter(user=self.user, organization=self.org, is_active=True,
+                                         role__in=('owner', 'admin')).exists()
+
+    def _gate(self, key):
+        if key == 'overview':
+            return True
+        if key == 'members':
+            return self.can_view_members()
         if not self.in_context:
             return False
         if key == 'tickets':
