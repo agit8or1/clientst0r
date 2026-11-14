@@ -1,0 +1,51 @@
+<script nonce="{{ csp_nonce }}">
+const BAR_COLORS = ['#198754','#20c997','#ffc107','#fd7e14','#dc3545'];
+
+function updateBars(card, val) {
+    card.querySelectorAll('.rating-bar').forEach(bar => {
+        const bv = parseInt(bar.dataset.val);
+        bar.style.background = bv <= val ? BAR_COLORS[bv-1] : '#dee2e6';
+        bar.style.transform = bv === val ? 'scaleY(1.08)' : 'none';
+    });
+    const lbl = card.querySelector('.rating-label');
+    const labels = ['Low','Moderate','Elevated','High','Critical'];
+    if (lbl) lbl.textContent = val ? labels[val-1] : '—';
+}
+
+document.querySelectorAll('.rating-card').forEach(card => {
+    const category = card.dataset.category;
+    const orgId    = card.dataset.org;
+    let current    = parseInt(card.dataset.current) || 0;
+
+    card.querySelectorAll('.rating-bar').forEach(bar => {
+        bar.addEventListener('mouseenter', () => {
+            const hv = parseInt(bar.dataset.val);
+            card.querySelectorAll('.rating-bar').forEach(b => {
+                b.style.background = parseInt(b.dataset.val) <= hv ? BAR_COLORS[parseInt(b.dataset.val)-1] : '#dee2e6';
+            });
+        });
+        bar.addEventListener('mouseleave', () => updateBars(card, current));
+
+        bar.addEventListener('click', () => {
+            const val = parseInt(bar.dataset.val);
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            fetch(`/accounts/organizations/${orgId}/support-rating/`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':csrf},
+                body: `category=${category}&rating=${val}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) { document.getElementById('rating-feedback').textContent = 'Error: ' + data.error; return; }
+                current = val;
+                card.dataset.current = val;
+                updateBars(card, val);
+                const fb = document.getElementById('rating-feedback');
+                fb.textContent = `${card.querySelector('.fw-semibold').textContent.trim()} → ${data.label}`;
+                setTimeout(() => fb.textContent = '', 3000);
+            })
+            .catch(() => { document.getElementById('rating-feedback').textContent = 'Save failed — please try again.'; });
+        });
+    });
+});
+</script>

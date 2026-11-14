@@ -1,12 +1,17 @@
 {% extends "base.html" %}
-{% load contracts_tags %}{% load pulse_tags %}
+{% load static %}
 
 {% block title %}{{ organization.name }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/client_workspace.css' %}">{% endblock %}
+
+{% block breadcrumb_tail %}{% for t in ws_tabs %}{% if t.active %}{% if t.key == 'overview' %}<li class="breadcrumb-item active" aria-current="page">{{ organization.name }}</li>{% else %}<li class="breadcrumb-item"><a href="{% url 'accounts:organization_detail' organization.id %}">{{ organization.name }}</a></li><li class="breadcrumb-item active" aria-current="page">{{ t.label }}</li>{% endif %}{% endif %}{% endfor %}{% endblock %}
+
 {% block content %}
+<div class="cw" data-client-workspace="{{ organization.id }}">
 {% if organization.parent or organization.children.exists %}
-<nav aria-label="org hierarchy" class="mb-2">
-    <ol class="breadcrumb small">
+<nav aria-label="org hierarchy" class="mb-1">
+    <ol class="breadcrumb small mb-0">
         {% for a in organization.ancestors reversed %}
         <li class="breadcrumb-item">
             <a href="{% url 'accounts:organization_detail' a.id %}">{{ a.name }}</a>
@@ -17,466 +22,116 @@
 </nav>
 {% endif %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>
-        <i class="fas fa-building"></i> {{ organization.name }}
-        {% if organization.parent %}
-        <small class="text-muted fs-6">— branch of {{ organization.parent.name }}</small>
-        {% endif %}
-        {% if not organization.is_active %}
-        <span class="badge bg-secondary">Inactive</span>
-        {% endif %}
-    </h1>
-    <div class="ui-page-head__actions">
-        <a href="{% url 'accounts:organization_list' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> Back to list
-        </a>
-        <a href="{% url 'core:customer_ops' organization.id %}" class="btn btn-outline-secondary"
+{# ---- workspace header ---------------------------------------------------- #}
+<header class="cw-head">
+    <div class="cw-head__main">
+        {% if organization.logo %}<img class="cw-head__logo" src="{{ organization.logo.url }}" alt="">{% else %}<span class="cw-head__icon" aria-hidden="true"><i class="fas fa-building"></i></span>{% endif %}
+        <div class="cw-head__text">
+            <h1 class="cw-head__title">
+                {{ organization.name }}
+                {% if not organization.is_active %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+                {% if organization.organization_type %}<span class="ui-badge ui-badge--info">{{ organization.organization_type }}</span>{% endif %}
+            </h1>
+            <div class="cw-head__sub">
+                {% if organization.parent %}<span>Branch of <a href="{% url 'accounts:organization_detail' organization.parent.id %}">{{ organization.parent.name }}</a></span>{% endif %}
+                {% if organization.city or organization.country %}<span><i class="fas fa-location-dot" aria-hidden="true"></i> {{ organization.city }}{% if organization.city and organization.country %}, {% endif %}{{ organization.country }}</span>{% endif %}
+                {% if organization.phone %}<span><i class="fas fa-phone" aria-hidden="true"></i> <a href="tel:{{ organization.phone }}">{{ organization.phone }}</a></span>{% endif %}
+                {% if organization.website %}<span><i class="fas fa-globe" aria-hidden="true"></i> <a href="{{ organization.website }}" target="_blank" rel="noopener noreferrer">{{ organization.website|truncatechars:40 }}</a></span>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="cw-head__actions ui-page-head__actions">
+        <a href="{% url 'core:customer_ops' organization.id %}" class="btn btn-sm btn-outline-secondary"
            title="SLA risks, uptime incidents, contract renewals, overdue invoices and aging assets for this customer">
-            <i class="fas fa-binoculars"></i> Operations
+            <i class="fas fa-binoculars" aria-hidden="true"></i> Operations
         </a>
         {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser or user.is_staff %}
-        <a href="{% url 'compliance:evidence_pack' organization.id %}" class="btn btn-outline-secondary"
+        <a href="{% url 'compliance:evidence_pack' organization.id %}" class="btn btn-sm btn-outline-secondary"
            title="One-click compliance evidence packet — 2FA status, user access, password access history, asset inventory, ticket/SLA history">
-            <i class="fas fa-shield-halved"></i> Evidence pack
+            <i class="fas fa-shield-halved" aria-hidden="true"></i> Evidence pack
         </a>
         {% endif %}
         {% if user_membership.role == 'owner' or user.is_superuser %}
-        <a href="{% url 'accounts:organization_edit' organization.id %}" class="btn btn-primary">
-            <i class="fas fa-edit"></i> Edit
+        <a href="{% url 'accounts:organization_edit' organization.id %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-edit" aria-hidden="true"></i> Edit
         </a>
         {% comment %}
         Delete sits behind a More menu rather than beside Edit as an equally
         sized red button. It still goes to the same confirmation page.
         {% endcomment %}
         <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"
                     aria-expanded="false" aria-label="More actions">
-                <i class="fas fa-ellipsis"></i>
+                <i class="fas fa-ellipsis" aria-hidden="true"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li>
+                    <a class="dropdown-item" href="{% url 'accounts:ownership_transfer' organization.id %}">
+                        <i class="fas fa-crown fa-fw" aria-hidden="true"></i> Transfer ownership
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
                     <a class="dropdown-item text-danger" href="{% url 'accounts:organization_delete' organization.id %}">
-                        <i class="fas fa-trash fa-fw"></i> Delete organization
+                        <i class="fas fa-trash fa-fw" aria-hidden="true"></i> Delete organization
                     </a>
                 </li>
             </ul>
         </div>
         {% endif %}
     </div>
+</header>
+
+{# ---- client context ------------------------------------------------------ #}
+<div class="cw-context" id="cw-context">
+    {% if ws_in_context %}
+    <span class="cw-context__state"><i class="fas fa-crosshairs" aria-hidden="true"></i> Viewing <strong>{{ organization.name }}</strong> <span class="text-body-secondary">· current client</span></span>
+    {% else %}
+    <span class="cw-context__state"><i class="fas fa-circle-info" aria-hidden="true"></i> Client record only — {{ organization.name }} is not your current client, so its tickets, assets and other lists are not shown here.</span>
+    {% endif %}
+    <span class="cw-context__links">
+        <a href="{% url 'accounts:organization_list' %}" data-cw="all-clients"><i class="fas fa-arrow-left" aria-hidden="true"></i> All clients</a>
+        {% if ws_can_global_view %}<a href="{% url 'accounts:switch_to_global_view' %}?next={% url 'core:dashboard' %}" data-cw="msp-wide"><i class="fas fa-globe" aria-hidden="true"></i> MSP-wide view</a>{% endif %}
+    </span>
 </div>
 
-<div class="d-flex flex-wrap gap-2 mb-4">
-    {% for svc in services %}
-    <a href="{% url 'accounts:organization_service_info' organization.id svc.slug %}"
-        class="btn btn-sm btn-outline-secondary">
-        <i class="fas {{ svc.icon }} me-1"></i>{{ svc.label }}
-    </a>
+{# ---- quick actions ------------------------------------------------------- #}
+{% if ws_actions %}
+<div class="cw-actions" role="group" aria-label="Quick actions">
+    {% for a in ws_actions %}
+    <a class="btn btn-sm btn-outline-secondary" href="{{ a.url }}"><i class="fas {{ a.icon }}" aria-hidden="true"></i> {{ a.label }}</a>
     {% endfor %}
 </div>
+{% endif %}
 
-<div class="row">
-    <!-- Company Information -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Company Information</h5>
-            </div>
-            <div class="card-body">
-                {% if organization.logo %}
-                <div class="text-center mb-3">
-                    <img src="{{ organization.logo.url }}" alt="{{ organization.name }} Logo" class="img-fluid" style="max-height: 150px;">
-                </div>
-                {% endif %}
+{# ---- tabs ---------------------------------------------------------------- #}
+<nav class="cw-tabs" aria-label="Client workspace">
+    <ul class="cw-tabs__list" data-cw-tabs>
+        {% for t in ws_tabs %}
+        <li class="cw-tabs__item" data-key="{{ t.key }}"{% if t.active %} data-active="1"{% endif %}>
+            <a class="cw-tabs__link{% if t.active %} is-active{% endif %}" href="{{ t.href }}"{% if t.active %} aria-current="page"{% endif %}>
+                <i class="fas {{ t.icon }}" aria-hidden="true"></i><span>{{ t.label }}</span>{% if t.key == 'members' %} <span class="cw-tabs__count">{{ members|length }}</span>{% endif %}
+            </a>
+        </li>
+        {% endfor %}
+        <li class="cw-tabs__item cw-tabs__more dropdown" data-cw-more hidden>
+            <button type="button" class="cw-tabs__link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                More
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" data-cw-more-menu></ul>
+        </li>
+    </ul>
+</nav>
 
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Organization Name:</dt>
-                    <dd class="col-sm-7">{{ organization.name }}</dd>
-
-                    {% if organization.organization_type %}
-                    <dt class="col-sm-5">Organization Type:</dt>
-                    <dd class="col-sm-7"><span class="badge bg-info">{{ organization.organization_type }}</span></dd>
-                    {% endif %}
-
-                    {% if organization.legal_name %}
-                    <dt class="col-sm-5">Legal Name:</dt>
-                    <dd class="col-sm-7">{{ organization.legal_name }}</dd>
-                    {% endif %}
-
-                    {% if organization.tax_id %}
-                    <dt class="col-sm-5">Tax ID / EIN:</dt>
-                    <dd class="col-sm-7">{{ organization.tax_id }}</dd>
-                    {% endif %}
-
-                    <dt class="col-sm-5">Slug:</dt>
-                    <dd class="col-sm-7"><code>{{ organization.slug }}</code></dd>
-
-                    {% if organization.description %}
-                    <dt class="col-sm-5">Description:</dt>
-                    <dd class="col-sm-7">{{ organization.description }}</dd>
-                    {% endif %}
-
-                    <dt class="col-sm-5">Status:</dt>
-                    <dd class="col-sm-7">
-                        {% if organization.is_active %}
-                        <span class="badge bg-success">Active</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Inactive</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-sm-5">Created:</dt>
-                    <dd class="col-sm-7">{{ organization.created_at|date:"F j, Y" }}</dd>
-
-                    <dt class="col-sm-5">Members:</dt>
-                    <dd class="col-sm-7">
-                        <strong>{{ members|length }}</strong> active member{{ members|length|pluralize }}
-                    </dd>
-
-                    <dt class="col-sm-5">Security Exposure:</dt>
-                    <dd class="col-sm-7">
-                        {% if organization.exposure_score >= 200 %}
-                            <span class="badge bg-danger">{{ organization.exposure_score }}</span> high
-                        {% elif organization.exposure_score >= 50 %}
-                            <span class="badge bg-warning text-dark">{{ organization.exposure_score }}</span> moderate
-                        {% else %}
-                            <span class="badge bg-success">{{ organization.exposure_score }}</span> low
-                        {% endif %}
-                        {% if organization.exposure_score_updated_at %}
-                            <small class="text-muted">· updated {{ organization.exposure_score_updated_at|date:"M j, H:i" }}</small>
-                        {% endif %}
-                    </dd>
-                </dl>
-            </div>
-        </div>
-    </div>
-
-    <!-- Contact & Address Information -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-address-card"></i> Contact & Address</h5>
-            </div>
-            <div class="card-body">
-                <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-map-marker-alt"></i> Address</h6>
-                {% if organization.full_address %}
-                <address class="mb-3">
-                    {% if organization.street_address %}{{ organization.street_address }}<br>{% endif %}
-                    {% if organization.street_address_2 %}{{ organization.street_address_2 }}<br>{% endif %}
-                    {% if organization.city or organization.state or organization.postal_code %}
-                        {{ organization.city }}{% if organization.city and organization.state %}, {% endif %}{{ organization.state }} {{ organization.postal_code }}<br>
-                    {% endif %}
-                    {% if organization.country %}{{ organization.country }}{% endif %}
-                </address>
-                {% else %}
-                <p class="text-muted">No address on file</p>
-                {% endif %}
-
-                <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-phone"></i> Contact Information</h6>
-                <dl class="row mb-3">
-                    {% if organization.phone %}
-                    <dt class="col-sm-4">Phone:</dt>
-                    <dd class="col-sm-8"><a href="tel:{{ organization.phone }}">{{ organization.phone }}</a></dd>
-                    {% endif %}
-
-                    {% if organization.email %}
-                    <dt class="col-sm-4">Email:</dt>
-                    <dd class="col-sm-8"><a href="mailto:{{ organization.email }}">{{ organization.email }}</a></dd>
-                    {% endif %}
-
-                    {% if organization.website %}
-                    <dt class="col-sm-4">Website:</dt>
-                    <dd class="col-sm-8"><a href="{{ organization.website }}" target="_blank">{{ organization.website }}</a></dd>
-                    {% endif %}
-
-                    {% if not organization.phone and not organization.email and not organization.website %}
-                    <dd class="col-sm-12 text-muted">No contact information on file</dd>
-                    {% endif %}
-                </dl>
-
-                <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-user"></i> Primary Contact</h6>
-                <dl class="row mb-0">
-                    {% if organization.primary_contact_name %}
-                    <dt class="col-sm-4">Name:</dt>
-                    <dd class="col-sm-8">{{ organization.primary_contact_name }}{% if organization.primary_contact_title %}, {{ organization.primary_contact_title }}{% endif %}</dd>
-                    {% endif %}
-
-                    {% if organization.primary_contact_email %}
-                    <dt class="col-sm-4">Email:</dt>
-                    <dd class="col-sm-8"><a href="mailto:{{ organization.primary_contact_email }}">{{ organization.primary_contact_email }}</a></dd>
-                    {% endif %}
-
-                    {% if organization.primary_contact_phone %}
-                    <dt class="col-sm-4">Phone:</dt>
-                    <dd class="col-sm-8"><a href="tel:{{ organization.primary_contact_phone }}">{{ organization.primary_contact_phone }}</a></dd>
-                    {% endif %}
-
-                    {% if not organization.primary_contact_name and not organization.primary_contact_email and not organization.primary_contact_phone %}
-                    <dd class="col-sm-12 text-muted">No primary contact on file</dd>
-                    {% endif %}
-                </dl>
-            </div>
-        </div>
-    </div>
-
-    <!-- Locations -->
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-map-marker-alt"></i> Locations
-                    {% if locations %}<span class="badge bg-secondary ms-1">{{ locations|length }}</span>{% endif %}
-                </h5>
-                {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
-                <a href="{% url 'locations:location_create' %}?organization_id={{ organization.id }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus"></i> Add Location
-                </a>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                {% if locations %}
-                <div class="row">
-                    {% for location in locations %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100 border">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-1">
-                                    <h6 class="mb-0">
-                                        <a href="{% url 'locations:location_detail' location.id %}" class="text-decoration-none">
-                                            <i class="fas fa-map-marker-alt text-primary"></i> {{ location.name }}
-                                        </a>
-                                    </h6>
-                                    {% if location.status == 'inactive' %}
-                                    <span class="badge bg-secondary">Inactive</span>
-                                    {% elif location.status == 'planned' %}
-                                    <span class="badge bg-warning text-dark">Planned</span>
-                                    {% elif location.status == 'closed' %}
-                                    <span class="badge bg-danger">Closed</span>
-                                    {% endif %}
-                                </div>
-                                {% if location.full_address %}
-                                <p class="text-muted small mb-2">
-                                    <i class="fas fa-location-arrow"></i> {{ location.full_address|truncatewords:8 }}
-                                </p>
-                                {% endif %}
-                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <div>
-                                        {% if location.location_type %}
-                                        <span class="badge bg-info">{{ location.get_location_type_display }}</span>
-                                        {% endif %}
-                                        {% if location.floorplan_generated %}
-                                        <span class="badge bg-success" title="Floor plan available">
-                                            <i class="fas fa-map"></i> Floor Plan
-                                        </span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-outline-primary" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
-                                        <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-outline-secondary" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'locations:location_delete' location.id %}" class="btn btn-outline-danger" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-map-marker-alt fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No locations yet.</p>
-                    {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
-                    <a href="{% url 'locations:location_create' %}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Add First Location
-                    </a>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Contract documents (MSP staff with contracts_view only) -->
-    <div class="col-md-12">{% org_contracts organization %}</div>
-
-    <!-- Pulse check trend (MSP staff only, while pulse checks are on) -->
-    <div class="col-md-12">{% org_pulse organization %}</div>
-
-    <!-- Support Difficulty Ratings -->
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> Support Difficulty</h5>
-                <small class="text-muted">Admin-only</small>
-            </div>
-            <div class="card-body">
-                {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
-                <form id="rating-csrf-form" style="display:none;">{% csrf_token %}</form>
-                <div class="row g-3">
-                    {% for cat_key, cat_label, rating in support_ratings %}
-                    <div class="col-6 col-md-4 col-lg-2">
-                        <div class="rating-card text-center" data-category="{{ cat_key }}" data-org="{{ organization.id }}" data-current="{{ rating.rating|default:0 }}">
-                            <div class="small fw-semibold text-muted mb-2">{{ cat_label }}</div>
-                            <div class="d-flex justify-content-center align-items-flex-end gap-1 mb-1" style="height:40px;">
-                                {% for val, label in rating_choices %}
-                                <div class="rating-bar"
-                                    data-val="{{ val }}"
-                                    data-label="{{ label }}"
-                                    title="{{ label }}"
-                                    style="width:14px;border-radius:3px 3px 0 0;cursor:pointer;
-                                        height:{{ val|add:val|add:val|add:val|add:6 }}px;
-                                        background:{% if rating and rating.rating >= val %}{% if val == 1 %}#198754{% elif val == 2 %}#20c997{% elif val == 3 %}#ffc107{% elif val == 4 %}#fd7e14{% else %}#dc3545{% endif %}{% else %}#dee2e6{% endif %};
-                                        transition:background .2s,transform .1s;">
-                                </div>
-                                {% endfor %}
-                            </div>
-                            <div class="rating-label small text-muted" style="min-height:1.2em;">{{ rating.get_rating_display|default:"—" }}</div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div id="rating-feedback" class="mt-3 small text-muted" style="min-height:1.2em;"></div>
-                {% else %}
-                <div class="row g-3">
-                    {% for cat_key, cat_label, rating in support_ratings %}
-                    <div class="col-6 col-md-4 col-lg-2 text-center">
-                        <div class="small fw-semibold text-muted mb-2">{{ cat_label }}</div>
-                        <div class="d-flex justify-content-center align-items-flex-end gap-1" style="height:40px;">
-                            {% for val, label in rating_choices %}
-                            <div style="width:14px;border-radius:3px 3px 0 0;
-                                height:{{ val|add:val|add:val|add:val|add:6 }}px;
-                                background:{% if rating and rating.rating >= val %}{% if val == 1 %}#198754{% elif val == 2 %}#20c997{% elif val == 3 %}#ffc107{% elif val == 4 %}#fd7e14{% else %}#dc3545{% endif %}{% else %}#dee2e6{% endif %};">
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <div class="small text-muted mt-1">{{ rating.get_rating_display|default:"—" }}</div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Members -->
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-users"></i> Members</h5>
-                {% if user_membership.role == 'owner' or user.is_superuser %}
-                <a href="{% url 'accounts:member_add' organization.id %}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-user-plus"></i> Add Member
-                </a>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                {% if members %}
-                <div class="row">
-                    {% for member in members %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div>
-                                        <h6 class="mb-1">
-                                            <i class="fas fa-user"></i> {{ member.user.get_full_name|default:member.user.username }}
-                                        </h6>
-                                        {% if member.user.email %}
-                                        <small class="text-muted d-block">{{ member.user.email }}</small>
-                                        {% endif %}
-                                    </div>
-                                    <span class="badge
-                                        {% if member.role == 'owner' %}bg-danger
-                                        {% elif member.role == 'admin' %}bg-warning
-                                        {% elif member.role == 'editor' %}bg-info
-                                        {% else %}bg-secondary
-                                        {% endif %}">
-                                        {{ member.get_role_display }}
-                                    </span>
-                                </div>
-                                {% if user_membership.role == 'owner' or user.is_superuser %}
-                                <div class="btn-group btn-group-sm w-100 mt-2">
-                                    <a href="{% url 'accounts:member_edit' organization.id member.id %}" class="btn btn-outline-secondary" title="Edit Role">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
-                                    {% if member.user != user %}
-                                    <a href="{% url 'accounts:member_remove' organization.id member.id %}" class="btn btn-outline-danger" title="Remove">
-                                        <i class="fas fa-user-times"></i> Remove
-                                    </a>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted">No members found.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+<div class="cw-pane" id="cw-pane-{{ ws_tab }}">
+{% if ws_tab == 'overview' %}{% include "accounts/workspace/_overview.html" %}
+{% elif ws_tab == 'members' %}{% include "accounts/workspace/_members.html" %}
+{% else %}{% include "accounts/workspace/_tab_lists.html" %}{% endif %}
+</div>
 </div>
 {% endblock %}
+
 {% block extra_js %}
-<script nonce="{{ csp_nonce }}">
-const BAR_COLORS = ['#198754','#20c997','#ffc107','#fd7e14','#dc3545'];
-
-function updateBars(card, val) {
-    card.querySelectorAll('.rating-bar').forEach(bar => {
-        const bv = parseInt(bar.dataset.val);
-        bar.style.background = bv <= val ? BAR_COLORS[bv-1] : '#dee2e6';
-        bar.style.transform = bv === val ? 'scaleY(1.08)' : 'none';
-    });
-    const lbl = card.querySelector('.rating-label');
-    const labels = ['Low','Moderate','Elevated','High','Critical'];
-    if (lbl) lbl.textContent = val ? labels[val-1] : '—';
-}
-
-document.querySelectorAll('.rating-card').forEach(card => {
-    const category = card.dataset.category;
-    const orgId    = card.dataset.org;
-    let current    = parseInt(card.dataset.current) || 0;
-
-    card.querySelectorAll('.rating-bar').forEach(bar => {
-        bar.addEventListener('mouseenter', () => {
-            const hv = parseInt(bar.dataset.val);
-            card.querySelectorAll('.rating-bar').forEach(b => {
-                b.style.background = parseInt(b.dataset.val) <= hv ? BAR_COLORS[parseInt(b.dataset.val)-1] : '#dee2e6';
-            });
-        });
-        bar.addEventListener('mouseleave', () => updateBars(card, current));
-
-        bar.addEventListener('click', () => {
-            const val = parseInt(bar.dataset.val);
-            const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-            fetch(`/accounts/organizations/${orgId}/support-rating/`, {
-                method: 'POST',
-                headers: {'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':csrf},
-                body: `category=${category}&rating=${val}`
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.ok) { document.getElementById('rating-feedback').textContent = 'Error: ' + data.error; return; }
-                current = val;
-                card.dataset.current = val;
-                updateBars(card, val);
-                const fb = document.getElementById('rating-feedback');
-                fb.textContent = `${card.querySelector('.fw-semibold').textContent.trim()} → ${data.label}`;
-                setTimeout(() => fb.textContent = '', 3000);
-            })
-            .catch(() => { document.getElementById('rating-feedback').textContent = 'Save failed — please try again.'; });
-        });
-    });
-});
-</script>
+<script src="{% static 'js/client_workspace.js' %}" defer></script>
+{% if ws_tab == 'overview' %}{% include "accounts/workspace/_ratings_js.html" %}{% endif %}
 {% endblock %}

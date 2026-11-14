@@ -1,0 +1,54 @@
+    <div class="cw-ratings" id="cw-ratings">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> Support Difficulty</h5>
+                <small class="text-muted">Admin-only</small>
+            </div>
+            <div class="card-body">
+                {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser %}
+                <form id="rating-csrf-form" style="display:none;">{% csrf_token %}</form>
+                <div class="row g-3">
+                    {% for cat_key, cat_label, rating in support_ratings %}
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="rating-card text-center" data-category="{{ cat_key }}" data-org="{{ organization.id }}" data-current="{{ rating.rating|default:0 }}">
+                            <div class="small fw-semibold text-muted mb-2">{{ cat_label }}</div>
+                            <div class="d-flex justify-content-center align-items-flex-end gap-1 mb-1" style="height:40px;">
+                                {% for val, label in rating_choices %}
+                                <div class="rating-bar"
+                                    data-val="{{ val }}"
+                                    data-label="{{ label }}"
+                                    title="{{ label }}"
+                                    style="width:14px;border-radius:3px 3px 0 0;cursor:pointer;
+                                        height:{{ val|add:val|add:val|add:val|add:6 }}px;
+                                        background:{% if rating and rating.rating >= val %}{% if val == 1 %}#198754{% elif val == 2 %}#20c997{% elif val == 3 %}#ffc107{% elif val == 4 %}#fd7e14{% else %}#dc3545{% endif %}{% else %}#dee2e6{% endif %};
+                                        transition:background .2s,transform .1s;">
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="rating-label small text-muted" style="min-height:1.2em;">{{ rating.get_rating_display|default:"—" }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div id="rating-feedback" class="mt-3 small text-muted" style="min-height:1.2em;"></div>
+                {% else %}
+                <div class="row g-3">
+                    {% for cat_key, cat_label, rating in support_ratings %}
+                    <div class="col-6 col-md-4 col-lg-2 text-center">
+                        <div class="small fw-semibold text-muted mb-2">{{ cat_label }}</div>
+                        <div class="d-flex justify-content-center align-items-flex-end gap-1" style="height:40px;">
+                            {% for val, label in rating_choices %}
+                            <div style="width:14px;border-radius:3px 3px 0 0;
+                                height:{{ val|add:val|add:val|add:val|add:6 }}px;
+                                background:{% if rating and rating.rating >= val %}{% if val == 1 %}#198754{% elif val == 2 %}#20c997{% elif val == 3 %}#ffc107{% elif val == 4 %}#fd7e14{% else %}#dc3545{% endif %}{% else %}#dee2e6{% endif %};">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="small text-muted mt-1">{{ rating.get_rating_display|default:"—" }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>

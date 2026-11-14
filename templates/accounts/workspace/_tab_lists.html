@@ -1,0 +1,210 @@
+{% load contracts_tags %}
+{% comment %}
+One client-workspace tab: a slice of the module list page's own queryset for
+this client (accounts/client_workspace.py), each row linking to the module's
+detail page, which applies its own checks again.
+{% endcomment %}
+{% if ws_tab == 'tickets' %}
+<section class="card cw-panel" id="cw-tab-tickets">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Open tickets <span class="cw-count">{{ ws.open_count }}</span> <span class="text-body-secondary small">of {{ ws.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Tickets</a>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Ticket</th><th>Status</th><th>Priority</th><th>Assigned</th><th>Updated</th></tr></thead>
+        <tbody>{% for t in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'psa:ticket_detail' t.ticket_number %}"><span class="ui-ref">{{ t.ticket_number }}</span> {{ t.subject|truncatechars:80 }}</a></td>
+            <td>{{ t.status.name }}</td><td>{{ t.priority.name }}</td>
+            <td>{% if t.assigned_to %}{{ t.assigned_to.get_username }}{% else %}<span class="text-body-secondary">Unassigned</span>{% endif %}</td>
+            <td class="small text-body-secondary">{{ t.updated_at|date:"Y-m-d H:i" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No open tickets for this client." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'assets' %}
+<section class="card cw-panel" id="cw-tab-assets">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Assets <span class="cw-count">{{ ws.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Assets</a>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Name</th><th>Type</th><th>Serial</th><th>Hostname / IP</th><th>Warranty</th></tr></thead>
+        <tbody>{% for a in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'assets:asset_detail' a.pk %}">{{ a.name }}</a>{% if a.organization_id != organization.id %} <span class="ui-org">{{ a.organization.name }}</span>{% endif %}</td>
+            <td>{{ a.get_asset_type_display }}</td><td class="small">{{ a.serial_number }}</td>
+            <td class="small">{{ a.hostname }}{% if a.hostname and a.ip_address %} · {% endif %}{{ a.ip_address|default_if_none:"" }}</td>
+            <td class="small">{{ a.warranty_expiry|date:"Y-m-d" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% if ws.total > ws.rows|length %}<div class="card-footer small text-body-secondary">Showing {{ ws.rows|length }} of {{ ws.total }} — <a href="{{ ws.list_url }}">see all</a></div>{% endif %}
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No assets for this client yet." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'rmm' %}
+<section class="card cw-panel" id="cw-tab-rmm">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">RMM devices <span class="cw-count">{{ ws.total }}</span>
+            <span class="ui-badge ui-badge--active">{{ ws.online }} online</span>
+            <a href="{{ ws.offline_url }}"><span class="ui-badge {% if ws.offline %}ui-badge--danger{% else %}ui-badge--neutral{% endif %}">{{ ws.offline }} offline</span></a></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in RMM</a>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Device</th><th>Status</th><th>OS</th><th>Last seen</th><th>Asset</th></tr></thead>
+        <tbody>{% for d in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'integrations:rmm_device_detail' d.pk %}">{{ d.device_name }}</a> <span class="small text-body-secondary">{{ d.hostname }}</span></td>
+            <td>{% if d.is_online %}<span class="ui-badge ui-badge--active">Online</span>{% else %}<span class="ui-badge ui-badge--danger">Offline</span>{% endif %}</td>
+            <td class="small">{{ d.get_os_type_display }} {{ d.os_version|truncatechars:30 }}</td>
+            <td class="small text-body-secondary">{% if d.last_seen %}{{ d.last_seen|timesince }} ago{% endif %}</td>
+            <td class="small">{% if d.linked_asset %}<a href="{% url 'assets:asset_detail' d.linked_asset_id %}">{{ d.linked_asset.name }}</a>{% endif %}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No RMM devices for this client." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'contacts' %}
+<section class="card cw-panel" id="cw-tab-contacts">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Contacts <span class="cw-count">{{ ws.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Contacts</a>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th></tr></thead>
+        <tbody>{% for c in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'assets:contact_detail' c.pk %}">{{ c.first_name }} {{ c.last_name }}</a></td>
+            <td>{{ c.title }}</td>
+            <td class="small">{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}</td>
+            <td class="small">{% if c.phone %}<a href="tel:{{ c.phone }}">{{ c.phone }}</a>{% endif %}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No contacts for this client yet." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'documents' %}
+<section class="card cw-panel" id="cw-tab-documents">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Documents <span class="cw-count">{{ ws.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Documents</a>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Title</th><th>Category</th><th>Updated</th></tr></thead>
+        <tbody>{% for d in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'docs:document_detail' d.slug %}">{{ d.title }}</a>{% if d.is_client_visible %} <span class="ui-badge ui-badge--info">Client visible</span>{% endif %}</td>
+            <td class="small">{{ d.category.name|default:"" }}</td>
+            <td class="small text-body-secondary">{{ d.updated_at|date:"Y-m-d" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No published documents for this client yet." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'passwords' %}
+<section class="card cw-panel" id="cw-tab-passwords">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Passwords <span class="cw-count">{{ ws.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Vault</a>
+    </div>
+    <div class="cw-strip small text-body-secondary"><i class="fas fa-lock" aria-hidden="true"></i> Names only. Opening an entry applies the vault's access rules, reveal approval and audit log.</div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Title</th><th>Type</th><th>Expires</th><th>Updated</th></tr></thead>
+        <tbody>{% for p in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'vault:password_detail' p.pk %}">{{ p.title }}</a>{% if p.requires_reveal_approval %} <span class="ui-badge ui-badge--warn" title="Reveal needs approval">Approval</span>{% endif %}</td>
+            <td>{{ p.get_password_type_display }}</td>
+            <td class="small">{{ p.expires_at|date:"Y-m-d" }}</td>
+            <td class="small text-body-secondary">{{ p.updated_at|date:"Y-m-d" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No vault entries you can see for this client." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'contracts' %}
+{% if ws.psa %}
+<section class="card cw-panel" id="cw-tab-contracts">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">PSA contracts <span class="cw-count">{{ ws.psa.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.psa.list_url }}">Open in Contracts</a>
+    </div>
+    {% if ws.psa.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Contract</th><th>Type</th><th>Status</th><th>Start</th><th>End</th></tr></thead>
+        <tbody>{% for c in ws.psa.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'psa:contract_detail' c.pk %}">{{ c.name }}</a></td>
+            <td class="small">{{ c.get_contract_type_display }}</td>
+            <td><span class="ui-badge {% if c.status == 'active' %}ui-badge--active{% elif c.status == 'expired' %}ui-badge--danger{% else %}ui-badge--neutral{% endif %}">{{ c.get_status_display }}</span>{% if c.auto_renew %} <span class="small text-body-secondary">auto-renews</span>{% endif %}</td>
+            <td class="small">{{ c.start_date|date:"Y-m-d" }}</td><td class="small">{{ c.end_date|date:"Y-m-d" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No PSA contracts for this client." %}</div>{% endif %}
+</section>
+{% endif %}
+{% if ws.documents %}{% org_contracts organization %}{% endif %}
+
+{% elif ws_tab == 'billing' %}
+<section class="card cw-panel" id="cw-tab-billing">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Invoices <span class="cw-count">{{ ws.total }}</span>
+            <span class="ui-badge ui-badge--open">{{ ws.open_count }} open</span>
+            {% for currency, amount in ws.open_amounts %}<span class="small text-body-secondary" data-amount="{{ currency }}">· balance {{ currency }} {{ amount|floatformat:2 }}</span>{% endfor %}</h2>
+        <div class="d-flex gap-1">
+            {% if ws.account_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ ws.account_url }}">Client account</a>{% endif %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Invoices</a>
+        </div>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Invoice</th><th>Status</th><th>Date</th><th>Due</th><th class="ui-num">Total</th><th class="ui-num">Balance</th></tr></thead>
+        <tbody>{% for i in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'psa:invoice_detail' i.pk %}"><span class="ui-ref">{{ i.invoice_number }}</span> {{ i.title|truncatechars:60 }}</a></td>
+            <td>{{ i.get_status_display }}</td>
+            <td class="small">{{ i.invoice_date|date:"Y-m-d" }}</td><td class="small">{{ i.due_date|date:"Y-m-d" }}</td>
+            <td class="ui-num">{{ i.currency }} {{ i.total|floatformat:2 }}</td><td class="ui-num">{{ i.balance|floatformat:2 }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No invoices for this client." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'projects' %}
+<section class="card cw-panel" id="cw-tab-projects">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Projects <span class="cw-count">{{ ws.total }}</span></h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.list_url }}">Open in Projects</a>
+    </div>
+    {% if ws.rows %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Project</th><th>Status</th><th>Owner</th><th>Start</th><th>Due</th></tr></thead>
+        <tbody>{% for p in ws.rows %}
+        <tr><td class="ui-primary-cell"><a href="{% url 'psa:project_detail' p.pk %}">{{ p.name }}</a></td>
+            <td>{{ p.get_status_display }}</td><td class="small">{{ p.owner.get_username|default:"" }}</td>
+            <td class="small">{{ p.start_date|date:"Y-m-d" }}</td><td class="small">{{ p.due_date|date:"Y-m-d" }}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="No projects for this client." %}</div>{% endif %}
+</section>
+
+{% elif ws_tab == 'activity' %}
+<section class="card cw-panel" id="cw-tab-activity">
+    <div class="card-header"><h2 class="h6 mb-0">Recently changed</h2></div>
+    {% if ws.items %}
+    <div class="ui-table-wrap"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Record</th><th>Kind</th><th>Detail</th><th>Changed</th></tr></thead>
+        <tbody>{% for a in ws.items %}
+        <tr><td class="ui-primary-cell"><a href="{{ a.url }}"><i class="fas {{ a.icon }} fa-fw text-body-secondary" aria-hidden="true"></i> {{ a.title|truncatechars:80 }}</a></td>
+            <td class="small">{{ a.kind }}</td><td class="small">{{ a.detail }}</td>
+            <td class="small text-body-secondary" title="{{ a.when|date:'Y-m-d H:i' }}">{{ a.when|timesince }} ago</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body">{% include "core/_empty_state.html" with compact=True title="Nothing changed recently in the areas you can open." %}</div>{% endif %}
+</section>
+{% if ws.audit is not None %}
+<section class="card cw-panel" id="cw-tab-audit">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0">Audit log</h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ ws.audit_url }}">Open audit log</a>
+    </div>
+    {% if ws.audit %}
+    <div class="ui-table-wrap"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>When</th><th>User</th><th>Action</th><th>Object</th></tr></thead>
+        <tbody>{% for log in ws.audit %}
+        <tr><td class="small text-body-secondary">{{ log.timestamp|date:"Y-m-d H:i" }}</td><td class="small">{{ log.username }}</td>
+            <td><span class="ui-badge {% if log.success %}ui-badge--neutral{% else %}ui-badge--danger{% endif %}">{{ log.get_action_display }}</span></td>
+            <td class="small">{{ log.object_type }}{% if log.object_repr %}: {{ log.object_repr|truncatechars:60 }}{% endif %}</td></tr>
+        {% endfor %}</tbody></table></div>
+    {% else %}<div class="card-body text-muted small">No audit entries for this client.</div>{% endif %}
+</section>
+{% endif %}
+{% endif %}
