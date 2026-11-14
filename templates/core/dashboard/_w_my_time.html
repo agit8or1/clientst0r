@@ -1,0 +1,16 @@
+<div class="dash-activity">
+    <div class="dash-activity-summary">
+        <span><strong>{{ w.today }} h</strong> today</span>
+        <span><strong>{{ w.total }} h</strong> this week</span>
+        <span class="dash-activity-trend">{{ w.billable }} h billable</span>
+        {% if w.running %}<span class="dash-sub-warning">{{ w.running }} timer{{ w.running|pluralize }} running</span>{% endif %}
+    </div>
+    <div class="dash-chart" role="img" aria-label="Hours logged per day this week">
+        {% for d in w.days %}
+        <div class="dash-chart-col" title="{{ d.day|date:'D j M' }}: {{ d.hours }} h">
+            <div class="dash-chart-bars"><span class="dash-chart-bar dash-chart-opened" style="height: {{ d.pct }}%"></span></div>
+            <div class="dash-chart-label{% if d.is_today %} fw-bold{% endif %}">{{ d.day|date:"D"|slice:":2" }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>

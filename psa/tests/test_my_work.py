@@ -407,8 +407,13 @@ class DashboardTicketLinkTests(TestCase):
 
         r = c.get(reverse('core:dashboard'))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, item['url'])
         self.assertContains(r, reverse('psa:my_work'))
+        # The Schedule panel (in Customize for the administrator preset; on
+        # the page in the classic dashboard) links the ticket by number.
+        r = c.get(reverse('core:dashboard_widget', args=['schedule']))
+        self.assertContains(r, item['url'])
+        r = c.get(reverse('core:dashboard') + '?layout=classic')
+        self.assertContains(r, item['url'])
 
     def test_schedule_hides_unshared_tickets_from_customer_users(self):
         from core.dashboard_panels import get_schedule

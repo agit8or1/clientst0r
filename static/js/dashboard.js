@@ -54,6 +54,15 @@
         // Whatever the shell adds below (margins, padding) comes off too.
         var over = document.documentElement.scrollHeight - window.innerHeight;
         if (over > 0) root.style.height = Math.max(360, h - over) + 'px';
+        // The panels must fit at their minimum height (two rows on a laptop
+        // screen). If they don't (zoomed-in browser, many panels), the page
+        // scrolls naturally instead of squeezing them or scrolling the grid
+        // inside the page.
+        var grid = document.getElementById('dash-grid');
+        if (grid && grid.scrollHeight > grid.clientHeight + 4) {
+            root.classList.remove('dash-fit');
+            root.style.height = '';
+        }
         invalidateMaps();
     }
 
@@ -140,9 +149,17 @@
         scope.querySelectorAll('[data-dash-map]').forEach(initMap);
     }
 
+    var firstLoads = [];
     document.querySelectorAll('.dash-w-body[data-dash-lazy]').forEach(function (body) {
-        loadBody(body.closest('.dash-w'));
+        firstLoads.push(loadBody(body.closest('.dash-w')));
     });
+    root.querySelectorAll('[data-kpi][data-dash-lazy]').forEach(function (card) {
+        firstLoads.push(loadKpi(card));
+    });
+    // Measure again once the lazy parts and the web fonts are in: the
+    // fit-or-scroll decision must not rest on a half-loaded page.
+    Promise.all(firstLoads).then(scheduleFit, scheduleFit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleFit);
     initWidget(root);
 
     var refreshBtn = document.getElementById('dash-refresh');

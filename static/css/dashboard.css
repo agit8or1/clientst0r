@@ -50,6 +50,12 @@
     flex-wrap: wrap;
     gap: 6px 12px;
     flex: 0 0 auto;
+    /* A surface of its own: the title and actions stay readable over any
+       theme wallpaper, like the panels below. */
+    padding: 5px 8px 5px 12px;
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    background: var(--dash-surface);
 }
 .dash-title {
     font-size: 1.15rem;
@@ -72,7 +78,20 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.dash-head-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dash-head-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; min-width: 0; }
+.dash-greet { font-size: .8125rem; color: var(--dash-muted); white-space: nowrap; }
+.dash-head-actions { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.dash-head-qa, .dash-head-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dash-head-qa .btn, .dash-head-tools .btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.dash-head-tools { padding-left: 10px; border-left: 1px solid var(--dash-border); }
+/* Laptop widths: the secondary tools go icon-only (their names stay in
+   title / aria-label) so the header keeps to one line. */
+@media (max-width: 1799.98px) {
+    .dash-head-tools .dash-btn-text { display: none; }
+}
+@media (max-width: 1499.98px) {
+    .dash-greet-date { display: none; }
+}
 
 .dash-banner { margin: 0; padding-top: 6px; padding-bottom: 6px; flex: 0 0 auto; }
 
@@ -83,12 +102,10 @@
     gap: var(--dash-gap);
     flex: 0 0 auto;
 }
-/* On a fitted (desktop) window the figures stay on one line. */
-.dash-fit .dash-kpis {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
-}
+/* On a fitted (desktop) window the figures share one line; a long
+   personal list wraps to a second line rather than squeezing every tile. */
+.dash-fit .dash-kpis { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.dash-kpi.is-loading .dash-kpi-value { color: var(--dash-muted); }
 @media (max-width: 1799.98px) {
     .dash-fit .dash-kpi-icon { display: none; }
     .dash-fit .dash-kpi { gap: 6px; padding: 5px 8px; }
@@ -200,7 +217,7 @@ a.dash-kpi[href]:hover, a.dash-kpi[href]:focus-visible {
     min-height: 0;
     /* Rows share the height; with many panels the grid scrolls inside
        itself rather than squeezing panels below a usable height. */
-    grid-auto-rows: minmax(160px, 1fr);
+    grid-auto-rows: minmax(200px, 1fr);
     overflow-y: auto;
     scrollbar-width: thin;
 }
@@ -316,6 +333,38 @@ a.dash-row:hover .dash-row-title, a.dash-row:focus-visible .dash-row-title { col
 }
 .dash-stat-list > li + li { border-top: 1px solid var(--dash-border); }
 a.dash-stat:hover span:first-child { color: var(--dash-accent); }
+
+/* Ticket queues (My ticket queue, Unassigned) */
+.dash-qrow { align-items: center; justify-content: flex-start; }
+.dash-qrow-main { flex: 1 1 auto; }
+.dash-qrow-main .dash-row-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-qrow-main .dash-row-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-qrow-num {
+    flex: 0 0 auto;
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: .75rem;
+    color: var(--dash-muted);
+}
+.dash-sla {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dash-muted);
+    opacity: .6;
+}
+.dash-sla-breached { background: var(--bs-danger, #dc3545); opacity: 1; }
+.dash-sla-warning { background: var(--bs-warning, #ffc107); opacity: 1; }
+.dash-sla-on_track { background: var(--bs-success, #198754); opacity: 1; }
+.dash-sla-paused { background: var(--bs-info, #0dcaf0); }
+
+/* SLA overview */
+.dash-sla-head { margin-bottom: 4px; }
+.dash-sla-pct { font-size: 1.1rem; }
+.dash-bar-fill.dash-fill-danger { background: var(--bs-danger, #dc3545); }
+.dash-bar-fill.dash-fill-warning { background: var(--bs-warning, #ffc107); }
+.dash-bar-fill.dash-fill-success { background: var(--bs-success, #198754); }
+.dash-bar-fill.dash-fill-secondary { background: var(--bs-secondary, #6c757d); }
 
 /* Ticket status bars */
 .dash-bars { list-style: none; margin: 0; padding: 0; }
@@ -444,8 +493,10 @@ body.dash-page .app-main > footer small { font-size: .75rem; line-height: 1.4; }
     .dash-grid { grid-template-columns: minmax(0, 1fr); }
     .dash-w[data-size="2"], .dash-w[data-size="3"] { grid-column: auto; }
     .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .dash-btn-text { display: none; }
-    .dash-head-actions { flex-wrap: nowrap; }
+    .dash-btn-text, .dash-act-text { display: none; }
+    .dash-head-actions { flex-wrap: wrap; }
+    .dash-head-tools { padding-left: 0; border-left: 0; }
+    .dash-head-qa .btn, .dash-head-tools .btn { min-height: 36px; min-width: 36px; justify-content: center; }
     .dash-head-actions form { display: inline-flex !important; width: auto !important; margin: 0; }
     .dash-head-actions .btn { width: auto !important; display: inline-flex !important; align-items: center; gap: 4px; margin: 0 !important; }
     .dash-w.is-expanded { inset: 8px; }

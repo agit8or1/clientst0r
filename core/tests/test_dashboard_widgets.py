@@ -193,6 +193,10 @@ class DashboardViewTests(_Base):
             reverse('core:dashboard_widget', args=['monitors'])).status_code, 404)
 
     def test_every_lazy_widget_renders_for_superuser(self):
+        from core.models import SystemSetting
+        s = SystemSetting.get_settings()
+        s.crm_enabled = True  # the sales widgets follow the CRM module
+        s.save()
         self._login(self.root, self.org_a)
         for w in dw.WIDGETS:
             if w.zone in ('grid', 'kpi') and w.key not in ('kpi_psa_companies', 'kpi_psa_tickets'):

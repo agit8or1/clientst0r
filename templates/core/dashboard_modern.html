@@ -16,29 +16,43 @@
      {% if can_manage_role_defaults %}data-role-url="{% url 'core:dashboard_role_default_save' %}"{% endif %}>
 
     <header class="dash-head">
-        <h1 class="dash-title">
-            <i class="fas fa-tachometer-alt" aria-hidden="true"></i> Dashboard
-            {% if current_organization %}<span class="dash-org" title="Current customer">{{ current_organization.name }}</span>{% endif %}
-        </h1>
+        <div class="dash-head-main">
+            <h1 class="dash-title">
+                <i class="fas fa-tachometer-alt" aria-hidden="true"></i> Dashboard
+                {% if current_organization %}<span class="dash-org" title="Current customer">{{ current_organization.name }}</span>{% endif %}
+            </h1>
+            <span class="dash-greet">{{ greeting }}<span class="dash-greet-date"> · {% now "l j F" %}</span></span>
+        </div>
         <div class="dash-head-actions">
-            {% if psa_enabled %}
-            <a href="{% url 'psa:my_work' %}" class="btn btn-primary btn-sm"><i class="fas fa-user-check" aria-hidden="true"></i> My Work</a>
+            {% if header_actions %}
+            <nav class="dash-head-qa" aria-label="Quick actions">
+                {% for a in header_actions %}
+                <a href="{{ a.url }}" class="btn btn-sm {% if a.primary %}btn-primary{% else %}btn-outline-secondary{% endif %}" data-dash-action="{{ a.key }}" title="{{ a.label }}" aria-label="{{ a.label }}">
+                    <i class="fas {{ a.icon }}" aria-hidden="true"></i> <span class="dash-act-text">{{ a.label }}</span>
+                </a>
+                {% endfor %}
+            </nav>
             {% endif %}
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-refresh" title="Reload every widget" aria-label="Refresh">
-                <i class="fas fa-rotate" aria-hidden="true"></i> <span class="dash-btn-text">Refresh</span>
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="offcanvas"
-                    data-bs-target="#dash-customize" aria-controls="dash-customize" id="dash-customize-btn" aria-label="Customize">
-                <i class="fas fa-sliders" aria-hidden="true"></i> <span class="dash-btn-text">Customize</span>
-            </button>
-            <form method="post" action="{% url 'core:dashboard_variant_save' %}" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="variant" value="classic">
-                <button type="submit" class="btn btn-outline-secondary btn-sm"
-                        title="Switch to the previous dashboard layout (you can switch back at any time)" aria-label="Classic dashboard">
-                    <i class="fas fa-table-columns" aria-hidden="true"></i> <span class="dash-btn-text">Classic dashboard</span>
+            <div class="dash-head-tools">
+                {% if psa_enabled %}
+                <a href="{% url 'psa:my_work' %}" class="btn btn-outline-secondary btn-sm" title="My Work"><i class="fas fa-user-check" aria-hidden="true"></i> <span class="dash-btn-text">My Work</span></a>
+                {% endif %}
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="dash-refresh" title="Reload every widget" aria-label="Refresh">
+                    <i class="fas fa-rotate" aria-hidden="true"></i> <span class="dash-btn-text">Refresh</span>
                 </button>
-            </form>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="offcanvas" title="Customize"
+                        data-bs-target="#dash-customize" aria-controls="dash-customize" id="dash-customize-btn" aria-label="Customize">
+                    <i class="fas fa-sliders" aria-hidden="true"></i> <span class="dash-btn-text">Customize</span>
+                </button>
+                <form method="post" action="{% url 'core:dashboard_variant_save' %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="variant" value="classic">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"
+                            title="Switch to the previous dashboard layout (you can switch back at any time)" aria-label="Classic dashboard">
+                        <i class="fas fa-table-columns" aria-hidden="true"></i> <span class="dash-btn-text">Classic dashboard</span>
+                    </button>
+                </form>
+            </div>
         </div>
     </header>
 
@@ -46,7 +60,10 @@
 
     {% if kpis %}
     <section class="dash-kpis" aria-label="Key figures">
-        {% for k in kpis %}{% include k.widget.template with w=k.ctx widget=k.widget %}{% endfor %}
+        {% for k in kpis %}{% if k.widget.lazy %}<span class="dash-kpi dash-tone-secondary is-loading" data-kpi="{{ k.key }}" data-dash-lazy aria-busy="true">
+            <span class="dash-kpi-icon" aria-hidden="true"><i class="fas {{ k.widget.icon }}"></i></span>
+            <span class="dash-kpi-text"><span class="dash-kpi-value">&hellip;</span><span class="dash-kpi-label">{{ k.widget.label }}</span></span>
+        </span>{% else %}{% include k.widget.template with w=k.ctx widget=k.widget %}{% endif %}{% endfor %}
     </section>
     {% endif %}
 

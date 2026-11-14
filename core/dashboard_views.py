@@ -339,6 +339,7 @@ def modern_dashboard(request, org):
         if p.hidden:
             continue
         if p.widget.lazy:
+            # Fetched after the page loads (a KPI shows a placeholder tile).
             p.ctx = None
         else:
             ctx = _build(request, p.widget, errors)
@@ -356,6 +357,8 @@ def modern_dashboard(request, org):
     manage_defaults = can_manage_role_defaults(request.user)
     return render(request, 'core/dashboard_modern.html', {
         'current_organization': org,
+        'greeting': dw.greeting(request.user),
+        'header_actions': dw.header_actions(request),
         'banners': zones['banner'],
         'kpis': zones['kpi'],
         'toolbar': zones['toolbar'],

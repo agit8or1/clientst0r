@@ -17,7 +17,15 @@ Every widget on the new dashboard is one `Widget` here:
     actions) or 'grid' (the panels filling the rest of the viewport).
   * `size`: default column span in the 3-column grid (grid widgets only).
   * `lazy`: rendered as a placeholder and fetched after the page loads.
-  * `roles`: the built-in presets (ROLE_PRESETS) that show it by default.
+
+Which widgets a role sees by default is `_PRESETS` below (one ordered list
+per built-in preset); `preset_for_user` picks the preset from the user's
+real role (accounts.role_seeds seed keys, RMM tiers, the legacy built-in
+templates). An administrator's saved DashboardRoleDefault replaces a
+preset's list; a user's own layout replaces both.
+
+The header's primary actions (`header_actions`) are fixed, not widgets:
+each is drawn only when its page's own check would let the user in.
 
 The classic dashboard (core/dashboard_views.py, templates/core/dashboard.html)
 does not use this module.
@@ -601,6 +609,407 @@ def _qa_context(request):
 
 
 # ---------------------------------------------------------------------------
+# Service desk figures (selected customer, ticket-list scoping)
+# ---------------------------------------------------------------------------
+#
+# Every figure starts from `visible_tickets` (the selected customer, the
+# user's tickets_view, customer users' shared-and-own rule) narrowed to open
+# tickets with psa.my_work.open_q, the definition behind the ticket list's
+# `?queue=open` filter and My Work. The SLA deadline is the one My Work and
+# the ticket list sort by: first response until one is made, then
+# resolution. Tickets in a status that pauses the SLA clock are not counted
+# as late or at risk.
+#
+#   Overdue      open, clock running, deadline passed
+#   SLA at risk  open, clock running, deadline within core.workspace.SLA_SOON
+#   Due today    open, clock running, deadline between now and midnight
+#
+# The ticket list has no SLA filter, so those tiles open `?queue=open` for
+# the customer, which the list orders soonest deadline first.
+
+def gate_staff_tickets(request):
+    """Ticket figures that only make sense for MSP technicians (assigned to
+    me, unassigned, workload). Customer users never get them."""
+    return gate_tickets(request) and is_staff(request)
+
+
+def gate_dispatch(request):
+    # psa.views.dispatch_board / dispatch_heatmap: PSA on, MSP staff
+    # (_staff_or_403).
+    return gate_org(request) and psa_on(request) and is_staff(request)
+
+
+def gate_approvals(request):
+    # psa.views.approval_decide: MSP staff, @require_write, PSA on. The
+    # count is My Work's approval queues (psa.views._my_work_approvals).
+    return gate_dispatch(request) and write_ok(request)
+
+
+def gate_my_time(request):
+    # psa.views.my_timesheet: PSA on; time is logged by technicians.
+    return gate_dispatch(request)
+
+
+def gate_crm(request):
+    # crm.views: /crm/ is MSP staff only (SectionPermissionMiddleware),
+    # @require_perm('crm_view'); the navigation offers CRM only when the
+    # module is on (SystemSetting.crm_enabled).
+    if not (gate_org(request) and _setting(request, 'crm_enabled', False)):
+        return False
+    if not path_ok(request, url('crm:home') or '/crm/'):
+        return False
+    from accounts.permission_utils import user_has_perm
+    return _memo(request, 'crm_view', lambda: bool(user_has_perm(request.user, 'crm_view')))
+
+
+def _open_tickets(request, org):
+    from psa.my_work import open_q
+    return visible_tickets(request, org).filter(open_q())
+
+
+def _with_deadline(qs):
+    from django.db.models import Case, DateTimeField, F, When
+    return qs.annotate(dash_due=Case(
+        When(first_response_at__isnull=True, first_response_due_at__isnull=False,
+             then=F('first_response_due_at')),
+        default=F('resolution_due_at'),
+        output_field=DateTimeField(),
+    ))
+
+
+def _sla_window():
+    from core.workspace import SLA_SOON
+    now = timezone.now()
+    end_today = timezone.make_aware(datetime.combine(timezone.localdate(), time.max))
+    return now, now + SLA_SOON, end_today
+
+
+def sla_counts(request, org):
+    def compute():
+        now, soon, end_today = _sla_window()
+        qs = _with_deadline(_open_tickets(request, org))
+        running = ~Q(status__pauses_sla=True)
+        return qs.aggregate(
+            open=Count('id'),
+            paused=Count('id', filter=Q(status__pauses_sla=True)),
+            overdue=Count('id', filter=running & Q(dash_due__lt=now)),
+            at_risk=Count('id', filter=running & Q(dash_due__gte=now, dash_due__lte=soon)),
+            due_today=Count('id', filter=running & Q(dash_due__gte=now, dash_due__lte=end_today)),
+            on_track=Count('id', filter=running & Q(dash_due__gt=soon)),
+            no_sla=Count('id', filter=running & Q(dash_due__isnull=True)),
+        )
+    return _memo(request, ('sla_counts', org.pk), compute)
+
+
+def _ticket_list(org, **params):
+    """The ticket list filtered by its own query parameters
+    (psa.views.ticket_list: client, assigned, queue)."""
+    from urllib.parse import urlencode
+    return url('psa:ticket_list', query=urlencode(dict(client=org.pk, **params)))
+
+
+def build_kpi_my_open(request, org):
+    n = _open_tickets(request, org).filter(assigned_to=request.user).count()
+    return _kpi(n, 'My open tickets', 'fa-user-check', _ticket_list(org, assigned='me', queue='open'),
+                tone='primary')
+
+
+def build_kpi_sla_risk(request, org):
+    n = sla_counts(request, org)['at_risk']
+    return _kpi(n, 'SLA at risk', 'fa-hourglass-half', _ticket_list(org, queue='open'),
+                tone='warning' if n else 'secondary')
+
+
+def build_kpi_overdue(request, org):
+    n = sla_counts(request, org)['overdue']
+    return _kpi(n, 'Overdue tickets', 'fa-circle-exclamation', _ticket_list(org, queue='open'),
+                tone='danger' if n else 'secondary')
+
+
+def build_kpi_unassigned(request, org):
+    n = _open_tickets(request, org).filter(assigned_to__isnull=True).count()
+    return _kpi(n, 'Unassigned tickets', 'fa-inbox',
+                _ticket_list(org, assigned='unassigned', queue='open'),
+                tone='warning' if n else 'secondary')
+
+
+def build_kpi_due_today(request, org):
+    n = sla_counts(request, org)['due_today']
+    return _kpi(n, 'Due today', 'fa-calendar-day', _ticket_list(org, queue='open'),
+                tone='info' if n else 'secondary')
+
+
+def _approval_queues(request):
+    from psa.views import _my_work_approvals
+    return _memo(request, 'approval_queues', lambda: _my_work_approvals(request))
+
+
+def build_kpi_approvals(request, org):
+    queues = [q for q in _approval_queues(request) if q['count']]
+    n = sum(q['count'] for q in queues)
+    # One waiting queue: open it; several (or none): My Work lists them all.
+    href = queues[0]['url'] if len(queues) == 1 else url('psa:my_work')
+    sub = ', '.join(f"{q['count']} {q['label'].lower()}" for q in queues[:2]) if len(queues) > 1 else ''
+    return _kpi(n, 'Pending approvals', 'fa-circle-check', href,
+                tone='warning' if n else 'secondary', sub=sub)
+
+
+QUEUE_LIMIT = 25
+
+
+def _queue_rows(qs):
+    from django.db.models import F
+    from psa.sla import status_chip
+    now = timezone.now()
+    rows = []
+    qs = _with_deadline(qs).select_related('status', 'priority', 'organization', 'assigned_to')
+    # Clock running first (soonest deadline first), then paused ones.
+    order = ('status__pauses_sla', F('dash_due').asc(nulls_last=True), 'created_at')
+    for t in qs.order_by(*order)[:QUEUE_LIMIT]:
+        chip = status_chip(t, now=now)
+        rows.append({
+            'number': t.ticket_number, 'subject': t.subject,
+            'status': t.status.name if t.status_id else '',
+            'priority': t.priority.code if t.priority_id else '',
+            'assignee': (t.assigned_to.get_full_name() or t.assigned_to.get_username())
+            if t.assigned_to_id else '',
+            'due': t.dash_due,
+            'due_in': _short_delta(t.dash_due - now) if t.dash_due else '',
+            'late': bool(t.dash_due and t.dash_due < now and not t.status.pauses_sla),
+            'sla_kind': chip.get('kind', ''),
+            'sla_label': chip.get('label', ''),
+            'url': url('psa:ticket_detail', t.ticket_number),
+        })
+    return rows
+
+
+def _short_delta(delta):
+    """'3d 4h', '4h 48m', '12m' (a deadline in the future)."""
+    mins = max(0, int(delta.total_seconds() // 60))
+    d, rem = divmod(mins, 1440)
+    h, m = divmod(rem, 60)
+    if d:
+        return f'{d}d {h}h'
+    if h:
+        return f'{h}h {m:02d}m'
+    return f'{m}m'
+
+
+def build_my_queue(request, org):
+    qs = _open_tickets(request, org).filter(assigned_to=request.user)
+    return {'rows': _queue_rows(qs), 'total': qs.count(), 'show_assignee': False,
+            'empty': 'Nothing assigned to you at this customer.',
+            'more_url': _ticket_list(org, assigned='me', queue='open')}
+
+
+def build_unassigned_queue(request, org):
+    qs = _open_tickets(request, org).filter(assigned_to__isnull=True)
+    return {'rows': _queue_rows(qs), 'total': qs.count(), 'show_assignee': False,
+            'empty': 'Every open ticket has someone on it.',
+            'more_url': _ticket_list(org, assigned='unassigned', queue='open')}
+
+
+def build_sla_overview(request, org):
+    c = sla_counts(request, org)
+    rows = [
+        ('Overdue', 'danger', c['overdue']),
+        ('At risk (next 2 h)', 'warning', c['at_risk']),
+        ('On track', 'success', c['on_track']),
+        ('Paused (waiting)', 'secondary', c['paused']),
+        ('No SLA', 'secondary', c['no_sla']),
+    ]
+    total = c['open'] or 0
+    out = [{'label': label, 'tone': tone, 'count': n,
+            'pct': round(100 * n / total) if total else 0} for label, tone, n in rows]
+    timed = c['open'] - c['paused'] - c['no_sla']
+    compliance = round(100 * (timed - c['overdue']) / timed) if timed > 0 else None
+    return {'rows': out, 'total': total, 'compliance': compliance,
+            'more_url': _ticket_list(org, queue='open')}
+
+
+def build_workload(request, org):
+    from django.contrib.auth import get_user_model
+    now = timezone.now()
+    qs = _with_deadline(_open_tickets(request, org))
+    rows = list(qs.values('assigned_to').annotate(
+        n=Count('id'),
+        late=Count('id', filter=~Q(status__pauses_sla=True) & Q(dash_due__lt=now)),
+    ).order_by('-n')[:30])
+    ids = [r['assigned_to'] for r in rows if r['assigned_to']]
+    users = {u.pk: (u.get_full_name() or u.get_username())
+             for u in get_user_model().objects.filter(pk__in=ids)}
+    peak = max([r['n'] for r in rows] or [1])
+    base = url('psa:ticket_list')
+    out = []
+    for r in rows:
+        uid = r['assigned_to']
+        out.append({
+            'name': users.get(uid, '?') if uid else 'Unassigned',
+            'unassigned': uid is None,
+            'count': r['n'], 'late': r['late'],
+            'pct': round(100 * r['n'] / peak),
+            'href': _ticket_list(org, assigned=uid if uid else 'unassigned', queue='open')
+            if base else '',
+        })
+    out.sort(key=lambda r: (r['unassigned'] is False, -r['count']))
+    return {'rows': out, 'more_url': url('psa:dispatch_board'),
+            'heatmap_url': url('psa:dispatch_heatmap')}
+
+
+def build_ticket_recent(request, org):
+    qs = (visible_tickets(request, org).select_related('status')
+          .order_by('-updated_at')[:12])
+    return {'rows': [{'number': t.ticket_number, 'subject': t.subject,
+                      'status': t.status.name if t.status_id else '',
+                      'when': t.updated_at,
+                      'url': url('psa:ticket_detail', t.ticket_number)} for t in qs],
+            'more_url': _ticket_list(org)}
+
+
+def build_my_time(request, org):
+    """The signed-in user's own logged time this week (every customer:
+    a timesheet is one per person), as psa:my_timesheet shows it."""
+    from psa.models import TicketTimeEntry
+    today = timezone.localdate()
+    monday = today - timedelta(days=today.weekday())
+    start = timezone.make_aware(datetime.combine(monday, time.min))
+    entries = list(TicketTimeEntry.objects.filter(user=request.user, started_at__gte=start)
+                   .values_list('started_at', 'duration_minutes', 'is_billable', 'ended_at'))
+    days = [{'day': monday + timedelta(days=i), 'minutes': 0} for i in range(7)]
+    total = billable = running = 0
+    for started, minutes, is_billable, ended in entries:
+        if ended is None:
+            running += 1
+            continue
+        d = (timezone.localtime(started).date() - monday).days
+        if 0 <= d < 7:
+            days[d]['minutes'] += minutes or 0
+        total += minutes or 0
+        if is_billable:
+            billable += minutes or 0
+    peak = max([d['minutes'] for d in days] + [1])
+    for d in days:
+        d['pct'] = round(100 * d['minutes'] / peak)
+        d['is_today'] = d['day'] == today
+        d['hours'] = f"{d['minutes'] / 60:.1f}"
+    today_min = days[today.weekday()]['minutes']
+    return {'days': days, 'total': f'{total / 60:.1f}', 'billable': f'{billable / 60:.1f}',
+            'today': f'{today_min / 60:.1f}', 'running': running,
+            'more_url': url('psa:my_timesheet')}
+
+
+# ---------------------------------------------------------------------------
+# Sales (CRM)
+# ---------------------------------------------------------------------------
+
+def _crm_scope(request, qs):
+    # crm.views._scope_qs: superusers see every tenant, everyone else the
+    # selected one.
+    from crm.views import _scope_qs
+    return _scope_qs(request, qs)
+
+
+OPEN_STAGES = ('discovery', 'qualified', 'proposal', 'negotiation')
+
+
+def build_kpi_crm_open(request, org):
+    from crm.models import Opportunity
+    qs = _crm_scope(request, Opportunity.objects.filter(stage__in=OPEN_STAGES))
+    n = qs.count()
+    return _kpi(n, 'Open opportunities', 'fa-handshake', url('crm:pipeline'), tone='primary')
+
+
+def build_kpi_crm_leads(request, org):
+    from crm.models import Lead
+    n = _crm_scope(request, Lead.objects.filter(status__in=('new', 'contacted', 'qualified'))).count()
+    return _kpi(n, 'Active leads', 'fa-user-plus', url('crm:lead_list'), tone='info')
+
+
+def build_crm_pipeline(request, org):
+    from django.db.models import Sum
+    from crm.models import Opportunity
+    labels = dict(Opportunity.STAGE_CHOICES)
+    qs = _crm_scope(request, Opportunity.objects.filter(stage__in=OPEN_STAGES))
+    agg = {r['stage']: r for r in qs.values('stage').annotate(n=Count('id'),
+                                                              value=Sum('estimated_value'))}
+    peak = max([r['n'] for r in agg.values()] + [1])
+    rows = []
+    for stage in OPEN_STAGES:
+        r = agg.get(stage, {'n': 0, 'value': 0})
+        rows.append({'label': labels.get(stage, stage), 'count': r['n'],
+                     'value': r['value'] or 0, 'pct': round(100 * r['n'] / peak)})
+    return {'rows': rows, 'total': sum(r['count'] for r in rows),
+            'value': sum((r['value'] for r in rows), 0), 'more_url': url('crm:pipeline')}
+
+
+def build_crm_closing(request, org):
+    from crm.models import Opportunity
+    today = timezone.localdate()
+    qs = (_crm_scope(request, Opportunity.objects.filter(stage__in=OPEN_STAGES,
+                                                         expected_close_date__isnull=False,
+                                                         expected_close_date__lte=today + timedelta(days=30)))
+          .select_related('client_org').order_by('expected_close_date')[:12])
+    return {'rows': [{'name': o.name, 'client': o.client_org.name if o.client_org_id else '',
+                      'stage': o.get_stage_display(), 'date': o.expected_close_date,
+                      'overdue': o.expected_close_date < today,
+                      'url': url('crm:opportunity_detail', o.pk)} for o in qs],
+            'more_url': url('crm:opportunity_list')}
+
+
+# ---------------------------------------------------------------------------
+# Header actions (fixed, permission-gated; not customisable widgets)
+# ---------------------------------------------------------------------------
+
+def _can_new_ticket(request):
+    from core.quick_actions import _can_ticket
+    return psa_on(request) and _can_ticket(request)
+
+
+def _can_add_client(request):
+    # accounts.views.organization_create turns customer (portal) users away.
+    from accounts.delegation import is_customer_actor
+    return not is_customer_actor(request.user)
+
+
+def _can_create_project(request):
+    # psa.views.project_form: @require_write, @require_psa_enabled.
+    return psa_on(request) and write_ok(request)
+
+
+HEADER_ACTIONS = (
+    # (key, label, icon, url name, check)
+    ('new_ticket', 'New Ticket', 'fa-plus', 'psa:ticket_create', _can_new_ticket),
+    ('log_time', 'Log Time', 'fa-clock', 'psa:my_timesheet', gate_my_time),
+    ('add_client', 'Add Client', 'fa-building', 'accounts:organization_create', _can_add_client),
+    ('create_project', 'Create Project', 'fa-diagram-project', 'psa:project_create',
+     _can_create_project),
+    ('dispatch_board', 'Dispatch Board', 'fa-table-list', 'psa:dispatch_board', gate_dispatch),
+)
+
+
+def header_actions(request):
+    """The header's primary actions this user's checks allow (fails closed)."""
+    out = []
+    for key, label, icon, name, check in HEADER_ACTIONS:
+        try:
+            ok = bool(check(request))
+        except Exception:
+            ok = False
+        href = url(name) if ok else ''
+        if href:
+            out.append({'key': key, 'label': label, 'icon': icon, 'url': href,
+                        'primary': key == 'new_ticket'})
+    return out
+
+
+def greeting(user):
+    hour = timezone.localtime().hour
+    part = 'morning' if hour < 12 else 'afternoon' if hour < 18 else 'evening'
+    name = (user.first_name or user.get_username()) if user.is_authenticated else ''
+    return f'Good {part}, {name}' if name else f'Good {part}'
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -615,19 +1024,22 @@ class Widget:
     zone: str = 'grid'
     size: int = 1
     lazy: bool = False
-    roles: tuple = ALL
     hideable: bool = True
     expandable: bool = True
     description: str = ''
     link: str = ''            # url name of the page behind the widget
     link_client: bool = False  # add ?client=<selected customer> (PSA lists)
+    link_query: str = ''       # further ticket-list filters (assigned, queue)
 
     def link_url(self, org):
         if not self.link:
             return ''
+        parts = []
         if self.link_client and org is not None:
-            return url(self.link, query=f'client={org.pk}')
-        return url(self.link)
+            parts.append(f'client={org.pk}')
+        if self.link_query:
+            parts.append(self.link_query)
+        return url(self.link, query='&'.join(parts))
 
     def allowed(self, request) -> bool:
         try:
@@ -638,68 +1050,112 @@ class Widget:
 
 
 _KPI_TPL = 'core/dashboard/_kpi.html'
+_QUEUE_TPL = 'core/dashboard/_w_ticket_queue.html'
 
 WIDGETS = (
     Widget('security_2fa', 'Two-factor warning', 'fa-shield-alt', gate_2fa_warning,
            build_2fa_warning, 'core/dashboard/_w_2fa.html', zone='banner', hideable=False,
            expandable=False, description='Shown until two-factor authentication is on.'),
 
+    # Service desk figures (MSP staff; see "Service desk figures" above).
+    Widget('kpi_my_open', 'My open tickets', 'fa-user-check', gate_staff_tickets,
+           build_kpi_my_open, _KPI_TPL, zone='kpi', expandable=False,
+           description='Open tickets assigned to you at this customer.'),
+    Widget('kpi_sla_risk', 'SLA at risk', 'fa-hourglass-half', gate_staff_tickets,
+           build_kpi_sla_risk, _KPI_TPL, zone='kpi', expandable=False,
+           description='Open tickets whose next SLA deadline is within two hours.'),
+    Widget('kpi_overdue', 'Overdue tickets', 'fa-circle-exclamation', gate_staff_tickets,
+           build_kpi_overdue, _KPI_TPL, zone='kpi', expandable=False,
+           description='Open tickets past their SLA deadline (paused ones excluded).'),
+    Widget('kpi_unassigned', 'Unassigned tickets', 'fa-inbox', gate_staff_tickets,
+           build_kpi_unassigned, _KPI_TPL, zone='kpi', expandable=False),
+    Widget('kpi_approvals', 'Pending approvals', 'fa-circle-check', gate_approvals,
+           build_kpi_approvals, _KPI_TPL, zone='kpi', lazy=True, expandable=False,
+           description='The approval queues on My Work you can act on.'),
+    Widget('kpi_due_today', 'Due today', 'fa-calendar-day', gate_staff_tickets,
+           build_kpi_due_today, _KPI_TPL, zone='kpi', expandable=False,
+           description='Open tickets whose SLA deadline falls later today.'),
+    Widget('kpi_crm_open', 'Open opportunities', 'fa-handshake', gate_crm, build_kpi_crm_open,
+           _KPI_TPL, zone='kpi', expandable=False),
+    Widget('kpi_crm_leads', 'Active leads', 'fa-user-plus', gate_crm, build_kpi_crm_leads,
+           _KPI_TPL, zone='kpi', expandable=False),
+
     Widget('kpi_tickets', 'Open tickets', 'fa-ticket', gate_tickets, build_kpi_tickets,
            _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_rmm_alerts', 'RMM alerts', 'fa-triangle-exclamation', gate_rmm,
-           build_kpi_rmm_alerts, _KPI_TPL, zone='kpi', roles=TECHS, expandable=False),
+           build_kpi_rmm_alerts, _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_tasks', 'My open tasks', 'fa-list-check', gate_org, build_kpi_tasks,
            _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_assets', 'Assets', 'fa-box', gate_assets, build_kpi_assets, _KPI_TPL,
-           zone='kpi', roles=(PRESET_ADMIN, PRESET_MANAGER, PRESET_L3, PRESET_L2, PRESET_L1,
-                              PRESET_CUSTOMER), expandable=False),
+           zone='kpi', expandable=False),
     Widget('kpi_documents', 'Documents', 'fa-file-alt', gate_docs, build_kpi_documents,
            _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_passwords', 'Passwords', 'fa-key', gate_vault, build_kpi_passwords,
-           _KPI_TPL, zone='kpi', roles=(PRESET_ADMIN, PRESET_L3, PRESET_L2, PRESET_L1,
-                                        PRESET_CUSTOMER), expandable=False),
+           _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_monitors', 'Monitors', 'fa-globe', gate_monitoring, build_kpi_monitors,
-           _KPI_TPL, zone='kpi', roles=(PRESET_ADMIN, PRESET_MANAGER, PRESET_L3, PRESET_L2,
-                                        PRESET_L1, PRESET_CUSTOMER), expandable=False),
+           _KPI_TPL, zone='kpi', expandable=False),
     Widget('kpi_psa_companies', 'PSA companies', 'fa-building', gate_psa_integration,
-           build_kpi_psa_companies, _KPI_TPL, zone='kpi', roles=STAFF, expandable=False,
+           build_kpi_psa_companies, _KPI_TPL, zone='kpi', expandable=False,
            description='Synced PSA companies; shown when there are any.'),
     Widget('kpi_psa_tickets', 'Active PSA tickets', 'fa-ticket-alt', gate_psa_integration,
-           build_kpi_psa_tickets, _KPI_TPL, zone='kpi', roles=STAFF, expandable=False,
+           build_kpi_psa_tickets, _KPI_TPL, zone='kpi', expandable=False,
            description='New and in-progress synced PSA tickets; shown when there are any.'),
 
     Widget('quick_actions', 'Quick actions', 'fa-bolt', gate_quick_actions,
            build_quick_actions, 'core/dashboard/_w_quick_actions.html', zone='toolbar',
-           expandable=False),
+           expandable=False,
+           description='Your own shortcut row (the header keeps the main actions).'),
+
+    # Main and secondary panels.
+    Widget('my_queue', 'My ticket queue', 'fa-user-check', gate_staff_tickets, build_my_queue,
+           _QUEUE_TPL, size=2, link='psa:ticket_list', link_client=True,
+           link_query='assigned=me&queue=open',
+           description='Your open tickets at this customer, soonest SLA deadline first.'),
+    Widget('unassigned_queue', 'Unassigned tickets', 'fa-inbox', gate_staff_tickets,
+           build_unassigned_queue, _QUEUE_TPL, size=2, link='psa:ticket_list', link_client=True,
+           link_query='assigned=unassigned&queue=open',
+           description='Open tickets nobody has picked up, soonest SLA deadline first.'),
+    Widget('sla_overview', 'SLA overview', 'fa-stopwatch', gate_staff_tickets,
+           build_sla_overview, 'core/dashboard/_w_sla_overview.html', lazy=True,
+           link='psa:ticket_list', link_client=True, link_query='queue=open'),
+    Widget('workload', 'Technician workload', 'fa-people-group', gate_dispatch, build_workload,
+           'core/dashboard/_w_workload.html', lazy=True, link='psa:dispatch_board',
+           description='Open tickets per technician at this customer.'),
+    Widget('ticket_recent', 'Recently updated tickets', 'fa-clock-rotate-left', gate_tickets,
+           build_ticket_recent, 'core/dashboard/_w_ticket_recent.html', lazy=True,
+           link='psa:ticket_list', link_client=True),
+    Widget('crm_pipeline', 'Sales pipeline', 'fa-filter-circle-dollar', gate_crm,
+           build_crm_pipeline, 'core/dashboard/_w_crm_pipeline.html', lazy=True,
+           link='crm:pipeline'),
+    Widget('crm_closing', 'Opportunities closing soon', 'fa-calendar-check', gate_crm,
+           build_crm_closing, 'core/dashboard/_w_crm_closing.html', lazy=True,
+           link='crm:opportunity_list',
+           description='Open opportunities expected to close within 30 days (or overdue).'),
+    Widget('my_time', 'My time this week', 'fa-clock', gate_my_time, build_my_time,
+           'core/dashboard/_w_my_time.html', lazy=True, link='psa:my_timesheet'),
 
     Widget('schedule', 'Schedule (next 7 days)', 'fa-calendar-days', gate_org, build_schedule,
            'core/dashboard/_w_schedule.html', link='scheduling:scheduling_dashboard'),
-    Widget('tasks', 'Tasks', 'fa-list-check', gate_org, build_tasks,
+    Widget('tasks', 'Upcoming tasks', 'fa-list-check', gate_org, build_tasks,
            'core/dashboard/_w_tasks.html', link='scheduling:scheduling_dashboard'),
     Widget('ticket_status', 'Open tickets by status', 'fa-chart-bar', gate_tickets,
            build_ticket_status, 'core/dashboard/_w_ticket_status.html',
-           link='psa:ticket_list', link_client=True,
-           roles=(PRESET_ADMIN, PRESET_MANAGER, PRESET_L3, PRESET_L2, PRESET_L1,
-                  PRESET_CUSTOMER)),
+           link='psa:ticket_list', link_client=True),
     Widget('rmm_alerts', 'RMM alerts', 'fa-triangle-exclamation', gate_rmm, build_rmm_alerts,
-           'core/dashboard/_w_rmm_alerts.html', roles=TECHS,
-           link='integrations:rmm_alerts'),
-    Widget('monitors', 'Monitors', 'fa-globe', gate_monitoring, build_monitors,
-           'core/dashboard/_w_monitors.html', link='monitoring:website_monitor_list'),
-    Widget('ticket_activity', 'Ticket activity', 'fa-chart-column', gate_tickets,
+           'core/dashboard/_w_rmm_alerts.html', link='integrations:rmm_alerts'),
+    Widget('monitors', 'Service health', 'fa-globe', gate_monitoring, build_monitors,
+           'core/dashboard/_w_monitors.html', link='monitoring:website_monitor_list',
+           description='Website and service monitors of this customer.'),
+    Widget('ticket_activity', 'Ticket trends', 'fa-chart-column', gate_tickets,
            build_ticket_activity, 'core/dashboard/_w_ticket_activity.html', size=2, lazy=True,
-           link='psa:ticket_list', link_client=True,
-           roles=(PRESET_ADMIN, PRESET_MANAGER, PRESET_SALES, PRESET_L3)),
+           link='psa:ticket_list', link_client=True),
     Widget('map', 'Location map', 'fa-map-marked-alt', gate_org, build_map,
-           'core/dashboard/_w_map.html', size=2, lazy=True, link='locations:location_list',
-           roles=(PRESET_ADMIN, PRESET_MANAGER, PRESET_L3, PRESET_L2, PRESET_CUSTOMER)),
+           'core/dashboard/_w_map.html', size=2, lazy=True, link='locations:location_list'),
     Widget('recent_activity', 'Recent activity', 'fa-clock-rotate-left', gate_audit,
            build_recent_activity, 'core/dashboard/_w_recent_activity.html', lazy=True,
-           link='audit:audit_log_list',
-           roles=(PRESET_MANAGER,)),
+           link='audit:audit_log_list', description='The audit log of this customer.'),
     Widget('system_status', 'System status', 'fa-server', gate_superuser, build_system_status,
-           'core/dashboard/_w_system_status.html', lazy=True, roles=(PRESET_ADMIN,),
-           link='core:system_status'),
+           'core/dashboard/_w_system_status.html', lazy=True, link='core:system_status'),
 )
 
 BY_KEY = {w.key: w for w in WIDGETS}
@@ -711,30 +1167,65 @@ def get(key):
     return BY_KEY.get(key)
 
 
-# Built-in preset order: the registry order, with per-role emphasis first.
-_PRESET_ORDER = {
-    PRESET_ADMIN: ('kpi_tickets', 'kpi_rmm_alerts', 'kpi_tasks', 'kpi_monitors', 'kpi_assets',
-                   'kpi_documents', 'kpi_passwords', 'ticket_status', 'schedule', 'tasks',
-                   'system_status', 'ticket_activity', 'rmm_alerts', 'monitors', 'map',
-                   'recent_activity'),
-    PRESET_MANAGER: ('kpi_tickets', 'kpi_tasks', 'kpi_rmm_alerts', 'ticket_status',
-                     'ticket_activity', 'schedule', 'tasks', 'recent_activity', 'monitors',
-                     'map', 'rmm_alerts'),
-    PRESET_L3: ('kpi_rmm_alerts', 'kpi_tickets', 'kpi_tasks', 'rmm_alerts', 'schedule', 'tasks',
-                'ticket_status', 'monitors', 'ticket_activity', 'map'),
-    PRESET_L2: ('kpi_tickets', 'kpi_rmm_alerts', 'kpi_tasks', 'schedule', 'tasks', 'rmm_alerts',
-                'ticket_status', 'monitors', 'map'),
-    PRESET_L1: ('kpi_tickets', 'kpi_tasks', 'kpi_rmm_alerts', 'tasks', 'schedule',
-                'ticket_status', 'rmm_alerts', 'monitors'),
-    PRESET_SALES: ('kpi_tickets', 'kpi_tasks', 'schedule', 'tasks', 'ticket_activity'),
+# ---------------------------------------------------------------------------
+# Built-in role presets
+# ---------------------------------------------------------------------------
+#
+# Each preset is the ordered list of widgets shown by default; every other
+# widget starts hidden (the Customize panel lists it). Widgets a user's
+# permissions refuse drop out whatever the list says, so a preset can name
+# a widget only some of its users can open (Recent activity needs admin
+# rights at the customer, System status a superuser, and so on).
+#
+# Sized so the default dashboard fits a 1366x768 window: at most seven
+# figures, and panels filling two rows of the three-column grid.
+
+_SERVICE_KPIS = ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_unassigned',
+                 'kpi_approvals', 'kpi_due_today')
+
+_PRESETS = {
+    # Owner / administrator: the service desk figures, the queue, how the
+    # team and the SLAs are doing, and the installation's health.
+    PRESET_ADMIN: _SERVICE_KPIS + ('kpi_rmm_alerts',) + (
+        'my_queue', 'sla_overview', 'workload', 'tasks', 'system_status'),
+    # Service manager / dispatcher (also Billing / Finance and Auditor, the
+    # other oversight roles): unassigned work first, workload, SLA
+    # compliance, approvals, trends.
+    PRESET_MANAGER: ('kpi_unassigned', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today',
+                     'kpi_approvals', 'kpi_my_open') + (
+        'unassigned_queue', 'workload', 'sla_overview', 'ticket_activity'),
+    # L3: escalated / advanced work, infrastructure and RMM.
+    PRESET_L3: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_rmm_alerts',
+                'kpi_tasks') + (
+        'my_queue', 'sla_overview', 'rmm_alerts', 'monitors', 'tasks'),
+    # L2: own queue, SLA warnings, tasks, RMM alerts.
+    PRESET_L2: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_unassigned',
+                'kpi_tasks') + (
+        'my_queue', 'sla_overview', 'tasks', 'rmm_alerts', 'ticket_recent'),
+    # L1: own queue, SLA warnings, tasks, own time.
+    PRESET_L1: ('kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_due_today', 'kpi_tasks') + (
+        'my_queue', 'sla_overview', 'tasks', 'ticket_recent', 'my_time'),
+    # Sales: pipeline, leads, deals closing, follow-up tasks.
+    PRESET_SALES: ('kpi_crm_open', 'kpi_crm_leads', 'kpi_tasks', 'kpi_approvals') + (
+        'crm_pipeline', 'crm_closing', 'tasks', 'schedule', 'ticket_activity'),
+    # Customer users: customer-facing widgets only (each also gated).
     PRESET_CUSTOMER: ('kpi_tickets', 'kpi_assets', 'kpi_documents', 'kpi_passwords',
-                      'ticket_status', 'tasks', 'schedule', 'monitors', 'map'),
+                      'kpi_monitors') + (
+        'ticket_status', 'tasks', 'schedule', 'monitors', 'map'),
 }
 
+# Widgets that are never in a customer's built-in layout, whatever an
+# administrator saves for the customer preset: MSP-only data. Their gates
+# refuse customer users anyway; this keeps the preset honest.
+MSP_ONLY = frozenset({
+    'kpi_my_open', 'kpi_sla_risk', 'kpi_overdue', 'kpi_unassigned', 'kpi_approvals',
+    'kpi_due_today', 'kpi_crm_open', 'kpi_crm_leads', 'kpi_rmm_alerts', 'kpi_psa_companies',
+    'kpi_psa_tickets', 'my_queue', 'unassigned_queue', 'sla_overview', 'workload', 'crm_pipeline',
+    'crm_closing', 'my_time', 'rmm_alerts', 'system_status',
+})
+
 _PRESET_SIZES = {
-    PRESET_ADMIN: {'map': 1},
-    PRESET_L1: {'tasks': 1},
-    PRESET_SALES: {'ticket_activity': 3},
+    PRESET_CUSTOMER: {'map': 1},
 }
 
 
@@ -742,10 +1233,21 @@ def preset_layout(preset):
     """The built-in layout for a preset key (unknown keys fall back to L2)."""
     if preset not in PRESET_LABELS:
         preset = PRESET_L2
-    first = [k for k in _PRESET_ORDER.get(preset, ()) if k in BY_KEY]
-    order = first + [k for k in KEYS if k not in first]
-    hidden = [w.key for w in WIDGETS if w.hideable and preset not in w.roles]
+    shown = [k for k in _PRESETS.get(preset, ()) if k in BY_KEY]
+    order = shown + [k for k in KEYS if k not in shown]
+    hidden = [w.key for w in WIDGETS if w.hideable and w.key not in shown]
     return {'order': order, 'hidden': hidden, 'sizes': dict(_PRESET_SIZES.get(preset, {}))}
+
+
+# The legacy built-in role templates (accounts.models.RoleTemplate
+# .create_default_templates) carry no seed key; they are matched by name
+# only while they are still system templates.
+_LEGACY_TEMPLATES = {
+    'Full Admin': PRESET_ADMIN,
+    'Tech Manager': PRESET_MANAGER,
+    'Office Manager': PRESET_MANAGER,
+    'Technician': PRESET_L2,
+}
 
 
 def preset_for_user(user, organization=None):
@@ -769,10 +1271,15 @@ def preset_for_user(user, organization=None):
                 return {'tech_l1': PRESET_L1, 'tech_l2': PRESET_L2, 'tech_l3': PRESET_L3}[seed]
             if tier in ('l1', 'l2', 'l3'):
                 return {'l1': PRESET_L1, 'l2': PRESET_L2, 'l3': PRESET_L3}[tier]
+            if not seed and getattr(role, 'is_system_template', False):
+                legacy = _LEGACY_TEMPLATES.get(role.name)
+                if legacy:
+                    return legacy
         if user.is_staff and (profile is None or not profile.is_staff_user()):
             return PRESET_ADMIN  # Django staff without a role: full reach
         return PRESET_L2
     return PRESET_CUSTOMER
+
 
 
 # ---------------------------------------------------------------------------
@@ -843,6 +1350,10 @@ def effective_layout(request):
         layout = role_default(preset)
         source = 'role' if layout else 'preset'
         layout = layout or base
+        if source == 'role' and preset == PRESET_CUSTOMER:
+            # A customer default never lists MSP-only panels, whatever was saved.
+            layout['hidden'] = list(dict.fromkeys(
+                list(layout['hidden']) + [k for k in layout['order'] if k in MSP_ONLY]))
     # Widgets added after the layout was saved go to the end, visible as the
     # preset would have them.
     order = list(layout['order'])

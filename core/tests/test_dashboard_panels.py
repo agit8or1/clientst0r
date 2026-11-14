@@ -315,15 +315,22 @@ class DashboardRenderTests(TestCase):
             organization=self.org, title='Core switch',
             expires_at=timezone.now() + timedelta(days=4))
 
-        # Phase 67: the new dashboard and the classic one carry both panels.
-        for layout in ('modern', 'classic'):
-            with self.subTest(layout=layout):
-                response = self.client.get(reverse('core:dashboard') + f'?layout={layout}')
-                self.assertEqual(response.status_code, 200)
-                body = response.content.decode()
-                self.assertIn('Schedule (next 7 days)', body)
-                self.assertIn('Swap the firewall', body)
-                self.assertIn('Core switch', body)
+        # Phase 67: the classic dashboard carries both panels on the page.
+        response = self.client.get(reverse('core:dashboard') + '?layout=classic')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('Schedule (next 7 days)', body)
+        self.assertIn('Swap the firewall', body)
+        self.assertIn('Core switch', body)
+        # The new dashboard: the administrator preset shows Upcoming tasks;
+        # Schedule is in Customize (and its endpoint) for everyone.
+        response = self.client.get(reverse('core:dashboard') + '?layout=modern')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('Core switch', body)
+        self.assertIn('Schedule (next 7 days)', body)  # listed in Customize
+        body = self.client.get(reverse('core:dashboard_widget', args=['schedule'])).content.decode()
+        self.assertIn('Swap the firewall', body)
 
     def test_removed_panels_are_gone(self):
         # The classic dashboard (Phase 67 keeps it unchanged).
@@ -355,6 +362,10 @@ class DashboardRenderTests(TestCase):
                 response = self.client.get(reverse('core:dashboard') + f'?layout={layout}')
                 self.assertEqual(response.status_code, 200)
                 body = response.content.decode()
+                if layout == 'modern':
+                    # Schedule isn't in the administrator preset: its endpoint.
+                    body += self.client.get(reverse('core:dashboard_widget',
+                                                    args=['schedule'])).content.decode()
                 self.assertIn('Nothing scheduled in the next 7 days', body)
                 self.assertIn('Nothing outstanding', body)
 
