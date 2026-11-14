@@ -137,7 +137,7 @@ class RolePresetTests(_Base):
     def test_admin_defaults(self):
         shown = self._shown(self.root)
         self.assertTrue(SERVICE_KPIS <= shown, SERVICE_KPIS - shown)
-        for key in ('my_queue', 'sla_overview', 'workload', 'recent_activity', 'system_status'):
+        for key in ('my_queue', 'sla_overview', 'workload', 'tasks', 'system_status'):
             self.assertIn(key, shown)
 
     def test_sales_defaults(self):

@@ -1187,7 +1187,7 @@ _PRESETS = {
     # Owner / administrator: the service desk figures, the queue, how the
     # team and the SLAs are doing, and the installation's health.
     PRESET_ADMIN: _SERVICE_KPIS + ('kpi_rmm_alerts',) + (
-        'my_queue', 'sla_overview', 'workload', 'recent_activity', 'system_status'),
+        'my_queue', 'sla_overview', 'workload', 'tasks', 'system_status'),
     # Service manager / dispatcher (also Billing / Finance and Auditor, the
     # other oversight roles): unassigned work first, workload, SLA
     # compliance, approvals, trends.
