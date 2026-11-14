@@ -7,17 +7,7 @@ Rem0te is autoescaped text.
 {% block title %}Rem0te setup - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
-        <li class="breadcrumb-item active">RMM · Rem0te</li>
-    </ol>
-</nav>
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="rmm_rem0te" %}
-    </div>
     <div class="col-md-9" data-rem0te-setup>
         <h1 class="h3"><i class="fas fa-desktop"></i> Rem0te setup</h1>
         <p class="text-muted">Contract <code>{{ pin.contract }}</code>, revision {{ implemented_revision }} (tested against Rem0te {{ pin.rem0te_version }} <code title="{{ pin.rem0te_sha }}">{{ pin.rem0te_sha|slice:":12" }}</code>). A Rem0te at revision 1 still works; features it lacks are shown as not supported by the connected Rem0te.</p>

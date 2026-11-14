@@ -3,13 +3,6 @@
 {% block title %}Role assignments to review - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
-        <li class="breadcrumb-item active">Review</li>
-    </ol>
-</nav>
 <h2><i class="fas fa-clipboard-check"></i> Assignments to review</h2>
 <p class="text-muted">Found by the roles &amp; access migration and by reseeding. Each row is a to-do: listing it
     changed nothing, and marking it resolved changes nothing either — change the membership, role or profile

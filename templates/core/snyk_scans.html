@@ -3,13 +3,6 @@
 {% block title %}Snyk Scan History - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'core:settings_snyk' %}">Snyk Security</a></li>
-        <li class="breadcrumb-item active">Scan History</li>
-    </ol>
-</nav>
 
 <div class="row">
     <div class="col-12">

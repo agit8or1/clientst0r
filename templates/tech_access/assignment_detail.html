@@ -12,8 +12,7 @@
     </ol>
 </nav>
 <div class="row">
-    <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="technician_access" %}</div>
-    <div class="col-md-9">
+    <div class="col-12">
         <div class="card mb-3">
             <div class="card-header"><strong>{{ a.preset.name }}</strong> — {{ a.subject_label }} at {{ a.organization.name }}
                 <span class="badge {% if status == 'active' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ status }}</span></div>

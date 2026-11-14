@@ -3,19 +3,10 @@
 {% block title %}Firewall Settings{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Firewall Settings</li>
-    </ol>
-</nav>
 
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="firewall" %}
-    </div>
 
-    <div class="col-md-9">
+    <div class="col-12">
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Firewall Settings</h5>

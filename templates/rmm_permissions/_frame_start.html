@@ -1,8 +1,6 @@
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'core:settings_security' %}">Security</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'rmm_permissions:index' %}">RMM Permissions</a></li>
-        {% if crumb %}<li class="breadcrumb-item active">{{ crumb }}</li>{% endif %}
-    </ol>
-</nav>
+{% comment %}
+The RMM permission pages used to open with their own "Dashboard › Security ›
+RMM Permissions" breadcrumb. The page frame (core/_work_context.html) now
+shows where you are and the settings workspace above every settings page, so
+this include renders nothing; `crumb` is ignored.
+{% endcomment %}

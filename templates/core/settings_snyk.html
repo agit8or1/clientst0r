@@ -3,19 +3,10 @@
 {% block title %}Snyk Security - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Snyk Security</li>
-    </ol>
-</nav>
 
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="snyk" %}
-    </div>
 
-    <div class="col-md-9">
+    <div class="col-12">
         <!-- Vulnerability Status Dashboard -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">

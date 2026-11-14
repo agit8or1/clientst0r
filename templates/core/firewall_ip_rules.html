@@ -3,20 +3,10 @@
 {% block title %}IP Firewall Rules{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'core:firewall_settings' %}">Firewall Settings</a></li>
-        <li class="breadcrumb-item active">IP Rules</li>
-    </ol>
-</nav>
 
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="firewall" %}
-    </div>
 
-    <div class="col-md-9">
+    <div class="col-12">
 <!-- Add New Rule -->
 <div class="card mb-4">
     <div class="card-header py-2 bg-primary text-white">

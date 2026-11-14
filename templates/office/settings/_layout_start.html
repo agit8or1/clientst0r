@@ -1,5 +1,6 @@
-<nav aria-label="breadcrumb"><ol class="breadcrumb">
-  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-  <li class="breadcrumb-item"><a href="{% url 'office:settings' %}">Office Documents</a></li>
-  {% if crumb %}<li class="breadcrumb-item active" aria-current="page">{{ crumb }}</li>{% endif %}
-</ol></nav>
+{% comment %}
+The Office settings pages used to open with their own "Dashboard › Office
+Documents" breadcrumb. The page frame (core/_work_context.html) now shows
+where you are and the settings workspace above every settings page, so this
+include renders nothing; `crumb` is ignored.
+{% endcomment %}

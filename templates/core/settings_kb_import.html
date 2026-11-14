@@ -7,19 +7,10 @@
 // Make CSRF token available globally
 const CSRF_TOKEN = '{{ csrf_token }}';
 </script>
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Demo Data Import</li>
-    </ol>
-</nav>
 
 <div class="row">
-    <div class="col-md-3">
-        {% include "core/_settings_menu.html" with active_page="kb_import" %}
-    </div>
 
-    <div class="col-md-9">
+    <div class="col-12">
         <!-- Current Statistics -->
         <div class="card mb-3">
             <div class="card-header">
