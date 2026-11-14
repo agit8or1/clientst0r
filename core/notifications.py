@@ -106,9 +106,14 @@ def _counts(user, ctx):
     joined = getattr(user, 'date_joined', None)
     # The module switches the sources depend on are part of the key, so
     # turning one off drops its row at once rather than after a minute.
-    key = 'navnotes:%s:%s:%s:%d%d' % (user.pk, joined.timestamp() if joined else '',
-                                      getattr(org, 'pk', ''), bool(ctx.get('psa_enabled')),
-                                      bool(ctx.get('secure_notes_enabled')))
+    # So is the authorization generation (accounts.authz_cache): a role,
+    # membership or scope change anywhere drops the cached counts at once,
+    # instead of showing figures from the old access for up to a minute.
+    from accounts import authz_cache
+    key = 'navnotes:%s:%s:%s:%d%d:g%s' % (user.pk, joined.timestamp() if joined else '',
+                                          getattr(org, 'pk', ''), bool(ctx.get('psa_enabled')),
+                                          bool(ctx.get('secure_notes_enabled')),
+                                          authz_cache.generation())
     counts = cache.get(key)
     if counts is not None:
         return counts

@@ -99,7 +99,13 @@ def favorite_toggle(request, content_type_id, object_id):
         })
     else:
         messages.success(request, message)
-        return redirect(request.META.get('HTTP_REFERER', '/'))
+        # Back to the page the star was on — same site only.
+        from django.utils.http import url_has_allowed_host_and_scheme
+        back = request.META.get('HTTP_REFERER', '')
+        if not url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()},
+                                               require_https=request.is_secure()):
+            back = '/'
+        return redirect(back)
 
 
 @login_required
