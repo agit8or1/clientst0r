@@ -308,6 +308,10 @@ MEDIA_REGISTRY = (
     MediaRule('locations.Location', 'property_diagram', _location, ('locations/diagrams/',)),
     # Organizations + system branding
     MediaRule('core.Organization', 'logo', _organization_logo, ('organizations/logos/',)),
+    # Customer portal branding: shown on the portal sign-in pages, so public.
+    MediaRule('core.SystemSetting', 'portal_logo', _allow_public, ('branding/portal/',), public=True),
+    MediaRule('core.SystemSetting', 'portal_login_background_image', _allow_public,
+              ('branding/portal/backgrounds/',), public=True),
     MediaRule('core.SystemSetting', 'custom_logo', _allow_public, ('branding/',), public=True),
     MediaRule('core.SystemSetting', 'background_image', _allow_public,
               ('branding/backgrounds/',), public=True),

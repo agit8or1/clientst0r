@@ -694,7 +694,60 @@ class SystemSetting(models.Model):
         max_length=253, blank=True, default='',
         help_text='Dedicated host name for the customer portal, e.g. portal.example.com. '
                   'Leave empty to serve the portal at /portal/ on the main host.')
-    default_timezone = models.CharField(max_length=50, default='UTC', help_text='Default timezone for new users')
+
+    # Customer portal branding and layout (Settings → General → Customer
+    # portal, core/portal_settings_views.py; applied by
+    # portal/templatetags/portal_theme.py). Every default reproduces the
+    # portal as it looked before these existed.
+    PORTAL_LOGIN_BACKGROUNDS = [
+        ('none', 'Standard (soft accent glow)'),
+        ('color', 'Solid colour'),
+        ('image', 'Image'),
+    ]
+    PORTAL_NAVIGATION_CHOICES = [
+        ('top', 'Top bar'),
+        ('side', 'Side navigation on wide screens'),
+    ]
+    PORTAL_CONTENT_WIDTHS = [
+        ('standard', 'Standard'),
+        ('wide', 'Wide'),
+    ]
+    PORTAL_DEFAULT_THEMES = [
+        ('system', "Follow the visitor's system setting"),
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+    ]
+    PORTAL_LOGIN_MESSAGE_MAX = 500
+    portal_name = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Name shown on portal pages. Blank: the custom company name, else the site name.')
+    portal_logo = models.ImageField(
+        upload_to='branding/portal/', blank=True, null=True,
+        help_text="Portal logo, used when the customer has no logo of its own.")
+    portal_accent_color = models.CharField(
+        max_length=7, blank=True, default='',
+        help_text="Default portal accent colour (hex). A customer's own portal colour wins.")
+    portal_login_background = models.CharField(
+        max_length=10, default='none', choices=PORTAL_LOGIN_BACKGROUNDS,
+        help_text='Background of the portal sign-in pages.')
+    portal_login_background_color = models.CharField(max_length=7, blank=True, default='')
+    portal_login_background_image = models.ImageField(
+        upload_to='branding/portal/backgrounds/', blank=True, null=True)
+    portal_login_message = models.TextField(
+        max_length=PORTAL_LOGIN_MESSAGE_MAX, blank=True, default='',
+        help_text='Plain-text welcome message on the portal sign-in page.')
+    portal_support_email = models.EmailField(blank=True, default='')
+    portal_support_phone = models.CharField(max_length=40, blank=True, default='')
+    portal_support_url = models.URLField(max_length=500, blank=True, default='')
+    portal_navigation = models.CharField(
+        max_length=10, default='top', choices=PORTAL_NAVIGATION_CHOICES)
+    portal_content_width = models.CharField(
+        max_length=10, default='standard', choices=PORTAL_CONTENT_WIDTHS)
+    portal_default_theme = models.CharField(
+        max_length=10, default='system', choices=PORTAL_DEFAULT_THEMES,
+        help_text="Used when a signed-in user has not picked a light or dark theme, and on the sign-in pages.")
+
+    default_timezone =models.CharField(max_length=50, default='UTC', help_text='Default timezone for new users')
 
     # Whitelabeling Settings
     custom_company_name = models.CharField(max_length=255, blank=True, help_text='Custom company name (replaces Client St0r branding)')

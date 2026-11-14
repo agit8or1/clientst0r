@@ -1,9 +1,11 @@
 {% extends "portal/auth/_base.html" %}
-{% load i18n two_factor_tags %}
+{% load i18n two_factor_tags portal_theme %}
 {% block title %}Sign in{% endblock %}
 {% block heading %}Sign in to your support portal{% endblock %}
 {% block content %}
+  {% portal_look False as look %}
   {% if wizard.steps.current == 'auth' %}
+    {% if look.login_message %}<div class="portal-auth-welcome" data-portal-welcome>{{ look.login_message|linebreaksbr }}</div>{% endif %}
     <p class="text-muted small mb-3">Use the email address and password for your customer account.</p>
   {% elif wizard.steps.current == 'token' %}
     <p class="text-muted small mb-3">{{ device|as_verbose_action }}</p>
@@ -37,6 +39,13 @@
 
   <div class="portal-auth-links">
     <a href="{% url 'portal_auth:password_reset' %}">Forgot your password?</a>
+    {% if look.has_contact %}
+    <span class="portal-auth-help" data-portal-signin-contact>Need help?
+      {% if look.support_email %}<a href="mailto:{{ look.support_email }}">{{ look.support_email }}</a>{% endif %}
+      {% if look.support_phone %}{% if look.support_email %} · {% endif %}<a href="{{ look.support_tel }}">{{ look.support_phone }}</a>{% endif %}
+      {% if look.support_url %}{% if look.support_email or look.support_phone %} · {% endif %}<a href="{{ look.support_url }}" target="_blank" rel="noopener noreferrer">Support site<span class="visually-hidden"> (opens in a new tab)</span></a>{% endif %}
+    </span>
+    {% endif %}
   </div>
   <p class="portal-auth-note">This sign-in is for customer accounts. Staff accounts use the staff sign-in page.</p>
 {% endblock %}

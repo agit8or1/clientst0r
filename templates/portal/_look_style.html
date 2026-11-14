@@ -1,0 +1,13 @@
+{% comment %}
+Accent colour for portal pages (core.portal_branding.PortalLook): the
+customer's own portal colour, else the portal's default accent, as a
+validated hex value, adjusted per theme to keep 4.5:1 on the portal
+surfaces, and the text colour that reads on it. Nothing else is
+written into this <style> block. Include with look=<PortalLook>.
+{% endcomment %}{% if look.accent %}
+<style>
+    :root { --portal-accent: {{ look.accent_light }}; --portal-accent-contrast: {{ look.accent_contrast }}; }
+    @media (prefers-color-scheme: dark) { :root:not([data-portal-theme="light"]) { --portal-accent: {{ look.accent_dark }}; --portal-accent-contrast: {{ look.accent_dark_contrast }}; } }
+    :root[data-portal-theme="dark"] { --portal-accent: {{ look.accent_dark }}; --portal-accent-contrast: {{ look.accent_dark_contrast }}; }
+</style>
+{% endif %}

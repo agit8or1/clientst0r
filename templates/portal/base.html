@@ -3,7 +3,7 @@
 {% load portal_theme %}
 {% portal_theme_mode as theme_mode %}
 {% portal_brand_name as msp_name %}
-{% portal_accent_color as accent %}
+{% portal_look as look %}
 {% with current=request.resolver_match.url_name %}
 <!DOCTYPE html>
 <html lang="en"{% if theme_mode %} data-portal-theme="{{ theme_mode }}"{% endif %}>
@@ -15,30 +15,18 @@
     <link href="{% static 'vendor/bootstrap/5.3.0/css/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="{% static 'css/portal.css' %}">
-    {% if accent %}
-    {# The customer's own portal colour (validated hex), light and dark. #}
-    <style>
-        :root, :root[data-portal-theme="dark"] { --portal-accent: {{ accent }}; --portal-accent-contrast: #ffffff; }
-        @media (prefers-color-scheme: dark) { :root:not([data-portal-theme="light"]) { --portal-accent: {{ accent }}; --portal-accent-contrast: #ffffff; } }
-    </style>
-    {% endif %}
+    {% include "portal/_look_style.html" %}
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/portal.js' %}"></script>
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
-<body class="portal-body">
+<body class="portal-body portal-app {{ look.body_class }}">
     <a class="portal-skip-link" href="#portal-main">Skip to content</a>
     <header class="portal-header">
         <div class="portal-wrap">
             <div class="portal-header-row">
                 <a class="portal-brand" href="{% url 'portal:ticket_list' %}">
-                    {% if organization.logo %}
-                        <img src="{{ organization.logo.url }}" alt="{{ organization.name }}">
-                    {% elif system_settings.custom_logo %}
-                        <img src="{{ system_settings.custom_logo.url }}" alt="{{ msp_name }}">
-                    {% else %}
-                        <span class="portal-brand-mark" aria-hidden="true"><i class="fas fa-life-ring"></i></span>
-                    {% endif %}
+                    {% include "portal/_brand_logo.html" %}
                     <span class="portal-brand-name">
                         {{ organization.name|default:"Support Portal" }}
                         <span class="portal-brand-sub">Support portal{% if msp_name %} · {{ msp_name }}{% endif %}</span>
@@ -77,10 +65,10 @@
                     <noscript><button type="submit" class="btn btn-sm btn-outline-secondary ms-1">Switch</button></noscript>
                 </form>
                 {% endif %}
-                <a href="{% url 'portal:preferences' %}" title="Notification preferences" {% if current == 'preferences' %}aria-current="page"{% endif %}><i class="fas fa-cog" aria-hidden="true"></i><span class="visually-hidden">Notification preferences</span></a>
+                <a href="{% url 'portal:preferences' %}" title="Notification preferences" {% if current == 'preferences' %}aria-current="page"{% endif %}><i class="fas fa-cog" aria-hidden="true"></i><span class="portal-nav-label">Notification preferences</span></a>
                 {% if request.user.is_authenticated %}
-                <a href="{% url 'portal_auth:password_change' %}" title="Change password" {% if current == 'password_change' %}aria-current="page"{% endif %}><i class="fas fa-key" aria-hidden="true"></i><span class="visually-hidden">Change password</span></a>
-                <a href="{% url 'portal_auth:two_factor_setup' %}" title="Sign-in security"><i class="fas fa-shield-halved" aria-hidden="true"></i><span class="visually-hidden">Sign-in security</span></a>
+                <a href="{% url 'portal_auth:password_change' %}" title="Change password" {% if current == 'password_change' %}aria-current="page"{% endif %}><i class="fas fa-key" aria-hidden="true"></i><span class="portal-nav-label">Change password</span></a>
+                <a href="{% url 'portal_auth:two_factor_setup' %}" title="Sign-in security"><i class="fas fa-shield-halved" aria-hidden="true"></i><span class="portal-nav-label">Sign-in security</span></a>
                 {% endif %}
                 {% if request.portal_psa_enabled is not False %}
                 <a href="{% url 'portal:ticket_create' %}" class="portal-cta"><i class="fas fa-plus" aria-hidden="true"></i> New Ticket</a>
@@ -106,12 +94,7 @@
             {% block content %}{% endblock %}
         </div>
     </main>
-    <footer class="portal-footer">
-        <div class="portal-wrap portal-footer-row">
-            <span>{% if msp_name %}Support provided by {{ msp_name }}{% endif %}</span>
-            <span><i class="fas fa-lock" aria-hidden="true"></i> Secure customer portal</span>
-        </div>
-    </footer>
+    {% include "portal/_footer.html" %}
     <script src="{% static 'vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
