@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.677] - 2026-11-14
+
+Interface, navigation and dashboard redesign (Phase 67). No URL changed and no permission was loosened: every page keeps its own check, and the navigation now mirrors those checks so it never offers a link the page would refuse. Plan and audit: docs/plans/2026-11-ui-redesign.md; old → new menu map: docs/navigation-map.md.
+
+### Added
+- **Compact dashboard (the new default).** It fits the window without page scrolling at 1366×768 and larger and is built from widgets that each check your permissions on the server for the current organization: key figures (open tickets, RMM alerts, your open tasks, monitors, assets, documents, passwords, PSA companies and tickets), a quick-actions toolbar, open tickets by status, schedule, tasks, ticket activity (14 days, with a week-on-week trend), RMM alerts, monitors, location map, recent activity and system status. Panels scroll inside themselves and expand to a large view; the map, activity and status load on demand.
+- **Classic dashboard stays available** while the new one beds in: a switch on both dashboards (remembered per user) and `?layout=classic` for a one-off look.
+- **Dashboard customization:** show / hide, reorder by drag or with the arrow buttons, width of 1–3 columns, compact or comfortable density, restore defaults. Built-in layouts for administrators, managers, L1 / L2 / L3 technicians, sales and customers; administrators can save a role's default layout.
+- **Settings workspace:** one header with nine categories (General, System, Security, Organizations & Access, Integrations, Automation, Email & Communications, Features & Modules, Maintenance), the category's pages beneath, a settings search, and a warning before leaving a page with unsaved changes.
+- **Top bar:** shortcuts (Dashboard, My Work, Tickets, Clients, Devices, Projects, Reports — each only when you may open it), search, a notifications bell built from counts you can already see (pending approvals, unread secure notes, contract notifications), Help and Administration. It stays usable down to 992 px wide, so 1366-px laptops keep search, the client switcher and the account menu.
+- **Professional Dark theme:** charcoal-navy surfaces, one restrained blue accent, flat borders and tinted status colours. The default for new profiles.
+- **Density preference** (Compact / Comfortable) on the profile page beside Theme.
+
+### Changed
+- **Navigation regrouped** into Overview (dashboard, my work, favorites and your pinned pages), Operations, Clients & Assets, Business, Tools & Automation, Reports & Analytics, and Administration (the nine settings categories). The separate settings menu, the stacked breadcrumbs on settings pages and the shortcut strip above every page are gone; the breadcrumb and the section tabs share one compact row.
+- Beta app, Install app, Help Us Grow and the theme toggle moved from the top bar to the account menu; Favorites moved to Overview.
+- Organization Owners and Admins and customer administrators reach Members, Roles, Office policy and Field Ops settings from the account menu ("Organization settings"); those pages already admitted them but had no link.
+- 32 pages that had no link anywhere (Security incidents, playbooks, SIEM endpoints and threat overview; timesheet and approvals; dispatch heatmap; workflow templates and suggestions; analytics overview, MTTA and software compliance reports; timeclock; accounting and distributor connections; patch panels; port configurations; vehicle inventory; Office templates; vault import and others) now appear in the navigation for the people their pages admit.
+- Dashboard quick actions appear only when their page would let you in; the saved list is de-duplicated and capped.
+- New profiles start without a wallpaper; presets, uploads, random and solid colour stay available, and an administrator's background policy still applies. Existing users keep their theme and background.
+- The theme toggle switches between Professional Dark and Default Blue.
+- Shared design tokens drive spacing, radius, control height, surfaces and status colours; clearer keyboard focus on dark themes; decorative animations respect reduced motion.
+
+### Fixed
+- The webhook list was open to any member of the organization, including customer users, and showed webhook URLs (which can carry tokens). It now requires the same administrator role as creating and editing webhooks.
+- Navigation offered links that answered 403 for some roles (for example CRM, Reports and Security Alerts for a technician without the role); it now reads each page's permission requirements.
+- Software Compliance report errored when there were no critical findings.
+- The "Monitors down" report widget looked for a status that doesn't exist and always showed none.
+- Location map popups now escape location and device names.
+- Nord (a light theme) was treated as dark.
+
 ## [3.17.676] - 2026-11-13
 
 ### Fixed
