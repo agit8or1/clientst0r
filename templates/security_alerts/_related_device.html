@@ -1,0 +1,23 @@
+{# Related device for an alert / incident: links appear only where the technician may open the page (security_alerts/related.py). #}
+{% if related.hint %}
+<div class="card mb-3">
+    <div class="card-header"><strong>Related device</strong> <small class="text-muted">matched on <code>{{ related.hint }}</code></small></div>
+    <ul class="list-group list-group-flush">
+        {% for a in related.assets %}
+        <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <span><i class="fas fa-server text-muted me-1" aria-hidden="true"></i>{{ a.name }}{% if a.hostname and a.hostname != a.name %} <small class="text-muted">{{ a.hostname }}</small>{% endif %}</span>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ a.url }}"><i class="fas fa-display" aria-hidden="true"></i> Device Workspace</a>
+        </li>
+        {% endfor %}
+        {% for d in related.rmm %}
+        <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <span><i class="fas fa-desktop text-muted me-1" aria-hidden="true"></i>{{ d.name }} <small class="text-muted">RMM · {% if d.online %}online{% else %}offline{% endif %}</small></span>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ d.url }}"><i class="fas fa-up-right-from-square" aria-hidden="true"></i> RMM device</a>
+        </li>
+        {% endfor %}
+        {% if not related.assets and not related.rmm %}
+        <li class="list-group-item text-muted small">No documented asset{% if current_organization %} or RMM device{% endif %} with this name that you can open{% if not current_organization %}. RMM devices are matched once a client is selected{% endif %}.</li>
+        {% endif %}
+    </ul>
+</div>
+{% endif %}

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Security Overview{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/security_overview.css' %}">{% endblock %}
+{% block content %}
+<div class="ui-page-head">
+    <div class="ui-page-head__main">
+        <h1 class="ui-page-title"><i class="fas fa-shield-halved" aria-hidden="true"></i> Security Overview</h1>
+        <p class="ui-page-sub">Live counts from Security Alerts, Incidents, RMM Alerts and Monitoring. Read-only: open a figure to work the items on their own page.</p>
+    </div>
+    <div class="ui-page-head__actions">
+        {% if alerts.links.threats %}<a class="btn btn-sm btn-outline-secondary" href="{{ alerts.links.threats }}"><i class="fas fa-shield-virus" aria-hidden="true"></i> Threat Overview</a>{% endif %}
+        {% if response.links.report %}<a class="btn btn-sm btn-outline-secondary" href="{{ response.links.report }}"><i class="fas fa-stopwatch" aria-hidden="true"></i> Alert Response Times</a>{% endif %}
+    </div>
+</div>
+
+<div class="so-grid">
+
+{# ---- Security Alerts ------------------------------------------------- #}
+<section class="card so-card" aria-labelledby="so-alerts">
+    <div class="card-header">
+        <h2 id="so-alerts"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>Security Alerts</h2>
+        <span class="so-scope">All customers your role covers</span>
+    </div>
+    <div class="card-body">
+    {% if alerts.state == 'not_configured' %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — no security vendor connection or SIEM endpoint has been set up{% if alerts.links.connections %}. <a href="{{ alerts.links.connections }}">Vendor Connections</a>{% endif %}.</span></div>
+    {% else %}
+        <div class="so-stats">
+            {% include "security_alerts/_so_stat.html" with label="Active" value=alerts.counts.active href=alerts.links.list tone="info" %}
+            {% include "security_alerts/_so_stat.html" with label="Critical" value=alerts.counts.critical href=alerts.links.critical tone="danger" %}
+            {% include "security_alerts/_so_stat.html" with label="High" value=alerts.counts.high href=alerts.links.high tone="warn" %}
+            {% include "security_alerts/_so_stat.html" with label="Unacknowledged" value=alerts.counts.unacked href=alerts.links.unacked tone="warn" %}
+        </div>
+        <p class="so-note">Active = new or acknowledged. {{ alerts.counts.last_24h }} alert{{ alerts.counts.last_24h|pluralize }} received in the last 24 hours. The Critical and High lists show every status.</p>
+        <div class="so-sub">Alert sources</div>
+        {% include "security_alerts/_so_health.html" with health=alerts.sources empty="alerts arrive through SIEM endpoints only." %}
+        {% if alerts.siem.total %}<p class="so-note">{{ alerts.siem.active }} of {{ alerts.siem.total }} SIEM endpoint{{ alerts.siem.total|pluralize }} active{% if alerts.links.siem %} · <a href="{{ alerts.links.siem }}">SIEM Endpoints</a>{% endif %}</p>{% endif %}
+    {% endif %}
+        <div class="so-links">
+            {% if alerts.links.list %}<a href="{{ alerts.links.list }}">All security alerts</a>{% endif %}
+            {% if alerts.links.connections %}<a href="{{ alerts.links.connections }}">Vendor Connections</a>{% endif %}
+        </div>
+    </div>
+</section>
+
+{# ---- Incidents -------------------------------------------------------- #}
+<section class="card so-card" aria-labelledby="so-incidents">
+    <div class="card-header">
+        <h2 id="so-incidents"><i class="fas fa-fire" aria-hidden="true"></i>Incidents</h2>
+        <span class="so-scope">All customers your role covers</span>
+    </div>
+    <div class="card-body">
+    {% if incidents.state == 'not_configured' %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — incidents are opened from correlated security alerts, and no alert source is set up yet.</span></div>
+    {% else %}
+        <div class="so-stats">
+            {% include "security_alerts/_so_stat.html" with label="Open" value=incidents.counts.open href=incidents.links.list tone="info" %}
+            {% include "security_alerts/_so_stat.html" with label="Unacknowledged" value=incidents.counts.new href=incidents.links.new tone="warn" %}
+            {% include "security_alerts/_so_stat.html" with label="Investigating" value=incidents.counts.investigating href=incidents.links.investigating %}
+            {% include "security_alerts/_so_stat.html" with label="Contained" value=incidents.counts.contained href=incidents.links.contained %}
+            {% if incidents.has_policy %}
+            {% include "security_alerts/_so_stat.html" with label="SLA breached" value=incidents.breached tone="danger" %}
+            {% endif %}
+        </div>
+        {% if not incidents.has_policy %}<p class="so-note">SLA breaches (the escalation signal on incidents): not configured — no active incident SLA policy.</p>{% endif %}
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <div class="so-sub">Open by severity</div>
+                <ul class="so-list">
+                    {% for sev, n, href in incidents.by_severity %}
+                    <li><span class="so-name"><span class="so-sev so-sev--{{ sev }}" aria-hidden="true"></span>{% if href %}<a href="{{ href }}">{{ sev|capfirst }}</a>{% else %}{{ sev|capfirst }}{% endif %}</span><span class="so-num">{{ n }}</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-sm-6">
+                <div class="so-sub">Assigned responders</div>
+                <ul class="so-list">
+                    {% for r in incidents.responders %}
+                    <li><span class="so-name">{{ r.name }}</span><span class="so-num">{{ r.n }} open</span></li>
+                    {% endfor %}
+                    <li><span class="so-name">Unassigned</span><span class="so-num">{{ incidents.counts.unassigned }} open</span></li>
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+        <div class="so-links">
+            {% if incidents.links.list %}<a href="{{ incidents.links.list }}">All incidents</a>{% endif %}
+            {% if incidents.links.playbooks %}<a href="{{ incidents.links.playbooks }}">Incident Playbooks</a>{% endif %}
+            {% if incidents.links.threats %}<a href="{{ incidents.links.threats }}">Threat Overview</a>{% endif %}
+        </div>
+    </div>
+</section>
+
+{# ---- RMM Security ----------------------------------------------------- #}
+{% if rmm %}
+<section class="card so-card" aria-labelledby="so-rmm">
+    <div class="card-header">
+        <h2 id="so-rmm"><i class="fas fa-desktop" aria-hidden="true"></i>RMM Security</h2>
+        <span class="so-scope">{% if current_org %}{{ current_org.name }} and its sub-clients{% else %}Global view{% endif %}</span>
+    </div>
+    <div class="card-body">
+        <div class="so-stats">
+            {% include "security_alerts/_so_stat.html" with label="Device security alerts" value=rmm.device_security_alerts tone="warn" %}
+            {% if rmm.state == '' %}
+            {% include "security_alerts/_so_stat.html" with label="Active RMM alerts" value=rmm.counts.active href=rmm.links.alerts tone="info" %}
+            {% include "security_alerts/_so_stat.html" with label="Critical RMM alerts" value=rmm.counts.critical href=rmm.links.critical tone="danger" %}
+            {% endif %}
+        </div>
+        <p class="so-note">Device security alerts = active security alerts that name a device (all customers your role covers).</p>
+        {% if rmm.state == 'not_configured' %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — no RMM integration is connected{% if rmm.links.integrations %}. <a href="{{ rmm.links.integrations }}">Integrations</a>{% endif %}.</span></div>
+        {% else %}
+            {% if rmm.state == 'select_client' %}
+            <div class="so-empty"><i class="fas fa-building" aria-hidden="true"></i><span><strong>Select a client</strong> to see its RMM alerts and recent events (the RMM Alerts page lists a client's devices only).</span></div>
+            {% else %}
+            <div class="so-sub">Recent RMM events</div>
+            <ul class="so-list">
+                {% for row in rmm.recent %}
+                <li><span class="so-name"><span class="so-sev so-sev--{{ row.alert.severity }}" aria-hidden="true"></span>{% if row.device_url %}<a href="{{ row.device_url }}">{{ row.alert.device.device_name }}</a>{% else %}{{ row.alert.device.device_name }}{% endif %} — {{ row.alert.alert_type }}</span><span class="so-num" title="{{ row.alert.triggered_at }}">{{ row.alert.triggered_at|timesince }} ago</span></li>
+                {% empty %}
+                <li><span class="so-name text-muted">No active RMM alerts for this client.</span></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            <div class="so-sub">RMM integration health</div>
+            {% include "security_alerts/_so_health.html" with health=rmm.health empty="no RMM connection belongs to this client (platform connections are listed in global view)." %}
+        {% endif %}
+        <div class="so-links">
+            {% if rmm.links.alerts %}<a href="{{ rmm.links.alerts }}">RMM Alerts</a>{% endif %}
+            {% if rmm.links.devices %}<a href="{{ rmm.links.devices }}">RMM Devices</a>{% endif %}
+            {% if rmm.links.integrations %}<a href="{{ rmm.links.integrations }}">Integrations</a>{% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{# ---- Monitoring ------------------------------------------------------- #}
+{% if monitoring %}
+<section class="card so-card" aria-labelledby="so-mon">
+    <div class="card-header">
+        <h2 id="so-mon"><i class="fas fa-globe" aria-hidden="true"></i>Monitoring</h2>
+        <span class="so-scope">{% if monitoring.scope == 'client' %}{{ current_org.name }}{% elif monitoring.scope == 'global' %}Global view{% else %}No client selected{% endif %}</span>
+    </div>
+    <div class="card-body">
+        <div class="so-sub">Website monitors</div>
+        {% if monitoring.web.total %}
+        <div class="so-stats">
+            {% include "security_alerts/_so_stat.html" with label="Monitors" value=monitoring.web.total href=monitoring.links.web %}
+            {% include "security_alerts/_so_stat.html" with label="Down" value=monitoring.web.down href=monitoring.links.web_down tone="danger" %}
+            {% include "security_alerts/_so_stat.html" with label="Warning" value=monitoring.web.warning href=monitoring.links.web_warning tone="warn" %}
+            {% include "security_alerts/_so_stat.html" with label="SSL ≤ 30 days" value=monitoring.web.ssl_soon href=monitoring.links.web tone="warn" %}
+        </div>
+        {% if monitoring.web.unknown or monitoring.web.paused %}<p class="so-note">{{ monitoring.web.unknown }} not checked yet · {{ monitoring.web.paused }} paused</p>{% endif %}
+        {% else %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — no website monitors here.</span></div>
+        {% endif %}
+
+        <div class="so-sub">WAN connections</div>
+        {% if monitoring.wan.total %}
+        <ul class="so-list">
+            <li><span class="so-name">{% if monitoring.links.wan %}<a href="{{ monitoring.links.wan }}">Monitored WAN links</a>{% else %}Monitored WAN links{% endif %}</span><span class="so-num">{{ monitoring.wan.total }}</span></li>
+            <li><span class="so-name">{% if monitoring.links.wan_down %}<a href="{{ monitoring.links.wan_down }}">Down</a>{% else %}Down{% endif %}</span><span class="so-num">{{ monitoring.wan.down }}</span></li>
+            <li><span class="so-name">Under maintenance</span><span class="so-num">{{ monitoring.wan.maintenance }}</span></li>
+        </ul>
+        {% else %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — no WAN connection has monitoring turned on.</span></div>
+        {% endif %}
+
+        <div class="so-sub">Expirations</div>
+        {% if monitoring.exp.total %}
+        <ul class="so-list">
+            <li><span class="so-name">{% if monitoring.links.exp %}<a href="{{ monitoring.links.exp }}">Expired</a>{% else %}Expired{% endif %}</span><span class="so-num">{{ monitoring.exp.expired }}</span></li>
+            <li><span class="so-name">Expiring within 30 days</span><span class="so-num">{{ monitoring.exp.soon }}</span></li>
+        </ul>
+        {% else %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — no expirations tracked here.</span></div>
+        {% endif %}
+
+        {% if monitoring.integrations %}
+        <div class="so-sub">Network monitoring integrations</div>
+        {% include "security_alerts/_so_health.html" with health=monitoring.integrations empty="no UniFi, Omada or Grandstream connection here." %}
+        {% endif %}
+        <div class="so-links">
+            {% if monitoring.links.web %}<a href="{{ monitoring.links.web }}">Website Monitors</a>{% endif %}
+            {% if monitoring.links.wan %}<a href="{{ monitoring.links.wan }}">WAN Connections</a>{% endif %}
+            {% if monitoring.links.exp %}<a href="{{ monitoring.links.exp }}">Expirations</a>{% endif %}
+            {% if monitoring.links.policies %}<a href="{{ monitoring.links.policies }}">Alert Policies</a>{% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{# ---- Response Performance -------------------------------------------- #}
+<section class="card so-card so-wide" aria-labelledby="so-perf">
+    <div class="card-header">
+        <h2 id="so-perf"><i class="fas fa-stopwatch" aria-hidden="true"></i>Response Performance</h2>
+        <span class="so-scope">Last {{ response.window_days }} days · all customers your role covers</span>
+    </div>
+    <div class="card-body">
+    {% if alerts.state == 'not_configured' and not response.incident.count and not response.aging.total %}
+        <div class="so-empty"><i class="fas fa-plug" aria-hidden="true"></i><span><strong>Not configured</strong> — response times come from security alerts and incidents, and no alert source is set up yet.</span></div>
+    {% else %}
+        <div class="so-perf">
+            <div>
+                <div class="so-sub">Security alerts</div>
+                {% if response.alert %}
+                <div class="so-stats">
+                    {% include "security_alerts/_so_stat.html" with label="MTTA" value=response.alert.mtta href=response.alert.report_url %}
+                    {% include "security_alerts/_so_stat.html" with label="Mean time to resolve" value=response.alert.mttr %}
+                </div>
+                <p class="so-note">{{ response.alert.count }} alert{{ response.alert.count|pluralize }} received, {{ response.alert.unacked }} never acknowledged. Measured from when the alert arrived.</p>
+                {% else %}
+                <p class="so-note">Alert MTTA follows the Alert Response Times report, which needs the SLA reports permission across every customer.</p>
+                {% endif %}
+            </div>
+            <div>
+                <div class="so-sub">Incidents</div>
+                <div class="so-stats">
+                    {% include "security_alerts/_so_stat.html" with label="Time to acknowledge" value=response.incident.tta %}
+                    {% include "security_alerts/_so_stat.html" with label="Time to resolve" value=response.incident.ttr %}
+                </div>
+                <p class="so-note">Means over {{ response.incident.count }} incident{{ response.incident.count|pluralize }} opened in the window. No data = none acknowledged / resolved yet.</p>
+            </div>
+            <div>
+                <div class="so-sub">Open incident aging</div>
+                <ul class="so-list">
+                    <li><span class="so-name">Under 24 hours</span><span class="so-num">{{ response.aging.lt_1d }}</span></li>
+                    <li><span class="so-name">1–7 days</span><span class="so-num">{{ response.aging.d1_7 }}</span></li>
+                    <li><span class="so-name">Over 7 days</span><span class="so-num">{{ response.aging.gt_7d }}</span></li>
+                    <li><span class="so-name">Oldest open</span><span class="so-num">{{ response.aging.oldest|default:"None open" }}</span></li>
+                </ul>
+            </div>
+        </div>
+        {% if alerts.state != 'not_configured' %}
+        <div class="so-sub">Alert volume, last {{ response.trend_days }} days</div>
+        <div class="so-trend" role="img" aria-label="Security alerts per day: {% for d in response.trend.series %}{{ d.date|date:'M j' }} {{ d.count }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+            {% for d in response.trend.series %}<span class="so-trend__bar{% if not d.count %} is-zero{% endif %}" style="height: {% if d.count %}{{ d.pct }}%{% else %}1px{% endif %}" title="{{ d.date|date:'D M j' }}: {{ d.count }}"></span>{% endfor %}
+        </div>
+        <div class="so-trend__axis"><span>{{ response.trend.series.0.date|date:"M j" }}</span><span>peak {{ response.trend.peak }}/day</span><span>Today</span></div>
+        <p class="so-note">Past 7 days: {{ response.trend.week_a }} · prior 7 days: {{ response.trend.week_b }}{% if response.trend.wow_pct is not None %} ({% if response.trend.wow_pct > 0 %}+{% endif %}{{ response.trend.wow_pct }}%){% endif %}</p>
+        {% endif %}
+    {% endif %}
+        <div class="so-links">
+            {% if response.links.report %}<a href="{{ response.links.report }}">Alert Response Times report</a>{% endif %}
+            {% if response.links.incidents %}<a href="{{ response.links.incidents }}">Incidents</a>{% endif %}
+        </div>
+    </div>
+</section>
+
+</div>
+<!-- /security-overview -->
+{% endblock %}

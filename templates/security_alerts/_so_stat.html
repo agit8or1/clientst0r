@@ -1,0 +1,5 @@
+{# One figure. value None = "No data" (never shown as 0). tone applies only to a non-zero value. #}
+{% if href %}<a class="so-stat{% if tone and value %} so-stat--{{ tone }}{% endif %}" href="{{ href }}">{% else %}<div class="so-stat{% if tone and value %} so-stat--{{ tone }}{% endif %}">{% endif %}
+    <span class="so-stat__label" title="{{ label }}">{{ label }}</span>
+    {% if value is None %}<span class="so-stat__value is-empty">No data</span>{% else %}<span class="so-stat__value">{{ value }}</span>{% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}

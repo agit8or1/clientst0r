@@ -110,7 +110,8 @@ breadcrumbs, the rail/flyout markup, the settings center and
 | Clients & Assets → Passwords → Passwords, Reveal Requests | Knowledge & Vault → **Password Vault** | |
 | Clients & Assets → Vault Access Rules | Knowledge & Vault → Password Vault → Configure → Vault Access Rules | `vault_manage_access_rules` |
 | Clients & Assets → My Vault, Secure Notes | Knowledge & Vault → My Vault, Secure Notes | |
-| Tools & Automation → Security Alerts → Security Alerts | **Security & Monitoring** → Security Alerts | `g a` |
+| (new in v3.17.681) `security_alerts:overview` `/security/overview/` | **Security & Monitoring** → Security Overview (first entry; `g a` lands here) | MSP staff + PSA on + `security_alerts_view`; each widget follows its source page (RMM: `integrations_view`, Monitoring: module + `monitoring_view`, alert MTTA: `reports_view_sla` across every customer). Read-only. |
+| Tools & Automation → Security Alerts → Security Alerts | **Security & Monitoring** → Security Alerts | |
 | Security Alerts → Vendor Connections, Auto-Ticket Rules, SIEM Endpoints, Weekly Digest | Security & Monitoring → Security Alerts → Configure | same gates |
 | Tools & Automation → Security Incidents → Incidents, Playbooks, Threat Overview, Alert Response Times | Security & Monitoring → Security Incidents (Playbooks → Incident Playbooks) | `security_alerts_view`; MTTA `reports_view_sla` |
 | Tools & Automation → RMM Alerts | Security & Monitoring → RMM Alerts | MSP staff |

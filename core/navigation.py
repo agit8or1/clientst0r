@@ -1184,6 +1184,13 @@ PRIMARY = (
         Entry(_('Secure Notes'), section='vault_notes', icon='fa-lock', keywords='inbox share secret links'),
     )),
     Group('security', _('Security & Monitoring'), 'fa-shield-halved', shortcut='a', entries=(
+        # Read-only summary of the pages below. Same gates as the Security
+        # Alerts / Incidents sections; the view's require_perm
+        # ('security_alerts_view') and the staff-only /security/ prefix are
+        # read by _PermProbe. Each widget inside follows its own source page.
+        Entry(_('Security Overview'), url_name='security_alerts:overview', icon='fa-shield-halved',
+              gate=_all(_msp_staff, _psa),
+              keywords='security overview operational summary alerts incidents rmm monitoring mtta mttr'),
         Entry(_('Security Alerts'), section='mod_security', icon='fa-triangle-exclamation',
               keywords='edr siem vendor connections auto-ticket rules digest'),
         Entry(_('Security Incidents'), section='mod_security_ops', icon='fa-fire',
