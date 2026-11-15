@@ -1,0 +1,17 @@
+{% if w.rows %}
+<ul class="dash-list">
+    {% for a in w.rows %}
+    <li>
+        {% if a.url %}<a href="{{ a.url }}" class="dash-row" title="{{ a.kind }}: {{ a.subject }}{% if a.target %} · {{ a.target }}{% endif %}">{% else %}<div class="dash-row" title="{{ a.kind }}: {{ a.subject }}">{% endif %}
+            <span class="dash-row-main dash-trunc">
+                <span class="dash-row-title">{{ a.subject }}</span>
+                <span class="dash-row-sub">{{ a.kind }}{% if a.target %} · {{ a.target }}{% endif %}{% if a.who %} · {{ a.who }}{% endif %}</span>
+            </span>
+            <span class="dash-row-meta" title="{{ a.when }}">{{ a.age }} ago</span>
+        {% if a.url %}</a>{% else %}</div>{% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-comments-dollar" aria-hidden="true"></i> No sales activity logged yet.</div>
+{% endif %}

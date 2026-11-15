@@ -1,0 +1,28 @@
+{% load humanize %}
+<ul class="dash-stat-list">
+    {% for r in w.rows %}
+    <li>
+        <a href="{{ r.href }}" class="dash-stat">
+            <span><span class="dash-dot dash-fill-{{ r.tone }}" aria-hidden="true"></span> {{ r.label }}</span>
+            <strong>{{ r.count }}</strong>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% if w.follow %}
+<div class="dash-list-day">Awaiting signature, longest first</div>
+<ul class="dash-list">
+    {% for c in w.follow %}
+    <li>
+        <a href="{{ c.url }}" class="dash-row" title="{{ c.reference }} {{ c.title }}{% if c.client %} · {{ c.client }}{% endif %}">
+            <span class="dash-row-main dash-trunc">
+                <span class="dash-row-title">{{ c.title }}</span>
+                <span class="dash-row-sub">{{ c.reference }}{% if c.client %} · {{ c.client }}{% endif %} · {{ c.status }}</span>
+            </span>
+            <span class="dash-row-meta">{% if c.sent %}<span title="Sent {{ c.sent }}">{{ c.age }}</span>{% else %}not sent{% endif %}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if w.pricing %}<div class="dash-w-foot">Recurring value signed in the last 30 days: {% if w.signed_recurring is not None %}{{ w.signed_recurring|floatformat:2|intcomma }}{% else %}none{% endif %}</div>{% endif %}

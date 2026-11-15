@@ -245,6 +245,12 @@ def _check_members(u, ctx):
             or user_has_org_perm(u, org, 'org_invite_members'))
 
 
+def _can_manage_role_dashboards(u):
+    """core.dashboard_views.dashboard_role_settings: can_manage_role_defaults."""
+    from core.dashboard_views import can_manage_role_defaults
+    return can_manage_role_defaults(u)
+
+
 def _check_roles(u, ctx):
     """accounts.roles_views.role_list: a current organization and
     _can_view_roles (roles_manage, or manage / invite members)."""
@@ -737,6 +743,9 @@ SECTIONS = (
             also=('accounts:ldap_group_mapping_delete',)),
         Tab(_('Audit Log'), 'audit:audit_log_list', 'fa-clipboard-list', gate=_org_admin,
             keywords='activity history who'),
+        Tab(_('Role Dashboards'), 'core:dashboard_role_settings', 'fa-table-cells-large',
+            gate=_view_check(lambda u, ctx: _can_manage_role_dashboards(u)),
+            keywords='dashboard widgets landing page sidebar quick actions role defaults presets'),
     )),
     Section('settings_security', 'settings', _('Security'), icon='fa-shield-alt', render_tabs=False, tabs=(
         Tab(_('Security Dashboard'), 'core:security_dashboard', 'fa-chart-line', gate=_superuser,

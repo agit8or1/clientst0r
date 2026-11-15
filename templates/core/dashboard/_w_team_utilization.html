@@ -1,0 +1,19 @@
+{% if w.rows %}
+<div class="dash-sla-head">
+    {% if w.team_pct is not None %}<strong class="dash-sla-pct">{{ w.team_pct }}%</strong> <span class="dash-row-sub d-inline">of the team's billable target, week of {{ w.week_start|date:"j M" }}</span>{% endif %}
+</div>
+<ul class="dash-bars">
+    {% for r in w.rows %}
+    <li>
+        <div class="dash-bar-row" title="{{ r.name }}: {{ r.billable }} h billable of {{ r.target }} h target ({{ r.hours }} h logged)">
+            <span class="dash-bar-label">{{ r.name }}</span>
+            <span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill dash-fill-{{ r.tone }}" style="width: {{ r.bar }}%"></span></span>
+            <strong class="dash-bar-value">{{ r.pct }}%</strong>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+<div class="dash-w-foot">Billable hours this week against the weekly target{% if w.no_target %} · {{ w.no_target }} technician{{ w.no_target|pluralize }} without a target{% endif %}</div>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-bullseye" aria-hidden="true"></i> Not configured: no technician has a billable target{% if w.no_target %} ({{ w.no_target }} without one){% endif %}.</div>
+{% endif %}

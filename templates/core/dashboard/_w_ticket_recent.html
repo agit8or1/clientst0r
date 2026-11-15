@@ -2,7 +2,7 @@
 <ul class="dash-list">
     {% for t in w.rows %}
     <li>
-        <a href="{{ t.url }}" class="dash-row">
+        <a href="{{ t.url }}" class="dash-row" title="{{ t.number }} {{ t.subject }}">
             <span class="dash-row-main dash-qrow-main">
                 <span class="dash-row-title"><span class="dash-qrow-num">{{ t.number }}</span> {{ t.subject }}</span>
                 <span class="dash-row-sub">{{ t.status }}</span>

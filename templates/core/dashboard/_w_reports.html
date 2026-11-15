@@ -1,0 +1,9 @@
+{% if w.links %}
+<ul class="dash-list dash-links">
+    {% for l in w.links %}
+    <li><a href="{{ l.href }}" class="dash-row" title="{{ l.label }}"><span class="dash-row-main dash-trunc"><span class="dash-row-title"><i class="{{ l.icon }} dash-row-icon" aria-hidden="true"></i>{{ l.label }}</span></span></a></li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="dash-w-state">No reports are available to your role.</div>
+{% endif %}

@@ -130,9 +130,13 @@ class RolePresetTests(_Base):
 
     def test_dispatcher_defaults(self):
         shown = self._shown(self.user('service_manager'))
+        # v3.17.681: Ticket trends gave way to Team utilization (and Billing
+        # summary / Reports where the role may see them); trends stay addable.
         for key in ('unassigned_queue', 'workload', 'sla_overview', 'kpi_unassigned',
-                    'kpi_approvals', 'kpi_sla_risk', 'ticket_activity'):
+                    'kpi_approvals', 'kpi_sla_risk', 'team_utilization'):
             self.assertIn(key, shown)
+        self.assertIn('ticket_activity', {p.key for p in dw.visible_widgets(
+            _req(self.user('service_manager'), self.org_a))})
 
     def test_admin_defaults(self):
         shown = self._shown(self.root)
@@ -276,9 +280,14 @@ class ServiceFigureTests(_Base):
         self.assertEqual(dw.build_kpi_my_open(req, self.org_a)['href'],
                          f'{base}?client={self.org_a.pk}&assigned=me&queue=open')
         self.assertEqual(dw.build_kpi_unassigned(req, self.org_a)['href'],
-                         f'{base}?client={self.org_a.pk}&assigned=unassigned&queue=open')
+                         f'{base}?client={self.org_a.pk}&view=unassigned')
+        # v3.17.681: the ticket list's saved views (dev/r681-tickets).
         self.assertEqual(dw.build_kpi_overdue(req, self.org_a)['href'],
-                         f'{base}?client={self.org_a.pk}&queue=open')
+                         f'{base}?client={self.org_a.pk}&view=sla&sla=breached')
+        self.assertEqual(dw.build_kpi_sla_risk(req, self.org_a)['href'],
+                         f'{base}?client={self.org_a.pk}&view=sla&sla=at_risk')
+        self.assertEqual(dw.build_kpi_escalated(req, self.org_a)['href'],
+                         f'{base}?client={self.org_a.pk}&view=escalated')
 
     def test_approvals_only_for_approvers(self):
         self.assertTrue(dw.gate_approvals(_req(self.root, self.org_a)))

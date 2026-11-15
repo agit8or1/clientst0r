@@ -3807,8 +3807,11 @@ def contract_detail(request, pk):
     # human labels alongside any per-priority overrides.
     priorities = list(TicketPriority.objects.all().order_by('sort_order'))
 
+    from core import workflow_links
     return render(request, 'psa/contract_detail.html', {
         'item': item,
+        'client_url': workflow_links.client_url(request, item.client_org_id),
+        'contract_doc_links': workflow_links.contract_doc_links(request, item),
         'bundle_items': bundle_items,
         'snapshot': snapshot,
         'priorities': priorities,
@@ -6252,8 +6255,11 @@ def quote_detail(request, pk):
         qs = qs.filter(organization=org)
     item = get_object_or_404(qs, pk=pk)
     sig = QuoteSignature.objects.filter(quote=item).first()
+    from core import workflow_links
     return render(request, 'psa/quote_detail.html', {
         'item': item,
+        'client_url': workflow_links.client_url(request, item.client_org_id),
+        'opportunity_links': workflow_links.opportunity_links(request, item),
         'line_items': item.line_items.all(),
         'can_create_po': user_has_perm(request.user, 'procurement_create_po'),
         'linked_pos': item.purchase_orders.all().order_by('-created_at'),

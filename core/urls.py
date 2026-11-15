@@ -32,6 +32,7 @@ urlpatterns = [
     path('dashboard/widget/<slug:key>/', dashboard_views.dashboard_widget, name='dashboard_widget'),
     path('dashboard/layout/', dashboard_views.dashboard_layout_save, name='dashboard_layout_save'),
     path('dashboard/variant/', dashboard_views.dashboard_variant_save, name='dashboard_variant_save'),
+    path('dashboard/roles/', dashboard_views.dashboard_role_settings, name='dashboard_role_settings'),
     path('dashboard/role-default/', dashboard_views.dashboard_role_default_save,
          name='dashboard_role_default_save'),
     # Technician workspace (core/workspace.py): open a device in its customer's

@@ -220,6 +220,7 @@ TEMPLATES = [
                 # base.html on every page, so no view can supply them.
                 'core.context_processors.support_links',
                 'core.context_processors.csp_nonce',
+                'core.dashboard_views.role_ui_defaults',
             ],
         },
     },

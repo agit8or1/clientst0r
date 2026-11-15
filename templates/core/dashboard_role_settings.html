@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Role Dashboards - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+    <h1 class="h4 mb-0"><i class="fas fa-table-cells-large" aria-hidden="true"></i> Role Dashboards</h1>
+    <a href="{% url 'core:dashboard' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-tachometer-alt" aria-hidden="true"></i> Dashboard</a>
+</div>
+<p class="text-muted small mb-3">
+    Choose what each role starts with. These settings only take away: a panel, action or page stays out of
+    reach for anyone whose own permissions refuse it, whatever is chosen here, and nothing here grants a
+    permission. Users arrange their own dashboard within these limits.
+</p>
+
+<ul class="nav nav-tabs mb-3" role="tablist" aria-label="Role">
+    {% for key, label in preset_choices %}
+    <li class="nav-item"><a class="nav-link{% if key == preset %} active{% endif %}" {% if key == preset %}aria-current="page"{% endif %} href="?preset={{ key }}">{{ label }}</a></li>
+    {% endfor %}
+</ul>
+
+<form method="post" class="card mb-4">
+    {% csrf_token %}
+    <input type="hidden" name="form" value="preset">
+    <input type="hidden" name="preset" value="{{ preset }}">
+    <div class="card-header py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <strong>{{ preset_label }}</strong>
+        <span class="small text-muted">Default layout: {% if layout_source == 'saved' %}saved by an administrator{% else %}built-in{% endif %}
+            {% if row.updated_by %} · last changed by {{ row.updated_by.get_username }} {{ row.updated_at|timesince }} ago{% endif %}</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <label class="form-label fw-semibold" for="rd-landing">Landing page after sign-in</label>
+                <select class="form-select form-select-sm" id="rd-landing" name="landing">
+                    <option value="">Dashboard</option>
+                    {% regroup landing_choices by group as groups %}
+                    {% for g in groups %}
+                    <optgroup label="{{ g.grouper }}">
+                        {% for c in g.list %}<option value="{{ c.href }}"{% if c.href == landing %} selected{% endif %}>{% if c.section != c.label %}{{ c.section }} › {% endif %}{{ c.label }}</option>{% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                </select>
+                {% if not landing_valid %}<div class="form-text text-warning">The saved page ({{ landing }}) is not one you can open, so it is not listed. Saving keeps the dashboard unless you choose another page.</div>{% endif %}
+                <div class="form-text">Used only when the user may open the page; otherwise they get the dashboard. A sign-in link to a specific page always wins.</div>
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-semibold" for="rd-sidebar">Sidebar</label>
+                <select class="form-select form-select-sm" id="rd-sidebar" name="sidebar_mode">
+                    <option value=""{% if not sidebar_mode %} selected{% endif %}>No preference</option>
+                    <option value="expanded"{% if sidebar_mode == 'expanded' %} selected{% endif %}>Expanded</option>
+                    <option value="rail"{% if sidebar_mode == 'rail' %} selected{% endif %}>Icon rail</option>
+                </select>
+                <div class="form-text">A default only: a user who collapses or expands the sidebar keeps their own choice.</div>
+            </div>
+            <div class="col-lg-4">
+                <span class="form-label fw-semibold d-block">Default layout</span>
+                <p class="small text-muted mb-1">Arrange it on the dashboard (Customize, then "Save as role default").</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="reset_layout" value="1" id="rd-reset"{% if layout_source != 'saved' %} disabled{% endif %}>
+                    <label class="form-check-label small" for="rd-reset">Go back to the built-in layout</label>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+        <h2 class="h6">Available panels and figures</h2>
+        <p class="small text-muted">Unticked items cannot be shown or added by users of this role. <span class="badge text-bg-secondary">default</span> marks what the role's layout shows; <span class="badge text-bg-dark">MSP</span> items never show for customer users.</p>
+        <div class="row g-3">
+            {% for g in widget_groups %}
+            <fieldset class="col-md-4">
+                <legend class="h6 small text-uppercase text-muted">{{ g.label }}</legend>
+                {% for it in g.items %}
+                <div class="form-check" title="{{ it.w.description }}">
+                    <input class="form-check-input" type="checkbox" name="widget" value="{{ it.w.key }}" id="rd-w-{{ it.w.key }}"{% if it.on %} checked{% endif %}>
+                    <label class="form-check-label small" for="rd-w-{{ it.w.key }}"><i class="fas {{ it.w.icon }} text-muted" aria-hidden="true"></i> {{ it.w.label }}
+                        {% if it.default %}<span class="badge text-bg-secondary">default</span>{% endif %}
+                        {% if it.msp_only %}<span class="badge text-bg-dark">MSP</span>{% endif %}</label>
+                </div>
+                {% endfor %}
+            </fieldset>
+            {% endfor %}
+        </div>
+
+        <hr>
+        <h2 class="h6">Permitted actions</h2>
+        <p class="small text-muted">Unticked actions are removed for this role. A ticked action still shows only to users whose permissions allow it.</p>
+        <div class="row g-3">
+            <fieldset class="col-md-4">
+                <legend class="h6 small text-uppercase text-muted">Dashboard header</legend>
+                {% for a in actions %}{% if a.header %}
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="action" value="{{ a.key }}" id="rd-a-{{ forloop.counter }}"{% if a.on %} checked{% endif %}><label class="form-check-label small" for="rd-a-{{ forloop.counter }}">{{ a.label }}</label></div>
+                {% endif %}{% endfor %}
+            </fieldset>
+            <fieldset class="col-md-8">
+                <legend class="h6 small text-uppercase text-muted">Quick actions</legend>
+                <div class="row">
+                {% for a in actions %}{% if not a.header %}
+                <div class="col-sm-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="action" value="{{ a.key }}" id="rd-a-{{ forloop.counter }}"{% if a.on %} checked{% endif %}><label class="form-check-label small" for="rd-a-{{ forloop.counter }}">{{ a.label }}</label></div></div>
+                {% endif %}{% endfor %}
+                </div>
+            </fieldset>
+        </div>
+    </div>
+    <div class="card-footer py-2">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check" aria-hidden="true"></i> Save {{ preset_label }}</button>
+    </div>
+</form>
+
+<form method="post" class="card">
+    {% csrf_token %}
+    <input type="hidden" name="form" value="mappings">
+    <input type="hidden" name="preset" value="{{ preset }}">
+    <div class="card-header py-2"><strong>Which dashboard each MSP role uses</strong></div>
+    <div class="card-body p-0">
+        <p class="small text-muted px-3 pt-2 mb-2">Built-in roles follow their built-in rule. Map a role you created (a dispatcher role, for example) to the dashboard it should start with. Customer users always get the Customer dashboard.</p>
+        <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th scope="col">Role</th><th scope="col">Built-in rule</th><th scope="col">Dashboard</th></tr></thead>
+            <tbody>
+            {% for r in roles %}
+            <tr>
+                <td class="text-truncate" style="max-width: 22rem" title="{{ r.role.name }}">{{ r.role.name }}{% if r.role.seed_key %} <span class="badge text-bg-secondary">built-in</span>{% endif %}</td>
+                <td class="small text-muted">{{ r.builtin }}</td>
+                <td>
+                    <label class="visually-hidden" for="rd-role-{{ r.role.pk }}">Dashboard for {{ r.role.name }}</label>
+                    <select class="form-select form-select-sm" id="rd-role-{{ r.role.pk }}" name="role_{{ r.role.pk }}">
+                        <option value="">Built-in rule</option>
+                        {% for key, label in preset_choices %}{% if key != 'customer' %}<option value="{{ key }}"{% if key == r.mapped %} selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}
+                    </select>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted small">No MSP roles yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    <div class="card-footer py-2">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check" aria-hidden="true"></i> Save mappings</button>
+    </div>
+</form>
+{% endblock %}
