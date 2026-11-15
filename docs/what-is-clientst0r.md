@@ -36,7 +36,7 @@ Built with Django (Python) on MariaDB, running on Linux. Install with Docker Com
 
 ## Related
 
-- [Moving from IT Glue](it-glue-alternative.md)
-- [Moving from Hudu](hudu-alternative.md)
+- [Importing from IT Glue](importing-from-it-glue.md)
+- [Importing from Hudu](importing-from-hudu.md)
 - [MSP Documentation Overview](msp-documentation.md)
 - [Full feature list](../FEATURES.md)

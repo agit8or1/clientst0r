@@ -495,11 +495,13 @@ main .table th.ui-actions {
 }
 .ui-actions .btn + .btn { margin-left: var(--ui-1); }
 
-/* Long names and subjects wrap instead of forcing the page sideways. */
+/* Long names and subjects wrap between words. Not `anywhere` (nor the
+   legacy `word-break: break-word`): those let a column shrink until words
+   split mid-word ("Unassigne d"). A single over-long word widens its column
+   instead, and the table scrolls inside .ui-table-wrap. */
 .ui-wrap {
     white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 /* -------------------------------------------------------------------------
@@ -539,6 +541,8 @@ main .table th.ui-actions {
     font-size: var(--ui-text-sm);
     color: var(--ui-muted);
 }
+/* A client column keeps room for a short client name on one line. */
+td.ui-wrap:has(> .ui-org:only-child) { min-width: 7rem; }
 
 /* A record number: findable, not shouty. */
 .ui-ref {
@@ -621,8 +625,10 @@ body:not(.has-background) { background: var(--ui-page-bg); }
 }
 
 /* Nothing may push the whole page sideways; wide tables scroll in their own
-   container instead (see .ui-table-wrap). */
-html, body { overflow-x: hidden; }
+   container instead (see .ui-table-wrap). `clip`, not `hidden`: hidden
+   turns body into a scroll container, and the sticky sidebar then scrolls
+   away with the page. Browsers without `clip` keep `hidden`. */
+html, body { overflow-x: hidden; overflow-x: clip; }
 
 /* =========================================================================
    13. Application header

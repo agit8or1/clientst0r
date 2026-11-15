@@ -22,8 +22,8 @@ and bring over assets, passwords and documents, each into the client its source 
 belongs to. Contacts, locations and networks are not imported yet (CSV import covers
 contacts). A dry run is on by default and writes nothing; a job reports "Completed" only
 when nothing failed, and rollback keeps anything edited since the import. Review the result
-before switching over. See [Moving from IT Glue](it-glue-alternative.md)
-and [Moving from Hudu](hudu-alternative.md).
+before switching over. See [Importing from IT Glue](importing-from-it-glue.md)
+and [Importing from Hudu](importing-from-hudu.md).
 
 ## Installation
 

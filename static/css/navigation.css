@@ -639,7 +639,7 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 /* Ticket list: the subject keeps a readable width when columns are tight
    (browsers ignore min-width on table cells, so it sits on the link; the
    table then scrolls sideways inside .ui-table-wrap). */
-.ticket-subject .ui-primary-cell { display: inline-block; min-width: 11rem; }
+.ticket-subject .ui-primary-cell { display: inline-block; min-width: 10rem; }
 
 /* ==========================================================================
    Settings center (templates/core/settings_home.html): the Administration

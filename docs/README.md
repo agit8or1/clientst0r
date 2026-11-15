@@ -44,5 +44,5 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 * [What is ClientSt0r?](what-is-clientst0r.md)
 * [MSP documentation overview](msp-documentation.md)
 * [Comparison notes](../COMPARISON.md)
-* [ClientSt0r as an IT Glue alternative](it-glue-alternative.md)
-* [ClientSt0r as a Hudu alternative](hudu-alternative.md)
+* [Importing from IT Glue](importing-from-it-glue.md)
+* [Importing from Hudu](importing-from-hudu.md)

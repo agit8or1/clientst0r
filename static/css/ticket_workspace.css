@@ -64,3 +64,9 @@ details.tw-filters > summary.tw-filters__toggle { display: none; list-style: non
 @media (max-width: 575.98px) {
     details.tw-filters > summary.tw-filters__toggle { display: inline-block; }
 }
+
+/* All Tickets: "Created" gives way below 1600px so the client column has
+   room (Last activity stays; the ticket page shows when it was opened). */
+@media (max-width: 1599.98px) {
+    .tl-col-created { display: none !important; }
+}

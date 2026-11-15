@@ -1,10 +1,9 @@
-# Moving from Hudu to ClientSt0r
+# Importing from IT Glue
 
 ClientSt0r is a self-hosted, MIT-licensed IT documentation and service desk platform for
-MSPs. Teams coming from Hudu often evaluate it because they want documentation,
-credentials, assets and ticketing in one system they run themselves. This page describes
-what ClientSt0r offers and how much of a Hudu instance its importer brings over today. It
-makes no claims about Hudu's current features or pricing.
+MSPs, with documentation, credentials, assets and ticketing in one system you run yourself.
+This page covers its built-in IT Glue importer: what it brings over today and what to plan
+for before switching.
 
 ## ClientSt0r at a glance
 
@@ -35,23 +34,25 @@ makes no claims about Hudu's current features or pricing.
 
 Full list with limitations: [FEATURES.md](../FEATURES.md).
 
-## What the Hudu importer brings over
+## What the IT Glue importer brings over
 
-The importer (**Imports**, `/imports/`) connects to your Hudu instance's API with an API key.
+The importer (**Imports**, `/imports/`) connects to the IT Glue API with an API key.
 
-| Hudu data | Imported today |
+| IT Glue data | Imported today |
 | --- | --- |
-| Companies (as organizations) | Yes — matched to existing organizations, or created |
-| Assets | Yes |
-| Asset passwords | Yes — encrypted on arrival |
-| Articles (as documents) | Yes |
+| Organizations | Yes — matched to existing organizations, or created |
+| Configurations (as assets) | Yes |
+| Passwords | Yes — encrypted on arrival |
+| Documents | Yes |
 | Contacts | Not yet |
 | Locations | Not yet |
 | Networks | Not yet |
-| Attachments, relationships, permissions | Not yet |
+| Flexible assets, attachments, relationships, permissions | Not yet |
 
 - A **dry run** is on by default and reports counts without writing anything.
 - Each job keeps a log and history, and imported records are tagged with their source.
+- **One or all organizations.** Import into a single target organization, or import every
+  IT Glue organization at once.
 - Each record goes to the client its source record belongs to.
 - A job shows "Completed" only when nothing failed; otherwise "Completed with errors" or
   "Failed", with imported / skipped / failed counts that add up to the source total, and the
@@ -63,7 +64,7 @@ The importer (**Imports**, `/imports/`) connects to your Hudu instance's API wit
 ## Before you switch
 
 * Run a dry run, then a real import into a test organization, and compare record counts
-  with Hudu.
+  with IT Glue.
 * Plan how you will bring over contacts, locations and networks (CSV import or by hand)
   until those importers ship. CSV contact and password imports work, and re-running a CSV
   import updates matching rows instead of duplicating them.

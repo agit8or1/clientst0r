@@ -4,10 +4,8 @@
 
 [![License: MIT](https://img.shields.io/github/license/agit8or1/clientst0r?color=blue)](LICENSE) [![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release)](https://github.com/agit8or1/clientst0r/releases)
 
-This page is for teams deciding whether ClientSt0r fits, including teams moving from IT
-Glue or Hudu. It describes what ClientSt0r does and how far its importers go. It does not
-compare other products' current features or prices; check those vendors' own
-documentation for that.
+This page is for teams deciding whether ClientSt0r fits. It describes what ClientSt0r
+does, what is limited or planned, and how far its built-in importers go.
 
 Capability labels follow [FEATURES.md](FEATURES.md): **Available**, **Limited** (works,
 with a stated limitation), **Planned**, and **Separate component**.
@@ -119,7 +117,7 @@ find each screen.
 
 ---
 
-## Migrating from IT Glue or Hudu
+## Importing existing documentation
 
 ClientSt0r has built-in importers for both, under **Imports** (`/imports/`). They connect to
 the source system's API with your API key.
@@ -184,8 +182,8 @@ Full guides: [README](README.md#quick-start), [INSTALL.md](INSTALL.md),
 ## Learn more
 
 - [Full feature list](FEATURES.md)
-- [Moving from IT Glue](docs/it-glue-alternative.md)
-- [Moving from Hudu](docs/hudu-alternative.md)
+- [Importing from IT Glue](docs/importing-from-it-glue.md)
+- [Importing from Hudu](docs/importing-from-hudu.md)
 - [API documentation](API_V2_GRAPHQL.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)

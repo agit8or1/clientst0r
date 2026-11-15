@@ -100,7 +100,7 @@ and mark the current one, so back/forward and bookmarks land on the same tab.
                         <th class="d-none d-md-table-cell">Assignee</th>
                         <th>Next</th>
                         <th class="d-none d-lg-table-cell">Last activity</th>
-                        <th class="d-none d-lg-table-cell">Created</th>
+                        <th class="d-none d-lg-table-cell tl-col-created">Created</th>
                         {% endif %}
                     </tr>
                 </thead>
@@ -147,7 +147,7 @@ and mark the current one, so back/forward and bookmarks land on the same tab.
                             <time datetime="{{ t.last_action.at|date:'c' }}" title="{{ t.last_action.at }}">{{ t.last_action.at|timesince }} ago</time>
                             <div class="text-muted">{{ t.last_action.kind|capfirst }}{% if t.last_action.by %} · {{ t.last_action.by }}{% endif %}</div>
                         </td>
-                        <td class="d-none d-lg-table-cell">
+                        <td class="d-none d-lg-table-cell tl-col-created">
                             <time datetime="{{ t.created_at|date:'c' }}" title="{{ t.created_at }}">{{ t.created_at|timesince }} ago</time>
                         </td>
                         {% endif %}

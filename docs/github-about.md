@@ -99,7 +99,7 @@ been applied.
 | `helpdesk` | **add** | Common search term for the service-desk half of the product. |
 | `ldap` | **add** | LDAP / Active Directory sign-in ships (v3.17.608). |
 | `docker` | **add** | First-class install path with a published image at `ghcr.io/agit8or1/clientst0r`. |
-| `it-glue-alternative` | **remove** | Competitor name in project metadata; the comparison pages under `docs/` still exist for anyone searching. |
+| `it-glue-alternative` | **remove** | Competitor name in project metadata; the importer guides under `docs/` cover moving data in. |
 | `hudu-alternative` | **remove** | Same. |
 | `rmm` | **remove** | ClientSt0r integrates with RMM tools but is not one — the topic invites the wrong expectation. |
 | `workflow-engine` | keep or drop | Accurate (workflow rules ship), but lower search value than the additions above. Drop it if you need the slot. |
@@ -118,8 +118,9 @@ Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-d
   size GitHub wants): the wordmark, a one-line pitch, and the ticket and switch-panel
   screenshots. GitHub has no API for this, so upload it by hand under **Settings → General
   → Social preview → Edit → Upload an image**. Rebuild it whenever those two screenshots
-  change noticeably. No script builds it; the current file still shows the screenshots
-  from before the v3.17.680 navigation.
+  change noticeably: `/usr/bin/python3 scripts/demo/build_social_preview.py` (system
+  Python with Playwright) rebuilds it from `ticket-detail-light.png` and
+  `hardware-device-light.png`.
 
 ## Related links to keep visible
 
