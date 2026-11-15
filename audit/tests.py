@@ -402,3 +402,60 @@ class AuditListLocalDayTests(TestCase):
                 patch.object(views, 'render') as render:
             views.audit_log_list(request)
         self.assertEqual(render.call_args[0][2]['today_count'], 1)
+
+
+class RedactRefusedObjectNamesMigrationTests(TestCase):
+    """audit 0002 blanks names that pre-v3.17.683 middleware entries recorded
+    for refused requests or for records outside the entry's client, and keeps
+    everything else (v3.17.683 cleanup of the V3 audit finding)."""
+
+    def setUp(self):
+        from assets.models import Asset
+        self.a = Organization.objects.create(name='Redact A', slug='redact-a')
+        self.a_site = Organization.objects.create(name='Redact A site', slug='redact-a-site',
+                                                  parent=self.a)
+        self.b = Organization.objects.create(name='Redact B', slug='redact-b')
+        self.asset_a = Asset.objects.create(organization=self.a_site, name='a-srv', asset_type='server')
+        self.asset_b = Asset.objects.create(organization=self.b, name='b-secret-srv', asset_type='server')
+        self.user = User.objects.create_user('redact_u', 'r@x.com', 'pw')
+
+    def _entry(self, org, obj_type, obj_id, repr_, status=200, mw=True):
+        extra = {'method': 'GET', 'status_code': status} if mw else {'note': 'view'}
+        return AuditLog.objects.create(action='read', organization=org, object_type=obj_type,
+                                       object_id=obj_id, object_repr=repr_, extra_data=extra)
+
+    def _run(self):
+        import importlib
+        from django.apps import apps
+        mod = importlib.import_module('audit.migrations.0002_redact_refused_object_names')
+        mod.redact(apps, None)
+
+    def test_redacts_refused_and_foreign_names_only(self):
+        refused = self._entry(self.a, 'asset', self.asset_b.pk, 'b-secret-srv', status=403)
+        redirected = self._entry(self.a, 'asset', self.asset_b.pk, 'b-secret-srv', status=302)
+        foreign_ok = self._entry(self.a, 'asset', self.asset_b.pk, 'b-secret-srv', status=200)
+        foreign_org = self._entry(self.a, 'organization', self.b.pk, 'Redact B', status=404)
+        gone = self._entry(self.a, 'asset', 999999, 'deleted-srv', status=200)
+        user_redirect = self._entry(self.a, 'user', self.user.pk, 'redact_u', status=302)
+        own = self._entry(self.a, 'asset', self.asset_a.pk, 'a-srv', status=200)  # subsidiary of A
+        own_org = self._entry(self.a, 'organization', self.a.pk, 'Redact A', status=200)
+        user_ok = self._entry(self.a, 'user', self.user.pk, 'redact_u', status=200)
+        by_view = self._entry(self.a, 'asset', self.asset_b.pk, 'b-secret-srv', mw=False)
+        self._run()
+        for e in (refused, redirected, foreign_ok, foreign_org, gone, user_redirect):
+            e.refresh_from_db()
+            self.assertEqual(e.object_repr, '', e.extra_data)
+        for e, name in ((own, 'a-srv'), (own_org, 'Redact A'), (user_ok, 'redact_u'),
+                        (by_view, 'b-secret-srv')):
+            e.refresh_from_db()
+            self.assertEqual(e.object_repr, name)
+        # Entries are kept, only the name goes.
+        self.assertEqual(AuditLog.objects.filter(pk=refused.pk).count(), 1)
+
+    def test_global_view_entries_keep_answered_names(self):
+        ok = self._entry(None, 'asset', self.asset_b.pk, 'b-secret-srv', status=200)
+        refused = self._entry(None, 'asset', self.asset_b.pk, 'b-secret-srv', status=403)
+        self._run()
+        ok.refresh_from_db(); refused.refresh_from_db()
+        self.assertEqual(ok.object_repr, 'b-secret-srv')
+        self.assertEqual(refused.object_repr, '')
