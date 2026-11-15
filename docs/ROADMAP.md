@@ -2468,7 +2468,7 @@ Microsoft 365 and Google Docs 1–2 weeks each.
   drop-in, health compared through the port and the socket, automatic rollback), so the same-host
   editor locations can be added without any change to DNS or the device in front. Server setup
   runs it first when it is needed.
-- **62.15 Native Collabora runtime (no Docker)** *(built, unreleased — not yet run on a real host)* —
+- **62.15 Native Collabora runtime (no Docker)** *(shipped v3.17.687 — not yet run on a real host; both pinned releases marked untested)* —
   the managed Collabora editor can run from Collabora's own packages instead of a container,
   chosen at setup (Settings → Set up this server, or `--runtime native`). The installer adds
   Collabora's CODE apt repository with its signing key pinned by fingerprint; Install puts the

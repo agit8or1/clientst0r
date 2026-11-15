@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.687] - 2026-11-15
+
+### Added
+- Office: the managed Collabora editor can run without Docker, from Collabora's own CODE packages (`coolwsd` and `code-brand`). Choose the runtime when setting up the server (Settings → Set up this server, or `install-editor.sh --runtime native`). The installer adds Collabora's apt repository with its signing key checked against a pinned fingerprint; Install puts exact pinned versions in place and holds them; the editor runs as its own systemd service on a loopback port with memory and CPU limits, the same editor settings as the container, and a firewall rule that lets it reach only clientst0r over HTTPS. Start, stop, update, roll back, uninstall, logs, setup checks, layouts and engine switching work for both runtimes. ONLYOFFICE still runs in Docker. Not yet run on a real host: both pinned native releases are marked untested, so setup asks you to accept an untested release.
+- Root helper: `office-setup` takes an optional runtime (`docker`, the default, or `native`; native is refused for anything but Collabora), and package upgrades no longer hold back the container engine when the managed office service doesn't use Docker. The helpers update themselves from this release's signed tag when it is applied.
+
 ## [3.17.686] - 2026-11-15
 
 ### Fixed
