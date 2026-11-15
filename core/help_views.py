@@ -1124,56 +1124,110 @@ def help_vehicles(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="220" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="22" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Service History — Van 01 (Ford Transit 2022)</text>
-        <rect x="580" y="8" width="106" height="22" rx="4" fill="#1f6feb"/>
-        <text x="633" y="23" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">+ Log Service</text>
-        <!-- Column headers -->
-        <rect y="36" width="700" height="24" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="52" fill="#8b949e" font-size="10" font-family="monospace">Date</text>
-        <text x="110" y="52" fill="#8b949e" font-size="10" font-family="monospace">Service Type</text>
-        <text x="280" y="52" fill="#8b949e" font-size="10" font-family="monospace">Mileage</text>
-        <text x="370" y="52" fill="#8b949e" font-size="10" font-family="monospace">Cost</text>
-        <text x="450" y="52" fill="#8b949e" font-size="10" font-family="monospace">Provider</text>
-        <text x="590" y="52" fill="#8b949e" font-size="10" font-family="monospace">Next Due</text>
-        <!-- Row 1 — overdue -->
-        <rect y="60" width="700" height="36" fill="#3a1a1a" stroke="#5a2a2a" stroke-width="0.5"/>
-        <text x="16" y="80" fill="#f85149" font-size="11" font-family="sans-serif">Jan 10</text>
-        <text x="110" y="80" fill="#e6edf3" font-size="11" font-family="sans-serif">Oil Change</text>
-        <text x="280" y="80" fill="#c9d1d9" font-size="11" font-family="monospace">48,320 mi</text>
-        <text x="370" y="80" fill="#e6edf3" font-size="11" font-family="sans-serif">$89.00</text>
-        <text x="450" y="80" fill="#8b949e" font-size="11" font-family="sans-serif">Quick Lube Plus</text>
-        <rect x="586" y="68" width="100" height="18" rx="9" fill="#da363344"/>
-        <text x="636" y="81" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">⚠ Overdue 2k mi</text>
-        <!-- Row 2 — ok -->
-        <rect y="96" width="700" height="36" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="116" fill="#e6edf3" font-size="11" font-family="sans-serif">Dec 5</text>
-        <text x="110" y="116" fill="#e6edf3" font-size="11" font-family="sans-serif">Tire Rotation</text>
-        <text x="280" y="116" fill="#c9d1d9" font-size="11" font-family="monospace">46,100 mi</text>
-        <text x="370" y="116" fill="#e6edf3" font-size="11" font-family="sans-serif">$45.00</text>
-        <text x="450" y="116" fill="#8b949e" font-size="11" font-family="sans-serif">Bob's Garage</text>
-        <rect x="590" y="104" width="90" height="18" rx="9" fill="#1a7f3744"/>
-        <text x="635" y="117" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Due in 6k mi</text>
-        <!-- Row 3 — inspection -->
-        <rect y="132" width="700" height="36" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="152" fill="#e6edf3" font-size="11" font-family="sans-serif">Nov 20</text>
-        <text x="110" y="152" fill="#e6edf3" font-size="11" font-family="sans-serif">Annual Inspection</text>
-        <text x="280" y="152" fill="#c9d1d9" font-size="11" font-family="monospace">44,800 mi</text>
-        <text x="370" y="152" fill="#e6edf3" font-size="11" font-family="sans-serif">$210.00</text>
-        <text x="450" y="152" fill="#8b949e" font-size="11" font-family="sans-serif">State DMV</text>
-        <rect x="590" y="140" width="90" height="18" rx="9" fill="#1a7f3744"/>
-        <text x="635" y="153" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Due Nov 2026</text>
-        <!-- Total cost summary -->
-        <rect y="168" width="700" height="52" fill="#0d1117" stroke="#30363d"/>
-        <text x="16" y="190" fill="#8b949e" font-size="10" font-family="sans-serif">Total this year: <tspan fill="#e6edf3">$1,248.00</tspan>   |   Avg cost/service: <tspan fill="#e6edf3">$156.00</tspan>   |   Services logged: <tspan fill="#e6edf3">8</tspan></text>
-        <text x="16" y="208" fill="#f85149" font-size="10" font-family="sans-serif">⚠ 1 service overdue — oil change was due at 50,320 mi (current: 52,200 mi)</text>
-        <!-- Annotation -->
-        <line x1="636" y1="68" x2="636" y2="46" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="576" y="36" width="120" height="0" fill="transparent"/>
+      <svg viewBox="0 0 700 285" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Assets &amp; Network, Vehicles, All Vehicles, one vehicle: its service history with an overdue oil change in red.">
+        <title>Assets &amp; Network, Vehicles, All Vehicles, one vehicle: its service history with an overdue oil change in red.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="285" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="258" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="285" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="259" x2="26" y2="259" stroke="#1f2f48"/>
+        <circle cx="15" cy="271" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="271" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Vehicles</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">All Vehicles</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Van 01</tspan></text>
+        <rect x="42" y="48" width="79" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">All Vehicles</text>
+        <rect x="125" y="48" width="90" height="16" rx="4" fill="none"/>
+        <text x="132" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Service Alerts</text>
+        <rect x="218" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="225" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Vehicle Inventory</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="220" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Header -->
+          <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect y="18" width="700" height="18" fill="#161b22"/>
+          <text x="16" y="22" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Service History — Van 01 (Ford Transit 2022)</text>
+          <rect x="580" y="8" width="106" height="22" rx="4" fill="#1f6feb"/>
+          <text x="633" y="23" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">+ Log Service</text>
+          <!-- Column headers -->
+          <rect y="36" width="700" height="24" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="52" fill="#8b949e" font-size="10" font-family="monospace">Date</text>
+          <text x="110" y="52" fill="#8b949e" font-size="10" font-family="monospace">Service Type</text>
+          <text x="280" y="52" fill="#8b949e" font-size="10" font-family="monospace">Mileage</text>
+          <text x="370" y="52" fill="#8b949e" font-size="10" font-family="monospace">Cost</text>
+          <text x="450" y="52" fill="#8b949e" font-size="10" font-family="monospace">Provider</text>
+          <text x="590" y="52" fill="#8b949e" font-size="10" font-family="monospace">Next Due</text>
+          <!-- Row 1 — overdue -->
+          <rect y="60" width="700" height="36" fill="#3a1a1a" stroke="#5a2a2a" stroke-width="0.5"/>
+          <text x="16" y="80" fill="#f85149" font-size="11" font-family="sans-serif">Jan 10</text>
+          <text x="110" y="80" fill="#e6edf3" font-size="11" font-family="sans-serif">Oil Change</text>
+          <text x="280" y="80" fill="#c9d1d9" font-size="11" font-family="monospace">48,320 mi</text>
+          <text x="370" y="80" fill="#e6edf3" font-size="11" font-family="sans-serif">$89.00</text>
+          <text x="450" y="80" fill="#8b949e" font-size="11" font-family="sans-serif">Quick Lube Plus</text>
+          <rect x="586" y="68" width="100" height="18" rx="9" fill="#da363344"/>
+          <text x="636" y="81" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">⚠ Overdue 2k mi</text>
+          <!-- Row 2 — ok -->
+          <rect y="96" width="700" height="36" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="116" fill="#e6edf3" font-size="11" font-family="sans-serif">Dec 5</text>
+          <text x="110" y="116" fill="#e6edf3" font-size="11" font-family="sans-serif">Tire Rotation</text>
+          <text x="280" y="116" fill="#c9d1d9" font-size="11" font-family="monospace">46,100 mi</text>
+          <text x="370" y="116" fill="#e6edf3" font-size="11" font-family="sans-serif">$45.00</text>
+          <text x="450" y="116" fill="#8b949e" font-size="11" font-family="sans-serif">Bob's Garage</text>
+          <rect x="590" y="104" width="90" height="18" rx="9" fill="#1a7f3744"/>
+          <text x="635" y="117" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Due in 6k mi</text>
+          <!-- Row 3 — inspection -->
+          <rect y="132" width="700" height="36" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="152" fill="#e6edf3" font-size="11" font-family="sans-serif">Nov 20</text>
+          <text x="110" y="152" fill="#e6edf3" font-size="11" font-family="sans-serif">Annual Inspection</text>
+          <text x="280" y="152" fill="#c9d1d9" font-size="11" font-family="monospace">44,800 mi</text>
+          <text x="370" y="152" fill="#e6edf3" font-size="11" font-family="sans-serif">$210.00</text>
+          <text x="450" y="152" fill="#8b949e" font-size="11" font-family="sans-serif">State DMV</text>
+          <rect x="590" y="140" width="90" height="18" rx="9" fill="#1a7f3744"/>
+          <text x="635" y="153" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Due Nov 2026</text>
+          <!-- Total cost summary -->
+          <rect y="168" width="700" height="52" fill="#0d1117" stroke="#30363d"/>
+          <text x="16" y="190" fill="#8b949e" font-size="10" font-family="sans-serif">Total this year: <tspan fill="#e6edf3">$1,248.00</tspan>   |   Avg cost/service: <tspan fill="#e6edf3">$156.00</tspan>   |   Services logged: <tspan fill="#e6edf3">8</tspan></text>
+          <text x="16" y="208" fill="#f85149" font-size="10" font-family="sans-serif">⚠ 1 service overdue — oil change was due at 50,320 mi (current: 52,200 mi)</text>
+          <!-- Annotation -->
+          <line x1="636" y1="68" x2="636" y2="46" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="576" y="36" width="120" height="0" fill="transparent"/>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Maintenance service history log. Overdue services are highlighted in red — the row turns red when mileage or date has passed the scheduled next-due point.</p>
     </div>
@@ -1188,51 +1242,101 @@ def help_vehicles(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="180" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Stat cards row -->
-        <rect x="12" y="12" width="155" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="28" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Avg MPG (30 days)</text>
-        <text x="28" y="58" fill="#3fb950" font-size="26" font-weight="bold" font-family="sans-serif">22.4</text>
-
-        <rect x="180" y="12" width="155" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="196" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Fuel Cost (month)</text>
-        <text x="196" y="58" fill="#e6edf3" font-size="26" font-weight="bold" font-family="sans-serif">$284</text>
-
-        <rect x="348" y="12" width="155" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="364" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Total Gallons</text>
-        <text x="364" y="58" fill="#e6edf3" font-size="26" font-weight="bold" font-family="sans-serif">68.2</text>
-
-        <rect x="516" y="12" width="172" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="532" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Fill-ups (month)</text>
-        <text x="532" y="58" fill="#e6edf3" font-size="26" font-weight="bold" font-family="sans-serif">6</text>
-
-        <!-- MPG trend chart -->
-        <rect x="12" y="84" width="676" height="84" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="28" y="100" fill="#8b949e" font-size="10" font-family="sans-serif">MPG Trend (last 8 fill-ups)</text>
-        <!-- Chart axes -->
-        <line x1="50" y1="106" x2="50" y2="158" stroke="#30363d" stroke-width="1"/>
-        <line x1="50" y1="158" x2="670" y2="158" stroke="#30363d" stroke-width="1"/>
-        <!-- Y labels -->
-        <text x="40" y="115" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="end">25</text>
-        <text x="40" y="135" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="end">20</text>
-        <text x="40" y="155" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="end">15</text>
-        <!-- Data points — MPG values mapped to y: 25mpg=y108, 20mpg=y128, 15mpg=y148 -->
-        <!-- x positions: 75, 150, 225, 300, 375, 450, 525, 600 -->
-        <polyline points="75,132 150,126 225,136 300,120 375,118 450,124 525,116 600,110"
-                  fill="none" stroke="#1f6feb" stroke-width="2"/>
-        <polyline points="75,132 150,126 225,136 300,120 375,118 450,124 525,116 600,110"
-                  fill="url(#mpg-fill)" stroke="none" opacity="0.2"/>
-        <!-- Data dots -->
-        <circle cx="75" cy="132" r="3" fill="#58a6ff"/>
-        <circle cx="150" cy="126" r="3" fill="#58a6ff"/>
-        <circle cx="225" cy="136" r="3" fill="#58a6ff"/>
-        <circle cx="300" cy="120" r="3" fill="#58a6ff"/>
-        <circle cx="375" cy="118" r="3" fill="#58a6ff"/>
-        <circle cx="450" cy="124" r="3" fill="#58a6ff"/>
-        <circle cx="525" cy="116" r="3" fill="#58a6ff"/>
-        <circle cx="600" cy="110" r="4" fill="#3fb950" stroke="#56d364" stroke-width="1.5"/>
-        <text x="612" y="107" fill="#3fb950" font-size="9" font-family="monospace">22.4</text>
+      <svg viewBox="0 0 700 247" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Assets &amp; Network, Vehicles, All Vehicles, one vehicle: fuel figures and an MPG trend over the last eight fill-ups.">
+        <title>Assets &amp; Network, Vehicles, All Vehicles, one vehicle: fuel figures and an MPG trend over the last eight fill-ups.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="247" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="220" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="247" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="221" x2="26" y2="221" stroke="#1f2f48"/>
+        <circle cx="15" cy="233" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="233" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Vehicles</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">All Vehicles</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Van 01</tspan></text>
+        <rect x="42" y="48" width="79" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">All Vehicles</text>
+        <rect x="125" y="48" width="90" height="16" rx="4" fill="none"/>
+        <text x="132" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Service Alerts</text>
+        <rect x="218" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="225" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Vehicle Inventory</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="180" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Stat cards row -->
+          <rect x="12" y="12" width="155" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="28" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Avg MPG (30 days)</text>
+          <text x="28" y="58" fill="#3fb950" font-size="26" font-weight="bold" font-family="sans-serif">22.4</text>
+          <rect x="180" y="12" width="155" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="196" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Fuel Cost (month)</text>
+          <text x="196" y="58" fill="#e6edf3" font-size="26" font-weight="bold" font-family="sans-serif">$284</text>
+          <rect x="348" y="12" width="155" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="364" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Total Gallons</text>
+          <text x="364" y="58" fill="#e6edf3" font-size="26" font-weight="bold" font-family="sans-serif">68.2</text>
+          <rect x="516" y="12" width="172" height="60" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="532" y="32" fill="#8b949e" font-size="10" font-family="sans-serif">Fill-ups (month)</text>
+          <text x="532" y="58" fill="#e6edf3" font-size="26" font-weight="bold" font-family="sans-serif">6</text>
+          <!-- MPG trend chart -->
+          <rect x="12" y="84" width="676" height="84" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="28" y="100" fill="#8b949e" font-size="10" font-family="sans-serif">MPG Trend (last 8 fill-ups)</text>
+          <!-- Chart axes -->
+          <line x1="50" y1="106" x2="50" y2="158" stroke="#30363d" stroke-width="1"/>
+          <line x1="50" y1="158" x2="670" y2="158" stroke="#30363d" stroke-width="1"/>
+          <!-- Y labels -->
+          <text x="40" y="115" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="end">25</text>
+          <text x="40" y="135" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="end">20</text>
+          <text x="40" y="155" fill="#8b949e" font-size="8" font-family="monospace" text-anchor="end">15</text>
+          <!-- Data points — MPG values mapped to y: 25mpg=y108, 20mpg=y128, 15mpg=y148 -->
+          <!-- x positions: 75, 150, 225, 300, 375, 450, 525, 600 -->
+          <polyline points="75,132 150,126 225,136 300,120 375,118 450,124 525,116 600,110"
+          fill="none" stroke="#1f6feb" stroke-width="2"/>
+          <polyline points="75,132 150,126 225,136 300,120 375,118 450,124 525,116 600,110"
+          fill="url(#mpg-fill)" stroke="none" opacity="0.2"/>
+          <!-- Data dots -->
+          <circle cx="75" cy="132" r="3" fill="#58a6ff"/>
+          <circle cx="150" cy="126" r="3" fill="#58a6ff"/>
+          <circle cx="225" cy="136" r="3" fill="#58a6ff"/>
+          <circle cx="300" cy="120" r="3" fill="#58a6ff"/>
+          <circle cx="375" cy="118" r="3" fill="#58a6ff"/>
+          <circle cx="450" cy="124" r="3" fill="#58a6ff"/>
+          <circle cx="525" cy="116" r="3" fill="#58a6ff"/>
+          <circle cx="600" cy="110" r="4" fill="#3fb950" stroke="#56d364" stroke-width="1.5"/>
+          <text x="612" y="107" fill="#3fb950" font-size="9" font-family="monospace">22.4</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Fuel tracking dashboard showing average MPG, monthly cost, and an MPG trend chart. MPG is auto-calculated from each fill-up's mileage delta ÷ gallons.</p>
     </div>
