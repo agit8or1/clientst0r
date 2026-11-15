@@ -55,8 +55,9 @@ def dashboard(request):
 
     org = get_request_organization(request)
 
-    # If superuser and explicitly accessing dashboard without org context, show global dashboard
-    if request.user.is_superuser and not org:
+    # No customer selected: Global View for superusers and MSP staff
+    # (v3.17.681: staff used to be sent to pick a customer).
+    if not org and (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         return global_dashboard(request)
 
     # If no organization context, redirect to organization selection
@@ -159,14 +160,28 @@ def classic_dashboard(request, org):
 @login_required
 def global_dashboard(request):
     """
-    Global system dashboard for MSP staff: system-wide statistics across all
-    customers, including every customer's name and the install-wide audit
-    log, so customer users don't get it.
+    Global View for MSP staff (no customer selected). v3.17.681: the widget
+    dashboard with the all-clients widgets (core.dashboard_global), or the
+    previous page (classic_global_dashboard) for users on the Classic
+    dashboard. Customer users don't get either.
     """
     from django.core.exceptions import PermissionDenied
     if not (request.user.is_superuser or request.user.is_staff
             or getattr(request, 'is_staff_user', False)):
         raise PermissionDenied("MSP staff only")
+    if get_request_organization(request) is None and dashboard_variant(request) == 'modern':
+        from core import dashboard_widgets as dw
+        if dw.is_global_view(request):
+            return modern_dashboard(request, None)
+    return classic_global_dashboard(request)
+
+
+def classic_global_dashboard(request):
+    """
+    Global system dashboard for MSP staff: system-wide statistics across all
+    customers, including every customer's name and the install-wide audit
+    log, so customer users don't get it. (Access checked by global_dashboard.)
+    """
 
     from core.models import Organization
     from accounts.models import Membership
@@ -363,8 +378,11 @@ def modern_dashboard(request, org):
         'grid': [p for p in placed if p.widget.zone == 'grid'],
         'toolbar': [p for p in placed if p.widget.zone == 'toolbar'],
     }
-    manage_defaults = can_manage_role_defaults(request.user)
+    global_view = org is None
+    # Role default layouts are per-customer presets; Global View has none.
+    manage_defaults = can_manage_role_defaults(request.user) and not global_view
     return render(request, 'core/dashboard_modern.html', {
+        'global_view': global_view,
         'current_organization': org,
         'greeting': dw.greeting(request.user),
         'header_actions': dw.header_actions(request),
@@ -377,7 +395,7 @@ def modern_dashboard(request, org):
         'quick_action_options': _quick_action_options(request),
         'layout_source': source,
         'layout_preset': preset,
-        'layout_preset_label': dw.PRESET_LABELS.get(preset, preset),
+        'layout_preset_label': 'Global View' if global_view else dw.PRESET_LABELS.get(preset, preset),
         'preset_choices': list(dw.PRESET_LABELS.items()),
         'can_manage_role_defaults': manage_defaults,
         'ui_density': profile.ui_density or 'compact',
@@ -411,8 +429,9 @@ def dashboard_widget(request, key):
     if (widget is None or widget.zone not in ('grid', 'kpi')
             or not dw.widget_available(request, widget)):
         raise Http404('No such widget')
-    if get_request_organization(request) is None:
-        raise Http404('Select a customer first')
+    org = get_request_organization(request)
+    if (org is None and widget.scope == 'client') or (org is not None and widget.scope == 'global'):
+        raise Http404('Not available here')
     errors = []
     ctx = _build(request, widget, errors)
     if ctx is None:
@@ -453,15 +472,23 @@ def dashboard_layout_save(request):
     profile = _profile(request.user)
     fields = []
     errors = []
+    # ?scope=global saves the Global View layout (MSP staff only), kept
+    # apart from the per-customer one.
+    attr = 'dashboard_layout'
+    if request.GET.get('scope') == 'global':
+        if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+            return JsonResponse({'ok': False, 'errors': ['Global View is for MSP staff.']},
+                                status=403)
+        attr = 'dashboard_global_layout'
     if data.get('action') == 'reset':
-        profile.dashboard_layout = {}
-        fields.append('dashboard_layout')
+        setattr(profile, attr, {})
+        fields.append(attr)
     elif 'layout' in data:
         layout, errors = dw.clean_layout(data.get('layout'))
         if errors:
             return JsonResponse({'ok': False, 'errors': errors}, status=400)
-        profile.dashboard_layout = layout
-        fields.append('dashboard_layout')
+        setattr(profile, attr, layout)
+        fields.append(attr)
     if 'density' in data:
         density = data.get('density')
         if density not in dict(profile.UI_DENSITY_CHOICES):
@@ -479,7 +506,7 @@ def dashboard_layout_save(request):
     if not fields:
         return JsonResponse({'ok': False, 'errors': ['Nothing to save.']}, status=400)
     profile.save(update_fields=fields)
-    return JsonResponse({'ok': True, 'layout': profile.dashboard_layout,
+    return JsonResponse({'ok': True, 'layout': getattr(profile, attr),
                          'density': profile.ui_density,
                          'quick_actions': profile.quick_actions_config})
 
@@ -739,8 +766,12 @@ def dashboard_role_settings(request):
     for zone, label in zones:
         items = [{'w': w, 'on': w.key not in disabled_w, 'default': w.key in shown,
                   'msp_only': w.key in dw.MSP_ONLY}
-                 for w in dw.WIDGETS if w.zone == zone and w.hideable]
+                 for w in dw.WIDGETS if w.zone == zone and w.hideable and w.scope != 'global']
         widget_groups.append({'label': label, 'items': items})
+    global_shown = set(dw.preset_layout(dw.PRESET_GLOBAL)['order'][:len(dw._PRESETS[dw.PRESET_GLOBAL])])
+    widget_groups.append({'label': 'Global View (no client selected)', 'items': [
+        {'w': w, 'on': w.key not in disabled_w, 'default': w.key in global_shown, 'msp_only': True}
+        for w in dw.WIDGETS if w.scope == 'global']})
     actions = [{'key': k, 'label': lbl, 'on': k not in disabled_a,
                 'header': k.startswith('header:')} for k, lbl in dw.action_keys()]
     mapped = dict(DashboardRoleMapping.objects.values_list('role_template_id', 'preset'))

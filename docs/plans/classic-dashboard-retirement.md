@@ -84,8 +84,12 @@ activity, system status, per-user layout and role defaults.
   (or an administrator saves a role default with them).
 * Customer users: both dashboards are scoped to the selected customer; the new
   one is covered by `core.tests.test_dashboard_r681.CustomerDashboardIsolationTests`.
-* Global view (superuser, no customer selected) is `global_dashboard` for both
-  variants; it is unaffected.
+* Global View (MSP staff, no customer selected): since v3.17.681 the new
+  dashboard has all-clients widgets (`core.dashboard_global`, layout saved in
+  `UserProfile.dashboard_global_layout`). Classic users still get the previous
+  page (`classic_global_dashboard`, template `core/global_dashboard.html`),
+  which now has a "New dashboard" button. Retiring Classic retires that page
+  too; compare it with the Global View widgets before step 5.
 
 ## Saved-preference compatibility
 

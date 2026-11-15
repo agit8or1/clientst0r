@@ -1506,6 +1506,9 @@ class Widget:
     link_client: bool = False  # add ?client=<selected customer> (PSA lists)
     link_query: str = ''       # further ticket-list filters (assigned, queue)
     link_fallback: str = ''    # url name used when the user may not open `link`
+    # 'client': only with a customer selected; 'global': only in Global View
+    # (no customer selected; core.dashboard_global); 'both'.
+    scope: str = 'client'
 
     def link_url(self, org, fallback=False):
         name = self.link_fallback if fallback else self.link
@@ -1529,12 +1532,15 @@ class Widget:
 
 
 _KPI_TPL = 'core/dashboard/_kpi.html'
+
+from core import dashboard_global as _dg  # noqa: E402  (its helpers import this module lazily)
 _QUEUE_TPL = 'core/dashboard/_w_ticket_queue.html'
 
 WIDGETS = (
     Widget('security_2fa', 'Two-factor warning', 'fa-shield-alt', gate_2fa_warning,
            build_2fa_warning, 'core/dashboard/_w_2fa.html', zone='banner', hideable=False,
-           expandable=False, description='Shown until two-factor authentication is on.'),
+           expandable=False, description='Shown until two-factor authentication is on.',
+           scope='both'),
 
     # Service desk figures (MSP staff; see "Service desk figures" above).
     Widget('kpi_my_open', 'My open tickets', 'fa-user-check', gate_staff_tickets,
@@ -1602,7 +1608,7 @@ WIDGETS = (
     Widget('quick_actions', 'Quick actions', 'fa-bolt', gate_quick_actions,
            build_quick_actions, 'core/dashboard/_w_quick_actions.html', zone='toolbar',
            expandable=False,
-           description='Your own shortcut row (the header keeps the main actions).'),
+           description='Your own shortcut row (the header keeps the main actions).', scope='both'),
 
     # Main and secondary panels.
     Widget('my_queue', 'My ticket queue', 'fa-user-check', gate_staff_tickets, build_my_queue,
@@ -1681,7 +1687,43 @@ WIDGETS = (
            build_recent_activity, 'core/dashboard/_w_recent_activity.html', lazy=True,
            link='audit:audit_log_list', description='The audit log of this customer.'),
     Widget('system_status', 'System status', 'fa-server', gate_superuser, build_system_status,
-           'core/dashboard/_w_system_status.html', lazy=True, link='core:system_status'),
+           'core/dashboard/_w_system_status.html', lazy=True, link='core:system_status',
+           scope='both'),
+
+    # Global View: every customer the user reaches (core.dashboard_global).
+    Widget('g_kpi_open', 'Open tickets (all clients)', 'fa-ticket', _dg.gate_g_tickets,
+           _dg.build_g_kpi_open, _KPI_TPL, zone='kpi', expandable=False, scope='global',
+           description='Open tickets across the clients you can reach.'),
+    Widget('g_kpi_unassigned', 'Unassigned tickets (all clients)', 'fa-inbox', _dg.gate_g_tickets,
+           _dg.build_g_kpi_unassigned, _KPI_TPL, zone='kpi', expandable=False, scope='global'),
+    Widget('g_kpi_sla_risk', 'SLA at risk (all clients)', 'fa-hourglass-half', _dg.gate_g_tickets,
+           _dg.build_g_kpi_sla_risk, _KPI_TPL, zone='kpi', expandable=False, scope='global'),
+    Widget('g_kpi_breached', 'SLA breached (all clients)', 'fa-circle-exclamation',
+           _dg.gate_g_tickets, _dg.build_g_kpi_breached, _KPI_TPL, zone='kpi', expandable=False,
+           scope='global'),
+    Widget('g_kpi_rmm', 'Active RMM alerts (all clients)', 'fa-triangle-exclamation',
+           _dg.gate_g_rmm, _dg.build_g_kpi_rmm, _KPI_TPL, zone='kpi', expandable=False,
+           lazy=True, scope='global'),
+    Widget('g_kpi_monitors_down', 'Monitors down (all clients)', 'fa-globe',
+           _dg.gate_g_monitoring, _dg.build_g_kpi_monitors_down, _KPI_TPL, zone='kpi',
+           expandable=False, scope='global'),
+    Widget('g_kpi_clients', 'Active clients', 'fa-building', _dg.gate_g_clients,
+           _dg.build_g_kpi_clients, _KPI_TPL, zone='kpi', expandable=False, scope='global'),
+    Widget('g_top_clients', 'Clients with the most open tickets', 'fa-building',
+           _dg.gate_g_tickets, _dg.build_g_top_clients, 'core/dashboard/_w_g_top_clients.html',
+           lazy=True, link='accounts:organization_list', scope='global'),
+    Widget('g_rmm_alerts', 'Recent RMM alerts', 'fa-triangle-exclamation', _dg.gate_g_rmm,
+           _dg.build_g_rmm_alerts, 'core/dashboard/_w_g_rmm_alerts.html', lazy=True,
+           link='integrations:rmm_alerts', scope='global'),
+    Widget('g_monitors_down', 'Monitors down', 'fa-globe', _dg.gate_g_monitoring,
+           _dg.build_g_monitors_down, 'core/dashboard/_w_g_monitors_down.html', lazy=True,
+           link='monitoring:website_monitor_list', scope='global'),
+    Widget('g_audit', 'Audit activity (all clients)', 'fa-clock-rotate-left', _dg.gate_g_audit,
+           _dg.build_g_audit, 'core/dashboard/_w_g_audit.html', lazy=True,
+           link='audit:audit_log_list', scope='global'),
+    Widget('g_map', 'Client locations', 'fa-map-marked-alt', _dg.gate_g_map, _dg.build_g_map,
+           'core/dashboard/_w_map.html', link='locations:location_list', scope='global',
+           description='Every client location (shown to users who reach every client).'),
 )
 
 BY_KEY = {w.key: w for w in WIDGETS}
@@ -1746,6 +1788,14 @@ _PRESETS = {
         'ticket_status', 'tasks', 'schedule', 'monitors', 'map'),
 }
 
+# Global View (no customer selected): one layout for every MSP staff role;
+# gates drop what a role may not see. Saved per user separately
+# (UserProfile.dashboard_global_layout).
+PRESET_GLOBAL = 'global'
+_PRESETS[PRESET_GLOBAL] = ('g_kpi_open', 'g_kpi_unassigned', 'g_kpi_sla_risk', 'g_kpi_breached',
+                           'g_kpi_rmm', 'g_kpi_monitors_down', 'g_kpi_clients') + (
+    'g_top_clients', 'g_rmm_alerts', 'g_monitors_down', 'g_audit', 'system_status', 'g_map')
+
 # Widgets that are never in a customer's built-in layout, whatever an
 # administrator saves for the customer preset: MSP-only data. Their gates
 # refuse customer users anyway; this keeps the preset honest.
@@ -1757,7 +1807,7 @@ MSP_ONLY = frozenset({
     'kpi_quotes_open', 'kpi_quotes_waiting', 'kpi_contracts_signing', 'kpi_contracts_expiring',
     'kpi_crm_won', 'quotes', 'contract_docs', 'contract_renewals', 'crm_won_lost', 'crm_activity',
     'team_utilization', 'billing_summary', 'reports',
-})
+}) | frozenset(w.key for w in WIDGETS if w.scope == 'global')
 
 _PRESET_SIZES = {
     PRESET_CUSTOMER: {'map': 1},
@@ -1768,7 +1818,7 @@ _PRESET_SIZES = {
 
 def preset_layout(preset):
     """The built-in layout for a preset key (unknown keys fall back to L2)."""
-    if preset not in PRESET_LABELS:
+    if preset not in _PRESETS:
         preset = PRESET_L2
     shown = [k for k in _PRESETS.get(preset, ()) if k in BY_KEY]
     order = shown + [k for k in KEYS if k not in shown]
@@ -1985,10 +2035,29 @@ def action_enabled(request, key):
     return key not in role_config(request)['disabled_actions']
 
 
+def is_global_view(request):
+    """No customer selected and the Global View widgets apply (MSP staff)."""
+    return _dg.gate_global(request)
+
+
 def effective_layout(request):
     """(layout, source, preset): the user's own layout, else the role default
-    an administrator saved for their preset, else the built-in preset."""
+    an administrator saved for their preset, else the built-in preset.
+    In Global View: the user's own global layout, else the global preset."""
     user = request.user
+    if is_global_view(request):
+        profile = getattr(user, 'profile', None)
+        own = getattr(profile, 'dashboard_global_layout', None) if profile is not None else None
+        base = preset_layout(PRESET_GLOBAL)
+        layout, source = (clean_layout(own)[0], 'personal') if own else (base, 'preset')
+        order = list(layout['order'])
+        for k in base['order']:
+            if k not in order:
+                order.append(k)
+                if k in base['hidden'] and k not in layout['hidden']:
+                    layout['hidden'].append(k)
+        layout['order'] = order
+        return layout, source, PRESET_GLOBAL
     preset = user_preset(request)
     profile = getattr(user, 'profile', None)
     own = getattr(profile, 'dashboard_layout', None) if profile is not None else None
@@ -2048,6 +2117,8 @@ def visible_widgets(request, layout=None):
 def build_widget(request, widget):
     """The widget's context for the selected customer, or None."""
     org = current_org(request)
-    if widget.zone != 'banner' and widget.key != 'quick_actions' and org is None:
+    if org is None and widget.scope == 'client':
+        return None
+    if org is not None and widget.scope == 'global':
         return None
     return widget.build(request, org)

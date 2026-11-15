@@ -625,3 +625,155 @@ class QueryBudgetTests(_Base):
         for key in ('quotes', 'contract_docs', 'contract_renewals', 'crm_won_lost', 'crm_activity'):
             with self.subTest(key=key):
                 self.assertLessEqual(self._count(reverse('core:dashboard_widget', args=[key])), 40)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class GlobalViewTests(_Base):
+    """Global View (no customer selected): the all-clients widgets
+    (core.dashboard_global)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        from monitoring.models import WebsiteMonitor
+        for i in range(2):
+            _ticket(cls.org_a, f'Alpha open {i}')
+        for i in range(3):
+            _ticket(cls.org_b, f'Bravo open {i}')
+        WebsiteMonitor.objects.create(organization=cls.org_a, name='Alpha site',
+                                      url='https://a.example.test', status='down')
+        WebsiteMonitor.objects.create(organization=cls.org_b, name='Bravo secret site',
+                                      url='https://b.example.test', status='down')
+        from audit.models import AuditLog
+        AuditLog.objects.create(organization=cls.org_b, action='update',
+                                object_repr='Bravo secret record', description='x')
+
+    def _greq(self, user):
+        from types import SimpleNamespace
+        return SimpleNamespace(user=user, current_organization=None, session={},
+                               is_staff_user=not getattr(user, '_customer', False))
+
+    def _global(self, user):
+        self._login(user)
+        s = self.client.session
+        s.pop('current_organization_id', None)
+        s['global_view_mode'] = True
+        s.save()
+
+    def test_global_keys_are_msp_only_and_global_scoped(self):
+        keys = {w.key for w in dw.WIDGETS if w.scope == 'global'}
+        self.assertTrue({'g_kpi_open', 'g_kpi_unassigned', 'g_kpi_sla_risk', 'g_kpi_breached',
+                         'g_kpi_rmm', 'g_kpi_monitors_down', 'g_kpi_clients', 'g_top_clients',
+                         'g_rmm_alerts', 'g_monitors_down', 'g_audit', 'g_map'} <= keys)
+        self.assertTrue(keys <= dw.MSP_ONLY)
+
+    def test_customer_gets_no_global_widgets(self):
+        req = self._greq(self.customer)
+        req.is_staff_user = False
+        self.assertFalse([p.key for p in dw.visible_widgets(req, dw.preset_layout(dw.PRESET_GLOBAL))
+                          if p.widget.scope == 'global'])
+        self._login(self.customer)
+        self.assertEqual(self.client.get(reverse('core:global_dashboard')).status_code, 403)
+        self.assertEqual(self.client.get(
+            reverse('core:dashboard_widget', args=['g_kpi_open'])).status_code, 404)
+
+    def test_no_global_widgets_inside_a_client(self):
+        self._login(self.root)
+        r = self.client.get(reverse('core:dashboard'))
+        keys = {p.key for p in r.context['kpis']} | {p.key for p in r.context['grid']}
+        self.assertFalse({k for k in keys if k.startswith('g_')})
+        self.assertEqual(self.client.get(
+            reverse('core:dashboard_widget', args=['g_kpi_open'])).status_code, 404)
+
+    def test_superuser_sees_every_client(self):
+        req = self._greq(self.root)
+        self.assertEqual(dw.build_widget(req, dw.get('g_kpi_open'))['value'], 5)
+        self.assertEqual(dw.build_widget(req, dw.get('g_kpi_monitors_down'))['value'], 2)
+        names = [r['name'] for r in dw.build_widget(req, dw.get('g_top_clients'))['rows']]
+        self.assertEqual(names, [self.org_b.name, self.org_a.name])
+        self._global(self.root)
+        r = self.client.get(reverse('core:dashboard'))
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, 'core/dashboard_modern.html')
+        self.assertTrue(r.context['global_view'])
+        keys = {p.key for p in r.context['kpis']} | {p.key for p in r.context['grid']}
+        self.assertIn('g_kpi_open', keys)
+        self.assertIn('g_top_clients', keys)
+        self.assertFalse(keys & {'my_queue', 'kpi_my_open', 'sla_overview'})
+        self.assertEqual(self.client.get(
+            reverse('core:dashboard_widget', args=['g_top_clients'])).status_code, 200)
+        # The route name keeps working and renders the same view.
+        r = self.client.get(reverse('core:global_dashboard'))
+        self.assertTemplateUsed(r, 'core/dashboard_modern.html')
+
+    def test_scoped_technician_sees_only_their_clients(self):
+        tech = self.user('tech_l2')
+        tech.profile.client_scope = 'selected'
+        tech.profile.save()
+        tech.profile.scope_organizations.set([self.org_a])
+        tech = User.objects.get(pk=tech.pk)
+        req = self._greq(tech)
+        self.assertTrue(dw._dg.gate_global(req))
+        self.assertEqual(dw.build_widget(req, dw.get('g_kpi_open'))['value'], 2)
+        self.assertEqual(dw.build_widget(req, dw.get('g_kpi_clients'))['value'], 1)
+        top = dw.build_widget(req, dw.get('g_top_clients'))
+        self.assertEqual([r['name'] for r in top['rows']], [self.org_a.name])
+        mons = dw.build_widget(req, dw.get('g_monitors_down'))
+        self.assertEqual([m.name for m in mons['rows']], ['Alpha site'])
+        self.assertEqual(mons['counts']['total'], 1)
+        if dw._dg.gate_g_audit(req):
+            logs = dw.build_widget(req, dw.get('g_audit'))['logs']
+            self.assertFalse([l for l in logs if l.organization_id == self.org_b.pk])
+        # The all-clients map would list every client's locations.
+        self.assertFalse(dw._dg.gate_g_map(req))
+
+    def test_classic_fallback(self):
+        self._global(self.root)
+        p = self.root.profile
+        p.dashboard_variant = 'classic'
+        p.save(update_fields=['dashboard_variant'])
+        r = self.client.get(reverse('core:dashboard'))
+        self.assertTemplateUsed(r, 'core/global_dashboard.html')
+        r = self.client.get(reverse('core:global_dashboard') + '?layout=modern')
+        self.assertTemplateUsed(r, 'core/dashboard_modern.html')
+
+    def test_global_layout_saved_apart_from_client_layout(self):
+        from accounts.models import UserProfile
+        self._global(self.root)
+        url = reverse('core:dashboard_layout_save')
+        layout = {'order': ['g_kpi_clients', 'g_kpi_open'], 'hidden': ['g_map'], 'sizes': {}}
+        r = self.client.post(url + '?scope=global', json.dumps({'layout': layout}),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        p = UserProfile.objects.get(user=self.root)
+        self.assertEqual(p.dashboard_global_layout['order'], ['g_kpi_clients', 'g_kpi_open'])
+        self.assertEqual(p.dashboard_layout, {})
+        r = self.client.get(reverse('core:dashboard'))
+        self.assertEqual(r.context['layout_source'], 'personal')
+        self.assertEqual([k.key for k in r.context['kpis']][:2], ['g_kpi_clients', 'g_kpi_open'])
+        # A customer user can't write a Global View layout.
+        self._login(self.customer)
+        r = self.client.post(url + '?scope=global', json.dumps({'layout': layout}),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 403)
+
+    def test_global_preset_fits(self):
+        layout = dw.preset_layout(dw.PRESET_GLOBAL)
+        hidden = set(layout['hidden'])
+        shown = [k for k in layout['order'] if k not in hidden]
+        self.assertLessEqual(len([k for k in shown if dw.BY_KEY[k].zone == 'kpi']), 7)
+        self.assertLessEqual(sum(dw.BY_KEY[k].size for k in shown if dw.BY_KEY[k].zone == 'grid'), 6)
+
+    def test_global_page_query_budget(self):
+        self._global(self.root)
+        self.client.get(reverse('core:dashboard'))
+        with CaptureQueriesContext(connection) as ctx:
+            r = self.client.get(reverse('core:dashboard'))
+        self.assertEqual(r.status_code, 200)
+        self.assertLessEqual(len(ctx.captured_queries), 90)
+        for key in ('g_top_clients', 'g_rmm_alerts', 'g_monitors_down', 'g_audit', 'g_kpi_rmm'):
+            with CaptureQueriesContext(connection) as ctx:
+                r = self.client.get(reverse('core:dashboard_widget', args=[key]))
+            with self.subTest(key=key):
+                self.assertEqual(r.status_code, 200)
+                self.assertLessEqual(len(ctx.captured_queries), 25)

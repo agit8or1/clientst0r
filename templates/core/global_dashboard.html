@@ -5,7 +5,17 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-2">
     <h2 class="mb-0"><i class="fas fa-globe"></i> Global Dashboard</h2>
+    <div class="d-flex align-items-center gap-2">
     <span class="badge bg-danger">Superuser Only</span>
+    {# v3.17.681: Global View has the widget dashboard too; this is its Classic layout. #}
+    <form method="post" action="{% url 'core:dashboard_variant_save' %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="variant" value="modern">
+        <button type="submit" class="btn btn-outline-secondary btn-sm" title="Switch to the new compact dashboard">
+            <i class="fas fa-table-cells-large" aria-hidden="true"></i> New dashboard
+        </button>
+    </form>
+    </div>
 </div>
 
 {% include "core/_quick_actions.html" %}

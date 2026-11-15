@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('accounts', '0049_everyone_on_professional_dark'),
-        ('core', '0102_page_favorites_recent_pages'),
+        ('core', '0103_systemsetting_latest_security_release'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
