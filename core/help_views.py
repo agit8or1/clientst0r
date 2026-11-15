@@ -1657,68 +1657,125 @@ def help_security(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="220" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="25" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Package Vulnerability Scan — Latest Results</text>
-        <rect x="578" y="8" width="108" height="22" rx="4" fill="#1f6feb"/>
-        <text x="632" y="23" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">▶ Run New Scan</text>
-        <!-- Summary row -->
-        <rect x="12" y="44" width="90" height="44" rx="4" fill="#3a1a1a" stroke="#f85149"/>
-        <text x="57" y="62" fill="#f85149" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text>
-        <text x="57" y="78" fill="#ff7b72" font-size="9" font-family="sans-serif" text-anchor="middle">CRITICAL</text>
-        <rect x="112" y="44" width="90" height="44" rx="4" fill="#2d1f00" stroke="#e3b341"/>
-        <text x="157" y="62" fill="#e3b341" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">7</text>
-        <text x="157" y="78" fill="#e3b341" font-size="9" font-family="sans-serif" text-anchor="middle">HIGH</text>
-        <rect x="212" y="44" width="90" height="44" rx="4" fill="#1a1f2e" stroke="#d29922"/>
-        <text x="257" y="62" fill="#d29922" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">12</text>
-        <text x="257" y="78" fill="#d29922" font-size="9" font-family="sans-serif" text-anchor="middle">MEDIUM</text>
-        <rect x="312" y="44" width="90" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="357" y="62" fill="#8b949e" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">5</text>
-        <text x="357" y="78" fill="#8b949e" font-size="9" font-family="sans-serif" text-anchor="middle">LOW</text>
-        <!-- Table -->
-        <rect y="100" width="700" height="22" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="115" fill="#8b949e" font-size="10" font-family="monospace">Package</text>
-        <text x="180" y="115" fill="#8b949e" font-size="10" font-family="monospace">Installed</text>
-        <text x="260" y="115" fill="#8b949e" font-size="10" font-family="monospace">CVE</text>
-        <text x="380" y="115" fill="#8b949e" font-size="10" font-family="monospace">Severity</text>
-        <text x="470" y="115" fill="#8b949e" font-size="10" font-family="monospace">Fix version</text>
-        <text x="590" y="115" fill="#8b949e" font-size="10" font-family="monospace">Action</text>
-
-        <!-- Row 1 - critical -->
-        <rect y="122" width="700" height="28" fill="#1a0a0a" stroke="#4a1515" stroke-width="0.5"/>
-        <text x="16" y="140" fill="#e6edf3" font-size="11" font-family="monospace">cryptography</text>
-        <text x="180" y="140" fill="#8b949e" font-size="11" font-family="monospace">41.0.3</text>
-        <text x="260" y="140" fill="#58a6ff" font-size="10" font-family="monospace">CVE-2024-0727</text>
-        <rect x="378" y="128" width="64" height="16" rx="8" fill="#da3633"/>
-        <text x="410" y="140" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">CRITICAL</text>
-        <text x="470" y="140" fill="#3fb950" font-size="11" font-family="monospace">42.0.8</text>
-        <rect x="590" y="128" width="80" height="16" rx="4" fill="#1f6feb"/>
-        <text x="630" y="140" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Auto-fix</text>
-
-        <!-- Row 2 - high -->
-        <rect y="150" width="700" height="28" fill="#1a1400" stroke="#3a3000" stroke-width="0.5"/>
-        <text x="16" y="168" fill="#e6edf3" font-size="11" font-family="monospace">pillow</text>
-        <text x="180" y="168" fill="#8b949e" font-size="11" font-family="monospace">10.0.1</text>
-        <text x="260" y="168" fill="#58a6ff" font-size="10" font-family="monospace">CVE-2023-50447</text>
-        <rect x="378" y="156" width="44" height="16" rx="8" fill="#9a6700"/>
-        <text x="400" y="168" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">HIGH</text>
-        <text x="470" y="168" fill="#3fb950" font-size="11" font-family="monospace">10.3.0</text>
-        <rect x="590" y="156" width="80" height="16" rx="4" fill="#1f6feb"/>
-        <text x="630" y="168" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Auto-fix</text>
-
-        <!-- Row 3 - medium -->
-        <rect y="178" width="700" height="28" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="196" fill="#e6edf3" font-size="11" font-family="monospace">django</text>
-        <text x="180" y="196" fill="#8b949e" font-size="11" font-family="monospace">4.2.8</text>
-        <text x="260" y="196" fill="#58a6ff" font-size="10" font-family="monospace">CVE-2024-27351</text>
-        <rect x="378" y="184" width="58" height="16" rx="8" fill="#6e4c00"/>
-        <text x="407" y="196" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">MEDIUM</text>
-        <text x="470" y="196" fill="#3fb950" font-size="11" font-family="monospace">4.2.14</text>
-        <rect x="590" y="184" width="80" height="16" rx="4" fill="#1f6feb"/>
-        <text x="630" y="196" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Auto-fix</text>
+      <svg viewBox="0 0 700 285" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Administration, Security, Vulnerability Scans: findings by severity with CVE, installed and fixed versions.">
+        <title>Administration, Security, Vulnerability Scans: findings by severity with CVE, installed and fixed versions.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="285" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="258" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="285" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="259" x2="26" y2="259" stroke="#1f2f48"/>
+        <circle cx="15" cy="271" r="6" fill="#2563eb"/>
+        <circle cx="15" cy="271" r="2" fill="#0f1a2b"/>
+        <rect x="1" y="264" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Administration</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Security</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Vulnerability Scans</tspan></text>
+        <rect x="42" y="48" width="62" height="16" rx="4" fill="none" stroke="#2a3443"/>
+        <text x="73" y="59" fill="#84b4ff" font-size="9" font-weight="bold" font-family="sans-serif" text-anchor="middle">All settings</text>
+        <text x="112" y="59" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Security</text>
+        <rect x="158" y="48" width="111" height="16" rx="4" fill="none"/>
+        <text x="165" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Security Dashboard</text>
+        <rect x="273" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="280" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Security Settings</text>
+        <rect x="383" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="390" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Security Features</text>
+        <rect x="493" y="48" width="117" height="16" rx="4" fill="#2563eb"/>
+        <text x="500" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Vulnerability Scans</text>
+        <text x="617" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">More ▾</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="220" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Header -->
+          <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect y="18" width="700" height="18" fill="#161b22"/>
+          <text x="16" y="25" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Package Vulnerability Scan — Latest Results</text>
+          <rect x="578" y="8" width="108" height="22" rx="4" fill="#1f6feb"/>
+          <text x="632" y="23" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Settings</text>
+          <!-- Summary row -->
+          <rect x="12" y="44" width="90" height="44" rx="4" fill="#3a1a1a" stroke="#f85149"/>
+          <text x="57" y="62" fill="#f85149" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text>
+          <text x="57" y="78" fill="#ff7b72" font-size="9" font-family="sans-serif" text-anchor="middle">CRITICAL</text>
+          <rect x="112" y="44" width="90" height="44" rx="4" fill="#2d1f00" stroke="#e3b341"/>
+          <text x="157" y="62" fill="#e3b341" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">7</text>
+          <text x="157" y="78" fill="#e3b341" font-size="9" font-family="sans-serif" text-anchor="middle">HIGH</text>
+          <rect x="212" y="44" width="90" height="44" rx="4" fill="#1a1f2e" stroke="#d29922"/>
+          <text x="257" y="62" fill="#d29922" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">12</text>
+          <text x="257" y="78" fill="#d29922" font-size="9" font-family="sans-serif" text-anchor="middle">MEDIUM</text>
+          <rect x="312" y="44" width="90" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="357" y="62" fill="#8b949e" font-size="20" font-weight="bold" font-family="sans-serif" text-anchor="middle">5</text>
+          <text x="357" y="78" fill="#8b949e" font-size="9" font-family="sans-serif" text-anchor="middle">LOW</text>
+          <!-- Table -->
+          <rect y="100" width="700" height="22" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="115" fill="#8b949e" font-size="10" font-family="monospace">Package</text>
+          <text x="180" y="115" fill="#8b949e" font-size="10" font-family="monospace">Installed</text>
+          <text x="260" y="115" fill="#8b949e" font-size="10" font-family="monospace">CVE</text>
+          <text x="380" y="115" fill="#8b949e" font-size="10" font-family="monospace">Severity</text>
+          <text x="470" y="115" fill="#8b949e" font-size="10" font-family="monospace">Fix version</text>
+          <text x="590" y="115" fill="#8b949e" font-size="10" font-family="monospace">Action</text>
+          <!-- Row 1 - critical -->
+          <rect y="122" width="700" height="28" fill="#1a0a0a" stroke="#4a1515" stroke-width="0.5"/>
+          <text x="16" y="140" fill="#e6edf3" font-size="11" font-family="monospace">cryptography</text>
+          <text x="180" y="140" fill="#8b949e" font-size="11" font-family="monospace">41.0.3</text>
+          <text x="260" y="140" fill="#58a6ff" font-size="10" font-family="monospace">CVE-2024-0727</text>
+          <rect x="378" y="128" width="64" height="16" rx="8" fill="#da3633"/>
+          <text x="410" y="140" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">CRITICAL</text>
+          <text x="470" y="140" fill="#3fb950" font-size="11" font-family="monospace">42.0.8</text>
+          <rect x="590" y="128" width="80" height="16" rx="4" fill="#1f6feb"/>
+          <text x="630" y="140" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Auto-fix</text>
+          <!-- Row 2 - high -->
+          <rect y="150" width="700" height="28" fill="#1a1400" stroke="#3a3000" stroke-width="0.5"/>
+          <text x="16" y="168" fill="#e6edf3" font-size="11" font-family="monospace">pillow</text>
+          <text x="180" y="168" fill="#8b949e" font-size="11" font-family="monospace">10.0.1</text>
+          <text x="260" y="168" fill="#58a6ff" font-size="10" font-family="monospace">CVE-2023-50447</text>
+          <rect x="378" y="156" width="44" height="16" rx="8" fill="#9a6700"/>
+          <text x="400" y="168" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">HIGH</text>
+          <text x="470" y="168" fill="#3fb950" font-size="11" font-family="monospace">10.3.0</text>
+          <rect x="590" y="156" width="80" height="16" rx="4" fill="#1f6feb"/>
+          <text x="630" y="168" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Auto-fix</text>
+          <!-- Row 3 - medium -->
+          <rect y="178" width="700" height="28" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="196" fill="#e6edf3" font-size="11" font-family="monospace">django</text>
+          <text x="180" y="196" fill="#8b949e" font-size="11" font-family="monospace">4.2.8</text>
+          <text x="260" y="196" fill="#58a6ff" font-size="10" font-family="monospace">CVE-2024-27351</text>
+          <rect x="378" y="184" width="58" height="16" rx="8" fill="#6e4c00"/>
+          <text x="407" y="196" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">MEDIUM</text>
+          <text x="470" y="196" fill="#3fb950" font-size="11" font-family="monospace">4.2.14</text>
+          <rect x="590" y="184" width="80" height="16" rx="4" fill="#1f6feb"/>
+          <text x="630" y="196" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Auto-fix</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Vulnerability scanner results showing CVE IDs, severity levels, installed vs safe versions, and one-click auto-fix. Scans run on schedule or on-demand.</p>
     </div>
@@ -1753,54 +1810,114 @@ def help_security(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 190" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="190" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="25" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Audit Log</text>
-        <!-- Filter bar -->
-        <rect x="12" y="44" width="140" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="20" y="59" fill="#8b949e" font-size="10" font-family="sans-serif">All users ▾</text>
-        <rect x="162" y="44" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="170" y="59" fill="#8b949e" font-size="10" font-family="sans-serif">All actions ▾</text>
-        <rect x="292" y="44" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="300" y="59" fill="#8b949e" font-size="10" font-family="sans-serif">Last 7 days ▾</text>
-        <!-- Column headers -->
-        <rect y="74" width="700" height="22" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="89" fill="#8b949e" font-size="10" font-family="monospace">Time</text>
-        <text x="110" y="89" fill="#8b949e" font-size="10" font-family="monospace">User</text>
-        <text x="210" y="89" fill="#8b949e" font-size="10" font-family="monospace">Action</text>
-        <text x="360" y="89" fill="#8b949e" font-size="10" font-family="monospace">Resource</text>
-        <text x="530" y="89" fill="#8b949e" font-size="10" font-family="monospace">IP Address</text>
-        <!-- Rows -->
-        <rect y="96" width="700" height="28" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="114" fill="#8b949e" font-size="10" font-family="monospace">09:42:11</text>
-        <text x="110" y="114" fill="#e6edf3" font-size="11" font-family="sans-serif">jsmith</text>
-        <rect x="210" y="102" width="72" height="16" rx="8" fill="#1f6feb44"/>
-        <text x="246" y="114" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">password.view</text>
-        <text x="360" y="114" fill="#c9d1d9" font-size="11" font-family="sans-serif">Vault: github-root</text>
-        <text x="530" y="114" fill="#8b949e" font-size="10" font-family="monospace">10.0.1.5</text>
-
-        <rect y="124" width="700" height="28" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="142" fill="#8b949e" font-size="10" font-family="monospace">09:38:04</text>
-        <text x="110" y="142" fill="#e6edf3" font-size="11" font-family="sans-serif">s.lee</text>
-        <rect x="210" y="130" width="66" height="16" rx="8" fill="#1a7f3744"/>
-        <text x="243" y="142" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">asset.create</text>
-        <text x="360" y="142" fill="#c9d1d9" font-size="11" font-family="sans-serif">Asset: New NAS Unit</text>
-        <text x="530" y="142" fill="#8b949e" font-size="10" font-family="monospace">10.0.1.12</text>
-
-        <rect y="152" width="700" height="28" fill="#1a0d0d" stroke="#4a1515" stroke-width="0.5"/>
-        <text x="16" y="170" fill="#8b949e" font-size="10" font-family="monospace">09:31:55</text>
-        <text x="110" y="170" fill="#e6edf3" font-size="11" font-family="sans-serif">unknown</text>
-        <rect x="210" y="158" width="80" height="16" rx="8" fill="#da363344"/>
-        <text x="250" y="170" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">login.failed</text>
-        <text x="360" y="170" fill="#c9d1d9" font-size="11" font-family="sans-serif">User: admin (3rd attempt)</text>
-        <text x="530" y="170" fill="#f85149" font-size="10" font-family="monospace">185.234.x.x</text>
-        <!-- Annotation -->
-        <line x1="250" y1="158" x2="300" y2="138" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="282" y="128" width="130" height="14" rx="7" fill="#da363344"/>
-        <text x="347" y="139" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">Failed logins highlighted</text>
+      <svg viewBox="0 0 700 257" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Administration, Users &amp; Access, Audit Log: actions by user with filters; a failed sign-in is highlighted in red.">
+        <title>Administration, Users &amp; Access, Audit Log: actions by user with filters; a failed sign-in is highlighted in red.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="257" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="230" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="257" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="231" x2="26" y2="231" stroke="#1f2f48"/>
+        <circle cx="15" cy="243" r="6" fill="#2563eb"/>
+        <circle cx="15" cy="243" r="2" fill="#0f1a2b"/>
+        <rect x="1" y="236" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Administration</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Users &amp; Access</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Audit Log</tspan></text>
+        <rect x="42" y="48" width="62" height="16" rx="4" fill="none" stroke="#2a3443"/>
+        <text x="73" y="59" fill="#84b4ff" font-size="9" font-weight="bold" font-family="sans-serif" text-anchor="middle">All settings</text>
+        <text x="112" y="59" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Users &amp; Access</text>
+        <rect x="190" y="48" width="41" height="16" rx="4" fill="none"/>
+        <text x="197" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Users</text>
+        <rect x="235" y="48" width="52" height="16" rx="4" fill="none"/>
+        <text x="242" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Members</text>
+        <rect x="290" y="48" width="41" height="16" rx="4" fill="none"/>
+        <text x="297" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Roles</text>
+        <rect x="335" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="342" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Access Management</text>
+        <rect x="445" y="48" width="63" height="16" rx="4" fill="#2563eb"/>
+        <text x="452" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Audit Log</text>
+        <text x="516" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">More ▾</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="190" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Header -->
+          <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect y="18" width="700" height="18" fill="#161b22"/>
+          <text x="16" y="25" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Audit Log</text>
+          <!-- Filter bar -->
+          <rect x="12" y="44" width="140" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="20" y="59" fill="#8b949e" font-size="10" font-family="sans-serif">All users ▾</text>
+          <rect x="162" y="44" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="170" y="59" fill="#8b949e" font-size="10" font-family="sans-serif">All actions ▾</text>
+          <rect x="292" y="44" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="300" y="59" fill="#8b949e" font-size="10" font-family="sans-serif">Last 7 days ▾</text>
+          <!-- Column headers -->
+          <rect y="74" width="700" height="22" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="89" fill="#8b949e" font-size="10" font-family="monospace">Time</text>
+          <text x="110" y="89" fill="#8b949e" font-size="10" font-family="monospace">User</text>
+          <text x="210" y="89" fill="#8b949e" font-size="10" font-family="monospace">Action</text>
+          <text x="360" y="89" fill="#8b949e" font-size="10" font-family="monospace">Resource</text>
+          <text x="530" y="89" fill="#8b949e" font-size="10" font-family="monospace">IP Address</text>
+          <!-- Rows -->
+          <rect y="96" width="700" height="28" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="114" fill="#8b949e" font-size="10" font-family="monospace">09:42:11</text>
+          <text x="110" y="114" fill="#e6edf3" font-size="11" font-family="sans-serif">jsmith</text>
+          <rect x="210" y="102" width="84" height="16" rx="8" fill="#1f6feb44"/>
+          <text x="252" y="114" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">password.view</text>
+          <text x="360" y="114" fill="#c9d1d9" font-size="11" font-family="sans-serif">Vault: github-root</text>
+          <text x="530" y="114" fill="#8b949e" font-size="10" font-family="monospace">10.0.1.5</text>
+          <rect y="124" width="700" height="28" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="142" fill="#8b949e" font-size="10" font-family="monospace">09:38:04</text>
+          <text x="110" y="142" fill="#e6edf3" font-size="11" font-family="sans-serif">s.lee</text>
+          <rect x="210" y="130" width="66" height="16" rx="8" fill="#1a7f3744"/>
+          <text x="243" y="142" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">asset.create</text>
+          <text x="360" y="142" fill="#c9d1d9" font-size="11" font-family="sans-serif">Asset: New NAS Unit</text>
+          <text x="530" y="142" fill="#8b949e" font-size="10" font-family="monospace">10.0.1.12</text>
+          <rect y="152" width="700" height="28" fill="#1a0d0d" stroke="#4a1515" stroke-width="0.5"/>
+          <text x="16" y="170" fill="#8b949e" font-size="10" font-family="monospace">09:31:55</text>
+          <text x="110" y="170" fill="#e6edf3" font-size="11" font-family="sans-serif">unknown</text>
+          <rect x="210" y="158" width="80" height="16" rx="8" fill="#da363344"/>
+          <text x="250" y="170" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">login.failed</text>
+          <text x="360" y="170" fill="#c9d1d9" font-size="11" font-family="sans-serif">User: admin (3rd attempt)</text>
+          <text x="530" y="170" fill="#f85149" font-size="10" font-family="monospace">185.234.x.x</text>
+          <!-- Annotation -->
+          <line x1="290" y1="166" x2="490" y2="66" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="430" y="48" width="140" height="16" rx="8" fill="#da363344"/>
+          <text x="500" y="60" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">Failed logins highlighted</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Audit log showing every user action with timestamp, action type color-coded by category, resource affected, and source IP. Failed logins are highlighted in red.</p>
     </div>
