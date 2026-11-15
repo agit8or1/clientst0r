@@ -1415,39 +1415,93 @@ def help_vault(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="170" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Card -->
-        <rect x="12" y="12" width="676" height="146" rx="6" fill="#161b22" stroke="#30363d"/>
-        <!-- Title row -->
-        <text x="28" y="38" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif">company-server-root</text>
-        <text x="28" y="54" fill="#8b949e" font-size="11" font-family="sans-serif">username: root   |   server.company.com</text>
-        <!-- Breach badge -->
-        <rect x="500" y="22" width="80" height="20" rx="10" fill="#da363344"/>
-        <text x="540" y="36" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">⚠ Breached</text>
-        <!-- Password row -->
-        <rect x="28" y="66" width="320" height="28" rx="4" fill="#0d1117" stroke="#30363d"/>
-        <text x="44" y="84" fill="#8b949e" font-size="13" font-family="monospace" letter-spacing="4">••••••••••••</text>
-        <!-- Reveal button -->
-        <rect x="360" y="66" width="80" height="28" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="400" y="84" fill="#79c0ff" font-size="11" font-family="sans-serif" text-anchor="middle">👁 Reveal</text>
-        <!-- Copy button -->
-        <rect x="452" y="66" width="80" height="28" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="492" y="84" fill="#8b949e" font-size="11" font-family="sans-serif" text-anchor="middle">⧉ Copy</text>
-        <!-- TOTP -->
-        <rect x="28" y="106" width="150" height="28" rx="4" fill="#1f6feb22" stroke="#1f6feb66"/>
-        <text x="44" y="124" fill="#79c0ff" font-size="13" font-family="monospace">⏱ 483 291</text>
-        <text x="190" y="124" fill="#8b949e" font-size="10" font-family="sans-serif">expires in 18s</text>
-        <!-- Annotations -->
-        <line x1="540" y1="42" x2="580" y2="10" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="560" y="1" width="130" height="14" rx="7" fill="#da363344"/>
-        <text x="625" y="12" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">HIBP breach alert</text>
-        <line x1="400" y1="66" x2="400" y2="44" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="340" y="34" width="120" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="400" y="44" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Reveal shows plaintext</text>
-        <line x1="103" y1="134" x2="60" y2="156" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="10" y="152" width="120" height="14" rx="7" fill="#1a7f3744"/>
-        <text x="70" y="163" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Live TOTP counter</text>
+      <svg viewBox="0 0 700 238" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Knowledge &amp; Vault, Password Vault, Passwords: an entry with a Breached badge, Reveal and Copy buttons and a live TOTP code.">
+        <title>Knowledge &amp; Vault, Password Vault, Passwords: an entry with a Breached badge, Reveal and Copy buttons and a live TOTP code.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="238" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="211" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="238" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="131" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="212" x2="26" y2="212" stroke="#1f2f48"/>
+        <circle cx="15" cy="224" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="224" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Knowledge &amp; Vault</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Password Vault</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Passwords</tspan></text>
+        <rect x="42" y="48" width="63" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Passwords</text>
+        <rect x="109" y="48" width="95" height="16" rx="4" fill="none"/>
+        <text x="116" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Reveal Requests</text>
+        <rect x="616" y="48" width="76" height="16" rx="4" fill="none" stroke="#2a3443"/>
+        <text x="654" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif" text-anchor="middle">⚙ Configure ▾</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="170" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Card -->
+          <rect x="12" y="12" width="676" height="146" rx="6" fill="#161b22" stroke="#30363d"/>
+          <!-- Title row -->
+          <text x="28" y="38" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif">company-server-root</text>
+          <text x="28" y="54" fill="#8b949e" font-size="11" font-family="sans-serif">username: root   |   server.company.com</text>
+          <!-- Breach badge -->
+          <rect x="500" y="22" width="80" height="20" rx="10" fill="#da363344"/>
+          <text x="540" y="36" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">⚠ Breached</text>
+          <!-- Password row -->
+          <rect x="28" y="66" width="320" height="28" rx="4" fill="#0d1117" stroke="#30363d"/>
+          <text x="44" y="84" fill="#8b949e" font-size="13" font-family="monospace" letter-spacing="4">••••••••••••</text>
+          <!-- Reveal button -->
+          <rect x="360" y="66" width="80" height="28" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="400" y="84" fill="#79c0ff" font-size="11" font-family="sans-serif" text-anchor="middle">Reveal</text>
+          <!-- Copy button -->
+          <rect x="452" y="66" width="80" height="28" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="492" y="84" fill="#8b949e" font-size="11" font-family="sans-serif" text-anchor="middle">Copy</text>
+          <!-- TOTP -->
+          <rect x="28" y="106" width="150" height="28" rx="4" fill="#1f6feb22" stroke="#1f6feb66"/>
+          <text x="44" y="124" fill="#79c0ff" font-size="13" font-family="monospace">483 291</text>
+          <text x="190" y="124" fill="#8b949e" font-size="10" font-family="sans-serif">expires in 18s</text>
+          <!-- Annotations -->
+          <line x1="540" y1="42" x2="580" y2="10" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="560" y="1" width="130" height="14" rx="7" fill="#da363344"/>
+          <text x="625" y="12" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">HIBP breach alert</text>
+          <line x1="400" y1="66" x2="400" y2="44" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="340" y="34" width="120" height="14" rx="7" fill="#1f6feb44"/>
+          <text x="400" y="44" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Reveal shows plaintext</text>
+          <line x1="103" y1="134" x2="60" y2="156" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="10" y="152" width="120" height="14" rx="7" fill="#1a7f3744"/>
+          <text x="70" y="163" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Live TOTP counter</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Password entry with breach detection badge, reveal-on-click password, copy button, and live TOTP counter.</p>
     </div>
