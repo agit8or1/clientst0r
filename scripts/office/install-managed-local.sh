@@ -14,7 +14,7 @@
 #                            [--edition community|enterprise] [--license-file F]
 #                            [--bind-port 8090] [--cpus N] [--memory-mb N]
 #                            [--collabora-bind-port 9981] [--collabora-cpus N]
-#                            [--collabora-memory-mb N]
+#                            [--collabora-memory-mb N] [--runtime docker|native]
 #                            [--reserve-mb N] [--subnet 172.31.250.0/28]
 #                            [--tls existing-cert --cert-file F --key-file F]
 #                            [--tls certbot --certbot-email E]
@@ -31,7 +31,15 @@
 #      reconfigured or restarted; other containers are not touched). If it is
 #      absent and --install-docker is given, installs docker.io and
 #      docker-compose-v2 from the Ubuntu archive. Debian: install Docker
-#      yourself first.
+#      yourself first. Not needed with --runtime native unless ONLYOFFICE is
+#      also in --engines.
+#   2b. --runtime native (Collabora only): adds Collabora's CODE apt
+#      repository. The signing key is downloaded over HTTPS and trusted only
+#      if its fingerprint is the pinned one; it goes into
+#      /etc/apt/keyrings/clientst0r-office-managed-collabora.gpg and the
+#      deb822 source names it with Signed-By. No package is installed here:
+#      Install (Settings) installs the pinned coolwsd + code-brand versions
+#      through the helper and holds them.
 #   3. Writes /etc/clientst0r/office-service.conf (root-owned; the web app
 #      cannot change it) and, if given, the enterprise license and a private
 #      CA into /etc/clientst0r/office/ (0600).
@@ -82,7 +90,16 @@ BIND_PORT=8090; CPUS=""; MEMORY_MB=4096; RESERVE_MB=2048; SUBNET=172.31.250.0/28
 TLS=existing-cert; CERT_FILE=""; KEY_FILE=""; CERTBOT_EMAIL=""; CA_FILE=""
 INSTALL_DOCKER=0; APP_USER=""; DRY_RUN=0; PREFLIGHT_ONLY=0
 PROVIDER=onlyoffice; ENGINES=""; LAYOUTS=dedicated; CALLBACK_UPSTREAM_IP=""
-COOL_PORT=9981; COOL_CPUS=1.5; COOL_MEM=1536; ALLOW_UNTESTED=no
+COOL_PORT=9981; COOL_CPUS=1.5; COOL_MEM=1536; ALLOW_UNTESTED=no; RUNTIME=docker
+
+# Collabora's CODE repository (native runtime). Same facts as
+# install-editor.sh; read 2026-11-13 (docs/office/MANAGED_LOCAL.md, "Native
+# runtime"): the key below signs the repository's InRelease.
+CO_KEY_URL=https://collaboraoffice.com/downloads/gpg/collaboraonline-release-keyring.gpg
+CO_KEY_FPR=7EB1530818B7683284483B7BD8915E456E7C440E
+CO_CODE_URI=https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb
+APT_KEYRING=/etc/apt/keyrings/clientst0r-office-managed-collabora.gpg
+APT_SOURCE=/etc/apt/sources.list.d/clientst0r-office-managed-collabora.sources
 
 say()  { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -96,7 +113,8 @@ owned_path() {
     case "$1" in
         "$CONF"|"$SECRETS"|"$SECRETS"/*|"$HELPER"|"$APT_HOLD"|"$SITE"|"$SITE_LINK") return 0 ;;
         "$UNIT_DIR"/clientst0r-office-helper.socket|"$UNIT_DIR"/clientst0r-office-helper@.service) return 0 ;;
-        "$UNIT_DIR"/clientst0r-office-firewall.service) return 0 ;;
+        "$UNIT_DIR"/clientst0r-office-firewall.service|"$UNIT_DIR"/clientst0r-office-native.service) return 0 ;;
+        "$APT_KEYRING"|"$APT_SOURCE") return 0 ;;
         "$SNIPPET_DIR"/same-host.conf) return 0 ;;
     esac
     return 1
@@ -137,6 +155,8 @@ parse_args() {
             --collabora-bind-port) need_val "$@"; COOL_PORT="$2"; shift ;;
             --collabora-cpus) need_val "$@"; COOL_CPUS="$2"; shift ;;
             --collabora-memory-mb) need_val "$@"; COOL_MEM="$2"; shift ;;
+            --runtime) need_val "$@"; case "$2" in docker|native) RUNTIME="$2" ;;
+                *) die "--runtime docker or native (native: Collabora's own packages, no Docker)" ;; esac; shift ;;
             --hostname) need_val "$@"; OFFICE_HOST="$2"; shift ;;
             --clientstor-url) need_val "$@"; CLIENTSTOR_URL="$2"; shift ;;
             --deployment-id) need_val "$@"; DEPLOYMENT_ID="$2"; shift ;;
@@ -177,6 +197,9 @@ validate() {
     [ -n "$ENGINES" ] || ENGINES="$PROVIDER"
     [[ "$ENGINES" =~ ^(onlyoffice|collabora)(,(onlyoffice|collabora))?$ ]] || die "--engines: onlyoffice, collabora or both"
     [[ "$LAYOUTS" =~ ^(dedicated|same-host)(,(dedicated|same-host))?$ ]] || die "--layouts: dedicated, same-host or both"
+    if [ "$RUNTIME" = native ]; then
+        has "$ENGINES" collabora || die "--runtime native is for Collabora only (--provider collabora or --engines ...,collabora); ONLYOFFICE always runs in Docker"
+    fi
     if has "$LAYOUTS" same-host; then
         has "$ENGINES" collabora || die "--layouts same-host is supported for Collabora only (--engines collabora)"
         if [ "$LAYOUTS" = same-host ] && has "$ENGINES" onlyoffice; then
@@ -230,10 +253,13 @@ validate() {
     [[ "$APP_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && [ "$APP_USER" != root ] || \
         die "Could not work out the clientst0r app user: pass --app-user (the account gunicorn runs as)"
     for f in clientst0r-office-helper clientst0r-office-helper.socket clientst0r-office-helper@.service \
-             clientst0r-office-firewall.service; do
+             clientst0r-office-firewall.service clientst0r-office-native.service; do
         [ -f "$HELPER_SRC/$f" ] || die "missing $HELPER_SRC/$f"
     done
 }
+
+# Docker is needed unless Collabora runs natively and ONLYOFFICE is not allowed.
+needs_docker() { [ "$RUNTIME" = docker ] || has "$ENGINES" onlyoffice; }
 
 # The first layout is the one the helper starts with.
 first_layout() { printf '%s' "${LAYOUTS%%,*}"; }
@@ -256,7 +282,14 @@ host_checks() {
         *) bad "architecture $(uname -m): the image is published for amd64 and arm64 only" ;; esac
     if command -v nginx >/dev/null 2>&1 && [ -d "$(p /etc/nginx/sites-available)" ]; then ok "Nginx present"
     else bad "Nginx with sites-available/ not found: clientst0r's reverse proxy is required"; fi
-    if command -v docker >/dev/null 2>&1; then
+    if ! needs_docker; then
+        DOCKER_STATE=unused; ok "Docker not needed: Collabora runs from its own packages (--runtime native)"
+        if command -v curl >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1; then ok "curl and gpg present (signing key check)"
+        else note "curl/gpg missing: they will be installed to fetch and check Collabora's signing key"; fi
+        if [ -e "$(p /etc/clientst0r-office/install.conf)" ] && grep -q '^PROVIDER=collabora' "$(p /etc/clientst0r-office/install.conf)" 2>/dev/null; then
+            bad "Collabora was installed on this host by install-editor.sh (same-server/separate-server mode); the managed native runtime would share its packages. Uninstall that first (install-editor.sh --uninstall)."
+        fi
+    elif command -v docker >/dev/null 2>&1; then
         if docker compose version >/dev/null 2>&1; then
             DOCKER_STATE=present; ok "Docker and Compose v2 present: used as they are, not changed"
         else
@@ -313,6 +346,7 @@ write_conf() {
         printf 'ENGINES=%s\nPROXY_LAYOUTS=%s\n' "$ENGINES" "$LAYOUTS"
         if has "$ENGINES" collabora; then
             printf 'COLLABORA_BIND_PORT=%s\nCOLLABORA_CPUS=%s\nCOLLABORA_MEMORY_MB=%s\n' "$COOL_PORT" "$COOL_CPUS" "$COOL_MEM"
+            printf 'COLLABORA_RUNTIME=%s\n' "$RUNTIME"
         fi
         case "$TLS" in
             existing-cert)
@@ -346,6 +380,9 @@ install_helper() {
         | write_file "$UNIT_DIR/clientst0r-office-helper.socket" 0644
     write_file "$UNIT_DIR/clientst0r-office-helper@.service" 0644 < "$HELPER_SRC/clientst0r-office-helper@.service"
     write_file "$UNIT_DIR/clientst0r-office-firewall.service" 0644 < "$HELPER_SRC/clientst0r-office-firewall.service"
+    # Static oneshot (no [Install]): only the helper starts it, for one
+    # package/configuration step of the native Collabora runtime.
+    write_file "$UNIT_DIR/clientst0r-office-native.service" 0644 < "$HELPER_SRC/clientst0r-office-native.service"
     # Directories the helper's sandbox may write (it cannot create them under /etc).
     run install -d -m 0755 "$(p "$SNIPPET_DIR")"
     run install -d -m 0755 "$(p "$ACME_DIR")"
@@ -363,8 +400,57 @@ hold_engine() {
         printf '%s\n' "$MARKER"
         printf 'Unattended-Upgrade::Package-Blacklist {\n'
         printf '    "docker.io"; "docker-ce"; "docker-ce-cli"; "containerd"; "containerd.io"; "runc";\n'
-        printf '    "docker-compose-v2"; "docker-compose-plugin";\n};\n'
+        printf '    "docker-compose-v2"; "docker-compose-plugin";\n'
+        # Native Collabora runtime: the editor's packages are pinned and held
+        # by the helper too; upgrade them from Office settings (Update).
+        printf '    "coolwsd"; "code-brand"; "collaboraoffice.*";\n};\n'
     } | write_file "$APT_HOLD" 0644
+}
+
+# --- Collabora's apt repository (native runtime) ------------------------------
+TMPDIR_RUN=""
+cleanup() { if [ -n "$TMPDIR_RUN" ]; then rm -rf -- "$TMPDIR_RUN"; fi; }
+trap cleanup EXIT
+
+fetch_and_verify_key() {
+    # The key is trusted only if the downloaded keyring holds exactly one
+    # primary key and its fingerprint is the pinned one.
+    TMPDIR_RUN="${TMPDIR_RUN:-$(mktemp -d)}"
+    local raw="$TMPDIR_RUN/key.raw" bin="$TMPDIR_RUN/key.gpg" home="$TMPDIR_RUN/gnupg" colons pubs fpr
+    mkdir -m 700 -p "$home"
+    say "Fetching Collabora's signing key from $CO_KEY_URL"
+    curl -fsSL --proto '=https' --tlsv1.2 --max-time 60 -o "$raw" "$CO_KEY_URL" \
+        || die "Could not download the signing key from $CO_KEY_URL"
+    if grep -q -- '-----BEGIN PGP PUBLIC KEY BLOCK-----' "$raw" 2>/dev/null; then
+        gpg --batch --quiet --homedir "$home" --dearmor -o "$bin" "$raw" || die "Could not read the signing key"
+    else
+        cp "$raw" "$bin"
+    fi
+    colons="$(gpg --batch --quiet --homedir "$home" --show-keys --with-colons "$bin" 2>/dev/null)" \
+        || die "Could not read the signing key"
+    pubs="$(printf '%s\n' "$colons" | grep -c '^pub:' || true)"
+    [ "$pubs" = 1 ] || die "The downloaded keyring holds $pubs primary keys; expected exactly one. Not trusting it."
+    fpr="$(printf '%s\n' "$colons" | awk -F: '/^pub:/ {want=1; next} want && /^fpr:/ {print $10; exit}')"
+    [ "$fpr" = "$CO_KEY_FPR" ] || \
+        die "Signing key fingerprint mismatch: expected $CO_KEY_FPR, got ${fpr:-none}. Not trusting it; nothing was changed."
+    say "Signing key fingerprint verified: $CO_KEY_FPR"
+    VERIFIED_KEY="$bin"
+}
+
+setup_collabora_repo() {
+    [ "$RUNTIME" = native ] || return 0
+    if ! command -v curl >/dev/null 2>&1 || ! command -v gpg >/dev/null 2>&1; then
+        run env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends curl gpg
+    fi
+    if dry && { ! command -v curl >/dev/null 2>&1 || ! command -v gpg >/dev/null 2>&1; }; then
+        say "+ fetch $CO_KEY_URL and check its fingerprint ($CO_KEY_FPR)"
+    else
+        fetch_and_verify_key
+    fi
+    run install -d -m 0755 "$(p /etc/apt/keyrings)"
+    if dry; then say "+ write $APT_KEYRING (mode 0644)"; else write_file "$APT_KEYRING" 0644 < "$VERIFIED_KEY"; fi
+    printf '%s\nTypes: deb\nURIs: %s\nSuites: ./\nSigned-By: %s\n' "$MARKER" "$CO_CODE_URI" "$APT_KEYRING" \
+        | write_file "$APT_SOURCE" 0644
 }
 
 helper_cli() {
@@ -416,6 +502,7 @@ do_install() {
     dry && say "" && say "DRY RUN: the actions below are printed only; nothing is changed."
     install_docker
     install_nft
+    setup_collabora_repo
     write_conf
     install_helper
     hold_engine
@@ -424,7 +511,7 @@ do_install() {
     say ""
     say "Done. Next, as a clientst0r superuser: Settings -> Office Documents -> Managed local editor,"
     say "turn it on, pick the engine, run Setup checks, then Install. No container was pulled or started"
-    say "by this script."
+    say "and no editor package was installed by this script."
 }
 
 do_remove() {
@@ -436,7 +523,7 @@ do_remove() {
     if [ -z "$ROOT" ] && ! dry && [ "$(id -u)" -ne 0 ]; then die "Run as root (sudo)."; fi
     if ! dry && [ -x "$(p "$HELPER")" ] && [ -z "$ROOT" ]; then
         if "$HELPER" cli status 2>/dev/null | grep -q '"running": true'; then
-            die "The editor container is still running: uninstall it from Office settings first (that saves open documents)."
+            die "The editor is still running: uninstall it from Office settings first (that saves open documents)."
         fi
     fi
     run systemctl disable --now clientst0r-office-helper.socket || true
@@ -444,6 +531,10 @@ do_remove() {
     remove_path "$UNIT_DIR/clientst0r-office-helper.socket"
     remove_path "$UNIT_DIR/clientst0r-office-helper@.service"
     remove_path "$UNIT_DIR/clientst0r-office-firewall.service"
+    remove_path "$UNIT_DIR/clientst0r-office-native.service"
+    # Collabora's repository (native runtime). Packages were removed by Uninstall.
+    remove_path "$APT_SOURCE"
+    remove_path "$APT_KEYRING"
     remove_path "$HELPER"
     # The helper's dedicated site goes; the same-host snippet stays (emptied
     # by the container uninstall), so an include line in clientst0r's own

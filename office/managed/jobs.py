@@ -462,7 +462,7 @@ def _cache_status(status):
 def _public_status(status):
     """The helper's status minus anything we never store (it holds no
     secrets, but keep the stored copy to known keys)."""
-    keys = ('helper_version', 'config', 'docker', 'installed', 'container', 'resources',
+    keys = ('helper_version', 'runtime', 'config', 'docker', 'installed', 'container', 'resources',
             'data_bytes', 'operation', 'update_available', 'backups', 'secrets_present')
     return {k: status.get(k) for k in keys if k in (status or {})}
 

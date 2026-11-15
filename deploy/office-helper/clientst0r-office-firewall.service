@@ -1,8 +1,9 @@
-# Re-applies the container egress rules (nftables table inet clientst0r_office)
-# at boot, before Docker starts the editor container again.
+# Re-applies the editor's egress rules (nftables table inet clientst0r_office)
+# at boot, before Docker starts the editor container again, or before
+# coolwsd.service starts (native runtime: rules for the "cool" user).
 [Unit]
-Description=clientst0r Office editor container firewall
-Before=docker.service
+Description=clientst0r Office editor firewall
+Before=docker.service coolwsd.service
 After=nftables.service
 ConditionPathExists=/etc/clientst0r/office-service.conf
 

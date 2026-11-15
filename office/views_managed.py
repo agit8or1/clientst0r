@@ -55,6 +55,7 @@ def _sessions_summary(instance):
 
 
 ENGINE_LABELS = {'onlyoffice': 'ONLYOFFICE Docs', 'collabora': 'Collabora Online Development Edition (CODE)'}
+RUNTIME_LABELS = {'docker': 'Docker container', 'native': 'Native: Collabora packages + systemd service (no Docker)'}
 LAYOUT_LABELS = {'dedicated': 'Dedicated host name (recommended)',
                  'same-host': 'Same host as clientst0r (Collabora only; shares clientst0r\'s origin)'}
 
@@ -101,7 +102,7 @@ def _context(service, *, status=None, preflight=None, proxy=None):
         'setup_commands': install_guidance.managed_commands(
             app_url=conf.get('clientstor_url') or getattr(settings, 'SITE_URL', ''),
             office_host=conf.get('office_hostname', ''), deployment_id=conf.get('deployment_id', ''),
-            engine=engine,
+            engine=engine, runtime=conf.get('collabora_runtime') or 'docker',
             layouts=(conf.get('layouts') or ('same-host',)) if engine == 'collabora' else ('dedicated',),
             tls={'local-cert': 'existing-cert', 'letsencrypt': 'certbot', 'upstream': 'upstream'}.get(
                 conf.get('proxy_tls') or '', 'existing-cert' if engine == 'onlyoffice' else 'upstream')),
@@ -110,6 +111,8 @@ def _context(service, *, status=None, preflight=None, proxy=None):
         'sessions': _sessions_summary(instance), 'checks': preflight,
         'installed_state': ((status.get('installed') or {}).get('state') or 'not installed'),
         'container': status.get('container') or {},
+        'runtime': status.get('runtime') or conf.get('runtime') or 'docker',
+        'runtime_label': RUNTIME_LABELS.get(status.get('runtime') or conf.get('runtime') or 'docker', ''),
         'updates': status.get('update_available') or [],
         'backups': status.get('backups') or [],
         'weekdays': WEEKDAYS,
@@ -168,13 +171,14 @@ def managed_host_setup(request):
             request.user, request=request, engine=request.POST.get('engine', ''), layout=layout,
             app_host=request.get_host().split(':')[0], office_host=request.POST.get('office_host', ''),
             deployment_id=request.POST.get('deployment_id', '').strip().lower(),
+            runtime=request.POST.get('runtime', 'docker') or 'docker',
             allow_untested=request.POST.get('allow_untested') == '1')
     except host_setup.SetupError as e:
         messages.error(request, str(e))
         return redirect('office:managed')
     messages.success(request, 'Server setup queued. The scheduler starts it within a minute; it can take '
-                              'several minutes (Docker is downloaded on first setup). Refresh this page '
-                              'to see the output.')
+                              'several minutes (Docker is downloaded on first setup, unless Collabora runs '
+                              'natively). Refresh this page to see the output.')
     return redirect('office:managed')
 
 
@@ -305,7 +309,8 @@ def managed_diagnostics(request):
                 f'# generated {timezone.now().isoformat()}\n\n## status\n'
                 + json.dumps(status or {'error': ManagedOfficeService.get().status_error},
                              indent=1, default=str)
-                + '\n\n## container log (last %d lines)\n' % lines + (log_text or log_error))
+                + '\n\n## editor log (last %d lines; container log or journalctl -u coolwsd)\n' % lines
+                + (log_text or log_error))
         response = HttpResponse(body, content_type='text/plain; charset=utf-8')
         try:
             engine = status_engine(status or {})

@@ -27,7 +27,7 @@ Usage (as root, normally via sudo from the app):
     clientst0r-root-helper apt update | upgrade | upgrade-packages PKG...
     clientst0r-root-helper self-update vX.Y.Z
     clientst0r-root-helper apply-system-config
-    clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested
+    clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested [docker|native]
     clientst0r-root-helper office-site-include on|off
     clientst0r-root-helper front-proxy status | on | off
 
@@ -39,7 +39,10 @@ office-setup runs scripts/office/install-editor.sh --mode managed-local from
 the release this helper was installed from (the signed tag in its own mirror,
 verified again), never from the app directory. Every argument is checked;
 TLS is always `upstream` (ends on a device in front of this server) and the
-app user comes from root-helper.conf. Once the office service is configured,
+app user comes from root-helper.conf. The optional last argument is the
+Collabora runtime: docker (the default, also when it is left out, so an
+older app keeps working) or native (Collabora's own packages, no Docker;
+Docker is then not installed). Once the office service is configured,
 its clientst0r host name and deployment id can only change from a root shell.
 office-site-include adds (or removes) the include line for the managed
 editor's same-host snippet in clientst0r's own Nginx site, runs nginx -t and
@@ -124,6 +127,7 @@ HOST_RE = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z
 DEPLOYMENT_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,40}$')
 OFFICE_ENGINES = ('collabora', 'onlyoffice')
 OFFICE_LAYOUTS = ('same-host', 'dedicated', 'same-host,dedicated', 'dedicated,same-host')
+OFFICE_RUNTIMES = ('docker', 'native')
 # Debian package names, optionally with an :arch qualifier. Cannot start with
 # '-', so nothing here can be read by apt-get as an option.
 PKG_RE = re.compile(r'^[a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?$')
@@ -141,6 +145,16 @@ ENGINE_PKG_RE = re.compile(r'^(docker\.io|docker-ce(-cli|-rootless-extras)?|dock
 ENGINE_REFUSAL = ('the managed ONLYOFFICE service runs on Docker here: stop it from Office settings '
                   '(that saves open documents first), upgrade the container engine from a root '
                   'shell, then start it again')
+
+
+def office_uses_docker():
+    """The managed office service needs the container engine unless it runs
+    only Collabora with COLLABORA_RUNTIME=native."""
+    conf = _office_conf()
+    if conf is None:
+        return False
+    engines = [x.strip() for x in conf.get('ENGINES', 'onlyoffice').split(',')]
+    return 'onlyoffice' in engines or conf.get('COLLABORA_RUNTIME', 'docker') != 'native'
 
 
 def office_service_configured():
@@ -300,7 +314,7 @@ def apt_argv(args):
             raise HelperError(f'refusing to upgrade Office editor package(s) {editor[:5]}: '
                               'use scripts/office/install-editor.sh --upgrade after draining sessions')
         engine = [p for p in packages if ENGINE_PKG_RE.match(p)]
-        if engine and office_service_configured():
+        if engine and office_uses_docker():
             raise HelperError(f'refusing to upgrade {engine[:5]}: {ENGINE_REFUSAL}')
         return ['apt-get', *APT_OPTS, 'install', '--only-upgrade', *packages]
     raise HelperError('usage: apt update | upgrade | upgrade-packages PKG...')
@@ -309,7 +323,7 @@ def apt_argv(args):
 INST_RE = re.compile(r'^Inst ([a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?) ')
 
 
-def held_back_upgrade_argv(simulation):
+def held_back_upgrade_argv(simulation, skip_engine=True):
     """`apt upgrade` while the managed ONLYOFFICE service is configured:
     every package a plain upgrade would upgrade (from `apt-get -s upgrade`),
     except the container engine and the editor packages. Returns
@@ -320,7 +334,8 @@ def held_back_upgrade_argv(simulation):
         if not m:
             continue
         name = m.group(1)
-        (skipped if ENGINE_PKG_RE.match(name) or EDITOR_PKG_RE.match(name) else names).append(name)
+        held = (skip_engine and ENGINE_PKG_RE.match(name)) or EDITOR_PKG_RE.match(name)
+        (skipped if held else names).append(name)
     if not names:
         return None, skipped
     return ['apt-get', *APT_OPTS, 'install', '--only-upgrade', *names], skipped
@@ -331,7 +346,7 @@ def cmd_apt(args):
         sim = _run(['apt-get', '-s', '-q', 'upgrade'], env=APT_ENV, timeout=600, capture=True)
         if sim.returncode != 0:
             raise HelperError('apt-get -s upgrade failed: ' + (sim.stderr or '').strip()[:300])
-        argv, skipped = held_back_upgrade_argv(sim.stdout)
+        argv, skipped = held_back_upgrade_argv(sim.stdout, skip_engine=office_uses_docker())
         if skipped:
             print(f'Not upgrading {" ".join(skipped)}: {ENGINE_REFUSAL}')
         if argv is None:
@@ -454,9 +469,15 @@ def _office_conf():
 
 def office_setup_argv(conf, args, script):
     """The installer command line for `office-setup`, from checked arguments only."""
-    if len(args) != 6:
-        raise HelperError('office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested')
-    engine, layouts, app_host, deployment, office_host, tested = args
+    usage = 'office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested [docker|native]'
+    if len(args) not in (6, 7):
+        raise HelperError(usage)
+    engine, layouts, app_host, deployment, office_host, tested = args[:6]
+    runtime = args[6] if len(args) == 7 else 'docker'
+    if runtime not in OFFICE_RUNTIMES:
+        raise HelperError(f'unknown office runtime: {runtime!r} (docker or native)')
+    if runtime == 'native' and engine != 'collabora':
+        raise HelperError('the native runtime is for Collabora only; ONLYOFFICE runs in Docker')
     if engine not in OFFICE_ENGINES:
         raise HelperError(f'unknown office engine: {engine!r}')
     if layouts not in OFFICE_LAYOUTS:
@@ -484,7 +505,8 @@ def office_setup_argv(conf, args, script):
     argv = ['/bin/bash', script, '--provider', engine, '--mode', 'managed-local',
             '--layouts', layouts, '--clientstor-url', f'https://{app_host}/',
             '--deployment-id', deployment, '--tls', 'upstream',
-            '--app-user', conf['APP_USER'], '--install-docker']
+            '--app-user', conf['APP_USER']]
+    argv += ['--runtime', 'native'] if runtime == 'native' else ['--install-docker']
     if office_host != '-':
         argv += ['--hostname', office_host]
     if tested == 'untested':

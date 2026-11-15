@@ -49,6 +49,9 @@ PREFLIGHT_LABELS = {
     'proxy': 'Reverse proxy on this server', 'callback': 'Callback route (editor -> clientst0r)',
     'nginx': 'Nginx', 'subnet': 'Container network',
     'dns': 'DNS', 'release': 'Pinned release', 'license': 'Enterprise license',
+    # native (no Docker) Collabora runtime
+    'repository': 'Collabora package repository (signed)', 'systemd': 'systemd (coolwsd.service)',
+    'packages': 'Collabora packages on this host',
 }
 STATUS = {'pass': PASS, 'fail': FAIL, 'warn': WARN}
 ENGINE_LABELS = {'onlyoffice': 'ONLYOFFICE', 'collabora': 'Collabora'}
@@ -173,7 +176,7 @@ def callback_check():
         return DiagnosticCheck('editor_to_cs', 'Editor reaches clientst0r (callbacks)', NOT_RUN, str(e)[:300])
     return DiagnosticCheck(
         'editor_to_cs', 'Editor reaches clientst0r (callbacks)', PASS if r.get('ok') else FAIL,
-        f'From inside the container to {r.get("target")} ({r.get("route")}): '
+        f'From {r.get("from") or "inside the container"} to {r.get("target")} ({r.get("route")}): '
         + ('verified TLS connection.' if r.get('ok') else (r.get('detail') or 'failed')[:300]),
         '' if r.get('ok') else 'Check CALLBACK_ROUTE / CALLBACK_UPSTREAM_IP in the root config, the '
                                'TLS device in front of this server, and clientst0r\'s certificate.')

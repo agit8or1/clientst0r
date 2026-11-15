@@ -34,6 +34,9 @@ from .ipc import HOST_RE
 DEPLOYMENT_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,40}$')
 ENGINES = ('collabora', 'onlyoffice')
 LAYOUTS = ('same-host', 'dedicated')
+# Collabora's runtime: docker (container) or native (Collabora's own packages
+# and a systemd service, no Docker). ONLYOFFICE always runs in Docker.
+RUNTIMES = ('docker', 'native')
 SETUP_TIMEOUT = 45 * 60
 INCLUDE_TIMEOUT = 3 * 60
 FRONT_PROXY_TIMEOUT = 5 * 60
@@ -55,7 +58,7 @@ def default_deployment_id(host: str) -> str:
     return slug if DEPLOYMENT_RE.match(slug) else 'clientst0r'
 
 
-def validate(*, engine, layout, app_host, deployment_id, office_host=''):
+def validate(*, engine, layout, app_host, deployment_id, office_host='', runtime='docker'):
     """The same checks the root helper makes, so the page can say what is
     wrong before anything is queued."""
     app_host = (app_host or '').strip().lower()
@@ -66,6 +69,11 @@ def validate(*, engine, layout, app_host, deployment_id, office_host=''):
         raise SetupError('Pick an address layout.')
     if engine == 'onlyoffice' and layout != 'dedicated':
         raise SetupError('ONLYOFFICE runs only on a dedicated host name.')
+    runtime = runtime or 'docker'
+    if runtime not in RUNTIMES:
+        raise SetupError('Pick a runtime: Docker or native.')
+    if runtime == 'native' and engine != 'collabora':
+        raise SetupError('The native runtime (no Docker) is for Collabora only; ONLYOFFICE runs in Docker.')
     if not HOST_RE.match(app_host) or '.' not in app_host:
         raise SetupError('clientst0r\'s host name is not a valid DNS name.')
     if not DEPLOYMENT_RE.match(deployment_id or ''):
@@ -76,7 +84,7 @@ def validate(*, engine, layout, app_host, deployment_id, office_host=''):
     else:
         office_host = ''
     return {'engine': engine, 'layout': layout, 'app_host': app_host,
-            'deployment_id': deployment_id, 'office_host': office_host}
+            'deployment_id': deployment_id, 'office_host': office_host, 'runtime': runtime}
 
 
 def request_setup(user, *, allow_untested, request=None, **fields):
@@ -99,7 +107,7 @@ def request_setup(user, *, allow_untested, request=None, **fields):
         service.save()
     audit.log('settings_change', user=user, request=request, object_type='office.managed',
               object_id=1, object_repr='Managed Office editor',
-              description=(f'Server setup queued: {data["engine"]}, {data["layout"]} layout'
+              description=(f'Server setup queued: {data["engine"]} ({data["runtime"]}), {data["layout"]} layout'
                            + (', same-host warning accepted' if data['layout'] == 'same-host' else '')
                            + (', untested releases allowed' if data['allow_untested'] else '')),
               extra={'changed': ['host_setup'], **data})
@@ -107,9 +115,15 @@ def request_setup(user, *, allow_untested, request=None, **fields):
 
 
 def helper_args(data):
+    """The root helper's office-setup argv. The runtime is passed only when
+    it is native, so a Docker setup keeps the 6-argument form that root
+    helpers from before the native runtime accept."""
     layouts = data['layout']
-    return ['office-setup', data['engine'], layouts, data['app_host'], data['deployment_id'],
+    args = ['office-setup', data['engine'], layouts, data['app_host'], data['deployment_id'],
             data['office_host'] or '-', 'untested' if data.get('allow_untested') else 'tested']
+    if data.get('runtime') == 'native':
+        args.append('native')
+    return args
 
 
 def maybe_start():
@@ -177,7 +191,7 @@ def run(lease):
         return False
     try:
         validate(**{k: data.get(k, '') for k in ('engine', 'layout', 'app_host', 'deployment_id',
-                                                'office_host')})
+                                                'office_host')}, runtime=data.get('runtime') or 'docker')
     except SetupError as e:
         _finish(False, str(e))
         return False
@@ -210,7 +224,8 @@ def run(lease):
         jobs.refresh_status(timeout=15)
     audit.log('settings_change', user=service.host_setup_requested_by, object_type='office.managed',
               object_id=1, object_repr='Managed Office editor', success=ok,
-              description=f'Server setup {"finished" if ok else "failed"}: {data["engine"]}, '
-                          f'{data["layout"]} layout',
-              extra={'changed': ['host_setup'], 'engine': data['engine'], 'layout': data['layout']})
+              description=f'Server setup {"finished" if ok else "failed"}: {data["engine"]} '
+                          f'({data.get("runtime") or "docker"}), {data["layout"]} layout',
+              extra={'changed': ['host_setup'], 'engine': data['engine'], 'layout': data['layout'],
+                     'runtime': data.get('runtime') or 'docker'})
     return ok

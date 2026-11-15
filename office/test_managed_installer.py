@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import unittest
 from pathlib import Path
 
 from django.conf import settings
@@ -260,3 +261,95 @@ class ManagedInstallerTests(SimpleTestCase):
         self.assertTrue((self.root / 'etc/nginx/clientst0r-office/same-host.conf').exists())
         self.assertTrue(data.exists())
         self.assertTrue(secret.exists())
+
+
+CO_KEY = BASE / 'office' / 'test_data' / 'ops' / 'collaboraonline-release-keyring.gpg'
+OO_KEY = BASE / 'office' / 'test_data' / 'ops' / 'onlyoffice-GPG-KEY-ONLYOFFICE.asc'
+
+
+@unittest.skipUnless(shutil.which('gpg'), 'needs gpg (the fingerprint check runs for real)')
+class ManagedInstallerNativeTests(SimpleTestCase):
+    """--runtime native: Collabora's repository with the pinned key, no Docker,
+    no package installed by the script. Same fake host as above."""
+
+    run_script = ManagedInstallerTests.run_script
+    args = ManagedInstallerTests.args
+    calls = ManagedInstallerTests.calls
+    system_bin_without = ManagedInstallerTests.system_bin_without
+
+    def setUp(self):
+        ManagedInstallerTests.setUp(self)
+        f = self.bin / 'curl'
+        f.write_text('#!/bin/bash\nprintf "%s\\n" "curl $*" >> "$STUB_LOG"\nout=""\n'
+                     'while [ $# -gt 0 ]; do [ "$1" = -o ] && out="$2"; shift; done\n'
+                     'cp "$STUB_KEY_FILE" "$out"\n')
+        f.chmod(0o755)
+        (self.bin / 'docker').unlink()
+        self.env = {'PATH': f'{self.bin}:{self.system_bin_without("docker", "dockerd", "curl")}',
+                    'STUB_KEY_FILE': str(CO_KEY)}
+
+    def native(self, *extra, key=None):
+        env = dict(self.env)
+        if key:
+            env['STUB_KEY_FILE'] = str(key)
+        return self.run_script('--provider', 'collabora', '--layouts', 'same-host', '--runtime', 'native',
+                               '--clientstor-url', 'https://docs.acme.example', '--deployment-id', 'acme-prod',
+                               '--tls', 'upstream', *extra, env=env)
+
+    def test_native_sets_up_the_signed_repository_without_docker(self):
+        r = self.native('--allow-untested-releases')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('Signing key fingerprint verified: 7EB1530818B7683284483B7BD8915E456E7C440E', r.stdout)
+        self.assertIn('Docker not needed', r.stdout)
+        keyring = self.root / 'etc/apt/keyrings/clientst0r-office-managed-collabora.gpg'
+        self.assertEqual(keyring.read_bytes(), CO_KEY.read_bytes())
+        self.assertEqual(keyring.stat().st_mode & 0o777, 0o644)
+        src = (self.root / 'etc/apt/sources.list.d/clientst0r-office-managed-collabora.sources').read_text()
+        self.assertIn('Types: deb\nURIs: https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb\n'
+                      'Suites: ./\nSigned-By: /etc/apt/keyrings/clientst0r-office-managed-collabora.gpg\n', src)
+        conf = (self.root / 'etc/clientst0r/office-service.conf').read_text()
+        self.assertIn('COLLABORA_RUNTIME=native\n', conf)
+        self.assertIn('ENGINES=collabora\n', conf)
+        unit = self.root / 'etc/systemd/system/clientst0r-office-native.service'
+        self.assertEqual(unit.read_bytes(), (BASE / 'deploy/office-helper/clientst0r-office-native.service').read_bytes())
+        hold = (self.root / 'etc/apt/apt.conf.d/51clientst0r-office-engine').read_text()
+        self.assertIn('"coolwsd"; "code-brand"; "collaboraoffice.*";', hold)
+        calls = self.calls()
+        self.assertNotIn('docker', calls.replace('docker.io', ''))
+        self.assertNotIn('apt-get', calls, 'the script installs no editor package')
+        self.assertNotIn('systemctl start coolwsd', calls)
+        self.assertIn('curl -fsSL --proto =https', calls)
+
+    def test_wrong_key_changes_nothing(self):
+        r = self.native(key=OO_KEY)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('fingerprint mismatch', r.stderr)
+        self.assertFalse((self.root / 'etc/apt/keyrings/clientst0r-office-managed-collabora.gpg').exists())
+        self.assertFalse((self.root / 'etc/clientst0r/office-service.conf').exists())
+
+    def test_native_is_collabora_only_and_docker_stays_needed_for_onlyoffice(self):
+        r = self.run_script(*self.args('--runtime', 'native'), env=self.env)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('Collabora only', r.stderr)
+        r = self.run_script('--runtime', 'podman', env=self.env)
+        self.assertIn('docker or native', r.stderr)
+        r = self.native('--engines', 'collabora,onlyoffice', '--layouts', 'dedicated',
+                        '--hostname', 'office.acme.example')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('Docker absent', r.stdout)
+
+    def test_remove_units_removes_the_repository(self):
+        self.assertEqual(self.native().returncode, 0)
+        r = self.run_script('--remove-units', env=self.env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        for rel in ('etc/apt/keyrings/clientst0r-office-managed-collabora.gpg',
+                    'etc/apt/sources.list.d/clientst0r-office-managed-collabora.sources',
+                    'etc/systemd/system/clientst0r-office-native.service'):
+            self.assertFalse((self.root / rel).exists(), rel)
+
+    def test_refuses_next_to_an_install_editor_collabora(self):
+        (self.root / 'etc/clientst0r-office').mkdir(parents=True)
+        (self.root / 'etc/clientst0r-office/install.conf').write_text('PROVIDER=collabora-code\n')
+        r = self.native()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('install-editor.sh --uninstall', r.stdout)
