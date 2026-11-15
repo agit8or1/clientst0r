@@ -13,21 +13,21 @@ whole and goes to the people you choose.
 
 Pulse checks are an optional module and are **off by default**.
 
-1. Go to **Settings → System → Optional modules** (superusers).
+1. Go to **Settings → Modules → Optional Modules** (superusers).
 2. Turn on **Pulse checks**.
 
 While it is off, the menu entry is hidden, every pulse check page (staff and
 portal) answers 404, links already e-mailed stop working, and the scheduled
 task sends nothing. Turning it back on brings everything back as it was.
 
-E-mailed links need outgoing e-mail (**Settings → Email / SMTP**). Without
+E-mailed links need outgoing e-mail (**Settings → Communications → SMTP / Email**). Without
 it, sends are still recorded and people with a portal account can answer
 from the portal's **Feedback** page; the send page shows how many were
 e-mailed.
 
 ## Creating a pulse check
 
-MSP staff open **Clients → Pulse Checks → New pulse check**.
+MSP staff open **Business → Pulse Checks → New pulse check**.
 
 - **Name and intro text** — the intro is shown above the questions and in
   the e-mail.
@@ -77,7 +77,7 @@ is sent.
 - **By hand:** open the pulse check and click **Send now…**, review the
   recipients, then confirm.
 - **On a schedule:** the scheduled task *Pulse Check Scheduled Sends*
-  (Settings → Scheduler, hourly) sends each active monthly or quarterly
+  (Settings → Automation → Task Scheduler, hourly) sends each active monthly or quarterly
   pulse check once per period, on or after its day of the month. Running it
   again in the same month or quarter sends nothing more, so it is safe to
   rerun. It can also be run by hand: `python manage.py pulse_send_due`.
@@ -104,7 +104,7 @@ requests or answers.
 Every e-mail has a "Don't want these feedback requests?" link that stops all
 pulse check e-mails for that address. Portal users can also switch them off
 and on again on the **Feedback** page. Staff can see the list under
-**Pulse Checks → Opt-outs**; only the person can turn requests back on.
+**Business → Pulse Checks → Opt-outs**; only the person can turn requests back on.
 Other e-mail (ticket notifications, CSAT) is not affected.
 
 ## Results
@@ -126,7 +126,7 @@ clients, and cannot use *All clients*.
 
 | What | Where |
 |---|---|
-| Switch | `SystemSetting.pulse_enabled` (Settings → System → Optional modules) |
+| Switch | `SystemSetting.pulse_enabled` (Settings → Modules → Optional Modules) |
 | Staff pages | `/pulse/` (MSP staff only) |
 | Portal pages | `/portal/feedback/` |
 | E-mailed answer link | `/portal/feedback/r/<token>/` |

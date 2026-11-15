@@ -14,7 +14,7 @@ did before (one key, one organization).
 ## Key scopes
 
 Every API key has an **Organization Scope**, chosen when you create it under
-**Settings → API Keys → Create API Key**:
+**Settings → Users & Access → Access Management → API Keys → Create API Key** (`/api/keys/`):
 
 | Scope | Reach |
 |---|---|

@@ -181,7 +181,7 @@ the unit names after 9.4's single-process change have not been checked.
 Notes on these settings:
 
 - **Secrets.** `<SECRET>` is the instance's shared secret in clientst0r
-  (Settings → Office Documents → instance → Shared secret), at least 32
+  (Settings → Integrations → Office Documents → instance → Shared secret), at least 32
   random characters. Every vendor default secret is
   `developer-only-not-a-real-secret`, and the storage default is
   `verysecretstring`. clientst0r refuses both. Its diagnostics also send a
@@ -266,7 +266,7 @@ timeouts.
 
 ## Diagnostics
 
-Settings → Office Documents → instance → **Run diagnostics** adds these
+Settings → Integrations → Office Documents → instance → **Run diagnostics** adds these
 checks to the core checks (addresses, secret, DNS/address policy,
 reachability and TLS from clientst0r):
 

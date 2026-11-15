@@ -4,7 +4,7 @@ Client St0r is a **Progressive Web App (PWA)** — you can add it to your home s
 
 ## Where to Find the Install Page
 
-**Profile menu** (tap your avatar in the top-right corner) → **Install App / Add to Home Screen**
+**Account menu** (your user name in the top-right corner; on a phone, open the menu button first) → **Install app**, which opens **Apps & Downloads → Install App / Add to Home Screen**
 
 Or navigate directly to: `https://YOUR-SERVER/core/install/`
 
@@ -53,7 +53,7 @@ After installing, **long-press** the Client St0r icon on your home screen to see
 
 Each vehicle has a **per-vehicle QR code** that links directly to the Add Receipt page. To set it up:
 
-1. Go to **Operations → Vehicles → [your vehicle]**
+1. Go to **Assets & Network → Vehicles → [your vehicle]**
 2. Click the **Receipts** tab
 3. Click **Phone Shortcut**
 4. Scan the QR code with your phone — opens Add Receipt for that vehicle

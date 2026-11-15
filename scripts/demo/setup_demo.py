@@ -12,7 +12,7 @@ and scripts/demo/seed_compliance.py. After the hardware demo it runs the rack
 artwork step, the sample conversations and module samples pointed at this
 instance's customers, and the late seed_demo steps (named approvers, readiness
 custom fields, the secure-message link, ticket AI, superuser approval and the
-RMM fixture and pairing) — all rows written directly; nothing calls out.
+RMM fixture and pairing, the top bar's Favorites and Recent) — all rows written directly; nothing calls out.
 
 HARDWARE_CATALOG_SOURCE=<devicetype-library checkout> reuses an existing
 checkout instead of cloning one.
@@ -85,7 +85,8 @@ call_command('psa_seed_sample_conversations', tech='demo.tech', org_map=seed_dem
 call_command('seed_module_samples', **seed_demo.MODULE_SAMPLE_OPTIONS)
 for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fields,
              seed_demo.seed_secure_link, seed_demo.seed_ticket_ai, seed_demo.seed_superuser_approval,
-             seed_demo.seed_rmm_fixture, seed_demo.seed_rmm_pairing):
+             seed_demo.seed_rmm_fixture, seed_demo.seed_rmm_pairing,
+             seed_demo.seed_navigation):
     print(step.__name__)
     step()
 print(f"demo instance ready: {db['NAME']}")

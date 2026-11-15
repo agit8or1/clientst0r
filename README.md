@@ -17,20 +17,22 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 ---
 
-[![The ClientSt0r dashboard for Northwind Logistics in light theme: the navigation bar with the selected client, quick actions, record counts, the next seven days of scheduled work, outstanding tasks with due badges, monitor status and a site map](docs/images/github/client-dashboard-light.png)](docs/images/github/client-dashboard-light.png)
+[![The ClientSt0r dashboard in light theme with Northwind Logistics selected: the navy ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the client switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-light.png)](docs/images/github/client-dashboard-light.png)
 
 ## Watch it work
 
-[![Walkthrough video: a technician moves from the client dashboard into the queue, opens a ticket carrying its contract and credentials, documents a switch port on the panel artwork and traces its cable, then reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
+[![Walkthrough video: a technician starts from the dashboard's KPI row, opens the ten-section sidebar and its icon-rail flyouts, finds a client with Ctrl+K, works from the client workspace and the queue into a ticket carrying its contract and credentials, documents a switch port on the panel artwork and traces its cable, then reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
 
-**[▶ Watch the full 3½-minute walkthrough (MP4, 5.2 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4)**
-— or the [72-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough-highlight.mp4).
-The animation above is a 45-second excerpt, played at 1.6× speed.
+**[▶ Watch the full 3¾-minute walkthrough (MP4, 6.5 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.681/clientst0r-walkthrough.mp4)**
+— or the [84-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.681/clientst0r-walkthrough-highlight.mp4).
+The animation above is a 52-second excerpt, played at 1.6× speed.
 
-It runs through four end-to-end workflows — a ticket from queue to runbook, the physical
-network from switch port to desk and patch-panel mapping, the week scheduled on the
-dispatch board and a project plan, and quote to invoice to profitability — with a
-deliberate light-to-dark transition partway. It is caption-led; there is no
+It opens with the frame you work in — the dashboard, the sidebar and its icon rail, Go to
+(Ctrl+K) and the client workspace — then runs through four end-to-end workflows: a ticket
+from queue to runbook, the physical network from switch port to desk and patch-panel
+mapping, the week scheduled on the dispatch board and a project plan, and quote to invoice
+to profitability, ending in the settings center and the module switches. It starts in Professional Dark, the
+default, and switches to the light theme partway. It is caption-led; there is no
 narration track. [Transcript](docs/media/walkthrough.txt) ·
 [captions](docs/media/walkthrough.vtt) · regenerate it, or the screenshots, with
 [`scripts/demo/`](scripts/demo/README.md).
@@ -60,9 +62,21 @@ print true-size labels with QR codes. Racks and diagrams are drawn only from wha
 documented, and every layout says whether it was checked against the manufacturer's documentation.
 
 **One tenant per client, from day one.** Every asset, document, credential, location and
-ticket belongs to an organization. Technicians switch client context in one click;
-role-based membership decides who sees what. Multi-site clients, parent/child
-organizations and per-client PSA settings are first-class, not bolted on.
+ticket belongs to an organization. Technicians switch client context in one click, and each
+client opens as a workspace — overview, tickets, assets, RMM devices, contacts, documents,
+passwords (names only), contracts, billing, projects, activity and members on tabs, with
+a KPI row and quick actions. Role-based membership decides who sees what. Multi-site
+clients, parent/child organizations and per-client PSA settings are first-class, not
+bolted on.
+
+**Built for the working day.** Ten sections in one sidebar (Dashboard, My Work, Service
+Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring,
+Reports, and Administration pinned at the foot) that collapses to an icon rail with flyout
+menus. Ctrl+K (or Cmd+K) opens **Go to**: pages, settings, quick commands, clients,
+tickets, devices, projects, documents and reports, searched with each list's own
+permission rules — passwords are never searched. Star any page into **Favorites**, pick
+up where you left off from **Recent**, and start from a dashboard whose KPI row and panels
+follow your role (administrator, manager, L1/L2/L3 technician, sales, customer).
 
 ## See it in action
 
@@ -75,68 +89,89 @@ credentials the job needs, listed but never revealed.
 <table>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/ticket-queue-dark.png"><img src="docs/images/github/ticket-queue-dark.png" alt="Service desk queue in dark theme listing 36 tickets across five clients with subject, client, priority, status, queue, assignee, a Needs reply flag, last activity and age"></a>
-<b>One queue, every client</b> · Dark<br>Filter by status, priority, queue or technician; see who acted last.
+<a href="docs/images/github/nav-sidebar-dark.png"><img src="docs/images/github/nav-sidebar-dark.png" alt="Ticket list in the Professional Dark theme with the navy sidebar expanded: a Jump to filter, the Dashboard, My Work and Service Desk sections with Service Desk open on Tickets, Dispatch Board, Shifts and Locations, Scheduling, Projects, Service Management and Workflows, the remaining sections collapsed and Administration at the foot"></a>
+<b>Ten sections, one sidebar</b> · Professional Dark<br>Collapses to an icon rail with flyouts; Configure menus hold the setup pages.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/dispatch-board-dark.png"><img src="docs/images/github/dispatch-board-dark.png" alt="Dispatch board in dark theme showing a week of scheduled work by technician with an SLA-at-risk banner"></a>
-<b>Dispatch the week</b> · Dark<br>Drag a ticket onto a technician; breaches surface up top.
+<a href="docs/images/github/command-palette-dark.png"><img src="docs/images/github/command-palette-dark.png" alt="Command palette open over the dashboard in the Professional Dark theme with the query north: grouped results for the Northwind Logistics client, its tickets, devices and documents, with keyboard hints for moving, opening and closing"></a>
+<b>Go to anything with Ctrl+K</b> · Professional Dark<br>Pages, settings, clients, tickets, devices and documents — passwords never searched.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation in dark theme drawn from catalog artwork: a FortiGate firewall, an HPE Aruba 6300M core switch, a 2U Panduit patch panel, a legacy KVM console placement shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units"></a>
-<b>What is actually in the rack</b> · Dark<br>Drawn from each model's artwork across its real U span; click a device for its ports.
+<a href="docs/images/github/client-overview-light.png"><img src="docs/images/github/client-overview-light.png" alt="Northwind Logistics client workspace in light theme on the Overview tab: the client header with Operations, Evidence pack and Edit, a current-client banner, quick actions, the tab bar, a KPI row for open tickets, SLA at risk, managed assets, RMM offline, active contracts, open invoices and active projects, then company information, contact and address, contacts, and the client's open tickets, devices and contracts"></a>
+<b>Each client is a workspace</b> · Light<br>KPIs, quick actions and tabs from tickets to billing.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/project-timeline-light.png"><img src="docs/images/github/project-timeline-light.png" alt="Project timeline in light theme: a Gantt chart of seven tasks with milestones marked"></a>
+<a href="docs/images/github/settings-center-light.png"><img src="docs/images/github/settings-center-light.png" alt="Settings center in light theme: a search box above ten category cards, each listing its settings pages, from General Settings and Customer Portal to Data Import and Vault Import"></a>
+<b>One settings center</b> · Light<br>Ten searchable categories, each showing only what you may open.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/ticket-queue-dark.png"><img src="docs/images/github/ticket-queue-dark.png" alt="Service desk queue in the Professional Dark theme listing 36 tickets across five clients with subject and ticket number, client, priority, status, queue, assignee, a Needs reply flag, last activity with who acted, and age"></a>
+<b>One queue, every client</b> · Professional Dark<br>Filter by status, priority, queue or technician; see who acted last.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/dispatch-board-dark.png"><img src="docs/images/github/dispatch-board-dark.png" alt="Dispatch board in the Professional Dark theme showing a week of scheduled work by technician with an SLA-at-risk banner and unassigned tickets"></a>
+<b>Dispatch the week</b> · Professional Dark<br>Drag a ticket onto a technician; breaches surface up top.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation in the Professional Dark theme drawn from catalog artwork: a FortiGate firewall at U40, an HPE Aruba 6300M core switch at U37, a 2U Panduit patch panel, a legacy KVM console placement with no model shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units"></a>
+<b>What is actually in the rack</b> · Professional Dark<br>Drawn from each model's artwork across its real U span; click a device for its ports.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/project-timeline-light.png"><img src="docs/images/github/project-timeline-light.png" alt="Project timeline in light theme: a Gantt chart of seven tasks with milestones marked, above a dependency table showing blocked tasks and what each waits for"></a>
 <b>Projects with dependencies</b> · Light<br>Drag a bar to reschedule; blocked work is flagged.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-device-light.png"><img src="docs/images/github/hardware-device-light.png" alt="Device page in light theme for a 48-port Dell PowerConnect 3448P switch with front and rear panel artwork and ports coloured by VLAN"></a>
+<a href="docs/images/github/hardware-device-light.png"><img src="docs/images/github/hardware-device-light.png" alt="Device page in light theme for a 48-port Dell PowerConnect 3448P switch: front and rear panel artwork with ports coloured by VLAN, a verified-front and approximate-rear badge, a VLAN legend and the port table below"></a>
 <b>Every port, on the panel</b> · Light<br>Click a port to document its VLANs, PoE and cable.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-trace-light.png"><img src="docs/images/github/hardware-trace-light.png" alt="Cable trace in light theme from a switch port through a patch panel and wall jack to a workstation"></a>
+<a href="docs/images/github/hardware-trace-light.png"><img src="docs/images/github/hardware-trace-light.png" alt="Cable trace in light theme from switch port 12 through a patch panel, a 34.5 m permanent link and wall jack Office 104 A to workstation XYZ-WS-104, marked complete documented path"></a>
 <b>Trace the cable</b> · Light<br>Switch port to desk, through panel and wall jack.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-port-editor-dark.png"><img src="docs/images/github/hardware-port-editor-dark.png" alt="Port editor open on a switch port with VLANs, PoE and the patch cable to the panel"></a>
-<b>Document a port in place</b> · Dark<br>Mode, VLANs, PoE and the cable, from the artwork.
+<a href="docs/images/github/hardware-port-editor-dark.png"><img src="docs/images/github/hardware-port-editor-dark.png" alt="Switch page in the Professional Dark theme with the port editor open for port 1/e12: description, mode access, VLAN 10 Staff with voice VLAN 20, PoE auto, and cable C-0012 to PP-01 Port 12, with the port highlighted on the panel artwork"></a>
+<b>Document a port in place</b> · Professional Dark<br>Mode, VLANs, PoE and the cable, from the artwork.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-panel-mapping-light.png"><img src="docs/images/github/hardware-panel-mapping-light.png" alt="Patch panel front-to-rear mapping with patched-from port, permanent link, far end and path status"></a>
+<a href="docs/images/github/hardware-panel-mapping-light.png"><img src="docs/images/github/hardware-panel-mapping-light.png" alt="Patch panel mapping in light theme for PP-01: port 12 from switch port 12 through C-0012 and L-104A to XYZ-WS-104 (complete), port 13 through L-105A to Office 105 jack A (incomplete), port 24 to XYZ-AP-01 (complete)"></a>
 <b>Front-to-rear port mapping</b> · Light<br>Every panel port: what it is patched from and where it goes.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/vault-dark.png"><img src="docs/images/github/vault-dark.png" alt="Password vault in dark theme listing nine credentials with title, username and security status, every secret hidden"></a>
-<b>Credentials, never on screen</b> · Dark<br>AES-GCM at rest; every reveal audited.
+<a href="docs/images/github/vault-dark.png"><img src="docs/images/github/vault-dark.png" alt="Password vault in the Professional Dark theme listing nine credentials for one client with title, username and security status, every secret hidden"></a>
+<b>Credentials, never on screen</b> · Professional Dark<br>AES-GCM at rest; every reveal audited.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/report-profitability-light.png"><img src="docs/images/github/report-profitability-light.png" alt="Profitability by client report in light theme showing revenue, cost, margin and blended margin percentage"></a>
+<a href="docs/images/github/report-profitability-light.png"><img src="docs/images/github/report-profitability-light.png" alt="Profitability by client report in light theme showing revenue, cost, margin and blended margin percentage with a per-client breakdown"></a>
 <b>What the month earned</b> · Light<br>Revenue against cost of delivery, from logged time.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/ticket-rmm-requests-dark.png"><img src="docs/images/github/ticket-rmm-requests-dark.png" alt="Requests to the RMM on a ticket in dark theme: a handoff with receipt confirmed, a completed read-only disk-space diagnostic with its staff-only result, and a fix referral approved in the RMM"></a>
-<b>Work the device from the ticket</b> · Dark<br>Hand off, run a read-only check or refer a fix to a paired RMM.
+<a href="docs/images/github/ticket-rmm-requests-dark.png"><img src="docs/images/github/ticket-rmm-requests-dark.png" alt="Requests to the RMM list on a ticket in the Professional Dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM"></a>
+<b>Work the device from the ticket</b> · Professional Dark<br>Hand off, run a read-only check or refer a fix to a paired RMM.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/technician-access-light.png"><img src="docs/images/github/technician-access-light.png" alt="Technician Access settings in light theme with protected changes waiting, an effective-access preview, L1 and L2 assignments per customer and the preset capability table"></a>
+<a href="docs/images/github/technician-access-light.png"><img src="docs/images/github/technician-access-light.png" alt="Technician Access settings in light theme: the order of evaluation, a password and authenticator confirmation box, protected changes waiting, an effective-access preview, assignments of L1 Help Desk and L2 Technician presets to three technicians at Northwind Logistics, and the preset capability table"></a>
 <b>Who may do what, per customer</b> · Light<br>L1/L2/L3 presets; widening needs a second administrator.
 </td>
 </tr>
 </table>
 
-**[See all screenshots →](docs/screenshots.md)** — 83 views, light and dark, across documentation,
-the service desk, the paired RMM, dispatch, projects, reporting, security and administration.
+**[See all screenshots →](docs/screenshots.md)** — 96 views, light and Professional Dark, across navigation,
+documentation, the service desk, the paired RMM, dispatch, projects, reporting, security and
+administration, plus the phone layout.
 
 ## Quick Start
 
@@ -181,21 +216,32 @@ Full guide: **[INSTALL.md](INSTALL.md)**.
 
 ### First steps after install
 
+**Settings** — the gear in the top bar, or Administration at the foot of the sidebar —
+opens the settings center: one searchable card per category — General, Users & Access, Security,
+Integrations, AI Configuration, Automation, Communications, Modules, System and
+Maintenance — listing only the pages you may open.
+
 1. Sign in and enrol 2FA — it is enforced for every account by default.
-2. Create your first client organization under **Admin → Organizations**.
-3. Add your technicians under **Admin → Access Management** and set their **User Type** to
-   **Staff**. Staff users work across every client; everyone else is treated as a customer
-   user and sees only their own organizations, only tickets shared with them, and no
-   internal notes.
-4. Turn the service desk on under **Admin → System → Settings → Feature Toggles** (`psa_enabled` is off by
-   default, so the PSA menu stays hidden until you switch it on).
-5. Check **Settings → Scheduler**. Recurring invoices, email-to-ticket, SLA checks and the
-   other periodic jobs run from this built-in scheduler; no crontab is needed.
+2. Create your first client under **Clients → All Clients**.
+3. Add your technicians under **Settings → Users & Access → Access Management** and
+   set their **User Type** to **Staff**. Staff users work across every client; everyone
+   else is treated as a customer user and sees only their own organizations, only tickets
+   shared with them, and no internal notes.
+4. Turn the service desk on under **Settings → Modules → Feature Toggles**
+   (`psa_enabled` is off by default, so the Service Desk section stays hidden until you
+   switch it on).
+5. If customers will use the portal, set its address, branding and features under
+   **Settings → General → Customer Portal**.
+6. Check **Settings → Automation → Task Scheduler**. Recurring invoices,
+   email-to-ticket, SLA checks and the other periodic jobs run from this built-in
+   scheduler; no crontab is needed.
 
 ## Updating and backups
 
-**Update** from **Admin → System → System Updates** in the web UI: *Check for Updates*, then *Apply*.
-The apply step is a graceful reload — no manual service restart.
+**Update** from **Settings → System → System Updates** in the web UI: *Check for
+Updates*, then *Apply*. When a newer release is published, superusers also see an
+**Update Available** pill beside the logo. The apply step is a graceful reload — no manual
+service restart.
 
 CLI fallback:
 
@@ -240,7 +286,7 @@ ClientSt0r holds your customers' credentials, tickets and device data. These are
 protections that ship today, with their defaults. The full walkthrough, with the evidence
 behind each one and the known gaps, is [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md).
 Administrators can check whether each one is in effect at a given customer under
-**Admin → Security → Security Features**.
+**Settings → Security → Security Features**.
 
 - **A customer sees the shared conversation, never your working notes.** When Example
   Dental's office manager opens "Printer offline at front desk", they see the description
@@ -276,7 +322,7 @@ Administrators can check whether each one is in effect at a given customer under
   read-only diagnostic the RMM advertises, launch a view or control session, or refer a fix
   — which the RMM approves and runs, never ClientSt0r.
 - **Optional Superuser Approval.** With two or more administrators, granting superuser can
-  require a second administrator's approval (Admin → Security → Superuser Approval).
+  require a second administrator's approval (Settings → Security → Superuser Approval).
 
 Setup checklist and limitations (audit log deletable by superusers, though each deletion is recorded, Azure AD sign-in skips
 TOTP, mobile tokens last until revoked, CSP report-only by default):
@@ -286,7 +332,7 @@ vulnerability: [SECURITY.md](SECURITY.md).
 ## Security
 
 - Two-factor (TOTP) sign-in required by default, Argon2 password hashing, brute-force lockout, idle and maximum
-  session length — all set in Settings → Security, with environment variables taking
+  session length — all set in Settings → Security → Security Settings, with environment variables taking
   precedence when set.
 - AES-256-GCM encryption at rest for vault entries and every other stored secret
   (integration, SMTP/SMS, directory and webhook credentials); tokens the app only compares

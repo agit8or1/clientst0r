@@ -32,7 +32,7 @@ python manage.py scan_system_packages --json
 
 ### Web Interface
 
-1. Navigate to **Security** → **Package Scanner**
+1. Navigate to **Settings** → **Security** → **Security Dashboard** → **Package Scanner** (`/core/security/package-scanner/`)
 2. Click **Run Scan Now**
 3. View results in the dashboard
 
@@ -208,7 +208,7 @@ loginctl enable-linger $USER
 
 Create a webhook to notify on high-risk scans:
 
-1. Go to **Webhooks** → **Create Webhook**
+1. Go to **Settings** → **Integrations** → **Webhooks** → **Create Webhook**
 2. Set event: `security.package_scan_completed`
 3. Add filter: `security_updates > 10`
 4. Configure notification endpoint (Slack, Discord, email, etc.)

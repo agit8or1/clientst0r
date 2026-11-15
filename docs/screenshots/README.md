@@ -1,8 +1,10 @@
 # ClientSt0r screenshots — archive
 
 > **This is the archive.** The current visual tour lives at
-> [`docs/screenshots.md`](../screenshots.md), captured against the current release.
-> The 59 images indexed below span **v2.24.52 to v3.17.475** and show older styling, but
+> [`docs/screenshots.md`](../screenshots.md), captured against the current interface
+> (v3.17.680: the ten-section sidebar, Go to / Ctrl+K, the client workspace and the KPI
+> dashboard). The 59 images indexed below span **v2.24.52 to v3.17.475** and show older
+> styling and the old top navigation bar, but
 > they cover ground the current tour does not: racks, VLANs and IPAM, floor plan import,
 > diagrams, secure notes, security alert ingestion and its auto-ticket rules, UniFi and
 > Microsoft 365 connection forms, wallboards, fleet vehicles and inventory with printable

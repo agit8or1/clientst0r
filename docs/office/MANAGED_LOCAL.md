@@ -7,7 +7,7 @@ The managed local editor is one more way to edit Office documents in clientst0r.
 
 Which engines this server may run is root-owned configuration (`ENGINES=`); the app only picks between those engine ids. The other ways keep working: an editor installed with `install-editor.sh` on this server or on a separate VM, an editor service that already runs, external ONLYOFFICE or Collabora Online (WOPI), and Microsoft 365.
 
-It is **off by default**. A superuser turns it on in **Settings → Office Documents → Managed local editor**. A root administrator must first run a one-time setup on the server (see [Setup](#setup)).
+It is **off by default**. A superuser turns it on in **Settings → Integrations → Office Documents → Managed local editor**. A root administrator must first run a one-time setup on the server (see [Setup](#setup)).
 
 > **Status: not verified against a real container.** Everything below is covered by unit and integration tests that use protocol models: a fake `docker` binary, a fake helper socket, fake `nginx`/`systemctl`/`openssl` binaries, and fake ONLYOFFICE Docs and Collabora servers. The Collabora engine, the reverse-proxy setup and the capacity checks shipped in v3.17.671 and have not been run on a real host yet (see [Not yet verified live](#not-yet-verified-live)). The live suite and the browser checklist ([Live verification](#live-verification)) have **not been run**. Every release in the helper's list is marked `tested: False`, so the helper refuses to install any of them until the live checklist passes and a release is marked tested. The one exception is a disposable test VM whose root configuration sets `ALLOW_UNTESTED_RELEASES=yes`.
 
@@ -132,7 +132,7 @@ clientst0r's host name is the one the request came in on. The output is shown on
    - **Unattended upgrades:** keeps the container engine out of unattended-upgrades (`/etc/apt/apt.conf.d/51clientst0r-office-engine`).
    - **Nginx:** creates `/etc/nginx/clientst0r-office/` (the helper's sandbox cannot create directories under `/etc`), then calls `clientst0r-office-helper cli proxy-install <host>`. The helper writes only its own files (see [Address layouts](#address-layouts-and-the-reverse-proxy)), runs `nginx -t`, reloads, and restores the previous files if anything fails. With `--tls certbot` it first installs an ACME-only block, runs `certbot certonly --webroot`, then installs the full block. With `--tls existing-cert` the certificate and key are copied to `/etc/clientst0r/office/tls/` (key 0600), the only directory besides `/etc/ssl` and `/etc/letsencrypt/live` the helper accepts. For the same-host layout the script prints the one `include` line to add to clientst0r's site; it never edits that site.
    - **Never:** pulls or starts a container, edits clientst0r's own Nginx site, or replaces an existing Docker.
-4. In clientst0r, as a superuser, open Settings → Office Documents → Managed local editor. Turn it on, pick the engine, run **Setup checks** (preflight, capacity, reverse proxy, the three paths), then click **Install**.
+4. In clientst0r, as a superuser, open Settings → Integrations → Office Documents → Managed local editor. Turn it on, pick the engine, run **Setup checks** (preflight, capacity, reverse proxy, the three paths), then click **Install**.
 
 Re-running the script with new options (for example `--layouts same-host,dedicated --hostname office.example.com` later) rewrites the root configuration and keeps data, secrets and the installed container.
 
@@ -255,7 +255,7 @@ With the root helper (prod has it), steps 2–4 are one click: Managed page → 
    ```
    It must be in clientst0r's server block. The snippet's `^~` prefix locations win over `location /` wherever the line is; if the block has its own regex locations (`location ~ …`; prod's has none), put the include before them so the editor's WebSocket regex is matched first. The rendered snippet, wrapped in a prod-like server block, passes `nginx -t` syntax checking with nginx 1.24.
 5. **Upstream device:** nothing to change for same-host (it already forwards `huduglue.agit8or.net` to this server's :80). The container must be able to reach `https://huduglue.agit8or.net` through the device (hairpin); `callback-check` tests that.
-6. In clientst0r: **Settings → Office Documents → Managed local editor** → Turn on → Engine: Collabora CODE (Select) → Address and reverse proxy: read the same-host warning → **Setup checks** (capacity warn for no swap is expected; include line present; callbacks pass) → **Install** → **Run browser probe**.
+6. In clientst0r: **Settings → Integrations → Office Documents → Managed local editor** → Turn on → Engine: Collabora CODE (Select) → Address and reverse proxy: read the same-host warning → **Setup checks** (capacity warn for no swap is expected; include line present; callbacks pass) → **Install** → **Run browser probe**.
 7. Open a document from a file's "Edit in office" menu.
 
 **Later, a dedicated host name** (for example `office.agit8or.net`):
@@ -499,7 +499,7 @@ It runs these steps in order:
 - [ ] `ss -ltnp`: the port is bound to 127.0.0.1 only.
 - [ ] From inside the container (`docker exec … curl`): `https://<clientst0r host>/` works with TLS verified. `http://<gateway>:8000`, `http://169.254.169.254/` and `https://example.com/` all fail. DNS inside the container still resolves (embedded DNS with the forward drop).
 - [ ] After a reboot: the firewall table exists before the container starts, and the container comes back healthy.
-- [ ] `apt upgrade` through Settings → Updates leaves docker.io, containerd and runc untouched.
+- [ ] `apt upgrade` through Settings → System → System Updates leaves docker.io, containerd and runc untouched.
 - [ ] Kill the helper mid-update (`systemctl kill 'clientst0r-office-helper@*'`): the operation is marked interrupted, then retried and completed.
 - [ ] Update to a release that never becomes healthy (point a test list at a broken digest): the backup and old release are restored automatically.
 - [ ] Purge after uninstall removes data, secrets and backups. Purge over the socket is refused.

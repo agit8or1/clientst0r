@@ -1,7 +1,7 @@
 # Technician access and Ticket AI Assist — operator guide
 
 *Since v3.17.646. Ticket AI Assist is **OPTIONAL AI**: it requires PSA to be on and the master AI switch
-(`psa_ai_enabled`, Settings → AI & LLM). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
+(`psa_ai_enabled`, Settings → General → PSA). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
 are not AI features: they work with AI off, but need PSA, a preset and a paired RMM.*
 
 ## What it governs
@@ -82,7 +82,7 @@ already queued, which the gateway re-checks before calling a model.
 
 ## Why can this technician do this?
 
-**Admin → Security → Technician Access → Why** (`/settings/security/technician-access/why/`), or **Why?** on any row
+**Settings → Security → Technician Access → Why** (`/settings/security/technician-access/why/`), or **Why?** on any row
 of the effective-access preview. Pick a technician, a customer and a capability. The page shows the same decision the
 ticket tools make (Allowed, Request, Off, Unavailable or Locked) and the chain of records behind it at that customer:
 
@@ -124,17 +124,17 @@ command line).
 
 ## Admin setup
 
-1. **Settings → Ticket AI models.** Create model profiles: Anthropic, OpenAI or Ollama.
+1. **Settings → AI Configuration → Ticket AI models.** Create model profiles: Anthropic, OpenAI or Ollama.
    - API keys are write-only, sealed to the gateway key, and can't be shown again.
    - An Ollama address only works after **Propose address** is approved as a protected change.
 2. On the same page, set each customer's **AI policy**: analysis, compare, allowed models, default model,
    technician-owned keys, local-only, daily budget and history retention (see
    [AI and automation history](#ai-and-automation-history)). Without a policy, a customer allows no AI.
    - With **technician-owned keys** on, technicians can add their own Claude or OpenAI key under
-     **My Profile → My AI keys**. Only its owner can use it, and only at customers that allow
+     **account menu → My Profile → My AI keys**. Only its owner can use it, and only at customers that allow
      technicians' keys and are not local-only; it doesn't have to be listed in the policy. The
      customer's daily budget counts it at the prices the technician enters.
-3. **Integrations → RMM → the customer's connection → Configure → Ticket integration pairing (ticket-rmm-v1).**
+3. **Settings → Integrations → Integrations → RMM → the customer's connection → Configure → Ticket integration pairing (ticket-rmm-v1).**
    Any RMM that implements the contract can be paired; the connection must serve a single customer. Enter the
    key ID, the two secrets, where the RMM runs and, if it differs from the connection's address, the integration
    address. A second administrator approves the pairing; then **Check pairing** on the connection page fetches
@@ -189,7 +189,7 @@ alerts and these notices go, so it can't be moved by one person:
 
 **One-administrator installs can't widen access** or move a protected address. Add a second superuser first.
 
-**Granting superuser** is a protected change when **Admin → Security → Superuser Approval** is on (since
+**Granting superuser** is a protected change when **Settings → Security → Superuser Approval** is on (since
 v3.17.653; off on upgrade):
 
 - One administrator requests the grant (from the user page, the user editor or Django admin) and confirms it with
@@ -400,7 +400,7 @@ Each entry shows, where it applies:
   whether the link back to Rem0te succeeded.
 
 Vault reveal approvals are not ticket events (a reveal request isn't linked to a ticket), so they are not in this
-timeline; they stay under Vault → Reveal requests.
+timeline; they stay under Knowledge & Vault → Password Vault → Reveal Requests.
 
 ### Who sees it
 
@@ -422,7 +422,7 @@ the same redaction again and cut to 300 characters.
 
 ### Retention
 
-Each customer's **AI policy** (**Settings → Ticket AI models**, `/psa/ai/profiles/`) has **History retention days**. Blank uses the
+Each customer's **AI policy** (**Settings → AI Configuration → Ticket AI models**, `/psa/ai/profiles/`) has **History retention days**. Blank uses the
 installation default, `PSA_AI_HISTORY_RETENTION_DAYS` in `.env` (365); `0` keeps history until deleted by hand.
 
 - Entries older than the window drop out of the timeline immediately.

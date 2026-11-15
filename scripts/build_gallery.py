@@ -19,6 +19,8 @@ OUT = ROOT / 'docs' / 'screenshots.md'
 IMG_DIR = ROOT / 'docs' / 'images' / 'github'
 
 GROUPS = [
+    ('navigation', 'Finding your way',
+     'The ten-section sidebar and its icon rail, Go to (Ctrl+K), Favorites and Recent, and the same frame on a phone.'),
     ('overview',   'Overview and dashboards',
      'Where a technician starts the day, and where an owner looks at the whole book of business.'),
     ('insights',   'Visual insights and monitoring',
@@ -55,8 +57,8 @@ def main() -> int:
 
     w('# ClientSt0r — screenshot gallery')
     w('')
-    w(f'{len(shots)} views of the running application — {light} in the light theme, '
-      f'{dark} in dark. Every one is a capture of ClientSt0r against an isolated '
+    w(f'{len(shots)} views of the running application — {light} in the light theme '
+      f'(Default Blue), {dark} in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated '
       'demo database; no mockups, no composites.')
     w('')
     w('All organizations, people, hostnames, addresses and credentials below are '
@@ -64,7 +66,8 @@ def main() -> int:
       'Nothing is masked after the fact because nothing needed masking — the '
       'application never renders a secret into a list, a ticket or a report.')
     w('')
-    w('> Regenerate this set with `scripts/capture_screenshots.py`. '
+    w('> Regenerate this set with `scripts/demo/recapture.sh` (it serves the demo, runs '
+      '`scripts/capture_screenshots.py` and rebuilds this page). '
       'See [scripts/demo/README.md](../scripts/demo/README.md) for how the demo '
       'instance is built and why it cannot reach production data.')
     w('')
@@ -89,7 +92,7 @@ def main() -> int:
         w(blurb)
         w('')
         for s in group:
-            theme = 'Light' if s['theme'] == 'light' else 'Dark'
+            theme = 'Light' if s['theme'] == 'light' else 'Professional Dark'
             rel = f"images/github/{s['name']}.png"
             w(f"### {s['heading']}")
             w('')
@@ -104,18 +107,22 @@ def main() -> int:
 
     w('## About these captures')
     w('')
-    w('- Viewport 1440 px wide at device pixel ratio 2, so text stays sharp when '
-      'you open an image full size.')
+    w('- Viewport 1440 px wide (390 px for the phone views) at device pixel ratio 2, '
+      'so text stays sharp when you open an image full size.')
     w('- Themes are switched through the application\'s own theme control, not by '
       'injecting CSS — what you see is the shipped theme.')
     w('- Each image is cropped to where the page\'s content ends, so none of them '
-      'carry a slab of empty background.')
+      'carry a slab of empty background. Views of an open menu, the palette or a '
+      'phone show the window as it is.')
+    w('- Absolute links a page prints (a status page link, the portal address) show '
+      'the demo\'s documented host, `desk.beaconmanaged.example`, instead of the local '
+      'address the capture ran on.')
     w('- Route, theme, viewport and the demo data each view needs are recorded in '
       '[`scripts/screenshot_manifest.json`](../scripts/screenshot_manifest.json).')
     w('')
     w('Prefer moving pictures? The '
-      '[3-minute walkthrough](https://github.com/agit8or1/clientst0r/releases/download/'
-      'v3.17.558/clientst0r-walkthrough.mp4) covers the same ground end to end, in both '
+      '[4-minute walkthrough](https://github.com/agit8or1/clientst0r/releases/download/'
+      'v3.17.681/clientst0r-walkthrough.mp4) covers the same ground end to end, in both '
       'themes.')
     w('')
     w('Older captures from previous releases are kept in '

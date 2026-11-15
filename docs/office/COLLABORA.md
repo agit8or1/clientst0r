@@ -167,7 +167,7 @@ Diagnostics check that the proxy passes the upgrade (see below).
 
 ## clientst0r settings
 
-**Settings → Office documents → Add instance**, with provider *Collabora Online*:
+**Settings → Integrations → Office Documents → Add instance**, with provider *Collabora Online*:
 
 | Field | Value |
 |---|---|
@@ -202,7 +202,7 @@ manage.py office_collabora --instance 3 --discovery-ttl 3600 --refresh-discovery
 2. **What the token is like.**
    - It appears only in that form body. It is never in a URL that clientst0r builds.
    - `access_token_ttl` is the session's hard end, in milliseconds since the epoch.
-   - On the server the token is short-lived (Settings → token lifetime). The page renews it every third of that lifetime (`/office/api/collabora/s/<session>/renew/`, signed in, CSRF-protected).
+   - On the server the token is short-lived (Settings → Integrations → Office Documents → Access token lifetime). The page renews it every third of that lifetime (`/office/api/collabora/s/<session>/renew/`, signed in, CSRF-protected).
    - When the page stops renewing (it was closed, or the laptop is asleep), the token expires and further WOPI calls get 401.
 3. **What `file_id` is.** It is the session's `document_key`: random and opaque, and shared by everyone co-editing the same revision. Collabora groups co-editors by WOPISrc, so this is what makes co-authoring work.
    - A revision written outside the group (an upload, a restore, a different editor) gives the next opener a new key and therefore a separate Collabora document. A save from the old group then fails the timestamp check.
@@ -267,7 +267,7 @@ Collabora. The iframe is not sandboxed: Collabora rejects messages from an
 
 ## Diagnostics and the round trip
 
-**Diagnostics** (Settings → Office documents → instance → Diagnostics):
+**Diagnostics** (Settings → Integrations → Office Documents → instance → Diagnostics):
 
 | Check | How it is proven |
 |---|---|

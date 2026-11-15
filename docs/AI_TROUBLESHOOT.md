@@ -18,7 +18,7 @@ Each session page keeps four layers apart: **Observations** (what was sent, with
 
 ## Setup
 
-All of this lives under **PSA → AI models** (`/psa/ai/profiles/`). Only superusers can open it.
+All of this lives under **Settings → AI Configuration → Ticket AI models** (`/psa/ai/profiles/`). Only superusers can open it.
 
 ### 1. Gateway keys
 

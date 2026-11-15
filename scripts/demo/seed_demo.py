@@ -1008,7 +1008,7 @@ def seed_my_work():
     if not PSAApproval.objects.filter(related_ticket=hero).exists():
         PSAApproval.objects.create(
             organization=org('Beacon Managed IT'), kind='expense', object_type='psa.Ticket', object_id=hero.pk,
-            object_repr='Second access point for bay 7 — $349.00', requested_by=priya,
+            object_repr='Second access point for bay 7 — $349.00', requested_by=user('demo.ipatel'),
             request_comment='Needed to cover the far end of bay 7 after the racking change.',
             related_ticket=hero)
 
@@ -1689,13 +1689,42 @@ def seed_rmm_pairing():
     print('  rmm pairing:', ticket_rmm.status(conn)['label'], '| device', dev.pk, '| ticket', ticket.ticket_number)
 
 
+# ---------------------------------------------------------------------------
+# 3.17.680 top bar: Favorites and Recent for demo.tech
+# ---------------------------------------------------------------------------
+
+NAV_FAVORITES = ['/reports/', '/psa/t/PSA-2026-000001/', '/hardware/devices/1/',
+                 '/psa/projects/1/', '/psa/dispatch/']
+NAV_RECENT = ['/vault/', '/monitoring/ipam/', '/psa/t/PSA-2026-000007/', '/assets/9/',
+              '/docs/runbook-warehouse-scanner-onboarding/', '/psa/t/PSA-2026-000001/']
+
+
+def seed_navigation():
+    """Starred pages and a recent-pages trail for the top bar's Favorites and
+    Recent menus (paths only; the menus resolve each one against access)."""
+    from core.models import PageFavorite, RecentPage
+
+    tech = user('demo.tech')
+    PageFavorite.objects.filter(user=tech).delete()
+    now = timezone.now()
+    for i, path in enumerate(NAV_FAVORITES):  # the last one is listed first
+        fav = PageFavorite.objects.create(user=tech, path=path)
+        PageFavorite.objects.filter(pk=fav.pk).update(
+            created_at=now - timedelta(days=len(NAV_FAVORITES) - i))
+    RecentPage.objects.filter(user=tech).delete()
+    for i, path in enumerate(NAV_RECENT):  # last is the most recent
+        RecentPage.objects.create(user=tech, path=path,
+                                  visited_at=now - timedelta(minutes=5 * (len(NAV_RECENT) - i)))
+    print(f'  navigation: {len(NAV_FAVORITES)} favorites, {len(NAV_RECENT)} recent pages')
+
+
 def main():
     steps = [seed_showcase, seed_presentation, seed_asset_detail, seed_commercial,
              rename_msp_tenant, seed_project_work, seed_visual, seed_dispatch,
              seed_my_work, seed_document_lifecycle, seed_readiness, seed_portal_request,
              seed_scheduler_history, seed_rack_artwork, seed_named_approvers,
              seed_readiness_custom_fields, seed_secure_link, seed_ticket_ai, seed_superuser_approval,
-             seed_rmm_fixture, seed_rmm_pairing]
+             seed_rmm_fixture, seed_rmm_pairing, seed_navigation]
     only = set(sys.argv[1:])
     for step in steps:
         if only and step.__name__ not in only:

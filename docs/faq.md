@@ -51,7 +51,7 @@ See the [README](../README.md#quick-start), [INSTALL.md](../INSTALL.md) and
 [docker.md](docker.md).
 
 **Can I update without SSH?**
-Yes, on native installs. Go to **Settings → Updates** (`/core/settings/updates/`), click
+Yes, on native installs. Go to **Settings → System → System Updates** (`/core/settings/updates/`), click
 *Check for Updates*, then *Apply*. The web service is reloaded gracefully. Docker installs
 update with `docker compose pull && docker compose up -d`. Take a backup first; there is no
 automatic rollback.
@@ -60,13 +60,13 @@ automatic rollback.
 No. Since v3.17.599 every periodic job (recurring invoices, email-to-ticket polling,
 recurring tickets, contract renewals, SLA checks, reminders and the rest) runs from the
 built-in scheduler. You can see each job's last run and last error, and turn jobs on or
-off, at **Settings → Task Scheduler** (`/core/settings/scheduler/`). Native installs drive it with
+off, at **Settings → Automation → Task Scheduler** (`/core/settings/scheduler/`). Native installs drive it with
 `clientst0r-scheduler.timer`; Docker installs run a `scheduler` service.
 
 ## Users and access
 
 **What is the difference between MSP staff and customer users?**
-MSP staff are superusers or users whose **User Type** is *Staff* (Access Management →
+MSP staff are superusers or users whose **User Type** is *Staff* (Settings → Users & Access →
 Users → Edit). They work across every customer. Everyone else is a customer user: they
 see only the customers they are a member of, only tickets marked as visible to the client,
 and no internal notes or internal attachments. If your technicians were set up as ordinary
@@ -92,19 +92,19 @@ and customer users are limited to their own organizations.
 
 **Does ClientSt0r support SSO?**
 Azure AD / Microsoft Entra ID single sign-on is supported, and so is LDAP / Active Directory
-sign-in (Settings → Directory, with a Test connection button). LDAP needs the optional
+sign-in (Settings → Users & Access → Directory Services, with a Test connection button). LDAP needs the optional
 `django-auth-ldap` and `python-ldap` packages from `requirements-optional.txt`. Local
 accounts keep working alongside it. SAML and generic OIDC are not available.
 
 **Is 2FA supported?**
 Yes. TOTP 2FA is enforced for every account by default. It is set install-wide with
-**Require 2FA** in Settings → Security; a `REQUIRE_2FA` environment variable, if set,
+**Require 2FA** in Settings → Security → Security Settings; a `REQUIRE_2FA` environment variable, if set,
 overrides that and locks the field. LDAP users follow the same rule. Users who sign in
 through Azure AD / Entra ID SSO skip the local 2FA prompt, so enforce MFA in Entra ID for
 them.
 
 **Where do session, lockout and password-policy settings come from?**
-Settings → Security, since v3.17.610. An environment variable such as
+Settings → Security → Security Settings, since v3.17.610. An environment variable such as
 `SESSION_IDLE_TIMEOUT`, `AXES_COOLOFF_TIME` or `PASSWORD_MIN_LENGTH` wins when it is set,
 and the field then shows "set by environment".
 
@@ -121,7 +121,7 @@ ITFlow. ClientSt0r also has its own built-in service desk (off until an administ
 on `psa_enabled`).
 
 **Where does a technician start the day?**
-**My Work** (`/psa/my-work/`, first item in the PSA menu): open tickets in SLA order,
+**My Work** (`/psa/my-work/`, first item in the sidebar's My Work section): open tickets in SLA order,
 running timers, tickets where the customer replied, waiting queues, pending approvals and
 appointments.
 
@@ -140,7 +140,7 @@ after two failed checks in a row and once when it recovers, and fires `monitor.d
 No. AI-assisted features are optional. Nothing calls an AI provider until you configure
 one. Documentation AI and receipt scanning can use Anthropic, OpenAI, Moonshot, MiniMax or
 a local Ollama model; Ticket AI Assist (OPTIONAL AI) uses Anthropic, OpenAI or an approved
-on-premises Ollama, through model profiles under **Settings → Ticket AI models**. The
+on-premises Ollama, through model profiles under **Settings → AI Configuration → Ticket AI models**. The
 service desk AI, documentation AI and vehicle receipt scanning are additionally gated by
 `psa_ai_enabled`, which is off by default, and ticket AI also needs a technician access
 preset at each customer. See [TECHNICIAN_ACCESS.md](TECHNICIAN_ACCESS.md).
@@ -167,7 +167,7 @@ sends commands to devices itself. See
 [CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#rmm-pairing-and-ticket-actions).
 
 **Can one administrator make someone a superuser alone?**
-Not if **Admin → Security → Superuser Approval** is on: a second administrator has to
+Not if **Settings → Security → Superuser Approval** is on: a second administrator has to
 approve each grant. It is off by default and needs two eligible administrators to turn on.
 Grants made from the server's shell are recorded and announced. See
 [CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#granting-superuser).

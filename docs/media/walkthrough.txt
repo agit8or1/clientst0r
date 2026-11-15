@@ -1,36 +1,39 @@
 ClientSt0r walkthrough — transcript
 (caption-led; no narration track. Use this as a narration script.)
 
-[00:00:06.000] One tenant per client. Open a customer and everything is scoped to them.
-[00:00:13.800] The week ahead. Scheduled tickets and maintenance falling due, merged into one list.
-[00:00:19.600] Monitor status and the client's sites sit underneath, as reference rather than headline.
-[00:00:23.600] The customer record. Contacts, addresses, sites, and shortcuts into their documentation.
-[00:00:29.600] A service desk you own, not one you rent. Every client in one queue.
-[00:00:35.600] A ticket that already knows the customer — active contract, hours used, and the SLA countdown.
-[00:00:43.900] Internal notes stay internal. Client-visible replies are kept visibly separate.
-[00:00:49.700] The credentials this job needs, by title and username only. Secrets are never rendered here.
-[00:00:55.700] The physical network, drawn. A switch rendered from its manufacturer layout, every port coloured by VLAN.
-[00:01:01.200] Document a port in place. Click it on the artwork: mode, VLANs, PoE and the cable to the patch panel.
-[00:01:06.700] Trace the cable from switch port to desk, through the patch panel and the wall jack.
-[00:01:11.700] The runbook lives beside the work, linked from the ticket that needed it.
-[00:01:17.700] Per-client documentation and a shared knowledge base, searchable across titles and body text.
-[00:01:22.700] Light or dark, per person. Twelve themes ship, and every screen honours the one you pick.
-[00:01:28.700] The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.
-[00:01:36.500] Lifecycle and warranty dates mean the refresh conversation happens before the hardware fails.
-[00:01:40.500] What is physically in the comms room — every device at its U position, linked to its asset record.
-[00:01:47.000] Front-to-rear port mapping. Each panel port: what it is patched from, the permanent link behind it, and where it ends.
-[00:01:52.500] Diagrams drawn from the records — connectivity and VLANs, never hand-drawn and never stale.
-[00:01:57.500] Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free.
-[00:02:03.000] The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals.
-[00:02:09.000] Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top.
-[00:02:15.500] Recurring maintenance runs on its own schedule, with per-task sign-off.
-[00:02:21.000] Projects with real dependencies. Drag a bar to reschedule; blocked work says so, and by what.
-[00:02:29.300] The dependency table underneath is where the blocking relationships are edited.
-[00:02:33.300] Back to light for the commercial side. Draft, sent and accepted quotes across every client.
-[00:02:38.300] Quote to signature: a PDF, an email, and a signing link the customer uses without an account.
-[00:02:44.800] Every invoice line carries its origin, so a billing query is answerable without reconstructing it.
-[00:02:51.300] Agreements track themselves: block hours with rollover, auto-renewal, and a profitability snapshot.
-[00:02:56.800] Revenue against cost of delivery, per client, drawn from logged time and issued invoices.
-[00:03:03.300] Client health combines SLA performance, ticket velocity, billing aging and engagement.
-[00:03:09.300] And the whole book of business: every tenant, every site, on one page.
-[00:03:15.300] Modules are opt-in. The service desk, AI assistance and the rest stay off until you turn them on.
+[00:00:06.000] The dashboard starts with a KPI row — everything that needs you today: open tickets, SLA at risk, overdue, unassigned, approvals and work due.
+[00:00:12.500] Ten sections in one sidebar: Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports. Administration is pinned at the foot.
+[00:00:18.500] Short on width? Collapse it to an icon rail and each section opens as a flyout — by mouse or keyboard.
+[00:00:24.500] Ctrl+K opens Go to: pages, settings, commands, clients, tickets, devices and documents, each searched with its own permission rules. Passwords are never searched.
+[00:00:31.000] Open a client and it becomes a workspace: a KPI row, renewals, open invoices and quick actions, with tickets, assets, contracts and more on tabs.
+[00:00:37.000] The client's tickets, without leaving the client.
+[00:00:42.000] A service desk you own, not one you rent. Every client in one queue.
+[00:00:47.500] A ticket that already knows the customer — active contract, hours used, and the SLA countdown.
+[00:00:55.800] Internal notes stay internal. Client-visible replies are kept visibly separate.
+[00:01:01.600] The credentials this job needs, by title and username only. Secrets are never rendered here.
+[00:01:07.600] The physical network, drawn. A switch rendered from its manufacturer layout, every port coloured by VLAN.
+[00:01:13.100] Document a port in place. Click it on the artwork: mode, VLANs, PoE and the cable to the patch panel.
+[00:01:18.600] Trace the cable from switch port to desk, through the patch panel and the wall jack.
+[00:01:23.600] The runbook lives beside the work, linked from the ticket that needed it.
+[00:01:29.600] Light or dark, per person. Professional Dark is the default; every screen honours the theme you pick. Per-client documentation and a shared knowledge base, searchable.
+[00:01:34.600] The asset inventory per client: identity, network, OS, warranty and lifecycle in one list.
+[00:01:40.600] The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.
+[00:01:48.400] Lifecycle and warranty dates mean the refresh conversation happens before the hardware fails.
+[00:01:52.400] What is physically in the comms room — every device at its U position, linked to its asset record.
+[00:01:58.900] Front-to-rear port mapping. Each panel port: what it is patched from, the permanent link behind it, and where it ends.
+[00:02:04.400] Diagrams drawn from the records — connectivity and VLANs, never hand-drawn and never stale.
+[00:02:09.400] Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free.
+[00:02:14.900] The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals.
+[00:02:20.900] Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top.
+[00:02:27.400] Recurring maintenance runs on its own schedule, with per-task sign-off.
+[00:02:32.900] Projects with real dependencies. Drag a bar to reschedule; blocked work says so, and by what.
+[00:02:41.200] The dependency table underneath is where the blocking relationships are edited.
+[00:02:45.200] The commercial side. Draft, sent and accepted quotes across every client.
+[00:02:50.200] Quote to signature: a PDF, an email, and a signing link the customer uses without an account.
+[00:02:56.700] Every invoice line carries its origin, so a billing query is answerable without reconstructing it.
+[00:03:03.200] Agreements track themselves: block hours with rollover, auto-renewal, and a profitability snapshot.
+[00:03:08.700] Revenue against cost of delivery, per client, drawn from logged time and issued invoices.
+[00:03:15.200] Client health combines SLA performance, ticket velocity, billing aging and engagement.
+[00:03:21.200] And the whole book of business: every tenant, every site, on one page.
+[00:03:27.200] Administration opens the settings center: ten categories, searchable, each listing only the pages you may open.
+[00:03:32.700] Modules are opt-in. The service desk, AI assistance and the rest stay off until you turn them on.

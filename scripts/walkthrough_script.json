@@ -2,59 +2,111 @@
   {
     "kind": "card",
     "title": "ClientSt0r",
-    "subtitle": "Self-hosted IT documentation and service desk for MSPs \u2014 client assets, runbooks, an encrypted credential vault and native ticketing, all on your own infrastructure.",
+    "subtitle": "Self-hosted IT documentation and service desk for MSPs — client assets, runbooks, an encrypted credential vault and native ticketing, all on your own infrastructure.",
     "url": "github.com/agit8or1/clientst0r",
     "secs": 6.0
   },
   {
     "route": "/core/dashboard/",
     "org": "client",
-    "theme": "light",
+    "theme": "dark",
+    "hold": 6.5,
+    "caption_html": "<b>The dashboard starts with a KPI row —</b> everything that needs you today: open tickets, SLA at risk, overdue, unassigned, approvals and work due.",
+    "caption_text": "The dashboard starts with a KPI row — everything that needs you today: open tickets, SLA at risk, overdue, unassigned, approvals and work due.",
+    "highlight_start": true
+  },
+  {
+    "route": "/core/dashboard/",
+    "org": "client",
+    "theme": "dark",
     "hold": 6.0,
-    "highlight_start": true,
-    "caption_html": "<b>One tenant per client.</b> Open a customer and everything \u2014 assets, documents, credentials, tickets \u2014 is scoped to them.",
-    "caption_text": "One tenant per client. Open a customer and everything is scoped to them.",
-    "scrolls": [
+    "caption_html": "<b>Ten sections in one sidebar:</b> Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports. Administration is pinned at the foot.",
+    "caption_text": "Ten sections in one sidebar: Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports. Administration is pinned at the foot.",
+    "local_storage": {
+      "appnav.rail": "0"
+    },
+    "actions": [
       {
-        "to": 560,
-        "secs": 1.8,
-        "hold": 4.0,
-        "caption_html": "<b>The week ahead.</b> Scheduled tickets and maintenance falling due, merged into one list.",
-        "caption_text": "The week ahead. Scheduled tickets and maintenance falling due, merged into one list."
+        "click": "#appNavBtn-service_desk",
+        "wait_ms": 600
+      }
+    ]
+  },
+  {
+    "route": "/psa/",
+    "org": "msp",
+    "theme": "dark",
+    "hold": 6.0,
+    "caption_html": "<b>Short on width?</b> Collapse it to an icon rail and each section opens as a flyout — by mouse or keyboard.",
+    "caption_text": "Short on width? Collapse it to an icon rail and each section opens as a flyout — by mouse or keyboard.",
+    "local_storage": {
+      "appnav.rail": "1"
+    },
+    "actions": [
+      {
+        "click": "#appNavBtn-assets",
+        "wait_ms": 700
+      }
+    ]
+  },
+  {
+    "route": "/core/dashboard/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 6.5,
+    "caption_html": "<b>Ctrl+K opens Go to:</b> pages, settings, commands, clients, tickets, devices and documents, each searched with its own permission rules. Passwords are never searched.",
+    "caption_text": "Ctrl+K opens Go to: pages, settings, commands, clients, tickets, devices and documents, each searched with its own permission rules. Passwords are never searched.",
+    "actions": [
+      {
+        "click": "#appNavFilter",
+        "wait_ms": 200
       },
       {
-        "to": 1000,
-        "secs": 1.8,
-        "hold": 4.0,
-        "caption_html": "<b>Monitor status and the client's sites</b> sit underneath, as reference rather than headline.",
-        "caption_text": "Monitor status and the client's sites sit underneath, as reference rather than headline."
+        "press": "Control+k",
+        "wait_ms": 700
+      },
+      {
+        "type": "north",
+        "wait_ms": 800
+      },
+      {
+        "wait_for": ".cmdk__group + .cmdk__group",
+        "wait_ms": 1500
       }
     ]
   },
   {
     "route": "/accounts/organizations/2/",
     "org": "client",
-    "theme": "light",
+    "theme": "dark",
     "hold": 6.0,
-    "caption_html": "<b>The customer record.</b> Contacts, addresses, sites, and shortcuts into their VoIP, email, Microsoft 365 and firewall documentation.",
-    "caption_text": "The customer record. Contacts, addresses, sites, and shortcuts into their documentation."
+    "caption_html": "Open a client and it becomes a workspace: a KPI row, renewals, open invoices and quick actions, with tickets, assets, contracts and more on tabs.",
+    "caption_text": "Open a client and it becomes a workspace: a KPI row, renewals, open invoices and quick actions, with tickets, assets, contracts and more on tabs."
+  },
+  {
+    "route": "/accounts/organizations/2/?tab=tickets",
+    "org": "client",
+    "theme": "dark",
+    "hold": 5.0,
+    "caption_html": "The client's tickets, without leaving the client.",
+    "caption_text": "The client's tickets, without leaving the client."
   },
   {
     "route": "/psa/",
     "org": "msp",
-    "theme": "light",
-    "hold": 6.0,
-    "caption_html": "<b>A service desk you own, not one you rent.</b> Every client in one queue, filtered by status, priority, queue or technician.",
+    "theme": "dark",
+    "hold": 5.5,
+    "caption_html": "A service desk you own, not one you rent. Every client in one queue.",
     "caption_text": "A service desk you own, not one you rent. Every client in one queue."
   },
   {
     "route": "/psa/t/PSA-2026-000001/",
     "org": "client",
-    "theme": "light",
+    "theme": "dark",
     "hold": 6.5,
     "wait_for_text": "Vault Context",
     "caption_html": "<b>A ticket that already knows the customer.</b> Their active contract and hours used, and the SLA countdown, without leaving the page.",
-    "caption_text": "A ticket that already knows the customer \u2014 active contract, hours used, and the SLA countdown.",
+    "caption_text": "A ticket that already knows the customer — active contract, hours used, and the SLA countdown.",
     "scrolls": [
       {
         "to": 480,
@@ -67,7 +119,7 @@
         "to": 1020,
         "secs": 1.8,
         "hold": 6.0,
-        "caption_html": "<b>The credentials this job needs</b> \u2014 by title and username only. Secrets are never rendered here; opening one is permissioned and audited.",
+        "caption_html": "<b>The credentials this job needs</b> — by title and username only. Secrets are never rendered here; opening one is permissioned and audited.",
         "caption_text": "The credentials this job needs, by title and username only. Secrets are never rendered here."
       }
     ],
@@ -76,7 +128,7 @@
   {
     "route": "/hardware/devices/1/",
     "org": "xyz",
-    "theme": "light",
+    "theme": "dark",
     "hold": 5.5,
     "caption_html": "<b>The physical network, drawn.</b> A switch rendered from its manufacturer layout, every port coloured by VLAN.",
     "caption_text": "The physical network, drawn. A switch rendered from its manufacturer layout, every port coloured by VLAN."
@@ -84,7 +136,7 @@
   {
     "route": "/hardware/devices/1/",
     "org": "xyz",
-    "theme": "light",
+    "theme": "dark",
     "click": ".hw-port[data-name=\"1/e12\"]",
     "hold": 5.5,
     "caption_html": "<b>Document a port in place.</b> Click it on the artwork: mode, VLANs, PoE and the cable to the patch panel.",
@@ -93,7 +145,7 @@
   {
     "route": "/hardware/ports/12/trace/",
     "org": "xyz",
-    "theme": "light",
+    "theme": "dark",
     "hold": 5.0,
     "caption_html": "<b>Trace the cable</b> from switch port to desk, through the patch panel and the wall jack.",
     "caption_text": "Trace the cable from switch port to desk, through the patch panel and the wall jack."
@@ -101,10 +153,10 @@
   {
     "route": "/docs/runbook-warehouse-scanner-onboarding/",
     "org": "client",
-    "theme": "light",
+    "theme": "dark",
     "hold": 6.0,
     "highlight_end": true,
-    "caption_html": "<b>The runbook lives beside the work</b> \u2014 written for the technician who will run it, and linked from the ticket that needed it.",
+    "caption_html": "<b>The runbook lives beside the work</b> — written for the technician who will run it, and linked from the ticket that needed it.",
     "caption_text": "The runbook lives beside the work, linked from the ticket that needed it."
   },
   {
@@ -112,23 +164,23 @@
     "org": "client",
     "theme": "light",
     "hold": 5.0,
-    "caption_html": "<b>Per-client documentation and a shared knowledge base</b>, searchable across titles and body text.",
-    "caption_text": "Per-client documentation and a shared knowledge base, searchable across titles and body text."
+    "caption_html": "<b>Light or dark, per person.</b> Professional Dark is the default; every screen honours the theme you pick. Per-client documentation and a shared knowledge base, searchable.",
+    "caption_text": "Light or dark, per person. Professional Dark is the default; every screen honours the theme you pick. Per-client documentation and a shared knowledge base, searchable."
   },
   {
     "route": "/assets/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 6.0,
-    "caption_html": "<b>Light or dark, per person.</b> Twelve themes ship, and every screen honours the one you pick.",
-    "caption_text": "Light or dark, per person. Twelve themes ship, and every screen honours the one you pick."
+    "caption_html": "The asset inventory per client: identity, network, OS, warranty and lifecycle in one list.",
+    "caption_text": "The asset inventory per client: identity, network, OS, warranty and lifecycle in one list."
   },
   {
     "route": "/assets/9/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 6.0,
-    "caption_html": "<b>The asset record.</b> Identity, network, operating system, hardware, rack position, warranty and lifecycle \u2014 on one page.",
+    "caption_html": "<b>The asset record.</b> Identity, network, operating system, hardware, rack position, warranty and lifecycle — on one page.",
     "caption_text": "The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.",
     "scrolls": [
       {
@@ -143,15 +195,15 @@
   {
     "route": "/monitoring/racks/6/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 6.5,
-    "caption_html": "<b>What is physically in the comms room</b> \u2014 every device at its U position, linked back to its asset record.",
-    "caption_text": "What is physically in the comms room \u2014 every device at its U position, linked to its asset record."
+    "caption_html": "<b>What is physically in the comms room</b> — every device at its U position, linked back to its asset record.",
+    "caption_text": "What is physically in the comms room — every device at its U position, linked to its asset record."
   },
   {
     "route": "/hardware/devices/2/patch-panel/?used=1",
     "org": "xyz",
-    "theme": "dark",
+    "theme": "light",
     "hold": 5.5,
     "caption_html": "<b>Front-to-rear port mapping.</b> Each panel port: what it is patched from, the permanent link behind it, and where it ends.",
     "caption_text": "Front-to-rear port mapping. Each panel port: what it is patched from, the permanent link behind it, and where it ends."
@@ -159,23 +211,23 @@
   {
     "route": "/hardware/diagrams/connectivity/",
     "org": "xyz",
-    "theme": "dark",
+    "theme": "light",
     "hold": 5.0,
-    "caption_html": "<b>Diagrams drawn from the records</b> \u2014 connectivity and VLANs, never hand-drawn and never stale.",
-    "caption_text": "Diagrams drawn from the records \u2014 connectivity and VLANs, never hand-drawn and never stale."
+    "caption_html": "<b>Diagrams drawn from the records</b> — connectivity and VLANs, never hand-drawn and never stale.",
+    "caption_text": "Diagrams drawn from the records — connectivity and VLANs, never hand-drawn and never stale."
   },
   {
     "route": "/monitoring/ipam/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 5.5,
-    "caption_html": "<b>Address space per client</b> \u2014 subnets with their VLAN, gateway and DNS, and which addresses are free.",
+    "caption_html": "<b>Address space per client</b> — subnets with their VLAN, gateway and DNS, and which addresses are free.",
     "caption_text": "Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free."
   },
   {
     "route": "/vault/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 6.0,
     "caption_html": "<b>The vault.</b> AES-GCM encrypted at rest, organised per client, with per-entry access rules and audited reveals.",
     "caption_text": "The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals."
@@ -183,7 +235,7 @@
   {
     "route": "/psa/dispatch/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 6.5,
     "caption_html": "<b>Dispatch the week.</b> Drag a ticket onto a technician's row; anything close to breaching its SLA surfaces at the top.",
     "caption_text": "Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top."
@@ -191,7 +243,7 @@
   {
     "route": "/scheduling/",
     "org": "client",
-    "theme": "dark",
+    "theme": "light",
     "hold": 5.5,
     "caption_html": "<b>Recurring maintenance</b> runs on its own schedule, with per-task sign-off, separate from the ticket queue.",
     "caption_text": "Recurring maintenance runs on its own schedule, with per-task sign-off."
@@ -199,7 +251,7 @@
   {
     "route": "/psa/projects/1/timeline/",
     "org": "msp",
-    "theme": "dark",
+    "theme": "light",
     "hold": 6.5,
     "wait_for_text": "Schedule & dependencies",
     "caption_html": "<b>Projects with real dependencies.</b> Drag a bar to reschedule; work that is blocked says so, and by what.",
@@ -219,8 +271,8 @@
     "org": "msp",
     "theme": "light",
     "hold": 5.0,
-    "caption_html": "<b>Back to light for the commercial side.</b> Draft, sent and accepted quotes across every client.",
-    "caption_text": "Back to light for the commercial side. Draft, sent and accepted quotes across every client."
+    "caption_html": "The commercial side. Draft, sent and accepted quotes across every client.",
+    "caption_text": "The commercial side. Draft, sent and accepted quotes across every client."
   },
   {
     "route": "/psa/quotes/1/",
@@ -235,7 +287,7 @@
     "org": "msp",
     "theme": "light",
     "hold": 6.5,
-    "caption_html": "<b>Every invoice line carries its origin</b> \u2014 a contract period, a logged time entry, an expense \u2014 so a billing query is answerable.",
+    "caption_html": "<b>Every invoice line carries its origin</b> — a contract period, a logged time entry, an expense — so a billing query is answerable.",
     "caption_text": "Every invoice line carries its origin, so a billing query is answerable without reconstructing it."
   },
   {
@@ -251,7 +303,7 @@
     "org": "msp",
     "theme": "light",
     "hold": 6.5,
-    "caption_html": "<b>Revenue against cost of delivery, per client</b> \u2014 drawn from the time already logged and the invoices already issued.",
+    "caption_html": "<b>Revenue against cost of delivery, per client</b> — drawn from the time already logged and the invoices already issued.",
     "caption_text": "Revenue against cost of delivery, per client, drawn from logged time and issued invoices."
   },
   {
@@ -267,8 +319,16 @@
     "org": "msp",
     "theme": "light",
     "hold": 6.0,
-    "caption_html": "<b>And the whole book of business</b> \u2014 every tenant, every site, on one page.",
+    "caption_html": "<b>And the whole book of business</b> — every tenant, every site, on one page.",
     "caption_text": "And the whole book of business: every tenant, every site, on one page."
+  },
+  {
+    "route": "/core/settings/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 5.5,
+    "caption_html": "Administration opens the settings center: ten categories, searchable, each listing only the pages you may open.",
+    "caption_text": "Administration opens the settings center: ten categories, searchable, each listing only the pages you may open."
   },
   {
     "route": "/core/settings/features/",
@@ -288,7 +348,7 @@
   {
     "kind": "card",
     "title": "MSP Reboot",
-    "subtitle": "ClientSt0r is built by the people behind MSP Reboot \u2014 an MSP consulting practice working with owners on pricing, operations and service delivery.",
+    "subtitle": "ClientSt0r is built by the people behind MSP Reboot — an MSP consulting practice working with owners on pricing, operations and service delivery.",
     "url": "mspreboot.com",
     "secs": 5.5
   }

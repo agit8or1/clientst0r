@@ -53,7 +53,7 @@ Migration `integrations/0037_rem0te_hmac_needs_repair` switches off every Rem0te
 marks it *Needs re-pairing (Ed25519)*. It keeps the old values so the migration reverses exactly, and it does
 not touch the stored secrets or any other provider. Then, for each Rem0te connection:
 
-1. A superuser opens the connection page (Integrations → RMM → the Rem0te connection) and, under *ClientSt0r's
+1. A superuser opens the connection page (Settings → Integrations → Integrations → RMM → the Rem0te connection) and, under *ClientSt0r's
    Rem0te identity (all organizations)*, sets the peer id, ClientSt0r's audience and the https address Rem0te reaches
    ClientSt0r at, then presses **Generate keys**.
 2. On the Rem0te server (root), add the peers-file entry shown on that page to `INTEGRATION_PEERS_FILE` and
@@ -87,7 +87,7 @@ ticket. **ClientSt0r sends no endpoint commands**: it asks the RMM for things, a
 
 ## Pairing
 
-Any ClientSt0r RMM connection (Integrations → RMM → edit), of any provider type, can be paired. The *Ticket
+Any ClientSt0r RMM connection (Settings → Integrations → Integrations → RMM → edit), of any provider type, can be paired. The *Ticket
 integration pairing (ticket-rmm-v1)* section has:
 
 - an integration **key ID**, quoted by both sides (letters, digits, `.`, `-`, `_`; unique per ClientSt0r);

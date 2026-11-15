@@ -4,7 +4,7 @@ Document a client's physical network: choose a model, see its generated front
 and rear panel, click a port, record its configuration and cable, trace the
 path through patch panels and wall jacks, and print labels.
 
-Open it from **Assets → Hardware & Ports** (`/hardware/`). Select a client
+Open it from **Assets & Network → Hardware & Ports** (`/hardware/`). Select a client
 first; every inventory page works on the selected client only.
 
 [![Device page for a Dell PowerConnect 3448P switch with front and rear panel artwork, ports coloured by VLAN and the port table](images/github/hardware-device-light.png)](images/github/hardware-device-light.png)
@@ -13,7 +13,7 @@ More views: [screenshot gallery → Hardware and cabling](screenshots.md#hardwar
 
 ## Daily workflow
 
-1. **Assets → Hardware & Ports → Add device.** Search the catalog by
+1. **Assets & Network → Hardware & Ports → Add device.** Search the catalog by
    manufacturer, model or part number (empty search lists the generic
    templates). Give the device its name/hostname, serial, asset tag,
    management IP, site/room and, optionally, a rack position. Save.
@@ -66,7 +66,7 @@ unless an import supplies an observation with its source.
 
 [![Hardware catalog with model cards, panel thumbnails and filters for manufacturer, kind, category and layout accuracy](images/github/hardware-catalog-light.png)](images/github/hardware-catalog-light.png)
 
-**Assets → Hardware Catalog** (`/hardware/catalog/`) is shared by every
+**Assets & Network → Hardware & Ports → Hardware Catalog** (`/hardware/catalog/`) is shared by every
 client. It holds manufacturers and device, module and rack models with their
 components and front→rear port mappings. Client devices keep their own copy of
 the ports, linked to the catalog component by a stable key.

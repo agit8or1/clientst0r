@@ -18,10 +18,15 @@ What it does per entry
   empty background;
 * writes an optimised PNG.
 
-Entry options beyond route / theme / user / organization: ``selector`` (crop
+Entry options beyond route / theme / user / organization: ``width`` /
+``height`` (the window; phone layouts use 390 x 844), ``selector`` (crop
 to that element, full width; ``"tight": true`` crops to its width too),
 ``pad``, ``extend_up``, ``max_h``, ``actions`` (fill / check / select / click
-before capture — nothing is submitted), ``wait_for_text``. ``"user": ""``
+/ press / type / hover / wait_for before capture — nothing is submitted),
+``wait_for_text``, ``local_storage`` (per-viewer preferences set before the
+page loads, e.g. ``{"appnav.rail": "1"}`` for the icon rail),
+``keep_open`` (an action opened a menu on purpose: keep focus, allow it to
+stay open) and ``viewport_only`` (photograph the window as is, no crop). ``"user": ""``
 captures signed out. ``"system_settings": {field: value}`` sets SystemSetting
 fields for the entries that share it (one pass each) and restores the old
 values afterwards.
@@ -88,6 +93,23 @@ CAPTURE_CSS = """
   }
 """
 
+# The address the demo is served from (http://127.0.0.1:<port>) is an
+# artefact of the capture, not of the product. Absolute links a page prints
+# (a status page's share link, the portal's effective URL) are shown with the
+# demo's documented host instead. Only text, input values and hrefs that
+# contain the capture origin change; nothing else on the page is touched.
+DISPLAY_ORIGIN = 'https://desk.beaconmanaged.example'
+REPLACE_ORIGIN_JS = """(shown) => {
+    const origin = location.origin;
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+        if (n.nodeValue.includes(origin)) n.nodeValue = n.nodeValue.split(origin).join(shown);
+    }
+    document.querySelectorAll('input, textarea').forEach(el => {
+        if (el.value && el.value.includes(origin)) el.value = el.value.split(origin).join(shown);
+    });
+}"""
+
 CONTENT_HEIGHT_JS = """() => {
     const root = document.querySelector('main')
               || document.querySelector('.container, .container-fluid')
@@ -140,28 +162,34 @@ def make_session(username: str, org_name: str | None) -> str:
     return store.session_key
 
 
+# The dark palettes (accounts.context_processors.DARK_THEMES). Professional
+# Dark is the default; the toggle switches between it and Default Blue.
+DARK_THEMES = ('professional', 'dark', 'dracula', 'monokai')
+
+
 def current_theme(page) -> str:
     """'dark' or 'light', read from the attribute the app actually sets."""
     theme = page.evaluate("document.documentElement.getAttribute('data-theme') || ''")
-    return 'dark' if theme in ('dark', 'dracula', 'monokai', 'nord') else 'light'
+    return 'dark' if theme in DARK_THEMES else 'light'
 
 
 def ensure_theme(page, base: str, want: str) -> None:
-    """Switch theme through the application's own control, then verify."""
-    if current_theme(page) == want:
-        return
-    page.evaluate("""() => {
-        const btn = document.querySelector('[data-action="toggleTheme"], button[onclick^="toggleTheme"]');
-        if (btn) { btn.click(); return true; }
-        return false;
-    }""")
-    try:
-        page.wait_for_function(
-            "want => (document.documentElement.getAttribute('data-theme') === 'dark') === (want === 'dark')",
-            arg=want, timeout=15000,
-        )
-    except Exception:
-        page.reload(wait_until='networkidle')
+    """Switch theme through the application's own control, then verify.
+
+    The toggle (in the account menu) posts to accounts:toggle_theme and the
+    page reloads itself once the profile is saved; wait for that reload
+    rather than racing it."""
+    for _ in range(2):
+        if current_theme(page) == want:
+            return
+        try:
+            with page.expect_navigation(wait_until='networkidle', timeout=30000):
+                page.evaluate("""() => {
+                    const btn = document.querySelector('[data-action="toggleTheme"], button[onclick^="toggleTheme"]');
+                    if (btn) btn.click();
+                }""")
+        except Exception:
+            page.reload(wait_until='networkidle')
     if current_theme(page) != want:
         raise RuntimeError(f'theme did not settle on {want!r}')
 
@@ -201,11 +229,27 @@ def load_ready(page, url: str, failed: list[str], attempts: int = 3) -> None:
     raise RuntimeError('page did not render correctly: ' + '; '.join(problems[:4]))
 
 
-def capture(entry, page, base, out_dir, failed=None) -> pathlib.Path:
+def capture(entry, page, base, out_dir, failed=None, defaults=None) -> pathlib.Path:
     url = base + entry['route']
     failed = [] if failed is None else failed
+    defaults = defaults or {}
+    width = entry.get('width', defaults.get('width', 1440))
+    # Every entry starts from its own window size: a previous entry's crop
+    # (or a phone-width entry) must not leak into the next page's layout.
+    page.set_viewport_size({'width': width,
+                            'height': entry.get('height', defaults.get('height', 1000))})
+    # Per-viewer preferences the page reads from localStorage on load, e.g.
+    # {"appnav.rail": "1"} for the icon rail. Cleared for entries without it.
+    storage = entry.get('local_storage') or {}
+    page.goto(base + '/health/', wait_until='domcontentloaded')
+    page.evaluate("""(kv) => { try {
+        localStorage.removeItem('appnav.rail');
+        for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v);
+    } catch (e) {} }""", storage)
     load_ready(page, url, failed)
-    ensure_theme(page, base, entry.get('theme', 'light'))
+    if current_theme(page) != entry.get('theme', 'light'):
+        ensure_theme(page, base, entry.get('theme', 'light'))
+        load_ready(page, url, failed)
     page.add_style_tag(content=CAPTURE_CSS)
 
     # Optional form input or clicks before capture, e.g. to show a conditional
@@ -221,8 +265,24 @@ def capture(entry, page, base, out_dir, failed=None) -> pathlib.Path:
             # e.g. open the port editor; still nothing is submitted.
             page.locator(action['click']).first.click()
             page.wait_for_timeout(action.get('wait_ms', 800))
-    if entry.get('actions'):
+        elif 'press' in action:
+            # A keyboard shortcut, e.g. Control+K for the command palette.
+            page.keyboard.press(action['press'])
+            page.wait_for_timeout(action.get('wait_ms', 600))
+        elif 'type' in action:
+            # Typed into whatever has focus (the palette's input), key by key
+            # so the page's own input handlers run.
+            page.keyboard.type(action['type'], delay=40)
+            page.wait_for_timeout(action.get('wait_ms', 1200))
+        elif 'wait_for' in action:
+            page.wait_for_selector(action['wait_for'], timeout=action.get('timeout_ms', 15000))
+        elif 'hover' in action:
+            page.locator(action['hover']).first.hover()
+            page.wait_for_timeout(action.get('wait_ms', 400))
+    if entry.get('actions') and not entry.get('keep_open'):
         page.evaluate('() => document.activeElement && document.activeElement.blur()')
+
+    page.evaluate(REPLACE_ORIGIN_JS, DISPLAY_ORIGIN)
 
     for text in entry.get('wait_for_text', []):
         try:
@@ -237,11 +297,19 @@ def capture(entry, page, base, out_dir, failed=None) -> pathlib.Path:
         pass
     page.wait_for_timeout(entry.get('settle_ms', 1600))
     late = page.evaluate(PAGE_READY_JS)
+    if entry.get('keep_open'):
+        # The entry opened a menu on purpose (Favorites, Recent, a flyout).
+        late = [p for p in late if 'dropdown menu(s) open' not in p]
     if failed or late:
         raise RuntimeError('page changed before capture: ' + '; '.join((failed + late)[:4]))
 
     path = out_dir / f"{entry['name']}.png"
-    width = entry.get('width', 1440)
+
+    if entry.get('viewport_only'):
+        # Exactly the window as a person sees it (an open menu, the palette,
+        # a phone layout): no resize, which would close an open flyout.
+        page.screenshot(path=str(path))
+        return path
 
     if entry.get('selector'):
         # Crop to one region of a long page (e.g. the reply composer), with the
@@ -383,7 +451,7 @@ def run_pass(entries, defaults, args, failures) -> None:
             for entry in group:
                 bad.clear()
                 try:
-                    path = capture(entry, page, args.base, args.out, failed)
+                    path = capture(entry, page, args.base, args.out, failed, defaults)
                     if not args.no_optimise:
                         optimise(path, entry.get('optimise_width'))
                     size_kb = path.stat().st_size // 1024
@@ -393,7 +461,7 @@ def run_pass(entries, defaults, args, failures) -> None:
                         failures.append(f"{entry['name']}: {b}")
                 except Exception as exc:  # keep going; report at the end
                     print(f"  {entry['name']:<34} FAILED: {type(exc).__name__}: {exc}")
-                    failures.append(f"{entry['name']}: {exc}")
+                    failures.append(f"{entry['name']}: FAILED: {exc}")
             ctx.close()
         browser.close()
 

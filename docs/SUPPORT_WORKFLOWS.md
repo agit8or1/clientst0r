@@ -9,7 +9,7 @@ A support workflow takes a technician from a monitoring alert on a ticket throug
 
 Workflows are rules and data, not AI. They work the same with AI switched off.
 
-Open them from a ticket that has a monitoring alert (**Support workflows** on the ticket, `/psa/workflows/t/<ticket>/`). Manage them under **Ticket Routing → Support workflows** (`/psa/workflows/manage/`), which needs the routing *manage* permission.
+Open them from a ticket that has a monitoring alert (**Support workflows** on the ticket, `/psa/workflows/t/<ticket>/`). Manage them under **Service Desk → Workflows → Support Workflows** (also a tab on the Ticket Routing pages, `/psa/workflows/manage/`), which needs the routing *manage* permission.
 
 ## Built-in workflows
 

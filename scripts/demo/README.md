@@ -40,6 +40,27 @@ a production virtualenv.
 
 ## Regenerating the media
 
+One command builds (with `--rebuild`), serves, captures every manifest entry
+into `docs/images/github`, rebuilds `docs/screenshots.md` and stops the
+server:
+
+```bash
+DEMO_DIR=/var/tmp/clientst0r-demo DEMO_PORT=8099 \
+  bash scripts/demo/recapture.sh --rebuild            # everything, from scratch
+DEMO_DIR=/var/tmp/clientst0r-demo DEMO_PORT=8099 \
+  bash scripts/demo/recapture.sh ticket-queue-dark   # just these entries
+```
+
+`PYTHON` picks the interpreter (default `venv/bin/python`) and
+`PLAYWRIGHT_PYTHONPATH` adds a directory holding the `playwright` package when
+it is not installed in that interpreter. `--walkthrough DIR` also records the
+walkthrough and copies the GIF, poster, transcript and captions into place.
+A rebuild takes a while (the migrations and the hardware catalog import);
+copy `$DEMO_DIR/demo.sqlite3` aside afterwards if you will capture more than
+once, because captures record recent pages and switch themes in it.
+
+The steps it runs, by hand:
+
 ```bash
 export DEMO_DIR=/var/tmp/clientst0r-demo     # start from an empty directory
 export PYTHONPATH=scripts/demo:.
@@ -75,7 +96,16 @@ Manifest entries (`scripts/screenshot_manifest.json`) can also:
 - crop to an element with `"selector"`, widen upwards with `"extend_up"`, cap
   the height with `"max_h"`, and with `"tight": true` crop horizontally to the
   element too (a narrow side card);
-- run `"actions"` (fill, check, select, click) first; nothing is submitted.
+- run `"actions"` (fill, check, select, click, press, type, hover, wait_for)
+  first; nothing is submitted. `"keep_open": true` keeps a menu, flyout or
+  the palette an action opened, and `"viewport_only": true` photographs the
+  window as it is (no crop);
+- set `"width"` / `"height"` for the window (the phone views use 390 x 844)
+  and `"local_storage"` for per-viewer preferences read on load, such as
+  `{"appnav.rail": "1"}` for the icon rail.
+
+Absolute links a page prints with the capture address (`http://127.0.0.1:<port>`)
+are shown with the demo's documented host, `https://desk.beaconmanaged.example`.
 
 Hardware artwork in `docs/images/hardware/` is the application's own SVG export
 (`/hardware/devices/<id>/art/front.svg`, `/hardware/racks/<id>/front.svg`) from
@@ -123,7 +153,9 @@ policy on and one grant waiting), `seed_rmm_fixture` (a Tactical RMM connection
 for Ridgeline that never syncs, with the server it reports) and `seed_rmm_pairing`
 (that connection paired for ticket-rmm-v1 with cached capabilities, L2 access
 for demo.tech at Ridgeline, and a workstation ticket with a sent handoff, a
-completed read-only diagnostic and a fix referral approved in the RMM).
+completed read-only diagnostic and a fix referral approved in the RMM), then
+`seed_navigation` (five starred pages and a recent-pages trail for demo.tech,
+for the top bar's Favorites and Recent menus).
 
 `seed_compliance.py` enrols two clients in the compliance frameworks and answers
 the controls in a weighted spread.

@@ -4,7 +4,7 @@ This page describes what ClientSt0r does as of v3.17.656, plus the
 ticket-to-RMM integration that ships in v3.17.658 (marked where it applies).
 Planned work is in [ROADMAP.md](ROADMAP.md), not here. Every statement below
 points to the code or test that backs it. Administrators can see whether each
-safeguard is actually in effect at a given customer under **Admin → Security →
+safeguard is actually in effect at a given customer under **Settings → Security →
 Security Features** (`/core/security/features/`).
 
 The examples use made-up customers, people and tickets.
@@ -29,7 +29,7 @@ GraphQL and mobile APIs, the browser extension, dashboards, process-stage
 pickers, relationship maps, readiness and vault reports all use the
 customer's "view vault" permission. Seeing an entry and revealing it stay
 separate: a technician who may see an entry can find it and, when their role
-allows reveals, request approval for it. Admin → Security → **Vault
+allows reveals, request approval for it. Settings → Security → **Vault
 Visibility** lists the staff who lost cross-customer visibility in that
 change; it is read-only and grants nothing. To restore access on purpose, add
 a membership or a global role that grants "view vault".
@@ -51,7 +51,7 @@ tests `psa/tests/test_internal_ticket_visibility.py`,
 | Read-only | yes | **no** |
 | New custom role | yes (default) | **no** unless "View actual password values" is ticked (since v3.17.650) |
 
-Review existing custom roles under **Settings → Roles**: roles created before
+Review existing custom roles under **Settings → Users & Access → Roles**: roles created before
 v3.17.650 had the reveal box ticked by default.
 
 ### Technician access levels (ticket AI and RMM tools)
@@ -87,11 +87,11 @@ ticket action yet.
 
 | Safeguard | Default | Where to change it |
 |---|---|---|
-| Two-factor sign-in (TOTP) | Required for everyone | Settings → Security, or `REQUIRE_2FA` |
-| Lockout | 5 failures (same username + address) → 30 minutes | Settings → Security, or `AXES_FAILURE_LIMIT` / `AXES_COOLOFF_TIME` |
-| Passwords | 12+ characters with a special character; Argon2 hashes | Settings → Security, or `PASSWORD_MIN_LENGTH` / `PASSWORD_REQUIRE_SPECIAL` |
-| Sessions | 60 minutes idle, 8 hours after sign-in | Settings → Security, or `SESSION_IDLE_TIMEOUT` / `SESSION_COOKIE_AGE` |
-| IP / country firewall | Off | Settings → Firewall |
+| Two-factor sign-in (TOTP) | Required for everyone | Settings → Security → Security Settings, or `REQUIRE_2FA` |
+| Lockout | 5 failures (same username + address) → 30 minutes | Settings → Security → Security Settings, or `AXES_FAILURE_LIMIT` / `AXES_COOLOFF_TIME` |
+| Passwords | 12+ characters with a special character; Argon2 hashes | Settings → Security → Security Settings, or `PASSWORD_MIN_LENGTH` / `PASSWORD_REQUIRE_SPECIAL` |
+| Sessions | 60 minutes idle, 8 hours after sign-in | Settings → Security → Security Settings, or `SESSION_IDLE_TIMEOUT` / `SESSION_COOKIE_AGE` |
+| IP / country firewall | Off | Settings → Security → Firewall & GeoIP |
 | HTTPS | HSTS one year; Secure, HttpOnly cookies | `SECURE_HSTS_SECONDS` |
 
 An environment variable always wins over the saved setting, and the settings
@@ -226,7 +226,7 @@ refuses to start without it. Tests: `vault/tests_secrets_at_rest.py`.
 **OPTIONAL AI.** Ticket AI is off until an administrator turns it on.
 
 - **Who enables it.** Only a superuser: AI on for the install (`psa_ai_enabled`),
-  provider profiles (Settings → AI), and each customer's AI policy (analysis,
+  provider profiles (Settings → AI Configuration), and each customer's AI policy (analysis,
   model comparison, allowed profiles, daily budget, on-premises only, and
   whether technicians may use their own keys). Without a customer policy
   nothing is allowed there. Technicians then also need L1 or above at that
@@ -290,7 +290,7 @@ Evidence: `integrations/ticket_rmm.py`, `psa_ai/services/rmm_actions.py`,
 
 ## Granting superuser
 
-A superuser controls the whole installation. Admin → Security → **Superuser
+A superuser controls the whole installation. Settings → Security → **Superuser
 Approval** turns on an optional policy (off on upgrade): one administrator
 requests the grant and a different one approves it, both re-entering their
 password (and authenticator code). The account is not a superuser until the
@@ -365,13 +365,13 @@ Known gaps, stated plainly:
 4. Turn on reveal approval for high-value credentials, and add access rules if
    reveals should only happen from your office or country.
 5. Give MSP staff a global role if they shouldn't have full reach. Check
-   Admin → Security → Vault Visibility after upgrading to 3.17.653.
+   Settings → Security → Vault Visibility after upgrading to 3.17.653.
 6. With two or more administrators, turn on Superuser Approval.
 7. If you use ticket AI, set `AI_GATEWAY_MODE=worker` and set each customer's
    AI policy deliberately.
 8. If you pair an RMM, pair one single-customer connection per customer and
    give technicians the lowest preset that covers their work.
-9. Check Admin → Security → Security Features for each customer.
+9. Check Settings → Security → Security Features for each customer.
 
 ## Reporting a vulnerability
 

@@ -471,7 +471,7 @@ without its file, or a file without its row, is not usable.
 
 An editor outage loses no saved version. Unsaved edits that the editor could
 not deliver are retried by the editor while it runs. A save that arrives late
-or stale is quarantined (Settings → Office Documents → Quarantine), not
+or stale is quarantined (Settings → Integrations → Office Documents → Quarantine), not
 discarded.
 
 ## Upgrades
@@ -481,7 +481,7 @@ effect of anything else:
 
 - the package is pinned with `Pin-Priority: 1001` and held, so `apt upgrade`
   skips it;
-- clientst0r's own update (Settings → Updates, `upgrade_apply`,
+- clientst0r's own update (Settings → System → System Updates, `upgrade_apply`,
   `scripts/auto_update.sh`, `deploy/update_instructions.sh`) never names,
   restarts or reconfigures an editor service. A test (`office.test_ops_commands.UpgradeSafetyTests`)
   checks those files;
@@ -555,7 +555,7 @@ licensed Collabora Online:
    it as a new instance. Run Health check, Diagnostics and the round-trip test.
 2. `manage.py office_sessions --drain <old>`. Wait for it to report drained,
    or use `--revoke-remaining` at the agreed time.
-3. Set the new instance as the default (Settings → Office Documents) and
+3. Set the new instance as the default (Settings → Integrations → Office Documents) and
    enable it. Update the organizations' preferred instances, and any dedicated
    instance assignments.
 4. Keep the old instance disabled for a few days. Look in Quarantine for late
@@ -634,7 +634,7 @@ Ubuntu 24.04 and Debian 12, 4 cores, 8 GB RAM, 60 GB disk.
    - `ss -ltnp` shows 8083 on Nginx and Node.
 5. **Upgrade**: drain, then `--upgrade --version <next> --confirm-drained`.
    The pin moves, the hold is restored and the Health check shows the new
-   version. Then run clientst0r's own Settings → Updates → Apply: the editor
+   version. Then run clientst0r's own Settings → System → System Updates → Apply: the editor
    version and uptime are unchanged
    (`systemctl show -p ActiveEnterTimestamp <unit>`).
 6. **Uninstall**: `--uninstall`. Packages are gone, the site is gone and Nginx

@@ -21,8 +21,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: What version of ClientSt0r are you running?
-      placeholder: "e.g. 3.13.15"
+      description: What version of ClientSt0r are you running? (Settings → System → System Updates, or account menu → Help → About)
+      placeholder: "e.g. 3.17.680"
     validations:
       required: false
   - type: textarea
