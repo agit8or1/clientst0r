@@ -20,6 +20,14 @@ claim what ships.
 Applied 2026-11-07 (331 characters). It names the hardware inventory (Phase 55,
 v3.17.630) because the README and the social preview now lead with it.
 
+**Proposed 2026-11-15** (332 characters; not applied yet), after the v3.17.680
+navigation work (client workspace, Ctrl+K Go to):
+
+> Self-hosted IT documentation and service desk for MSPs. Client workspaces, assets,
+> runbooks, an encrypted credential vault, native ticketing with SLAs, contracts and
+> invoices, and the physical network drawn: racks, switch ports, cables. Multi-tenant, with
+> Ctrl+K search across it all. Django 6 + MariaDB, Docker or one-line install.
+
 **Shorter variant**, if the panel feels crowded:
 
 > Self-hosted IT documentation and service desk for MSPs — client assets, runbooks, an
@@ -110,7 +118,8 @@ Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-d
   size GitHub wants): the wordmark, a one-line pitch, and the ticket and switch-panel
   screenshots. GitHub has no API for this, so upload it by hand under **Settings → General
   → Social preview → Edit → Upload an image**. Rebuild it whenever those two screenshots
-  change noticeably.
+  change noticeably. No script builds it; the current file still shows the screenshots
+  from before the v3.17.680 navigation.
 
 ## Related links to keep visible
 
