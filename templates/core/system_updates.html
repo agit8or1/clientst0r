@@ -1272,11 +1272,14 @@ function waitForServerThenReload() {
             + '<div class="small text-muted mt-2" id="serverWaitCountdown">'
             +   'Waiting for the upstream to come back online…'
             + '</div>'
-            + '<button type="button" id="serverWaitManual" class="btn btn-sm btn-outline-secondary mt-3" style="display:none;" '
-            +   'onclick="location.reload();">'
+            + '<button type="button" id="serverWaitManual" class="btn btn-sm btn-outline-secondary mt-3" style="display:none;">'
             +   '<i class="fas fa-redo me-1"></i> Reload now'
             + '</button>';
         completeEl.appendChild(wait);
+        // Not an onclick attribute: CSP (script-src-attr 'none') blocks those.
+        document.getElementById('serverWaitManual').addEventListener('click', function () {
+            location.reload();
+        });
     }
 
     const probeUrl = '{% url "core:update_progress_api" %}';

@@ -215,7 +215,9 @@ class NoInlineEventHandlersTests(TestCase):
     template, or in HTML a script builds, would silently stop working once
     CSP is enforced. Use the data-* hooks in static/js/csp-events.js."""
 
-    HANDLER = re.compile(r'''\son[a-z]+\s*=\s*\\?["']''', re.I)
+    # Also at the start of a JS string literal ('onclick="..."'), which is
+    # how scripts that build HTML usually write it.
+    HANDLER = re.compile(r'''(?:\s|['"`])on[a-z]+\s*=\s*\\?["']''', re.I)
     SCRIPT_TAG = re.compile(r'<script\b([^>]*)>', re.I)
     SKIP_TOP = {'venv', 'node_modules', '.git', 'staticfiles', 'mobile', 'mobile-app',
                 'local_apps', 'htmlcov', 'docs'}
