@@ -1,0 +1,23 @@
+<ul class="dash-stat-list">
+    <li><a href="{{ w.more_url }}" class="dash-stat"><span><span class="dash-dot dash-fill-success" aria-hidden="true"></span> Active contracts</span><strong>{{ w.agg.active }}</strong></a></li>
+    <li><a href="{{ w.more_url }}" class="dash-stat"><span><i class="fas fa-rotate text-success" aria-hidden="true"></i> Auto-renewing in the next {{ w.days }} days</span><strong>{{ w.agg.renewing }}</strong></a></li>
+    <li><a href="{{ w.more_url }}" class="dash-stat"><span><i class="fas fa-hourglass-end text-warning" aria-hidden="true"></i> Ending without auto-renew</span><strong>{{ w.agg.expiring }}</strong></a></li>
+    {% if w.agg.lapsed %}<li><a href="{{ w.more_url }}" class="dash-stat"><span><i class="fas fa-triangle-exclamation text-danger" aria-hidden="true"></i> Active but past their end date</span><strong>{{ w.agg.lapsed }}</strong></a></li>{% endif %}
+</ul>
+{% if w.rows %}
+<ul class="dash-list mt-1">
+    {% for c in w.rows %}
+    <li>
+        <a href="{{ c.url }}" class="dash-row" title="{{ c.name }}{% if c.client %} · {{ c.client }}{% endif %}">
+            <span class="dash-row-main dash-trunc">
+                <span class="dash-row-title">{{ c.name }}</span>
+                <span class="dash-row-sub">{{ c.client }}{% if c.auto_renew %} · auto-renews{% endif %}</span>
+            </span>
+            <span class="dash-row-meta">{% if c.past %}<span class="badge bg-danger">{{ c.end|date:"j M" }}</span>{% else %}{{ c.end|date:"j M Y" }}{% endif %}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% elif not w.agg.active %}
+<div class="dash-w-state">No active PSA contracts for this customer.</div>
+{% endif %}

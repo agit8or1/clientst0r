@@ -1,0 +1,25 @@
+<ul class="dash-stat-list">
+    <li><a href="{{ w.more_url }}" class="dash-stat"><span><span class="dash-dot dash-fill-danger" aria-hidden="true"></span> Down</span><strong>{{ w.counts.down }}</strong></a></li>
+    <li><a href="{{ w.more_url }}" class="dash-stat"><span><span class="dash-dot dash-fill-warning" aria-hidden="true"></span> Warning</span><strong>{{ w.counts.warning }}</strong></a></li>
+    <li><a href="{{ w.more_url }}" class="dash-stat"><span><span class="dash-dot dash-fill-secondary" aria-hidden="true"></span> All monitors</span><strong>{{ w.counts.total }}</strong></a></li>
+</ul>
+{% if w.rows %}
+<div class="dash-list-day">Down now</div>
+<ul class="dash-list">
+    {% for m in w.rows %}
+    <li>
+        <a href="{{ w.more_url }}" class="dash-row" title="{{ m.name }} ({{ m.organization.name }})">
+            <span class="dash-row-main dash-trunc">
+                <span class="dash-row-title">{{ m.name }}</span>
+                <span class="dash-row-sub">{{ m.organization.name }}</span>
+            </span>
+            <span class="dash-row-meta text-danger">down</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% elif w.counts.total %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> No monitor is down</div>
+{% else %}
+<div class="dash-w-state">No monitors configured at your clients.</div>
+{% endif %}

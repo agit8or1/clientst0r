@@ -69,7 +69,8 @@ breadcrumbs, the rail/flyout markup, the settings center and
 | Operations → Shifts & Locations → Shift Schedule | My Work → My Schedule (shortcut); home stays Service Desk → Shifts & Locations | MSP staff + PSA |
 | Account menu → My Work Details → My Leave / My Resources / My Billable Target | My Work → My Leave / My Resources / My Billable Target (account menu entry kept) | |
 | Operations → Tickets → Tickets | **Service Desk** → Tickets → All Tickets | `g t` |
-| Operations → Tickets → AI Inbox | Service Desk → Tickets → AI Inbox | OPTIONAL AI |
+| Operations → Tickets → AI Inbox | Service Desk → Tickets → AI Inbox | OPTIONAL AI; MSP staff (the page 404s for others) since v3.17.681 |
+| (new, v3.17.681) | Service Desk → Tickets → Overview, Unassigned, SLA, Escalated, Approvals: views of the ticket list at `/psa/?view=overview\|unassigned\|sla\|escalated\|approvals` (psa/ticket_workspace.py); All Tickets stays `/psa/` and first | MSP technicians (`psa.visibility.is_msp_staff`); a customer's `?view=` falls back to the plain list |
 | Operations → Tickets → Recurring Tickets, Canned Replies, Email Ingestion, Workflow Rules, Workflow Flow Map | Service Desk → Tickets → **Configure** menu | same gates |
 | Operations → Dispatch Board → Dispatch Board, Routing Triage, Load Heatmap | Service Desk → Dispatch Board (tabs on its pages, not nested in the sidebar) | MSP staff |
 | Operations → Dispatch Board → Ticket Routing | Service Desk → Dispatch Board → Configure | MSP staff |
@@ -110,7 +111,8 @@ breadcrumbs, the rail/flyout markup, the settings center and
 | Clients & Assets → Passwords → Passwords, Reveal Requests | Knowledge & Vault → **Password Vault** | |
 | Clients & Assets → Vault Access Rules | Knowledge & Vault → Password Vault → Configure → Vault Access Rules | `vault_manage_access_rules` |
 | Clients & Assets → My Vault, Secure Notes | Knowledge & Vault → My Vault, Secure Notes | |
-| Tools & Automation → Security Alerts → Security Alerts | **Security & Monitoring** → Security Alerts | `g a` |
+| (new in v3.17.681) `security_alerts:overview` `/security/overview/` | **Security & Monitoring** → Security Overview (first entry; `g a` lands here) | MSP staff + PSA on + `security_alerts_view`; each widget follows its source page (RMM: `integrations_view`, Monitoring: module + `monitoring_view`, alert MTTA: `reports_view_sla` across every customer). Read-only. |
+| Tools & Automation → Security Alerts → Security Alerts | **Security & Monitoring** → Security Alerts | |
 | Security Alerts → Vendor Connections, Auto-Ticket Rules, SIEM Endpoints, Weekly Digest | Security & Monitoring → Security Alerts → Configure | same gates |
 | Tools & Automation → Security Incidents → Incidents, Playbooks, Threat Overview, Alert Response Times | Security & Monitoring → Security Incidents (Playbooks → Incident Playbooks) | `security_alerts_view`; MTTA `reports_view_sla` |
 | Tools & Automation → RMM Alerts | Security & Monitoring → RMM Alerts | MSP staff |
@@ -187,7 +189,7 @@ open, and a warning before leaving a settings form with unsaved changes
 |---|---|---|
 | System → General, PSA | General (+ Customer Portal: host name, branding, layout, portal features and per-customer switches) | su; PSA also needs the psa module |
 | *(sidebar Settings → Asset Setup)* Equipment Catalog, Custom Fields & Types; Tags; Holidays | General | MSP staff; catalog managers; su; `resourcing_manage_holidays` |
-| System → System Status, Updates; Mobile → Mobile Apps, Beta testers | System | su; Mobile Apps: Django staff or su |
+| System → System Status, Updates; Mobile → Mobile Apps (Beta testers removed v3.17.681) | System | su; Mobile Apps: Django staff or su |
 | Security → Security, Security Dashboard, Technician Access, RMM Permissions, Firewall, Fail2ban, Snyk | Security (+ Security Features, Vault Visibility, Superuser Approval, Vulnerability Scans) | su; RMM Permissions: its policy readers |
 | Organizations & Access → Access Management, Directory, Office org policy | Organizations & Access (+ Users, Members, Roles, Audit Log, LDAP Group Mappings) | Access Management su (the old menu showed it to every signed-in user; the view redirects them); Members/Roles: org admins and roles readers; Office policy: org managers |
 | Organizations & Access → Organizations | moved to **Clients & Assets → Clients** | auth |
@@ -537,8 +539,8 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 | Help Us Grow (opens `#supportProjectModal`) | navbar Help Us Grow button (unchanged) and Account → Help → tab | auth |
 | Install App / Add to Home Screen (`#menu-install-pwa`) | Account → Apps & Downloads (landing); the tab carries `id="menu-install-pwa"` so the PWA install prompt still attaches; Install app navbar button unchanged | auth |
 | Android App (APK) | Account → Apps & Downloads → tab (download) | auth |
-| Beta test the Android app | Account → Apps & Downloads → tab; Beta app navbar button unchanged | auth |
-| Beta tester requests | Admin → Mobile → tab | su |
+| Beta test the Android app | Removed v3.17.681 | — |
+| Beta tester requests | Removed v3.17.681 (stored rows kept) | — |
 | Browser Extension | Account → Apps & Downloads → tab (download) | auth |
 | Sign Out (POST form to `logout`) | Account → Sign Out, same POST form with CSRF token | auth |
 
@@ -546,7 +548,7 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 
 | Control | Gate |
 |---|---|
-| Favorites, Beta app, Install app, Help Us Grow (modal) buttons | auth |
+| Favorites, Install app, Help Us Grow (modal) buttons (Beta app removed v3.17.681) | auth |
 | Global KB link | global_kb and not psa, staff/su |
 | Search form, theme toggle, clock | auth |
 | Client switcher (`core/_client_switcher.html`, `#orgDropdown`): active client / Global View pill, switch list, new "All clients" link | `current_organization or su or is_staff_user`; Global View entry su or is_staff_user; All clients psa or su |

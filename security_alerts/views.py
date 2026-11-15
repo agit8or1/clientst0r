@@ -141,10 +141,15 @@ def alert_detail(request, pk):
         pk=pk, organization__in=orgs,
     )
     pretty_payload = json.dumps(alert.raw_payload or {}, indent=2, sort_keys=True)
+    from .related import related_devices
     return render(request, 'security_alerts/alert_detail.html', {
         'alert': alert,
         'pretty_payload': pretty_payload,
         'can_acknowledge': user_has_perm(request.user, 'security_alerts_acknowledge'),
+        # Workflow: alert -> incident -> device -> RMM. Incidents in the
+        # customers this user may view, as on the incident list.
+        'incidents': alert.incidents.filter(organization__in=orgs).order_by('-opened_at')[:10],
+        'related': related_devices(request, alert),
     })
 
 
@@ -631,6 +636,7 @@ def incident_detail(request, pk):
         ),
         pk=pk, organization__in=orgs,
     )
+    from .related import related_devices
     events = incident.events.select_related('actor', 'alert').order_by('occurred_at', 'pk')
     alerts = incident.alerts.select_related('connection', 'siem_endpoint').order_by('-seen_at')
     return render(request, 'security_alerts/incident_detail.html', {
@@ -638,6 +644,7 @@ def incident_detail(request, pk):
         'events': events,
         'alerts': alerts,
         'can_acknowledge': user_has_perm(request.user, 'security_alerts_acknowledge'),
+        'related': related_devices(request, incident),
     })
 
 
@@ -801,6 +808,16 @@ def threat_overview(request):
         'week_b_count': week_b_count,
         'wow_pct': wow_pct,
     })
+
+
+@login_required
+@require_perm('security_alerts_view')
+def security_overview(request):
+    """v3.17.681 — operational Security Overview: read-only counts from the
+    alert, incident, RMM alert, monitoring and MTTA pages, each behind that
+    page's own check (security_alerts/overview.py). No actions, no scores."""
+    from .overview import build_overview
+    return render(request, 'security_alerts/overview.html', build_overview(request))
 
 
 @login_required

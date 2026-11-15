@@ -20,7 +20,7 @@
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-3">Client</dt>
-                    <dd class="col-sm-9">{{ opp.client_org.name }}</dd>
+                    <dd class="col-sm-9">{% if client_url %}<a href="{{ client_url }}">{{ opp.client_org.name }}</a>{% else %}{{ opp.client_org.name }}{% endif %}</dd>
 
                     <dt class="col-sm-3">Estimated value</dt>
                     <dd class="col-sm-9">${{ opp.estimated_value|floatformat:2|intcomma }}</dd>
@@ -57,7 +57,7 @@
 
                     {% if opp.quote %}
                     <dt class="col-sm-3">Quote</dt>
-                    <dd class="col-sm-9">{{ opp.quote.quote_number }} — {{ opp.quote.title|truncatechars:60 }}</dd>
+                    <dd class="col-sm-9">{% if quote_url %}<a href="{{ quote_url }}">{{ opp.quote.quote_number }}</a>{% else %}{{ opp.quote.quote_number }}{% endif %} — {{ opp.quote.title|truncatechars:60 }}</dd>
                     {% endif %}
 
                     <dt class="col-sm-3">Created</dt>

@@ -104,3 +104,69 @@ class UpdateBadgeTests(TestCase):
         task = ScheduledTask.objects.get(task_type='update_check')
         self.assertTrue(task.enabled)
         self.assertEqual(task.interval_minutes, 15)  # v3.17.678: was hourly
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class SecurityUpdateBadgeTests(TestCase):
+    """v3.17.682: the pill is red while a release with security fixes is newer
+    than the running version (even when a later, ordinary release is the
+    newest), and amber otherwise."""
+
+    def setUp(self):
+        self.su = get_user_model().objects.create_user('sec_su', 'ss@x.test', 'pw', is_superuser=True, is_staff=True)
+
+    def _seen(self, latest, security=''):
+        s = SystemSetting.get_settings()
+        s.latest_release_version = latest
+        s.latest_security_release_version = security
+        s.save()
+
+    def _page(self):
+        self.client.force_login(self.su)
+        with patch('core.upgrade.channels.requests.get',
+                   side_effect=AssertionError('network call while rendering')):
+            return self.client.get(reverse('core:about')).content.decode()
+
+    def test_red_when_a_newer_release_has_security_fixes(self):
+        self._seen(_bump(get_version(), 2), security=_bump(get_version(), 1))
+        html = self._page()
+        self.assertIn('update-pill update-pill--security', html)
+        self.assertIn('Security<span class="update-pill__more"> Update</span>', html)
+        self.assertIn('Security update available', html)
+
+    def test_amber_when_the_security_release_is_already_installed(self):
+        self._seen(_bump(get_version(), 1), security=get_version())
+        html = self._page()
+        self.assertIn('id="navUpdateBadge"', html)
+        self.assertNotIn('update-pill--security', html)
+        self.assertIn('Update<span class="update-pill__more"> Available</span>', html)
+
+    def test_amber_without_security_releases(self):
+        self._seen(_bump(get_version(), 1))
+        self.assertNotIn('update-pill--security', self._page())
+
+    def test_check_records_the_newest_security_release(self):
+        from core.upgrade import channels
+        base = get_version()
+        rels = [
+            {'tag_name': f'v{_bump(base, 3)}', 'name': 'Ordinary', 'body': '### Added\n- x'},
+            {'tag_name': f'v{_bump(base, 2)}', 'name': 'Fixes', 'body': '### Fixed\n- y\n\n### Security\n- z'},
+            {'tag_name': f'v{_bump(base, 1)}', 'name': 'Security hardening', 'body': ''},
+            {'tag_name': f'v{_bump(base, 4)}', 'name': 'Draft', 'body': '### Security', 'draft': True},
+        ]
+
+        def fake_get(url):
+            return rels if url.endswith('releases?per_page=30') else None
+        with patch('core.upgrade.channels._get', side_effect=fake_get):
+            stable = channels._stable_release('o', 'n')
+        self.assertEqual(stable['version'], _bump(base, 3))
+        self.assertEqual(stable['security_version'], _bump(base, 2))
+        channels._record_stable(stable)
+        self.assertEqual(SystemSetting.objects.get(pk=1).latest_security_release_version, _bump(base, 2))
+
+    def test_detection_rules(self):
+        from core.upgrade.channels import is_security_release
+        self.assertTrue(is_security_release({'body': '## [1.2.3]\n\n### Security\n- fix'}))
+        self.assertTrue(is_security_release({'name': 'v1 — Security fixes', 'body': ''}))
+        self.assertFalse(is_security_release({'name': 'v1', 'body': 'Improves security of nothing in prose'}))
+        self.assertFalse(is_security_release(None))

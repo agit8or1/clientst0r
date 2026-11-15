@@ -173,7 +173,6 @@ class EveryTabOpensTests(NavbarTestBase):
         self.assertIn('id="menu-install-pwa"', pills)
         self.assertIn(reverse('core:download_mobile_app', args=['android']), pills)
         self.assertIn(reverse('core:download_browser_extension'), pills)
-        self.assertIn(reverse('core:beta_test_signup'), pills)
 
     def test_hardware_keeps_its_own_tabs(self):
         html = self.client.get(reverse('hardware:device_list')).content.decode()
@@ -221,9 +220,8 @@ class RegistryTests(NavbarTestBase):
             'docs:document_archived_list', 'docs:kb_analytics', 'core:system_status',
             'core:system_updates', 'core:settings_snyk', 'accounts:access_management',
             'core:webhook_list', 'resourcing:my_leave', 'resourcing:my_billable_target',
-            'core:about', 'core:roadmap', 'core:beta_test_admin',
+            'core:about', 'core:roadmap',
             'core:download_mobile_app', 'core:download_browser_extension',
-            'core:beta_test_signup',
         ]
         missing = [n for n in old if navigation.section_for(n) is None]
         self.assertEqual(missing, [])

@@ -370,7 +370,7 @@ a.dash-stat:hover span:first-child { color: var(--dash-accent); }
 .dash-bars { list-style: none; margin: 0; padding: 0; }
 .dash-bar-row {
     display: grid;
-    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 2.5rem;
+    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) minmax(2.5rem, auto);
     align-items: center;
     gap: 8px;
     padding: 3px 0;
@@ -513,3 +513,18 @@ body.dash-page .app-main > footer small { font-size: .75rem; line-height: 1.4; }
 @media (prefers-reduced-motion: reduce) {
     .dash-kpi, .dash-qa-btn { transition: none; }
 }
+
+/* v3.17.681: sales and manager panels */
+.dash-dot.dash-fill-danger { background: var(--bs-danger, #dc3545); }
+.dash-dot.dash-fill-warning { background: var(--bs-warning, #ffc107); }
+.dash-dot.dash-fill-success { background: var(--bs-success, #198754); }
+.dash-dot.dash-fill-info { background: var(--bs-info, #0dcaf0); }
+.dash-dot.dash-fill-secondary { background: var(--bs-secondary, #6c757d); }
+.dash-dot { margin-right: 4px; }
+.dash-stat-figs { white-space: nowrap; flex: 0 0 auto; }
+.dash-stat > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* One-line rows: long subjects and client names end in an ellipsis; the
+   row's title attribute carries the full text. */
+.dash-trunc { flex: 1 1 auto; min-width: 0; }
+.dash-trunc .dash-row-title, .dash-trunc .dash-row-sub { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-row-meta .dash-row-sub { text-align: right; }

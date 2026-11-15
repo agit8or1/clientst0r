@@ -365,9 +365,13 @@ def opportunity_detail(request, pk):
         )),
         pk=pk,
     )
+    from core import workflow_links
     return render(request, 'crm/opportunity_detail.html', {
         'opp': opp,
         'can_manage_pipeline': user_has_perm(request.user, 'crm_manage_pipeline'),
+        # Workflow links, each only when its page would open for this user.
+        'client_url': workflow_links.client_url(request, opp.client_org_id),
+        'quote_url': workflow_links.quote_url(request, opp.quote),
     })
 
 

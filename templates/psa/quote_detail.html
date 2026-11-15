@@ -77,7 +77,8 @@
         <div class="card mb-3">
             <div class="card-body">
                 <dl class="row mb-0 small">
-                    <dt class="col-5">Client</dt><dd class="col-7">{{ item.client_org.name }}</dd>
+                    <dt class="col-5">Client</dt><dd class="col-7">{% if client_url %}<a href="{{ client_url }}">{{ item.client_org.name }}</a>{% else %}{{ item.client_org.name }}{% endif %}</dd>
+                    {% if opportunity_links %}<dt class="col-5">Opportunity</dt><dd class="col-7">{% for name, href in opportunity_links %}<a href="{{ href }}">{{ name|truncatechars:50 }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
                     <dt class="col-5">Created</dt><dd class="col-7">{{ item.created_at|date:'Y-m-d' }}</dd>
                     <dt class="col-5">Valid until</dt><dd class="col-7">{{ item.valid_until|default:'—' }}</dd>
                     <dt class="col-5">Subtotal</dt><dd class="col-7">{{ item.subtotal }}</dd>

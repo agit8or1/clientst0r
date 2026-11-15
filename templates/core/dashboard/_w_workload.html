@@ -5,7 +5,7 @@
         <a href="{{ r.href }}" class="dash-bar-row">
             <span class="dash-bar-label{% if r.unassigned %} dash-sub-warning{% endif %}">{{ r.name }}</span>
             <span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill{% if r.unassigned %} dash-fill-warning{% endif %}" style="width: {{ r.pct }}%"></span></span>
-            <strong class="dash-bar-value" title="{{ r.count }} open{% if r.late %}, {{ r.late }} overdue{% endif %}">{{ r.count }}{% if r.late %}<span class="dash-sub-danger" aria-label="{{ r.late }} overdue"> ({{ r.late }})</span>{% endif %}</strong>
+            <strong class="dash-bar-value text-nowrap" title="{{ r.count }} open{% if r.late %}, {{ r.late }} overdue{% endif %}">{{ r.count }}{% if r.late %}<span class="dash-sub-danger" aria-label="{{ r.late }} overdue"> ({{ r.late }})</span>{% endif %}</strong>
         </a>
     </li>
     {% endfor %}

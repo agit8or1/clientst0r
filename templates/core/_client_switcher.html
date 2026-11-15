@@ -18,13 +18,13 @@ accounts:switch_organization, which re-checks access and records the recent.
 {% with cs=client_switcher %}
 <li class="nav-item dropdown client-switcher">
     {% if current_organization %}
-    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{{ current_organization.name }}" aria-label="{% blocktrans with name=current_organization.name %}Current client: {{ name }}. Switch client{% endblocktrans %}">
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{% blocktrans with name=current_organization.name %}Current client: {{ name }} — pages show this client only. Click to switch or go to Global View.{% endblocktrans %}" aria-label="{% blocktrans with name=current_organization.name %}Current client: {{ name }}. Switch client{% endblocktrans %}">
         <span class="org-pulse-dot flex-shrink-0" aria-hidden="true"></span>
         <span class="org-pill-name">{{ current_organization.name }}</span>
         <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1" aria-hidden="true"></i>
     </a>
     {% else %}
-    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" aria-label="{% trans 'Current context: Global View. Switch client' %}">
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{% trans 'Global View: every client you may open. Click to pick one client.' %}" aria-label="{% trans 'Current context: Global View. Switch client' %}">
         <i class="fas fa-globe flex-shrink-0" style="font-size:.75rem;" aria-hidden="true"></i>
         <span class="org-pill-name">{% trans "Global View" %}</span>
         <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1" aria-hidden="true"></i>

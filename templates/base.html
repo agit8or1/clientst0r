@@ -44,7 +44,7 @@
 
     {% if user.is_authenticated %}
     {# Sidebar width before first paint (static/js/app_nav.js keeps it in step): the remembered choice, else the icon rail from 768px to 1199px. #}
-    <script nonce="{{ csp_nonce }}">(function(){try{var w=window.innerWidth,p=null;try{p=window.localStorage.getItem('appnav.rail');}catch(e){}if(w>=768&&(p==='1'||(p!=='0'&&w<1200)))document.body.classList.add('appnav-rail');}catch(e){}})();</script>
+    <script nonce="{{ csp_nonce }}">(function(){try{var w=window.innerWidth,p=null,d='{% if user.is_authenticated %}{{ role_ui_defaults.sidebar_mode|escapejs }}{% endif %}';try{p=window.localStorage.getItem('appnav.rail');}catch(e){}if(p===null&&d)p=d==='rail'?'1':'0';if(w>=768&&(p==='1'||(p!=='0'&&w<1200)))document.body.classList.add('appnav-rail');}catch(e){}})();</script>
     {% endif %}
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
@@ -84,11 +84,11 @@
             </a>
             {% if update_badge %}
             {# Update available (superusers; core.context_processors._update_badge, fed by the scheduled update check). Outside the collapsible area so it shows at every width. #}
-            <a class="update-pill" href="{% url 'core:system_updates' %}" id="navUpdateBadge"
+            <a class="update-pill{% if update_badge.security %} update-pill--security{% endif %}" href="{% url 'core:system_updates' %}" id="navUpdateBadge"
                data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="{% blocktrans with v=update_badge.version %}Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}">
-                <i class="fas fa-circle-arrow-up" aria-hidden="true"></i>
-                <span class="update-pill__text">{% trans "Update" %}<span class="update-pill__more"> {% trans "Available" %}</span></span>
+               {% if update_badge.security %}title="{% blocktrans with v=update_badge.version s=update_badge.security_version %}Security fixes are available (v{{ s }}). Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}"{% else %}title="{% blocktrans with v=update_badge.version %}Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}"{% endif %}>
+                <i class="fas {% if update_badge.security %}fa-shield-halved{% else %}fa-circle-arrow-up{% endif %}" aria-hidden="true"></i>
+                {% if update_badge.security %}<span class="update-pill__text">{% trans "Security" %}<span class="update-pill__more"> {% trans "Update" %}</span></span>{% else %}<span class="update-pill__text">{% trans "Update" %}<span class="update-pill__more"> {% trans "Available" %}</span></span>{% endif %}
                 <span class="update-pill__ver">v{{ update_badge.version }}</span>
             </a>
             {% endif %}
@@ -188,12 +188,6 @@
                 </ul>
                 {% else %}
                 <ul class="navbar-nav ms-auto">
-                    {# v3.17.473 — public beta-tester sign-up CTA #}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:beta_test_signup' %}" style="font-weight: 600;">
-                            📱 {% trans "Beta test the app" %}
-                        </a>
-                    </li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'two_factor:login' %}">{% trans "Login" %}</a></li>
                 </ul>
                 {% endif %}
@@ -237,6 +231,18 @@
             </nav>
             {% endif %}
             {% include "core/_section_tabs.html" with tabs=nav.tabs visible=nav.tabs_visible more=nav.tabs_more configure=nav.configure configure_active=nav.configure_active label=nav.section_label %}
+        </div>
+        {% endif %}
+        {% comment %}
+        "Back to PSA-…" (core.return_to): shown while ?return_to= names a
+        ticket page; the value is validated and rebuilt on the server.
+        app_nav.js carries data-return-origin onto in-page links to the
+        client workspace and device pages (data-return-scope).
+        {% endcomment %}
+        {% return_context as back %}
+        {% if back.scope %}
+        <div class="return-ctx" id="returnCtx" data-return-origin="{{ back.origin }}" data-return-scope="{{ back.scope }}"{% if not back.chip %} hidden{% endif %}>
+            {% if back.chip %}<a class="return-ctx__link" href="{{ back.chip.href }}" data-return-link><i class="fas fa-arrow-left" aria-hidden="true"></i> {% blocktrans with ref=back.chip.label %}Back to {{ ref }}{% endblocktrans %}</a>{% endif %}
         </div>
         {% endif %}
         {% include "core/_work_context.html" %}

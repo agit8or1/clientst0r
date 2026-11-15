@@ -74,7 +74,12 @@ def organization_context(request):
     if request.user.is_authenticated:
         try:
             from .quick_actions import resolve_for_user
-            context['resolved_quick_actions'] = resolve_for_user(request.user, context)
+            from .dashboard_widgets import action_enabled
+            # Actions an administrator removed for the user's role
+            # (Role Dashboards) leave the shortcut strip too.
+            context['resolved_quick_actions'] = [
+                a for a in resolve_for_user(request.user, context)
+                if action_enabled(request, f"qa:{a['key']}")]
         except Exception:
             context['resolved_quick_actions'] = []
 
@@ -180,4 +185,12 @@ def _update_badge(request, system_settings):
             return None
     except Exception:
         return None
-    return {'version': latest}
+    security = (getattr(system_settings, 'latest_security_release_version', '') or '').strip()
+    is_security = False
+    if security:
+        try:
+            is_security = version.parse(security) > version.parse(get_version())
+        except Exception:
+            is_security = False
+    return {'version': latest, 'security': is_security,
+            'security_version': security if is_security else ''}

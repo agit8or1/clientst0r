@@ -676,6 +676,12 @@ class UserProfile(BaseModel):
         default=dict, blank=True,
         help_text='Per-user dashboard widget order, hidden widgets and sizes.',
     )
+    # v3.17.681: the same shape for Global View (no customer selected), kept
+    # apart so the per-customer layout and the all-clients one don't mix.
+    dashboard_global_layout = models.JSONField(
+        default=dict, blank=True,
+        help_text='Per-user Global View dashboard widget order, hidden widgets and sizes.',
+    )
 
     # v3.17.233 — Customer-portal notification preferences.
     portal_notify_ticket_reply = models.BooleanField(

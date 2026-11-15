@@ -1,7 +1,7 @@
 <ul class="dash-stat-list">
     <li><a href="{{ w.updates_url }}" class="dash-stat">
         <span><i class="fas fa-code-branch" aria-hidden="true"></i> Version {{ w.version }}</span>
-        {% if w.update %}<span class="badge bg-warning text-dark">Update {{ w.update }} available</span>{% else %}<span class="dash-sub-success">Up to date</span>{% endif %}
+        {% if w.update and w.security_update %}<span class="badge bg-danger">Security update {{ w.update }} available</span>{% elif w.update %}<span class="badge bg-warning text-dark">Update {{ w.update }} available</span>{% else %}<span class="dash-sub-success">Up to date</span>{% endif %}
     </a></li>
     <li><a href="{{ w.status_url }}" class="dash-stat">
         <span><i class="fas fa-database" aria-hidden="true"></i> Database ({{ w.db_engine }})</span>

@@ -1,0 +1,10 @@
+{% load humanize %}
+<div class="dash-sla-head">
+    {% if w.f.rate is not None %}<strong class="dash-sla-pct">{{ w.f.rate }}%</strong> <span class="dash-row-sub d-inline">win rate, last {{ w.days }} days</span>
+    {% else %}<span class="dash-row-sub d-inline">No opportunities closed in the last {{ w.days }} days</span>{% endif %}
+</div>
+<ul class="dash-stat-list">
+    <li><a href="{{ w.won_url }}" class="dash-stat"><span><i class="fas fa-trophy text-success" aria-hidden="true"></i> Won</span><span class="dash-stat-figs"><strong>{{ w.f.won }}</strong>{% if w.f.won %} <span class="dash-row-sub d-inline">{{ w.f.won_value|floatformat:2|intcomma }}</span>{% endif %}</span></a></li>
+    <li><a href="{{ w.lost_url }}" class="dash-stat"><span><i class="fas fa-circle-xmark text-danger" aria-hidden="true"></i> Lost</span><span class="dash-stat-figs"><strong>{{ w.f.lost }}</strong>{% if w.f.lost %} <span class="dash-row-sub d-inline">{{ w.f.lost_value|floatformat:2|intcomma }}</span>{% endif %}</span></a></li>
+</ul>
+<div class="dash-w-foot">By actual close date; estimated values.</div>

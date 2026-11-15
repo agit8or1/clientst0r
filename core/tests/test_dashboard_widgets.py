@@ -199,7 +199,10 @@ class DashboardViewTests(_Base):
         s.save()
         self._login(self.root, self.org_a)
         for w in dw.WIDGETS:
-            if w.zone in ('grid', 'kpi') and w.key not in ('kpi_psa_companies', 'kpi_psa_tickets'):
+            # Global View widgets (scope 'global') answer 404 inside a client:
+            # core.tests.test_dashboard_r681.GlobalViewTests.
+            if (w.zone in ('grid', 'kpi') and w.scope != 'global'
+                    and w.key not in ('kpi_psa_companies', 'kpi_psa_tickets')):
                 with self.subTest(key=w.key):
                     r = self.client.get(reverse('core:dashboard_widget', args=[w.key]))
                     self.assertEqual(r.status_code, 200)

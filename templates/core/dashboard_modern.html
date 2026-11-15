@@ -12,14 +12,14 @@
 {% block content %}
 <div class="dash" id="dash" data-dash-density="{{ ui_density }}"
      data-widget-url="{% url 'core:dashboard_widget' 'WIDGET_KEY' %}"
-     data-save-url="{% url 'core:dashboard_layout_save' %}"
+     data-save-url="{% url 'core:dashboard_layout_save' %}{% if global_view %}?scope=global{% endif %}"
      {% if can_manage_role_defaults %}data-role-url="{% url 'core:dashboard_role_default_save' %}"{% endif %}>
 
     <header class="dash-head">
         <div class="dash-head-main">
             <h1 class="dash-title">
                 <i class="fas fa-tachometer-alt" aria-hidden="true"></i> Dashboard
-                {% if current_organization %}<span class="dash-org" title="Current customer">{{ current_organization.name }}</span>{% endif %}
+                {% if current_organization %}<span class="dash-org" title="Current customer">{{ current_organization.name }}</span>{% elif global_view %}<span class="dash-org" title="No client selected: figures across every client you can reach"><i class="fas fa-globe" aria-hidden="true"></i> Global View</span>{% endif %}
             </h1>
             <span class="dash-greet">{{ greeting }}<span class="dash-greet-date"> · {% now "l j F" %}</span></span>
         </div>

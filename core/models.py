@@ -1117,6 +1117,10 @@ class SystemSetting(models.Model):
     # available" badge must see what the scheduler's check found.
     latest_release_version = models.CharField(max_length=32, blank=True, default='')
     latest_release_checked_at = models.DateTimeField(null=True, blank=True)
+    # Newest release with security fixes (a "### Security" section in its
+    # notes) the check saw (v3.17.682); the badge turns red while it is newer
+    # than the running version.
+    latest_security_release_version = models.CharField(max_length=32, blank=True, default='')
 
     # Release channel (core/upgrade/channels.py). Stable installs signed,
     # published releases only; Preview also offers unreleased commits on main.
@@ -2956,8 +2960,21 @@ class DashboardRoleDefault(models.Model):
     permission check still runs."""
     from django.conf import settings as _settings
 
+    SIDEBAR_CHOICES = [('', 'No preference'), ('expanded', 'Expanded'), ('rail', 'Icon rail')]
+
     preset = models.CharField(max_length=20, unique=True)
     layout = models.JSONField(default=dict, blank=True)
+    # v3.17.681 role configuration. Every one of these only narrows what the
+    # widget gates and view checks already allow; none grants anything.
+    disabled_widgets = models.JSONField(default=list, blank=True,
+        help_text='Widget keys users of this role may not show or add.')
+    disabled_actions = models.JSONField(default=list, blank=True,
+        help_text='Header and quick-action keys removed for this role.')
+    landing = models.CharField(max_length=300, blank=True, default='',
+        help_text='Page opened after sign-in instead of the dashboard (a local path). '
+                  'Used only when the user may open it.')
+    sidebar_mode = models.CharField(max_length=10, blank=True, default='', choices=SIDEBAR_CHOICES,
+        help_text="Default sidebar mode; a user's own choice wins.")
     updated_by = models.ForeignKey(_settings.AUTH_USER_MODEL, null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)
@@ -2968,3 +2985,26 @@ class DashboardRoleDefault(models.Model):
 
     def __str__(self):
         return f'Dashboard default: {self.preset}'
+
+
+class DashboardRoleMapping(models.Model):
+    """v3.17.681: which dashboard preset an MSP role uses, chosen by an
+    administrator instead of the built-in seed-key rules
+    (core.dashboard_widgets.preset_for_user). A role an administrator adds
+    later (a dispatcher role, say) is mapped here without a code change.
+    Mapping decides the default layout only; it never grants a permission,
+    and customer users always get the customer preset."""
+    from django.conf import settings as _settings
+
+    role_template = models.OneToOneField('accounts.RoleTemplate', on_delete=models.CASCADE,
+                                         related_name='dashboard_mapping')
+    preset = models.CharField(max_length=20)
+    updated_by = models.ForeignKey(_settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'core_dashboard_role_mappings'
+
+    def __str__(self):
+        return f'Dashboard mapping: {self.role_template_id} -> {self.preset}'

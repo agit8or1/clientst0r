@@ -47,10 +47,17 @@ def dashboard(request):
     previous one as the "Classic dashboard" (per-user switch, `?layout=`).
     Routes to global dashboard if superuser and no org context.
     """
+    # v3.17.681: straight after sign-in, the role's landing page (only when
+    # this user may open it; see landing_for).
+    target = take_landing_redirect(request)
+    if target:
+        return redirect(target)
+
     org = get_request_organization(request)
 
-    # If superuser and explicitly accessing dashboard without org context, show global dashboard
-    if request.user.is_superuser and not org:
+    # No customer selected: Global View for superusers and MSP staff
+    # (v3.17.681: staff used to be sent to pick a customer).
+    if not org and (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         return global_dashboard(request)
 
     # If no organization context, redirect to organization selection
@@ -153,14 +160,28 @@ def classic_dashboard(request, org):
 @login_required
 def global_dashboard(request):
     """
-    Global system dashboard for MSP staff: system-wide statistics across all
-    customers, including every customer's name and the install-wide audit
-    log, so customer users don't get it.
+    Global View for MSP staff (no customer selected). v3.17.681: the widget
+    dashboard with the all-clients widgets (core.dashboard_global), or the
+    previous page (classic_global_dashboard) for users on the Classic
+    dashboard. Customer users don't get either.
     """
     from django.core.exceptions import PermissionDenied
     if not (request.user.is_superuser or request.user.is_staff
             or getattr(request, 'is_staff_user', False)):
         raise PermissionDenied("MSP staff only")
+    if get_request_organization(request) is None and dashboard_variant(request) == 'modern':
+        from core import dashboard_widgets as dw
+        if dw.is_global_view(request):
+            return modern_dashboard(request, None)
+    return classic_global_dashboard(request)
+
+
+def classic_global_dashboard(request):
+    """
+    Global system dashboard for MSP staff: system-wide statistics across all
+    customers, including every customer's name and the install-wide audit
+    log, so customer users don't get it. (Access checked by global_dashboard.)
+    """
 
     from core.models import Organization
     from accounts.models import Membership
@@ -323,6 +344,8 @@ def _quick_action_options(request):
             continue
         if not action_allowed(a, request):
             continue
+        if not dw.action_enabled(request, f'qa:{key}'):
+            continue
         out.append({'key': key, 'label': a['label'], 'icon': a['icon'], 'on': key in chosen})
     return out
 
@@ -334,8 +357,9 @@ def modern_dashboard(request, org):
     placed = dw.visible_widgets(request, layout)
     errors = []
     zones = {'banner': [], 'kpi': [], 'toolbar': [], 'grid': []}
+    probe = _link_probe(request)
     for p in placed:
-        p.link = p.widget.link_url(org)
+        p.link = _checked_link(probe, p.widget, org)
         if p.hidden:
             continue
         if p.widget.lazy:
@@ -354,8 +378,11 @@ def modern_dashboard(request, org):
         'grid': [p for p in placed if p.widget.zone == 'grid'],
         'toolbar': [p for p in placed if p.widget.zone == 'toolbar'],
     }
-    manage_defaults = can_manage_role_defaults(request.user)
+    global_view = org is None
+    # Role default layouts are per-customer presets; Global View has none.
+    manage_defaults = can_manage_role_defaults(request.user) and not global_view
     return render(request, 'core/dashboard_modern.html', {
+        'global_view': global_view,
         'current_organization': org,
         'greeting': dw.greeting(request.user),
         'header_actions': dw.header_actions(request),
@@ -368,13 +395,28 @@ def modern_dashboard(request, org):
         'quick_action_options': _quick_action_options(request),
         'layout_source': source,
         'layout_preset': preset,
-        'layout_preset_label': dw.PRESET_LABELS.get(preset, preset),
+        'layout_preset_label': 'Global View' if global_view else dw.PRESET_LABELS.get(preset, preset),
         'preset_choices': list(dw.PRESET_LABELS.items()),
         'can_manage_role_defaults': manage_defaults,
         'ui_density': profile.ui_density or 'compact',
         'layout_json': _json.dumps(layout),
         'one_off_layout': (request.GET.get('layout') or '') in VARIANTS,
     })
+
+
+def _link_probe(request):
+    from core.navigation import _PermProbe, request_context
+    return _PermProbe(request_context(request))
+
+
+def _checked_link(probe, widget, org):
+    """A widget's "View all" link, only when the server would open it for
+    this user (the prefix rule and the view's role decorators), else its
+    fallback page, else none."""
+    for link in (widget.link_url(org), widget.link_url(org, fallback=True)):
+        if link and probe.allows(link.split('?', 1)[0]):
+            return link
+    return ''
 
 
 @login_required
@@ -384,10 +426,12 @@ def dashboard_widget(request, key):
     404, the same answer as a key that doesn't exist."""
     from core import dashboard_widgets as dw
     widget = dw.get(key)
-    if widget is None or widget.zone not in ('grid', 'kpi') or not widget.allowed(request):
+    if (widget is None or widget.zone not in ('grid', 'kpi')
+            or not dw.widget_available(request, widget)):
         raise Http404('No such widget')
-    if get_request_organization(request) is None:
-        raise Http404('Select a customer first')
+    org = get_request_organization(request)
+    if (org is None and widget.scope == 'client') or (org is not None and widget.scope == 'global'):
+        raise Http404('Not available here')
     errors = []
     ctx = _build(request, widget, errors)
     if ctx is None:
@@ -395,8 +439,10 @@ def dashboard_widget(request, key):
     if errors:
         from django.http import HttpResponseServerError
         return HttpResponseServerError('This panel could not be loaded.')
-    html = render_to_string(widget.template, {'w': ctx, 'widget': widget, 'request': request},
-                            request=request)
+    # The widget partials read only their own context (no csrf, no context
+    # processor values), so they render without the context processors: each
+    # of those costs queries on every lazy fetch and refresh.
+    html = render_to_string(widget.template, {'w': ctx, 'widget': widget, 'request': request})
     from django.http import HttpResponse
     resp = HttpResponse(html)
     resp['Cache-Control'] = 'no-store'
@@ -426,15 +472,23 @@ def dashboard_layout_save(request):
     profile = _profile(request.user)
     fields = []
     errors = []
+    # ?scope=global saves the Global View layout (MSP staff only), kept
+    # apart from the per-customer one.
+    attr = 'dashboard_layout'
+    if request.GET.get('scope') == 'global':
+        if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+            return JsonResponse({'ok': False, 'errors': ['Global View is for MSP staff.']},
+                                status=403)
+        attr = 'dashboard_global_layout'
     if data.get('action') == 'reset':
-        profile.dashboard_layout = {}
-        fields.append('dashboard_layout')
+        setattr(profile, attr, {})
+        fields.append(attr)
     elif 'layout' in data:
         layout, errors = dw.clean_layout(data.get('layout'))
         if errors:
             return JsonResponse({'ok': False, 'errors': errors}, status=400)
-        profile.dashboard_layout = layout
-        fields.append('dashboard_layout')
+        setattr(profile, attr, layout)
+        fields.append(attr)
     if 'density' in data:
         density = data.get('density')
         if density not in dict(profile.UI_DENSITY_CHOICES):
@@ -452,7 +506,7 @@ def dashboard_layout_save(request):
     if not fields:
         return JsonResponse({'ok': False, 'errors': ['Nothing to save.']}, status=400)
     profile.save(update_fields=fields)
-    return JsonResponse({'ok': True, 'layout': profile.dashboard_layout,
+    return JsonResponse({'ok': True, 'layout': getattr(profile, attr),
                          'density': profile.ui_density,
                          'quick_actions': profile.quick_actions_config})
 
@@ -503,3 +557,251 @@ def dashboard_role_default_save(request):
     except Exception:
         pass
     return JsonResponse({'ok': True, 'preset': preset, 'layout': layout})
+
+
+# ---------------------------------------------------------------------------
+# v3.17.681: role landing page and role dashboard configuration
+# ---------------------------------------------------------------------------
+
+LANDING_SESSION_KEY = 'dash_landing_at'
+LANDING_MAX_AGE = 300  # seconds between sign-in and the first dashboard view
+# Never offered as a landing page (removed program; and pages that make no
+# sense as a start page).
+LANDING_EXCLUDED_NAMES = frozenset({
+    'core:beta_test_signup', 'core:beta_test_admin', 'core:beta_test_upstream',
+    'core:dashboard', 'home', 'accounts:logout', 'two_factor:login',
+})
+
+
+def note_sign_in(sender, request, user, **kwargs):
+    """user_logged_in: remember that the next dashboard view is the one
+    straight after sign-in, unless the sign-in was sent somewhere else
+    (?next=/some/page/)."""
+    if request is None or not hasattr(request, 'session'):
+        return
+    nxt = (request.POST.get('next') or request.GET.get('next') or '').strip() \
+        if hasattr(request, 'POST') else ''
+    if nxt and nxt.split('?', 1)[0] not in ('/', '/core/dashboard/'):
+        request.session.pop(LANDING_SESSION_KEY, None)
+        return
+    import time
+    request.session[LANDING_SESSION_KEY] = int(time.time())
+
+
+def _landing_view_name(path):
+    from django.urls import Resolver404, resolve
+    try:
+        return resolve(path).view_name
+    except Resolver404:
+        return None
+
+
+def valid_landing(value):
+    """A local path that resolves to a page (no scheme, no host)."""
+    if not isinstance(value, str):
+        return False
+    value = value.strip()
+    if not value.startswith('/') or value.startswith('//') or '\\' in value or len(value) > 300:
+        return False
+    from django.utils.http import url_has_allowed_host_and_scheme
+    if not url_has_allowed_host_and_scheme(value, allowed_hosts=None):
+        return False
+    name = _landing_view_name(value.split('?', 1)[0])
+    return bool(name) and name not in LANDING_EXCLUDED_NAMES
+
+
+def landing_for(request):
+    """The role's landing page if this user may open it right now (the
+    sidebar's gates: core.navigation.destinations_for, and the server's URL
+    and view-decorator rules: _PermProbe), else ''."""
+    from core import dashboard_widgets as dw
+    landing = dw.role_config(request)['landing']
+    if not landing or not valid_landing(landing):
+        return ''
+    from core.navigation import _PermProbe, destinations_for, request_context
+    ctx = request_context(request)
+    path = landing.split('?', 1)[0]
+    hrefs = {d['href'] for d in destinations_for(ctx)}
+    if landing not in hrefs and path not in {h.split('?', 1)[0] for h in hrefs}:
+        return ''
+    if not _PermProbe(ctx).allows(path):
+        return ''
+    return landing
+
+
+def take_landing_redirect(request):
+    """Once per sign-in: the landing page to send this user to instead of
+    the dashboard, or ''."""
+    import time
+    session = getattr(request, 'session', None)
+    if session is None:
+        return ''
+    at = session.pop(LANDING_SESSION_KEY, None)
+    if not at or request.GET:
+        return ''
+    try:
+        if time.time() - int(at) > LANDING_MAX_AGE:
+            return ''
+    except (TypeError, ValueError):
+        return ''
+    try:
+        return landing_for(request)
+    except Exception:
+        _log.exception('role landing check failed')
+        return ''
+
+
+def role_ui_defaults(request):
+    """Context processor: {'role_ui_defaults': {'sidebar_mode', 'landing'}}
+    for base.html / app_nav.js. sidebar_mode is '', 'expanded' or 'rail' (a
+    default only: the user's own stored choice wins). Lazy: nothing is
+    queried unless a template reads it."""
+    from django.utils.functional import SimpleLazyObject
+
+    def compute():
+        user = getattr(request, 'user', None)
+        if user is None or not user.is_authenticated:
+            return {'sidebar_mode': '', 'landing': ''}
+        from core import dashboard_widgets as dw
+        try:
+            cfg = dw.role_config(request)
+        except Exception:
+            return {'sidebar_mode': '', 'landing': ''}
+        return {'sidebar_mode': cfg['sidebar_mode'], 'landing': cfg['landing']}
+    return {'role_ui_defaults': SimpleLazyObject(compute)}
+
+
+def _landing_choices(request):
+    """Pages offered as landing pages: the administrator's own sidebar
+    destinations (entries and tabs). Whether a given user may open the page
+    is checked again when they sign in."""
+    from core.navigation import destinations_for, request_context
+    out, seen = [], set()
+    for d in destinations_for(request_context(request)):
+        if d['kind'] not in ('entry', 'tab'):
+            continue
+        href = d['href']
+        if href in seen or not valid_landing(href):
+            continue
+        seen.add(href)
+        out.append({'href': href, 'label': d['label'], 'group': d['group'], 'section': d['section']})
+    return out
+
+
+def _mappable_roles():
+    from accounts.models import RoleTemplate
+    return (RoleTemplate.objects.filter(organization__isnull=True, is_archived=False)
+            .exclude(audience='customer').order_by('name'))
+
+
+@login_required
+def dashboard_role_settings(request):
+    """Settings → Users & Access → Role Dashboards: per role preset the
+    default layout, widgets that are switched off, actions removed, landing
+    page and sidebar mode; and which preset each MSP role uses. Same
+    permission as saving a role default from the Customize panel."""
+    from django.core.exceptions import PermissionDenied
+    from core import dashboard_widgets as dw
+    from core.models import DashboardRoleDefault, DashboardRoleMapping
+    if not can_manage_role_defaults(request.user):
+        raise PermissionDenied('You may not change role dashboards.')
+
+    landing_choices = _landing_choices(request)
+    preset = request.POST.get('preset') or request.GET.get('preset') or dw.PRESET_ADMIN
+    if preset not in dw.PRESET_LABELS:
+        preset = dw.PRESET_ADMIN
+
+    if request.method == 'POST':
+        what = request.POST.get('form')
+        if what == 'preset':
+            row, _ = DashboardRoleDefault.objects.get_or_create(preset=preset)
+            enabled = set(request.POST.getlist('widget'))
+            row.disabled_widgets = dw.clean_disabled_widgets(
+                [w.key for w in dw.WIDGETS if w.hideable and w.key not in enabled])
+            on_actions = set(request.POST.getlist('action'))
+            row.disabled_actions = dw.clean_disabled_actions(
+                [k for k, _l in dw.action_keys() if k not in on_actions])
+            landing = (request.POST.get('landing') or '').strip()
+            if landing and landing not in {c['href'] for c in landing_choices}:
+                messages.error(request, 'Choose a landing page from the list.')
+                return redirect(f"{request.path}?preset={preset}")
+            row.landing = landing
+            mode = request.POST.get('sidebar_mode') or ''
+            row.sidebar_mode = mode if mode in dw.SIDEBAR_MODES else ''
+            if request.POST.get('reset_layout'):
+                row.layout = {}
+            row.updated_by = request.user
+            row.save()
+            _audit_role(request, f'Role dashboard settings saved for {dw.PRESET_LABELS[preset]}',
+                        preset)
+            messages.success(request, f'Saved the {dw.PRESET_LABELS[preset]} dashboard settings.')
+            return redirect(f"{request.path}?preset={preset}")
+        if what == 'mappings':
+            changed = 0
+            for role in _mappable_roles():
+                val = request.POST.get(f'role_{role.pk}', '')
+                current = DashboardRoleMapping.objects.filter(role_template=role).first()
+                if val in dw.PRESET_LABELS and val != dw.PRESET_CUSTOMER:
+                    if current is None or current.preset != val:
+                        DashboardRoleMapping.objects.update_or_create(
+                            role_template=role, defaults={'preset': val, 'updated_by': request.user})
+                        changed += 1
+                elif current is not None:
+                    current.delete()
+                    changed += 1
+            if changed:
+                _audit_role(request, f'Dashboard role mappings changed ({changed})', 'mappings')
+            messages.success(request, 'Saved the role mappings.')
+            return redirect(f"{request.path}?preset={preset}")
+        messages.error(request, 'Unknown form.')
+        return redirect(request.path)
+
+    row = DashboardRoleDefault.objects.filter(preset=preset).first()
+    disabled_w = set(dw.clean_disabled_widgets(getattr(row, 'disabled_widgets', None)))
+    disabled_a = set(getattr(row, 'disabled_actions', None) or ())
+    layout = dw.role_default(preset, row) or dw.preset_layout(preset)
+    shown = [k for k in layout['order'] if k not in set(layout['hidden'])]
+    zones = (('kpi', 'Key figures'), ('grid', 'Panels'), ('toolbar', 'Quick actions row'))
+    widget_groups = []
+    for zone, label in zones:
+        items = [{'w': w, 'on': w.key not in disabled_w, 'default': w.key in shown,
+                  'msp_only': w.key in dw.MSP_ONLY}
+                 for w in dw.WIDGETS if w.zone == zone and w.hideable and w.scope != 'global']
+        widget_groups.append({'label': label, 'items': items})
+    global_shown = set(dw.preset_layout(dw.PRESET_GLOBAL)['order'][:len(dw._PRESETS[dw.PRESET_GLOBAL])])
+    widget_groups.append({'label': 'Global View (no client selected)', 'items': [
+        {'w': w, 'on': w.key not in disabled_w, 'default': w.key in global_shown, 'msp_only': True}
+        for w in dw.WIDGETS if w.scope == 'global']})
+    actions = [{'key': k, 'label': lbl, 'on': k not in disabled_a,
+                'header': k.startswith('header:')} for k, lbl in dw.action_keys()]
+    mapped = dict(DashboardRoleMapping.objects.values_list('role_template_id', 'preset'))
+    roles = []
+    for role in _mappable_roles():
+        roles.append({'role': role, 'mapped': mapped.get(role.pk, ''),
+                      'builtin': _builtin_preset_label(role)})
+    return render(request, 'core/dashboard_role_settings.html', {
+        'preset': preset, 'preset_label': dw.PRESET_LABELS[preset],
+        'preset_choices': list(dw.PRESET_LABELS.items()),
+        'row': row, 'layout_source': 'saved' if dw.role_default(preset, row) else 'built-in',
+        'widget_groups': widget_groups, 'actions': actions,
+        'landing_choices': landing_choices, 'landing': getattr(row, 'landing', '') or '',
+        'landing_valid': not getattr(row, 'landing', '') or
+        getattr(row, 'landing', '') in {c['href'] for c in landing_choices},
+        'sidebar_mode': getattr(row, 'sidebar_mode', '') or '',
+        'roles': roles,
+    })
+
+
+def _builtin_preset_label(role):
+    """What the built-in rules give a technician holding `role` (no mapping)."""
+    from core import dashboard_widgets as dw
+    return dw.PRESET_LABELS[dw.builtin_preset_for_role(role) or dw.PRESET_L2]
+
+
+def _audit_role(request, description, repr_):
+    try:
+        AuditLog.objects.create(
+            user=request.user, username=request.user.username, action='update',
+            object_type='core.DashboardRoleDefault', object_repr=repr_, description=description)
+    except Exception:
+        pass

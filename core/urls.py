@@ -32,6 +32,7 @@ urlpatterns = [
     path('dashboard/widget/<slug:key>/', dashboard_views.dashboard_widget, name='dashboard_widget'),
     path('dashboard/layout/', dashboard_views.dashboard_layout_save, name='dashboard_layout_save'),
     path('dashboard/variant/', dashboard_views.dashboard_variant_save, name='dashboard_variant_save'),
+    path('dashboard/roles/', dashboard_views.dashboard_role_settings, name='dashboard_role_settings'),
     path('dashboard/role-default/', dashboard_views.dashboard_role_default_save,
          name='dashboard_role_default_save'),
     # Technician workspace (core/workspace.py): open a device in its customer's
@@ -58,13 +59,6 @@ urlpatterns = [
     path('free-consult/', views.free_consult, name='free_consult'),
     path('free-consult/requests/', views.consult_requests, name='consult_requests'),
     path('install/', views.install_app, name='install_app'),
-    # v3.17.473 — beta-tester sign-up + admin
-    path('beta-test/', views.beta_test_signup, name='beta_test_signup'),
-    path('beta-testers/', views.beta_test_admin, name='beta_test_admin'),
-    # v3.17.488 — cross-origin upstream endpoint. Remote installs of
-    # Client St0r POST signup data here so it lands on the canonical
-    # agit8or1 server (the one hosting the Play Console listing).
-    path('beta-test/upstream/', views.beta_test_upstream, name='beta_test_upstream'),
 
     # Help & Documentation
     path('help/', help_views.help_index, name='help_index'),

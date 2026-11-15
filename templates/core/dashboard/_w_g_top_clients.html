@@ -1,0 +1,16 @@
+{% if w.rows %}
+<ul class="dash-bars">
+    {% for r in w.rows %}
+    <li>
+        <a href="{{ r.url|default:r.tickets_url }}" class="dash-bar-row" title="{{ r.name }}: {{ r.count }} open">
+            <span class="dash-bar-label">{{ r.name }}</span>
+            <span class="dash-bar-track" aria-hidden="true"><span class="dash-bar-fill" style="width: {{ r.pct }}%"></span></span>
+            <strong class="dash-bar-value text-nowrap">{{ r.count }}</strong>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+<div class="dash-w-foot">Open tickets per client you can reach · opens the client workspace</div>
+{% else %}
+<div class="dash-w-state"><i class="fas fa-check-circle" aria-hidden="true"></i> No open tickets at your clients</div>
+{% endif %}

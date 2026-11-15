@@ -45,7 +45,7 @@
 </div>
 
 {% if c.status == 'voided' %}<div class="alert alert-dark">Voided {{ c.voided_at|date:"Y-m-d H:i" }}{% if c.voided_by %} by {{ c.voided_by.get_full_name|default:c.voided_by.username }}{% endif %}: {{ c.void_reason }}</div>{% endif %}
-{% if c.billing_contract_id %}<div class="alert alert-info py-2">Billing contract #{{ c.billing_contract_id }} was created from this contract (PSA → Contracts).</div>{% endif %}
+{% if c.billing_contract_id %}<div class="alert alert-info py-2">{% if billing_contract_url %}<a href="{{ billing_contract_url }}">Billing contract #{{ c.billing_contract_id }}</a>{% else %}Billing contract #{{ c.billing_contract_id }}{% endif %} was created from this contract (PSA → Contracts).</div>{% endif %}
 {% if c.status == 'draft' and issue_errors %}
 <div class="alert alert-warning"><strong>Before this can be issued:</strong><ul class="mb-0">{% for e in issue_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
 {% endif %}

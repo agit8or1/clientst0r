@@ -91,7 +91,7 @@
     {% endif %}
     <span class="cw-context__links">
         <a href="{% url 'accounts:organization_list' %}" data-cw="all-clients"><i class="fas fa-arrow-left" aria-hidden="true"></i> All clients</a>
-        {% if ws_can_global_view %}<a href="{% url 'accounts:switch_to_global_view' %}?next={% url 'core:dashboard' %}" data-cw="msp-wide"><i class="fas fa-globe" aria-hidden="true"></i> MSP-wide view</a>{% endif %}
+        {% if ws_can_global_view %}<a href="{% url 'accounts:switch_to_global_view' %}?next={% url 'core:dashboard' %}" data-cw="msp-wide"><i class="fas fa-globe" aria-hidden="true"></i> Global View <span class="text-body-secondary">(all clients)</span></a>{% endif %}
     </span>
 </div>
 
@@ -115,7 +115,8 @@
         </li>
         {% endfor %}
         <li class="cw-tabs__item cw-tabs__more dropdown" data-cw-more hidden>
-            <button type="button" class="cw-tabs__link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <button type="button" class="cw-tabs__link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"
+                    aria-label="More client workspace tabs">
                 More
             </button>
             <ul class="dropdown-menu dropdown-menu-end" data-cw-more-menu></ul>

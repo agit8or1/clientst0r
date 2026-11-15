@@ -1,0 +1,48 @@
+{# Wires psa/_assign_picker.html forms: POST to psa:dispatch_assign, update the row in place. #}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    function send(form, assignee) {
+        var msg = form.querySelector('.tw-assign__msg');
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', form.querySelector('[name=csrfmiddlewaretoken]').value);
+        fd.append('ticket_number', form.querySelector('[name=ticket_number]').value);
+        fd.append('assignee', assignee);
+        form.querySelectorAll('button, select').forEach(function (el) { el.disabled = true; });
+        if (msg) { msg.textContent = 'Assigning…'; }
+        fetch(form.action, {method: 'POST', body: fd, credentials: 'same-origin',
+                            headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return {ok: r.ok, d: d}; }); })
+            .then(function (res) {
+                if (res.ok && res.d.ok) {
+                    var done = document.createElement('span');
+                    done.className = 'ui-badge ui-badge--active';
+                    done.textContent = 'Assigned to ' + (res.d.assigned_to || 'nobody');
+                    form.replaceWith(done);
+                    var row = done.closest('[data-assign-row]');
+                    if (row) { row.classList.add('tw-assigned'); }
+                    if (res.d.conflict_warnings && res.d.conflict_warnings.length) {
+                        done.title = res.d.conflict_warnings.join('; ');
+                    }
+                } else {
+                    throw new Error((res.d && res.d.error) || 'Assignment failed');
+                }
+            })
+            .catch(function (err) {
+                form.querySelectorAll('button, select').forEach(function (el) { el.disabled = false; });
+                if (msg) { msg.textContent = err.message || 'Assignment failed'; msg.classList.add('text-danger'); }
+            });
+    }
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest('[data-assign-form]');
+        if (!form) { return; }
+        e.preventDefault();
+        var btn = e.submitter || form.querySelector('button[name=assignee]');
+        send(form, btn.value);
+    });
+    document.addEventListener('change', function (e) {
+        var sel = e.target.closest('[data-assign-pick]');
+        if (!sel || !sel.value) { return; }
+        send(sel.form, sel.value);
+    });
+})();
+</script>

@@ -242,7 +242,16 @@ def contract_detail(request, pk):
         'jobs': c.jobs.exclude(status='done').order_by('-created_at')[:20],
         'attachments': c.attachments.filter(removed_at__isnull=True),
         'related_from': c.related_from.all()[:20], 'today': timezone.localdate(),
+        'billing_contract_url': _billing_contract_url(request, c),
     })
+
+
+def _billing_contract_url(request, c):
+    from core.workflow_links import psa_contract_url
+    if not c.billing_contract_id:
+        return ''
+    org_id = (c.billing_contract.organization_id if c.billing_contract is not None else None)
+    return psa_contract_url(request, c.billing_contract_id, org_id)
 
 
 def signing_models_signatures(c):
