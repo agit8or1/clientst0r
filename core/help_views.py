@@ -2,6 +2,7 @@
 Integrated documentation and help system
 """
 from django.shortcuts import render
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 import markdown
 import os
@@ -2697,19 +2698,21 @@ def help_locations(request):
             <tbody>
                 <tr><td><strong>Name</strong></td><td>e.g., "Primary Fibre", "4G Failover"</td></tr>
                 <tr><td><strong>ISP</strong></td><td>Internet service provider name</td></tr>
-                <tr><td><strong>Type</strong></td><td>Fibre / Cable / DSL / 4G / MPLS / etc.</td></tr>
+                <tr><td><strong>Type</strong></td><td>Internet / MPLS / VPN / Dedicated Circuit / Fiber / Cable / DSL / Satellite / Wireless / Other</td></tr>
                 <tr><td><strong>Bandwidth</strong></td><td>Download and upload speeds</td></tr>
-                <tr><td><strong>Public IP</strong></td><td>Static IP or range</td></tr>
+                <tr><td><strong>Addressing</strong></td><td>Static IP, subnet mask, gateway and DNS servers</td></tr>
                 <tr><td><strong>Circuit ID</strong></td><td>ISP circuit reference number for support calls</td></tr>
-                <tr><td><strong>Contract Expiry</strong></td><td>Renewal date for the ISP contract</td></tr>
-                <tr><td><strong>Status</strong></td><td>Active / Inactive / Maintenance</td></tr>
+                <tr><td><strong>Contract</strong></td><td>Start and end dates, term and monthly cost of the ISP contract</td></tr>
+                <tr><td><strong>Status</strong></td><td>Active / Inactive / Planned / Down / Under Maintenance</td></tr>
+                <tr><td><strong>Monitoring</strong></td><td>On or off, the monitor target (IP or hostname), the check interval, and whether down and recovery emails are sent</td></tr>
             </tbody>
         </table>
     </div>
     <div class="alert alert-info mt-2">
-        <i class="fas fa-info-circle"></i> For <strong>automated uptime monitoring</strong> of a WAN connection, create a
-        <a href="{% url 'core:help_monitoring' %}">WAN Monitor</a> targeting the location's public IP or a hosted endpoint.
-        WAN connections here are for documentation and ISP contract tracking only.
+        <i class="fas fa-info-circle"></i> A WAN connection can be <strong>monitored</strong> itself: turn on monitoring and set a
+        monitor target, and it is pinged at its interval, with down and recovery alerts, check history and 30-day uptime.
+        <strong>Check Status</strong> on the WAN page runs a check at once. See
+        <a href="__HELP_MONITORING_URL__#wan-checks">WAN Connection Checks</a>.
     </div>
 
     <div class="help-screenshot mt-3 mb-4">
@@ -2778,7 +2781,7 @@ def help_locations(request):
           <rect x="12" y="68" width="676" height="34" rx="0" fill="#161b22" stroke="#21262d"/>
           <text x="26" y="89" fill="#e6edf3" font-size="11" font-family="sans-serif">Primary Fibre</text>
           <text x="154" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Comcast</text>
-          <text x="264" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Fibre</text>
+          <text x="264" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Fiber</text>
           <text x="340" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">1Gbps / 500Mbps</text>
           <text x="444" y="89" fill="#8b949e" font-size="10" font-family="monospace">CMC-2024-8891</text>
           <rect x="564" y="76" width="52" height="18" rx="9" fill="#1a3a2a" stroke="#3fb950"/>
@@ -2787,11 +2790,11 @@ def help_locations(request):
           <rect x="12" y="102" width="676" height="34" rx="0" fill="#0d1117" stroke="#21262d"/>
           <text x="26" y="123" fill="#e6edf3" font-size="11" font-family="sans-serif">4G Failover</text>
           <text x="154" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">Verizon</text>
-          <text x="264" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">4G LTE</text>
+          <text x="264" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">Wireless</text>
           <text x="340" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">50Mbps / 20Mbps</text>
           <text x="444" y="123" fill="#8b949e" font-size="10" font-family="monospace">VZN-LTE-0047</text>
           <rect x="557" y="110" width="66" height="18" rx="9" fill="#3a2a1a" stroke="#e3b341"/>
-          <text x="590" y="123" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Standby</text>
+          <text x="590" y="123" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Planned</text>
           <!-- Row 3 — MPLS -->
           <rect x="12" y="136" width="676" height="34" rx="0" fill="#161b22" stroke="#21262d"/>
           <text x="26" y="157" fill="#e6edf3" font-size="11" font-family="sans-serif">MPLS to DC1</text>
@@ -2937,6 +2940,8 @@ def help_locations(request):
       <p class="help-screenshot-caption">Floor plan view showing room layout with assets pinned to their physical location. Click any asset badge to jump directly to its asset record. Rooms are color-coded by type.</p>
     </div>
     """
+    # The content is plain HTML, not a template: fill links in here.
+    content = content.replace('__HELP_MONITORING_URL__', reverse('core:help_monitoring'))
     return render(request, 'core/help/section.html', {
         'title': 'Locations & WAN',
         'section_id': 'locations',

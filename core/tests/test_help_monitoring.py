@@ -42,3 +42,32 @@ class MonitoringHelpPageTests(TestCase):
         self.assertEqual(len(entries), 6)
         for e in entries:
             self.assertIn(f'id="{e["anchor"]}"', html)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class LocationsHelpWanTests(TestCase):
+    """The Locations help said WAN connections were "for documentation and ISP
+    contract tracking only" and to create a separate WAN Monitor, contradicting
+    the monitoring help: a WAN connection runs its own checks (v3.17.686)."""
+
+    def setUp(self):
+        user = User.objects.create_superuser('helpadmin_loc', 'hl@x.com', 'pw')
+        self.client.force_login(user)
+        s = self.client.session
+        s['2fa_prompted'] = True
+        s.save()
+
+    def test_wan_connections_are_described_as_monitored(self):
+        from django.urls import reverse
+        r = self.client.get(reverse('core:help_locations'))
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertNotIn('documentation and ISP contract tracking only', html)
+        self.assertNotIn('>WAN Monitor</a>', html)
+        self.assertIn(reverse('core:help_monitoring') + '#wan-checks', html)
+        self.assertIn('Check Status', html)
+        # The field table lists the model's real choices.
+        self.assertIn('Under Maintenance', html)
+        self.assertNotIn('>Standby<', html)
+        monitoring = self.client.get(reverse('core:help_monitoring')).content.decode()
+        self.assertIn('id="wan-checks"', monitoring)
