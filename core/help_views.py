@@ -2314,45 +2314,96 @@ def help_documentation(request):
     <p>Upload existing files (PDF, DOCX, images) with <em>Upload files</em> on <em>Knowledge &amp; Vault → Documentation</em>. Files are served through authenticated views only.</p>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="240" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Sidebar -->
-        <rect width="180" height="240" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect width="180" height="184" y="56" fill="#161b22"/>
-        <text x="14" y="24" fill="#8b949e" font-size="10" font-family="sans-serif">CATEGORIES</text>
-        <text x="14" y="46" fill="#c9d1d9" font-size="11" font-family="sans-serif">📁 Network</text>
-        <text x="14" y="66" fill="#c9d1d9" font-size="11" font-family="sans-serif">📁 Runbooks</text>
-        <rect x="10" y="72" width="160" height="20" rx="4" fill="#1f6feb22"/>
-        <text x="22" y="86" fill="#58a6ff" font-size="11" font-family="sans-serif">📄 Outage Runbook</text>
-        <text x="14" y="106" fill="#c9d1d9" font-size="11" font-family="sans-serif">📁 Client Reports</text>
-        <text x="14" y="126" fill="#c9d1d9" font-size="11" font-family="sans-serif">📁 Change Requests</text>
-        <text x="14" y="156" fill="#8b949e" font-size="10" font-family="sans-serif">TAGS</text>
-        <rect x="14" y="164" width="48" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
-        <text x="38" y="176" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">network</text>
-        <rect x="68" y="164" width="52" height="16" rx="8" fill="#3fb95033" stroke="#3fb95066"/>
-        <text x="94" y="176" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">runbook</text>
-        <rect x="126" y="164" width="44" height="16" rx="8" fill="#d2992233" stroke="#d2992266"/>
-        <text x="148" y="176" fill="#d29922" font-size="9" font-family="sans-serif" text-anchor="middle">urgent</text>
-
-        <!-- Main doc view -->
-        <rect x="188" y="10" width="500" height="220" rx="4" fill="#0d1117" stroke="#21262d"/>
-        <text x="204" y="34" fill="#e6edf3" font-size="16" font-weight="bold" font-family="sans-serif">Network Outage Runbook</text>
-        <text x="204" y="52" fill="#3d444d" font-size="10" font-family="sans-serif">Last edited by j.admin · 2 days ago · Tags: network, runbook, urgent</text>
-        <line x1="204" y1="60" x2="680" y2="60" stroke="#21262d"/>
-        <!-- Doc content -->
-        <text x="204" y="80" fill="#8b949e" font-size="11" font-weight="bold" font-family="sans-serif">## 1. Immediate Response</text>
-        <text x="204" y="98" fill="#c9d1d9" font-size="10" font-family="sans-serif">1. Check WAN monitor dashboard for affected circuits</text>
-        <text x="204" y="114" fill="#c9d1d9" font-size="10" font-family="sans-serif">2. Ping default gateway from affected site</text>
-        <text x="204" y="130" fill="#c9d1d9" font-size="10" font-family="sans-serif">3. Contact ISP: 1-800-XXX-XXXX · Circuit ID: XXXX-XXXX</text>
-        <text x="204" y="156" fill="#8b949e" font-size="11" font-weight="bold" font-family="sans-serif">## 2. Escalation Path</text>
-        <text x="204" y="174" fill="#c9d1d9" font-size="10" font-family="sans-serif">Network Engineer → IT Manager → CTO</text>
-        <!-- Code block -->
-        <rect x="204" y="186" width="460" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="216" y="202" fill="#79c0ff" font-size="10" font-family="monospace">ping 8.8.8.8 -c 4  # test external connectivity</text>
-        <!-- Annotation -->
-        <line x1="350" y1="60" x2="420" y2="38" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="394" y="26" width="130" height="14" rx="7" fill="#f0b42944"/>
-        <text x="459" y="37" fill="#f0b429" font-size="10" font-family="sans-serif" text-anchor="middle">Markdown or WYSIWYG</text>
+      <svg viewBox="0 0 700 304" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Knowledge &amp; Vault, Documentation, Documents: a runbook open beside its categories and tags.">
+        <title>Knowledge &amp; Vault, Documentation, Documents: a runbook open beside its categories and tags.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="304" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="277" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="304" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="131" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="278" x2="26" y2="278" stroke="#1f2f48"/>
+        <circle cx="15" cy="290" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="290" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Knowledge &amp; Vault</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Documentation</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Documents</tspan></text>
+        <rect x="42" y="48" width="63" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Documents</text>
+        <rect x="109" y="48" width="100" height="16" rx="4" fill="none"/>
+        <text x="116" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Office Templates</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="240" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Sidebar -->
+          <rect width="180" height="240" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect width="180" height="184" y="56" fill="#161b22"/>
+          <text x="14" y="24" fill="#8b949e" font-size="10" font-family="sans-serif">CATEGORIES</text>
+          <text x="14" y="46" fill="#c9d1d9" font-size="11" font-family="sans-serif">Network</text>
+          <text x="14" y="66" fill="#c9d1d9" font-size="11" font-family="sans-serif">Runbooks</text>
+          <rect x="10" y="72" width="160" height="20" rx="4" fill="#1f6feb22"/>
+          <text x="22" y="86" fill="#58a6ff" font-size="11" font-family="sans-serif">Outage Runbook</text>
+          <text x="14" y="106" fill="#c9d1d9" font-size="11" font-family="sans-serif">Client Reports</text>
+          <text x="14" y="126" fill="#c9d1d9" font-size="11" font-family="sans-serif">Change Requests</text>
+          <text x="14" y="156" fill="#8b949e" font-size="10" font-family="sans-serif">TAGS</text>
+          <rect x="14" y="164" width="48" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
+          <text x="38" y="176" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">network</text>
+          <rect x="68" y="164" width="52" height="16" rx="8" fill="#3fb95033" stroke="#3fb95066"/>
+          <text x="94" y="176" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">runbook</text>
+          <rect x="126" y="164" width="44" height="16" rx="8" fill="#d2992233" stroke="#d2992266"/>
+          <text x="148" y="176" fill="#d29922" font-size="9" font-family="sans-serif" text-anchor="middle">urgent</text>
+          <!-- Main doc view -->
+          <rect x="188" y="10" width="500" height="220" rx="4" fill="#0d1117" stroke="#21262d"/>
+          <text x="204" y="34" fill="#e6edf3" font-size="16" font-weight="bold" font-family="sans-serif">Network Outage Runbook</text>
+          <text x="204" y="52" fill="#3d444d" font-size="10" font-family="sans-serif">Last edited by j.admin · 2 days ago · Tags: network, runbook, urgent</text>
+          <line x1="204" y1="60" x2="680" y2="60" stroke="#21262d"/>
+          <!-- Doc content -->
+          <text x="204" y="80" fill="#8b949e" font-size="11" font-weight="bold" font-family="sans-serif">## 1. Immediate Response</text>
+          <text x="204" y="98" fill="#c9d1d9" font-size="10" font-family="sans-serif">1. Check WAN monitor dashboard for affected circuits</text>
+          <text x="204" y="114" fill="#c9d1d9" font-size="10" font-family="sans-serif">2. Ping default gateway from affected site</text>
+          <text x="204" y="130" fill="#c9d1d9" font-size="10" font-family="sans-serif">3. Contact ISP: 1-800-XXX-XXXX · Circuit ID: XXXX-XXXX</text>
+          <text x="204" y="156" fill="#8b949e" font-size="11" font-weight="bold" font-family="sans-serif">## 2. Escalation Path</text>
+          <text x="204" y="174" fill="#c9d1d9" font-size="10" font-family="sans-serif">Network Engineer → IT Manager → CTO</text>
+          <!-- Code block -->
+          <rect x="204" y="186" width="460" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="216" y="202" fill="#79c0ff" font-size="10" font-family="monospace">ping 8.8.8.8 -c 4  # test external connectivity</text>
+          <!-- Annotation -->
+          <line x1="613" y1="30" x2="590" y2="60" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="548" y="16" width="130" height="14" rx="7" fill="#f0b42944"/>
+          <text x="613" y="27" fill="#f0b429" font-size="10" font-family="sans-serif" text-anchor="middle">Markdown or WYSIWYG</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Document view with category sidebar. Runbooks use Markdown for code snippets and structured steps. Tags are shown as color-coded chips for quick filtering.</p>
     </div>
@@ -2388,51 +2439,96 @@ def help_documentation(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="240" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Office Network Topology</text>
-        <rect x="580" y="10" width="108" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="634" y="25" fill="#8b949e" font-size="11" font-family="sans-serif" text-anchor="middle">Export ▾</text>
-
-        <!-- Internet cloud -->
-        <ellipse cx="350" cy="60" rx="60" ry="25" fill="#1f3a5f" stroke="#1f6feb"/>
-        <text x="350" y="55" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">☁ Internet</text>
-        <text x="350" y="68" fill="#58a6ff" font-size="9" font-family="monospace" text-anchor="middle">203.0.113.1</text>
-
-        <!-- Firewall -->
-        <line x1="350" y1="85" x2="350" y2="108" stroke="#e3b341" stroke-width="2"/>
-        <rect x="310" y="108" width="80" height="34" rx="4" fill="#3a2a1a" stroke="#e3b341"/>
-        <text x="350" y="122" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">🔥 Firewall</text>
-        <text x="350" y="136" fill="#d29922" font-size="8" font-family="monospace" text-anchor="middle">10.0.0.1</text>
-
-        <!-- Core switch -->
-        <line x1="350" y1="142" x2="350" y2="162" stroke="#58a6ff" stroke-width="2"/>
-        <rect x="295" y="162" width="110" height="30" rx="4" fill="#1f3a5f" stroke="#1f6feb"/>
-        <text x="350" y="180" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">⇄ Core Switch</text>
-
-        <!-- Servers -->
-        <line x1="310" y1="177" x2="200" y2="200" stroke="#3fb950" stroke-width="1.5"/>
-        <rect x="140" y="200" width="120" height="30" rx="4" fill="#1a3a2a" stroke="#3fb950"/>
-        <text x="200" y="218" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">🖥 Server Farm</text>
-
-        <!-- Workstations -->
-        <line x1="390" y1="177" x2="500" y2="200" stroke="#8957e5" stroke-width="1.5"/>
-        <rect x="440" y="200" width="120" height="30" rx="4" fill="#2d1f3f" stroke="#8957e5"/>
-        <text x="500" y="218" fill="#bc8cff" font-size="10" font-family="sans-serif" text-anchor="middle">💻 Workstations</text>
-
-        <!-- WiFi AP -->
-        <line x1="350" y1="192" x2="350" y2="210" stroke="#c9d1d9" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="310" y="210" width="80" height="26" rx="4" fill="#2d333b" stroke="#6e7681"/>
-        <text x="350" y="226" fill="#c9d1d9" font-size="9" font-family="sans-serif" text-anchor="middle">📶 WiFi AP</text>
-
-        <!-- Labels on lines -->
-        <text x="255" y="195" fill="#3fb950" font-size="8" font-family="sans-serif">1Gbps</text>
-        <text x="435" y="195" fill="#8957e5" font-size="8" font-family="sans-serif">1Gbps</text>
-        <text x="355" y="152" fill="#e3b341" font-size="8" font-family="sans-serif">WAN</text>
-        <!-- Annotation -->
-        <line x1="200" y1="200" x2="160" y2="170" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="100" y="156" width="110" height="18" rx="9" fill="#1f6feb44"/>
-        <text x="155" y="169" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Click to edit node</text>
+      <svg viewBox="0 0 700 304" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Knowledge &amp; Vault, Diagrams: a network diagram from the internet through the firewall and core switch to servers, workstations and Wi-Fi.">
+        <title>Knowledge &amp; Vault, Diagrams: a network diagram from the internet through the firewall and core switch to servers, workstations and Wi-Fi.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="304" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="277" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="304" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="131" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="278" x2="26" y2="278" stroke="#1f2f48"/>
+        <circle cx="15" cy="290" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="290" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Knowledge &amp; Vault</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Diagrams</tspan></text>
+        <rect x="42" y="48" width="57" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Diagrams</text>
+        <rect x="103" y="48" width="111" height="16" rx="4" fill="none"/>
+        <text x="110" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Import Floor Plans</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="240" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Office Network Topology</text>
+          <rect x="580" y="10" width="108" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="634" y="25" fill="#8b949e" font-size="11" font-family="sans-serif" text-anchor="middle">Export ▾</text>
+          <!-- Internet cloud -->
+          <ellipse cx="350" cy="60" rx="60" ry="25" fill="#1f3a5f" stroke="#1f6feb"/>
+          <text x="350" y="55" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Internet</text>
+          <text x="350" y="68" fill="#58a6ff" font-size="9" font-family="monospace" text-anchor="middle">203.0.113.1</text>
+          <!-- Firewall -->
+          <line x1="350" y1="85" x2="350" y2="108" stroke="#e3b341" stroke-width="2"/>
+          <rect x="310" y="108" width="80" height="34" rx="4" fill="#3a2a1a" stroke="#e3b341"/>
+          <text x="350" y="122" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Firewall</text>
+          <text x="350" y="136" fill="#d29922" font-size="8" font-family="monospace" text-anchor="middle">10.0.0.1</text>
+          <!-- Core switch -->
+          <line x1="350" y1="142" x2="350" y2="162" stroke="#58a6ff" stroke-width="2"/>
+          <rect x="295" y="162" width="110" height="30" rx="4" fill="#1f3a5f" stroke="#1f6feb"/>
+          <text x="350" y="180" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Core Switch</text>
+          <!-- Servers -->
+          <line x1="310" y1="177" x2="200" y2="200" stroke="#3fb950" stroke-width="1.5"/>
+          <rect x="140" y="200" width="120" height="30" rx="4" fill="#1a3a2a" stroke="#3fb950"/>
+          <text x="200" y="218" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Server Farm</text>
+          <!-- Workstations -->
+          <line x1="390" y1="177" x2="500" y2="200" stroke="#8957e5" stroke-width="1.5"/>
+          <rect x="440" y="200" width="120" height="30" rx="4" fill="#2d1f3f" stroke="#8957e5"/>
+          <text x="500" y="218" fill="#bc8cff" font-size="10" font-family="sans-serif" text-anchor="middle">Workstations</text>
+          <!-- WiFi AP -->
+          <line x1="350" y1="192" x2="350" y2="210" stroke="#c9d1d9" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="310" y="210" width="80" height="26" rx="4" fill="#2d333b" stroke="#6e7681"/>
+          <text x="350" y="226" fill="#c9d1d9" font-size="9" font-family="sans-serif" text-anchor="middle">Wi-Fi AP</text>
+          <!-- Labels on lines -->
+          <text x="255" y="195" fill="#3fb950" font-size="8" font-family="sans-serif">1Gbps</text>
+          <text x="435" y="195" fill="#8957e5" font-size="8" font-family="sans-serif">1Gbps</text>
+          <text x="355" y="152" fill="#e3b341" font-size="8" font-family="sans-serif">WAN</text>
+          <!-- Annotation -->
+          <line x1="200" y1="200" x2="160" y2="170" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="100" y="156" width="110" height="18" rx="9" fill="#1f6feb44"/>
+          <text x="155" y="169" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Click to edit node</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Network diagram canvas showing firewall → core switch → servers/workstations/WiFi topology. Nodes are drag-and-drop; click any node to edit its properties or add links.</p>
     </div>
