@@ -28,6 +28,17 @@ import logging
 logger = logging.getLogger('locations')
 
 
+def _in_reach(request, qs):
+    """Locations owned by a client this request may touch
+    (core.tenancy.accessible_org_ids): every client for superusers and
+    unscoped MSP staff, the client scope for a scoped technician. Used by
+    the Global View branches, which looked locations up across every
+    client."""
+    from core.tenancy import accessible_org_ids
+    reach = accessible_org_ids(request)
+    return qs if reach is None else qs.filter(organization_id__in=reach)
+
+
 def _require_location_perm(request, organization, *flags):
     """Role flags are checked in the customer that owns the location (not
     the selected one): an associated customer on a shared location, a
@@ -49,7 +60,7 @@ def location_list(request):
     if organization:
         locations = Location.objects.filter(organization=organization).select_related('organization')
     elif request.user.is_superuser or request.is_staff_user:
-        locations = Location.objects.all().select_related('organization')
+        locations = _in_reach(request, Location.objects.all()).select_related('organization')
     else:
         # Regular users must have an organization context
         locations = Location.objects.filter(organization=organization).select_related('organization')
@@ -97,7 +108,7 @@ def location_detail(request, location_id):
 
     if in_global_view:
         # Global view: can access any location
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         # Regular view: only locations from current org or shared locations
         location = get_object_or_404(
@@ -262,7 +273,7 @@ def location_edit(request, location_id):
 
     if in_global_view:
         # Global view: can edit any location
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
         effective_org = location.organization
     else:
         # Regular view: only locations from current org or shared locations
@@ -314,7 +325,7 @@ def location_delete(request, location_id):
 
     if in_global_view:
         # Global view: can delete any location
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         # Regular view: only locations from current org (not shared locations)
         location = get_object_or_404(
@@ -356,7 +367,7 @@ def generate_floor_plan(request, location_id):
 
     if in_global_view:
         # Global view: can access any location
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         # Regular view: only locations from current org or shared locations
         location = get_object_or_404(
@@ -582,7 +593,7 @@ def refresh_geocoding(request, location_id):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         location = get_object_or_404(
             Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
@@ -632,7 +643,7 @@ def refresh_property_data(request, location_id):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         location = get_object_or_404(
             Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
@@ -704,7 +715,7 @@ def import_property_from_url(request, location_id):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         location = get_object_or_404(
             Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)).distinct(),
@@ -812,7 +823,7 @@ def refresh_satellite_image(request, location_id):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        location = get_object_or_404(Location, id=location_id)
+        location = get_object_or_404(_in_reach(request, Location.objects.all()), id=location_id)
     else:
         location = get_object_or_404(
             Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
@@ -980,11 +991,13 @@ def global_location_map_data(request):
 
     from core.models import Organization
 
-    # Get all locations with coordinates across all organizations
-    locations = Location.objects.filter(
+    # Locations with coordinates across the clients this user may reach
+    # (before v3.17.681 every client's, also for a technician whose client
+    # scope is narrowed).
+    locations = _in_reach(request, Location.objects.filter(
         latitude__isnull=False,
         longitude__isnull=False
-    ).select_related('organization').values(
+    )).select_related('organization').values(
         'id', 'name', 'street_address', 'city', 'state', 'postal_code',
         'latitude', 'longitude', 'location_type', 'status', 'is_primary',
         'organization__id', 'organization__name'
@@ -1033,6 +1046,9 @@ def send_navigation_link(request, location_id):
     elif not (request.user.is_superuser or request.is_staff_user):
         messages.error(request, "Organization context required.")
         return redirect('accounts:organization_list')
+    elif not _in_reach(request, Location.objects.filter(pk=location.pk)).exists():
+        messages.error(request, "You don't have access to this location.")
+        return redirect('locations:location_list')
 
     if request.method == 'POST':
         # Sends mail/SMS under the MSP's sender identity: not for Read-Only.

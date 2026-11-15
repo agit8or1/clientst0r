@@ -76,9 +76,12 @@ def kb_list_view(request):
 
     search = (request.query_params.get('search') or '').strip()
     if search:
-        qs = qs.filter(
-            Q(title__icontains=search) | Q(body__icontains=search) | Q(slug__icontains=search)
-        )
+        # Customer users match only the text they would read (internal-only
+        # blocks excluded: docs.kb_visibility.text_search_q).
+        from docs.kb_visibility import text_search_q
+        from docs.permissions import is_customer_user
+        qs = qs.filter(text_search_q(qs, search, customer_copy=is_customer_user(request.user),
+                                     fields=('title', 'body', 'slug')))
 
     org_filter = (request.query_params.get('organization_id') or '').strip()
     if org_filter == 'global':

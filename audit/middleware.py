@@ -61,7 +61,8 @@ class AuditLoggingMiddleware(MiddlewareMixin):
         organization = self._get_organization(request)
 
         # Extract object information from path
-        object_type, object_id, object_repr = self._extract_object_info(request, response)
+        object_type, object_id, object_repr = self._extract_object_info(
+            request, response, organization)
 
         # Get client info
         ip_address = self._get_client_ip(request)
@@ -196,8 +197,15 @@ class AuditLoggingMiddleware(MiddlewareMixin):
                 pass
         return None
 
-    def _extract_object_info(self, request, response):
-        """Extract object type, ID, and representation from request."""
+    def _extract_object_info(self, request, response, organization=None):
+        """Extract object type, ID, and representation from request.
+
+        The representation (the object's name) is recorded only when the
+        request was answered (status below 400) and the object belongs to
+        the client the entry is filed under. Otherwise the entry would carry
+        a name the requester was refused: a customer administrator could
+        request another customer's password, asset or client by id and read
+        its title in their own audit log (v3.17.681)."""
         object_type = ''
         object_id = None
         object_repr = ''
@@ -225,13 +233,15 @@ class AuditLoggingMiddleware(MiddlewareMixin):
                 object_id = raw
 
         # Try to get object representation from context
-        if object_id and object_type:
-            object_repr = self._get_object_repr(object_type, object_id)
+        if object_id and object_type and getattr(response, 'status_code', 500) < 400:
+            object_repr = self._get_object_repr(object_type, object_id, organization,
+                                                answered=200 <= response.status_code < 300)
 
         return object_type, object_id, object_repr
 
-    def _get_object_repr(self, object_type, object_id):
-        """Get string representation of object."""
+    def _get_object_repr(self, object_type, object_id, organization=None, answered=True):
+        """Get string representation of object — '' when it is not one the
+        entry's client may name (see `_extract_object_info`)."""
         try:
             # Map common object types to models
             model_map = {
@@ -259,9 +269,32 @@ class AuditLoggingMiddleware(MiddlewareMixin):
             model_class = content_type.model_class()
 
             obj = model_class.objects.get(pk=object_id)
+            if not self._repr_belongs(obj, organization, answered):
+                return ''
             return str(obj)[:255]
         except Exception:
             return f'{object_type} #{object_id}'
+
+    @staticmethod
+    def _repr_belongs(obj, organization, answered):
+        """May an audit entry filed under `organization` name `obj`?"""
+        from core.models import Organization
+        if isinstance(obj, Organization):
+            org_id = obj.pk
+        elif hasattr(obj, 'organization_id'):
+            org_id = obj.organization_id
+        else:
+            # Not client-owned (users, personal vault): only a page that was
+            # actually shown names it, never a redirect.
+            return answered
+        if organization is None:
+            # Global view: only users who reach every client file entries
+            # without one, and only they read those entries.
+            return answered
+        if org_id is None:
+            return answered
+        from core.utils import descendant_org_ids
+        return org_id in descendant_org_ids(organization)
 
     def _build_description(self, request, action, object_type):
         """Build human-readable description of action."""

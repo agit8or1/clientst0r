@@ -758,6 +758,9 @@ def organization_detail(request, org_id):
     if tab not in cw.TAB_KEYS or not workspace.visible.get(tab):
         from django.http import Http404
         raise Http404('No such tab for this client.')
+    if not workspace.visible.get('members'):
+        # Names and emails need org_view_members (Workspace.can_view_members).
+        members = members.none()
 
     from core.client_switcher import has_all_client_access
     context = {

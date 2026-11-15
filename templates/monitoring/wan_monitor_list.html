@@ -68,7 +68,7 @@
                     <tr>
                         {% if in_global_view %}
                         <td>
-                            <a href="{% url 'core:organization_detail' wan.organization.slug %}">
+                            <a href="{% url 'accounts:organization_detail' wan.organization.pk %}">
                                 {{ wan.organization.name }}
                             </a>
                         </td>

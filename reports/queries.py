@@ -1437,11 +1437,14 @@ def security_alert_mtta(start_date, end_date, organization=None):
     out = {}
     for a in qs:
         client_id = a.client_org_id or 0
-        key = (client_id, a.connection.provider)
+        # SIEM-ingested alerts have no vendor connection.
+        conn = a.connection
+        provider = conn.provider if conn is not None else 'siem'
+        key = (client_id, provider)
         row = out.setdefault(key, {
             'client_id': client_id,
             'client_name': a.client_org.name if a.client_org else '(unscoped)',
-            'vendor': a.connection.get_provider_display(),
+            'vendor': conn.get_provider_display() if conn is not None else 'SIEM',
             'count': 0, 'mtta_total': 0, 'mtta_count': 0, 'unack_count': 0,
         })
         row['count'] += 1

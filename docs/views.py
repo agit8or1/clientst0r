@@ -128,12 +128,14 @@ def document_list(request):
     if tag_id:
         documents = documents.filter(tags__id=tag_id)
 
-    # Search query
+    # Search query. A customer user matches only the text they would read:
+    # a word inside an internal-only block must not surface the document.
     query = request.GET.get('q', '').strip()
     if query:
-        documents = documents.filter(
-            Q(title__icontains=query) | Q(body__icontains=query)
-        )
+        from .kb_visibility import text_search_q
+        from .permissions import is_customer_user
+        documents = documents.filter(text_search_q(
+            documents, query, customer_copy=is_customer_user(request.user)))
 
     documents = documents.order_by('-updated_at')
     if query and not category_id and not tag_id and not documents.exists():
@@ -2781,7 +2783,9 @@ def document_export_bulk(request, fmt):
         documents = documents.filter(tags__id=tag_id)
     query = request.GET.get('q', '').strip()
     if query:
-        documents = documents.filter(Q(title__icontains=query) | Q(body__icontains=query))
+        # A customer copy matches only the text it will contain.
+        from .kb_visibility import text_search_q
+        documents = documents.filter(text_search_q(documents, query, customer_copy=customer))
 
     documents = documents.select_related('organization', 'category').prefetch_related(
         'tags').order_by('title').distinct()
