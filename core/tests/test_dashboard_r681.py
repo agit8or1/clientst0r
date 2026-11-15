@@ -460,6 +460,27 @@ class RoleConfigTests(_Base):
         r = self.client.get(reverse('core:dashboard'))
         self.assertEqual(r.context['role_ui_defaults']['sidebar_mode'], '')
 
+    def test_role_sidebar_default_reaches_the_page(self):
+        # The early rail script uses the role's mode only while the user
+        # has no stored choice of their own (localStorage appnav.rail).
+        self._cfg(dw.PRESET_L1, sidebar_mode='rail')
+        self._login(self.user('tech_l1'))
+        html = self.client.get(reverse('core:dashboard')).content.decode()
+        self.assertIn("d='rail'", html)
+        self.assertIn("if(p===null&&d)", html)
+        self._login(self.user('tech_l2'))
+        self.assertIn("d=''", self.client.get(reverse('core:dashboard')).content.decode())
+
+    def test_removed_quick_action_leaves_the_shortcut_strip(self):
+        self._login(self.user('service_manager'))
+        url = reverse('core:dashboard')
+        before = {a['key'] for a in self.client.get(url).context['resolved_quick_actions']}
+        self.assertIn('new_ticket', before)
+        self._cfg(dw.PRESET_MANAGER, disabled_actions=['qa:new_ticket'])
+        after = {a['key'] for a in self.client.get(url).context['resolved_quick_actions']}
+        self.assertNotIn('new_ticket', after)
+        self.assertEqual(after, before - {'new_ticket'})
+
     def test_settings_entry_in_settings_center(self):
         from core import navigation as nav
         self.assertEqual(nav.section_for('core:dashboard_role_settings').key, 'settings_access')

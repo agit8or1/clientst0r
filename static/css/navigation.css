@@ -758,3 +758,17 @@ main:has(.breadcrumb:not(.app-trail__list)) .app-trail { display: none; }
 .denied__text { font-size: .9rem; }
 .denied__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 14px 0 10px; }
 @media (max-width: 575.98px) { .denied { margin: 1.5rem 0; padding: 18px 14px 14px; } }
+
+/* Long client names: the client pill gives way before the account menu
+   leaves the screen (the name is in the tooltip and the menu). */
+.navbar.app-topbar #orgDropdown { min-width: 0; }
+.navbar.app-topbar #orgDropdown .org-pill-name { min-width: 0; }
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    .navbar.app-topbar .navbar-nav #orgDropdown { max-width: 160px; }
+}
+@media (min-width: 1200px) and (max-width: 1439.98px) {
+    .navbar.app-topbar .navbar-nav #orgDropdown { max-width: 190px; }
+}
+@media (min-width: 1440px) and (max-width: 1599.98px) {
+    .navbar.app-topbar .navbar-nav #orgDropdown { max-width: 180px; }
+}

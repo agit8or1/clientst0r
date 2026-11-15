@@ -44,7 +44,7 @@
 
     {% if user.is_authenticated %}
     {# Sidebar width before first paint (static/js/app_nav.js keeps it in step): the remembered choice, else the icon rail from 768px to 1199px. #}
-    <script nonce="{{ csp_nonce }}">(function(){try{var w=window.innerWidth,p=null;try{p=window.localStorage.getItem('appnav.rail');}catch(e){}if(w>=768&&(p==='1'||(p!=='0'&&w<1200)))document.body.classList.add('appnav-rail');}catch(e){}})();</script>
+    <script nonce="{{ csp_nonce }}">(function(){try{var w=window.innerWidth,p=null,d='{% if user.is_authenticated %}{{ role_ui_defaults.sidebar_mode|escapejs }}{% endif %}';try{p=window.localStorage.getItem('appnav.rail');}catch(e){}if(p===null&&d)p=d==='rail'?'1':'0';if(w>=768&&(p==='1'||(p!=='0'&&w<1200)))document.body.classList.add('appnav-rail');}catch(e){}})();</script>
     {% endif %}
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
