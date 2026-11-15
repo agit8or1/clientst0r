@@ -89,7 +89,10 @@
 /* SVG screenshots */
 .help-screenshot { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
 .help-svg-screenshot { display: block; width: 100%; height: auto; border-radius: 4px; }
-.help-screenshot-caption { margin-top: 8px; margin-bottom: 0; font-size: .85rem; color: #8b949e; }
+/* The frame stays dark in every theme, so the caption keeps light ink:
+   themes.css gives every <p> the theme's text colour with !important, which
+   in light themes put near-black text on this dark frame. */
+.help-screenshot .help-screenshot-caption { margin-top: 8px; margin-bottom: 0; font-size: .85rem; color: #aab4c3 !important; }
 
 /* Content typography */
 .help-content h4 { margin-bottom: .5rem; }
