@@ -2747,9 +2747,23 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
 - **67.17 Security update alert** *(shipped v3.17.682)* — the update pill, bell and System status
   panel turn red while a release with security fixes (a "Security" section in its notes) is
   newer than the running version.
-- **67.16 Follow-ups** *(planned)* — Quotes and Contracts panels for sales; an L2 escalation
-  view; ticket-list SLA filters (Unassigned / SLA / Approvals as tabs); a Security Overview
-  landing; retire the Classic dashboard after the review period.
+- **67.16 Follow-ups** *(partial — shipped v3.17.683: sales Quotes/Contracts panels, the
+  Escalated ticket view and KPI, ticket-list Unassigned / SLA / Approvals tabs, Security Overview;
+  planned: retire the Classic dashboard after the review period — see
+  docs/plans/classic-dashboard-retirement.md)*
+- **67.18 Ticket workspace tabs** *(shipped v3.17.683)* — Overview, Unassigned, SLA, Escalated and
+  Approvals views of the ticket list with filters in the URL; assignment from the Unassigned view
+  and the dispatch board; one SLA definition shared with the dashboard.
+- **67.19 Security Overview** *(shipped v3.17.683)* — read-only operational page: alerts,
+  incidents, RMM security, monitoring and response times, each panel gated by its source page;
+  "Not configured" / "No data" instead of zero; alert → incident → device → RMM links.
+- **67.20 Global View, sales and manager dashboards, role dashboards** *(shipped v3.17.683)* —
+  all-clients widget dashboard scoped to the clients a role reaches; quotes, contracts, pipeline
+  and team utilization panels; per-role widgets, quick actions, landing page and sidebar default
+  (remove-only).
+- **67.21 Workflow polish** *(shipped v3.17.683)* — back-to-ticket links, sidebar-matching
+  breadcrumbs, settings search synonyms and "/" shortcut, access-denied page, favorite indicator,
+  phone menu as a modal; security review of search, workspace, audit and map data.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.

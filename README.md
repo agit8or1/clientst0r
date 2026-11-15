@@ -23,8 +23,8 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 [![Walkthrough video: a technician starts from the dashboard's KPI row, opens the ten-section sidebar and its icon-rail flyouts, finds a client with Ctrl+K, works from the client workspace and the queue into a ticket carrying its contract and credentials, documents a switch port on the panel artwork and traces its cable, then reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
 
-**[▶ Watch the full 3¾-minute walkthrough (MP4, 6.5 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.681/clientst0r-walkthrough.mp4)**
-— or the [84-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.681/clientst0r-walkthrough-highlight.mp4).
+**[▶ Watch the full 3¾-minute walkthrough (MP4, 6.9 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.683/clientst0r-walkthrough.mp4)**
+— or the [84-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.683/clientst0r-walkthrough-highlight.mp4).
 The animation above is a 52-second excerpt, played at 1.6× speed.
 
 It opens with the frame you work in — the dashboard, the sidebar and its icon rail, Go to

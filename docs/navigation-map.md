@@ -69,8 +69,8 @@ breadcrumbs, the rail/flyout markup, the settings center and
 | Operations → Shifts & Locations → Shift Schedule | My Work → My Schedule (shortcut); home stays Service Desk → Shifts & Locations | MSP staff + PSA |
 | Account menu → My Work Details → My Leave / My Resources / My Billable Target | My Work → My Leave / My Resources / My Billable Target (account menu entry kept) | |
 | Operations → Tickets → Tickets | **Service Desk** → Tickets → All Tickets | `g t` |
-| Operations → Tickets → AI Inbox | Service Desk → Tickets → AI Inbox | OPTIONAL AI; MSP staff (the page 404s for others) since v3.17.681 |
-| (new, v3.17.681) | Service Desk → Tickets → Overview, Unassigned, SLA, Escalated, Approvals: views of the ticket list at `/psa/?view=overview\|unassigned\|sla\|escalated\|approvals` (psa/ticket_workspace.py); All Tickets stays `/psa/` and first | MSP technicians (`psa.visibility.is_msp_staff`); a customer's `?view=` falls back to the plain list |
+| Operations → Tickets → AI Inbox | Service Desk → Tickets → AI Inbox | OPTIONAL AI; MSP staff (the page 404s for others) since v3.17.683 |
+| (new, v3.17.683) | Service Desk → Tickets → Overview, Unassigned, SLA, Escalated, Approvals: views of the ticket list at `/psa/?view=overview\|unassigned\|sla\|escalated\|approvals` (psa/ticket_workspace.py); All Tickets stays `/psa/` and first | MSP technicians (`psa.visibility.is_msp_staff`); a customer's `?view=` falls back to the plain list |
 | Operations → Tickets → Recurring Tickets, Canned Replies, Email Ingestion, Workflow Rules, Workflow Flow Map | Service Desk → Tickets → **Configure** menu | same gates |
 | Operations → Dispatch Board → Dispatch Board, Routing Triage, Load Heatmap | Service Desk → Dispatch Board (tabs on its pages, not nested in the sidebar) | MSP staff |
 | Operations → Dispatch Board → Ticket Routing | Service Desk → Dispatch Board → Configure | MSP staff |
@@ -111,7 +111,7 @@ breadcrumbs, the rail/flyout markup, the settings center and
 | Clients & Assets → Passwords → Passwords, Reveal Requests | Knowledge & Vault → **Password Vault** | |
 | Clients & Assets → Vault Access Rules | Knowledge & Vault → Password Vault → Configure → Vault Access Rules | `vault_manage_access_rules` |
 | Clients & Assets → My Vault, Secure Notes | Knowledge & Vault → My Vault, Secure Notes | |
-| (new in v3.17.681) `security_alerts:overview` `/security/overview/` | **Security & Monitoring** → Security Overview (first entry; `g a` lands here) | MSP staff + PSA on + `security_alerts_view`; each widget follows its source page (RMM: `integrations_view`, Monitoring: module + `monitoring_view`, alert MTTA: `reports_view_sla` across every customer). Read-only. |
+| (new in v3.17.683) `security_alerts:overview` `/security/overview/` | **Security & Monitoring** → Security Overview (first entry; `g a` lands here) | MSP staff + PSA on + `security_alerts_view`; each widget follows its source page (RMM: `integrations_view`, Monitoring: module + `monitoring_view`, alert MTTA: `reports_view_sla` across every customer). Read-only. |
 | Tools & Automation → Security Alerts → Security Alerts | **Security & Monitoring** → Security Alerts | |
 | Security Alerts → Vendor Connections, Auto-Ticket Rules, SIEM Endpoints, Weekly Digest | Security & Monitoring → Security Alerts → Configure | same gates |
 | Tools & Automation → Security Incidents → Incidents, Playbooks, Threat Overview, Alert Response Times | Security & Monitoring → Security Incidents (Playbooks → Incident Playbooks) | `security_alerts_view`; MTTA `reports_view_sla` |

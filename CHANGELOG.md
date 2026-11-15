@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.683] - 2026-11-15
+
+### Security
+- Customer users could find out what an internal-only part of a knowledge-base article said by searching for words in it: the customer-visible article was listed even though they never see that text (global search, the docs list, the mobile KB search and the docs export filter). Text search now only matches what the reader can see.
+- Technicians whose role refuses the RMM pages still saw RMM device names, hostnames and their clients in global search and in Recent devices. Both now require RMM access.
+- The audit log recorded the name of a record even when the request for it was refused, filed under the requester's own client, so a customer administrator could request another customer's record by number and read its name in their own activity log. Names are now recorded only for successful requests for records inside that client. This update also clears such names from existing entries (the entries themselves are kept).
+- The all-clients location map data (/locations/global-map-data/) returned every client's location names and addresses to technicians limited to some clients. It now returns only the clients they can reach; location list, detail and edit pages in Global View apply the same limit.
+
+### Added
+- Ticket workspace tabs on the ticket list: Overview, Unassigned, SLA (at risk, breached, on track, time left), Escalated and Approvals, with filters kept in the address bar so Back and Forward work. Assign from the Unassigned view and the dispatch board. The ticket list and the dashboard use one SLA definition.
+- Security Overview (/security/overview/, first entry under Security & Monitoring): read-only panels for security alerts, incidents, RMM security, monitoring and response times (MTTA, MTTR, open incident age, 14-day trend). Each panel follows its source page's permissions; a source that isn't set up says "Not configured" and a figure that can't be worked out says "No data" rather than 0. Alerts, incidents and the related device link to each other.
+- Global View dashboard: with no client selected, MSP staff get the new widget dashboard across the clients their role reaches (open tickets, unassigned, SLA at risk and breached, RMM alerts, monitors down, active clients; busiest clients, recent RMM alerts, monitors down, audit activity, system status and the client map). Its layout is saved separately from the per-client one. The Classic dashboard keeps the old global page.
+- Sales and manager dashboard panels: quotes, contracts (expiring, awaiting signature, recently signed), pipeline and won/lost, team utilization, unassigned queue, and an Escalated tickets figure for L2, L3 and managers. Figures that can't be derived accurately are left out.
+- Role Dashboards (Settings → Users & Access): per role, the default layout, which widgets and quick actions are available, the landing page after sign-in and the default sidebar mode. It can only remove things; it never grants a permission. Custom roles can be mapped to a preset.
+- Links between a CRM opportunity, its quote, the PSA contract, the contract document and the client.
+- "Back to PSA-…" link for technicians who go from a ticket to its client or devices; the ticket's client badge opens the client workspace.
+- Settings: an "All settings" link on every settings page, search synonyms (email, MFA/2FA, GeoIP, LLM, SMS, webhooks and more), and "/" focuses the settings search there.
+- A proper "access denied" page inside the app frame, the Favorites star shows when the current page is a favorite, and loading indicators in the palette and the Favorites/Recent menus.
+
+### Changed
+- Breadcrumbs on ticket, project and RMM device pages match the sidebar, record pages highlight their list in the sidebar, and the client workspace trail reads Clients › client › tab.
+- "MSP-wide view" is now "Global View (all clients)" everywhere, and the client pill's tooltip says what it means.
+- The phone menu blocks the page behind it while open.
+- The client member list (names and emails) needs the members permission; customer standard and read-only users no longer see it.
+- Monitoring lists in Global View show only clients with monitoring access; global search is rate-limited (120 a minute) and long queries are cut at 200 characters; notification counts update at once after a permission change; the favorites button only redirects within the site.
+- Long client names in the top bar are shortened so the account menu stays on screen.
+- Dashboard panels load with fewer database queries.
+
+### Documentation
+- New screenshots (96, including the ten-section navigation, command palette, client workspace, Global View and Security Overview), a re-recorded walkthrough, and menu paths in the README, user guides and in-app help updated to the new navigation.
+
+### Fixed
+- A ticket's device link opened a "not found" page when a different client was selected.
+- The WAN monitor list failed whenever a monitored WAN link existed in Global View.
+- The security alert MTTA report failed on alerts received through SIEM without a vendor connection.
+
 ## [3.17.682] - 2026-11-14
 
 ### Fixed
