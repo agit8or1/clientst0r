@@ -35,7 +35,7 @@ with a stated limitation), **Planned**, and **Separate component**.
 | Database | MariaDB (MySQL 8 also supported) on your infrastructure |
 | Topology | Single server by design; no clustered or multi-node deployment |
 | Source code | Public and modifiable |
-| Updates | From the web UI (Settings → Updates) with a graceful reload, or by `git pull` / `docker compose pull`. Take a backup first; there is no automatic rollback |
+| Updates | From the web UI (Settings → System → System Updates) with a graceful reload, or by `git pull` / `docker compose pull`. Take a backup first; there is no automatic rollback |
 | Multi-tenant | Every record belongs to a client organization; customer users see only their own organizations |
 | Exports | Documents to Markdown, HTML, DOCX and PDF; audit logs to CSV/JSON; financial reports to CSV; a whole-install JSON export for superusers |
 
@@ -105,7 +105,7 @@ find each screen.
 | GraphQL API | Available | Optional dependency |
 | PSA integrations | Available | ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow — companies, contacts and tickets. RangerMSP and Alga PSA: Limited (newly added) |
 | RMM integrations | Available | Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate — devices, alerts, software |
-| Built-in scheduler for periodic jobs | Available | Settings → Scheduler shows each job's last run and error; no crontab needed |
+| Built-in scheduler for periodic jobs | Available | Settings → Automation → Task Scheduler shows each job's last run and error; no crontab needed |
 | Webhooks | Available | Assets, documents, passwords (metadata only), password reveals, locations, organizations, workflows, monitors and integration syncs |
 | Website monitoring alerts | Available | Email when a site goes down (after two failed checks) and when it recovers |
 

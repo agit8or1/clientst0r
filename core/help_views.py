@@ -290,7 +290,7 @@ def help_getting_started(request):
     <ol>
         <li><strong>Log in</strong> — Use your credentials or Azure AD SSO if configured.</li>
         <li><strong>Create or select an Organization</strong> — All data is scoped to organizations.</li>
-        <li><strong>Invite your team</strong> — Go to <em>Settings → Users</em> and invite members.</li>
+        <li><strong>Invite your team</strong> — Go to <em>Settings → Users &amp; Access → Members</em> and invite members.</li>
         <li><strong>Assign roles</strong> — Grant appropriate permissions (Owner, Admin, Editor, Read-Only).</li>
         <li><strong>Add assets or passwords</strong> — Start populating your inventory or vault.</li>
         <li><strong>Set up monitoring</strong> — Create monitors for servers and services.</li>
@@ -299,8 +299,8 @@ def help_getting_started(request):
     <h5 class="mt-4" id="organizations"><i class="fas fa-building"></i> Organizations</h5>
     <p>Organizations are the top-level containers for all data. ClientSt0r is multi-tenant — each client, department, or team has its own organization with full data isolation.</p>
     <ul>
-        <li><strong>Create:</strong> <em>Admin → Organizations → New Organization</em></li>
-        <li><strong>Switch:</strong> Use the organization selector in the top navigation</li>
+        <li><strong>Create:</strong> <em>Clients → All Clients → Create Organization</em></li>
+        <li><strong>Switch:</strong> Use the client switcher in the top bar, or <em>Go to</em> (Ctrl+K / Cmd+K) and type the client's name</li>
         <li><strong>Scoping:</strong> Assets, passwords, vehicles, and monitors all belong to one organization</li>
         <li><strong>Global items:</strong> Some templates and reference data are shared across all organizations</li>
     </ul>
@@ -340,7 +340,7 @@ def help_getting_started(request):
         <rect x="310" y="1" width="170" height="14" rx="7" fill="#1f6feb44"/>
         <text x="395" y="12" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Click to switch organization</text>
       </svg>
-      <p class="help-screenshot-caption">Organization selector in the top navigation — switch between clients instantly. All data (assets, passwords, monitors) is isolated per organization.</p>
+      <p class="help-screenshot-caption">Client switcher in the top bar — switch between clients instantly. All data (assets, passwords, monitors) is isolated per organization.</p>
     </div>
 
     <h5 class="mt-4" id="users-roles"><i class="fas fa-users"></i> Users &amp; Roles</h5>
@@ -404,7 +404,7 @@ def help_getting_started(request):
     <h5 class="mt-4" id="api-keys"><i class="fas fa-key"></i> API Keys</h5>
     <p>API keys authenticate programmatic access to the REST API and the browser extension.</p>
     <ul>
-        <li><strong>Generate:</strong> Click your username → <em>API Keys</em> → <em>Create New Key</em></li>
+        <li><strong>Generate:</strong> Open <em>API Keys</em> (<code>/api/keys/</code>, linked from <em>Apps &amp; Downloads → Browser Extension</em> in the account menu; superusers also from <em>Settings → Users &amp; Access → Access Management</em>) → <em>Create API Key</em></li>
         <li><strong>Format:</strong> Keys are prefixed <code>itdocs_live_…</code></li>
         <li><strong>Usage:</strong> Pass as <code>Authorization: Bearer YOUR_KEY</code></li>
         <li><strong>Scope:</strong> Keys are tied to your user and inherit your organization access</li>
@@ -491,7 +491,7 @@ def help_assets(request):
     <h5 class="mt-4" id="asset-tracking"><i class="fas fa-server"></i> Asset Tracking</h5>
     <ul>
         <li><strong>Comprehensive Information:</strong> Track make, model, serial numbers, purchase dates, warranties</li>
-        <li><strong>Custom Fields &amp; Types:</strong> MSP staff add fields (for all or chosen asset types) and extra asset types under <em>Assets &rarr; Custom Fields &amp; Types</em>; they apply to every customer</li>
+        <li><strong>Custom Fields &amp; Types:</strong> MSP staff add fields (for all or chosen asset types) and extra asset types under <em>Settings &rarr; General &rarr; Custom Fields &amp; Types</em>; they apply to every customer</li>
         <li><strong>Equipment Catalog:</strong> Pick a manufacturer and model from the shared catalog to fill in Manufacturer and Model</li>
         <li><strong>Photos:</strong> Attach images to an asset; they show on the asset page</li>
         <li><strong>Relationships:</strong> Link related assets, dependencies, and parent/child relationships</li>
@@ -1070,7 +1070,7 @@ def help_monitoring(request):
 
     <h5 class="mt-4" id="overview"><i class="fas fa-wifi"></i> Overview</h5>
     <ul>
-        <li><strong>Website monitors</strong> (<em>Monitoring &rarr; Website Monitors</em>): an <code>http://</code> or <code>https://</code> URL, checked on a schedule and on <strong>Check Now</strong>, with down and recovery alerts, certificate expiry emails, and a stored check history.</li>
+        <li><strong>Website monitors</strong> (<em>Security &amp; Monitoring &rarr; Monitoring &rarr; Website Monitors</em>): an <code>http://</code> or <code>https://</code> URL, checked on a schedule and on <strong>Check Now</strong>, with down and recovery alerts, certificate expiry emails, and a stored check history.</li>
         <li><strong>WAN connection checks</strong> (on a location's WAN connection): pings to the WAN's monitor target at its interval and on <strong>Check Status</strong>, with down and recovery alerts and a stored check history.</li>
         <li>There are no TCP port, DNS or keyword-match checks.</li>
     </ul>
@@ -1088,7 +1088,7 @@ def help_monitoring(request):
     <ul>
         <li><strong>Down:</strong> with <em>Notify on down</em> on, one email after 2 failed checks in a row (setting <code>WEBSITE_DOWN_ALERT_THRESHOLD</code>); further failures send nothing.</li>
         <li><strong>Recovery:</strong> one email on the first successful check after a down alert.</li>
-        <li><strong>Recipients:</strong> active superusers and the admins and owners of the monitor's organization. Needs outgoing email under <em>Settings &rarr; SMTP/Email</em>.</li>
+        <li><strong>Recipients:</strong> active superusers and the admins and owners of the monitor's organization. Needs outgoing email under <em>Settings &rarr; Communications &rarr; SMTP / Email</em>.</li>
         <li><strong>Webhooks:</strong> organization webhooks can subscribe to <code>monitor.check_failed</code> (every failed check), <code>monitor.down</code> and <code>monitor.up</code> (once per transition). Plain JSON, signed when the webhook has a secret; no built-in Slack or Teams format.</li>
         <li>There are no escalation policies, alert grouping or per-monitor recipient lists.</li>
     </ul>
@@ -1096,13 +1096,13 @@ def help_monitoring(request):
     <h5 class="mt-4" id="ssl-monitoring"><i class="fas fa-certificate"></i> Certificate and Domain Expiry</h5>
     <ul>
         <li><strong>Certificates:</strong> a daily job emails once when a certificate enters its warning window (the larger of the monitor's and the global setting) and once more when it expires. A renewed certificate starts over.</li>
-        <li><strong>Domains:</strong> there is no WHOIS lookup. Enter domains on <em>Monitoring &rarr; Expirations</em>; the same daily job emails about them.</li>
+        <li><strong>Domains:</strong> there is no WHOIS lookup. Enter domains on <em>Security &amp; Monitoring &rarr; Monitoring &rarr; Expirations</em>; the same daily job emails about them.</li>
     </ul>
 
     <h5 class="mt-4" id="wan-checks"><i class="fas fa-network-wired"></i> WAN Connection Checks</h5>
     <ul>
         <li>Turn on monitoring for the WAN connection and set a monitor target (IP or hostname).</li>
-        <li><strong>Check Status</strong> runs a check immediately. The WAN page shows the last result, failed checks in a row and 30-day uptime; <em>Monitoring &rarr; WAN Connections</em> lists every monitored WAN.</li>
+        <li><strong>Check Status</strong> runs a check immediately. The WAN page shows the last result, failed checks in a row and 30-day uptime; <em>Security &amp; Monitoring &rarr; Monitoring &rarr; WAN Connections</em> lists every monitored WAN.</li>
         <li><strong>Schedule:</strong> each WAN is checked at its own interval (default 5 minutes); the scheduler looks for due WANs every minute. A check sends 3 pings and any answer counts as up.</li>
         <li><strong>Alerts:</strong> after 2 checks in a row with no answer (setting <code>WAN_DOWN_ALERT_THRESHOLD</code>) the WAN is marked Down and one email goes to superusers and the customer's admins and owners; the first answer after that sends one recovery email. Webhooks: <code>wan.check_failed</code>, <code>wan.down</code>, <code>wan.up</code>.</li>
         <li><strong>Paused:</strong> WANs set to Inactive, Planned or Under Maintenance are not checked on the schedule; use Under Maintenance to silence alerts during planned work.</li>
@@ -1353,7 +1353,7 @@ def help_api(request):
     </ul>
 
     <h5 class="mt-4" id="authentication"><i class="fas fa-key"></i> API Keys</h5>
-    <p>Create keys at <strong>Admin &rarr; Access Management &rarr; API Keys</strong>, or go to <code>/api/keys/</code>. The key is shown once. Send it in every request:</p>
+    <p>Create keys at <strong>Settings &rarr; Users &amp; Access &rarr; Access Management &rarr; API Keys</strong> (superusers), or go to <code>/api/keys/</code>. The key is shown once. Send it in every request:</p>
     <div class="card mt-2 mb-3">
         <div class="card-body bg-dark">
             <code class="text-info">Authorization: Bearer itdocs_live_YOUR_KEY_HERE</code>
@@ -1389,7 +1389,7 @@ def help_api(request):
     <p>When the optional <code>graphene-django</code> package is installed, <code>/api/v2/graphql/</code> answers queries for organizations, assets, passwords (no secrets), documents, diagrams, locations, website monitors and expirations, plus a few asset and document mutations. It uses your signed-in session and CSRF token; API keys are not accepted there. Drafts and documents pending review are returned only to users who can edit them, and a document created without the publish permission is saved as a draft.</p>
 
     <h5 class="mt-4" id="webhooks"><i class="fas fa-bell"></i> Webhooks</h5>
-    <p>Configure webhooks at <strong>Settings &rarr; Webhooks &rarr; Create Webhook</strong>.</p>
+    <p>Configure webhooks at <strong>Settings &rarr; Integrations &rarr; Webhooks &rarr; Create Webhook</strong>.</p>
     <p>Supported events (fired from web, REST API, mobile and sync jobs alike):</p>
     <ul>
         <li><code>asset.created</code> / <code>asset.updated</code> / <code>asset.deleted</code></li>
@@ -1437,7 +1437,7 @@ def help_reports(request):
     ]
     content = """
     <h4>Reports &amp; Dashboards</h4>
-    <p class="lead">Per-customer reports you can generate or schedule, PSA and finance reports across customers, dashboards, wallboards and saved queries. Find them under <em>More &rarr; Reports</em>.</p>
+    <p class="lead">Per-customer reports you can generate or schedule, PSA and finance reports across customers, dashboards, wallboards and saved queries. Find them in the sidebar under <em>Reports</em>.</p>
     <div class="alert alert-info">Reports are for MSP staff only: most of them cover every customer, so customer users can't open them.</div>
 
     <h5 class="mt-4" id="report-templates"><i class="fas fa-file-lines"></i> Report Templates</h5>
@@ -1452,10 +1452,10 @@ def help_reports(request):
         <li><strong>User Activity</strong> &mdash; audit-log events by action and by user, failed sign-ins, last 30 days</li>
         <li><strong>Organization Metrics</strong> &mdash; members, assets, vault entries, documents, monitors</li>
     </ul>
-    <p>The PDF is a plain text document of the report data, suited to attachments and audit trails; CSV and JSON carry the same data. Add your own template at <em>Templates &rarr; New Template</em>; staff can make one global.</p>
+    <p>The PDF is a plain text document of the report data, suited to attachments and audit trails; CSV and JSON carry the same data. Add your own template at <em>Reports &rarr; Generate Reports &rarr; Create Template</em>; staff can make one global.</p>
 
     <h5 class="mt-4" id="scheduled-reports"><i class="fas fa-calendar-check"></i> Scheduled Reports</h5>
-    <p>A schedule runs a template daily, weekly, monthly (every 30 days) or quarterly (every 90 days) for the selected customer, in the format you choose. The scheduler's <strong>Scheduled Reports</strong> task checks every 15 minutes. Each report is saved under <em>Generated Reports</em>; with an email delivery option, each recipient gets their own copy as an attachment through the SMTP settings in <em>Settings &rarr; Email</em>. <strong>Download Only</strong> saves the report without emailing it. If an email can't be sent, the report notes why and the schedule still moves on.</p>
+    <p>A schedule runs a template daily, weekly, monthly (every 30 days) or quarterly (every 90 days) for the selected customer, in the format you choose. The scheduler's <strong>Scheduled Reports</strong> task checks every 15 minutes. Each report is saved under <em>Reports &rarr; Report History</em>; with an email delivery option, each recipient gets their own copy as an attachment through the SMTP settings in <em>Settings &rarr; Communications &rarr; SMTP / Email</em>. <strong>Download Only</strong> saves the report without emailing it. If an email can't be sent, the report notes why and the schedule still moves on.</p>
 
     <h5 class="mt-4" id="psa-reports"><i class="fas fa-chart-line"></i> PSA and Finance Reports</h5>
     <p>The Reports home links to reports across all customers: ticket, SLA and response-time reports; profitability by client, tech, contract and project; revenue leakage and margins; agreement, billing, accounting and bank reconciliation; AR aging and MRR forecast; KPIs, trends and the executive scorecard; procurement and software compliance. Money reports need <strong>View financial reports</strong> and SLA reports <strong>View SLA reports</strong>. Most offer a date range and CSV export.</p>
@@ -1514,7 +1514,7 @@ def help_workflows(request):
         <li>An assigned role (who is responsible)</li>
         <li>A required flag (must complete before moving on)</li>
     </ul>
-    <p>Manage processes at <em>Processes</em> in the navigation.</p>
+    <p>Manage processes at <em>Service Desk → Workflows → Runbooks</em>.</p>
 
     <div class="help-screenshot mt-3 mb-4">
       <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
@@ -1582,7 +1582,7 @@ def help_workflows(request):
         <li><strong>Reassignment</strong> — assign individual stages to specific users</li>
         <li><strong>Due dates</strong> — overall and per-stage deadlines</li>
     </ul>
-    <p>View all active and completed executions at <em>Processes → Executions</em>.</p>
+    <p>View all active and completed executions with <em>View All Executions</em> on <em>Service Desk → Workflows → Runbooks</em>.</p>
 
     <h5 class="mt-4" id="global-processes"><i class="fas fa-globe"></i> Global Processes</h5>
     <p><strong>Global Processes</strong> are available across all organizations — ideal for standardized IT procedures:</p>
@@ -1592,7 +1592,7 @@ def help_workflows(request):
         <li>Organizations can <strong>copy</strong> a global process to customize it</li>
     </ul>
     <p>Examples: Employee Onboarding Checklist, New Client Onboarding, Security Incident Response, Quarterly Review.</p>
-    <p>Manage global processes at <em>Processes → Global</em> (staff only).</p>
+    <p>Manage global processes from the Global View dashboard (client switcher → <em>Global View</em>), or at <code>/processes/global/</code> (staff only).</p>
     """
     return render(request, 'core/help/section.html', {
         'title': 'Workflows',
@@ -1619,7 +1619,7 @@ def help_documentation(request):
     <p class="lead">Create, organize, and share technical documentation, runbooks, knowledge base articles, and network diagrams — with WYSIWYG or Markdown editors.</p>
 
     <h5 class="mt-4" id="documents"><i class="fas fa-file-alt"></i> Documents</h5>
-    <p>Documents are rich-content pages scoped to your organization. Navigate to <em>Docs</em> to create and manage them.</p>
+    <p>Documents are rich-content pages scoped to your organization. Navigate to <em>Knowledge &amp; Vault → Documentation</em> to create and manage them.</p>
     <div class="table-responsive mt-2">
         <table class="table table-sm table-bordered">
             <thead><tr><th>Field</th><th>Description</th></tr></thead>
@@ -1631,7 +1631,7 @@ def help_documentation(request):
             </tbody>
         </table>
     </div>
-    <p>Upload existing files (PDF, DOCX, images) at <em>Docs → Upload</em>. Files are served through authenticated views only.</p>
+    <p>Upload existing files (PDF, DOCX, images) with <em>Upload files</em> on <em>Knowledge &amp; Vault → Documentation</em>. Files are served through authenticated views only.</p>
 
     <div class="help-screenshot mt-3 mb-4">
       <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
@@ -1685,7 +1685,7 @@ def help_documentation(request):
         <li><strong>Onboarding docs</strong> — "New Employee IT Setup" checklist</li>
         <li><strong>Change requests</strong> — structured change request form</li>
     </ul>
-    <p>Templates support the same WYSIWYG and Markdown editors as documents. Manage at <em>Docs → Templates</em>.</p>
+    <p>Templates support the same WYSIWYG and Markdown editors as documents. Manage at <em>Knowledge &amp; Vault → Documentation → Organize → Templates</em>.</p>
 
     <h5 class="mt-4" id="knowledge-base"><i class="fas fa-book"></i> Knowledge Base</h5>
     <p>The Knowledge Base is a searchable article library for reference material within your organization:</p>
@@ -1698,7 +1698,7 @@ def help_documentation(request):
     </ul>
 
     <h5 class="mt-4" id="diagrams"><i class="fas fa-project-diagram"></i> Network Diagrams</h5>
-    <p>Create interactive network topology diagrams with a drag-and-drop canvas at <em>Docs → Diagrams</em>:</p>
+    <p>Create interactive network topology diagrams with a drag-and-drop canvas at <em>Knowledge &amp; Vault → Diagrams</em>:</p>
     <ul>
         <li><strong>Node types</strong> — servers, switches, routers, firewalls, workstations, cloud, and more</li>
         <li><strong>Connections</strong> — labeled links with cable type and bandwidth</li>
@@ -1758,7 +1758,7 @@ def help_documentation(request):
     </div>
 
     <h5 class="mt-4" id="ai-assistant"><i class="fas fa-robot"></i> AI Writing Assistant</h5>
-    <p>The built-in AI assistant helps write and improve documentation at <em>Docs → AI Assistant</em>:</p>
+    <p>The built-in AI assistant helps write and improve documentation (OPTIONAL AI) with <em>AI Assistant</em> on <em>Knowledge &amp; Vault → Documentation</em>:</p>
     <div class="table-responsive mt-2">
         <table class="table table-sm table-bordered">
             <thead><tr><th>Feature</th><th>What It Does</th></tr></thead>
@@ -1770,7 +1770,7 @@ def help_documentation(request):
         </table>
     </div>
     <div class="alert alert-warning mt-2">
-        <i class="fas fa-exclamation-triangle"></i> AI features require an API key configured in <em>Settings → AI Integration</em>.
+        <i class="fas fa-exclamation-triangle"></i> AI features are optional: they need the AI master switch (<em>Settings → General → PSA</em>) and an API key configured in <em>Settings → AI Configuration → AI &amp; LLM</em>.
     </div>
     """
     return render(request, 'core/help/section.html', {
@@ -1796,7 +1796,7 @@ def help_locations(request):
     <p class="lead">Manage physical sites and the internet (WAN) connections serving each location.</p>
 
     <h5 class="mt-4" id="locations"><i class="fas fa-map-marker-alt"></i> Locations</h5>
-    <p>A <strong>Location</strong> represents a physical site where equipment is installed or staff work. Navigate to <em>Locations</em> in the top menu.</p>
+    <p>A <strong>Location</strong> represents a physical site where equipment is installed or staff work. Open <em>Locations</em> at <code>/locations/</code>; <em>Security &amp; Monitoring → Monitoring → WAN Connections</em> links to it.</p>
     <div class="table-responsive mt-2">
         <table class="table table-sm table-bordered">
             <thead><tr><th>Field</th><th>Description</th></tr></thead>

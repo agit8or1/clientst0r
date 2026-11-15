@@ -50,7 +50,7 @@ After registration, note the following values (you'll need them later):
 #### Option A: Via Admin UI (Recommended)
 
 1. Log in to Client St0r as superuser
-2. Go to **Admin** → **Settings** → **Directory Services**
+2. Go to **Settings** → **Users & Access** → **Directory Services**
 3. Under **Azure AD / Microsoft Entra ID**, configure:
    - **Enable Azure AD**: ✓ (checked)
    - **Tenant ID**: Paste your Directory (tenant) ID

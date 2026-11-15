@@ -284,11 +284,11 @@ python manage.py seed_kb_articles --delete
 All seed data can be safely deleted by users:
 
 **Equipment Models:**
-- Navigate to Assets > Equipment Catalog
+- Navigate to Settings → General → Equipment Catalog
 - Delete vendors or individual models not needed
 
 **KB Articles:**
-- Navigate to Knowledge Base
+- Navigate to Knowledge & Vault → Knowledge Base
 - Archive or delete articles not relevant
 
 **Note:** Deleting seed data does NOT affect user-created content.

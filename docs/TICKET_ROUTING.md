@@ -7,9 +7,9 @@ assignment and workflow rules behave exactly as they did before.
 
 ## Turning it on
 
-1. **Settings → PSA** (`/psa/settings/`, superusers) shows a *Ticket Routing* card: pick the MSP-wide default
+1. **Settings → General → PSA** (`/psa/settings/`, superusers) shows a *Ticket Routing* card: pick the MSP-wide default
    (**Off**, **Suggest only** or **Automatic**) and save. The card links to the full page.
-2. **PSA → Ticket Routing** (`/psa/routing/`) holds everything else: reroute options, business hours, customer
+2. **Service Desk → Dispatch Board → Configure → Ticket Routing** (`/psa/routing/`) holds everything else: reroute options, business hours, customer
    overrides, rules, on-call shifts, Test routing and Triage.
 3. Each customer **inherits** the MSP default unless you override it under *Customers* (Inherit / Off / Suggest only /
    Automatic). A customer can also be limited to a list of technicians routing may choose.
@@ -22,7 +22,7 @@ assignment and workflow rules behave exactly as they did before.
 
 ## Rules
 
-**PSA → Ticket Routing → New rule.** A rule has conditions, a destination and a fallback. Every condition you set
+**Ticket Routing → New rule.** A rule has conditions, a destination and a fallback. Every condition you set
 must match; leave one empty to ignore it.
 
 Conditions: customer (the rule's scope), intake source (portal, email, API, monitoring, RMM, anonymous form…),
@@ -49,7 +49,7 @@ Destinations:
 | Least-loaded | The qualifying technician with the fewest open tickets. |
 
 Round-robin, skill match and least-loaded can be limited to a team and to technicians **on call now**
-(**PSA → Ticket Routing → On call**). Unless a rule asks for on-call, people on approved leave or outside their
+(**Ticket Routing → On call**). Unless a rule asks for on-call, people on approved leave or outside their
 Resourcing working hours are skipped. On call overrides working hours; leave still excludes someone.
 
 Fallback, when nobody qualifies: put the ticket in a chosen queue (e.g. *Escalations*) unassigned, or leave it
@@ -126,7 +126,7 @@ created a second ticket.
 
 ## Test routing
 
-**PSA → Ticket Routing → Test routing** (`/psa/routing/test/`) evaluates an existing ticket you are authorized to see,
+**Ticket Routing → Test routing** (`/psa/routing/test/`) evaluates an existing ticket you are authorized to see,
 or a sample ticket you describe (customer, source, priority, type, queue, service, tags, subject, time). It shows the
 mode, the customer check, each rule evaluated and why it did or did not match, the winning rule, eligible and skipped
 technicians with reasons, the destination and the reason. It changes no data, uses up no round-robin turn and sends no
@@ -148,7 +148,7 @@ superusers hold all three:
 
 | Flag | Allows |
 |---|---|
-| Manage routing settings, rules and on-call | `/psa/routing/` settings, customers, rules, on-call shifts, the Settings → PSA card |
+| Manage routing settings, rules and on-call | `/psa/routing/` settings, customers, rules, on-call shifts, the Settings → General → PSA card |
 | Test routing | the Test routing page |
 | Accept / reject routing suggestions | Accept and Dismiss on tickets |
 

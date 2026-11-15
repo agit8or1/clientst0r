@@ -59,7 +59,7 @@ Before every step that drains (stop, restart, update, rollback and uninstall), t
 
 **Local profile:**
 - `--local-production-run` is required.
-- `--confirm-base-url` must equal clientst0r's base URL exactly: the helper's `CLIENTSTOR_URL`, else Settings → site URL.
+- `--confirm-base-url` must equal clientst0r's base URL exactly: the helper's `CLIENTSTOR_URL`, else the Site URL in Settings → General → General Settings.
 - The managed engine must be installed, running and healthy. Its editor instance must be enabled and healthy. No managed operation may be active.
 - No real edit sessions may be open on the managed editor, unless you pass `--i-know-sessions-are-open`. A real session is one held by anyone other than the harness's own test users. The harness reads only the count, not who holds them or which files.
 - A previous run's test organization or users must not exist, unless you use `resume` or `cleanup`.
@@ -76,7 +76,7 @@ Before every step that drains (stop, restart, update, rollback and uninstall), t
 
 ## Requirements
 
-- clientst0r installed, with the managed engine installed and healthy (Settings → Office Documents → Managed Local).
+- clientst0r installed, with the managed engine installed and healthy (Settings → Integrations → Office Documents → Managed Local).
 - An existing superuser account to queue the operations as.
 - A Python that can `import playwright` and has Playwright's Chromium (see [Browser](#browser)).
 - Time:
@@ -155,7 +155,7 @@ Run as the app user, from the app directory, with the app's Python. Replace `ADM
 
    A step that was running when the harness died is marked **failed (interrupted)** and is not re-run blindly. The rest continues, and cleanup runs at the end.
 
-4. **If a managed operation was left active** (rare): look at Settings → Office Documents → Managed Local. The scheduler finishes or recovers it, as it would for an administrator's click.
+4. **If a managed operation was left active** (rare): look at Settings → Integrations → Office Documents → Managed Local. The scheduler finishes or recovers it, as it would for an administrator's click.
 
 ## Path mode and host-name mode
 

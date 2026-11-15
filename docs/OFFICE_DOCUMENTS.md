@@ -175,7 +175,7 @@ It runs from the scheduler task `office_purge_quarantine` (hourly) and from
 `manage.py office_purge_quarantine`.
 
 Superusers can review, download and restore quarantined saves at
-**Settings → Office documents → Quarantine**.
+**Settings → Integrations → Office Documents → Quarantine**.
 
 ## Policy (`office/policy.py`)
 
@@ -431,7 +431,7 @@ handler.
 
 ## Settings
 
-### Settings → Office documents (superuser)
+### Settings → Integrations → Office Documents (superuser)
 
 - **Platform settings:** enabled providers, default instance, organization
   override, retention and session lifetimes.
@@ -456,7 +456,7 @@ handler.
   - the commands run `scripts/office/install-editor.sh` (see [office/INSTALL.md](office/INSTALL.md)).
 - **Quarantine:** review, download and restore quarantined saves.
 
-### Settings → Office Documents (organization)
+### Settings → Integrations → Office Documents (organization)
 
 For holders of `org_manage_settings`:
 

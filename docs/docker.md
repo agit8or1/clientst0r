@@ -93,8 +93,8 @@ EMAIL_HOST_PASSWORD=...
 GITHUB_TOKEN=ghp_...         # raises the /settings/updates/ poll limit
 ```
 
-See `.env.example` for the full menu including SMTP, beta-signup
-forwarder, Anthropic key, and feature flags.
+See `.env.example` for the full list, including SMTP, the Anthropic key
+(OPTIONAL AI), and feature flags.
 
 > **APP_MASTER_KEY is irreversible.** Once vault entries have been
 > written under a given master key, rotating the key makes them
@@ -253,7 +253,7 @@ backup (database, uploads, keys) in the `clientst0r-backups` volume, and
 does not migrate without one. Restoring, the restore-test database grant
 for stacks created before this, and the rest of the recovery steps are in
 [UPGRADE_AND_RECOVERY.md](UPGRADE_AND_RECOVERY.md#docker). The web update
-path (`Settings → Updates`) **does not apply upgrades in a container**
+path (`Settings → System → System Updates`) **does not apply upgrades in a container**
 (there is no git checkout), so use the commands above.
 
 ---

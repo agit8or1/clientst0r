@@ -19,7 +19,7 @@ Every capability carries one of four labels:
 | **Separate component** | Not part of the web application in this repository, or shipped separately. |
 
 The **Where** column gives the screen (URL path on your install) or the document to read.
-Settings pages are under **Admin → System → Settings** (`/core/settings/…`).
+Settings pages are under **Administration** in the sidebar (or the gear in the top bar), which opens the settings center (`/core/settings/`); paths below read **Settings → category → page**.
 
 Contents:
 [Access model](#access-model-msp-staff-and-customer-users) ·
@@ -61,7 +61,7 @@ Every user is either **MSP staff** or a **customer user**. This decides what the
 on top of their role.
 
 - **MSP staff** — superusers, users with Django's staff flag, and users whose **User Type**
-  is *Staff* (set at *Admin → Access Management → Users → Edit*, `/accounts/users/<id>/edit/`,
+  is *Staff* (set at *Settings → Users & Access → Users → Edit*, `/accounts/users/<id>/edit/`,
   superusers only). Staff work across every customer: since v3.17.602 a Staff user can be
   assigned tickets, projects and recurring work for any customer, not only customers they
   are a member of, and membership-based permission checks (change approvals, problem
@@ -93,15 +93,15 @@ created from the customer portal are shared automatically).
 
 | Capability | Status | Notes | Where |
 |---|---|---|---|
-| Enforced TOTP 2FA | Available | On by default for every account. Set install-wide in Settings → Security (**Require 2FA**); the `REQUIRE_2FA` environment variable, if set, overrides it. LDAP users get the same 2FA rules. | `/accounts/profile/2fa/`, `/core/settings/security/` |
+| Enforced TOTP 2FA | Available | On by default for every account. Set install-wide in Settings → Security → Security Settings (**Require 2FA**); the `REQUIRE_2FA` environment variable, if set, overrides it. LDAP users get the same 2FA rules. | `/accounts/profile/2fa/`, `/core/settings/security/` |
 | Azure AD / Microsoft Entra ID SSO | Limited | Sign-in with auto-created users works. SSO sessions skip the local 2FA prompt without checking that the user completed MFA in Entra ID, so enforce MFA there. | `/core/settings/directory/` |
 | LDAP / Active Directory sign-in | Available | Since v3.17.608. Off until enabled; won't switch on with missing or invalid settings. Several servers, LDAPS or StartTLS with certificate checking (on by default, optional CA file), user search with attribute mapping, a required group (nested AD groups included) and an optional MSP staff group that sets Staff vs customer user at each sign-in. **Test connection** checks the bind and an optional user lookup without saving. Local accounts keep working and a local superuser can always sign in; LDAP never creates superusers or takes over an existing local account. Needs the optional `django-auth-ldap` and `python-ldap` packages (`requirements-optional.txt`); the page says if they're missing. | `/core/settings/directory/` |
 | SAML, generic OIDC, passkeys | Planned | | [Roadmap](docs/ROADMAP.md) |
 | Argon2 password hashing | Available | | — |
-| Brute-force lockout | Available | django-axes, by username + IP. Failed-login limit (default 5) and lockout duration (default 30 minutes) are set in Settings → Security; the `AXES_FAILURE_LIMIT` and `AXES_COOLOFF_TIME` (hours) environment variables, if set, override them. Applies to LDAP users too. | `/core/settings/security/`, `/accounts/locked/` |
-| Session expiry | Available | Idle timeout (default 60 minutes) and a real maximum session length (default 8 hours; before v3.17.610 expiry was renewed on every request), set in Settings → Security. `SESSION_IDLE_TIMEOUT` and `SESSION_COOKIE_AGE` (seconds), if set, override them. | `/core/settings/security/` |
-| Password policy | Available | Minimum length (default 12) and special-character rule from Settings → Security (`PASSWORD_MIN_LENGTH` / `PASSWORD_REQUIRE_SPECIAL` override); also not a common password, not all numeric, not similar to the username. | `/core/settings/security/` |
-| Settings precedence | Available | Since v3.17.610 saved Security settings take effect. An environment variable, if set, wins; the field then shows **set by environment** and is read-only. Check Settings → Security before updating an older install — the saved values become live. | `/core/settings/security/` |
+| Brute-force lockout | Available | django-axes, by username + IP. Failed-login limit (default 5) and lockout duration (default 30 minutes) are set in Settings → Security → Security Settings; the `AXES_FAILURE_LIMIT` and `AXES_COOLOFF_TIME` (hours) environment variables, if set, override them. Applies to LDAP users too. | `/core/settings/security/`, `/accounts/locked/` |
+| Session expiry | Available | Idle timeout (default 60 minutes) and a real maximum session length (default 8 hours; before v3.17.610 expiry was renewed on every request), set in Settings → Security → Security Settings. `SESSION_IDLE_TIMEOUT` and `SESSION_COOKIE_AGE` (seconds), if set, override them. | `/core/settings/security/` |
+| Password policy | Available | Minimum length (default 12) and special-character rule from Settings → Security → Security Settings (`PASSWORD_MIN_LENGTH` / `PASSWORD_REQUIRE_SPECIAL` override); also not a common password, not all numeric, not similar to the username. | `/core/settings/security/` |
+| Settings precedence | Available | Since v3.17.610 saved Security settings take effect. An environment variable, if set, wins; the field then shows **set by environment** and is read-only. Check Settings → Security → Security Settings before updating an older install — the saved values become live. | `/core/settings/security/` |
 
 ### Data protection
 
@@ -133,7 +133,7 @@ created from the customer portal are shared automatically).
 |---|---|---|---|
 | Dependency scanning (Snyk) | Available | Needs the Snyk CLI and a Snyk token. Python dependency scanning (pip-audit) also available. | `/core/settings/snyk/`, `/core/security/python-scanner/` |
 | OS package scanner | Available | apt, yum/dnf and pacman; security-update detection, history, manual scans. | `/core/security/package-scanner/` |
-| Scheduled scans with email alerts | Available | Opt-in from the Security dashboard; emails superusers when vulnerabilities are found. Interval is set in Settings → Scheduler. | `/core/security/` |
+| Scheduled scans with email alerts | Available | Opt-in from the Security dashboard; emails superusers when vulnerabilities are found. Interval is set in Settings → Automation → Task Scheduler. | `/core/security/` |
 | Trend view | Limited | Compares the latest scan with the previous one; no long-term chart. | `/core/security/` |
 | Webhook notifications for scan results | Planned | Email only. | — |
 
@@ -183,7 +183,7 @@ created from the customer portal are shared automatically).
 | Built-in roles: Owner, Admin, Editor, Read-Only | Available | | Members page |
 | Custom roles | Available | Around a hundred individual permission switches, grouped by area. | `/accounts/roles/` |
 | **View passwords / View documents / View assets** | Available | Enforced since v3.17.600 everywhere those records appear: vault, documents and assets pages, global search (with real totals), dashboards, REST and GraphQL APIs, mobile app and browser extension. Contacts follow View assets. A user's personal vault is unaffected. The ticket sidebar's credential card follows View passwords and shows titles only. | `/accounts/roles/` |
-| **View files / View monitors / View integrations** | Shipped v3.17.664 | Enforced per customer on `/files/`, `/monitoring/` and `/integrations/`, global search (synced PSA companies and contacts), dashboards, GraphQL monitors and expirations, the mobile dashboard, and the navbar. Attachment lists on asset and rack pages follow View files. Upgrading switches View monitors and View integrations on for every existing role, so nobody loses access. | `/accounts/roles/` |
+| **View files / View monitors / View integrations** | Shipped v3.17.664 | Enforced per customer on `/files/`, `/monitoring/` and `/integrations/`, global search (synced PSA companies and contacts), dashboards, GraphQL monitors and expirations, the mobile dashboard, and the navigation. Attachment lists on asset and rack pages follow View files. Upgrading switches View monitors and View integrations on for every existing role, so nobody loses access. | `/accounts/roles/` |
 | Vault export permission | Planned | Marked "Not yet implemented" in the role editor. | — |
 | Document publish permissions | Available | Since v3.17.605 publishing needs View/Publish documents for that customer (or Publish KB articles for global articles); without it, new documents, uploads and imports save as drafts. | Document form |
 | Role assignment limits | Available | A role can be assigned only if it is a system role or the organization's own custom role. | Members page |
@@ -235,12 +235,12 @@ created from the customer portal are shared automatically).
 | Access rules | Available | Allow or deny access by country, source IP range and time of day, scoped to an entry, a user or an organization; deny wins. | `/vault/access-rules/` |
 | Password generator | Available | 8–128 characters, cryptographically secure. | Entry form |
 | Strength meter | Available | | Entry form |
-| Breach detection (Have I Been Pwned) | Available | k-anonymity: only a 5-character hash prefix leaves the server. Scheduled scan; per-entry check. | Entry detail; Settings → Scheduler |
+| Breach detection (Have I Been Pwned) | Available | k-anonymity: only a 5-character hash prefix leaves the server. Scheduled scan; per-entry check. | Entry detail; Settings → Automation → Task Scheduler |
 | Blocking breached passwords | Limited | Off by default; enabled only by the `HIBP_BLOCK_BREACHED` environment variable. | — |
 | Expiry tracking | Available | Expiry dates with scheduled email warnings. | Entry form |
 | TOTP codes and QR | Available | | `/vault/<id>/otp/` |
 | Personal vault | Limited | Private to its owner in the application. It is encrypted with the server's master key (not a per-user key), so anyone with server and key access could decrypt it. | `/vault/personal/` |
-| Bitwarden / Vaultwarden import | Limited | JSON import of logins, notes, cards and identities, with folders, custom fields, TOTP secrets and update-existing. Superusers only, and the page is not linked from the menus. | `/core/settings/vault-import/` |
+| Bitwarden / Vaultwarden import | Limited | JSON import of logins, notes, cards and identities, with folders, custom fields, TOTP secrets and update-existing. Superusers only; Settings → Maintenance → Vault Import. | `/core/settings/vault-import/` |
 | Customer portal visibility | Available | Per entry: hidden (default), all members of the customer, specific users, or managed by the customer's admin. Personal entries are never shown. | `/portal/vault/` |
 
 ---
@@ -255,18 +255,18 @@ created from the customer portal are shared automatically).
 | Templates | Available | Global templates are edited by MSP staff only; customer users with edit rights manage their own organization's templates. | `/docs/templates/` |
 | Version history | Available | A version is saved on every edit. Since v3.17.605 you can view any version, compare two versions and restore one (audited; the replaced content is kept as a version). | `/docs/id/<id>/versions/` |
 | Owner and review interval | Available | Editable on the document form; the document page shows the owner and next review date. | Document form / detail |
-| Drafts and Archived lists | Available | Drafts never appear in document lists, search, exports or the portal. Archived documents can be unarchived. | Docs → Drafts (`/docs/lifecycle/drafts/`), Docs → Archived (`/docs/lifecycle/archived/`) |
+| Drafts and Archived lists | Available | Drafts never appear in document lists, search, exports or the portal. Archived documents can be unarchived. | Knowledge & Vault → Review & Publishing → Drafts (`/docs/lifecycle/drafts/`), Archived (`/docs/lifecycle/archived/`) |
 | Template drift | Available | Documents created from a template remember the template version; each template lists the documents that are behind, with a diff of what changed. Nothing is overwritten. | `/docs/templates/<id>/documents/` |
 | Search | Limited | Substring match on title and body. | `/docs/?q=`, `/core/search/` |
 | Review and approval | Available | Publishing follows the publish permissions (see [Roles](#roles-and-permissions)); documents that require approval go through Submit for review → Approve. Review reminders are emailed weekly. | `/docs/review-queue/`, `/docs/approval-queue/` |
-| KB analytics | Available | MSP staff: most viewed, never viewed, past review date, and searches that found nothing. Only zero-result searches are logged (never vault searches), kept for 90 days. | Docs → KB Analytics (`/docs/lifecycle/analytics/`) |
-| Documentation readiness | Available | Since v3.17.605. Standards define what every customer (or every customer of a type, or with assets of a type) must have documented: documents by tag, category or title, review freshness, owners, required asset fields, contacts with a role, credential references (metadata only) and asset relationships. Each customer gets a score with a plain explanation and fix link for every unmet requirement, and an owner; a repair queue lists everything unmet across customers. Per-customer exceptions (reason, optional expiry) are audited. Customer users with View documents see their own customer's page read-only. `manage.py readiness_seed_samples` adds a sample Microsoft 365 tenant standard (not added automatically). | Docs → Documentation Readiness (`/readiness/`, `/readiness/repair/`) |
+| KB analytics | Available | MSP staff: most viewed, never viewed, past review date, and searches that found nothing. Only zero-result searches are logged (never vault searches), kept for 90 days. | Knowledge & Vault → Review & Publishing → KB Analytics (`/docs/lifecycle/analytics/`) |
+| Documentation readiness | Available | Since v3.17.605. Standards define what every customer (or every customer of a type, or with assets of a type) must have documented: documents by tag, category or title, review freshness, owners, required asset fields, contacts with a role, credential references (metadata only) and asset relationships. Each customer gets a score with a plain explanation and fix link for every unmet requirement, and an owner; a repair queue lists everything unmet across customers. Per-customer exceptions (reason, optional expiry) are audited. Customer users with View documents see their own customer's page read-only. `manage.py readiness_seed_samples` adds a sample Microsoft 365 tenant standard (not added automatically). | Knowledge & Vault → Documentation Readiness (`/readiness/`, `/readiness/repair/`) |
 | Broken relationships report | Available | Links whose target no longer exists or belongs to another customer, with cleanup for staff (`manage.py readiness_find_broken_relationships --delete`). | `/readiness/relationships/broken/` |
 | Global knowledge base | Available | Staff-only on the web; not returned to customer users by the APIs or mobile app. Client-visible articles appear in the customer portal. | `/docs/kb/` |
 | Pre-written KB content | Limited | Not installed by default; an administrator imports it. | `/core/settings/kb-import/` |
 | Diagrams (draw.io) | Available | With previews and templates. | `/docs/diagrams/` |
 | Export | Available | Markdown, HTML, DOCX and PDF, single or bulk. | Document detail → Export |
-| Agreements: MSAs, SOWs, policy acknowledgments | Available | A customer document (HTML or Markdown) can be made an agreement: drawn signature or "I have read and accept" acknowledgment, by one person for the customer or by every portal user. Each signature binds to an exact issued version — version number, content SHA-256, the rendered body, an HTML snapshot and (when it renders) a PDF — plus signer name, e-mail, account, time, IP address and browser. Editing the live document issues a new version that needs a new signature; drafts awaiting approval are never issued. Earlier versions, their signers and their evidence stay unchanged and downloadable (ZIP with snapshot, PDF, content.json, evidence.json and SHA256SUMS, each hash checkable with `sha256sum`). Staff see who signed which version and who is outstanding. Signature records can't be edited or deleted and outlive the document. Uploaded-file documents can't be agreements yet. | Document → **Agreement**, Docs → Agreements (`/docs/lifecycle/agreements/`) |
+| Agreements: MSAs, SOWs, policy acknowledgments | Available | A customer document (HTML or Markdown) can be made an agreement: drawn signature or "I have read and accept" acknowledgment, by one person for the customer or by every portal user. Each signature binds to an exact issued version — version number, content SHA-256, the rendered body, an HTML snapshot and (when it renders) a PDF — plus signer name, e-mail, account, time, IP address and browser. Editing the live document issues a new version that needs a new signature; drafts awaiting approval are never issued. Earlier versions, their signers and their evidence stay unchanged and downloadable (ZIP with snapshot, PDF, content.json, evidence.json and SHA256SUMS, each hash checkable with `sha256sum`). Staff see who signed which version and who is outstanding. Signature records can't be edited or deleted and outlive the document. Uploaded-file documents can't be agreements yet. | Document → **Agreement**, the Agreements list (`/docs/lifecycle/agreements/`, linked from a document's Agreement page) |
 | File attachments on documents | Planned | | — |
 | Document favorites | Planned | Favorites exist for assets, passwords and some other records. | `/core/favorites/` |
 | Share links | Planned | | — |
@@ -371,7 +371,7 @@ Guide: [docs/HARDWARE_INVENTORY.md](docs/HARDWARE_INVENTORY.md). This is documen
 | Omada | Available | | `/integrations/` |
 | Grandstream | Available | Access points. | `/integrations/` |
 | Import with de-duplication | Available | Matches by MAC, then serial; preview before import. | Connection page |
-| Scheduled sync | Available | Built-in scheduler task (every 30 minutes); enable auto-sync on each connection. | Settings → Scheduler |
+| Scheduled sync | Available | Built-in scheduler task (every 30 minutes); enable auto-sync on each connection. | Settings → Automation → Task Scheduler |
 
 ---
 
@@ -392,7 +392,7 @@ The built-in service desk is off until an administrator turns on `psa_enabled`
 | Merge, similar tickets | Available | | Ticket detail |
 | Credential context | Available | Titles only, for roles with View passwords; the full list is on an audited page. | Ticket detail |
 | Closeout rule | Available | Since v3.17.604 every route to a resolved or closed status checks the resolution summary, category, required checklist items and sign-off (and optionally that time was logged — PSA settings). A closeout checklist card adds, ticks and removes items. Hygiene hints (no assignee, no asset, no first response) remain advisory. | Ticket detail |
-| My Work | Available | Since v3.17.604. Your open tickets in SLA order, running timers on every ticket with a stop button, tickets where the customer replied, "waiting on customer" and "waiting on us" queues, pending approvals, and today's and upcoming appointments. Every count matches the list its link opens; the ticket list has the same queue filters. First item in the PSA menu and a button on the dashboard. | `/psa/my-work/` |
+| My Work | Available | Since v3.17.604. Your open tickets in SLA order, running timers on every ticket with a stop button, tickets where the customer replied, "waiting on customer" and "waiting on us" queues, pending approvals, and today's and upcoming appointments. Every count matches the list its link opens; the ticket list has the same queue filters. First item in the sidebar's My Work section and a button on the dashboard. | `/psa/my-work/` |
 | Reply composer | Available | Explicit Public reply / Internal note toggle, an amber internal composer, and a confirmation naming the recipient before a public reply is emailed. Drafts save as you type and are private to you. | Ticket detail |
 | Collision warnings | Available | Shows who else is viewing or replying; a reply isn't posted over activity you haven't seen — your text is kept and the new activity highlighted. | Ticket detail |
 | Keyboard shortcuts | Available | `a` assign to me, `r` reply, `n` internal note, `t` log time, `x` close, `?` help. | Ticket detail |
@@ -467,7 +467,7 @@ Optional, not AI, Off on fresh installs and upgrades. Guide: [docs/TICKET_ROUTIN
 | Recurring client charges | Limited | The recurrence (monthly / quarterly / yearly) is stored but no job creates the next charge. | Client account |
 | Push to QuickBooks Online / Xero | Limited | Invoices push (blocked while approval is pending; no duplicate push unless forced). Payments are not pushed; inbound payment status is synced. | Invoice detail |
 | Other accounting providers | Planned | FreshBooks, Wave, Zoho Books and Sage Business Cloud are reserved provider types without adapters. | — |
-| Late fees | Available | Scheduled but off by default. | Settings → Scheduler |
+| Late fees | Available | Scheduled but off by default. | Settings → Automation → Task Scheduler |
 
 ### Customer portal
 
@@ -500,7 +500,7 @@ How billing works from v3.17.601 on.
 
 **Recurring invoices** are generated daily by the built-in scheduler and bill **only the
 current period**. A contract more than one billing period behind is skipped and listed as an
-error on the task in Settings → Scheduler, rather than back-billed. To catch it up, move its
+error on the task in Settings → Automation → Task Scheduler, rather than back-billed. To catch it up, move its
 next billing date, or run `python manage.py psa_generate_recurring_invoices` by hand (which
 still back-bills). Contracts marked *cancel at period end* are not billed past their paid
 period and are cancelled on their next billing date.
@@ -542,7 +542,7 @@ rebuilding the lines as manual ones.
 ## Scheduled jobs
 
 Since v3.17.599 every periodic job runs from the **built-in scheduler**, managed at
-**Settings → Scheduler** (`/core/settings/scheduler/`). Each task shows its interval, last
+**Settings → Automation → Task Scheduler** (`/core/settings/scheduler/`). Each task shows its interval, last
 run, last result and last error, and can be turned on or off. No crontab is needed.
 
 | How it runs | Detail |
@@ -678,7 +678,7 @@ All AI features are optional. Nothing calls an AI provider until one is configur
 
 | Capability | Status | Notes | Where |
 |---|---|---|---|
-| Master switch `psa_ai_enabled` | Available | Off by default. Gates the service desk AI, documentation AI, floor plan generation and receipt extraction. | Settings → PSA (AI) |
+| Master switch `psa_ai_enabled` | Available | Off by default. Gates the service desk AI, documentation AI, floor plan generation and receipt extraction. | Settings → General → PSA (AI) |
 | Documentation generate / enhance / validate | Available | Uses the configured provider: Anthropic, OpenAI, Moonshot, MiniMax, or a local Ollama model. | `/docs/ai/assistant/` |
 | Ticket reply drafts and suggested actions | Limited | Human approval before anything is sent or applied; guardrails (rate limits, token quotas, input sanitising, action allowlist); vault secrets never sent. Uses Anthropic only. | `/psa/ai/inbox/` |
 | Ticket triage suggestions | Limited | Advisory only. Anthropic only. | Ticket detail |
@@ -706,9 +706,9 @@ All AI features are optional. Nothing calls an AI provider until one is configur
 
 | Capability | Status | Notes | Where |
 |---|---|---|---|
-| General, security, SMTP, SMS, directory, AI settings | Available | Since v3.17.610 saved Security settings (session, 2FA, lockout, password policy) take effect; an environment variable, if set, wins and the field shows "set by environment". Settings → Directory configures Azure AD SSO and LDAP, with a **Test connection** button for LDAP. See [Authentication](#authentication-and-sessions). | `/core/settings/`, `/core/settings/security/`, `/core/settings/directory/` |
+| General, security, SMTP, SMS, directory, AI settings | Available | Since v3.17.610 saved Security settings (session, 2FA, lockout, password policy) take effect; an environment variable, if set, wins and the field shows "set by environment". Settings → Users & Access → Directory Services configures Azure AD SSO and LDAP, with a **Test connection** button for LDAP. See [Authentication](#authentication-and-sessions). | `/core/settings/`, `/core/settings/security/`, `/core/settings/directory/` |
 | Feature toggles | Limited | Install-wide (not per organization): service desk, AI, vehicles, workflows, monitoring, reports and others. Several only hide the menu. | `/core/settings/features/` |
-| Optional modules page | Available | Every optional module on one page: on / off (or "on, not working" when something it needs is off), what it needs, what people see when it is on, its default, and links to its settings. Switches the SystemSetting-backed modules (PSA, Ticket AI, CRM, monitoring, workflows, inventory, scheduling, vehicles, webhooks, global KB, CSAT, portal announcements / voting / escalation / approvals, asset age warnings, warranty and firmware checks); routing, the per-customer portal and status pages link to their own pages. Turning a module on while a required module is off is refused; turning one off warns which modules stop working and leaves their own switch alone. Changes are audit-logged. Also lists switches that are saved but not read by anything yet (the global portal, anonymous form, email-to-ticket, SMS, desktop alert and external alert ingest switches on PSA settings; Reports and Secure Notes on Feature toggles). No defaults changed. Superusers only. | `/core/settings/modules/` |
+| Optional modules page | Available | Every optional module on one page: on / off (or "on, not working" when something it needs is off), what it needs, what people see when it is on, its default, and links to its settings. Switches the SystemSetting-backed modules (PSA, Ticket AI, CRM, monitoring, workflows, inventory, scheduling, vehicles, webhooks, global KB, CSAT, asset age warnings, warranty and firmware checks); the four portal switches (announcements, voting, escalation, approvals) are listed but switched on Settings → General → Customer Portal (`/core/settings/portal/`); routing, the per-customer portal and status pages link to their own pages. Turning a module on while a required module is off is refused; turning one off warns which modules stop working and leaves their own switch alone. Changes are audit-logged. Also lists switches that are saved but not read by anything yet (the global portal, anonymous form, email-to-ticket, SMS, desktop alert and external alert ingest switches on PSA settings; Reports and Secure Notes on Feature toggles). No defaults changed. Superusers only. | `/core/settings/modules/` |
 | Scheduler | Available | See [Scheduled jobs](#scheduled-jobs). | `/core/settings/scheduler/` |
 | System updates | Available | Check and apply from the web UI; graceful reload. See [AUTO_UPDATE.md](AUTO_UPDATE.md). | `/core/settings/updates/` |
 | Database maintenance | Limited | Clear sessions, prune audit logs, optimize and analyze tables. Backup and restore are command-line only. | `/core/settings/maintenance/` |

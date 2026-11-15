@@ -57,8 +57,8 @@ Organization: "Acme Corp"
 
 Users with access to multiple organizations can switch between them:
 
-1. Click organization name in top navigation bar
-2. Select different organization from dropdown
+1. Open the client switcher in the top bar (or press Ctrl+K / Cmd+K and type the client's name)
+2. Select a different organization
 3. All views immediately filter to show only that organization's data
 
 **Active Organization** is stored in the session and persists across pages.
@@ -110,7 +110,7 @@ Automatic: Admin-level access to all organizations
 ```
 
 **How to Make a User a Staff User:**
-1. Navigate to Admin > User Management
+1. Navigate to Settings → Users & Access → Users
 2. Edit user profile
 3. Change "User Type" from "Organization User" to "Staff User"
 4. Save
@@ -275,7 +275,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 **Use Case:** Need a "Help Desk" role that can view passwords but not export them, and create tickets but not delete anything.
 
 **Steps:**
-1. Navigate to **Profile Dropdown > Roles**
+1. Navigate to **Settings → Users & Access → Roles** (customer administrators: account menu → **Organization settings** → Roles)
 2. Click **"Create Role Template"**
 3. Name it (e.g., "Help Desk Technician")
 4. Select specific permissions:
@@ -285,7 +285,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
    - ❌ `assets_delete`
    - etc.
 5. Save template
-6. Assign to members via **Members > Edit > Role Template**
+6. Assign to members via **Settings → Users & Access → Members → Edit → Role Template**
 
 **Templates are organization-specific** - Each organization can define their own role templates.
 
@@ -300,8 +300,8 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 - Staff Users (via Organizations page)
 
 **Steps for Staff Users:**
-1. Navigate to **Profile Dropdown > Organizations**
-2. Click **"Add Organization"**
+1. Navigate to **Clients → All Clients**
+2. Click **"Create Organization"**
 3. Enter name (slug auto-generates)
 4. Add optional description
 5. Click **"Save"**
@@ -315,25 +315,25 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 
 **Steps:**
 1. Switch to the organization
-2. Navigate to **Profile Dropdown > Members**
+2. Navigate to **Settings → Users & Access → Members** (customer administrators: account menu → **Organization settings** → Members)
 3. Click **"Invite Member"**
 4. Enter username or email
 5. Select role (Owner/Admin/Editor/Read-Only)
 6. Optional: Select custom role template
 7. Click **"Send Invite"**
 
-**Note:** If the user doesn't exist, you'll need to create them first via **Admin > User Management** (superuser only).
+**Note:** If the user doesn't exist, you'll need to create them first via **Settings → Users & Access → Users** (superuser only).
 
 ### Switching Organizations
 
 **For Organization Users:**
-1. Click organization name in top nav
-2. Select different organization from dropdown
+1. Open the client switcher in the top bar
+2. Select a different organization
 3. Page reloads with new organization context
 
 **For Staff Users:**
 - Same process, OR
-- Use **Profile Dropdown > Organizations** to see all orgs
+- Use **Clients → All Clients** to see all orgs
 - Can access any organization directly without switching
 
 ### Removing Members
@@ -342,7 +342,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 - Owners only
 
 **Steps:**
-1. Navigate to **Profile Dropdown > Members**
+1. Navigate to **Settings → Users & Access → Members**
 2. Find member in list
 3. Click **"Remove"** button
 4. Confirm removal
@@ -355,7 +355,7 @@ For fine-grained control beyond simple roles, use **Role Templates**.
 - Superusers only (via Admin panel)
 
 **Process:**
-1. Navigate to **Admin > Settings > Maintenance**
+1. Navigate to **Settings → Maintenance**
 2. Find "Organization Management" section
 3. Select organization to delete
 4. Confirm deletion (requires typing organization name)
@@ -439,13 +439,13 @@ Staff Users (your MSP techs):
 
 **Setup:**
 1. **Global Knowledge Base:**
-   - Navigate to **Docs > Global KB** (Staff only)
+   - Navigate to **Knowledge & Vault → Knowledge Base** (the global KB, `/docs/kb/`; staff only)
    - Create internal articles: "Onboarding Process", "Escalation Procedures"
    - These are **NOT** visible to any organization users
 
 2. **Client-Specific Docs:**
    - Switch to client org (e.g., "Acme Corp")
-   - Navigate to **Docs > Documents**
+   - Navigate to **Knowledge & Vault → Documentation**
    - Create: "Acme Backup Procedures" (visible to Acme only)
 
 **Result:**
@@ -473,7 +473,7 @@ Staff Users (your MSP techs):
    - Invite contractor@vendor.com with this template
 
 3. **After Contract Ends:**
-   - Navigate to **Members**
+   - Navigate to **Settings → Users & Access → Members**
    - Remove contractor@vendor.com
    - Access immediately revoked
 
@@ -587,7 +587,7 @@ Quick reference for simple roles:
 
 **Solutions:**
 1. Verify Membership exists:
-   - Navigate to **Members** in that organization
+   - Navigate to **Settings → Users & Access → Members** in that organization
    - Check if user is listed
 
 2. Check if membership is active:
@@ -628,7 +628,7 @@ Quick reference for simple roles:
    - Owners cannot delete (security measure)
 
 2. Use maintenance page:
-   - Navigate to **Admin > Maintenance**
+   - Navigate to **Settings → Maintenance**
    - Find "Organization Management" section
    - Follow deletion process
 

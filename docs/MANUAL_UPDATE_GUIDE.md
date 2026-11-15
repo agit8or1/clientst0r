@@ -1,6 +1,6 @@
 # How to Manually Update Client St0r from the CLI
 
-The normal way to update a native install is the web UI: **Settings → Updates**
+The normal way to update a native install is the web UI: **Settings → System → System Updates**
 (`/core/settings/updates/`), *Check for Updates*, then *Apply*. Use this guide when that
 path is unavailable or fails, or when you need to pull specific commits.
 
@@ -55,7 +55,7 @@ python manage.py shell -c "from config.version import VERSION; print(f'Version: 
 
 > **Updating from a release older than 3.17.599?** Periodic jobs (recurring invoices,
 > email-to-ticket polling, recurring tickets, contract renewals and others) now run from the
-> built-in scheduler — **Settings → Scheduler** (`/core/settings/scheduler/`) — driven by
+> built-in scheduler — **Settings → Automation → Task Scheduler** (`/core/settings/scheduler/`) — driven by
 > `clientst0r-scheduler.timer`. The web and automatic updaters remove the old crontab lines
 > for these jobs. A manual update does not, so remove them yourself or each job runs twice:
 >
@@ -302,8 +302,8 @@ sudo systemctl status clientst0r-gunicorn.service | grep Active
 sudo systemctl list-timers 'clientst0r-*'
 ```
 
-In the web UI, **Settings → Updates** shows the running version, and **Settings →
-Scheduler** shows each periodic job's last run and last error.
+In the web UI, **Settings → System → System Updates** shows the running version, and **Settings →
+Automation → Task Scheduler** shows each periodic job's last run and last error.
 
 After updating, test:
 - Login works
@@ -325,11 +325,11 @@ After updating, test:
 [ ] Collect static files: python manage.py collectstatic --noinput
 [ ] Reload Gunicorn: sudo systemctl reload clientst0r-gunicorn.service
 [ ] (Upgrading from before 3.17.599) remove legacy psa_* crontab lines
-[ ] (Upgrading from before 3.17.610) review Settings → Security first — saved values become live
+[ ] (Upgrading from before 3.17.610) review Settings → Security → Security Settings first — saved values become live
 [ ] (Using LDAP) pip install -r requirements-optional.txt
 [ ] Hard refresh browser
-[ ] Verify version in Settings → Updates
-[ ] Check Settings → Scheduler for job errors
+[ ] Verify version in Settings → System → System Updates
+[ ] Check Settings → Automation → Task Scheduler for job errors
 [ ] Check logs for errors
 ```
 

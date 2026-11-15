@@ -24,7 +24,7 @@ command line is the fallback.
 | **Stable** (default) | The latest *published* GitHub release, a `vX.Y.Z` tag | The tag's SSH signature, checked against the trusted release key, and the commit the tag points at |
 | **Preview** (opt-in) | The newest commit on `main`: **unreleased**, may include work in progress | The exact commit sha you reviewed (main commits are not signed) |
 
-Pick the channel in **Settings → Updates** (`/core/settings/updates/`).
+Pick the channel in **Settings → System → System Updates** (`/core/settings/updates/`).
 The page always shows all three:
 
 - **Installed**: version, commit, branch, and whether the checkout has local
@@ -57,7 +57,7 @@ moment, Apply refuses and changes nothing; try again later.
 
 ## Upgrade from the web UI
 
-1. **Settings → Updates** → *Check for Updates*.
+1. **Settings → System → System Updates** → *Check for Updates*.
 2. Read what *Apply would install*. If it's a Preview build, it is unreleased.
 3. Optional: *Run preflight checks* shows what Apply will check first, with
    the reason and a hint for anything that would stop it.
@@ -141,7 +141,7 @@ before migrating.
 
 ## Docker
 
-A container has no git checkout, so **Settings → Updates** cannot apply an
+A container has no git checkout, so **Settings → System → System Updates** cannot apply an
 upgrade in Docker. To upgrade:
 
 ```bash
@@ -229,7 +229,7 @@ venv/bin/python manage.py upgrade_backup --verify backups/upgrades/snapshot-...
 
 A backup is a full copy of the database and the uploads, often hundreds of
 megabytes, so old ones are removed automatically. Set the rules in
-**Settings → Updates → Pre-upgrade backups** (superusers):
+**Settings → System → System Updates → Pre-upgrade backups** (superusers):
 
 - **Backups to keep**: the newest N verified backups are kept (at least 1).
   Blank uses `UPGRADE_BACKUPS_KEEP` from `.env` (default 5).
@@ -258,7 +258,7 @@ When the cleanup runs:
 - **every backup taken with `upgrade_backup`**, including the Docker
   entrypoint's (skip it with `--no-groom`)
 - **daily**, through the scheduled task *Pre-upgrade Backup Cleanup*
-  (Settings → Scheduler), for installs that rarely update
+  (Settings → Automation → Task Scheduler), for installs that rarely update
 - **on request**: *Clean up now* on the Updates page, or
   `upgrade_backup --prune`
 
@@ -289,7 +289,7 @@ venv/bin/python manage.py upgrade_status
 
 It reads the journal and says what happened: the stage, the backup, and
 whether the database was touched. It exits with 2 when something needs doing.
-While an upgrade needs recovery, Apply is disabled, and **Settings → Updates**
+While an upgrade needs recovery, Apply is disabled, and **Settings → System → System Updates**
 shows a recovery panel with the same information.
 
 | Stopped at | Database | What to do |

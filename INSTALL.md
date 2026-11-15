@@ -147,7 +147,7 @@ Enter choice [1-4]:
 
 Update an existing installation to the latest version.
 
-The usual way is the web UI: **Settings → Updates** (`/core/settings/updates/`),
+The usual way is the web UI: **Settings → System → System Updates** (`/core/settings/updates/`),
 *Check for Updates*, review what *Apply would install*, then *Apply*. The full
 guide, including release channels, backups and recovery, is
 [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md).
@@ -511,11 +511,11 @@ tail -f /var/log/itdocs/django.log
      - 15 tags
 
 3. **Create an organization (if not using demo data):**
-   - Dashboard → Organizations → Create New
+   - Clients → All Clients → Create Organization
    - All data is organization-scoped
 
 4. **Enable 2FA (Required):**
-   - Profile → Two-Factor Authentication
+   - Account menu → My Profile → 2FA Settings
    - Scan QR code with authenticator app
    - Required for all users
 

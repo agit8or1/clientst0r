@@ -397,7 +397,7 @@ Click the **Update** button in the web UI and EVERYTHING happens automatically -
 > one lets anything running as the app user become root. Don't install that rule;
 > if you did, the root helper disables it.
 
-Install the root helper once, from **Settings → Updates → Install root helper**,
+Install the root helper once, from **Settings → System → System Updates → Install root helper**,
 or on the server:
 
 ```bash
