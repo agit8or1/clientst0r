@@ -1,23 +1,86 @@
 # ClientSt0r — screenshot gallery
 
-83 views of the running application — 44 in the light theme, 39 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+96 views of the running application — 49 in the light theme (Default Blue), 47 in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
-> Regenerate this set with `scripts/capture_screenshots.py`. See [scripts/demo/README.md](../scripts/demo/README.md) for how the demo instance is built and why it cannot reach production data.
+> Regenerate this set with `scripts/demo/recapture.sh` (it serves the demo, runs `scripts/capture_screenshots.py` and rebuilds this page). See [scripts/demo/README.md](../scripts/demo/README.md) for how the demo instance is built and why it cannot reach production data.
 
 [← Back to the README](../README.md)
 
 ## Contents
 
-- [Overview and dashboards](#overview-and-dashboards) — 4 views
+- [Finding your way](#finding-your-way) — 7 views
+- [Overview and dashboards](#overview-and-dashboards) — 7 views
 - [Visual insights and monitoring](#visual-insights-and-monitoring) — 19 views
 - [Hardware and cabling](#hardware-and-cabling) — 16 views
 - [Everyday workflows](#everyday-workflows) — 21 views
 - [Tickets and the paired RMM](#tickets-and-the-paired-rmm) — 6 views
 - [Management and configuration](#management-and-configuration) — 5 views
-- [Access and administration](#access-and-administration) — 4 views
-- [Security and client data protection](#security-and-client-data-protection) — 8 views
+- [Access and administration](#access-and-administration) — 6 views
+- [Security and client data protection](#security-and-client-data-protection) — 9 views
+
+---
+
+## Finding your way
+
+The ten-section sidebar and its icon rail, Go to (Ctrl+K), Favorites and Recent, and the same frame on a phone.
+
+### Ten-section sidebar
+
+**Professional Dark theme**
+
+[![Ticket list in the Professional Dark theme with the navy sidebar expanded: a Jump to filter, the Dashboard, My Work and Service Desk sections with Service Desk open on Tickets, Dispatch Board, Shifts and Locations, Scheduling, Projects, Service Management and Workflows, the remaining sections collapsed and Administration at the foot](images/github/nav-sidebar-dark.png)](images/github/nav-sidebar-dark.png)
+
+Nine work sections — Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring and Reports — with Administration pinned at the foot. Only the current section starts open; its pages carry their own tabs and a Configure menu, and the breadcrumb reads Section › Workspace › Page. The filter at the top also finds tabs, Configure pages and settings.
+
+### Icon rail and flyouts
+
+**Light theme**
+
+[![Asset list in light theme with the sidebar collapsed to a 64-pixel icon rail and the Knowledge and Vault flyout open beside it, listing Documentation, Knowledge Base, Diagrams, Review and Publishing, Documentation Readiness, Password Vault, My Vault and Secure Notes](images/github/nav-rail-flyout-light.png)](images/github/nav-rail-flyout-light.png)
+
+The sidebar collapses to an icon rail (the default on tablets, remembered once you choose). A section's icon opens its pages as a flyout — by click, Enter or Space, with arrow keys inside and Escape to close.
+
+### Go to (Ctrl+K)
+
+**Professional Dark theme**
+
+[![Command palette open over the dashboard in the Professional Dark theme with the query north: grouped results for the Northwind Logistics client, its tickets, devices and documents, with keyboard hints for moving, opening and closing](images/github/command-palette-dark.png)](images/github/command-palette-dark.png)
+
+Ctrl+K or Cmd+K (or the Go to button) opens one box for pages, settings and quick commands, and for clients, tickets, devices, projects, documents, KB articles and reports — each searched with that list page's own permission rules. Passwords are never searched.
+
+### Favorites
+
+**Light theme**
+
+[![Ticket list in light theme with the top bar Favorites menu open: an Add this page button and five starred pages including the dispatch board, the client health report, a switch and the Northwind Logistics client, with a Manage favorites link](images/github/favorites-menu-light.png)](images/github/favorites-menu-light.png)
+
+Star any page from the top bar and it is one click away. A favorite disappears by itself when you lose access, the record is deleted or its module is switched off.
+
+### Phone layout
+
+**Professional Dark theme**
+
+[![Dashboard at 390 pixels wide in the Professional Dark theme: a one-row top bar with the menu button, the dashboard header with its quick actions and the KPI tiles two to a row](images/github/phone-dashboard-dark.png)](images/github/phone-dashboard-dark.png)
+
+At phone width the top bar stays on one row with a menu button, KPI tiles wrap two to a row and panels take phone-sized heights.
+
+### Navigation drawer on a phone
+
+**Professional Dark theme**
+
+[![The navigation drawer open at 390 pixels wide over a dimmed dashboard: the Jump to filter, a close button and the ten sections with Dashboard open](images/github/phone-drawer-dark.png)](images/github/phone-drawer-dark.png)
+
+Below 768 pixels the sidebar becomes a drawer opened from the menu button, with the same sections, filter and Administration link; focus stays inside it until it closes.
+
+### Recently opened
+
+**Professional Dark theme**
+
+[![Dashboard in the Professional Dark theme with the top bar Recent menu open, listing recently opened pages and records such as tickets, an asset, a runbook and the vault](images/github/recent-menu-dark.png)](images/github/recent-menu-dark.png)
+
+The pages and records you opened last, newest first, checked against your access each time the menu opens.
 
 ---
 
@@ -25,13 +88,13 @@ All organizations, people, hostnames, addresses and credentials below are invent
 
 Where a technician starts the day, and where an owner looks at the whole book of business.
 
-### Client dashboard
+### Dashboard
 
 **Light theme**
 
-[![Client dashboard for Northwind Logistics in light theme: the navigation bar with the selected client, quick actions, record counts, the next seven days of scheduled work, outstanding tasks with due badges, monitor status and a site map](images/github/client-dashboard-light.png)](images/github/client-dashboard-light.png)
+[![Dashboard in light theme with Northwind Logistics selected: the navy ten-section sidebar, the top bar with Go to, Favorites, Recent and the client switcher, a header with New Ticket, Log Time, Add Client, Create Project and Dispatch Board, seven KPI tiles, My ticket queue with three tickets and their SLA due times, an SLA overview at 67 percent, technician workload, upcoming tasks and system status](images/github/client-dashboard-light.png)](images/github/client-dashboard-light.png)
 
-Open a client and see the week ahead: scheduled tickets, maintenance falling due, monitor status, and where their sites are.
+The dashboard for the client you have selected: quick actions in the header, a KPI row of what needs you (open tickets, SLA at risk, overdue, unassigned, pending approvals, due today, RMM alerts), then your ticket queue, the SLA overview, technician workload, upcoming tasks and system status. The layout follows your role.
 
 ### My Work
 
@@ -43,19 +106,43 @@ Everything waiting on one technician: a running timer with a stop button, open t
 
 ### Every client at once
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Cross-tenant dashboard in dark theme showing counts for organizations, users, assets, documents and monitors, a thirty-day health summary, and a map of client sites across the United States](images/github/global-dashboard-dark.png)](images/github/global-dashboard-dark.png)
+[![Cross-tenant dashboard in the Professional Dark theme with a Quick Actions row and a Customize button, counts for organizations, users, assets, documents and monitors, a thirty-day health summary, and a map of client sites across the United States](images/github/global-dashboard-dark.png)](images/github/global-dashboard-dark.png)
 
 The MSP-wide view: totals across all tenants, thirty-day health, and a map of every client site.
 
-### Customer overview
+### Client workspace
 
 **Light theme**
 
-[![Customer overview page in light theme showing company information, primary contact details and two mapped sites](images/github/client-overview-light.png)](images/github/client-overview-light.png)
+[![Northwind Logistics client workspace in light theme on the Overview tab: the client header with Operations, Evidence pack and Edit, a current-client banner, quick actions, the tab bar, a KPI row for open tickets, SLA at risk, managed assets, RMM offline, active contracts, open invoices and active projects, then company information, contact and address, contacts, and the client's open tickets, devices and contracts](images/github/client-overview-light.png)](images/github/client-overview-light.png)
 
-Everything about one customer in one place — contacts, sites, and shortcuts into their documentation.
+Open a client and it becomes your current client and a workspace: quick actions (create a ticket, add a contact, asset or document, open the RMM, create a project or quote), a KPI row, tabs for Overview, Tickets, Assets, RMM, Contacts, Documents, Passwords (names only), Contracts, Billing, Projects and more, and links back to all clients and the MSP-wide view.
+
+### Dashboard: administrator layout
+
+**Professional Dark theme**
+
+[![Dashboard in the Professional Dark theme for an administrator with Ridgeline Dental Group selected: New Ticket, Log Time, Add Client, Create Project and Dispatch Board, seven KPI tiles, a My ticket queue panel, an SLA overview, technician workload bars, upcoming tasks and a system status panel](images/github/dashboard-admin-dark.png)](images/github/dashboard-admin-dark.png)
+
+An administrator's default layout: New Ticket, Log Time, Add Client, Create Project and Dispatch Board in the header, a KPI row (my open tickets, SLA at risk, overdue, unassigned, pending approvals, due today, RMM alerts), then the ticket queue, SLA overview, technician workload, tasks and system status. Every widget checks its own permission on the server.
+
+### Dashboard: technician layout
+
+**Light theme**
+
+[![Dashboard in light theme for technician Priya Patel with Harbor Point Credit Union selected: KPI tiles for my open tickets, SLA at risk, overdue, due today, unassigned and my open tasks, then My ticket queue, SLA overview, upcoming tasks, RMM alerts and recently updated tickets](images/github/dashboard-technician-light.png)](images/github/dashboard-technician-light.png)
+
+A technician's default layout follows the role: their own queue and SLA warnings first, then tasks, RMM alerts and recently updated tickets. Anyone can rearrange, resize or hide panels; administrators can save a role's default.
+
+### Client workspace: Tickets tab
+
+**Professional Dark theme**
+
+[![Northwind Logistics client workspace in the Professional Dark theme on the Tickets tab: the client header with quick actions, a KPI row, the tab bar from Overview to Members and the client's tickets with status, priority, assignee and age](images/github/client-workspace-tickets-dark.png)](images/github/client-workspace-tickets-dark.png)
+
+Each tab of the client workspace is the client's slice of a list you already know — here its tickets — with the KPI row and quick actions kept above it. Tabs appear only for what you may open; Passwords lists names only.
 
 ---
 
@@ -73,9 +160,9 @@ Drag a bar to reschedule. Dependencies show what is blocked and what it is waiti
 
 ### Dispatch board
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Dispatch board in dark theme showing a week of scheduled work by technician with an SLA-at-risk banner and unassigned tickets](images/github/dispatch-board-dark.png)](images/github/dispatch-board-dark.png)
+[![Dispatch board in the Professional Dark theme showing a week of scheduled work by technician with an SLA-at-risk banner and unassigned tickets](images/github/dispatch-board-dark.png)](images/github/dispatch-board-dark.png)
 
 A week of work per technician. Drag a ticket onto a row to schedule it; the banner flags anything close to breaching.
 
@@ -89,9 +176,9 @@ Revenue against cost of delivery for the period, drawn from logged time and issu
 
 ### Client health score
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Client health score report in dark theme ranking five clients by a composite score built from SLA, velocity, aging, engagement and an NPS proxy](images/github/report-client-health-dark.png)](images/github/report-client-health-dark.png)
+[![Client health score report in the Professional Dark theme ranking five clients by a composite score built from SLA, velocity, aging, engagement and an NPS proxy](images/github/report-client-health-dark.png)](images/github/report-client-health-dark.png)
 
 A composite of SLA performance, ticket velocity, billing aging and engagement — so at-risk accounts surface before they churn.
 
@@ -105,9 +192,9 @@ What an hour actually earned once non-billable time is counted, per client and p
 
 ### Rack elevation
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Rack elevation in dark theme drawn from catalog artwork: a FortiGate firewall at U40, an HPE Aruba 6300M core switch at U37, a 2U Panduit patch panel, a legacy KVM console placement with no model shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units](images/github/rack-elevation-dark.png)](images/github/rack-elevation-dark.png)
+[![Rack elevation in the Professional Dark theme drawn from catalog artwork: a FortiGate firewall at U40, an HPE Aruba 6300M core switch at U37, a 2U Panduit patch panel, a legacy KVM console placement with no model shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units](images/github/rack-elevation-dark.png)](images/github/rack-elevation-dark.png)
 
 Each device is drawn from the same catalog artwork as its device page, across its real unit span — a 2U server reads as one 2U chassis. Front and rear faces, half-depth rules, and a plain face where no artwork is recorded.
 
@@ -121,9 +208,9 @@ Subnets per client with their VLAN, gateway and DNS, and which addresses are all
 
 ### Recurring maintenance
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Scheduling page in dark theme showing tasks needing sign-off and upcoming maintenance for the next seven days with priority and status](images/github/scheduling-dark.png)](images/github/scheduling-dark.png)
+[![Scheduling page in the Professional Dark theme showing tasks needing sign-off and upcoming maintenance for the next seven days with priority and status](images/github/scheduling-dark.png)](images/github/scheduling-dark.png)
 
 Maintenance that recurs on its own schedule, with per-task sign-off, kept separate from the ticket queue.
 
@@ -137,9 +224,9 @@ Endpoint checks with response time, and the certificate expiry date you would ot
 
 ### Compliance frameworks per client
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Compliance overview in dark theme showing PCI-DSS and HIPAA framework cards for one client with progress bars, status counts and a recertification countdown](images/github/compliance-overview-dark.png)](images/github/compliance-overview-dark.png)
+[![Compliance overview in the Professional Dark theme showing PCI-DSS and HIPAA framework cards for one client with progress bars, status counts and a recertification countdown](images/github/compliance-overview-dark.png)](images/github/compliance-overview-dark.png)
 
 Which frameworks a client is enrolled in, how far through the attestation they are, and when recertification is next due.
 
@@ -161,9 +248,9 @@ Each customer scored against the documentation standards in force, worst first, 
 
 ### Readiness for one customer
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Readiness page for one customer in dark theme showing a Microsoft 365 documentation standard with met and unmet requirements and fix buttons](images/github/readiness-customer-dark.png)](images/github/readiness-customer-dark.png)
+[![Readiness page for one customer in the Professional Dark theme showing a Microsoft 365 documentation standard with met and unmet requirements and fix buttons](images/github/readiness-customer-dark.png)](images/github/readiness-customer-dark.png)
 
 Every requirement in a standard, met or unmet, with a plain explanation of what is missing, why it matters, the records that satisfy it and a link to fix it.
 
@@ -185,9 +272,9 @@ Most viewed and never viewed articles, articles past their review date with thei
 
 ### Custom asset fields as requirements
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Network baseline standard for Northwind Logistics in dark theme scoring 81.8 percent: four met requirements, and an unmet one, Servers have a support contract and backup policy, listing NWL-FS01 and NWL-NAS01 as missing Vendor support contract and Backup policy, with a Fill in the asset button](images/github/readiness-custom-fields-dark.png)](images/github/readiness-custom-fields-dark.png)
+[![Network baseline standard for Northwind Logistics in the Professional Dark theme scoring 81.8 percent: four met requirements, and an unmet one, Servers have a support contract and backup policy, listing NWL-FS01 and NWL-NAS01 as missing Vendor support contract and Backup policy, with a Fill in the asset button](images/github/readiness-custom-fields-dark.png)](images/github/readiness-custom-fields-dark.png)
 
 A requirement can name your own custom asset fields. Here every server must record its vendor support contract and backup policy; the servers missing them are listed and the fix opens the asset's Custom Fields section.
 
@@ -231,9 +318,9 @@ A Dell PowerConnect 3448P drawn from its catalog layout, front and rear, with th
 
 ### Port editor
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Switch page in dark theme with the port editor open for port 1/e12: description, mode access, VLAN 10 Staff with voice VLAN 20, PoE auto, and cable C-0012 to PP-01 Port 12, with the port highlighted on the panel artwork](images/github/hardware-port-editor-dark.png)](images/github/hardware-port-editor-dark.png)
+[![Switch page in the Professional Dark theme with the port editor open for port 1/e12: description, mode access, VLAN 10 Staff with voice VLAN 20, PoE auto, and cable C-0012 to PP-01 Port 12, with the port highlighted on the panel artwork](images/github/hardware-port-editor-dark.png)](images/github/hardware-port-editor-dark.png)
 
 Click a port on the artwork to edit it: description, technician label, admin state, speed, mode, native, tagged and voice VLANs, LAG and PoE. The cable and its far end are shown in the same panel. Operational state stays "Not observed" because nothing here polls the switch.
 
@@ -247,9 +334,9 @@ From one switch port to the workstation it serves: patch cable, panel front and 
 
 ### Patch panel, front and rear
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Patch panel PP-01 in dark theme with front and rear artwork, the connected overlay marking ports 12 and 24 cabled on both faces and port 13 cabled only at the rear](images/github/hardware-panel-device-dark.png)](images/github/hardware-panel-device-dark.png)
+[![Patch panel PP-01 in the Professional Dark theme with front and rear artwork, the connected overlay marking ports 12 and 24 cabled on both faces and port 13 cabled only at the rear](images/github/hardware-panel-device-dark.png)](images/github/hardware-panel-device-dark.png)
 
 A 48-port panel with the connected overlay on. Port 12 and port 24 are cabled at the front and rear, while port 13 has only its permanent link at the rear. The overlay shows documented cables, not link state.
 
@@ -263,17 +350,17 @@ Each panel port as one row: what is patched into the front, which rear terminati
 
 ### Cable register
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Cable list in dark theme with nine cables: patch cables, permanent links and work-area cables with both ends, type, colour, length and installed status](images/github/hardware-cables-dark.png)](images/github/hardware-cables-dark.png)
+[![Cable list in the Professional Dark theme with nine cables: patch cables, permanent links and work-area cables with both ends, type, colour, length and installed status](images/github/hardware-cables-dark.png)](images/github/hardware-cables-dark.png)
 
 Every documented cable with both ends, type, colour, length and status. Select several to print their labels in one go.
 
 ### A server with a module
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Device page in dark theme for a Dell PowerEdge R640 with rear artwork showing an installed two-port SFP NIC, approximate-layout badges and a port table including the module ports](images/github/hardware-server-dark.png)](images/github/hardware-server-dark.png)
+[![Device page in the Professional Dark theme for a Dell PowerEdge R640 with rear artwork showing an installed two-port SFP NIC, approximate-layout badges and a port table including the module ports](images/github/hardware-server-dark.png)](images/github/hardware-server-dark.png)
 
 A Dell PowerEdge R640 from the community library, with a two-port 10 GbE NIC installed in a PCIe bay. The module's ports join the device's port list and can be cabled like any other.
 
@@ -295,17 +382,17 @@ The asset page shows the same generated front and rear artwork, with its accurac
 
 ### Rack from catalog artwork
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Rack elevation in dark theme with a patch panel, switch and firewall shown on the front and rear faces, the half-depth firewall outlined on the rear, and SVG, PNG and PDF export links](images/github/hardware-rack-dark.png)](images/github/hardware-rack-dark.png)
+[![Rack elevation in the Professional Dark theme with a patch panel, switch and firewall shown on the front and rear faces, the half-depth firewall outlined on the rear, and SVG, PNG and PDF export links](images/github/hardware-rack-dark.png)](images/github/hardware-rack-dark.png)
 
 Front and rear of a rack, drawn from each model's artwork at its U position. A half-depth device mounted at the front is outlined on the rear. Each face exports to SVG, PNG or PDF.
 
 ### Connectivity diagram
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Physical connectivity diagram in dark theme: firewall, switch, patch panel, server, wall jacks, access point and workstation joined by labelled cables, two nodes flagged with undocumented continuations](images/github/hardware-connectivity-dark.png)](images/github/hardware-connectivity-dark.png)
+[![Physical connectivity diagram in the Professional Dark theme: firewall, switch, patch panel, server, wall jacks, access point and workstation joined by labelled cables, two nodes flagged with undocumented continuations](images/github/hardware-connectivity-dark.png)](images/github/hardware-connectivity-dark.png)
 
 Drawn only from documented cables. Edges are labelled with the ports at each end, and a device whose path continues without a documented cable is outlined in red. Drag to arrange, save the layout, export it.
 
@@ -327,17 +414,17 @@ About 16,500 device, module and rack models imported from the community device-t
 
 ### A catalog model and its sources
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Catalog model page in dark theme for the Dell PowerConnect 3448P with front and rear artwork, a component table and a source and provenance panel quoting the manufacturer's guide](images/github/hardware-model-dark.png)](images/github/hardware-model-dark.png)
+[![Catalog model page in the Professional Dark theme for the Dell PowerConnect 3448P with front and rear artwork, a component table and a source and provenance panel quoting the manufacturer's guide](images/github/hardware-model-dark.png)](images/github/hardware-model-dark.png)
 
 Every model shows its artwork, its components and where they came from. This switch was entered from Dell's user guide: the page cites the pages used and says what the guide does not state.
 
 ### Layout editor
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Layout editor in dark theme for the PowerConnect 3448P front face, 48 ports in blocks of six, with arrange, numbering and label-position controls and a source document field](images/github/hardware-layout-editor-dark.png)](images/github/hardware-layout-editor-dark.png)
+[![Layout editor in the Professional Dark theme for the PowerConnect 3448P front face, 48 ports in blocks of six, with arrange, numbering and label-position controls and a source document field](images/github/hardware-layout-editor-dark.png)](images/github/hardware-layout-editor-dark.png)
 
 Place, number and arrange a model's components in millimetres and save a new layout version. A face can only be marked verified with the document it was checked against.
 
@@ -357,9 +444,9 @@ Ticket to resolution, quote to invoice, and the documentation that hangs off bot
 
 ### Service desk queue
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Service desk queue in dark theme listing 36 tickets across five clients with subject and ticket number, client, priority, status, queue, assignee, a Needs reply flag, last activity with who acted, and age](images/github/ticket-queue-dark.png)](images/github/ticket-queue-dark.png)
+[![Service desk queue in the Professional Dark theme with page tabs for All Tickets, Overview, My Queue, Unassigned, SLA and Escalated, saved views (All tickets, My open tickets, Unassigned, Waiting on us, Customer replied), and a list of 36 tickets across five clients with subject and ticket number, client, priority, status, queue, assignee, a Needs reply flag, last activity with who acted, and age](images/github/ticket-queue-dark.png)](images/github/ticket-queue-dark.png)
 
 Every client in one queue. Filter by status, priority, queue or technician; the subject is what you scan, not the badges.
 
@@ -373,17 +460,17 @@ The ticket reads as a conversation: the customer on the left, technicians on the
 
 ### Internal note composer
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Ticket reply composer in dark theme switched to Internal note, with an amber box labelled staff only and a restored draft](images/github/ticket-composer-dark.png)](images/github/ticket-composer-dark.png)
+[![Ticket reply composer in the Professional Dark theme switched to Internal note, with an amber box labelled staff only and a restored draft](images/github/ticket-composer-dark.png)](images/github/ticket-composer-dark.png)
 
 Public reply and internal note are separate modes. An internal note gets an amber composer that says it is never sent to the client, and an unsent reply is saved as a draft only its author can see.
 
 ### Client documentation
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Document list in dark theme showing per-client documentation with category, tags and last-updated date](images/github/documents-dark.png)](images/github/documents-dark.png)
+[![Document list in the Professional Dark theme showing per-client documentation with category, tags and last-updated date](images/github/documents-dark.png)](images/github/documents-dark.png)
 
 Per-client documents and global knowledge base articles, searchable by title and body.
 
@@ -397,9 +484,9 @@ A procedure written for the technician who will actually run it — and linked f
 
 ### Asset register
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Asset list in dark theme showing devices with name, type, manufacturer, model and serial number, with filters above](images/github/assets-dark.png)](images/github/assets-dark.png)
+[![Asset list in the Professional Dark theme showing devices with name, type, manufacturer, model and serial number, with filters above](images/github/assets-dark.png)](images/github/assets-dark.png)
 
 Every device you look after for a client, filterable by type, manufacturer, status and location.
 
@@ -413,9 +500,9 @@ Identity, network, operating system, hardware, rack position, warranty and lifec
 
 ### Credential vault
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Password vault in dark theme listing nine credentials for one client with title, username and security status, every secret hidden](images/github/vault-dark.png)](images/github/vault-dark.png)
+[![Password vault in the Professional Dark theme listing nine credentials for one client with title, username and security status, every secret hidden](images/github/vault-dark.png)](images/github/vault-dark.png)
 
 AES-GCM encrypted at rest, organised per client. Secrets are never rendered into a list — opening one is a permissioned, audited act.
 
@@ -429,9 +516,9 @@ Line items, tax and total, a PDF, and a signing link the customer can use withou
 
 ### Invoices that explain themselves
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Invoice detail in dark theme with line items tagged by origin, a payment recording form and a push-to-accounting action](images/github/invoice-detail-dark.png)](images/github/invoice-detail-dark.png)
+[![Invoice detail in the Professional Dark theme with line items tagged by origin, a payment recording form and a push-to-accounting action](images/github/invoice-detail-dark.png)](images/github/invoice-detail-dark.png)
 
 Every line carries its origin — a contract period, a logged time entry, an expense — so a billing query is answerable without reconstructing it.
 
@@ -445,9 +532,9 @@ Block hours with rollover rules, auto-renewal, and a profitability snapshot for 
 
 ### Project delivery
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Project detail in dark theme showing client, owner, dates, a ready-to-bill panel, profitability, budget consumption and a task list with milestones](images/github/project-detail-dark.png)](images/github/project-detail-dark.png)
+[![Project detail in the Professional Dark theme showing client, owner, dates, a ready-to-bill panel, profitability, budget consumption and a task list with milestones](images/github/project-detail-dark.png)](images/github/project-detail-dark.png)
 
 Tasks, milestones and assignees with budget consumption and profitability rolled up from the work already logged.
 
@@ -461,17 +548,17 @@ A customer fills in a guided form from the service catalog. Questions can appear
 
 ### Document version compare
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Document version comparison in dark theme showing removed and added lines between version 1 and the current runbook, with a restore button](images/github/document-version-diff-dark.png)](images/github/document-version-diff-dark.png)
+[![Document version comparison in the Professional Dark theme showing removed and added lines between version 1 and the current runbook, with a restore button](images/github/document-version-diff-dark.png)](images/github/document-version-diff-dark.png)
 
 Compare any stored version of a document with the current one, line by line, and restore it if needed. A restore is audited and keeps the replaced content as a version.
 
 ### A ticket conversation with Cc and a secure message
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Resolved ticket in dark theme titled Outlook keeps asking for my password: customer bubbles from Dana Whitfield on the left, technician replies from Jordan Reyes on the right with one showing Cc office.manager@northwind.example, an amber internal note marked staff only, status-change rows, and a dashed Secure message box reading opened by the recipient, opens once, its content encrypted and not shown; beside it a Copied on replies (Cc) card, the active contract and a linked known-error problem record](images/github/ticket-conversation-dark.png)](images/github/ticket-conversation-dark.png)
+[![Resolved ticket in the Professional Dark theme titled Outlook keeps asking for my password: customer bubbles from Dana Whitfield on the left, technician replies from Jordan Reyes on the right with one showing Cc office.manager@northwind.example, an amber internal note marked staff only, status-change rows, and a dashed Secure message box reading opened by the recipient, opens once, its content encrypted and not shown; beside it a Copied on replies (Cc) card, the active contract and a linked known-error problem record](images/github/ticket-conversation-dark.png)](images/github/ticket-conversation-dark.png)
 
 A customer's e-mailed request as a thread: replies quote what they answer, the internal note stays amber and staff-only, and the reply that carried a temporary password shows only the secure message's state — opened by the recipient — never its content. The header says what happened last and the Cc card lists who is copied on e-mailed replies.
 
@@ -485,9 +572,9 @@ Tick "Email this reply" and the Cc field appears, filled from the people the cus
 
 ### Adding a secure message
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Public reply composer in dark theme with the Add a secure message section open: a box for the secret that goes only to marcus.bell@northwind.example, an Expires after 3 days selector, a Can be opened once checkbox, the note Can't be combined with Cc, and Email this reply ticked](images/github/ticket-secure-compose-dark.png)](images/github/ticket-secure-compose-dark.png)
+[![Public reply composer in the Professional Dark theme with the Add a secure message section open: a box for the secret that goes only to marcus.bell@northwind.example, an Expires after 3 days selector, a Can be opened once checkbox, the note Can't be combined with Cc, and Email this reply ticked](images/github/ticket-secure-compose-dark.png)](images/github/ticket-secure-compose-dark.png)
 
 A secret such as a temporary password goes in its own box, not the reply. It is stored encrypted as a one-time link that only the requester receives, expires after 1, 3 or 7 days, and cannot be combined with Cc.
 
@@ -509,9 +596,9 @@ A request type can name who approves it for each customer. Here Aaron is the nam
 
 ### Change request and CAB vote
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Change management page in dark theme for a high-risk firewall firmware upgrade marked Approved, ready to implement: implementation and rollback plans, impact assessment, scheduled window, and a CAB approval table with two approvals, a vote box and a Begin Implementation button](images/github/change-cab-dark.png)](images/github/change-cab-dark.png)
+[![Change management page in the Professional Dark theme for a high-risk firewall firmware upgrade marked Approved, ready to implement: implementation and rollback plans, impact assessment, scheduled window, and a CAB approval table with two approvals, a vote box and a Begin Implementation button](images/github/change-cab-dark.png)](images/github/change-cab-dark.png)
 
 A change carries its implementation, rollback and impact plans, its window, and the CAB's votes. It can be implemented only once every required approver has approved and nobody has rejected it.
 
@@ -539,9 +626,9 @@ Any RMM that implements the ticket-rmm-v1 contract can be paired from its connec
 
 ### Pairing status on the connection
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Ticket integration pairing card in dark theme marked Paired: contract address, key ID, hosted processing, the pinned tenant beacon-ridgeline, the advertised capabilities, three read-only diagnostics, the time of the last check and a Check pairing button](images/github/rmm-pairing-status-dark.png)](images/github/rmm-pairing-status-dark.png)
+[![Ticket integration pairing card in the Professional Dark theme marked Paired: contract address, key ID, hosted processing, the pinned tenant beacon-ridgeline, the advertised capabilities, three read-only diagnostics, the time of the last check and a Check pairing button](images/github/rmm-pairing-status-dark.png)](images/github/rmm-pairing-status-dark.png)
 
 The connection page says in plain words whether the pairing is live, which tenant it is pinned to, what the RMM advertised in its last capabilities check and which read-only diagnostics it offers. If the RMM ever answers for a different tenant, the pairing stops.
 
@@ -555,17 +642,17 @@ A ticket names the asset it is about, chosen from that customer's assets only. T
 
 ### Reviewing a handoff before it is sent
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Send to RMM preview in dark theme for ticket PSA-2026-000036, naming Ridgeline — Tactical RMM, its integration address, tenant beacon-ridgeline and device RDG-OP3-PC, the four redacted items that would be sent, what was left out (one internal note), an optional note field and Send to RMM and Cancel buttons](images/github/rmm-handoff-preview-dark.png)](images/github/rmm-handoff-preview-dark.png)
+[![Send to RMM preview in the Professional Dark theme for ticket PSA-2026-000036, naming Ridgeline — Tactical RMM, its integration address, tenant beacon-ridgeline and device RDG-OP3-PC, the four redacted items that would be sent, what was left out (one internal note), an optional note field and Send to RMM and Cancel buttons](images/github/rmm-handoff-preview-dark.png)](images/github/rmm-handoff-preview-dark.png)
 
 Send to RMM shows exactly what will leave: the destination, its tenant and device, and the redacted ticket context — the same evidence document ticket analysis uses, with what was left out and what was redacted. Nothing is sent until the technician confirms, and it counts as sent only when the RMM confirms receipt.
 
 ### What the RMM said back
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Requests to the RMM list on a ticket in dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM](images/github/ticket-rmm-requests-dark.png)](images/github/ticket-rmm-requests-dark.png)
+[![Requests to the RMM list on a ticket in the Professional Dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM](images/github/ticket-rmm-requests-dark.png)](images/github/ticket-rmm-requests-dark.png)
 
 Every request keeps the RMM's signed status callbacks: a handoff counts as sent once receipt is confirmed, a read-only diagnostic's sanitised, size-limited result is shown to staff only, and a fix referral shows the RMM's approval. ClientSt0r only refers a fix; the RMM approves and runs it.
 
@@ -593,9 +680,9 @@ Draft, sent and accepted quotes across every client, with totals and a one-click
 
 ### Billing at a glance
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Invoice list in dark theme showing three invoices with sent, paid and overdue status, totals, balances and accounting push state](images/github/invoices-list-dark.png)](images/github/invoices-list-dark.png)
+[![Invoice list in the Professional Dark theme showing three invoices with sent, paid and overdue status, totals, balances and accounting push state](images/github/invoices-list-dark.png)](images/github/invoices-list-dark.png)
 
 Sent, paid and overdue invoices with balances, and whether each has been pushed to your accounting system.
 
@@ -609,17 +696,17 @@ Which clients are on managed agreements, which are on block hours, and how much 
 
 ### Named approvers per request type
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Named approvers page in dark theme for the Access request type: a list of customers with how many approvers each has, and for Northwind Logistics a warning that Grace Holt is no longer an active person there and is ignored, with Aaron Lindqvist ticked among the customer's people and a Save approvers button](images/github/catalog-approvers-dark.png)](images/github/catalog-approvers-dark.png)
+[![Named approvers page in the Professional Dark theme for the Access request type: a list of customers with how many approvers each has, and for Northwind Logistics a warning that Grace Holt is no longer an active person there and is ignored, with Aaron Lindqvist ticked among the customer's people and a Save approvers button](images/github/catalog-approvers-dark.png)](images/github/catalog-approvers-dark.png)
 
 For each customer a request type is offered to, staff pick which of that customer's people approve it. With nobody named, the customer's admins approve as before. Someone who has left is flagged and ignored, and nobody approves their own request.
 
 ### Sales pipeline
 
-**Dark theme**
+**Professional Dark theme**
 
-[![CRM sales pipeline in dark theme with Discovery, Qualified, Proposal, Negotiation, Closed Won and Closed Lost columns holding opportunities such as a managed security add-on and a server room refresh, with values, probabilities and weighted totals](images/github/crm-pipeline-dark.png)](images/github/crm-pipeline-dark.png)
+[![CRM sales pipeline in the Professional Dark theme with Discovery, Qualified, Proposal, Negotiation, Closed Won and Closed Lost columns holding opportunities such as a managed security add-on and a server room refresh, with values, probabilities and weighted totals](images/github/crm-pipeline-dark.png)](images/github/crm-pipeline-dark.png)
 
 Opportunities by stage, each with its customer, value, probability and owner, and a weighted total per column. Drag a card to move it to another stage.
 
@@ -631,9 +718,9 @@ Tenancy, membership and the switches that decide which modules exist.
 
 ### Tenants and access
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Organization list in dark theme showing client tenants with member counts, asset counts and status](images/github/organizations-dark.png)](images/github/organizations-dark.png)
+[![Organization list in the Professional Dark theme showing client tenants with member counts, asset counts and status](images/github/organizations-dark.png)](images/github/organizations-dark.png)
 
 Every client is its own tenant. Membership decides who sees what; switching client context is one click.
 
@@ -647,9 +734,9 @@ The service desk, AI assistance and other modules are opt-in — off until an ad
 
 ### Scheduler
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Task scheduler settings in dark theme listing periodic jobs with run history, one failed recurring-invoice job showing its error message, and late fees switched off](images/github/settings-scheduler-dark.png)](images/github/settings-scheduler-dark.png)
+[![Task scheduler settings in the Professional Dark theme listing periodic jobs with run history, one failed recurring-invoice job showing its error message, and late fees switched off](images/github/settings-scheduler-dark.png)](images/github/settings-scheduler-dark.png)
 
 The built-in scheduler's periodic jobs with their interval, last and next run, status and run count. A job that reports a problem shows its error here, such as recurring invoicing skipping a contract that is more than one period behind. Late fees are off until you turn them on.
 
@@ -660,6 +747,22 @@ The built-in scheduler's periodic jobs with their interval, last and next run, s
 [![Security settings page in light theme with session, 2FA, password policy and brute-force fields, two of them marked Set by environment](images/github/settings-security-light.png)](images/github/settings-security-light.png)
 
 Session limits, 2FA, password rules and lockout are set here and take effect when saved. A value fixed by an environment variable is marked "Set by environment" and can only be changed on the server.
+
+### Settings center
+
+**Light theme**
+
+[![Settings center in light theme: a search box above ten category cards, each listing its settings pages, from General Settings and Customer Portal to Data Import and Vault Import](images/github/settings-center-light.png)](images/github/settings-center-light.png)
+
+Administration opens the settings center: one compact card per category — General, Users & Access, Security, Integrations, AI Configuration (OPTIONAL AI), Automation, Communications, Modules, System and Maintenance — each listing only the pages you may open, with a search across all of them.
+
+### Customer Portal settings
+
+**Light theme**
+
+[![Customer Portal settings in light theme with sections for the portal address and effective URL, branding fields and colour pickers, layout and theme choices, portal feature switches and per-customer portal switches](images/github/portal-settings-light.png)](images/github/portal-settings-light.png)
+
+One page for the customer portal: its address and sign-in, branding (name, logo, accent colour, sign-in background, welcome message, support contacts), layout and default theme, the portal features, and which customers have a portal at all.
 
 ---
 
@@ -685,9 +788,9 @@ Every safeguard with what it protects, its default and what it needs — and, fo
 
 ### Vault visibility report
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Vault Visibility report in dark theme explaining that vault titles stay inside the customers a technician is assigned to, with a table of technicians, the customers they still see, the customer they no longer see and the number of entries hidden](images/github/vault-visibility-dark.png)](images/github/vault-visibility-dark.png)
+[![Vault Visibility report in the Professional Dark theme explaining that vault titles stay inside the customers a technician is assigned to, with a table of technicians, the customers they still see, the customer they no longer see and the number of entries hidden](images/github/vault-visibility-dark.png)](images/github/vault-visibility-dark.png)
 
 Technicians see a customer's vault entries only where a membership or their global role grants it. This read-only report shows which staff lost cross-customer visibility, what they still see and how many entries are now hidden. It grants nothing.
 
@@ -701,25 +804,33 @@ What each MSP technician may do with ticket AI and RMM tools, per customer, from
 
 ### Superuser Approval
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Superuser Approval page in dark theme with the policy turned on, two eligible administrators, and a grant of superuser to one account waiting for approval by a different administrator](images/github/superuser-approval-dark.png)](images/github/superuser-approval-dark.png)
+[![Superuser Approval page in the Professional Dark theme with the policy turned on, two eligible administrators, and a grant of superuser to one account waiting for approval by a different administrator](images/github/superuser-approval-dark.png)](images/github/superuser-approval-dark.png)
 
 Optional and off by default. When on, creating or promoting a superuser is a request that a different administrator must approve; until then the account is not a superuser. Turning the policy off is itself a protected change.
 
 ### Ticket AI models (OPTIONAL AI)
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Ticket AI Assist models and customer policies page in dark theme marked OPTIONAL AI, listing two model profiles with provider and model, a write-only stored key, MSP ownership for assigned customers only and enabled status, beside a New profile form](images/github/ticket-ai-models-dark.png)](images/github/ticket-ai-models-dark.png)
+[![Ticket AI Assist models and customer policies page in the Professional Dark theme marked OPTIONAL AI, listing two model profiles with provider and model, a write-only stored key, MSP ownership for assigned customers only and enabled status, beside a New profile form](images/github/ticket-ai-models-dark.png)](images/github/ticket-ai-models-dark.png)
 
 Optional, off unless PSA AI is enabled. Model profiles name the provider, model and whose key it is; keys are write-only and sealed to the gateway. Each customer's AI policy decides what is allowed there.
 
+### Security Overview
+
+**Professional Dark theme**
+
+[![Security Overview in the Professional Dark theme with four panels: Security Alerts showing 9 active, 3 critical, 3 high and 3 unacknowledged; Incidents showing 6 open with counts by severity and assigned responders; RMM Security with 9 device security alerts; Monitoring with website monitor, WAN, expiration and network integration status; and a Response Performance panel with an 8-minute time to acknowledge, a 26-hour time to resolve, open incident aging and a 14-day alert volume chart](images/github/security-overview-dark.png)](images/github/security-overview-dark.png)
+
+One read-only page for security: alerts, incidents, RMM security and monitoring, each scoped to the customers your role covers, plus response times for the last thirty days. Every figure opens the page where you work it.
+
 ### Security incidents
 
-**Dark theme**
+**Professional Dark theme**
 
-[![Security Incidents list in dark theme with VPN brute-force attempts, a compromised Microsoft 365 account and blocked ransomware incidents across three clients, each with severity, status, client, asset, opened time and alert count](images/github/security-incidents-dark.png)](images/github/security-incidents-dark.png)
+[![Security Incidents list in the Professional Dark theme with VPN brute-force attempts, a compromised Microsoft 365 account and blocked ransomware incidents across three clients, each with severity, status, client, asset, opened time and alert count](images/github/security-incidents-dark.png)](images/github/security-incidents-dark.png)
 
 Alerts that need handling become incidents with a severity, a status, the client and asset involved, and the alerts behind them.
 
@@ -727,20 +838,21 @@ Alerts that need handling become incidents with a severity, a status, the client
 
 **Light theme**
 
-[![Top navigation bar in light theme with an orange Update badge next to the search box](images/github/update-badge-light.png)](images/github/update-badge-light.png)
+[![Top bar in light theme: the ClientSt0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu](images/github/update-badge-light.png)](images/github/update-badge-light.png)
 
-When the scheduled update check finds a newer release, superusers see an Update badge in the top bar that links to Settings → Updates. Pages never contact GitHub while loading, and other users never see it.
+When the scheduled update check finds a newer release, superusers see a glowing amber Update Available pill beside the logo, at every window width, and an entry in the notifications bell; both link to Administration → System → System Updates. Pages never contact GitHub while loading, and other users never see it.
 
 ---
 
 ## About these captures
 
-- Viewport 1440 px wide at device pixel ratio 2, so text stays sharp when you open an image full size.
+- Viewport 1440 px wide (390 px for the phone views) at device pixel ratio 2, so text stays sharp when you open an image full size.
 - Themes are switched through the application's own theme control, not by injecting CSS — what you see is the shipped theme.
-- Each image is cropped to where the page's content ends, so none of them carry a slab of empty background.
+- Each image is cropped to where the page's content ends, so none of them carry a slab of empty background. Views of an open menu, the palette or a phone show the window as it is.
+- Absolute links a page prints (a status page link, the portal address) show the demo's documented host, `desk.beaconmanaged.example`, instead of the local address the capture ran on.
 - Route, theme, viewport and the demo data each view needs are recorded in [`scripts/screenshot_manifest.json`](../scripts/screenshot_manifest.json).
 
-Prefer moving pictures? The [3-minute walkthrough](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4) covers the same ground end to end, in both themes.
+Prefer moving pictures? The [4-minute walkthrough](https://github.com/agit8or1/clientst0r/releases/download/v3.17.681/clientst0r-walkthrough.mp4) covers the same ground end to end, in both themes.
 
 Older captures from previous releases are kept in [`docs/screenshots/`](screenshots/README.md).
 
