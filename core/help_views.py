@@ -2139,52 +2139,110 @@ def help_workflows(request):
     <p>Manage processes at <em>Service Desk → Workflows → Runbooks</em>.</p>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="260" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="40" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="20" width="700" height="20" fill="#161b22"/>
-        <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Employee Onboarding</text>
-        <rect x="560" y="10" width="126" height="22" rx="4" fill="#1f6feb"/>
-        <text x="623" y="25" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">▶ Execute Process</text>
-        <!-- Progress bar -->
-        <text x="16" y="58" fill="#8b949e" font-size="10" font-family="sans-serif">Progress: 3 / 6 stages complete</text>
-        <rect x="16" y="62" width="668" height="8" rx="4" fill="#21262d"/>
-        <rect x="16" y="62" width="334" height="8" rx="4" fill="#1f6feb"/>
-        <!-- Stage 1 - complete -->
-        <rect x="12" y="82" width="676" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
-        <rect x="12" y="82" width="4" height="44" rx="2" fill="#3fb950"/>
-        <circle cx="34" cy="104" r="10" fill="#1a7f37" stroke="#3fb950"/>
-        <text x="34" y="108" fill="#fff" font-size="12" font-family="sans-serif" text-anchor="middle">✓</text>
-        <text x="54" y="99" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">1. Create AD Account</text>
-        <text x="54" y="115" fill="#3fb950" font-size="10" font-family="sans-serif">Completed by j.admin · 9:02 AM</text>
-        <text x="580" y="108" fill="#3d444d" font-size="10" font-family="sans-serif">IT Admin</text>
-        <!-- Stage 2 - complete -->
-        <rect x="12" y="132" width="676" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
-        <rect x="12" y="132" width="4" height="44" rx="2" fill="#3fb950"/>
-        <circle cx="34" cy="154" r="10" fill="#1a7f37" stroke="#3fb950"/>
-        <text x="34" y="158" fill="#fff" font-size="12" font-family="sans-serif" text-anchor="middle">✓</text>
-        <text x="54" y="149" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">2. Provision Laptop</text>
-        <text x="54" y="165" fill="#3fb950" font-size="10" font-family="sans-serif">Completed by j.admin · 10:45 AM</text>
-        <text x="580" y="158" fill="#3d444d" font-size="10" font-family="sans-serif">IT Admin</text>
-        <!-- Stage 3 - in progress -->
-        <rect x="12" y="182" width="676" height="44" rx="4" fill="#1f3a5f" stroke="#1f6feb"/>
-        <rect x="12" y="182" width="4" height="44" rx="2" fill="#1f6feb"/>
-        <circle cx="34" cy="204" r="10" fill="#1f6feb" stroke="#58a6ff"/>
-        <text x="34" y="208" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">3</text>
-        <text x="54" y="199" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">3. Set Up Email &amp; Teams</text>
-        <text x="54" y="215" fill="#79c0ff" font-size="10" font-family="sans-serif">In Progress — assigned to s.helpdesk</text>
-        <rect x="580" y="193" width="96" height="18" rx="4" fill="#1f6feb"/>
-        <text x="628" y="206" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Mark Complete</text>
-        <!-- Stage 4 - pending -->
-        <rect x="12" y="232" width="676" height="20" rx="4" fill="#0d1117" stroke="#21262d" stroke-width="0.5" opacity="0.7"/>
-        <circle cx="34" cy="242" r="8" fill="#21262d" stroke="#30363d"/>
-        <text x="34" y="246" fill="#3d444d" font-size="9" font-family="sans-serif" text-anchor="middle">4</text>
-        <text x="54" y="246" fill="#6e7681" font-size="11" font-family="sans-serif">4. Security Training (pending)</text>
-        <!-- Annotation -->
-        <line x1="628" y1="182" x2="660" y2="162" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="620" y="150" width="72" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="656" y="161" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">Active stage</text>
+      <svg viewBox="0 0 700 322" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Service Desk, Workflows, Runbooks: a running Employee Onboarding process with two stages done, one active and one pending.">
+        <title>Service Desk, Workflows, Runbooks: a running Employee Onboarding process with two stages done, one active and one pending.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="322" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="295" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="322" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="67" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="296" x2="26" y2="296" stroke="#1f2f48"/>
+        <circle cx="15" cy="308" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="308" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Service Desk</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Workflows</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Runbooks</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Employee Onboarding</tspan></text>
+        <rect x="42" y="48" width="57" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Runbooks</text>
+        <rect x="103" y="48" width="111" height="16" rx="4" fill="none"/>
+        <text x="110" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Workflow Dashboard</text>
+        <rect x="218" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="225" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Support Workflows</text>
+        <rect x="328" y="48" width="63" height="16" rx="4" fill="none"/>
+        <text x="335" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Templates</text>
+        <rect x="395" y="48" width="73" height="16" rx="4" fill="none"/>
+        <text x="402" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Suggestions</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="260" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Header -->
+          <rect width="700" height="40" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect y="20" width="700" height="20" fill="#161b22"/>
+          <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Employee Onboarding</text>
+          <rect x="560" y="10" width="126" height="22" rx="4" fill="#1f6feb"/>
+          <text x="623" y="25" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">▶ Execute Process</text>
+          <!-- Progress bar -->
+          <text x="16" y="58" fill="#8b949e" font-size="10" font-family="sans-serif">Progress: 3 / 6 stages complete</text>
+          <rect x="16" y="62" width="668" height="8" rx="4" fill="#21262d"/>
+          <rect x="16" y="62" width="334" height="8" rx="4" fill="#1f6feb"/>
+          <!-- Stage 1 - complete -->
+          <rect x="12" y="82" width="676" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
+          <rect x="12" y="82" width="4" height="44" rx="2" fill="#3fb950"/>
+          <circle cx="34" cy="104" r="10" fill="#1a7f37" stroke="#3fb950"/>
+          <text x="34" y="108" fill="#fff" font-size="12" font-family="sans-serif" text-anchor="middle">✓</text>
+          <text x="54" y="99" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">1. Create AD Account</text>
+          <text x="54" y="115" fill="#3fb950" font-size="10" font-family="sans-serif">Completed by j.admin · 9:02 AM</text>
+          <text x="580" y="108" fill="#3d444d" font-size="10" font-family="sans-serif">IT Admin</text>
+          <!-- Stage 2 - complete -->
+          <rect x="12" y="132" width="676" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
+          <rect x="12" y="132" width="4" height="44" rx="2" fill="#3fb950"/>
+          <circle cx="34" cy="154" r="10" fill="#1a7f37" stroke="#3fb950"/>
+          <text x="34" y="158" fill="#fff" font-size="12" font-family="sans-serif" text-anchor="middle">✓</text>
+          <text x="54" y="149" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">2. Provision Laptop</text>
+          <text x="54" y="165" fill="#3fb950" font-size="10" font-family="sans-serif">Completed by j.admin · 10:45 AM</text>
+          <text x="580" y="158" fill="#3d444d" font-size="10" font-family="sans-serif">IT Admin</text>
+          <!-- Stage 3 - in progress -->
+          <rect x="12" y="182" width="676" height="44" rx="4" fill="#1f3a5f" stroke="#1f6feb"/>
+          <rect x="12" y="182" width="4" height="44" rx="2" fill="#1f6feb"/>
+          <circle cx="34" cy="204" r="10" fill="#1f6feb" stroke="#58a6ff"/>
+          <text x="34" y="208" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">3</text>
+          <text x="54" y="199" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">3. Set Up Email &amp; Teams</text>
+          <text x="54" y="215" fill="#79c0ff" font-size="10" font-family="sans-serif">In Progress — assigned to s.helpdesk</text>
+          <rect x="580" y="193" width="96" height="18" rx="4" fill="#1f6feb"/>
+          <text x="628" y="206" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Mark Complete</text>
+          <!-- Stage 4 - pending -->
+          <rect x="12" y="232" width="676" height="20" rx="4" fill="#0d1117" stroke="#21262d" stroke-width="0.5" opacity="0.7"/>
+          <circle cx="34" cy="242" r="8" fill="#21262d" stroke="#30363d"/>
+          <text x="34" y="246" fill="#3d444d" font-size="9" font-family="sans-serif" text-anchor="middle">4</text>
+          <text x="54" y="246" fill="#6e7681" font-size="11" font-family="sans-serif">4. Security Training (pending)</text>
+          <!-- Annotation -->
+          <line x1="628" y1="182" x2="660" y2="162" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="620" y="150" width="72" height="14" rx="7" fill="#1f6feb44"/>
+          <text x="656" y="161" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">Active stage</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Process execution view. Green stages are complete (logged with timestamp and user), the blue stage is active, and grey stages are pending. Click <strong>Mark Complete</strong> to advance.</p>
     </div>
