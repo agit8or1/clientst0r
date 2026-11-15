@@ -2588,60 +2588,103 @@ def help_locations(request):
     <p>Locations provide a physical grouping for assets — assets can be further organized by rack or room within a location.</p>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="240" rx="6" fill="#0d1117" stroke="#30363d"/>
-        <!-- Page header -->
-        <text x="16" y="28" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif">Locations</text>
-        <rect x="598" y="10" width="90" height="26" rx="4" fill="#238636" stroke="#2ea043"/>
-        <text x="643" y="27" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ Add Location</text>
-
-        <!-- Location card 1 -->
-        <rect x="12" y="44" width="210" height="90" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="26" y="64" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Head Office</text>
-        <text x="26" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">123 Main St, Springfield</text>
-        <rect x="26" y="90" width="50" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
-        <text x="51" y="102" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">42 assets</text>
-        <rect x="84" y="90" width="60" height="16" rx="8" fill="#3fb95033" stroke="#3fb95066"/>
-        <text x="114" y="102" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">2 WAN links</text>
-        <rect x="26" y="114" width="72" height="14" rx="3" fill="#21262d"/>
-        <text x="62" y="125" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">View Details</text>
-
-        <!-- Location card 2 -->
-        <rect x="238" y="44" width="210" height="90" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="252" y="64" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Data Center 1</text>
-        <text x="252" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">456 Park Ave, Denver</text>
-        <rect x="252" y="90" width="50" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
-        <text x="277" y="102" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">89 assets</text>
-        <rect x="310" y="90" width="60" height="16" rx="8" fill="#3fb95033" stroke="#3fb95066"/>
-        <text x="340" y="102" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">3 WAN links</text>
-        <rect x="252" y="114" width="72" height="14" rx="3" fill="#21262d"/>
-        <text x="288" y="125" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">View Details</text>
-
-        <!-- Location card 3 -->
-        <rect x="464" y="44" width="210" height="90" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="478" y="64" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Remote Site A</text>
-        <text x="478" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">789 Oak Rd, Austin</text>
-        <rect x="478" y="90" width="50" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
-        <text x="503" y="102" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">17 assets</text>
-        <rect x="536" y="90" width="60" height="16" rx="8" fill="#d2992233" stroke="#d2992266"/>
-        <text x="566" y="102" fill="#d29922" font-size="9" font-family="sans-serif" text-anchor="middle">1 WAN link</text>
-        <rect x="478" y="114" width="72" height="14" rx="3" fill="#21262d"/>
-        <text x="514" y="125" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">View Details</text>
-
-        <!-- Location detail panel at bottom -->
-        <rect x="12" y="150" width="676" height="78" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="26" y="170" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Head Office — Detail</text>
-        <text x="26" y="186" fill="#8b949e" font-size="10" font-family="sans-serif">Address: 123 Main St, Springfield · Notes: Main reception on ground floor, server room L2</text>
-        <text x="26" y="202" fill="#c9d1d9" font-size="10" font-family="sans-serif">42 assets assigned · 2 WAN connections · Floor plan: attached</text>
-        <rect x="530" y="158" width="70" height="20" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="565" y="172" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Edit</text>
-        <rect x="608" y="158" width="70" height="20" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="643" y="172" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Floor Plan</text>
-
-        <!-- Annotation -->
-        <line x1="114" y1="102" x2="130" y2="142" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="100" y="140" width="100" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="150" y="151" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">Asset count badge</text>
+      <svg viewBox="0 0 700 284" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="The Locations page (Assets &amp; Network): site cards with asset and WAN link counts, and one site&#x27;s details.">
+        <title>The Locations page (Assets &amp; Network): site cards with asset and WAN link counts, and one site's details.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="284" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="257" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="284" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="258" x2="26" y2="258" stroke="#1f2f48"/>
+        <circle cx="15" cy="270" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="270" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Locations</tspan></text>
+        <!-- page content -->
+        <g transform="translate(38 50) scale(0.94)">
+          <rect width="700" height="240" rx="6" fill="#0d1117" stroke="#30363d"/>
+          <!-- Page header -->
+          <text x="16" y="28" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif">Locations</text>
+          <rect x="598" y="10" width="90" height="26" rx="4" fill="#238636" stroke="#2ea043"/>
+          <text x="643" y="27" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ Add Location</text>
+          <!-- Location card 1 -->
+          <rect x="12" y="44" width="210" height="90" rx="6" fill="#161b22" stroke="#30363d"/>
+          <text x="26" y="64" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Head Office</text>
+          <text x="26" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">123 Main St, Springfield</text>
+          <rect x="26" y="90" width="50" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
+          <text x="51" y="102" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">42 assets</text>
+          <rect x="84" y="90" width="60" height="16" rx="8" fill="#3fb95033" stroke="#3fb95066"/>
+          <text x="114" y="102" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">2 WAN links</text>
+          <rect x="26" y="114" width="72" height="14" rx="3" fill="#21262d"/>
+          <text x="62" y="125" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">View Details</text>
+          <!-- Location card 2 -->
+          <rect x="238" y="44" width="210" height="90" rx="6" fill="#161b22" stroke="#30363d"/>
+          <text x="252" y="64" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Data Center 1</text>
+          <text x="252" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">456 Park Ave, Denver</text>
+          <rect x="252" y="90" width="50" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
+          <text x="277" y="102" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">89 assets</text>
+          <rect x="310" y="90" width="60" height="16" rx="8" fill="#3fb95033" stroke="#3fb95066"/>
+          <text x="340" y="102" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">3 WAN links</text>
+          <rect x="252" y="114" width="72" height="14" rx="3" fill="#21262d"/>
+          <text x="288" y="125" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">View Details</text>
+          <!-- Location card 3 -->
+          <rect x="464" y="44" width="210" height="90" rx="6" fill="#161b22" stroke="#30363d"/>
+          <text x="478" y="64" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Remote Site A</text>
+          <text x="478" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">789 Oak Rd, Austin</text>
+          <rect x="478" y="90" width="50" height="16" rx="8" fill="#1f6feb33" stroke="#1f6feb66"/>
+          <text x="503" y="102" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">17 assets</text>
+          <rect x="536" y="90" width="60" height="16" rx="8" fill="#d2992233" stroke="#d2992266"/>
+          <text x="566" y="102" fill="#d29922" font-size="9" font-family="sans-serif" text-anchor="middle">1 WAN link</text>
+          <rect x="478" y="114" width="72" height="14" rx="3" fill="#21262d"/>
+          <text x="514" y="125" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">View Details</text>
+          <!-- Location detail panel at bottom -->
+          <rect x="12" y="150" width="676" height="78" rx="6" fill="#161b22" stroke="#30363d"/>
+          <text x="26" y="170" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Head Office — Detail</text>
+          <text x="26" y="186" fill="#8b949e" font-size="10" font-family="sans-serif">Address: 123 Main St, Springfield · Notes: Main reception on ground floor, server room L2</text>
+          <text x="26" y="202" fill="#c9d1d9" font-size="10" font-family="sans-serif">42 assets assigned · 2 WAN connections · Floor plan: attached</text>
+          <rect x="530" y="158" width="70" height="20" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="565" y="172" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Edit</text>
+          <rect x="608" y="158" width="70" height="20" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="643" y="172" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Floor Plan</text>
+          <!-- Annotation -->
+          <line x1="51" y1="106" x2="130" y2="142" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="100" y="140" width="100" height="14" rx="7" fill="#1f6feb44"/>
+          <text x="150" y="151" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">Asset count badge</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Location list showing site cards with address, asset count, and WAN links. Click a card to open the detail view showing full contact info, assigned assets, WAN connections, and floor plan.</p>
     </div>
@@ -2670,60 +2713,102 @@ def help_locations(request):
     </div>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="210" rx="6" fill="#0d1117" stroke="#30363d"/>
-        <!-- Section header -->
-        <text x="16" y="28" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">WAN Connections — Head Office</text>
-        <rect x="586" y="10" width="102" height="24" rx="4" fill="#238636" stroke="#2ea043"/>
-        <text x="637" y="26" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ Add Connection</text>
-
-        <!-- Table header -->
-        <rect x="12" y="44" width="676" height="24" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="26" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Name</text>
-        <text x="154" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">ISP</text>
-        <text x="264" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Type</text>
-        <text x="340" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Down / Up</text>
-        <text x="444" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Circuit ID</text>
-        <text x="570" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Status</text>
-
-        <!-- Row 1 — Primary Fibre -->
-        <rect x="12" y="68" width="676" height="34" rx="0" fill="#161b22" stroke="#21262d"/>
-        <text x="26" y="89" fill="#e6edf3" font-size="11" font-family="sans-serif">Primary Fibre</text>
-        <text x="154" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Comcast</text>
-        <text x="264" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Fibre</text>
-        <text x="340" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">1Gbps / 500Mbps</text>
-        <text x="444" y="89" fill="#8b949e" font-size="10" font-family="monospace">CMC-2024-8891</text>
-        <rect x="564" y="76" width="52" height="18" rx="9" fill="#1a3a2a" stroke="#3fb950"/>
-        <text x="590" y="89" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
-
-        <!-- Row 2 — 4G Failover -->
-        <rect x="12" y="102" width="676" height="34" rx="0" fill="#0d1117" stroke="#21262d"/>
-        <text x="26" y="123" fill="#e6edf3" font-size="11" font-family="sans-serif">4G Failover</text>
-        <text x="154" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">Verizon</text>
-        <text x="264" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">4G LTE</text>
-        <text x="340" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">50Mbps / 20Mbps</text>
-        <text x="444" y="123" fill="#8b949e" font-size="10" font-family="monospace">VZN-LTE-0047</text>
-        <rect x="557" y="110" width="66" height="18" rx="9" fill="#3a2a1a" stroke="#e3b341"/>
-        <text x="590" y="123" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Standby</text>
-
-        <!-- Row 3 — MPLS -->
-        <rect x="12" y="136" width="676" height="34" rx="0" fill="#161b22" stroke="#21262d"/>
-        <text x="26" y="157" fill="#e6edf3" font-size="11" font-family="sans-serif">MPLS to DC1</text>
-        <text x="154" y="157" fill="#c9d1d9" font-size="11" font-family="sans-serif">AT&amp;T</text>
-        <text x="264" y="157" fill="#c9d1d9" font-size="11" font-family="sans-serif">MPLS</text>
-        <text x="340" y="157" fill="#c9d1d9" font-size="11" font-family="sans-serif">100Mbps / 100Mbps</text>
-        <text x="444" y="157" fill="#8b949e" font-size="10" font-family="monospace">ATT-MPLS-5523</text>
-        <rect x="564" y="144" width="52" height="18" rx="9" fill="#1a3a2a" stroke="#3fb950"/>
-        <text x="590" y="157" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
-
-        <!-- Contract expiry note -->
-        <rect x="12" y="180" width="676" height="22" rx="4" fill="#1f2d3a" stroke="#1f6feb44"/>
-        <text x="24" y="195" fill="#79c0ff" font-size="10" font-family="sans-serif">ℹ Contract expiry reminders: Primary Fibre expires in 47 days — review renewal options</text>
-
-        <!-- Annotation -->
-        <line x1="590" y1="89" x2="640" y2="66" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="620" y="54" width="68" height="14" rx="7" fill="#1a3a2a44"/>
-        <text x="654" y="65" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">Status badge</text>
+      <svg viewBox="0 0 700 255" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="A location&#x27;s WAN connections: ISP, type, bandwidth, circuit ID and status, with a contract expiry notice.">
+        <title>A location's WAN connections: ISP, type, bandwidth, circuit ID and status, with a contract expiry notice.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="255" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="228" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="255" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="229" x2="26" y2="229" stroke="#1f2f48"/>
+        <circle cx="15" cy="241" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="241" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Locations</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Head Office</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">WAN Connections</tspan></text>
+        <!-- page content -->
+        <g transform="translate(38 50) scale(0.94)">
+          <rect width="700" height="210" rx="6" fill="#0d1117" stroke="#30363d"/>
+          <!-- Section header -->
+          <text x="16" y="28" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">WAN Connections — Head Office</text>
+          <rect x="586" y="10" width="102" height="24" rx="4" fill="#238636" stroke="#2ea043"/>
+          <text x="637" y="26" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ Add Connection</text>
+          <!-- Table header -->
+          <rect x="12" y="44" width="676" height="24" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="26" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Name</text>
+          <text x="154" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">ISP</text>
+          <text x="264" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Type</text>
+          <text x="340" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Down / Up</text>
+          <text x="444" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Circuit ID</text>
+          <text x="570" y="61" fill="#8b949e" font-size="10" font-family="sans-serif">Status</text>
+          <!-- Row 1 — Primary Fibre -->
+          <rect x="12" y="68" width="676" height="34" rx="0" fill="#161b22" stroke="#21262d"/>
+          <text x="26" y="89" fill="#e6edf3" font-size="11" font-family="sans-serif">Primary Fibre</text>
+          <text x="154" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Comcast</text>
+          <text x="264" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">Fibre</text>
+          <text x="340" y="89" fill="#c9d1d9" font-size="11" font-family="sans-serif">1Gbps / 500Mbps</text>
+          <text x="444" y="89" fill="#8b949e" font-size="10" font-family="monospace">CMC-2024-8891</text>
+          <rect x="564" y="76" width="52" height="18" rx="9" fill="#1a3a2a" stroke="#3fb950"/>
+          <text x="590" y="89" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
+          <!-- Row 2 — 4G Failover -->
+          <rect x="12" y="102" width="676" height="34" rx="0" fill="#0d1117" stroke="#21262d"/>
+          <text x="26" y="123" fill="#e6edf3" font-size="11" font-family="sans-serif">4G Failover</text>
+          <text x="154" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">Verizon</text>
+          <text x="264" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">4G LTE</text>
+          <text x="340" y="123" fill="#c9d1d9" font-size="11" font-family="sans-serif">50Mbps / 20Mbps</text>
+          <text x="444" y="123" fill="#8b949e" font-size="10" font-family="monospace">VZN-LTE-0047</text>
+          <rect x="557" y="110" width="66" height="18" rx="9" fill="#3a2a1a" stroke="#e3b341"/>
+          <text x="590" y="123" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Standby</text>
+          <!-- Row 3 — MPLS -->
+          <rect x="12" y="136" width="676" height="34" rx="0" fill="#161b22" stroke="#21262d"/>
+          <text x="26" y="157" fill="#e6edf3" font-size="11" font-family="sans-serif">MPLS to DC1</text>
+          <text x="154" y="157" fill="#c9d1d9" font-size="11" font-family="sans-serif">AT&amp;T</text>
+          <text x="264" y="157" fill="#c9d1d9" font-size="11" font-family="sans-serif">MPLS</text>
+          <text x="340" y="157" fill="#c9d1d9" font-size="11" font-family="sans-serif">100 / 100 Mbps</text>
+          <text x="444" y="157" fill="#8b949e" font-size="10" font-family="monospace">ATT-MPLS-5523</text>
+          <rect x="564" y="144" width="52" height="18" rx="9" fill="#1a3a2a" stroke="#3fb950"/>
+          <text x="590" y="157" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
+          <!-- Contract expiry note -->
+          <rect x="12" y="180" width="676" height="22" rx="4" fill="#1f2d3a" stroke="#1f6feb44"/>
+          <text x="24" y="195" fill="#79c0ff" font-size="10" font-family="sans-serif">ℹ Contract expiry reminders: Primary Fibre expires in 47 days — review renewal options</text>
+          <!-- Annotation -->
+          <line x1="590" y1="89" x2="640" y2="66" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="620" y="54" width="68" height="14" rx="7" fill="#1a3a2a44"/>
+          <text x="654" y="65" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">Status badge</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">WAN connections for a location. Each row shows ISP name, connection type, bandwidth, circuit ID for support calls, and live status. A banner alerts when contracts are nearing expiry.</p>
     </div>
@@ -2738,78 +2823,116 @@ def help_locations(request):
     <p>Floor plans are visible on the location detail page and can be linked from individual asset records.</p>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="240" rx="6" fill="#0d1117" stroke="#30363d"/>
-        <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Floor Plan — Head Office, Level 2</text>
-        <rect x="590" y="8" width="100" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="640" y="23" fill="#8b949e" font-size="11" font-family="sans-serif" text-anchor="middle">Upload Image</text>
-
-        <!-- Floor plan bounding box -->
-        <rect x="16" y="38" width="480" height="192" rx="4" fill="#161b22" stroke="#30363d"/>
-
-        <!-- Rooms -->
-        <!-- Server Room -->
-        <rect x="30" y="52" width="120" height="80" rx="2" fill="#1f3a5f" stroke="#1f6feb" stroke-width="1.5"/>
-        <text x="90" y="90" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Server Room</text>
-        <!-- Assets inside server room -->
-        <rect x="40" y="98" width="22" height="14" rx="2" fill="#1f6feb66" stroke="#1f6feb"/>
-        <text x="51" y="109" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">SRV-1</text>
-        <rect x="68" y="98" width="22" height="14" rx="2" fill="#1f6feb66" stroke="#1f6feb"/>
-        <text x="79" y="109" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">SW-01</text>
-        <rect x="96" y="98" width="22" height="14" rx="2" fill="#1f6feb66" stroke="#1f6feb"/>
-        <text x="107" y="109" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">FW-01</text>
-
-        <!-- Meeting Room A -->
-        <rect x="160" y="52" width="110" height="70" rx="2" fill="#1a2a1a" stroke="#3fb950" stroke-width="1.5"/>
-        <text x="215" y="90" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Meeting A</text>
-
-        <!-- Open Office -->
-        <rect x="280" y="52" width="200" height="120" rx="2" fill="#2d1f3f" stroke="#8957e5" stroke-width="1.5"/>
-        <text x="380" y="105" fill="#bc8cff" font-size="11" font-family="sans-serif" text-anchor="middle">Open Office</text>
-        <!-- Desks grid -->
-        <rect x="294" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
-        <rect x="330" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
-        <rect x="366" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
-        <rect x="402" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
-        <rect x="438" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
-
-        <!-- Corridor -->
-        <rect x="30" y="140" width="450" height="20" rx="0" fill="#0d1117"/>
-        <text x="255" y="154" fill="#3d444d" font-size="9" font-family="sans-serif" text-anchor="middle">— corridor —</text>
-
-        <!-- Breakroom -->
-        <rect x="30" y="168" width="110" height="56" rx="2" fill="#2a1a1a" stroke="#e3b341" stroke-width="1.5"/>
-        <text x="85" y="200" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Break Room</text>
-
-        <!-- Bathroom -->
-        <rect x="150" y="168" width="80" height="56" rx="2" fill="#1a1a2a" stroke="#6e7681" stroke-width="1.5"/>
-        <text x="190" y="200" fill="#6e7681" font-size="10" font-family="sans-serif" text-anchor="middle">WC</text>
-
-        <!-- Storage -->
-        <rect x="240" y="168" width="240" height="56" rx="2" fill="#21262d" stroke="#30363d" stroke-width="1.5"/>
-        <text x="360" y="200" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Storage / IDF Closet</text>
-
-        <!-- Legend panel -->
-        <rect x="510" y="38" width="180" height="192" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="524" y="58" fill="#8b949e" font-size="10" font-family="sans-serif">LEGEND</text>
-        <rect x="524" y="66" width="12" height="10" rx="2" fill="#1f3a5f" stroke="#1f6feb"/>
-        <text x="542" y="76" fill="#c9d1d9" font-size="10" font-family="sans-serif">Server / Network</text>
-        <rect x="524" y="84" width="12" height="10" rx="2" fill="#2d1f3f" stroke="#8957e5"/>
-        <text x="542" y="94" fill="#c9d1d9" font-size="10" font-family="sans-serif">Workstations</text>
-        <rect x="524" y="102" width="12" height="10" rx="2" fill="#1a2a1a" stroke="#3fb950"/>
-        <text x="542" y="112" fill="#c9d1d9" font-size="10" font-family="sans-serif">Meeting Rooms</text>
-        <rect x="524" y="120" width="12" height="10" rx="2" fill="#2a1a1a" stroke="#e3b341"/>
-        <text x="542" y="130" fill="#c9d1d9" font-size="10" font-family="sans-serif">Kitchen / Break</text>
-        <line x1="524" y1="150" x2="682" y2="150" stroke="#21262d"/>
-        <text x="524" y="166" fill="#8b949e" font-size="10" font-family="sans-serif">ASSETS ON FLOOR</text>
-        <text x="524" y="182" fill="#58a6ff" font-size="11" font-family="sans-serif">SRV-1 · SW-01 · FW-01</text>
-        <text x="524" y="196" fill="#8b949e" font-size="10" font-family="sans-serif">Click asset to open record</text>
-        <text x="524" y="212" fill="#3fb950" font-size="10" font-family="sans-serif">3 assets pinned</text>
-
-        <!-- Annotation -->
-        <line x1="79" y1="109" x2="79" y2="140" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="44" y="138" width="110" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="99" y="149" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">Click asset → detail</text>
+      <svg viewBox="0 0 700 284" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="A location&#x27;s floor plan: rooms by type with assets pinned where they are installed.">
+        <title>A location's floor plan: rooms by type with assets pinned where they are installed.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="284" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="257" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="284" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="258" x2="26" y2="258" stroke="#1f2f48"/>
+        <circle cx="15" cy="270" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="270" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Locations</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Head Office</tspan></text>
+        <!-- page content -->
+        <g transform="translate(38 50) scale(0.94)">
+          <rect width="700" height="240" rx="6" fill="#0d1117" stroke="#30363d"/>
+          <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Floor Plan — Head Office, Level 2</text>
+          <rect x="590" y="8" width="100" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="640" y="23" fill="#8b949e" font-size="11" font-family="sans-serif" text-anchor="middle">Upload Image</text>
+          <!-- Floor plan bounding box -->
+          <rect x="16" y="38" width="480" height="192" rx="4" fill="#161b22" stroke="#30363d"/>
+          <!-- Rooms -->
+          <!-- Server Room -->
+          <rect x="30" y="52" width="120" height="80" rx="2" fill="#1f3a5f" stroke="#1f6feb" stroke-width="1.5"/>
+          <text x="90" y="90" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Server Room</text>
+          <!-- Assets inside server room -->
+          <rect x="40" y="98" width="22" height="14" rx="2" fill="#1f6feb66" stroke="#1f6feb"/>
+          <text x="51" y="109" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">SRV-1</text>
+          <rect x="68" y="98" width="22" height="14" rx="2" fill="#1f6feb66" stroke="#1f6feb"/>
+          <text x="79" y="109" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">SW-01</text>
+          <rect x="96" y="98" width="22" height="14" rx="2" fill="#1f6feb66" stroke="#1f6feb"/>
+          <text x="107" y="109" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">FW-01</text>
+          <!-- Meeting Room A -->
+          <rect x="160" y="52" width="110" height="70" rx="2" fill="#1a2a1a" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="215" y="90" fill="#3fb950" font-size="10" font-family="sans-serif" text-anchor="middle">Meeting A</text>
+          <!-- Open Office -->
+          <rect x="280" y="52" width="200" height="120" rx="2" fill="#2d1f3f" stroke="#8957e5" stroke-width="1.5"/>
+          <text x="380" y="105" fill="#bc8cff" font-size="11" font-family="sans-serif" text-anchor="middle">Open Office</text>
+          <!-- Desks grid -->
+          <rect x="294" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
+          <rect x="330" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
+          <rect x="366" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
+          <rect x="402" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
+          <rect x="438" y="64" width="28" height="18" rx="2" fill="#8957e544" stroke="#8957e5"/>
+          <!-- Corridor -->
+          <rect x="30" y="140" width="450" height="20" rx="0" fill="#0d1117"/>
+          <text x="255" y="154" fill="#3d444d" font-size="9" font-family="sans-serif" text-anchor="middle">— corridor —</text>
+          <!-- Breakroom -->
+          <rect x="30" y="168" width="110" height="56" rx="2" fill="#2a1a1a" stroke="#e3b341" stroke-width="1.5"/>
+          <text x="85" y="200" fill="#e3b341" font-size="10" font-family="sans-serif" text-anchor="middle">Break Room</text>
+          <!-- Bathroom -->
+          <rect x="150" y="168" width="80" height="56" rx="2" fill="#1a1a2a" stroke="#6e7681" stroke-width="1.5"/>
+          <text x="190" y="200" fill="#6e7681" font-size="10" font-family="sans-serif" text-anchor="middle">WC</text>
+          <!-- Storage -->
+          <rect x="240" y="168" width="240" height="56" rx="2" fill="#21262d" stroke="#30363d" stroke-width="1.5"/>
+          <text x="360" y="200" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Storage / IDF Closet</text>
+          <!-- Legend panel -->
+          <rect x="510" y="38" width="180" height="192" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="524" y="58" fill="#8b949e" font-size="10" font-family="sans-serif">LEGEND</text>
+          <rect x="524" y="66" width="12" height="10" rx="2" fill="#1f3a5f" stroke="#1f6feb"/>
+          <text x="542" y="76" fill="#c9d1d9" font-size="10" font-family="sans-serif">Server / Network</text>
+          <rect x="524" y="84" width="12" height="10" rx="2" fill="#2d1f3f" stroke="#8957e5"/>
+          <text x="542" y="94" fill="#c9d1d9" font-size="10" font-family="sans-serif">Workstations</text>
+          <rect x="524" y="102" width="12" height="10" rx="2" fill="#1a2a1a" stroke="#3fb950"/>
+          <text x="542" y="112" fill="#c9d1d9" font-size="10" font-family="sans-serif">Meeting Rooms</text>
+          <rect x="524" y="120" width="12" height="10" rx="2" fill="#2a1a1a" stroke="#e3b341"/>
+          <text x="542" y="130" fill="#c9d1d9" font-size="10" font-family="sans-serif">Kitchen / Break</text>
+          <line x1="524" y1="150" x2="682" y2="150" stroke="#21262d"/>
+          <text x="524" y="166" fill="#8b949e" font-size="10" font-family="sans-serif">ASSETS ON FLOOR</text>
+          <text x="524" y="182" fill="#58a6ff" font-size="11" font-family="sans-serif">SRV-1 · SW-01 · FW-01</text>
+          <text x="524" y="196" fill="#8b949e" font-size="10" font-family="sans-serif">Click asset to open record</text>
+          <text x="524" y="212" fill="#3fb950" font-size="10" font-family="sans-serif">3 assets pinned</text>
+          <!-- Annotation -->
+          <line x1="79" y1="109" x2="79" y2="140" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="44" y="138" width="110" height="14" rx="7" fill="#1f6feb44"/>
+          <text x="99" y="149" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">Click asset → detail</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Floor plan view showing room layout with assets pinned to their physical location. Click any asset badge to jump directly to its asset record. Rooms are color-coded by type.</p>
     </div>
