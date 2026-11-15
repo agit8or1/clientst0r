@@ -306,41 +306,116 @@ def help_getting_started(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <!-- Top nav bar -->
-        <rect width="700" height="48" fill="#161b22" stroke="#30363d"/>
-        <text x="16" y="30" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif">ClientSt0r</text>
-        <!-- Org selector button -->
-        <rect x="180" y="10" width="180" height="28" rx="5" fill="#1f2937" stroke="#30363d"/>
-        <circle cx="198" cy="24" r="8" fill="#1f6feb"/>
-        <text x="210" y="28" fill="#e6edf3" font-size="11" font-family="sans-serif">Acme Corp  ▾</text>
-        <!-- Nav links -->
-        <text x="390" y="28" fill="#8b949e" font-size="11" font-family="sans-serif">Assets</text>
-        <text x="450" y="28" fill="#8b949e" font-size="11" font-family="sans-serif">Vault</text>
-        <text x="510" y="28" fill="#8b949e" font-size="11" font-family="sans-serif">Vehicles</text>
-        <text x="590" y="28" fill="#8b949e" font-size="11" font-family="sans-serif">👤 jsmith</text>
-        <!-- Dropdown -->
-        <rect x="180" y="40" width="200" height="145" rx="5" fill="#1c2128" stroke="#30363d"/>
-        <text x="196" y="60" fill="#8b949e" font-size="10" font-family="sans-serif">SWITCH ORGANIZATION</text>
-        <!-- Org list items -->
-        <rect x="186" y="66" width="188" height="26" rx="4" fill="#1f6feb22"/>
-        <circle cx="200" cy="79" r="7" fill="#1f6feb"/>
-        <text x="212" y="83" fill="#e6edf3" font-size="11" font-family="sans-serif">Acme Corp</text>
-        <text x="348" y="83" fill="#3fb950" font-size="9" font-family="sans-serif">✓</text>
-        <rect x="186" y="96" width="188" height="26" rx="4" fill="transparent"/>
-        <circle cx="200" cy="109" r="7" fill="#6e40c9"/>
-        <text x="212" y="113" fill="#c9d1d9" font-size="11" font-family="sans-serif">Beta Client Inc</text>
-        <rect x="186" y="126" width="188" height="26" rx="4" fill="transparent"/>
-        <circle cx="200" cy="139" r="7" fill="#e3701b"/>
-        <text x="212" y="143" fill="#c9d1d9" font-size="11" font-family="sans-serif">Gamma Solutions</text>
-        <line x1="186" y1="158" x2="374" y2="158" stroke="#30363d" stroke-width="1"/>
-        <text x="196" y="175" fill="#58a6ff" font-size="11" font-family="sans-serif">+ New Organization</text>
-        <!-- Annotation -->
-        <line x1="270" y1="40" x2="320" y2="10" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="310" y="1" width="170" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="395" y="12" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Click to switch organization</text>
+      <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="The application layout: the top bar with Go to (Ctrl K), search, alerts, help, settings, the client switcher and the account menu; the sidebar with its sections and Administration at the foot; the client switcher open on Acme Corp, with Global View and the client list.">
+        <title>The application layout: the top bar with Go to (Ctrl K), search, alerts, help, settings, the client switcher and the account menu; the sidebar with its sections and Administration at the foot; the client switcher open on Acme Corp, with Global View and the client list.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="250" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="94" y="6" width="48" height="14" rx="7" fill="#c62f3a"/>
+        <text x="118" y="16" fill="#ffffff" font-size="8" font-weight="bold" font-family="sans-serif" text-anchor="middle">Update</text>
+        <rect x="0" y="27" width="158" height="223" fill="#0f1a2b"/>
+        <line x1="158" y1="27" x2="158" y2="250" stroke="#1f2f48"/>
+        <rect x="10" y="36" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="44" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Dashboard</text>
+        <text x="152" y="44" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="51" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="59" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">My Work</text>
+        <text x="152" y="59" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="66" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="74" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Service Desk</text>
+        <text x="152" y="74" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="81" width="9" height="9" rx="2" fill="#2563eb"/>
+        <text x="26" y="89" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Clients</text>
+        <text x="152" y="89" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▴</text>
+        <rect x="6" y="95" width="146" height="12" rx="3" fill="#12303c"/>
+        <text x="30" y="104" fill="#e5e9f0" font-size="8.5" font-family="sans-serif">All Clients</text>
+        <text x="30" y="117" fill="#aab4c3" font-size="8.5" font-family="sans-serif">Client Workspace</text>
+        <text x="30" y="130" fill="#aab4c3" font-size="8.5" font-family="sans-serif">Customer Operations</text>
+        <rect x="10" y="137" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="145" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Assets &amp; Network</text>
+        <text x="152" y="145" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="152" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="160" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Business</text>
+        <text x="152" y="160" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="167" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="175" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Knowledge &amp; Vault</text>
+        <text x="152" y="175" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="182" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="190" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Security &amp; Monitoring</text>
+        <text x="152" y="190" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <rect x="10" y="197" width="9" height="9" rx="2" fill="#1f2f48"/>
+        <text x="26" y="205" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Reports</text>
+        <text x="152" y="205" fill="#8d99ab" font-size="8" font-family="sans-serif" text-anchor="end">▾</text>
+        <line x1="0" y1="224" x2="158" y2="224" stroke="#1f2f48"/>
+        <circle cx="15" cy="237" r="4.5" fill="#1f2f48"/>
+        <text x="26" y="240" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Administration</text>
+        <text x="166" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Clients</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">All Clients</tspan></text>
+        <rect x="166" y="48" width="62" height="16" rx="4" fill="#2563eb"/>
+        <text x="173" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">All Clients</text>
+        <text x="168" y="86" fill="#e5e9f0" font-size="14" font-weight="bold" font-family="sans-serif">Clients</text>
+        <rect x="168" y="98" width="286" height="32" rx="4" fill="#151b24" stroke="#2a3443"/>
+        <text x="180" y="118" fill="#84b4ff" font-size="11" font-family="sans-serif">Acme Corp</text>
+        <text x="444" y="118" fill="#8d99ab" font-size="10" font-family="sans-serif" text-anchor="end">42 assets</text>
+        <rect x="168" y="138" width="286" height="32" rx="4" fill="#151b24" stroke="#2a3443"/>
+        <text x="180" y="158" fill="#84b4ff" font-size="11" font-family="sans-serif">Beta Client Inc</text>
+        <text x="444" y="158" fill="#8d99ab" font-size="10" font-family="sans-serif" text-anchor="end">18 assets</text>
+        <rect x="168" y="178" width="286" height="32" rx="4" fill="#151b24" stroke="#2a3443"/>
+        <text x="180" y="198" fill="#84b4ff" font-size="11" font-family="sans-serif">Gamma Solutions</text>
+        <text x="444" y="198" fill="#8d99ab" font-size="10" font-family="sans-serif" text-anchor="end">7 assets</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+        <rect x="470" y="28" width="220" height="196" rx="5" fill="#1a212c" stroke="#2a3443"/>
+        <text x="482" y="44" fill="#8d99ab" font-size="8" font-weight="bold" font-family="sans-serif">CURRENT CONTEXT</text>
+        <rect x="482" y="50" width="9" height="10" rx="1" fill="#f0a020"/>
+        <text x="497" y="59" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Acme Corp</text>
+        <text x="482" y="73" fill="#84b4ff" font-size="9" text-decoration="underline" font-family="sans-serif">Customer operations</text>
+        <line x1="470" y1="82" x2="690" y2="82" stroke="#2a3443"/>
+        <circle cx="487" cy="96" r="5" fill="none" stroke="#aab4c3"/>
+        <line x1="482" y1="96" x2="492" y2="96" stroke="#aab4c3" stroke-width="0.8"/>
+        <text x="498" y="100" fill="#e5e9f0" font-size="10" font-family="sans-serif">Global View</text>
+        <line x1="470" y1="110" x2="690" y2="110" stroke="#2a3443"/>
+        <text x="482" y="124" fill="#8d99ab" font-size="8" font-weight="bold" font-family="sans-serif">CLIENTS</text>
+        <circle cx="487" cy="138" r="5" fill="#15803d"/>
+        <text x="487" y="141" fill="#ffffff" font-size="7" font-family="sans-serif" text-anchor="middle">✓</text>
+        <rect x="640" y="131" width="40" height="13" rx="2" fill="#f0a020"/>
+        <text x="660" y="141" fill="#1a1a1a" font-size="8" font-weight="bold" font-family="sans-serif" text-anchor="middle">ACTIVE</text>
+        <text x="498" y="142" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Acme Corp</text>
+        <rect x="483" y="153" width="8" height="10" rx="1" fill="none" stroke="#aab4c3"/>
+        <text x="498" y="162" fill="#e5e9f0" font-size="10" font-family="sans-serif">Beta Client Inc</text>
+        <rect x="483" y="173" width="8" height="10" rx="1" fill="none" stroke="#aab4c3"/>
+        <text x="498" y="182" fill="#e5e9f0" font-size="10" font-family="sans-serif">Gamma Solutions</text>
+        <line x1="470" y1="196" x2="690" y2="196" stroke="#2a3443"/>
+        <text x="482" y="214" fill="#e5e9f0" font-size="10" font-family="sans-serif">☰  View all clients</text>
+        <line x1="599" y1="22" x2="599" y2="27" stroke="#79c0ff" stroke-width="1.5"/>
+        <rect x="262" y="230" width="236" height="15" rx="7" fill="#1f6feb44"/>
+        <text x="380" y="241" fill="#79c0ff" font-size="9.5" font-family="sans-serif" text-anchor="middle">Client switcher: pick a client or Global View</text>
+        <line x1="498" y1="237" x2="490" y2="224" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
       </svg>
-      <p class="help-screenshot-caption">Client switcher in the top bar — switch between clients instantly. All data (assets, passwords, monitors) is isolated per organization.</p>
+      <p class="help-screenshot-caption">The client switcher in the top bar, beside search, alerts, help and the settings gear. Pick a client, or <strong>Global View</strong> for every client you can reach; <strong>View all clients</strong> opens the full list. All data (assets, passwords, monitors) is isolated per organization.</p>
     </div>
 
     <h5 class="mt-4" id="users-roles"><i class="fas fa-users"></i> Users &amp; Roles</h5>
@@ -359,46 +434,105 @@ def help_getting_started(request):
     <p>Custom roles with 42 granular permissions are available for fine-grained control.</p>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="180" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="22" fill="#8b949e" font-size="10" font-family="monospace">User</text>
-        <text x="200" y="22" fill="#8b949e" font-size="10" font-family="monospace">Email</text>
-        <text x="400" y="22" fill="#8b949e" font-size="10" font-family="monospace">Role</text>
-        <text x="520" y="22" fill="#8b949e" font-size="10" font-family="monospace">Last Active</text>
-        <text x="630" y="22" fill="#8b949e" font-size="10" font-family="monospace">Actions</text>
-        <!-- Rows -->
-        <rect y="36" width="700" height="36" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="58" fill="#e6edf3" font-size="12" font-family="sans-serif">John Smith</text>
-        <text x="200" y="58" fill="#8b949e" font-size="11" font-family="sans-serif">j.smith@acme.com</text>
-        <rect x="400" y="46" width="48" height="16" rx="8" fill="#da3633"/>
-        <text x="424" y="58" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Owner</text>
-        <text x="520" y="58" fill="#8b949e" font-size="11" font-family="sans-serif">2m ago</text>
-
-        <rect y="72" width="700" height="36" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="94" fill="#e6edf3" font-size="12" font-family="sans-serif">Sarah Lee</text>
-        <text x="200" y="94" fill="#8b949e" font-size="11" font-family="sans-serif">s.lee@acme.com</text>
-        <rect x="400" y="82" width="44" height="16" rx="8" fill="#9a6700"/>
-        <text x="422" y="94" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Admin</text>
-        <text x="520" y="94" fill="#8b949e" font-size="11" font-family="sans-serif">1h ago</text>
-
-        <rect y="108" width="700" height="36" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="130" fill="#e6edf3" font-size="12" font-family="sans-serif">Mike Johnson</text>
-        <text x="200" y="130" fill="#8b949e" font-size="11" font-family="sans-serif">m.johnson@acme.com</text>
-        <rect x="400" y="118" width="46" height="16" rx="8" fill="#1f6feb"/>
-        <text x="423" y="130" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Editor</text>
-        <text x="520" y="130" fill="#8b949e" font-size="11" font-family="sans-serif">3d ago</text>
-
-        <rect y="144" width="700" height="36" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="166" fill="#e6edf3" font-size="12" font-family="sans-serif">Anna Chen</text>
-        <text x="200" y="166" fill="#8b949e" font-size="11" font-family="sans-serif">a.chen@acme.com</text>
-        <rect x="400" y="154" width="68" height="16" rx="8" fill="#3d444d"/>
-        <text x="434" y="166" fill="#e6edf3" font-size="10" font-family="sans-serif" text-anchor="middle">Read-Only</text>
-        <text x="520" y="166" fill="#8b949e" font-size="11" font-family="sans-serif">1w ago</text>
+      <svg viewBox="0 0 700 247" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Administration, Users &amp; Access, Members: the member list with the four built-in roles, Owner, Admin, Editor and Read-Only.">
+        <title>Administration, Users &amp; Access, Members: the member list with the four built-in roles, Owner, Admin, Editor and Read-Only.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="247" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="220" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="247" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="221" x2="26" y2="221" stroke="#1f2f48"/>
+        <circle cx="15" cy="233" r="6" fill="#2563eb"/>
+        <circle cx="15" cy="233" r="2" fill="#0f1a2b"/>
+        <rect x="1" y="226" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Administration</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Users &amp; Access</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Members</tspan></text>
+        <rect x="42" y="48" width="62" height="16" rx="4" fill="none" stroke="#2a3443"/>
+        <text x="73" y="59" fill="#84b4ff" font-size="9" font-weight="bold" font-family="sans-serif" text-anchor="middle">All settings</text>
+        <text x="112" y="59" fill="#e5e9f0" font-size="9" font-weight="bold" font-family="sans-serif">Users &amp; Access</text>
+        <rect x="190" y="48" width="41" height="16" rx="4" fill="none"/>
+        <text x="197" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Users</text>
+        <rect x="235" y="48" width="52" height="16" rx="4" fill="#2563eb"/>
+        <text x="242" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Members</text>
+        <rect x="290" y="48" width="41" height="16" rx="4" fill="none"/>
+        <text x="297" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Roles</text>
+        <rect x="335" y="48" width="106" height="16" rx="4" fill="none"/>
+        <text x="342" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Access Management</text>
+        <rect x="445" y="48" width="111" height="16" rx="4" fill="none"/>
+        <text x="452" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Directory Services</text>
+        <text x="564" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">More ▾</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="180" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Header -->
+          <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect y="18" width="700" height="18" fill="#161b22"/>
+          <text x="16" y="22" fill="#8b949e" font-size="10" font-family="monospace">User</text>
+          <text x="200" y="22" fill="#8b949e" font-size="10" font-family="monospace">Email</text>
+          <text x="400" y="22" fill="#8b949e" font-size="10" font-family="monospace">Role</text>
+          <text x="520" y="22" fill="#8b949e" font-size="10" font-family="monospace">Joined</text>
+          <text x="630" y="22" fill="#8b949e" font-size="10" font-family="monospace">Actions</text>
+          <!-- Rows -->
+          <rect y="36" width="700" height="36" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="58" fill="#e6edf3" font-size="12" font-family="sans-serif">John Smith</text>
+          <text x="200" y="58" fill="#8b949e" font-size="11" font-family="sans-serif">j.smith@acme.com</text>
+          <rect x="400" y="46" width="48" height="16" rx="8" fill="#da3633"/>
+          <text x="424" y="58" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Owner</text>
+          <text x="520" y="58" fill="#8b949e" font-size="11" font-family="sans-serif">2026-01-12</text>
+          <rect y="72" width="700" height="36" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="94" fill="#e6edf3" font-size="12" font-family="sans-serif">Sarah Lee</text>
+          <text x="200" y="94" fill="#8b949e" font-size="11" font-family="sans-serif">s.lee@acme.com</text>
+          <rect x="400" y="82" width="44" height="16" rx="8" fill="#9a6700"/>
+          <text x="422" y="94" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Admin</text>
+          <text x="520" y="94" fill="#8b949e" font-size="11" font-family="sans-serif">2026-02-24</text>
+          <rect y="108" width="700" height="36" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="130" fill="#e6edf3" font-size="12" font-family="sans-serif">Mike Johnson</text>
+          <text x="200" y="130" fill="#8b949e" font-size="11" font-family="sans-serif">m.johnson@acme.com</text>
+          <rect x="400" y="118" width="46" height="16" rx="8" fill="#1f6feb"/>
+          <text x="423" y="130" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Editor</text>
+          <text x="520" y="130" fill="#8b949e" font-size="11" font-family="sans-serif">2026-03-10</text>
+          <rect y="144" width="700" height="36" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="166" fill="#e6edf3" font-size="12" font-family="sans-serif">Anna Chen</text>
+          <text x="200" y="166" fill="#8b949e" font-size="11" font-family="sans-serif">a.chen@acme.com</text>
+          <rect x="400" y="154" width="68" height="16" rx="8" fill="#3d444d"/>
+          <text x="434" y="166" fill="#e6edf3" font-size="10" font-family="sans-serif" text-anchor="middle">Read-Only</text>
+          <text x="520" y="166" fill="#8b949e" font-size="11" font-family="sans-serif">2026-04-02</text>
+        </g>
       </svg>
-      <p class="help-screenshot-caption">User management table showing the four built-in roles. Roles are color-coded: <strong style="color:#f85149">Owner</strong> (red), <strong style="color:#d29922">Admin</strong> (amber), <strong style="color:#58a6ff">Editor</strong> (blue), <strong style="color:#8b949e">Read-Only</strong> (grey).</p>
+      <p class="help-screenshot-caption">The member list under <em>Settings → Users &amp; Access → Members</em>, showing the four built-in roles. Roles are color-coded: <strong style="color:#f85149">Owner</strong> (red), <strong style="color:#d29922">Admin</strong> (amber), <strong style="color:#58a6ff">Editor</strong> (blue), <strong style="color:#8b949e">Read-Only</strong> (grey).</p>
     </div>
 
     <h5 class="mt-4" id="api-keys"><i class="fas fa-key"></i> API Keys</h5>
@@ -412,34 +546,82 @@ def help_getting_started(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="160" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Card header -->
-        <rect width="700" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="24" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="27" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">API Keys</text>
-        <rect x="570" y="10" width="116" height="22" rx="4" fill="#1f6feb"/>
-        <text x="628" y="25" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ Create New Key</text>
-        <!-- Key row -->
-        <rect x="12" y="52" width="676" height="42" rx="4" fill="#0d1117" stroke="#30363d"/>
-        <text x="28" y="70" fill="#e6edf3" font-size="11" font-family="sans-serif">Browser Extension Key</text>
-        <rect x="28" y="76" width="340" height="14" rx="3" fill="#161b22" stroke="#30363d"/>
-        <text x="36" y="87" fill="#3fb950" font-size="10" font-family="monospace">itdocs_live_xK9mP…Qr7v</text>
-        <rect x="380" y="73" width="66" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="413" y="85" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">⧉ Copy</text>
-        <rect x="460" y="73" width="60" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="490" y="85" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">🗑 Revoke</text>
-        <text x="534" y="85" fill="#8b949e" font-size="10" font-family="sans-serif">Created 2d ago</text>
-        <!-- Warning box -->
-        <rect x="12" y="104" width="676" height="44" rx="4" fill="#3fb95022" stroke="#3fb95055"/>
-        <text x="28" y="122" fill="#3fb950" font-size="11" font-family="sans-serif">✓ Key created! Copy it now — it will only be shown once.</text>
-        <rect x="28" y="128" width="440" height="14" rx="3" fill="#161b22" stroke="#30363d"/>
-        <text x="36" y="139" fill="#79c0ff" font-size="10" font-family="monospace">itdocs_live_xK9mPL3t8nQjR2sYfBdWcAeZuHvMoTgNiXkCpDwF4yEq0Qr7v</text>
-        <!-- Annotations -->
-        <line x1="200" y1="87" x2="200" y2="106" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="120" y="106" width="160" height="0" rx="8" fill="#f0b42944"/>
+      <svg viewBox="0 0 700 208" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="The API Keys page (/api/keys/), opened from Access Management or the browser extension page: Create API Key, a key row with Copy and Delete, and the new key shown once.">
+        <title>The API Keys page (/api/keys/), opened from Access Management or the browser extension page: Create API Key, a key row with Copy and Delete, and the new key shown once.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="208" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="181" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="208" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="182" x2="26" y2="182" stroke="#1f2f48"/>
+        <circle cx="15" cy="194" r="6" fill="#2563eb"/>
+        <circle cx="15" cy="194" r="2" fill="#0f1a2b"/>
+        <rect x="1" y="187" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Administration</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Users &amp; Access</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Access Management</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">API Keys</tspan></text>
+        <!-- page content -->
+        <g transform="translate(38 50) scale(0.94)">
+          <rect width="700" height="160" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Card header -->
+          <rect width="700" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect y="24" width="700" height="18" fill="#161b22"/>
+          <text x="16" y="27" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">API Keys</text>
+          <rect x="570" y="10" width="116" height="22" rx="4" fill="#1f6feb"/>
+          <text x="628" y="25" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ Create API Key</text>
+          <!-- Key row -->
+          <rect x="12" y="52" width="676" height="42" rx="4" fill="#0d1117" stroke="#30363d"/>
+          <text x="28" y="70" fill="#e6edf3" font-size="11" font-family="sans-serif">Browser Extension Key</text>
+          <rect x="28" y="76" width="340" height="14" rx="3" fill="#161b22" stroke="#30363d"/>
+          <text x="36" y="87" fill="#3fb950" font-size="10" font-family="monospace">itdocs_live_xK9mP…Qr7v</text>
+          <rect x="380" y="73" width="66" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="413" y="85" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Copy</text>
+          <rect x="460" y="73" width="60" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
+          <text x="490" y="85" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">Delete</text>
+          <text x="534" y="85" fill="#8b949e" font-size="10" font-family="sans-serif">Created 2d ago</text>
+          <!-- Warning box -->
+          <rect x="12" y="104" width="676" height="44" rx="4" fill="#3fb95022" stroke="#3fb95055"/>
+          <text x="28" y="122" fill="#3fb950" font-size="11" font-family="sans-serif">✓ Key created! Copy it now — it will only be shown once.</text>
+          <rect x="28" y="128" width="440" height="14" rx="3" fill="#161b22" stroke="#30363d"/>
+          <text x="36" y="139" fill="#79c0ff" font-size="10" font-family="monospace">itdocs_live_xK9mPL3t8nQjR2sYfBdWcAeZuHvMoTgNiXkCpDwF4yEq0Qr7v</text>
+          <!-- Annotations -->
+          <line x1="200" y1="87" x2="200" y2="106" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="120" y="106" width="160" height="0" rx="8" fill="#f0b42944"/>
+        </g>
       </svg>
-      <p class="help-screenshot-caption">API key management. Copy the full key immediately after creation — it is only shown once. Use the key prefix shown afterwards to identify it.</p>
+      <p class="help-screenshot-caption">The API Keys page, linked from <em>Access Management</em>. Copy the full key immediately after creation — it is only shown once. Use the key prefix shown afterwards to identify it.</p>
     </div>
     """
     return render(request, 'core/help/section.html', {
