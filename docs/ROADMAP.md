@@ -2764,6 +2764,8 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
 - **67.21 Workflow polish** *(shipped v3.17.683)* — back-to-ticket links, sidebar-matching
   breadcrumbs, settings search synonyms and "/" shortcut, access-denied page, favorite indicator,
   phone menu as a modal; security review of search, workspace, audit and map data.
+- **67.22 Layout and help follow-ups** *(shipped v3.17.684)* — sidebar stays in view on long
+  pages, table columns break between words, help diagrams redrawn in the current layout.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.

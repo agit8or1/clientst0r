@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.684] - 2026-11-15
+
+### Fixed
+- The sidebar stays in view while you scroll long pages; it used to scroll away and leave a blank strip.
+- Table columns break long names between words only ("Northwind Logistics", "Unassigned" no longer split mid-word). Below 1600px the ticket list drops its Created column (Last activity stays) so it fits without scrolling sideways at 1366 and 1440px.
+- Help page captions are readable in light themes.
+
+### Changed
+- In-app help: all 17 diagrams redrawn in the current layout (sidebar, top bar with Go to and the client switcher, breadcrumbs, section tabs and settings pages), with accessible names.
+
+### Documentation
+- The import guides are now "Importing from IT Glue" (docs/importing-from-it-glue.md) and "Importing from Hudu" (docs/importing-from-hudu.md), describing the importers on their own; the old docs/it-glue-alternative.md and docs/hudu-alternative.md pages are gone.
+- Screenshots recaptured with these fixes; the GitHub social preview image is rebuilt (scripts/demo/build_social_preview.py).
+
 ## [3.17.683] - 2026-11-15
 
 ### Security
