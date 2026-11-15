@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.686] - 2026-11-15
+
+### Fixed
+- Help → Locations & WAN said WAN connections were for documentation only and pointed to a separate WAN monitor (through a link that never worked). It now explains that a WAN connection is checked itself once monitoring is on — pinged at its interval, with down and recovery alerts, check history and 30-day uptime, and Check Status for an immediate check — and links to the monitoring help's WAN Connection Checks section. The field table and diagram list the real connection types and statuses.
+
 ## [3.17.685] - 2026-11-15
 
 ### Fixed
