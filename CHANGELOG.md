@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.685] - 2026-11-15
+
+### Fixed
+- Settings → Updates: the "Reload now" button, shown when the server takes long to come back after an update, did nothing because the page's security policy blocked its inline click handler. It now works, and the automated check for blocked inline handlers also covers HTML built inside scripts.
+
 ## [3.17.684] - 2026-11-15
 
 ### Fixed
