@@ -682,44 +682,98 @@ def help_assets(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="200" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Table header -->
-        <rect x="0" y="0" width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect x="0" y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="22" fill="#8b949e" font-size="11" font-family="monospace">Name</text>
-        <text x="200" y="22" fill="#8b949e" font-size="11" font-family="monospace">Type</text>
-        <text x="320" y="22" fill="#8b949e" font-size="11" font-family="monospace">IP / Host</text>
-        <text x="460" y="22" fill="#8b949e" font-size="11" font-family="monospace">Status</text>
-        <text x="580" y="22" fill="#8b949e" font-size="11" font-family="monospace">Actions</text>
-        <!-- Row 1 -->
-        <rect x="0" y="36" width="700" height="40" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="60" fill="#e6edf3" font-size="12" font-family="sans-serif">Core Switch</text>
-        <text x="200" y="60" fill="#79c0ff" font-size="11" font-family="sans-serif">Switch</text>
-        <text x="320" y="60" fill="#8b949e" font-size="11" font-family="monospace">192.168.1.1</text>
-        <rect x="460" y="48" width="54" height="18" rx="9" fill="#1f6feb"/>
-        <text x="487" y="61" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
-        <!-- Reorder badge callout -->
-        <rect x="535" y="48" width="68" height="18" rx="9" fill="#d29922"/>
-        <text x="569" y="61" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">↩ Reorder</text>
-        <!-- Row 2 -->
-        <rect x="0" y="76" width="700" height="40" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="100" fill="#e6edf3" font-size="12" font-family="sans-serif">Rack A Server 1</text>
-        <text x="200" y="100" fill="#79c0ff" font-size="11" font-family="sans-serif">Server</text>
-        <text x="320" y="100" fill="#8b949e" font-size="11" font-family="monospace">192.168.1.10</text>
-        <rect x="460" y="88" width="54" height="18" rx="9" fill="#1f6feb"/>
-        <text x="487" y="101" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
-        <!-- Row 3 -->
-        <rect x="0" y="116" width="700" height="40" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="16" y="140" fill="#e6edf3" font-size="12" font-family="sans-serif">Patch Panel A</text>
-        <text x="200" y="140" fill="#79c0ff" font-size="11" font-family="sans-serif">Patch Panel</text>
-        <text x="320" y="140" fill="#8b949e" font-size="11" font-family="sans-serif">–</text>
-        <rect x="460" y="128" width="68" height="18" rx="9" fill="#21262d"/>
-        <text x="494" y="141" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Inactive</text>
-        <!-- Annotation: Reorder badge -->
-        <line x1="569" y1="48" x2="620" y2="20" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="4,2"/>
-        <rect x="600" y="4" width="96" height="20" rx="10" fill="#f0b42966"/>
-        <text x="648" y="18" fill="#f0b429" font-size="10" font-family="sans-serif" text-anchor="middle">Reorder flag</text>
+      <svg viewBox="0 0 700 266" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Assets &amp; Network, All Assets: the asset list with the yellow Reorder badge on a flagged asset.">
+        <title>Assets &amp; Network, All Assets: the asset list with the yellow Reorder badge on a flagged asset.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="266" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="239" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="266" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="240" x2="26" y2="240" stroke="#1f2f48"/>
+        <circle cx="15" cy="252" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="252" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">All Assets</tspan></text>
+        <rect x="42" y="48" width="68" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">All Assets</text>
+        <rect x="114" y="48" width="84" height="16" rx="4" fill="none"/>
+        <text x="121" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Serial Search</text>
+        <rect x="202" y="48" width="117" height="16" rx="4" fill="none"/>
+        <text x="209" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Network Scan Import</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="200" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Table header -->
+          <rect x="0" y="0" width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect x="0" y="18" width="700" height="18" fill="#161b22"/>
+          <text x="16" y="22" fill="#8b949e" font-size="11" font-family="monospace">Name</text>
+          <text x="200" y="22" fill="#8b949e" font-size="11" font-family="monospace">Type</text>
+          <text x="320" y="22" fill="#8b949e" font-size="11" font-family="monospace">IP / Host</text>
+          <text x="460" y="22" fill="#8b949e" font-size="11" font-family="monospace">Status</text>
+          <text x="580" y="22" fill="#8b949e" font-size="11" font-family="monospace">Actions</text>
+          <!-- Row 1 -->
+          <rect x="0" y="36" width="700" height="40" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="60" fill="#e6edf3" font-size="12" font-family="sans-serif">Core Switch</text>
+          <text x="200" y="60" fill="#79c0ff" font-size="11" font-family="sans-serif">Switch</text>
+          <text x="320" y="60" fill="#8b949e" font-size="11" font-family="monospace">192.168.1.1</text>
+          <rect x="460" y="48" width="54" height="18" rx="9" fill="#1f6feb"/>
+          <text x="487" y="61" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
+          <!-- Reorder badge callout -->
+          <rect x="535" y="48" width="68" height="18" rx="9" fill="#d29922"/>
+          <text x="569" y="61" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">↩ Reorder</text>
+          <!-- Row 2 -->
+          <rect x="0" y="76" width="700" height="40" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="100" fill="#e6edf3" font-size="12" font-family="sans-serif">Rack A Server 1</text>
+          <text x="200" y="100" fill="#79c0ff" font-size="11" font-family="sans-serif">Server</text>
+          <text x="320" y="100" fill="#8b949e" font-size="11" font-family="monospace">192.168.1.10</text>
+          <rect x="460" y="88" width="54" height="18" rx="9" fill="#1f6feb"/>
+          <text x="487" y="101" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
+          <!-- Row 3 -->
+          <rect x="0" y="116" width="700" height="40" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="16" y="140" fill="#e6edf3" font-size="12" font-family="sans-serif">Patch Panel A</text>
+          <text x="200" y="140" fill="#79c0ff" font-size="11" font-family="sans-serif">Patch Panel</text>
+          <text x="320" y="140" fill="#8b949e" font-size="11" font-family="sans-serif">–</text>
+          <rect x="460" y="128" width="68" height="18" rx="9" fill="#21262d"/>
+          <text x="494" y="141" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Inactive</text>
+          <!-- Annotation: Reorder badge -->
+          <line x1="569" y1="66" x2="588" y2="164" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="4,2"/>
+          <rect x="540" y="164" width="96" height="20" rx="10" fill="#f0b42966"/>
+          <text x="588" y="178" fill="#f0b429" font-size="10" font-family="sans-serif" text-anchor="middle">Reorder flag</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Asset list showing the yellow <strong>↩ Reorder</strong> badge on flagged assets. Use the filter bar to show only assets needing reorder.</p>
     </div>
@@ -742,74 +796,129 @@ def help_assets(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="280" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Rack cabinet frame -->
-        <rect x="60" y="20" width="200" height="240" rx="4" fill="#0d1117" stroke="#444c56" stroke-width="2"/>
-        <text x="160" y="14" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Rack A — 42U</text>
-        <!-- U number ruler -->
-        <rect x="60" y="20" width="22" height="240" fill="#161b22" stroke="#30363d"/>
-        <!-- U rows — filled devices -->
-        <!-- 1U patch panel at top -->
-        <rect x="82" y="28" width="174" height="14" rx="2" fill="#2d333b" stroke="#444c56"/>
-        <text x="90" y="39" fill="#8b949e" font-size="8" font-family="monospace">1U</text>
-        <text x="170" y="39" fill="#6e7681" font-size="8" font-family="sans-serif" text-anchor="middle">Patch Panel A</text>
-        <!-- 1U switch -->
-        <rect x="82" y="44" width="174" height="14" rx="2" fill="#1f3a5f" stroke="#1f6feb"/>
-        <text x="90" y="55" fill="#58a6ff" font-size="8" font-family="monospace">2U</text>
-        <text x="170" y="55" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">Core Switch</text>
-        <!-- 2U server -->
-        <rect x="82" y="60" width="174" height="28" rx="2" fill="#1a3a2a" stroke="#3fb950"/>
-        <text x="90" y="71" fill="#56d364" font-size="8" font-family="monospace">3U</text>
-        <text x="170" y="74" fill="#3fb950" font-size="8" font-family="sans-serif" text-anchor="middle">Server A (2U)</text>
-        <circle cx="238" cy="74" r="3" fill="#3fb950"/>
-        <!-- 1U blank -->
-        <rect x="82" y="90" width="174" height="14" rx="2" fill="#161b22" stroke="#30363d" stroke-dasharray="2,2"/>
-        <text x="90" y="101" fill="#3d444d" font-size="8" font-family="monospace">5U</text>
-        <text x="170" y="101" fill="#3d444d" font-size="8" font-family="sans-serif" text-anchor="middle">— empty —</text>
-        <!-- 4U storage -->
-        <rect x="82" y="106" width="174" height="56" rx="2" fill="#2d1f3f" stroke="#8957e5"/>
-        <text x="90" y="117" fill="#bc8cff" font-size="8" font-family="monospace">6U</text>
-        <text x="170" y="134" fill="#bc8cff" font-size="8" font-family="sans-serif" text-anchor="middle">NAS Storage (4U)</text>
-        <!-- UPS at bottom -->
-        <rect x="82" y="220" width="174" height="28" rx="2" fill="#3a2a1a" stroke="#e3b341"/>
-        <text x="90" y="231" fill="#e3b341" font-size="8" font-family="monospace">38U</text>
-        <text x="170" y="234" fill="#e3b341" font-size="8" font-family="sans-serif" text-anchor="middle">UPS (2U)</text>
-
-        <!-- Legend / info panel -->
-        <rect x="300" y="20" width="380" height="240" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="316" y="38" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Rack A Details</text>
-        <line x1="316" y1="44" x2="664" y2="44" stroke="#30363d"/>
-        <!-- Stats -->
-        <text x="316" y="62" fill="#8b949e" font-size="10" font-family="sans-serif">Location</text>
-        <text x="460" y="62" fill="#e6edf3" font-size="10" font-family="sans-serif">Server Room 1, Rack Row B</text>
-        <text x="316" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">Total U</text>
-        <text x="460" y="80" fill="#e6edf3" font-size="10" font-family="sans-serif">42U</text>
-        <text x="316" y="98" fill="#8b949e" font-size="10" font-family="sans-serif">Used U</text>
-        <text x="460" y="98" fill="#e6edf3" font-size="10" font-family="sans-serif">12U</text>
-        <text x="316" y="116" fill="#8b949e" font-size="10" font-family="sans-serif">Free U</text>
-        <text x="460" y="116" fill="#3fb950" font-size="10" font-family="sans-serif">30U available</text>
-        <text x="316" y="134" fill="#8b949e" font-size="10" font-family="sans-serif">Power Draw</text>
-        <text x="460" y="134" fill="#e6edf3" font-size="10" font-family="sans-serif">1.4 kW / 4.0 kW cap</text>
-        <!-- Power bar -->
-        <rect x="460" y="140" width="160" height="8" rx="4" fill="#21262d"/>
-        <rect x="460" y="140" width="56" height="8" rx="4" fill="#1f6feb"/>
-        <text x="316" y="165" fill="#8b949e" font-size="10" font-family="sans-serif">Temperature</text>
-        <text x="460" y="165" fill="#3fb950" font-size="10" font-family="sans-serif">22°C ✓</text>
-        <!-- Device list -->
-        <text x="316" y="188" fill="#8b949e" font-size="10" font-family="sans-serif">Assets in rack:</text>
-        <rect x="316" y="194" width="8" height="8" rx="1" fill="#1f6feb"/>
-        <text x="330" y="202" fill="#c9d1d9" font-size="10" font-family="sans-serif">Core Switch</text>
-        <rect x="316" y="208" width="8" height="8" rx="1" fill="#3fb950"/>
-        <text x="330" y="216" fill="#c9d1d9" font-size="10" font-family="sans-serif">Server A</text>
-        <rect x="316" y="222" width="8" height="8" rx="1" fill="#8957e5"/>
-        <text x="330" y="230" fill="#c9d1d9" font-size="10" font-family="sans-serif">NAS Storage</text>
-        <rect x="316" y="236" width="8" height="8" rx="1" fill="#e3b341"/>
-        <text x="330" y="244" fill="#c9d1d9" font-size="10" font-family="sans-serif">UPS</text>
-        <!-- Annotation -->
-        <line x1="256" y1="74" x2="296" y2="74" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="258" y="66" width="40" height="16" rx="8" fill="#1a7f3744"/>
-        <text x="278" y="77" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">Online</text>
+      <svg viewBox="0 0 700 341" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Assets &amp; Network, Infrastructure, Racks: a 42U rack layout with devices by U position, power draw and temperature.">
+        <title>Assets &amp; Network, Infrastructure, Racks: a 42U rack layout with devices by U position, power draw and temperature.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="341" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="314" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="341" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="315" x2="26" y2="315" stroke="#1f2f48"/>
+        <circle cx="15" cy="327" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="327" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Infrastructure</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Racks</tspan></text>
+        <rect x="42" y="48" width="41" height="16" rx="4" fill="#2563eb"/>
+        <text x="49" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Racks</text>
+        <rect x="87" y="48" width="95" height="16" rx="4" fill="none"/>
+        <text x="94" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Network Closets</text>
+        <rect x="186" y="48" width="79" height="16" rx="4" fill="none"/>
+        <text x="193" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Patch Panels</text>
+        <rect x="269" y="48" width="117" height="16" rx="4" fill="none"/>
+        <text x="276" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Port Configurations</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="280" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Rack cabinet frame -->
+          <rect x="60" y="20" width="200" height="240" rx="4" fill="#0d1117" stroke="#444c56" stroke-width="2"/>
+          <text x="160" y="14" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">Rack A — 42U</text>
+          <!-- U number ruler -->
+          <rect x="60" y="20" width="22" height="240" fill="#161b22" stroke="#30363d"/>
+          <!-- U rows — filled devices -->
+          <!-- 1U patch panel at top -->
+          <rect x="82" y="28" width="174" height="14" rx="2" fill="#2d333b" stroke="#444c56"/>
+          <text x="90" y="39" fill="#8b949e" font-size="8" font-family="monospace">1U</text>
+          <text x="170" y="39" fill="#6e7681" font-size="8" font-family="sans-serif" text-anchor="middle">Patch Panel A</text>
+          <!-- 1U switch -->
+          <rect x="82" y="44" width="174" height="14" rx="2" fill="#1f3a5f" stroke="#1f6feb"/>
+          <text x="90" y="55" fill="#58a6ff" font-size="8" font-family="monospace">2U</text>
+          <text x="170" y="55" fill="#79c0ff" font-size="8" font-family="sans-serif" text-anchor="middle">Core Switch</text>
+          <!-- 2U server -->
+          <rect x="82" y="60" width="174" height="28" rx="2" fill="#1a3a2a" stroke="#3fb950"/>
+          <text x="90" y="71" fill="#56d364" font-size="8" font-family="monospace">3U</text>
+          <text x="170" y="74" fill="#3fb950" font-size="8" font-family="sans-serif" text-anchor="middle">Server A (2U)</text>
+          <circle cx="238" cy="74" r="3" fill="#3fb950"/>
+          <!-- 1U blank -->
+          <rect x="82" y="90" width="174" height="14" rx="2" fill="#161b22" stroke="#30363d" stroke-dasharray="2,2"/>
+          <text x="90" y="101" fill="#3d444d" font-size="8" font-family="monospace">5U</text>
+          <text x="170" y="101" fill="#3d444d" font-size="8" font-family="sans-serif" text-anchor="middle">— empty —</text>
+          <!-- 4U storage -->
+          <rect x="82" y="106" width="174" height="56" rx="2" fill="#2d1f3f" stroke="#8957e5"/>
+          <text x="90" y="117" fill="#bc8cff" font-size="8" font-family="monospace">6U</text>
+          <text x="170" y="134" fill="#bc8cff" font-size="8" font-family="sans-serif" text-anchor="middle">NAS Storage (4U)</text>
+          <!-- UPS at bottom -->
+          <rect x="82" y="220" width="174" height="28" rx="2" fill="#3a2a1a" stroke="#e3b341"/>
+          <text x="90" y="231" fill="#e3b341" font-size="8" font-family="monospace">38U</text>
+          <text x="170" y="234" fill="#e3b341" font-size="8" font-family="sans-serif" text-anchor="middle">UPS (2U)</text>
+          <!-- Legend / info panel -->
+          <rect x="300" y="20" width="380" height="240" rx="4" fill="#161b22" stroke="#30363d"/>
+          <text x="316" y="38" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Rack A Details</text>
+          <line x1="316" y1="44" x2="664" y2="44" stroke="#30363d"/>
+          <!-- Stats -->
+          <text x="316" y="62" fill="#8b949e" font-size="10" font-family="sans-serif">Location</text>
+          <text x="460" y="62" fill="#e6edf3" font-size="10" font-family="sans-serif">Server Room 1, Rack Row B</text>
+          <text x="316" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">Total U</text>
+          <text x="460" y="80" fill="#e6edf3" font-size="10" font-family="sans-serif">42U</text>
+          <text x="316" y="98" fill="#8b949e" font-size="10" font-family="sans-serif">Used U</text>
+          <text x="460" y="98" fill="#e6edf3" font-size="10" font-family="sans-serif">12U</text>
+          <text x="316" y="116" fill="#8b949e" font-size="10" font-family="sans-serif">Free U</text>
+          <text x="460" y="116" fill="#3fb950" font-size="10" font-family="sans-serif">30U available</text>
+          <text x="316" y="134" fill="#8b949e" font-size="10" font-family="sans-serif">Power Draw</text>
+          <text x="460" y="134" fill="#e6edf3" font-size="10" font-family="sans-serif">1.4 kW / 4.0 kW cap</text>
+          <!-- Power bar -->
+          <rect x="460" y="140" width="160" height="8" rx="4" fill="#21262d"/>
+          <rect x="460" y="140" width="56" height="8" rx="4" fill="#1f6feb"/>
+          <text x="316" y="165" fill="#8b949e" font-size="10" font-family="sans-serif">Temperature</text>
+          <text x="460" y="165" fill="#3fb950" font-size="10" font-family="sans-serif">22°C ✓</text>
+          <!-- Device list -->
+          <text x="316" y="188" fill="#8b949e" font-size="10" font-family="sans-serif">Assets in rack:</text>
+          <rect x="316" y="194" width="8" height="8" rx="1" fill="#1f6feb"/>
+          <text x="330" y="202" fill="#c9d1d9" font-size="10" font-family="sans-serif">Core Switch</text>
+          <rect x="316" y="208" width="8" height="8" rx="1" fill="#3fb950"/>
+          <text x="330" y="216" fill="#c9d1d9" font-size="10" font-family="sans-serif">Server A</text>
+          <rect x="316" y="222" width="8" height="8" rx="1" fill="#8957e5"/>
+          <text x="330" y="230" fill="#c9d1d9" font-size="10" font-family="sans-serif">NAS Storage</text>
+          <rect x="316" y="236" width="8" height="8" rx="1" fill="#e3b341"/>
+          <text x="330" y="244" fill="#c9d1d9" font-size="10" font-family="sans-serif">UPS</text>
+          <!-- Annotation -->
+          <line x1="256" y1="74" x2="296" y2="74" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="258" y="66" width="40" height="16" rx="8" fill="#1a7f3744"/>
+          <text x="278" y="77" fill="#3fb950" font-size="9" font-family="sans-serif" text-anchor="middle">Online</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Visual rack layout showing U-space allocation, power consumption bar, and environmental data. Drag devices between U positions to reorganize.</p>
     </div>
@@ -823,54 +932,110 @@ def help_assets(request):
     </ul>
 
     <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="160" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header row -->
-        <rect x="0" y="0" width="700" height="32" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect x="0" y="18" width="700" height="14" fill="#161b22"/>
-        <text x="16" y="21" fill="#8b949e" font-size="10" font-family="monospace">Port #</text>
-        <text x="80" y="21" fill="#8b949e" font-size="10" font-family="monospace">Description</text>
-        <text x="240" y="21" fill="#8b949e" font-size="10" font-family="monospace">Mode</text>
-        <text x="330" y="21" fill="#8b949e" font-size="10" font-family="monospace">Native VLAN</text>
-        <text x="460" y="21" fill="#8b949e" font-size="10" font-family="monospace">Tagged VLANs</text>
-        <text x="590" y="21" fill="#8b949e" font-size="10" font-family="monospace">Status</text>
-        <!-- Port row -->
-        <rect x="0" y="32" width="700" height="38" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <text x="22" y="55" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text>
-        <rect x="80" y="38" width="150" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="88" y="53" fill="#8b949e" font-size="10" font-family="sans-serif">Uplink to Core</text>
-        <!-- Mode select -->
-        <rect x="240" y="38" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="250" y="53" fill="#e6edf3" font-size="10" font-family="sans-serif">Trunk ▾</text>
-        <!-- Native VLAN -->
-        <rect x="330" y="38" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="340" y="53" fill="#e6edf3" font-size="10" font-family="sans-serif">VLAN 1 - Default ▾</text>
-        <!-- Tagged -->
-        <rect x="460" y="38" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="470" y="53" fill="#e6edf3" font-size="10" font-family="sans-serif">10, 20, 30 ▾</text>
-        <!-- Status -->
-        <rect x="590" y="38" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="600" y="53" fill="#3fb950" font-size="10" font-family="sans-serif">Active ▾</text>
-        <!-- Port row 2 -->
-        <rect x="0" y="70" width="700" height="38" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="22" y="93" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text>
-        <rect x="80" y="76" width="150" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="88" y="91" fill="#8b949e" font-size="10" font-family="sans-serif">Workstation A</text>
-        <rect x="240" y="76" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="250" y="91" fill="#e6edf3" font-size="10" font-family="sans-serif">Access ▾</text>
-        <rect x="330" y="76" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="340" y="91" fill="#e6edf3" font-size="10" font-family="sans-serif">VLAN 10 - Staff ▾</text>
-        <rect x="460" y="76" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d" opacity="0.4"/>
-        <text x="470" y="91" fill="#555" font-size="10" font-family="sans-serif">(disabled)</text>
-        <rect x="590" y="76" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
-        <text x="600" y="91" fill="#3fb950" font-size="10" font-family="sans-serif">Active ▾</text>
-        <!-- Annotations -->
-        <line x1="280" y1="38" x2="280" y2="14" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="220" y="2" width="120" height="16" rx="8" fill="#1f6feb44"/>
-        <text x="280" y="13" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Mode controls VLANs</text>
-        <line x1="500" y1="108" x2="500" y2="138" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="420" y="138" width="160" height="16" rx="8" fill="#f0b42944"/>
-        <text x="500" y="149" fill="#f0b429" font-size="10" font-family="sans-serif" text-anchor="middle">Disabled in Access mode</text>
+      <svg viewBox="0 0 700 228" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot" role="img" aria-label="Assets &amp; Network, Infrastructure, Port Configurations: per-port mode, native VLAN, tagged VLANs and status.">
+        <title>Assets &amp; Network, Infrastructure, Port Configurations: per-port mode, native VLAN, tagged VLANs and status.</title>
+        <!-- app frame: v3.17.680 layout -->
+        <rect width="700" height="228" rx="6" fill="#0e131a" stroke="#2a3443"/>
+        <rect width="700" height="26" fill="#0a0e14"/>
+        <line x1="0" y1="26" x2="700" y2="26" stroke="#2a3443"/>
+        <rect x="8" y="6" width="14" height="14" rx="3" fill="#2563eb"/>
+        <text x="28" y="17" fill="#e5e9f0" font-size="10" font-weight="bold" font-family="sans-serif">Client St0r</text>
+        <rect x="150" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="165" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="180" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="195" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="210" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="225" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="240" y="8" width="10" height="10" rx="2" fill="none" stroke="#aab4c3"/>
+        <rect x="262" y="5" width="92" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="270" y="16" fill="#aab4c3" font-size="9" font-family="sans-serif">Go to…</text>
+        <rect x="318" y="8" width="32" height="10" rx="2" fill="#1c2430"/>
+        <text x="334" y="16" fill="#e5e9f0" font-size="7" font-weight="bold" font-family="sans-serif" text-anchor="middle">Ctrl K</text>
+        <text x="368" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">★</text>
+        <text x="386" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">↺</text>
+        <rect x="398" y="5" width="96" height="16" rx="3" fill="none" stroke="#2a3443"/>
+        <text x="406" y="16" fill="#8d99ab" font-size="9" font-family="sans-serif">Search…</text>
+        <circle cx="508" cy="13" r="5" fill="none" stroke="#aab4c3" stroke-width="1.2"/>
+        <text x="525" y="17" fill="#aab4c3" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">?</text>
+        <text x="542" y="17" fill="#aab4c3" font-size="11" font-family="sans-serif" text-anchor="middle">⚙</text>
+        <rect x="556" y="5" width="86" height="16" rx="4" fill="#f0a020"/>
+        <text x="564" y="16" fill="#1a1a1a" font-size="9" font-weight="bold" font-family="sans-serif">Acme Corp ▾</text>
+        <circle cx="654" cy="13" r="5" fill="#aab4c3"/>
+        <text x="663" y="16" fill="#e5e9f0" font-size="9" font-family="sans-serif">admin ▾</text>
+        <rect x="0" y="27" width="30" height="201" fill="#0f1a2b"/>
+        <line x1="30" y1="27" x2="30" y2="228" stroke="#1f2f48"/>
+        <rect x="9" y="36" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="52" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="68" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="84" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="100" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="1" y="99" width="3" height="14" rx="1" fill="#84b4ff"/>
+        <rect x="9" y="116" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="132" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="148" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <rect x="9" y="164" width="12" height="12" rx="3" fill="#1f2f48"/>
+        <line x1="4" y1="202" x2="26" y2="202" stroke="#1f2f48"/>
+        <circle cx="15" cy="214" r="6" fill="#1f2f48"/>
+        <circle cx="15" cy="214" r="2" fill="#0f1a2b"/>
+        <text x="42" y="40" font-size="10" xml:space="preserve" font-family="sans-serif"><tspan fill="#84b4ff">Assets &amp; Network</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#84b4ff">Infrastructure</tspan><tspan fill="#8d99ab">  ›  </tspan><tspan fill="#aab4c3">Port Configurations</tspan></text>
+        <rect x="42" y="48" width="41" height="16" rx="4" fill="none"/>
+        <text x="49" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Racks</text>
+        <rect x="87" y="48" width="95" height="16" rx="4" fill="none"/>
+        <text x="94" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Network Closets</text>
+        <rect x="186" y="48" width="79" height="16" rx="4" fill="none"/>
+        <text x="193" y="59" fill="#aab4c3" font-size="9" font-family="sans-serif">Patch Panels</text>
+        <rect x="269" y="48" width="117" height="16" rx="4" fill="#2563eb"/>
+        <text x="276" y="59" fill="#ffffff" font-size="9" font-family="sans-serif">Port Configurations</text>
+        <!-- page content -->
+        <g transform="translate(38 70) scale(0.94)">
+          <rect width="700" height="160" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+          <!-- Header row -->
+          <rect x="0" y="0" width="700" height="32" rx="6" fill="#161b22" stroke="#30363d"/>
+          <rect x="0" y="18" width="700" height="14" fill="#161b22"/>
+          <text x="16" y="21" fill="#8b949e" font-size="10" font-family="monospace">Port #</text>
+          <text x="80" y="21" fill="#8b949e" font-size="10" font-family="monospace">Description</text>
+          <text x="240" y="21" fill="#8b949e" font-size="10" font-family="monospace">Mode</text>
+          <text x="330" y="21" fill="#8b949e" font-size="10" font-family="monospace">Native VLAN</text>
+          <text x="460" y="21" fill="#8b949e" font-size="10" font-family="monospace">Tagged VLANs</text>
+          <text x="590" y="21" fill="#8b949e" font-size="10" font-family="monospace">Status</text>
+          <!-- Port row -->
+          <rect x="0" y="32" width="700" height="38" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
+          <text x="22" y="55" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text>
+          <rect x="80" y="38" width="150" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="88" y="53" fill="#8b949e" font-size="10" font-family="sans-serif">Uplink to Core</text>
+          <!-- Mode select -->
+          <rect x="240" y="38" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="250" y="53" fill="#e6edf3" font-size="10" font-family="sans-serif">Trunk ▾</text>
+          <!-- Native VLAN -->
+          <rect x="330" y="38" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="340" y="53" fill="#e6edf3" font-size="10" font-family="sans-serif">VLAN 1 - Default ▾</text>
+          <!-- Tagged -->
+          <rect x="460" y="38" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="470" y="53" fill="#e6edf3" font-size="10" font-family="sans-serif">10, 20, 30 ▾</text>
+          <!-- Status -->
+          <rect x="590" y="38" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="600" y="53" fill="#3fb950" font-size="10" font-family="sans-serif">Active ▾</text>
+          <!-- Port row 2 -->
+          <rect x="0" y="70" width="700" height="38" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
+          <text x="22" y="93" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text>
+          <rect x="80" y="76" width="150" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="88" y="91" fill="#8b949e" font-size="10" font-family="sans-serif">Workstation A</text>
+          <rect x="240" y="76" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="250" y="91" fill="#e6edf3" font-size="10" font-family="sans-serif">Access ▾</text>
+          <rect x="330" y="76" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="340" y="91" fill="#e6edf3" font-size="10" font-family="sans-serif">VLAN 10 - Staff ▾</text>
+          <rect x="460" y="76" width="120" height="22" rx="3" fill="#21262d" stroke="#30363d" opacity="0.4"/>
+          <text x="470" y="91" fill="#555" font-size="10" font-family="sans-serif">(disabled)</text>
+          <rect x="590" y="76" width="80" height="22" rx="3" fill="#21262d" stroke="#30363d"/>
+          <text x="600" y="91" fill="#3fb950" font-size="10" font-family="sans-serif">Active ▾</text>
+          <!-- Annotations -->
+          <line x1="280" y1="98" x2="280" y2="120" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="220" y="120" width="120" height="16" rx="8" fill="#1f6feb44"/>
+          <text x="280" y="131" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Mode controls VLANs</text>
+          <line x1="500" y1="108" x2="500" y2="138" stroke="#f0b429" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <rect x="420" y="138" width="160" height="16" rx="8" fill="#f0b42944"/>
+          <text x="500" y="149" fill="#f0b429" font-size="10" font-family="sans-serif" text-anchor="middle">Disabled in Access mode</text>
+        </g>
       </svg>
       <p class="help-screenshot-caption">Port configuration table. <strong>Mode</strong> controls which VLAN fields are active — Tagged VLANs are disabled in Access mode.</p>
     </div>
