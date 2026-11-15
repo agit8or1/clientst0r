@@ -20,8 +20,13 @@ interval) rather than by screen-recording, so pacing is exact and there are no
 dropped frames or loading flashes. ffmpeg comes from the imageio-ffmpeg wheel
 already in the virtualenv.
 
-    DEMO_DIR=... DJANGO_SETTINGS_MODULE=demo_settings_wt \
+    DEMO_DIR=... DEMO_BASE=http://127.0.0.1:8099 \
     python scripts/capture_walkthrough.py --out /var/tmp/clientst0r-media
+
+The beats live in scripts/walkthrough_script.json. A beat can run
+``actions`` before its caption (click / press / type / hover / wait_for, as
+in the screenshot manifest; nothing is submitted), set ``local_storage``
+(e.g. ``{"appnav.rail": "1"}``) and ``viewport`` ({width, height}).
 """
 from __future__ import annotations
 
@@ -37,8 +42,10 @@ import sys
 def _bootstrap_django() -> None:
     root = os.environ.get('DEMO_ROOT') or str(pathlib.Path(__file__).resolve().parent.parent)
     sys.path.insert(0, root)
+    sys.path.insert(0, os.path.join(root, 'scripts', 'demo'))
     os.chdir(root)
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    # The isolated demo instance (scripts/demo/README.md), never the deployment.
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo_settings')
     import django
     django.setup()
 
@@ -51,6 +58,16 @@ from django.contrib.sessions.backends.db import SessionStore  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 from core.models import Organization  # noqa: E402
+
+def guard_not_production() -> None:
+    db = settings.DATABASES['default']
+    if 'sqlite' not in db.get('ENGINE', '') or 'demo' not in str(db.get('NAME', '')).lower():
+        raise SystemExit(f"Refusing to run: {db.get('NAME')!r} is not a demo SQLite database.")
+
+
+# The dark palettes (accounts.context_processors.DARK_THEMES); the toggle
+# switches between Professional Dark (the default) and Default Blue.
+DARK_THEMES = ('professional', 'dark', 'dracula', 'monokai')
 
 W, H = 1920, 1080
 FPS = 30
@@ -195,6 +212,7 @@ def main() -> int:
     ap.add_argument('--keep-frames', action='store_true')
     args = ap.parse_args()
 
+    guard_not_production()
     import imageio_ffmpeg
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -237,11 +255,14 @@ def main() -> int:
 
         def set_theme(want: str) -> None:
             cur = page.evaluate("document.documentElement.getAttribute('data-theme')||''")
-            is_dark = cur in ('dark', 'dracula', 'monokai', 'nord')
+            is_dark = cur in DARK_THEMES
             if (want == 'dark') == is_dark:
                 return
-            page.locator('[data-action="toggleTheme"], button[onclick^="toggleTheme"]').first.click()
-            page.wait_for_timeout(1800)
+            # The toggle sits in the account menu; click it without opening the
+            # menu on camera. The application reloads the page itself.
+            with page.expect_navigation(wait_until='networkidle', timeout=30000):
+                page.evaluate("() => document.querySelector('[data-action=toggleTheme]').click()")
+            page.wait_for_timeout(600)
             page.add_style_tag(content=HIDE)
             page.add_style_tag(content=CAPTION_CSS)
 
@@ -260,12 +281,28 @@ def main() -> int:
                 ctx.add_cookies([{'name': settings.SESSION_COOKIE_NAME, 'value': sessions[beat['org']],
                                   'domain': '127.0.0.1', 'path': '/'}])
 
+            page.set_viewport_size(beat.get('viewport') or {'width': W, 'height': H})
+            page.evaluate("(kv) => { try { localStorage.removeItem('appnav.rail');"
+                          " for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v);"
+                          " } catch (e) {} }", beat.get('local_storage') or {})
             visit(beat['route'], beat.get('wait_for_text'))
             if beat.get('theme'):
                 set_theme(beat['theme'])
             if beat.get('click'):
                 page.locator(beat['click']).first.click()
                 page.wait_for_timeout(beat.get('wait_ms', 1500))
+            for action in beat.get('actions', []):
+                if 'click' in action:
+                    page.locator(action['click']).first.click()
+                elif 'press' in action:
+                    page.keyboard.press(action['press'])
+                elif 'type' in action:
+                    page.keyboard.type(action['type'], delay=60)
+                elif 'hover' in action:
+                    page.locator(action['hover']).first.hover()
+                elif 'wait_for' in action:
+                    page.wait_for_selector(action['wait_for'], timeout=15000)
+                page.wait_for_timeout(action.get('wait_ms', 700))
             if beat.get('highlight_start'):
                 highlight_range.append(rec.n)
             if beat.get('poster_frame'):
@@ -296,10 +333,12 @@ def main() -> int:
         encode(ffmpeg, frames, out / 'walkthrough-short.mp4',
                start_frame=start, frame_count=end - start)
         # GitHub plays a GIF inline but only links a repo video, so the README
-        # gets the highlight as a GIF: 1.6x speed, 10 fps, 960 wide.
+        # gets the highlight as a GIF: 1.6x speed, 8 fps, 960 wide, 96 colours,
+        # with only the changed rectangle stored per frame (keeps it near 3 MB).
         subprocess.run([ffmpeg, '-y', '-i', str(out / 'walkthrough-short.mp4'), '-vf',
-                        'setpts=PTS/1.6,fps=10,scale=960:-1:flags=lanczos,split[a][b];'
-                        '[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4',
+                        'setpts=PTS/1.6,fps=8,scale=960:-1:flags=lanczos,split[a][b];'
+                        '[a]palettegen=max_colors=96:stats_mode=diff[p];'
+                        '[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle',
                         '-loop', '0', str(out / 'walkthrough.gif')], check=True, capture_output=True)
     write_captions(rec.captions, out / 'walkthrough.vtt')
     (out / 'walkthrough.txt').write_text(
