@@ -88,6 +88,39 @@
                 {% else %}
                 <p class="text-muted small mb-0">{% trans "Not signed in to the mobile app anywhere." %}</p>
                 {% endif %}
+
+                {% if azure_sso_enabled or profile.azure_ad_oid %}
+                <hr>
+                <h6><i class="fab fa-microsoft"></i> {% trans "Microsoft sign-in" %}</h6>
+                {% if profile.azure_ad_oid %}
+                <p class="small mb-2">
+                    {% trans "Linked" %}{% if profile.azure_ad_linked_at %} {{ profile.azure_ad_linked_at|date:"M j, Y" }}{% else %} ({% trans "automatically, before v3.17.688" %}){% endif %}
+                    {% if profile.azure_ad_tid %}<br><span class="text-muted">{% trans "Tenant" %} <code>{{ profile.azure_ad_tid }}</code></span>{% endif %}
+                </p>
+                {% if user.is_superuser and not profile.azure_ad_linked_at %}
+                <p class="small text-warning mb-2">{% trans "Administrator accounts must link Microsoft sign-in again before it can be used." %}</p>
+                {% endif %}
+                {% if user.has_usable_password %}
+                <form method="post" action="{% url 'accounts:azure_unlink' %}" class="mb-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">{% trans "Unlink Microsoft sign-in" %}</button>
+                </form>
+                {% endif %}
+                {% endif %}
+                {% if azure_sso_enabled and user.has_usable_password %}
+                {% if not profile.azure_ad_oid or not profile.azure_ad_linked_at %}
+                <form method="post" action="{% url 'accounts:azure_link_start' %}">
+                    {% csrf_token %}
+                    <p class="small text-muted mb-2">{% trans "Confirm it is you, then sign in with the Microsoft account to link to this account." %}</p>
+                    <input type="password" name="password" class="form-control form-control-sm mb-2" placeholder="{% trans 'Password' %}" autocomplete="current-password" required>
+                    {% if azure_link_needs_otp %}
+                    <input type="text" name="otp" class="form-control form-control-sm mb-2" placeholder="{% trans 'Authenticator code' %}" inputmode="numeric" autocomplete="one-time-code" required>
+                    {% endif %}
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fab fa-microsoft"></i> {% trans "Link Microsoft sign-in" %}</button>
+                </form>
+                {% endif %}
+                {% endif %}
+                {% endif %}
             </div>
         </div>
     </div>

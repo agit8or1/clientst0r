@@ -156,6 +156,41 @@
                 {% else %}
                 <p class="text-muted small mb-0">None</p>
                 {% endif %}
+                {% if azure_sso_enabled or profile.azure_ad_oid or azure_link_requests %}
+                <hr>
+                <h6 class="mb-1"><i class="fab fa-microsoft"></i> Microsoft sign-in</h6>
+                {% if profile.azure_ad_oid %}
+                <p class="small mb-2">Linked{% if profile.azure_ad_linked_at %} {{ profile.azure_ad_linked_at|date:"M j, Y" }}{% else %} automatically before v3.17.688{% if viewed_user.is_superuser %} — must be linked again before use{% endif %}{% endif %}<br>
+                    <span class="text-muted">Tenant <code>{{ profile.azure_ad_tid|default:"(not yet captured)" }}</code><br>Object <code>{{ profile.azure_ad_oid }}</code></span></p>
+                <form method="post" action="{% url 'accounts:azure_admin_unlink' viewed_user.id %}" class="mb-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Unlink</button>
+                </form>
+                {% else %}
+                <p class="text-muted small mb-2">Not linked</p>
+                {% endif %}
+                {% for lr in azure_link_requests %}
+                <div class="border rounded p-2 mb-2 small">
+                    <strong>Link request</strong> {{ lr.created_at|date:"M j, Y H:i" }}{% if lr.ip_address %} from <code>{{ lr.ip_address }}</code>{% endif %}<br>
+                    Microsoft account: {{ lr.claimed_name|default:"—" }} &lt;{{ lr.claimed_email|default:"—" }}&gt;<br>
+                    Tenant <code>{{ lr.tenant_id }}</code><br>Object <code>{{ lr.object_id }}</code>
+                    <p class="text-warning mb-1 mt-1">Someone signed in with Microsoft using this account's e-mail address. Approve only after confirming with the person that it was them.</p>
+                    {% if lr.user_id != request.user.id %}
+                    <form method="post" action="{% url 'accounts:azure_link_request_decide' viewed_user.id lr.id %}">
+                        {% csrf_token %}
+                        <input type="password" name="password" class="form-control form-control-sm mb-1" placeholder="Your password" autocomplete="current-password">
+                        {% if admin_needs_otp %}
+                        <input type="text" name="otp" class="form-control form-control-sm mb-1" placeholder="Your authenticator code" inputmode="numeric" autocomplete="one-time-code">
+                        {% endif %}
+                        <button type="submit" name="decision" value="approve" class="btn btn-sm btn-outline-primary">Approve link</button>
+                        <button type="submit" name="decision" value="reject" class="btn btn-sm btn-outline-secondary">Reject</button>
+                    </form>
+                    {% else %}
+                    <p class="text-muted mb-0">This is your account: link it from My Profile instead.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
             </div>
         </div>
     </div>
