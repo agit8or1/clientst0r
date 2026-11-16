@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.691] - 2026-11-16
+
+### Security
+- CRM pipeline board: dropping a card took the opportunity id for the stage-change request from the drag payload (`dataTransfer`), which any page or application the user drags text from can set. Dropped text such as `1/../../some/other/url` made the board POST, with the page's CSRF token, to a URL of the dropper's choosing on this site. The id now comes from the card being dragged on the page, must be a positive integer, and is URL-encoded (CodeQL `js/request-forgery`, alert #202).
+- Code-scanning triage: three critical alerts were reviewed and dismissed as false positives, each with its reason recorded on the alert. `core/safe_http.fetch_public_url` (#261) and `office/net.fetch` (#523) are the SSRF guards themselves: every hop is validated (`validate_public_url` / `check_url`) and connections go only to resolved, checked addresses. The LDAP group DN in `accounts/ldap_backend.is_group_member` (#484) is the superuser-configured group used as a base-scope search base; the only user-derived value, the user's DN, is escaped with `escape_filter_chars`.
+
 ## [3.17.690] - 2026-11-16
 
 ### Added
