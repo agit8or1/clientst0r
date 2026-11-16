@@ -78,6 +78,9 @@ urlpatterns = [
     path('monitoring/', include('monitoring.urls')),
     path('locations/', include('locations.urls')),
     path('imports/', include('imports.urls')),
+    # Business Overview (executive dashboard). Under /reports/ so the
+    # staff-only prefix rule in SectionPermissionMiddleware covers it.
+    path('reports/business-overview/', include('executive.urls')),
     path('reports/', include('reports.urls')),
     path('vehicles/', include('vehicles.urls')),
     path('inventory/', include('inventory.urls')),

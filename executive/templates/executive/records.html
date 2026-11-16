@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ provider.title }} · Business Overview{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <a href="{{ back_url }}" class="small"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Business Overview</a>
+  <h1 class="h4 mt-2 mb-1">{{ provider.title }}{% if part %} <small class="text-muted">· {{ part|cut:"_"|title }}</small>{% endif %}</h1>
+  <p class="text-muted small mb-2">
+    {% if provider.point_in_time %}As of now{% else %}{{ filters.start|date:"M j, Y" }} – {{ filters.end|date:"M j, Y" }}{% endif %}
+    {% if filters.customer %} · one customer{% endif %}
+    {% if filters.service_line %} · service line {{ filters.service_line }}{% endif %}
+    {% if filters.location %} · one location{% endif %}
+    · Source: {{ result.source }}
+  </p>
+  {% if provider.label %}<p class="small fst-italic">{{ provider.label }}</p>{% endif %}
+  {% if result.state != 'ok' %}
+    <div class="alert alert-secondary">{{ result.reason }}</div>
+  {% else %}
+    {% if not result.is_complete %}<div class="alert alert-warning py-2 small">Incomplete: {{ result.unknown_reason }}</div>{% endif %}
+    {% if ignored %}<p class="small text-muted">This metric ignores the {{ ignored|join:", "|lower }} filter{{ ignored|pluralize }} you set.</p>{% endif %}
+    <p class="small">{{ table|length }} record{{ table|length|pluralize }}{% if capped %} (first {{ limit }} shown){% endif %}.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr>{% for c in columns %}<th scope="col"{% if c.kind != 'text' and c.kind != 'bool' and c.kind != 'date' %} class="text-end"{% endif %}>{{ c.label }}</th>{% endfor %}<th></th></tr></thead>
+        <tbody>
+          {% for row in table %}
+          <tr>
+            {% for cell in row %}
+              {% if forloop.last %}
+                <td>{% if cell.url %}<a href="{{ cell.url }}">Open</a>{% endif %}</td>
+              {% elif cell.kind == 'currency' %}<td class="text-end">{% if cell.value is None %}—{% else %}{{ cell.value|floatformat:2|intcomma }}{% endif %}</td>
+              {% elif cell.kind == 'percent' %}<td class="text-end">{% if cell.value is None %}—{% else %}{{ cell.value|floatformat:1 }}%{% endif %}</td>
+              {% elif cell.kind == 'hours' %}<td class="text-end">{% if cell.value is None %}—{% else %}{{ cell.value|floatformat:2 }}{% endif %}</td>
+              {% elif cell.kind == 'number' %}<td class="text-end">{% if cell.value is None %}—{% else %}{{ cell.value }}{% endif %}</td>
+              {% elif cell.kind == 'bool' %}<td>{% if cell.value %}Yes{% else %}No{% endif %}</td>
+              {% elif cell.kind == 'date' %}<td>{{ cell.value|default:"—" }}</td>
+              {% else %}<td>{{ cell.value|default:"—" }}</td>{% endif %}
+            {% endfor %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{{ columns|length|add:1 }}" class="text-muted">No records.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small"><a href="?{{ request.GET.urlencode }}&amp;format=json">Download as JSON</a></p>
+  {% endif %}
+</div>
+{% endblock %}

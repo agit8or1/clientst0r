@@ -1164,6 +1164,13 @@ PRIMARY = (
         Entry(_('Overview'), url_name='core:dashboard', icon='fa-tachometer-alt',
               keywords='home dashboard personalized widgets'),
         Entry(_('Favorites'), url_name='core:favorite_list', icon='fa-star', keywords='starred'),
+        # executive.views.overview: MSP staff with reports_view_dashboards
+        # across customers (the decorator is read by _PermProbe); every card
+        # then checks its own permission.
+        Entry(_('Business Overview'), url_name='executive:overview', icon='fa-chart-line',
+              gate=_msp_staff,
+              keywords='executive owner business kpi mrr arr revenue margin profitability churn renewals '
+                       'receivables utilization sla backlog'),
     )),
     # The technician's own pages, flat; their tab strip is SECTIONS
     # psa_my_work. My Tasks and My Schedule open the Scheduling and Shifts
@@ -1337,7 +1344,7 @@ NAMESPACE_GROUP = {
     'assets': 'assets', 'hardware': 'assets', 'network_discovery': 'assets', 'locations': 'assets',
     'statuspage': 'security', 'netconfig': 'security', 'security_alerts': 'security',
     'crm': 'business', 'pulse': 'business', 'contracts': 'business',
-    'reports': 'reports',
+    'reports': 'reports', 'executive': 'dashboard',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',
     'audit': 'settings', 'rmm_permissions': 'settings', 'oidc_sso': 'settings', 'connect': 'settings',
