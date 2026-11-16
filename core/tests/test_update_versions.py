@@ -3,9 +3,11 @@
 Covers: GitHub release pagination (Link: next) and the ETag / 304 cache;
 release classification (stable, pre-release by flag or tag suffix, drafts
 and odd tags left out); newest-first ordering by real timestamps; the
-channel policy (Stable / Prerelease / Preview recommend, never hide, never
-downgrade); signature states and the pre-release trust policy; installs
-ahead of Stable; failures (API down, rate limited, a page missing); the
+channel policy (Official release / Preview / testing recommend, never hide,
+never downgrade; a stored 'prerelease' setting reads as Preview / testing);
+signature states and the signed-tag rule for pre-releases, which are testing
+builds; the two-tab grouping (Official, Preview / testing); installs ahead of
+the official release; failures (API down, rate limited, a page missing); the
 version table on the page whatever the channel; Apply with an explicitly
 selected out-of-channel or older version (confirmed, verified on the
 server, channel unchanged); the review endpoint; database compatibility of
@@ -345,7 +347,7 @@ class SignatureTests(_Base):
         self.assertEqual(by['v3.17.678'], discovery.SIG_UNSIGNED)
 
     def test_untrusted_prerelease_is_listed_but_not_installable_or_recommended(self):
-        self.set_channel('prerelease')
+        self.set_channel('stable')
         self.gh = FakeGitHub(DEFAULT_RELEASES + [rel('v3.18.0-rc.1', '2026-11-16T10:00:00Z',
                                                      prerelease=True)])
         self.local_sigs = {'v3.18.0-rc.1': (False, 'error: no signature found')}
@@ -356,14 +358,27 @@ class SignatureTests(_Base):
         self.assertFalse(row['installable'])
         self.assertIn('not signed by a trusted release key', row['reason'])
 
-    def test_signed_prerelease_is_recommended_on_the_prerelease_channel(self):
-        self.set_channel('prerelease')
+    def test_signed_prerelease_is_a_testing_build_never_official(self):
         self.gh = FakeGitHub(DEFAULT_RELEASES + [rel('v3.18.0-rc.1', '2026-11-16T10:00:00Z',
                                                      prerelease=True)])
         self.local_sigs = {'v3.18.0-rc.1': (True, 'Good signature')}
-        t = self.resolve()['target']
-        self.assertEqual((t['kind'], t['ref']), ('prerelease', 'v3.18.0-rc.1'))
-        Target(t['kind'], t['ref'], t['sha']).validate()
+        # Official release never recommends it, however new and well signed.
+        self.set_channel('stable')
+        state = self.resolve()
+        self.assertEqual(state['target']['ref'], 'v3.17.687')
+        row = catalog.find(catalog.build(state, check_compat=False), 'prerelease', 'v3.18.0-rc.1',
+                           commit_of('v3.18.0-rc.1'))
+        self.assertEqual(row['group'], 'testing')
+        self.assertNotIn('Official', row['type_label'])
+        self.assertTrue(row['installable'])          # signed tag: eligible, as before
+        self.assertFalse(row['in_channel'])
+        # On Preview / testing it belongs to the channel; main is what is recommended.
+        self.set_channel('preview')
+        state = self.resolve()
+        row = catalog.find(catalog.build(state, check_compat=False), 'prerelease', 'v3.18.0-rc.1',
+                           commit_of('v3.18.0-rc.1'))
+        self.assertTrue(row['in_channel'])
+        self.assertEqual(state['target']['kind'], 'preview')
 
     def test_apply_verifies_a_prerelease_tag_like_a_release(self):
         from core.upgrade.revision import RevisionError
@@ -386,8 +401,23 @@ class SignatureTests(_Base):
                 mock.patch.object(upgrade_apply, '_audit'):
             r = upgrade_apply.run(Target('prerelease', 'v3.18.0-rc.1', 'a' * 40))
         self.assertTrue(r['refused'])
-        self.assertIn('Stable channel', r['error'])
+        self.assertIn('Official release channel', r['error'])
         fetch.assert_not_called()
+
+    def test_prerelease_installs_without_flag_on_preview_testing(self):
+        self.set_channel('preview')
+        with mock.patch.object(upgrade_apply, 'is_git_install', return_value=True), \
+                mock.patch.object(upgrade_apply, 'check_remote_unchanged'), \
+                mock.patch.object(upgrade_apply, 'fetch'), \
+                mock.patch('core.upgrade.revision.git', return_value=mock.Mock(returncode=1, stdout='')), \
+                mock.patch.object(upgrade_apply, 'verify_release_tag', side_effect=__import__(
+                    'core.upgrade.revision', fromlist=['RevisionError']).RevisionError('not signed')) as verify, \
+                mock.patch.object(upgrade_apply, '_groom'), \
+                mock.patch.object(upgrade_apply, '_audit'):
+            r = upgrade_apply.run(Target('prerelease', 'v3.18.0-rc.1', 'a' * 40))
+        # Not refused for the channel; still refused by the signature check.
+        self.assertIn('not signed', r['error'])
+        verify.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -407,10 +437,12 @@ class ChannelPolicyTests(_Base):
         by = {r['ref']: r for r in rows}
         self.assertEqual(by['main']['relation'], 'installed')
         self.assertIn('Installed', by['main']['labels'])
-        self.assertIn('Latest Development', by['main']['labels'])
+        self.assertIn('Latest testing build', by['main']['labels'])
         self.assertEqual(by['v3.17.687']['relation'], 'older')
-        self.assertIn('Latest Stable', by['v3.17.687']['labels'])
-        self.assertIn('Latest Prerelease', by['v3.17.681']['labels'])
+        self.assertIn('Latest official', by['v3.17.687']['labels'])
+        self.assertIn('Latest testing tag', by['v3.17.681']['labels'])
+        self.assertEqual(by['v3.17.681']['group'], 'testing')
+        self.assertEqual(by['v3.17.687']['group'], 'official')
         self.assertEqual(by['v3.17.687']['status'], 'Older version')
         self.assertNotIn('Recommended', by['v3.17.687']['labels'])
         from core.views import _update_status_line
@@ -548,9 +580,9 @@ class UpdatesPageTests(_Base):
         self.assertIn('data-type="development"', html)
         self.assertIn(MAIN_SHA[:12], html)
         self.assertIn('unofficial, may be unstable', html)
-        self.assertIn('Latest prerelease', html)
+        self.assertIn('Latest testing build', html)
         self.assertIn('No newer updates on your selected channel', html)
-        self.assertIn('You are running a development build newer than the latest published stable release', html)
+        self.assertIn('You are running a testing build newer than the latest official release', html)
         self.assertNotIn('onclick=', html.split('id="updSummary"', 1)[1])
 
     def test_on_preview_every_stable_release_is_listed(self):
@@ -559,7 +591,7 @@ class UpdatesPageTests(_Base):
         for tag in ('v3.17.687', 'v3.17.686', 'v3.17.680'):
             self.assertIn(f'data-search="{tag}', html)
         self.assertIn('data-type="stable"', html)
-        self.assertIn('Latest stable', html)
+        self.assertIn('Latest official', html)
 
     def test_the_list_is_collapsed_to_what_is_newer(self):
         import re
@@ -578,6 +610,39 @@ class UpdatesPageTests(_Base):
         self.assertIn('name="channel"', strip)
         # Backups and rollback start collapsed.
         self.assertRegex(html, r'<details class="upd-more" id="preUpgradeBackups">')
+
+    def test_two_tabs_official_and_testing(self):
+        import re
+        html = self.page()
+        tabs = re.findall(r'data-action="filterVersions" data-arg="(\w+)"', html)
+        self.assertEqual(tabs, ['official', 'testing'])
+        self.assertIn('>Official <span', html)
+        self.assertIn('>Preview / testing <span', html)
+        for word in ('Prerelease', 'Latest prerelease', 'data-arg="stable"', 'data-arg="development"'):
+            self.assertNotIn(word, html)
+        # Pre-releases and main are testing builds; stable releases are official.
+        rows = re.findall(r'<tr class="upd-row[^>]*>', html)
+        group = {re.search(r'data-search="(\S+)', r).group(1): re.search(r'data-group="(\w+)"', r).group(1)
+                 for r in rows}
+        self.assertEqual(group['v3.17.687'], 'official')
+        self.assertEqual(group['v3.17.681'], 'testing')
+        self.assertEqual(group['v3.18.0-beta.2'], 'testing')
+        self.assertEqual(group['main'], 'testing')
+        # The channel select has exactly two options.
+        strip = html.split('id="updChannelSelect"', 1)[1].split('</select>', 1)[0]
+        self.assertEqual(re.findall(r'<option value="(\w+)"', strip), ['stable', 'preview'])
+
+    def test_a_stored_prerelease_channel_reads_as_preview_testing(self):
+        self.set_channel('prerelease')
+        self.assertEqual(channels.current_channel(), 'preview')
+        html = self.page()
+        strip = html.split('id="updChannelSelect"', 1)[1].split('</select>', 1)[0]
+        self.assertIn('<option value="preview" selected>', strip)
+
+    def test_saving_the_old_prerelease_channel_is_refused(self):
+        self.client.post(reverse('core:set_update_channel'), {'channel': 'prerelease'})
+        from core.models import SystemSetting
+        self.assertNotEqual(SystemSetting.objects.get(pk=1).update_channel, 'prerelease')
 
     def test_page_without_github_says_so_instead_of_showing_empty_categories(self):
         import requests
@@ -683,9 +748,9 @@ class UpdatesPageTests(_Base):
     def test_saving_a_channel_installs_nothing(self):
         with mock.patch('core.updater.UpdateService.perform_update') as perform, \
                 mock.patch('core.upgrade.apply.run') as run:
-            self.client.post(reverse('core:set_update_channel'), {'channel': 'prerelease'})
+            self.client.post(reverse('core:set_update_channel'), {'channel': 'preview'})
         from core.models import SystemSetting
-        self.assertEqual(SystemSetting.objects.get(pk=1).update_channel, 'prerelease')
+        self.assertEqual(SystemSetting.objects.get(pk=1).update_channel, 'preview')
         perform.assert_not_called()
         run.assert_not_called()
 
@@ -743,3 +808,17 @@ class ModalStackingTests(SimpleTestCase):
         self.assertIn('document.body.appendChild(el)', src)
         self.assertNotIn('data-bs-backdrop="false"', src)
         self.assertNotIn('z-index: 99999', src)
+
+
+class ChannelMigrationTests(TestCase):
+    """core 0112: a saved 'prerelease' channel becomes Preview / testing."""
+
+    def test_data_migration_maps_prerelease_to_preview(self):
+        import importlib
+        from django.apps import apps as global_apps
+        from core.models import SystemSetting
+        SystemSetting.get_settings()
+        SystemSetting.objects.filter(pk=1).update(update_channel='prerelease')
+        mod = importlib.import_module('core.migrations.0112_update_channel_two_channels')
+        mod.prerelease_to_preview(global_apps, None)
+        self.assertEqual(SystemSetting.objects.get(pk=1).update_channel, 'preview')

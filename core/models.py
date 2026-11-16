@@ -1134,9 +1134,8 @@ class SystemSetting(models.Model):
     # Release channel (core/upgrade/channels.py). Stable installs signed,
     # published releases only; Preview also offers unreleased commits on main.
     UPDATE_CHANNEL_CHOICES = [
-        ('stable', 'Stable: latest signed published release'),
-        ('prerelease', 'Prerelease: stable plus signed published pre-releases'),
-        ('preview', 'Preview: newest commit on main (unreleased)'),
+        ('stable', 'Official release: latest signed published release'),
+        ('preview', 'Preview / testing: newest commit on main (unreleased)'),
     ]
     update_channel = models.CharField(max_length=10, choices=UPDATE_CHANNEL_CHOICES, default='stable')
 

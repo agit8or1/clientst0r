@@ -381,10 +381,11 @@ def _update_status_line(state, rows, installed):
     if state.get('error') and not state.get('stale'):
         return 'error', f"Could not check for updates: {state['error']}"
     target = state.get('target')
-    channel_label = {'stable': 'Stable', 'prerelease': 'Prerelease', 'preview': 'Preview'}.get(
-        state.get('channel'), 'Stable')
+    from core.upgrade.channels import CHANNEL_LABELS, LEGACY_CHANNELS
+    ch = state.get('channel') or 'stable'
+    channel_label = CHANNEL_LABELS.get(LEGACY_CHANNELS.get(ch, ch), CHANNEL_LABELS['stable'])
     if target:
-        what = {'release': 'release', 'prerelease': 'pre-release', 'preview': 'development build'}.get(
+        what = {'release': 'release', 'prerelease': 'testing build', 'preview': 'testing build'}.get(
             target.get('kind'), 'build')
         ref = target.get('ref') or ''
         ver = target.get('version')
@@ -404,7 +405,7 @@ def _update_status_line(state, rows, installed):
 @user_passes_test(is_superuser)
 def system_updates(request):
     """Settings -> Updates: what is installed, every version discovered on
-    GitHub (stable, pre-release, development), the channel policy, restore
+    GitHub (official releases and testing builds), the channel policy, restore
     points and pre-upgrade backups. Superusers only."""
     updater = UpdateService()
 
@@ -469,7 +470,10 @@ def system_updates(request):
         'root_helper_needed': root_helper.needs_bootstrap(),
         'root_helper_command': root_helper.bootstrap_command(),
         'channels': state,
-        'channel_label': CHANNEL_LABELS.get(state.get('channel') or 'stable', 'Stable'),
+        'channel_label': CHANNEL_LABELS.get(state.get('channel') or 'stable', CHANNEL_LABELS['stable']),
+        'official_count': sum(1 for r in rows if r.get('group') == 'official'),
+        'testing_count': sum(1 for r in rows if r.get('group') == 'testing'),
+        'latest_testing': next((r for r in rows if r.get('group') == 'testing'), None),
         'last_checked': (state.get('checked_at') or (update_info or {}).get('checked_at') or 'never'),
         'last_checked_dt': _parse_iso(state.get('checked_at') or (update_info or {}).get('checked_at')),
         'newer_count': sum(1 for r in rows if r.get('relation') == 'newer'),
@@ -513,11 +517,9 @@ def set_update_channel(request):
             object_type='system_setting', object_repr='Release channel',
             description=f'Release channel set to {channel}')
     messages.success(request, {
-        'stable': 'Following the Stable channel: signed published releases are recommended.',
-        'prerelease': 'Following the Prerelease channel: signed published releases and '
-                      'signed pre-releases are recommended.',
-        'preview': 'Following the Preview channel: the newest commit on main (unreleased, '
-                   'unsigned) is recommended.',
+        'stable': 'Following Official release: signed published releases are recommended.',
+        'preview': 'Following Preview / testing: the newest commit on main (unreleased, '
+                   'unsigned, pinned by commit) is recommended.',
     }[channel] + ' Nothing was installed; every version stays listed under Available Versions.')
     return redirect('core:system_updates')
 

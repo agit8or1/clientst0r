@@ -47,7 +47,7 @@
     main .upd-table > tbody > tr > td { height: auto; padding-top: .3rem; padding-bottom: .3rem; }
     .upd-version { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: var(--text-primary, inherit); }
     .upd-name { max-width: 420px; }
-    .upd-type--prerelease, .upd-type--development { color: var(--warning-color, #b58100); }
+    .upd-type--testing { color: var(--warning-color, #b58100); }
     .upd-row--installed td { background: var(--surface-hover, rgba(25,135,84,.06)); }
     .upd-notes td { background: var(--surface, transparent); }
     .upd-notes__meta { overflow-wrap: anywhere; color: var(--text-secondary, inherit); }
@@ -192,22 +192,20 @@
                     {% csrf_token %}
                     <label for="updChannelSelect" class="upd-muted">Channel</label>
                     <select name="channel" id="updChannelSelect" class="form-select form-select-sm" aria-describedby="updChannelHelp">
-                        <option value="stable"{% if channels.channel != 'preview' and channels.channel != 'prerelease' %} selected{% endif %}>Stable</option>
-                        <option value="prerelease"{% if channels.channel == 'prerelease' %} selected{% endif %}>Prerelease</option>
-                        <option value="preview"{% if channels.channel == 'preview' %} selected{% endif %}>Preview (main, not a release)</option>
+                        <option value="stable"{% if channels.channel != 'preview' %} selected{% endif %}>Official release</option>
+                        <option value="preview"{% if channels.channel == 'preview' %} selected{% endif %}>Preview / testing</option>
                     </select>
                     <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                 </form>
-                <span class="upd-muted">Latest stable <strong>{{ channels.stable.tag|default:"&mdash;" }}</strong></span>
-                <span class="upd-muted">Latest prerelease <strong>{{ channels.prerelease.tag|default:"&mdash;" }}</strong></span>
-                {% if latest_dev %}<span class="upd-muted">Latest development <strong>{% if latest_dev.version %}v{{ latest_dev.version }}{% else %}main{% endif %}</strong> <span class="git-status">@ {{ latest_dev.sha|slice:":7" }}</span></span>{% endif %}
+                <span class="upd-muted">Latest official <strong>{{ channels.stable.tag|default:"&mdash;" }}</strong></span>
+                {% if latest_testing %}<span class="upd-muted">Latest testing build <strong>{% if latest_testing.type == 'development' %}{% if latest_testing.version %}v{{ latest_testing.version }}{% else %}main{% endif %}{% else %}{{ latest_testing.tag }}{% endif %}</strong> <span class="git-status">@ {{ latest_testing.sha|slice:":7" }}</span></span>{% endif %}
             </div>
             <div class="small upd-muted mt-1" id="updChannelHelp">The channel only sets what is recommended and auto-installed; saving never installs and every version stays listed below.</div>
 
             <div class="upd-line upd-line--{{ status_tone }}" id="updStatus" role="status">
                 <div class="upd-line__text">
                     <strong>{{ status_line }}</strong>
-                    {% if installed_summary.ahead_of_stable %}<span class="small"> You are running a development build newer than the latest published stable release.</span>{% endif %}
+                    {% if installed_summary.ahead_of_stable %}<span class="small"> You are running a testing build newer than the latest official release.</span>{% endif %}
                     <span class="small upd-muted">&middot; Checked {% if last_checked_dt %}{{ last_checked_dt|timesince }} ago{% else %}{{ last_checked }}{% endif %}{% if channels.from_cache %} (cached){% endif %}</span>
                 </div>
                 <form method="POST" action="{% url 'core:check_updates_now' %}" class="d-inline">
@@ -247,11 +245,9 @@
             </div>
             <div id="versionsAll" hidden>
                 <div class="upd-toolbar mt-2">
-                    <div class="upd-tabs" role="tablist" aria-label="Filter versions by type">
-                        <button type="button" class="upd-tab active" role="tab" aria-selected="true" data-action="filterVersions" data-arg="all">All <span class="upd-count">{{ versions|length }}</span></button>
-                        <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="stable">Stable <span class="upd-count">{{ discovery.stable_count|default:0 }}</span></button>
-                        <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="prerelease">Prerelease <span class="upd-count">{{ discovery.prerelease_count|default:0 }}</span></button>
-                        <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="development">Development <span class="upd-count">{% if latest_dev %}1{% else %}0{% endif %}</span></button>
+                    <div class="upd-tabs" role="tablist" aria-label="Official releases or testing builds">
+                        <button type="button" class="upd-tab active" role="tab" aria-selected="true" data-action="filterVersions" data-arg="official">Official <span class="upd-count">{{ official_count }}</span></button>
+                        <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="testing">Preview / testing <span class="upd-count">{{ testing_count }}</span></button>
                     </div>
                     <input type="search" class="form-control form-control-sm upd-search" id="versionSearch" placeholder="Search version or commit" aria-label="Search versions" data-on-input="searchVersions">
                 </div>
@@ -261,14 +257,14 @@
                     <thead><tr><th>Version</th><th>Type</th><th>Date</th><th>Status</th><th class="text-end"></th></tr></thead>
                     <tbody>
                     {% for v in versions %}
-                    <tr class="upd-row{% if v.relation == 'installed' %} upd-row--installed{% endif %}" data-type="{{ v.type }}" data-row="{{ forloop.counter0 }}"
+                    <tr class="upd-row{% if v.relation == 'installed' %} upd-row--installed{% endif %}" data-type="{{ v.type }}" data-group="{{ v.group }}" data-row="{{ forloop.counter0 }}"
                         data-relevant="{% if v.relation == 'newer' or v.relation == 'installed' and newer_count %}1{% endif %}"
                         data-search="{{ v.ref|lower }} {{ v.version|lower }} {{ v.name|lower }} {{ v.sha }}" hidden>
                         <td>
                             <span class="upd-version">{% if v.type == 'development' %}{% if v.version %}v{{ v.version }}{% else %}main{% endif %}{% else %}{{ v.tag }}{% endif %}</span>
                             <div class="small upd-muted text-truncate upd-name">{% if v.type == 'development' %}main @ <span class="git-status">{{ v.sha|slice:":7" }}</span> &middot; {% endif %}{{ v.name }}</div>
                         </td>
-                        <td class="upd-type upd-type--{{ v.type }} upd-inline-sm"{% if v.type == 'development' %} title="unofficial, may be unstable"{% elif v.type == 'prerelease' %} title="pre-release, may be unfinished"{% endif %}>{{ v.type_label }}</td>
+                        <td class="upd-type upd-type--{{ v.group }} upd-inline-sm"{% if v.group == 'testing' %} title="testing build: unofficial, may be unstable{% if v.type == 'development' %}; not a release{% endif %}"{% endif %}>{{ v.type_label }}</td>
                         <td class="text-nowrap upd-hide-sm" title="{{ v.date_kind }} {{ v.date }}">{% if v.date %}{{ v.date|slice:":10" }}{% else %}<span class="upd-muted">unknown</span>{% endif %}</td>
                         <td class="upd-inline-sm"><span class="upd-tone upd-tone--{{ v.status_tone }}" title="{{ v.reason_short|default:v.status }}">{{ v.status }}</span></td>
                         <td class="text-end text-nowrap">
@@ -286,7 +282,7 @@
                             <div class="upd-notes__meta small">
                                 {% if v.sha %}<a class="git-status" href="{{ v.commit_url }}" target="_blank" rel="noopener">{{ v.sha|slice:":12" }}</a>{% else %}Commit unknown{% endif %}
                                 {% if v.url %} &middot; <a href="{{ v.url }}" target="_blank" rel="noopener">GitHub</a>{% endif %}
-                                {% if v.type == 'development' %} &middot; unofficial, may be unstable; unsigned, pinned by commit{% if v.ahead_of_stable is not None %}; {{ v.ahead_of_stable }} commit{{ v.ahead_of_stable|pluralize }} after {{ v.since_tag|default:"the latest stable release" }}{% endif %}
+                                {% if v.type == 'development' %} &middot; unofficial, may be unstable; not a release, unsigned, pinned by commit{% if v.ahead_of_stable is not None %}; {{ v.ahead_of_stable }} commit{{ v.ahead_of_stable|pluralize }} after {{ v.since_tag|default:"the latest official release" }}{% endif %}
                                 {% elif v.signature_detail %} &middot; {{ v.signature_detail }}{% endif %}
                                 {% if not v.in_channel and v.installable %} &middot; outside your channel{% endif %}
                                 {% if v.reason and v.reason != 'installed' %}<div class="upd-tone upd-tone--danger">Not installable: {{ v.reason }}</div>{% endif %}
@@ -589,7 +585,7 @@ function postJSON(url, body) {
 }
 
 // ── Available Versions: filter, search, paging, details ─────────────────────
-let versionFilter = 'all';
+let versionFilter = 'official';
 let versionLimit = PAGE_SIZE;
 // Collapsed by default: only what is newer than installed (and the installed
 // row beside it). "Show all versions" opens the full list with tabs/search.
@@ -602,7 +598,7 @@ function renderVersions() {
     let matched = 0, shown = 0;
     rows.forEach(function (tr) {
         const ok = showAll
-            ? (versionFilter === 'all' || tr.dataset.type === versionFilter)
+            ? tr.dataset.group === versionFilter
               && (!needle || tr.dataset.search.indexOf(needle) !== -1)
             : tr.dataset.relevant === '1';
         const visible = ok && matched < versionLimit;
@@ -671,8 +667,8 @@ function relationText(d) {
     if (d.relation === 'older') parts.push(['warning', 'Older than installed (no migration it lacks; data is kept).']);
     else if (d.relation === 'same_version') parts.push(['info', 'Same version number, another build.']);
     if (!d.in_channel) parts.push(['warning', 'Outside your ' + UPD_CHANNEL_LABEL + ' channel; the channel is not changed.']);
-    if (to.type === 'prerelease') parts.push(['warning', 'Pre-release: may be unfinished.']);
-    if (to.type === 'development') parts.push(['warning', 'Development build: unofficial, may be unstable; unsigned, pinned to ' + String(to.sha).slice(0, 7) + '.']);
+    if (to.type === 'prerelease') parts.push(['warning', 'Testing build (published pre-release tag): unofficial, may be unfinished; its tag signature is verified.']);
+    if (to.type === 'development') parts.push(['warning', 'Testing build: unofficial, may be unstable; unsigned, pinned to ' + String(to.sha).slice(0, 7) + '.']);
     return parts;
 }
 
@@ -1221,7 +1217,7 @@ function showError(message, beforeStart) {
 
 function describeTarget(t) {
     if (!t || !t.sha) return 'nothing newer on this channel';
-    return (t.kind === 'release' ? 'release ' : 'preview build ') + (t.ref || '')
+    return (t.kind === 'release' ? 'official release ' : 'testing build ') + (t.ref || '')
         + (t.version ? ' (v' + t.version + ')' : '') + ' at commit ' + String(t.sha).slice(0, 12);
 }
 

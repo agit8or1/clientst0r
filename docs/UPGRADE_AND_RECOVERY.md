@@ -23,41 +23,45 @@ Settings → System → System Updates (`/core/settings/updates/`) keeps three
 questions apart:
 
 - **Which versions exist.** *Available Versions* lists every published
-  GitHub release and the head of `main`, whatever your channel:
-  - **Stable**: published releases (not drafts) with a `vX.Y.Z` tag.
-  - **Prerelease**: published releases GitHub marks as pre-releases, or
-    whose tag has a suffix (`vX.Y.Z-rc.1`, `-beta2`). Always real published
-    releases, never commits on main.
-  - **Development**: the newest commit on `main`. Unofficial and may be
-    unstable; not a release, not signed.
+  GitHub release and the head of `main`, whatever your channel, in two tabs:
+  - **Official**: published releases (not drafts, not pre-releases) with a
+    `vX.Y.Z` tag.
+  - **Preview / testing**: the newest commit on `main` (unofficial and may be
+    unstable; not a release, not signed, pinned to the exact commit), and any
+    published GitHub pre-release (`vX.Y.Z-rc.1`, or flagged by GitHub). A
+    pre-release is a testing build, never an official one; it can only be
+    installed if its tag is signed by the trusted release key.
 
-  Every page of the release list is read (with ETags, so an unchanged list
-  costs GitHub nothing). Rows are sorted by release date, or commit date
-  for main, newest first, 20 at a time, with filter tabs and a search box.
-  *Details* opens a version's notes, assets, commit and signature status.
-- **Which version is recommended.** The *Update Channel* decides what the
-  update badge, *Update now* and the nightly automatic update act on.
-  Saving it never installs anything and never hides a version.
-- **What can be installed.** Each row says *Installed*, *Older version*,
-  *Newer*, *Recommended update*, or *Unavailable* / *Incompatible* with the
-  reason. Apply checks all of it again on the server.
+  The list starts collapsed to what is newer than the installed build (and
+  the installed row); *Show all versions* opens both tabs, newest first, 20
+  at a time, with a search box. Every page of the release list is read (with
+  ETags, so an unchanged list costs GitHub nothing). *Notes* opens a
+  version's notes, commit and signature status.
+- **Which version is recommended.** The channel decides what the update
+  badge, *Install* in the status strip and the nightly automatic update act
+  on. Saving it never installs anything and never hides a version.
+- **What can be installed.** Each row has one status: *Installed*, *Older
+  version*, *Newer*, *Recommended update*, or *Unavailable* / *Incompatible*
+  (the reason is under *Notes*). Apply checks all of it again on the server.
 
 | Channel | Recommends | Verified by |
 |---|---|---|
-| **Stable** (default) | The latest published release | The tag's SSH signature, checked against the trusted release key, and the commit the tag points at |
-| **Prerelease** | Stable, plus published pre-releases whose tag is signed by the same release key | The same signature checks as Stable. A pre-release without a trusted signature is listed but cannot be installed |
-| **Preview** (opt-in) | The newest commit on `main`: **unreleased**, may include work in progress | The exact commit sha you reviewed (main commits are not signed) |
+| **Official release** (default) | The latest published release | The tag's SSH signature, checked against the trusted release key, and the commit the tag points at |
+| **Preview / testing** (opt-in) | The newest commit on `main`: **unreleased**, may include work in progress | The exact commit sha you reviewed (main commits are not signed) |
+
+A setting saved as *Prerelease* by v3.17.697 to v3.17.700 is read as
+Preview / testing (migration core 0112).
 
 A channel only ever recommends something newer than what is installed. If
-you run a development build newer than the latest stable release (for example
-after following main), the page says so, and Stable shows *No newer updates
-on your selected channel*. It never offers the older release as an update.
+you run a testing build newer than the latest official release (for example
+after following main), the page says so, and Official release shows *No newer
+updates on your selected channel*. It never offers the older release as an
+update.
 
-The summary at the top shows the installed version (and whether it is a
-stable release, a pre-release or a development build), its commit, branch
-and whether the checkout has local edits, your channel, the latest stable
-release, the latest pre-release, the latest development build, and the
-update status.
+The status strip at the top shows the installed version (official release or
+testing build), its branch and commit and whether the checkout has local
+edits, the channel select, the latest official release, the latest testing
+build, the update status and *Check now*.
 
 ### Signature status
 
@@ -92,24 +96,25 @@ moment, Apply refuses and changes nothing; try again later.
 ## Upgrade from the web UI
 
 1. **Settings → System → System Updates** → *Check now*.
-2. *Update now* installs what your channel recommends. To install any other
+2. *Install* in the status strip installs what your channel recommends. To install any other
    version, pick it under *Available Versions* and click *Install…*.
 3. The review dialog shows from → to, whether it is an upgrade, an older
    version or outside your channel, the release notes (or the commits for a
-   development build), and runs the checks Apply runs first: the revision is
-   fetched and pinned, a release or pre-release tag signature is verified, an
+   testing build), and runs the checks Apply runs first: the revision is
+   fetched and pinned, a release tag's signature is verified, an
    older version is checked against the database, and the preflight checks
    run. Anything that fails is shown with the reason, and nothing changes.
 4. Tick the confirmations (an out-of-channel or older version has its own)
-   and click *Install*. The progress view shows each stage: repository,
-   download and verification, preflight, backup, code, dependencies,
-   migrations, static files, restart and the health check.
+   and click *Install*. The progress view shows one bar with the current
+   stage (repository and verification, preflight, backup, code,
+   dependencies, migrations, static files, restart, health check) and a
+   collapsible log.
 
 Installing a version outside your channel does **not** change the channel.
 
 The browser sends the revision it showed you, and the server asks GitHub
 again. It installs only a version discovery offers right now and that is
-eligible; if *Update now*'s recommendation (or main) moved since the page
+eligible; if the channel's recommendation (or main) moved since the page
 loaded, it refuses and shows the new build for review. If GitHub cannot be
 reached, Apply refuses rather than install from an older answer.
 
@@ -136,8 +141,8 @@ These are different:
    fetches that commit, checks the sha again and, for a release, verifies the
    tag signature. The trusted key comes from `/etc/clientst0r/allowed_signers`
    (installed by the root helper), or else from the *installed* revision's
-   `deploy/root-helper/allowed_signers`. Pre-releases are held to the same
-   signature policy. An older version is refused unless it was explicitly
+   `deploy/root-helper/allowed_signers`. A pre-release tag (a testing build)
+   is held to the same signature policy. An older version is refused unless it was explicitly
    confirmed and the database has no migration it lacks.
 2. **Backup cleanup, then preflight checks.** Old pre-upgrade backups are
    removed first, counting the backup this run is about to take, so the
@@ -180,7 +185,7 @@ Use this when the web UI is unavailable. It runs the same pipeline:
 
 ```bash
 cd /path/to/clientst0r
-venv/bin/python manage.py upgrade_apply          # shows installed / stable / preview, asks first
+venv/bin/python manage.py upgrade_apply          # shows installed / official / testing, asks first
 venv/bin/python manage.py upgrade_preflight      # only the checks
 ```
 
@@ -193,8 +198,8 @@ To install a specific reviewed revision:
 
 ```bash
 venv/bin/python manage.py upgrade_apply --ref v3.17.640 --sha <full commit sha>
-venv/bin/python manage.py upgrade_apply --kind prerelease --ref v3.18.0-rc.1 --sha <sha> --allow-prerelease
 venv/bin/python manage.py upgrade_apply --kind preview --ref main --sha <sha> --allow-preview
+venv/bin/python manage.py upgrade_apply --kind prerelease --ref v3.18.0-rc.1 --sha <sha> --allow-preview   # a signed pre-release tag
 ```
 
 An install older than this pipeline downloads `deploy/update_instructions.sh`

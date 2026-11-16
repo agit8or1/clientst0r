@@ -25,7 +25,11 @@ from .discovery import INSTALLABLE_SIGNATURES, parse_version
 
 logger = logging.getLogger('core')
 
-TYPE_LABELS = {'stable': 'Stable', 'prerelease': 'Prerelease', 'development': 'Development'}
+# Two kinds of build on the page: official releases, and testing builds (the
+# head of main, and any GitHub pre-release; the latter keep their signed-tag
+# rule, they are just never called official).
+TYPE_LABELS = {'stable': 'Official', 'prerelease': 'Testing (pre-release tag)', 'development': 'Testing (main)'}
+GROUPS = {'stable': 'official', 'prerelease': 'testing', 'development': 'testing'}
 # Marker of an update script that installs exactly CLIENTST0R_TARGET_SHA.
 # Older revisions' scripts fetched and installed main instead; never run one.
 PINNED_SCRIPT_MARKER = 'reset --hard "$TARGET_SHA"'
@@ -171,6 +175,7 @@ def build(state, *, upgrade_state=None, check_compat=True):
     owner, name = discovery.repo()
     for r in rows:
         r['type_label'] = TYPE_LABELS[r['type']]
+        r['group'] = GROUPS[r['type']]
         r['relation'] = _relation(r['version'], r['sha'], inst, development=r['type'] == 'development')
         r['in_channel'] = r['type'] in in_channel_types
         r['recommended'] = bool(target) and (target.get('kind'), target.get('ref'), target.get('sha')) \
@@ -180,8 +185,8 @@ def build(state, *, upgrade_state=None, check_compat=True):
         if r['relation'] == 'installed':
             labels.append('Installed')
         if r['is_latest']:
-            labels.append({'stable': 'Latest Stable', 'prerelease': 'Latest Prerelease',
-                           'development': 'Latest Development'}[r['type']])
+            labels.append({'stable': 'Latest official', 'prerelease': 'Latest testing tag',
+                           'development': 'Latest testing build'}[r['type']])
         if r['recommended']:
             labels.append('Recommended')
         r['labels'] = labels
@@ -270,8 +275,8 @@ def installed_summary(state, rows):
         kind = 'unknown'
     return {
         'type': kind,
-        'type_label': {'stable': 'Stable release', 'prerelease': 'Prerelease',
-                       'development': 'Development build'}.get(kind, 'Unrecognised build'),
+        'type_label': {'stable': 'Official release', 'prerelease': 'Testing build',
+                       'development': 'Testing build'}.get(kind, 'Unrecognised build'),
         'matches_row': bool(row),
         'ahead_of_stable': ahead,
         'behind_stable': bool(iv and sv and iv < sv),

@@ -856,7 +856,7 @@ class ApplyPipelineTests(_TmpMixin, TestCase):
     def test_preview_needs_the_preview_channel(self):
         r = upgrade_apply.run(Target('preview', 'main', SHA2))
         self.assertTrue(r['refused'])
-        self.assertIn('Stable channel', r['error'])
+        self.assertIn('Official release channel', r['error'])
         self.m['fetch'].assert_not_called()
 
     def test_unfinished_upgrade_blocks_a_new_one(self):

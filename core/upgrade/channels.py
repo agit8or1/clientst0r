@@ -5,23 +5,28 @@ the channel (core.upgrade.discovery), and an admin can install any eligible
 one by hand after verification and confirmation. Visibility, recommendation
 and eligibility are kept separate:
 
-    visibility    discovery: every published stable release, every published
-                  pre-release, and main
+    visibility    discovery: every published release (official, or a GitHub
+                  pre-release, which is a testing build) and main
     recommended   the channel policy below (badge, "update available",
                   "Update now", `upgrade_apply --auto`)
     eligible      core.upgrade.catalog: signature, compatibility, recovery
                   state; checked again by Apply on the server
 
-    Stable      the newest *published* GitHub release (not a draft, not a
+    Official release ('stable')
+                the newest *published* GitHub release (not a draft, not a
                 pre-release) whose tag is a version tag. Apply installs it
                 only after verifying the tag's SSH signature locally
                 (core.upgrade.revision). Version tags exist for every build;
                 only the ones published as releases are recommended.
-    Prerelease  Stable plus published pre-releases whose tag is signed by
-                the same trusted release key (same verification as Stable).
-    Preview     the head of `main`: commits that are not part of any release.
+    Preview / testing ('preview')
+                the head of `main`: commits that are not part of any release.
                 Opt-in (Settings -> Updates -> channel). Unsigned; pinned to
-                the exact commit shown on the page.
+                the exact commit shown on the page. Published GitHub
+                pre-releases are testing builds too: listed with it, never
+                called official, installable only with a signed tag.
+
+A stored 'prerelease' setting (v3.17.697-700 had a separate Prerelease
+channel) is read as Preview / testing (current_channel; migration core 0112).
 
 A channel only ever recommends something newer than what is installed: an
 install that is ahead of its channel (a development build on Stable) is
@@ -69,14 +74,16 @@ STATE_FORMAT = 1
 CACHE_TTL = 600          # a good answer is reused for this long
 CACHE_TTL_ERROR = 120    # a failed check is not retried for this long
 LAST_GOOD_TTL = 24 * 3600
-CHANNELS = ('stable', 'prerelease', 'preview')
-# The release types each channel *recommends* (never what it shows).
+CHANNELS = ('stable', 'preview')
+# The release types that belong to each channel (never what it shows). What a
+# channel *recommends* is narrower: _candidates (Preview recommends main only).
 CHANNEL_TYPES = {
     'stable': ('stable',),
-    'prerelease': ('stable', 'prerelease'),
-    'preview': ('development',),
+    'preview': ('development', 'prerelease'),
 }
-CHANNEL_LABELS = {'stable': 'Stable', 'prerelease': 'Prerelease', 'preview': 'Preview'}
+CHANNEL_LABELS = {'stable': 'Official release', 'preview': 'Preview / testing'}
+# Settings saved before the two-channel layout.
+LEGACY_CHANNELS = {'prerelease': 'preview'}
 API = 'https://api.github.com/repos'
 RAW = 'https://raw.githubusercontent.com'
 MAX_COMMITS_SHOWN = 15
@@ -129,6 +136,7 @@ def current_channel():
         ch = SystemSetting.get_settings().update_channel
     except Exception:
         ch = 'stable'
+    ch = LEGACY_CHANNELS.get(ch, ch)
     return ch if ch in CHANNELS else 'stable'
 
 

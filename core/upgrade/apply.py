@@ -212,15 +212,18 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         ch = current_channel()
         if ch != 'preview':
             raise ApplyRefused(f'This instance follows the {CHANNEL_LABELS.get(ch, ch)} channel. '
-                               'Select the development build under Available Versions and '
-                               'confirm it, or switch to Preview, to install unreleased commits '
-                               'from main.')
+                               'Select the testing build under Available Versions and '
+                               'confirm it, or switch to Preview / testing, to install '
+                               'unreleased commits from main.')
+    # A published GitHub pre-release is a testing build: same rule as main,
+    # and its tag signature is still verified below like an official release.
     if target.kind == 'prerelease' and not (allow_prerelease or allow_preview) and not resume:
-        from .channels import current_channel
-        if current_channel() not in ('prerelease', 'preview'):
-            raise ApplyRefused('This instance follows the Stable channel. Select the pre-release '
-                               'under Available Versions and confirm it, or switch to the '
-                               'Prerelease channel, to install it.')
+        from .channels import CHANNEL_LABELS, current_channel
+        ch = current_channel()
+        if ch != 'preview':
+            raise ApplyRefused(f'This instance follows the {CHANNEL_LABELS.get(ch, ch)} channel. '
+                               'Select the testing build under Available Versions and confirm '
+                               'it, or switch to Preview / testing, to install it.')
 
     from config.version import VERSION as installed_version
     installed_sha = (prev or {}).get('prev_sha') if resume else head_sha()
@@ -250,7 +253,7 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
             say(f'Fetched {target.sha[:12]}; the commit matches the reviewed revision')
         if target.kind in ('release', 'prerelease'):
             msg = verify_release_tag(target)
-            say(f"{'Release' if target.kind == 'release' else 'Pre-release'} tag signature "
+            say(f"{'Release' if target.kind == 'release' else 'Testing build'} tag signature "
                 f'verified: {msg}')
         else:
             say('Preview build: unsigned commit on main, pinned by sha (not a release)')

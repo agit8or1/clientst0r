@@ -3,8 +3,8 @@
     manage.py upgrade_apply                       show what this instance's channel would install, then ask
     manage.py upgrade_apply --yes                 ... and install it without asking
     manage.py upgrade_apply --ref v3.17.700 --sha <40-hex>        install exactly that release
-    manage.py upgrade_apply --kind preview --ref main --sha <40-hex> --allow-preview
-    manage.py upgrade_apply --kind prerelease --ref v3.18.0-rc.1 --sha <40-hex> --allow-prerelease
+    manage.py upgrade_apply --kind preview --ref main --sha <40-hex> --allow-preview      a testing build (main)
+    manage.py upgrade_apply --kind prerelease --ref v3.18.0-rc.1 --sha <40-hex> --allow-preview   a signed pre-release tag (testing)
     manage.py upgrade_apply --resume              finish an upgrade that was interrupted
     manage.py upgrade_apply --auto                for the nightly timer: install only when
                                                   the channel has something newer
@@ -13,6 +13,7 @@ Same pipeline as the web UI (core/upgrade/apply.py): the revision is pinned
 by sha and verified, preflight checks run, a verified backup is taken, and
 the update script from the target revision is the one that runs.
 """
+import argparse
 import sys
 
 from django.core.management.base import BaseCommand, CommandError
@@ -33,10 +34,10 @@ class Command(BaseCommand):
         parser.add_argument('--auto', action='store_true')
         parser.add_argument('--yes', action='store_true')
         parser.add_argument('--allow-preview', action='store_true',
-                            help='allow a preview (unreleased) target while following Stable')
-        parser.add_argument('--allow-prerelease', action='store_true',
-                            help='allow a signed pre-release while following Stable (the channel '
-                                 'setting is not changed)')
+                            help='allow a testing build (main, or a signed pre-release tag) while '
+                                 'following Official release (the channel setting is not changed)')
+        # Compatibility (v3.17.697-700): same as --allow-preview for a pre-release tag.
+        parser.add_argument('--allow-prerelease', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--skip-deps-check', action='store_true',
                             help='skip the pip --dry-run preflight (the install itself still runs)')
 
@@ -57,19 +58,16 @@ class Command(BaseCommand):
                 out(self.style.WARNING(f"Update check: {state['error']}"
                                        + (' (showing the last good answer)' if state['stale'] else '')))
             inst = state['installed']
-            out(f"Installed: v{inst['version']} @ {(inst['sha'] or '?')[:12]}   channel: {state['channel']}")
+            out(f"Installed: v{inst['version']} @ {(inst['sha'] or '?')[:12]}   "
+                f"channel: {channels.CHANNEL_LABELS.get(state['channel'], state['channel'])}")
             if state['stable']:
-                out(f"Stable:    {state['stable']['tag']} @ {state['stable']['sha'][:12]} "
+                out(f"Official:  {state['stable']['tag']} @ {state['stable']['sha'][:12]} "
                     f"(published {state['stable'].get('published_at')})")
-            if state.get('prerelease'):
-                pr = state['prerelease']
-                out(f"Prerelease: {pr['tag']} @ {(pr.get('sha') or '?')[:12]} "
-                    f"(published {pr.get('published_at')})")
             if state['preview']:
                 p = state['preview']
                 ahead = p.get('ahead_of_stable')
-                out(f"Preview:   main @ {p['sha'][:12]} v{p.get('version') or '?'}"
-                    + (f" -- {ahead} unreleased commit(s) after the stable release (not a release)"
+                out(f"Testing:   main @ {p['sha'][:12]} v{p.get('version') or '?'}"
+                    + (f" -- {ahead} unreleased commit(s) after the official release (not a release)"
                        if ahead else ''))
             if state['error']:
                 # Never install from a stored answer: what is installed must
