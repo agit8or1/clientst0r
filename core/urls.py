@@ -226,6 +226,7 @@ urlpatterns = [
     path('settings/updates/backups/cleanup/', views.upgrade_backups_prune, name='upgrade_backups_prune'),
     path('settings/updates/backups/delete/', views.upgrade_backup_delete, name='upgrade_backup_delete'),
     path('settings/updates/preflight/', views.upgrade_preflight_api, name='upgrade_preflight_api'),
+    path('settings/updates/review/', views.upgrade_review_api, name='upgrade_review_api'),
     path('settings/updates/root-helper/', views.root_helper_install, name='root_helper_install'),
     path('settings/updates/force-restart/', views.force_restart_services, name='force_restart_services'),
     path('api/version-diagnostic/', views.version_diagnostic, name='version_diagnostic'),
