@@ -164,7 +164,7 @@ _SALES_MANAGER = dict(_SALES_REP, **_on(
 
 _BILLING = _on(
     *VIEW_BASICS, 'billing_view_invoices', 'billing_send_invoices', 'billing_record_payments',
-    'billing_view_aging', 'reports_view_financial', 'reports_manage_scheduled',
+    'billing_view_aging', 'reports_view_financial', 'view_profitability', 'reports_manage_scheduled',
     'procurement_view', 'quotes_view', 'contracts_view', 'contracts_view_pricing', 'contracts_download_signed',
     'tickets_view', 'files_view', 'billing_approve_invoices', 'billing_issue_credit', 'billing_manage_charges',
     'reports_export', 'resourcing_view_payroll',
@@ -216,7 +216,7 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=3, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=4, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
                 'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN),
@@ -248,7 +248,7 @@ def definitions() -> List[RoleDef]:
         RoleDef('billing_finance', 'Billing / Finance', 'internal',
                 'Billing records, invoices, payment status and financial reports; reads commercial '
                 'agreements and configures sales tax. No credentials, remote tools or security settings.',
-                _BILLING, version=3),
+                _BILLING, version=4),
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
                 'secret reveal, file downloads and exports stay separate.', _AUDITOR),

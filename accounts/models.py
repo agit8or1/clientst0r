@@ -169,7 +169,7 @@ class Membership(BaseModel):
                 kb_view_articles=True, kb_edit_articles=True, kb_move_articles=True,
                 kb_manage_categories=True, kb_publish_articles=True,
                 # Reports + financials (v3.17.145) — Owner: all True
-                reports_view_dashboards=True, reports_view_financial=True,
+                reports_view_dashboards=True, reports_view_financial=True, view_profitability=True,
                 reports_view_sla=True, reports_view_capacity=True,
                 reports_manage_dashboards=True, reports_manage_scheduled=True,
                 resourcing_view_team=True, resourcing_manage_cost_rates=True,
@@ -219,7 +219,7 @@ class Membership(BaseModel):
                 kb_manage_categories=True, kb_publish_articles=True,
                 # Reports + financials (v3.17.145) — Admin: all True except
                 # reports_manage_scheduled (admins typically delegate that).
-                reports_view_dashboards=True, reports_view_financial=True,
+                reports_view_dashboards=True, reports_view_financial=True, view_profitability=True,
                 reports_view_sla=True, reports_view_capacity=True,
                 reports_manage_dashboards=True, reports_manage_scheduled=False,
                 resourcing_view_team=True, resourcing_manage_cost_rates=True,
@@ -460,6 +460,9 @@ def derive_legacy_flags(ns, role):
         # Customer onboarding wizard: owners and administrators keep what they
         # could already do (create clients, edit quotes and contracts).
         'manage_customer_onboarding': g('org_manage_settings'),
+        # Cost / margin visibility split out of reports_view_financial
+        # (accounts 0051): whoever could see financial reports keeps it.
+        'view_profitability': g('reports_view_financial'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1046,6 +1049,12 @@ class RoleTemplate(BaseModel):
         help_text='Profitability, effective hourly rate, revenue leakage, '
                   'margin analytics — surfaces revenue + cost numbers.',
     )
+    view_profitability = models.BooleanField(
+        default=False,
+        help_text='MSP staff only: labour cost, margin and profitability '
+                  '(profitability reports, margin analytics, effective rate, '
+                  'contract / project margin). Never shown to customer users.',
+    )
     reports_view_sla = models.BooleanField(default=False,
         help_text='SLA trend report. Defaults off because techs don\'t need it.')
     reports_view_capacity = models.BooleanField(default=False,
@@ -1416,6 +1425,7 @@ class RoleTemplate(BaseModel):
                 # Reports + financials (v3.17.145) — Owner: all True
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'view_profitability': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
@@ -1536,6 +1546,7 @@ class RoleTemplate(BaseModel):
                 # except reports_manage_scheduled (admins delegate that).
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'view_profitability': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
@@ -1887,6 +1898,7 @@ class RoleTemplate(BaseModel):
                 # manage_cost_rates (owner-only).
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'view_profitability': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
@@ -2402,7 +2414,7 @@ class RoleTemplate(BaseModel):
                 billing_send_invoices=True,
                 billing_record_payments=True,
                 billing_view_aging=True,
-                reports_view_financial=True,
+                reports_view_financial=True, view_profitability=True,
                 reports_manage_dashboards=True,
                 reports_manage_scheduled=True,
                 resourcing_manage_cost_rates=True,

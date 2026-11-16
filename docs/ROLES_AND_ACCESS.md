@@ -289,6 +289,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | **Reports & dashboards** | | | | | | | | | | |
 | `reports_view_dashboards` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `reports_view_financial` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `view_profitability` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `reports_view_sla` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `reports_view_capacity` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `reports_manage_dashboards` | ✔ | ✔ | ✔ |  |  |  |  | ✔ |  |  |
@@ -635,6 +636,7 @@ Dashboards, financial / SLA / capacity reports, schedules.
 |---|---|---|---|---|---|
 | `reports_view_dashboards` | View / list | standard | yes | enforced | View dashboards |
 | `reports_view_financial` | View / list | sensitive | no | enforced | Profitability, effective rate, revenue leakage, margin analytics |
+| `view_profitability` | View / list | sensitive | staff only | enforced | Labour cost and margin: profitability reports, margin analytics, effective rate / realization, contract and project margin (MSP staff only) |
 | `reports_view_sla` | View / list | elevated | staff only | enforced | SLA trend report |
 | `reports_view_capacity` | View / list | elevated | staff only | enforced | Capacity / utilization report |
 | `reports_manage_dashboards` | Edit | elevated | no | enforced | Create / edit / delete dashboards and widgets |
