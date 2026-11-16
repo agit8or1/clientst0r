@@ -444,6 +444,9 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        # Pricing Advisor (accounts 0051): whoever could already send
+        # invoices and read financial reports may act on recommendations.
+        'act_on_pricing_recommendations': g('reports_view_financial') and g('billing_send_invoices'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -979,6 +982,12 @@ class RoleTemplate(BaseModel):
         help_text='Profitability, effective hourly rate, revenue leakage, '
                   'margin analytics — surfaces revenue + cost numbers.',
     )
+    act_on_pricing_recommendations = models.BooleanField(
+        default=False,
+        help_text='MSP staff only: accept or dismiss Pricing Advisor '
+                  'recommendations. Accepting creates a draft quote or '
+                  'contract amendment; nothing active is changed.',
+    )
     reports_view_sla = models.BooleanField(default=False,
         help_text='SLA trend report. Defaults off because techs don\'t need it.')
     reports_view_capacity = models.BooleanField(default=False,
@@ -1323,6 +1332,7 @@ class RoleTemplate(BaseModel):
                 # Reports + financials (v3.17.145) — Owner: all True
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'act_on_pricing_recommendations': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
