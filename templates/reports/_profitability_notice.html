@@ -1,7 +1,7 @@
-{# Shared notice for every page that shows labour cost or margin.
-   Context: `summary` (reports.costing.summarize output or a dict with
-   unknown_cost_hours / unknown_cost_entries / unknown_bill_hours /
-   unknown_bill_entries / is_complete). #}
+{% comment %}Shared notice for every page that shows labour cost or margin.
+Context: `summary` (reports.costing.summarize output or a dict with
+unknown_cost_hours / unknown_cost_entries / unknown_bill_hours /
+unknown_bill_entries / is_complete).{% endcomment %}
 <div class="alert {% if summary and not summary.is_complete %}alert-warning{% else %}alert-light border{% endif %} py-2 mb-3" role="note" data-profitability-notice>
     <div class="small fw-semibold">
         <i class="fas fa-circle-info me-1"></i>Operational profitability estimate — not your accounting P&amp;L
