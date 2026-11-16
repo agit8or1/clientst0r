@@ -508,6 +508,12 @@ class UserProfile(BaseModel):
         ('own', 'Records the user created'),
     ], default='organization', help_text='MSP staff: which records of in-scope clients the global role covers.')
 
+    # Sign out everywhere (accounts.session_epoch): every web session issued
+    # before this moment is ended on its next request. Null = never used.
+    sessions_valid_after = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Web sessions signed in before this time are signed out on their next request.')
+
     # Name fields
     phone = models.CharField(max_length=50, blank=True)
     title = models.CharField(max_length=100, blank=True, help_text='Job title')
@@ -720,11 +726,29 @@ class UserProfile(BaseModel):
     # When the background LDAP group sync (accounts.ldap_group_sync) last
     # re-checked this LDAP user's mapped groups; it works oldest-first.
     ldap_groups_checked_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Microsoft Entra ID identity this account is linked to (v3.17.688).
+    # A Microsoft sign-in is matched on (tenant id, object id) only — never on
+    # an e-mail address. Both are GUIDs from a verified ID token.
     azure_ad_oid = models.CharField(
         max_length=255,
         blank=True,
         default='',
-        help_text='Azure AD Object ID (OID)'
+        db_index=True,
+        help_text='Microsoft Entra object ID (oid) this account is linked to'
+    )
+    azure_ad_tid = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Microsoft Entra tenant ID (tid) this account is linked to. '
+                  'Empty on links made before v3.17.688; captured on the next sign-in.'
+    )
+    azure_ad_linked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the Microsoft identity was explicitly linked (by the user after '
+                  're-authenticating, or by an administrator). Empty for links made '
+                  'automatically before v3.17.688.'
     )
 
     class Meta:
@@ -732,6 +756,25 @@ class UserProfile(BaseModel):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+    # Written only by accounts.session_epoch (queryset update). A full save()
+    # of a profile loaded earlier (save_user_profile on every User save, the
+    # profile and 2FA views) must not write an older value back and undo a
+    # sign-out, so it is left out unless named in update_fields.
+    _EPOCH_FIELD = 'sessions_valid_after'
+
+    def save(self, *args, **kwargs):
+        if (not self._state.adding and self.pk and kwargs.get('update_fields') is None
+                and not kwargs.get('force_insert') and not (args and args[0])):
+            from django.db import DatabaseError
+            fields = [f.name for f in self._meta.concrete_fields
+                      if not f.primary_key and f.name != self._EPOCH_FIELD]
+            try:
+                return super().save(*args, **dict(kwargs, update_fields=fields))
+            except DatabaseError:
+                # Row gone (update matched nothing): fall back to a plain save.
+                pass
+        return super().save(*args, **kwargs)
 
     def is_staff_user(self):
         """Check if this is a staff user (MSP tech)."""
@@ -2492,3 +2535,35 @@ class OwnershipTransfer(models.Model):
     class Meta:
         db_table = 'ownership_transfers'
         ordering = ['-created_at']
+
+
+class AzureADLinkRequest(models.Model):
+    """A Microsoft sign-in that named the e-mail address of an existing
+    account which is not linked to that Microsoft identity (v3.17.688).
+
+    The sign-in is refused. An administrator may confirm the link from the
+    user's page after checking with the person; nothing is linked otherwise.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='azure_link_requests')
+    tenant_id = models.CharField(max_length=64)
+    object_id = models.CharField(max_length=64)
+    claimed_email = models.CharField(max_length=320, blank=True, default='')
+    claimed_name = models.CharField(max_length=255, blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+
+    class Meta:
+        db_table = 'azure_ad_link_requests'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user} <- {self.tenant_id}/{self.object_id} ({self.status})'

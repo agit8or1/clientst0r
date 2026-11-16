@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.689] - 2026-11-16
+
+### Security
+- **Sign out everywhere (web).** My Profile → Web sessions now has *Sign out of all other sessions* (keeps this browser) and *Sign out everywhere* (includes this browser, and by default also signs out the mobile app). Each user has a session cut-off time; any web session signed in before it ends on its next request.
+- Administrators can sign a user out everywhere from the user's page (superuser, confirmed with their password and authenticator code unless confirmed in the last few minutes). Customer portal users get *Sign out of all other sessions* on their portal account page; it only ever acts on the signed-in user and refuses staff accounts.
+- Other sessions now end automatically when a password is changed or reset (staff and portal), when a 2FA device is removed or re-keyed, and all sessions end when an account, a customer membership or a customer organization is deactivated. Reactivating does not restore old sessions.
+- A session whose account has been deactivated now ends on its next request for every sign-in method (the LDAP backend did not check this itself).
+- Fixed: saving a user profile loaded earlier in a request (on any User save, and in the 2FA "disable" view) could write back a stale value; the session cut-off is now only written when named explicitly.
+- Every sign-out is audit-logged (actor, target user, scope, reason, mobile sessions revoked); no session keys are logged.
+
+### Upgrade notes
+- Upgrading signs nobody out: existing sessions are dated from when they started (or first seen), so later sign-outs still end them.
+- Revoked rows in the session table are not deleted (avoids a full scan on SQLite); they stop working and expire or are removed by `clearsessions`.
+- Migration `accounts.0052` (session cut-off time). Includes the merge of v3.17.688.
+
+## [3.17.688] - 2026-11-16
+
+### Security
+- Microsoft (Azure AD / Entra ID) sign-in matched an existing account by e-mail address: the address Microsoft Graph reported for the person signing in (`mail`, or else the UPN) selected the local account with that address, and its object ID was then overwritten with the signer's. Anyone who could sign in to Microsoft with that address in an accepted tenant (any tenant, when the app was registered as multi-tenant) signed in as that account, superusers included. Only installs with Azure SSO enabled were exposed. A sign-in now finds an account only by the tenant ID and object ID stored on it, taken from the verified ID token.
+- The ID token is now verified here: RS256 signature against Microsoft's published keys, audience = the client ID, expiry, the nonce of this sign-in, and an issuer of an accepted tenant. Microsoft Graph is no longer used to identify the user.
+- Only the configured tenant is accepted. More tenants can be listed in the new *Additional allowed tenant IDs* setting; with a multi-tenant authority (`common` / `organizations`) only listed tenants are accepted, and none when the list is empty.
+- The sign-in uses MSAL's auth code flow with PKCE (S256), a nonce and the state, kept in the server session until the callback.
+- An existing account is linked to Microsoft sign-in only by its owner — signed in, after re-entering the password and authenticator code (My Profile → Microsoft sign-in) — or by a superuser approving a recorded link request on the user's page with their own password and code (never for their own account). A Microsoft sign-in that names an unlinked account's e-mail address is refused, tells the person to link the account or ask an administrator, records the request and logs `azure_sso_email_match_refused`. A sign-in from another tenant than the linked one is refused (`azure_sso_tenant_mismatch`).
+- Superuser and staff accounts are never created or linked automatically. A superuser can use Microsoft sign-in once it is linked explicitly.
+- Auto-create is off by default, and the upgrade switches it off. When it is on, the account it creates has no organization membership, no staff or superuser rights and no password. The old "assign the first organization as viewer" step, which imported a model that doesn't exist there and used a role that doesn't exist, is removed (it never ran).
+
+### Upgrade notes
+- Accounts that signed in with Microsoft before keep working: their stored object ID still matches, and the tenant ID is recorded on the next sign-in and checked from then on.
+- Superusers whose Microsoft link was made automatically before this release must link once more (My Profile, or another superuser approving the request).
+- Accounts with no stored object ID must be linked once, by either method.
+- If you relied on auto-create, turn it back on in Settings → Directory services.
+- The old matching trusted e-mail addresses: review the tenant and object ID shown on administrators' user pages, and Microsoft sign-ins in the audit log, and unlink anything you don't recognise.
+- Migrations `accounts.0051` (tenant ID, link time and link requests) and `core.0105` (tenant allowlist; auto-create off).
+
 ## [3.17.687] - 2026-11-15
 
 ### Added
