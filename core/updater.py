@@ -214,7 +214,8 @@ class UpdateService:
             'channels': state,
         }
 
-    def perform_update(self, user=None, progress_tracker=None, target=None):
+    def perform_update(self, user=None, progress_tracker=None, target=None, *,
+                       allow_preview=False, allow_prerelease=False, allow_downgrade=False):
         """Install `target` (a core.upgrade.revision.Target) -- or, when None,
         what this instance's channel offers -- through the verified pipeline
         in core.upgrade.apply: pinned sha, signature check for releases,
@@ -256,7 +257,9 @@ class UpdateService:
                 extra_data={'current_version': self.current_version, 'error': str(e)})
             return result
 
-        run = upgrade_apply.run(target, user=user, progress=progress_tracker)
+        run = upgrade_apply.run(target, user=user, progress=progress_tracker,
+                                allow_preview=allow_preview, allow_prerelease=allow_prerelease,
+                                allow_downgrade=allow_downgrade)
         result.update(success=run['success'], output=run['output'], error=run['error'],
                       backup=run.get('backup'), refused=run.get('refused'))
         if run['success']:

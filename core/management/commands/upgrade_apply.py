@@ -4,6 +4,7 @@
     manage.py upgrade_apply --yes                 ... and install it without asking
     manage.py upgrade_apply --ref v3.17.700 --sha <40-hex>        install exactly that release
     manage.py upgrade_apply --kind preview --ref main --sha <40-hex> --allow-preview
+    manage.py upgrade_apply --kind prerelease --ref v3.18.0-rc.1 --sha <40-hex> --allow-prerelease
     manage.py upgrade_apply --resume              finish an upgrade that was interrupted
     manage.py upgrade_apply --auto                for the nightly timer: install only when
                                                   the channel has something newer
@@ -27,12 +28,15 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--ref', help='release tag (vX.Y.Z) or main')
         parser.add_argument('--sha', help='the full commit sha you reviewed')
-        parser.add_argument('--kind', choices=['release', 'preview'], default=None)
+        parser.add_argument('--kind', choices=['release', 'prerelease', 'preview'], default=None)
         parser.add_argument('--resume', action='store_true')
         parser.add_argument('--auto', action='store_true')
         parser.add_argument('--yes', action='store_true')
         parser.add_argument('--allow-preview', action='store_true',
                             help='allow a preview (unreleased) target while following Stable')
+        parser.add_argument('--allow-prerelease', action='store_true',
+                            help='allow a signed pre-release while following Stable (the channel '
+                                 'setting is not changed)')
         parser.add_argument('--skip-deps-check', action='store_true',
                             help='skip the pip --dry-run preflight (the install itself still runs)')
 
@@ -57,6 +61,10 @@ class Command(BaseCommand):
             if state['stable']:
                 out(f"Stable:    {state['stable']['tag']} @ {state['stable']['sha'][:12]} "
                     f"(published {state['stable'].get('published_at')})")
+            if state.get('prerelease'):
+                pr = state['prerelease']
+                out(f"Prerelease: {pr['tag']} @ {(pr.get('sha') or '?')[:12]} "
+                    f"(published {pr.get('published_at')})")
             if state['preview']:
                 p = state['preview']
                 ahead = p.get('ahead_of_stable')
@@ -71,7 +79,7 @@ class Command(BaseCommand):
                 sys.exit(4)
             t = state['target']
             if not t:
-                out('Nothing newer to install on this channel.')
+                out('No newer updates on your selected channel.')
                 return
             target = Target(t['kind'], t['ref'], t['sha'], t.get('version') or '')
             out(f"Apply would install: {target.kind} {target.ref} @ {target.sha}")
@@ -81,7 +89,8 @@ class Command(BaseCommand):
                     return
         result = upgrade_apply.run(target, emit=out, resume=opts['resume'],
                                    deps_check=not opts['skip_deps_check'],
-                                   allow_preview=opts['allow_preview'])
+                                   allow_preview=opts['allow_preview'],
+                                   allow_prerelease=opts['allow_prerelease'])
         if result['success']:
             out(self.style.SUCCESS('Upgrade complete.'))
             return
