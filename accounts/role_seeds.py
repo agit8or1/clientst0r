@@ -125,7 +125,7 @@ _ORG_ADMIN = _on(
     'psa_ai_view', 'psa_ai_request_triage', 'psa_ai_admin',
     'reports_export', 'vehicles_view', 'vehicles_manage', 'scheduling_manage_wallboard',
     'psa_manage_workflow_rules', 'timesheets_approve', 'resourcing_view_payroll',
-    'integrations_view_synced_psa',
+    'integrations_view_synced_psa', 'view_backup_status', 'manage_backup_integrations',
 )
 
 _SERVICE_MANAGER = _on(
@@ -145,7 +145,7 @@ _SERVICE_MANAGER = _on(
     'psa_ai_view', 'psa_ai_request_triage', 'psa_ai_send_low_risk', 'psa_ai_apply_low_risk',
     'psa_ai_approve_reply', 'psa_ai_approve_action',
     'reports_export', 'vehicles_view', 'vehicles_manage', 'scheduling_manage_wallboard',
-    'psa_manage_workflow_rules', 'timesheets_approve',
+    'psa_manage_workflow_rules', 'timesheets_approve', 'view_backup_status',
 )
 
 _SALES_REP = _on(
@@ -172,6 +172,7 @@ _AUDITOR = _on(
     'assets_view', 'docs_view', 'monitoring_view', 'integrations_view', 'security_alerts_view',
     'change_view', 'problem_view', 'release_view', 'procurement_view', 'crm_view', 'quotes_view',
     'contracts_view', 'reports_view_sla', 'reports_view_capacity', 'vehicles_view',
+    'view_backup_status',
 )
 
 
@@ -182,7 +183,7 @@ def _rmm_flags():
 
 def _tech(tier):
     name, flags = _rmm_flags()[tier]
-    extra = dict(tickets_view_internal=True, vehicles_view=True)
+    extra = dict(tickets_view_internal=True, vehicles_view=True, view_backup_status=True)
     if tier != 'l1':
         extra['reports_export'] = True
     return name, dict(flags, **extra)

@@ -1072,6 +1072,13 @@ class RoleTemplate(BaseModel):
     security_alerts_create_rules = models.BooleanField(default=False,
         help_text='Create / edit / delete auto-ticket rules + suppression windows.')
 
+    # --- Backup monitoring ---
+    view_backup_status = models.BooleanField(default=False,
+        help_text='View backup monitoring: jobs, runs, repositories, alerts and restore tests.')
+    manage_backup_integrations = models.BooleanField(default=False,
+        help_text='Create / edit / delete backup connections and alert policies; record restore tests; '
+                  'acknowledge backup alerts.')
+
     # --- PSA Tickets (v3.17.477) ---
     # Until v3.17.477 ticket actions in the PSA / mobile surfaces were
     # gated only by membership + assignment. Now that the mobile app can

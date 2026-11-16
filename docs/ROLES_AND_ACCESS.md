@@ -235,6 +235,9 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `monitoring_edit` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
 | `monitoring_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | `monitoring_trigger` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
+| **Backup monitoring** | | | | | | | | | | |
+| `view_backup_status` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `manage_backup_integrations` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | **Security alerts** | | | | | | | | | | |
 | `security_alerts_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
 | `security_alerts_manage_connections` | ✔ | ✔ |  |  |  |  |  |  |  |  |
@@ -527,6 +530,15 @@ Website / WAN monitors, expirations, racks, IPAM.
 | `monitoring_delete` | Delete | elevated | no | enforced | Delete monitors |
 | `monitoring_trigger` | Execute scripts / actions | standard | no | enforced | Manually trigger checks |
 
+### Backup monitoring
+
+Customer backup jobs, repositories, alerts and restore tests.
+
+| Key | Action | Sensitivity | Customer | Status | Description |
+|---|---|---|---|---|---|
+| `view_backup_status` | View / list | standard | staff only | enforced | View backup monitoring: jobs, runs, repositories, alerts and restore tests |
+| `manage_backup_integrations` | Manage settings | sensitive | staff only | enforced | Create / edit / delete backup connections (provider credentials, ingest secrets) and alert policies; record restore tests and acknowledge backup alerts |
+
 ### Security alerts
 
 EDR / AV / firewall alert ingestion and rules.
@@ -736,6 +748,7 @@ What a customer user may do in the portal beyond the basics.
 | `resourcing` | resourcing_* (MSP staff) |
 | `crm` | crm_* (MSP staff only section) |
 | `security_alerts` | security_alerts_* (MSP staff only section) |
+| `backup_monitoring` | view_backup_status / manage_backup_integrations per customer (MSP staff only section) |
 | `compliance` | membership role per customer |
 | `field_ops` | MSP staff + tickets_* |
 | `statuspage` | membership admin role |
