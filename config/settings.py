@@ -153,6 +153,7 @@ INSTALLED_APPS = [
     'pulse.apps.PulseConfig',
     'oidc_sso.apps.OidcSsoConfig',
     'payments.apps.PaymentsConfig',
+    'tax.apps.TaxConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).

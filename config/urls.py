@@ -72,6 +72,7 @@ urlpatterns = [
     # Public, account-less contract signing pages (opaque tokens; see contracts/public_views.py).
     path('sign/', include('contracts.public_urls')),
     path('integrations/', include('integrations.urls')),
+    path('tax/', include('tax.urls')),
     path('audit/', include('audit.urls')),
     path('compliance/', include('compliance.urls')),
     path('monitoring/', include('monitoring.urls')),

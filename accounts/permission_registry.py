@@ -312,6 +312,9 @@ PERMISSIONS: List[Permission] = [
        'Refund card / bank payments through the payment provider (full or partial)', staff_only=True),
     _p('manage_payment_providers', 'billing', 'settings', C, False,
        'Configure payment provider connections (keys, webhook secrets) and autopay', staff_only=True),
+    _p('manage_tax_settings', 'billing', 'settings', X, False,
+       'Configure sales tax (mode, provider, manual rates, categories, customer exemptions) and apply '
+       'audited manual tax overrides', ENFORCED, staff_only=True),
     _p('procurement_view', 'procurement', 'view', S, True, 'View purchase requisitions and orders'),
     _p('procurement_create_pr', 'procurement', 'create', S, False, 'Create / edit purchase requisitions'),
     _p('procurement_approve_pr', 'procurement', 'approve', E, False, 'Approve / reject purchase requisitions'),

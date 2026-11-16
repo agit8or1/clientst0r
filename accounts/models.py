@@ -429,6 +429,9 @@ def derive_legacy_flags(ns, role):
         'billing_approve_invoices': g('billing_send_invoices'),
         'billing_issue_credit': g('billing_send_invoices'),
         'billing_manage_charges': g('billing_send_invoices'),
+        # Sales tax configuration (tax app): whoever manages the
+        # organization's settings.
+        'manage_tax_settings': owner or g('org_manage_settings'),
         'crm_approve_commissions': g('crm_view_forecast'),
         'timesheets_approve': g('resourcing_approve_leave'),
         'reports_export': True,
@@ -1194,6 +1197,8 @@ class RoleTemplate(BaseModel):
         help_text='Configure payment provider connections, webhook secrets and autopay.')
     billing_manage_charges = models.BooleanField(default=False,
         help_text='Add charges, invoice tickets / projects, push invoices to accounting.')
+    manage_tax_settings = models.BooleanField(default=False,
+        help_text='Configure sales tax and apply audited manual tax overrides.')
     reports_export = models.BooleanField(default=False, help_text='Export reports and report files.')
     vehicles_view = models.BooleanField(default=False, help_text='View fleet vehicles.')
     vehicles_manage = models.BooleanField(default=False, help_text='Create / edit / delete fleet records.')

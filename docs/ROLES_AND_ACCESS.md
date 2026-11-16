@@ -278,6 +278,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `billing_approve_invoices` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `billing_issue_credit` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `billing_manage_charges` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `manage_tax_settings` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | **Procurement** | | | | | | | | | | |
 | `procurement_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  | ✔ | ✔ |
 | `procurement_create_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
@@ -602,6 +603,7 @@ Invoices, payments, aging.
 | `billing_manage_charges` | Edit | sensitive | staff only | pending | Add charges, invoice tickets / projects and push invoices to accounting |
 | `process_refunds` | Edit | sensitive | staff only | enforced | Refund card / bank payments through the payment provider (full or partial) |
 | `manage_payment_providers` | Manage settings | critical | staff only | enforced | Configure payment provider connections (keys, webhook secrets) and autopay |
+| `manage_tax_settings` | Manage settings | sensitive | staff only | enforced | Configure sales tax (mode, provider, manual rates, categories, customer exemptions) and apply audited manual tax overrides |
 
 ### Procurement
 
