@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.700] - 2026-11-16
+
+### Added
+- **Customer onboarding wizard** (Clients → Onboard Customer) and **lifecycle changes** ("Start change" on a
+  client page). One guided flow covers the customer and contacts, locations, user and device quantities,
+  service plan, add-ons and customer pricing from the price book, contract template, SLA, account
+  manager, billing frequency and payment terms, accounting mapping, payment method, distributors, RMM
+  mapping, backup monitoring, warranty, then a draft quote or agreement, approval and activation. Lifecycle
+  changes (plan change, add/remove users or devices, add location, renewal, price increase, offboarding)
+  use the same engine with a proration preview.
+- Nothing commercial is changed directly: quotes, agreements, amendments and renewals are **drafts** that go
+  through the existing approval flow. A price the plan doesn't set is shown as missing, never zero; a draft
+  is refused while prices are missing unless you choose to leave those items out. Steps whose module isn't
+  installed say so instead of pretending.
+- Role permission `manage_customer_onboarding`; uncustomized Owner and Organization Administrator roles get
+  it, customized roles are unchanged. The backup step needs `manage_backup_integrations` and only offers
+  unassigned connections owned by the customer or the MSP.
+
+### Limitations
+- Distributor and warranty choices are recorded on the onboarding session only (no per-customer field yet);
+  the account manager is set on the agreement draft. Accounting mapping links an existing provider customer
+  ID; it does not create one.
+
 ## [3.17.699] - 2026-11-16
 
 ### Added

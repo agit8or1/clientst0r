@@ -2909,7 +2909,11 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **75.1 Profitability analytics** *(shipped v3.17.692)* — margin by client, contract, plan and service line from
   rate snapshots.
 - **75.2 Customer commercial portal** *(planned)* — plans, invoices, device health and backup status.
-- **75.3 Commercial onboarding wizard** *(in progress — dev/onboarding-wizard)* — price book, rates, accounting and payment setup.
+- **75.3 Commercial onboarding wizard** *(shipped v3.17.700)* — new-customer onboarding (customer, locations,
+  quantities, service plan and add-ons from the price book, contract template, SLA, billing, accounting mapping,
+  payment, RMM, backup, warranty, draft quote or agreement, approval, activation) and lifecycle changes (plan
+  change, users, devices, locations, renewal, price increase, offboarding). Commercial changes are drafts that go
+  through approval; missing prices stay missing.
 - **75.4 Executive dashboard** *(shipped v3.17.693 — backup and license cards follow those modules)* — recurring revenue, margin, renewals and receivables.
 - **75.5 Commercial permissions** *(partial — pricing, profitability, payments and tax permissions shipped v3.17.690–692)* — roles for rates, cost visibility and payments.
 - **75.6 Executive dashboard drill-down** *(shipped v3.17.693)* — drill from every metric to the
@@ -3089,7 +3093,7 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (73.1 shipped v3.17.699) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (74.1 shipped v3.17.695) | Phase 63 RMM; Rem0te contract; Phase 9 |
-| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; dev/onboarding-wizard) | Phases 68–74 |
+| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; 75.3 shipped v3.17.700) | Phases 68–74 |
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | shipped v3.17.696 | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
