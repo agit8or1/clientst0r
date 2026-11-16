@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
                 ('vendor_subscription_id', models.CharField(blank=True, help_text="The vendor's id for this subscription (unique per source and customer).", max_length=255)),
                 ('quantity_purchased', models.PositiveIntegerField(default=0)),
                 ('vendor_consumed', models.PositiveIntegerField(blank=True, help_text='Units the vendor reports as in use (e.g. Microsoft consumedUnits).', null=True)),
-                ('unit_cost', models.DecimalField(blank=True, decimal_places=4, help_text='What the MSP pays per unit. Internal: requires view_internal_cost_rates.', max_digits=12, null=True)),
+                ('unit_cost', models.DecimalField(blank=True, decimal_places=4, help_text='What the MSP pays per unit. Internal: requires pricing_view_internal_cost_rates.', max_digits=12, null=True)),
                 ('unit_price', models.DecimalField(blank=True, decimal_places=4, help_text='What the customer pays per unit.', max_digits=12, null=True)),
                 ('currency', models.CharField(default='USD', max_length=3)),
                 ('billing_frequency', models.CharField(choices=[('monthly', 'Monthly'), ('quarterly', 'Quarterly'), ('annual', 'Annual'), ('biennial', '2-year'), ('triennial', '3-year'), ('one_time', 'One-time')], default='monthly', max_length=12)),
