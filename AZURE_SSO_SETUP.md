@@ -57,7 +57,8 @@ After registration, note the following values (you'll need them later):
    - **Client ID**: Paste your Application (client) ID
    - **Client Secret**: Paste the secret value you copied
    - **Redirect URI**: `https://your-domain.com/accounts/auth/azure/callback/`
-   - **Auto-create users**: ✓ (recommended - creates users on first login)
+   - **Additional allowed tenant IDs**: leave empty for a single-tenant app. Only the configured tenant's tokens are accepted; with a multi-tenant app (`common` / `organizations`) list every tenant to accept, or none is.
+   - **Auto-create users**: off by default. When on, a Microsoft account no account here is linked to gets a new account with **no client access and no staff rights**.
    - **Sync groups**: Optional (not yet implemented)
 4. Click **Save**
 
@@ -86,9 +87,6 @@ VALUES ('azure_ad_client_secret', 'YOUR-CLIENT-SECRET-HERE', 'string', 'authenti
 INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
 VALUES ('azure_ad_redirect_uri', 'https://your-domain.com/accounts/auth/azure/callback/', 'string', 'authentication', 'Azure AD Redirect URI', 0, NOW(), NOW());
 
--- Auto-create users
-INSERT INTO core_systemsetting (key, value, value_type, category, description, is_public, created_at, updated_at)
-VALUES ('azure_ad_auto_create_users', 'true', 'boolean', 'authentication', 'Auto-create users on first Azure login', 0, NOW(), NOW());
 ```
 
 ### 6. Run Migrations
@@ -109,22 +107,69 @@ python manage.py migrate accounts
 
 ## Features
 
+### How a Microsoft sign-in finds an account (v3.17.688)
+
+A sign-in is matched **only** on the Microsoft identity stored on the account:
+the tenant ID (`tid`) and object ID (`oid`) from the verified ID token. An
+e-mail address or UPN never selects an account.
+
+Before v3.17.688 an existing account was matched by e-mail address, so anyone
+who could sign in to Microsoft with that address (in an accepted tenant)
+signed in as that account, administrators included.
+
+### Linking an existing account
+
+An existing account is linked to Microsoft sign-in in one of two ways:
+
+1. **By the user**: sign in with the password, open **My Profile**, enter the
+   password (and authenticator code) under *Microsoft sign-in* and choose
+   **Link Microsoft sign-in**, then sign in to Microsoft.
+2. **By an administrator**: when someone signs in with Microsoft using the
+   e-mail address of an account that isn't linked, the sign-in is refused, a
+   security event is logged, and a *link request* appears on that user's page
+   (Settings → Users). A superuser may approve it after confirming with the
+   person, by entering their own password (and code). Nobody can approve a
+   request for their own account.
+
+Users and administrators can unlink from the same places.
+
+### Superusers and staff
+
+Superuser and staff accounts are never created or linked automatically.
+A superuser may use Microsoft sign-in once it has been linked explicitly (by
+either method above).
+
 ### Auto-User Creation
 
-When enabled, users who successfully authenticate via Azure AD will automatically have accounts created in Client St0r:
+Off by default. When enabled, a Microsoft identity that no account is linked
+to, and whose e-mail address no account uses, gets a new account:
 
-- **Username**: Derived from email (e.g., `john.doe` from `john.doe@company.com`)
-- **Email**: From Azure AD
-- **Name**: First and last name from Azure AD
-- **Auth Source**: Marked as `azure_ad`
+- **Username**: Derived from the e-mail address
+- **Rights**: no organization membership, not staff, not superuser, no password
+- **Linked identity**: the token's tenant and object IDs
 
-### 2FA Bypass
+An administrator grants access afterwards as for any new user.
 
-Users who authenticate via Azure AD **bypass 2FA requirements**. Azure AD authentication is already secure through Microsoft's multi-factor authentication.
+### 2FA
 
-### User Sync
+A Microsoft sign-in counts as 2FA only when Microsoft confirms MFA (`amr`
+contains `mfa`), or the server sets `AZURE_SSO_TRUSTED_AS_2FA`. Otherwise the
+user enters their ClientSt0r authenticator code (v3.17.660).
 
-User information (name, email) is automatically updated from Azure AD on each login.
+### Upgrading to v3.17.688
+
+- Accounts that already signed in with Microsoft have its object ID stored.
+  They keep working; the tenant ID is recorded on their next sign-in and
+  checked from then on.
+- **Superusers** whose link was made automatically before v3.17.688 must link
+  once more (method 1 or 2 above).
+- Accounts with no stored object ID must be linked once.
+- Auto-create is switched **off** by the upgrade. Turn it back on in
+  Settings → Directory services if you want it.
+- Because the old matching trusted e-mail addresses, review the linked
+  identity (tenant and object ID) shown on each administrator's user page,
+  and the audit log for Microsoft sign-ins you don't recognise. Unlink
+  anything unexpected.
 
 ## Security Notes
 
@@ -132,6 +177,8 @@ User information (name, email) is automatically updated from Azure AD on each lo
 - **Redirect URI**: Must exactly match what's configured in Azure
 - **HTTPS Required**: Azure AD requires HTTPS for redirect URIs (except localhost)
 - **Session Security**: Azure authentication status is stored in session
+- **PKCE, nonce and state**: the sign-in uses MSAL's auth code flow (PKCE S256, nonce, state); the flow is kept in the server session
+- **ID token checks**: RS256 signature against Microsoft's published keys, audience (client ID), expiry, nonce, and issuer of an accepted tenant
 
 ## Troubleshooting
 
@@ -149,9 +196,10 @@ User information (name, email) is automatically updated from Azure AD on each lo
 
 ### "Authentication failed" Error
 
-- Check that user's email is valid
-- If auto-create is disabled, ensure user already exists in Client St0r
-- Review audit logs for more details
+- "already uses this e-mail address, but it is not linked": link the account (see *Linking an existing account*)
+- "No account here is linked": create the user and have them link, or enable auto-create
+- "Sign-in from this Microsoft organization is not allowed": the token's tenant is not the configured one or in the allowlist
+- Review audit logs (`azure_sso_*` events) for more details
 
 ### Azure Button Not Showing
 
@@ -181,10 +229,10 @@ User information (name, email) is automatically updated from Azure AD on each lo
 3. MSAL generates authorization URL
 4. User redirected to Microsoft login
 5. After authentication, Microsoft redirects to `/accounts/auth/azure/callback/`
-6. Client St0r exchanges code for access token
-7. Fetches user info from Microsoft Graph API
-8. Authenticates user in Django
-9. Creates user account if needed
+6. Client St0r exchanges the code (MSAL checks state and PKCE)
+7. Verifies the ID token (signature, audience, expiry, nonce, tenant)
+8. Finds the account linked to the token's tenant and object ID
+9. Creates an account only if auto-create is on and nothing matches
 10. Sets session flag `azure_ad_authenticated = True`
 11. Redirects to dashboard
 
