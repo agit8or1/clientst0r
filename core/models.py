@@ -1282,6 +1282,8 @@ class ScheduledTask(models.Model):
         ('m365_edit_sessions', 'Microsoft 365 Edit Sessions'),
         # Pulse checks: monthly / quarterly service-feedback sends.
         ('pulse_send_due', 'Pulse Check Scheduled Sends'),
+        # Payments: charge due invoices against authorized default methods.
+        ('run_autopay', 'Invoice Autopay (payment providers)'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1838,6 +1840,15 @@ class ScheduledTask(models.Model):
             'task_type': 'pulse_send_due',
             'description': 'Send repeated (monthly / quarterly) pulse checks that are due this period '
                            '(only while pulse checks are turned on)',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless a payment connection has autopay turned on;
+            # one attempt per invoice per due date and attempt number.
+            'task_type': 'run_autopay',
+            'description': 'Charge invoices that are due for customers who authorized autopay '
+                           '(retries failed charges on the connection\'s schedule; e-mails on final failure)',
             'interval_minutes': 60,
             'enabled': True,
         },

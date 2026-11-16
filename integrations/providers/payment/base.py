@@ -27,8 +27,10 @@ class BasePaymentProvider:
         payment_intent: {amount: Decimal, currency: str,
                           customer_token: str, description: str}
 
-    Stub implementations raise NotImplementedError so callers know
-    the integration isn't wired yet rather than silently no-op'ing.
+    The live adapters (stripe.py, gocardless.py) also implement
+    verify_credentials(), verify_webhook(payload, headers), customer /
+    checkout / mandate helpers and create_refund(); payments.services is
+    the caller.
     """
     provider_type = 'base'
     provider_name = 'Base Payment Provider'
@@ -44,8 +46,8 @@ class BasePaymentProvider:
         return self.connection.get_credentials()
 
     def test_connection(self) -> bool:
-        """Return True if credentials look usable. Stub: just check
-        that an API key is present."""
+        """Return True if credentials look usable (present). No network
+        call; verify_credentials() asks the provider."""
         creds = self.credentials
         return bool(creds.get('api_key') or creds.get('access_token'))
 

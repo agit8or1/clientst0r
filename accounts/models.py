@@ -446,6 +446,9 @@ def derive_legacy_flags(ns, role):
         'office_edit_in_m365': False,
         # Single sign-on settings: new, never derived from a simple role.
         'manage_sso_settings': False,
+        # Payment processing: new, never derived from an older permission.
+        'process_refunds': False,
+        'manage_payment_providers': False,
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1183,6 +1186,12 @@ class RoleTemplate(BaseModel):
     crm_approve_commissions = models.BooleanField(default=False, help_text='Decide and pay out commissions.')
     billing_approve_invoices = models.BooleanField(default=False, help_text='Approve invoices.')
     billing_issue_credit = models.BooleanField(default=False, help_text='Issue credit memos.')
+    # Payment processing (payments app): refunds through the gateway, and the
+    # gateway connections themselves (keys, webhook secrets, autopay policy).
+    process_refunds = models.BooleanField(default=False,
+        help_text='Refund card / bank payments through the payment provider.')
+    manage_payment_providers = models.BooleanField(default=False,
+        help_text='Configure payment provider connections, webhook secrets and autopay.')
     billing_manage_charges = models.BooleanField(default=False,
         help_text='Add charges, invoice tickets / projects, push invoices to accounting.')
     reports_export = models.BooleanField(default=False, help_text='Export reports and report files.')

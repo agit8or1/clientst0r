@@ -101,7 +101,7 @@ _OWNER = {k: True for k in ALL_KEYS}
 _OWNER.update(network_discovery_generate=False, vault_extension_use=False, vault_extension_offline_cache=False,
               portal_billing_contact=False, portal_contract_review=False, docs_view_internal=False,
               portal_contract_sign=False, office_edit_in_m365=False,
-              manage_sso_settings=False)
+              manage_sso_settings=False, process_refunds=False, manage_payment_providers=False)
 
 _ORG_ADMIN = _on(
     *VIEW_BASICS, 'org_invite_members', 'org_manage_members', 'org_manage_privileged', 'roles_manage',

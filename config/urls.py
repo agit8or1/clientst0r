@@ -96,6 +96,8 @@ urlpatterns = [
     path('crm/', include('crm.urls')),
     # Pulse checks: staff pages; the customer pages are under /portal/feedback/.
     path('pulse/', include('pulse.urls')),
+    # Payment processing: staff pages + provider webhooks; customer pages are /portal/billing/.
+    path('payments/', include('payments.urls')),
     path('security/', include('security_alerts.urls')),
 
     # Phase 8 — Field Ops + Timeclock + privacy

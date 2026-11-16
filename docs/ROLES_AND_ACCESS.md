@@ -600,6 +600,8 @@ Invoices, payments, aging.
 | `billing_approve_invoices` | Approve | sensitive | staff only | pending | Approve invoices through the approval gate |
 | `billing_issue_credit` | Edit | sensitive | staff only | pending | Issue credit memos |
 | `billing_manage_charges` | Edit | sensitive | staff only | pending | Add charges, invoice tickets / projects and push invoices to accounting |
+| `process_refunds` | Edit | sensitive | staff only | enforced | Refund card / bank payments through the payment provider (full or partial) |
+| `manage_payment_providers` | Manage settings | critical | staff only | enforced | Configure payment provider connections (keys, webhook secrets) and autopay |
 
 ### Procurement
 
@@ -699,7 +701,7 @@ What a customer user may do in the portal beyond the basics.
 | `portal_tickets_reply` | Edit | standard | yes | enforced | Reply, send secure replies, escalate and vote on tickets the user can see |
 | `portal_approve_requests` | Approve | elevated | yes | enforced | Request approver: decide client approvals for the customer |
 | `portal_agreements_view_org` | View / list | sensitive | yes | enforced | See coworkers' agreement signatures and their evidence (not only the user's own) |
-| `portal_billing_contact` | View / list | sensitive | yes | pending | Billing contact: see invoices and billing notices for the customer |
+| `portal_billing_contact` | View / list | sensitive | yes | enforced | Billing contact: see invoices, pay them online, payment history and autopay for the customer |
 | `portal_contract_review` | View / list | elevated | yes | pending | Contract reviewer: read contracts sent to the customer |
 | `portal_contract_sign` | Sign / countersign | sensitive | yes | enforced | Authorized contract signer: sign contracts for the customer |
 
@@ -744,5 +746,6 @@ What a customer user may do in the portal beyond the basics.
 | `network_discovery` | network_discovery_generate + assets_* |
 | `office` | docs_* / files_* per customer |
 | `contracts` | contracts_* (staff) and portal_contract_* (customer) via accounts.contract_access |
+| `payments` | manage_payment_providers / process_refunds (MSP staff); portal_billing_contact (customer) |
 
 <!-- END GENERATED: manage.py roles_matrix -->

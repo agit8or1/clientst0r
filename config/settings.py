@@ -152,6 +152,7 @@ INSTALLED_APPS = [
     'contracts.apps.ContractsConfig',
     'pulse.apps.PulseConfig',
     'oidc_sso.apps.OidcSsoConfig',
+    'payments.apps.PaymentsConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).
