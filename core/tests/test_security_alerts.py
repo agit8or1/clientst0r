@@ -78,7 +78,9 @@ class SavedQueryFormEscapingTests(SimpleTestCase):
 class NavigateGuardTests(SimpleTestCase):
     def test_backslash_host_is_not_followed(self):
         src = (ROOT / 'static/js/csp-events.js').read_text()
-        self.assertIn(r"if (/^\/(?![\/\\])/.test(to)) window.location.assign('/' + to.slice(1));", src)
+        self.assertIn(r"if (/^\/(?![\/\\])/.test(to)) {", src)
+        self.assertIn('if (dest.origin === window.location.origin)', src)
+        self.assertIn('window.location.assign(dest.pathname);', src)
 
 
 class SecretLinkScrubTests(SimpleTestCase):

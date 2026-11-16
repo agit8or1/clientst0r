@@ -171,9 +171,14 @@
         if (el.hasAttribute('data-navigate')) {
             var to = el.value || '';
             // Path-absolute only: not //host, and not /\host, which browsers treat
-            // as //host.
-            // The URL is rebuilt behind a literal '/', so no scheme can lead it.
-            if (/^\/(?![\/\\])/.test(to)) window.location.assign('/' + to.slice(1));
+            // as //host. Only the parsed path of a same-origin URL is followed
+            // (the data-navigate selects offer plain page paths).
+            if (/^\/(?![\/\\])/.test(to)) {
+                var dest = new URL(to, window.location.origin);
+                if (dest.origin === window.location.origin) {
+                    window.location.assign(dest.pathname);
+                }
+            }
         }
         if (el.hasAttribute('data-on-change')) {
             callNamed(el, 'data-on-change', ev);
