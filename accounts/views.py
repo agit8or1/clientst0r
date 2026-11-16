@@ -192,7 +192,24 @@ def profile(request):
         'profile': profile,
         'memberships': memberships,
         'mobile_sessions': _active_mobile_sessions(request.user),
+        **_azure_link_context(request.user),
     })
+
+
+def _azure_link_context(user):
+    """Microsoft sign-in link status for the profile and user pages (v3.17.688)."""
+    try:
+        from .azure_auth import AzureOAuthClient
+        enabled = AzureOAuthClient().is_enabled()
+    except Exception:
+        enabled = False
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+    from .models import AzureADLinkRequest
+    return {
+        'azure_sso_enabled': enabled,
+        'azure_link_needs_otp': TOTPDevice.objects.filter(user=user, confirmed=True).exists(),
+        'azure_link_requests': list(AzureADLinkRequest.objects.filter(user=user, status='pending')[:10]),
+    }
 
 
 def _active_mobile_sessions(user):
@@ -1621,11 +1638,14 @@ def user_detail(request, user_id):
     profile, created = UserProfile.objects.get_or_create(user=user)
     memberships = user.memberships.filter(is_active=True).select_related('organization')
 
+    from django_otp.plugins.otp_totp.models import TOTPDevice
     return render(request, 'accounts/user_detail.html', {
         'viewed_user': user,
         'profile': profile,
         'memberships': memberships,
         'mobile_sessions': _active_mobile_sessions(user),
+        **_azure_link_context(user),
+        'admin_needs_otp': TOTPDevice.objects.filter(user=request.user, confirmed=True).exists(),
     })
 
 

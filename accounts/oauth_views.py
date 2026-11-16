@@ -4,104 +4,187 @@ OAuth authentication views for Azure AD
 from django.shortcuts import redirect
 from django.contrib.auth import login
 from django.contrib import messages
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.http import url_has_allowed_host_and_scheme
 from django_ratelimit.decorators import ratelimit
-from .azure_auth import AzureOAuthClient, AzureADBackend, azure_mfa_asserted
+from audit.models import AuditLog
+from .azure_auth import (
+    MESSAGES, AzureIdentityError, AzureOAuthClient, azure_mfa_asserted, load_azure_config,
+    resolve_sso_user, verify_id_token,
+)
 import logging
 
 logger = logging.getLogger('accounts')
 
 
+FLOW_SESSION_KEY = 'azure_auth_flow'
+LINK_SESSION_KEY = 'azure_link_intent'
+LINK_INTENT_SECONDS = 600
+
+
+def _start_flow(request, prompt=None):
+    client = AzureOAuthClient()
+    if not client.is_enabled():
+        return None, MESSAGES['not_configured']
+    # MSAL's flow carries the state, the nonce and the PKCE verifier; it stays
+    # server-side in the session until the callback (v3.17.688).
+    flow = client.initiate_flow(prompt=prompt)
+    if not flow:
+        return None, "Failed to generate Azure AD login URL."
+    request.session[FLOW_SESSION_KEY] = flow
+    request.session.pop('azure_oauth_state', None)  # pre-v3.17.688 key
+    return flow, None
+
+
 @require_http_methods(["GET"])
 def azure_login(request):
-    """
-    Redirect user to Azure AD login page with CSRF state protection.
-    """
-    import secrets
-
-    client = AzureOAuthClient()
-
-    if not client.is_enabled():
-        messages.error(request, "Azure AD authentication is not configured.")
+    """Redirect the user to Microsoft (auth code flow with PKCE, nonce and state)."""
+    request.session.pop(LINK_SESSION_KEY, None)
+    flow, err = _start_flow(request)
+    if err:
+        messages.error(request, err)
         return redirect('two_factor:login')
-
-    # FIX: Generate cryptographically secure state token for CSRF protection
-    state = secrets.token_urlsafe(32)
-    request.session['azure_oauth_state'] = state
-
-    # Get authorization URL with state parameter
-    auth_url = client.get_authorization_url(state=state)
-    if not auth_url:
-        messages.error(request, "Failed to generate Azure AD login URL.")
-        return redirect('two_factor:login')
-
-    # Redirect to Azure login
-    return redirect(auth_url)
+    return redirect(flow['auth_uri'])
 
 
-@csrf_exempt  # SECURITY EXCEPTION: Azure OAuth callback uses state parameter for CSRF protection
+@login_required
+@ratelimit(key='user', rate='10/15m', method='POST', block=False)
+@require_POST
+def azure_link_start(request):
+    """Link the signed-in user's account to a Microsoft identity (v3.17.688).
+
+    The user re-enters their password (and authenticator code when they have
+    one) here; the Microsoft identity they then sign in with is linked to this
+    account. This and an administrator confirming a recorded request are the
+    only ways an existing account becomes linked.
+    """
+    from tech_access.protected import verify_credentials
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Too many attempts. Wait a few minutes and try again.')
+        return redirect('accounts:profile')
+    error = verify_credentials(request.user, request.POST.get('password', ''), request.POST.get('otp', ''))
+    if error:
+        AuditLog.log(user=request.user, action='login_failed', success=False,
+                     description='Re-authentication to link Microsoft sign-in failed',
+                     ip_address=request.META.get('REMOTE_ADDR'),
+                     extra_data={'event': 'azure_sso_link_reauth_failed'})
+        messages.error(request, error)
+        return redirect('accounts:profile')
+    flow, err = _start_flow(request, prompt='select_account')
+    if err:
+        messages.error(request, err)
+        return redirect('accounts:profile')
+    request.session[LINK_SESSION_KEY] = {'user_id': request.user.pk,
+                                         'at': int(timezone.now().timestamp())}
+    return redirect(flow['auth_uri'])
+
+
+@login_required
+@require_POST
+def azure_unlink(request):
+    """Remove the signed-in user's own Microsoft link."""
+    from .azure_auth import unlink_identity
+    if not request.user.has_usable_password():
+        messages.error(request, 'This account has no password; unlinking Microsoft sign-in would '
+                                'lock you out. Ask an administrator.')
+        return redirect('accounts:profile')
+    unlink_identity(request.user, request.user, request=request)
+    messages.success(request, 'Microsoft sign-in unlinked.')
+    return redirect('accounts:profile')
+
+
+def _finish_link(request, intent, identity):
+    from .azure_auth import link_identity
+    now = int(timezone.now().timestamp())
+    if (not request.user.is_authenticated or not isinstance(intent, dict)
+            or intent.get('user_id') != request.user.pk
+            or not isinstance(intent.get('at'), int)
+            or not (0 <= now - intent['at'] <= LINK_INTENT_SECONDS)):
+        messages.error(request, 'The link request expired. Start again from My Profile.')
+        return redirect('accounts:profile' if request.user.is_authenticated else 'two_factor:login')
+    err = link_identity(request.user, identity, request.user, 'self', request=request)
+    if err == 'in_use':
+        messages.error(request, 'That Microsoft account is already linked to another account here.')
+    elif err:
+        messages.error(request, MESSAGES.get(err, 'Linking failed.'))
+    else:
+        messages.success(request, 'Microsoft sign-in is now linked to your account.')
+    return redirect('accounts:profile')
+
+
+@csrf_exempt  # SECURITY EXCEPTION: OAuth callback; CSRF protection is the state + PKCE of the session's flow
 @require_http_methods(["GET"])
 def azure_callback(request):
     """
-    Handle OAuth callback from Azure AD.
-    Exchange authorization code for token and authenticate user.
+    Handle the OAuth callback from Microsoft.
 
-    SECURITY NOTE: @csrf_exempt is required because OAuth callbacks don't include
-    Django CSRF tokens. CSRF protection is provided by OAuth 2.0 state parameter
-    validation, which prevents authorization code interception attacks.
+    SECURITY NOTE: @csrf_exempt is required because OAuth callbacks don't
+    include Django CSRF tokens. The flow kept in this session supplies the
+    state (checked by MSAL), the PKCE verifier and the nonce; the ID token is
+    then verified by verify_id_token and matched on (tid, oid) only.
     """
-    # Get authorization code and state from query params
-    code = request.GET.get('code')
-    state = request.GET.get('state')
     error = request.GET.get('error')
-    error_description = request.GET.get('error_description')
+    flow = request.session.pop(FLOW_SESSION_KEY, None)
+    intent = request.session.pop(LINK_SESSION_KEY, None)
+    fail_to = 'accounts:profile' if intent and request.user.is_authenticated else 'two_factor:login'
 
     if error:
+        error_description = request.GET.get('error_description')
         logger.error(f"Azure AD OAuth error: {error} - {error_description}")
         messages.error(request, f"Azure AD login failed: {error_description or error}")
-        return redirect('two_factor:login')
+        return redirect(fail_to)
 
-    if not code:
+    if not request.GET.get('code'):
         messages.error(request, "No authorization code received from Azure AD.")
-        return redirect('two_factor:login')
+        return redirect(fail_to)
 
-    # FIX: Validate state parameter for CSRF protection
-    session_state = request.session.get('azure_oauth_state')
-    if not state or not session_state or state != session_state:
-        logger.warning(f"Azure OAuth state mismatch - possible CSRF attack. Expected: {session_state}, Got: {state}")
+    if not isinstance(flow, dict) or not request.GET.get('state') or request.GET.get('state') != flow.get('state'):
+        logger.warning("Azure OAuth state mismatch or no flow in session - possible CSRF attack")
         messages.error(request, "Invalid authentication state. Please try again.")
-        return redirect('two_factor:login')
+        return redirect(fail_to)
 
-    # Clear state after use (single-use token)
-    request.session.pop('azure_oauth_state', None)
-
-    # Exchange code for token
     client = AzureOAuthClient()
-    token_response = client.get_token_from_code(code)
-
-    if not token_response or 'access_token' not in token_response:
-        # Provide more helpful error message
-        logger.error(f"Azure AD token exchange failed for user attempting login")
+    token_response = client.complete_flow(flow, request.GET.dict())
+    if not token_response:
         messages.error(
             request,
-            "Failed to obtain access token from Azure AD. "
+            "Failed to obtain a token from Azure AD. "
             "This may happen if you clicked the login button multiple times, or if there's a configuration issue. "
             "Please try again. If the problem persists, contact your administrator."
         )
-        return redirect('two_factor:login')
+        return redirect(fail_to)
 
-    # Authenticate user with token
-    backend = AzureADBackend()
-    user = backend.authenticate(request, azure_token=token_response)
+    config = load_azure_config()
+    if not config:
+        messages.error(request, MESSAGES['not_configured'])
+        return redirect(fail_to)
+    try:
+        identity = verify_id_token(token_response.get('id_token'), config, flow.get('nonce'))
+    except AzureIdentityError as e:
+        AuditLog.log(user=None, action='login_failed', success=False,
+                     description='Microsoft ID token rejected', ip_address=request.META.get('REMOTE_ADDR'),
+                     extra_data={'event': 'azure_sso_token_rejected', 'code': e.code, 'detail': e.detail[:300]})
+        logger.warning(f"Azure AD ID token rejected ({e.code}): {e.detail}")
+        messages.error(request, MESSAGES.get(e.code, MESSAGES['invalid_token']))
+        return redirect(fail_to)
 
+    if intent:
+        return _finish_link(request, intent, identity)
+
+    user, err = resolve_sso_user(identity, config, request)
     if user is None:
-        messages.error(request, "Authentication failed. Please contact your administrator.")
+        messages.error(request, MESSAGES.get(err, "Authentication failed. Please contact your administrator."))
         return redirect('two_factor:login')
 
-    # Log user in
     login(request, user, backend='accounts.azure_auth.AzureADBackend')
+    AuditLog.objects.create(
+        action='login', user=user, username=user.username,
+        description='User logged in via Azure AD', ip_address=request.META.get('REMOTE_ADDR'),
+        extra_data={'auth_source': 'azure_ad', 'tid': identity.tid, 'oid': identity.oid},
+    )
 
     # A Microsoft sign-in stands in for ClientSt0r's 2FA only when Microsoft
     # confirms MFA (or the operator trusts the tenant); otherwise
@@ -114,19 +197,78 @@ def azure_callback(request):
 
     # Redirect to dashboard or next URL (with security validation to prevent open redirect)
     next_url = request.GET.get('next', '/core/dashboard/')
-
-    # Validate redirect URL to prevent open redirect attacks
     if next_url and url_has_allowed_host_and_scheme(
         url=next_url,
         allowed_hosts={request.get_host()},
         require_https=request.is_secure()
     ):
         return redirect(next_url)
+    if next_url and next_url != '/core/dashboard/':
+        logger.warning(f"Blocked potentially malicious redirect to: {next_url}")
+    return redirect('/core/dashboard/')
+
+
+@login_required
+@require_POST
+def azure_link_request_decide(request, user_id, request_id):
+    """An administrator approves or rejects a recorded link request (v3.17.688).
+
+    Approving needs the administrator's own password (and authenticator code)
+    and is refused for their own account.
+    """
+    from django.shortcuts import get_object_or_404
+    from django.contrib.auth.models import User
+    from tech_access.protected import verify_credentials
+    from .azure_auth import approve_link_request
+    from .models import AzureADLinkRequest
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to do that.")
+        return redirect('core:dashboard')
+    target = get_object_or_404(User, pk=user_id)
+    link_request = get_object_or_404(AzureADLinkRequest, pk=request_id, user=target)
+    decision = request.POST.get('decision')
+    if decision == 'reject':
+        if link_request.status == 'pending':
+            AzureADLinkRequest.objects.filter(pk=link_request.pk).update(
+                status='rejected', decided_at=timezone.now(), decided_by=request.user)
+            AuditLog.log(user=request.user, action='update', object_type='User', object_id=target.pk,
+                         object_repr=str(target), ip_address=request.META.get('REMOTE_ADDR'),
+                         description='Microsoft sign-in link request rejected',
+                         extra_data={'event': 'azure_sso_link_rejected', 'request_id': link_request.pk})
+        messages.success(request, 'Link request rejected.')
+        return redirect('accounts:user_detail', user_id=target.pk)
+    if decision != 'approve':
+        return redirect('accounts:user_detail', user_id=target.pk)
+    error = verify_credentials(request.user, request.POST.get('password', ''), request.POST.get('otp', ''))
+    if error:
+        messages.error(request, error)
+        return redirect('accounts:user_detail', user_id=target.pk)
+    err = approve_link_request(link_request, request.user, request=request)
+    if err == 'own_account':
+        messages.error(request, 'You cannot confirm a link to your own account. Link it from My Profile.')
+    elif err == 'in_use':
+        messages.error(request, 'That Microsoft identity is already linked to another account.')
+    elif err:
+        messages.error(request, 'This request can no longer be approved.')
     else:
-        # If next_url is invalid or points to external site, redirect to dashboard
-        if next_url and next_url != '/core/dashboard/':
-            logger.warning(f"Blocked potentially malicious redirect to: {next_url}")
-        return redirect('/core/dashboard/')
+        messages.success(request, 'Microsoft sign-in linked.')
+    return redirect('accounts:user_detail', user_id=target.pk)
+
+
+@login_required
+@require_POST
+def azure_admin_unlink(request, user_id):
+    """An administrator removes a user's Microsoft link (narrowing; audited)."""
+    from django.shortcuts import get_object_or_404
+    from django.contrib.auth.models import User
+    from .azure_auth import unlink_identity
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to do that.")
+        return redirect('core:dashboard')
+    target = get_object_or_404(User, pk=user_id)
+    unlink_identity(target, request.user, request=request)
+    messages.success(request, 'Microsoft sign-in unlinked.')
+    return redirect('accounts:user_detail', user_id=target.pk)
 
 
 @require_http_methods(["GET"])

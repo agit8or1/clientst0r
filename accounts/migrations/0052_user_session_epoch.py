@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0050_dashboard_global_layout'),
+        ('accounts', '0051_azure_sso_identity_link'),
     ]
 
     operations = [

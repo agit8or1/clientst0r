@@ -25,6 +25,11 @@ urlpatterns = [
     path('auth/azure/callback/', oauth_views.azure_callback, name='azure_callback'),
     path('auth/azure/status/', oauth_views.azure_status, name='azure_status'),
     path('auth/azure/verify/', oauth_views.azure_verify, name='azure_verify'),
+    path('auth/azure/link/', oauth_views.azure_link_start, name='azure_link_start'),
+    path('auth/azure/unlink/', oauth_views.azure_unlink, name='azure_unlink'),
+    path('users/<int:user_id>/azure-link/<int:request_id>/', oauth_views.azure_link_request_decide,
+         name='azure_link_request_decide'),
+    path('users/<int:user_id>/azure-unlink/', oauth_views.azure_admin_unlink, name='azure_admin_unlink'),
 
     path('switch/<int:org_id>/', views.switch_organization, name='switch_organization'),
     path('switch-global/', views.switch_to_global_view, name='switch_to_global_view'),
