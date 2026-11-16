@@ -158,6 +158,7 @@ _SALES_REP = _on(
 _SALES_MANAGER = dict(_SALES_REP, **_on(
     'crm_manage_campaigns', 'crm_view_forecast', 'quotes_send', 'quotes_approve_discount',
     'contracts_download_signed', 'reports_manage_dashboards', 'crm_approve_commissions', 'reports_export',
+    'pricing_approve_discounts',  # v2 (accounts 0056)
 ))
 
 _BILLING = _on(
@@ -165,7 +166,12 @@ _BILLING = _on(
     'billing_view_aging', 'reports_view_financial', 'reports_manage_scheduled',
     'procurement_view', 'quotes_view', 'contracts_view', 'contracts_view_pricing', 'contracts_download_signed',
     'tickets_view', 'files_view', 'billing_approve_invoices', 'billing_issue_credit', 'billing_manage_charges',
-    'reports_export', 'resourcing_view_payroll', 'manage_tax_settings',
+    'reports_export', 'resourcing_view_payroll',
+    # v2 (accounts 0055): sales tax.
+    'manage_tax_settings',
+    # v3 (accounts 0056): pricing.
+    'pricing_manage_price_books', 'pricing_manage_service_plans', 'pricing_view_internal_cost_rates',
+    'pricing_manage_labor_rate_cards', 'pricing_approve_discounts',
 )
 
 _AUDITOR = _on(
@@ -209,7 +215,7 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=2, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=3, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
                 'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN),
@@ -237,11 +243,11 @@ def definitions() -> List[RoleDef]:
                 'discounts and countersigning are separate.', _SALES_REP),
         RoleDef('sales_manager', 'Sales Manager', 'internal',
                 "The sales team's pipeline, quotes, pricing exceptions and forecast. Approving or sending "
-                'contracts only when explicitly added.', _SALES_MANAGER),
+                'contracts only when explicitly added.', _SALES_MANAGER, version=2),
         RoleDef('billing_finance', 'Billing / Finance', 'internal',
                 'Billing records, invoices, payment status and financial reports; reads commercial '
                 'agreements and configures sales tax. No credentials, remote tools or security settings.',
-                _BILLING, version=2),
+                _BILLING, version=3),
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
                 'secret reveal, file downloads and exports stay separate.', _AUDITOR),

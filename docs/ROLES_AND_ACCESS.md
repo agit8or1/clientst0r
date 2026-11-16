@@ -298,6 +298,12 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `resourcing_manage_cost_rates` | ✔ |  |  |  |  |  |  |  |  |  |
 | `resourcing_approve_leave` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
 | `resourcing_manage_holidays` | ✔ | ✔ |  |  |  |  |  |  |  |  |
+| **Pricing & rate cards** | | | | | | | | | | |
+| `pricing_manage_price_books` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_manage_service_plans` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_view_internal_cost_rates` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_manage_labor_rate_cards` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_approve_discounts` | ✔ |  |  |  |  |  |  | ✔ | ✔ |  |
 | **API & automation** | | | | | | | | | | |
 | `api_access` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | `api_keys_manage` | ✔ | ✔ |  |  |  |  |  |  |  |  |
@@ -642,6 +648,18 @@ Team roster, cost rates, leave and holidays.
 | `resourcing_approve_leave` | Approve | elevated | staff only | enforced | Approve / deny leave requests |
 | `resourcing_manage_holidays` | Manage settings | elevated | no | enforced | Manage holidays (an organization's own business-hours calendar) |
 
+### Pricing & rate cards
+
+Price books, service plans, labor rate cards, internal costs.
+
+| Key | Action | Sensitivity | Customer | Status | Description |
+|---|---|---|---|---|---|
+| `pricing_manage_price_books` | Edit | sensitive | staff only | enforced | Create and edit price books, items, tiers, customer price overrides and scheduled price changes |
+| `pricing_manage_service_plans` | Edit | sensitive | staff only | enforced | Create and edit service plans, their entitlements and customer plan subscriptions |
+| `pricing_view_internal_cost_rates` | View / list | sensitive | staff only | enforced | See internal costs, margins and technician cost rates (hidden from everyone else) |
+| `pricing_manage_labor_rate_cards` | Edit | sensitive | staff only | enforced | Create and edit labor roles, rate cards and billing rules |
+| `pricing_approve_discounts` | Approve | sensitive | staff only | enforced | Approve customer prices below an item minimum price |
+
 ### API & automation
 
 API access and API keys.
@@ -739,6 +757,7 @@ What a customer user may do in the portal beyond the basics.
 | `rmm_permissions` | RMM tier from the global role x technician access assignment |
 | `portal` | customer membership + portal_* permissions; never internal notes or other customers |
 | `resourcing` | resourcing_* (MSP staff) |
+| `pricing` | pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions) |
 | `crm` | crm_* (MSP staff only section) |
 | `security_alerts` | security_alerts_* (MSP staff only section) |
 | `compliance` | membership role per customer |
