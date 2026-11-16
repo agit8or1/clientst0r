@@ -548,6 +548,8 @@ PSA / RMM / M365 and other connections and syncs.
 | `integrations_view_synced_psa` | View / list | elevated | staff only | pending | View synced PSA companies, contacts and tickets (raw provider data) |
 | `integrations_configure` | Manage settings | critical | no | enforced | Configure integrations |
 | `integrations_sync` | Execute scripts / actions | elevated | no | enforced | Trigger sync operations |
+| `view_app_connections` | View / list | elevated | staff only | enforced | Connected applications (Agit8or Connect): view connections, permissions, customer grants and activity |
+| `manage_app_connections` | Manage settings | critical | staff only | enforced | Connected applications (Agit8or Connect): pair, approve, rotate, disconnect, revoke, kill switch |
 
 ### Sales, quotes & CRM
 
@@ -743,5 +745,6 @@ What a customer user may do in the portal beyond the basics.
 | `network_discovery` | network_discovery_generate + assets_* |
 | `office` | docs_* / files_* per customer |
 | `contracts` | contracts_* (staff) and portal_contract_* (customer) via accounts.contract_access |
+| `connect` | view_app_connections / manage_app_connections (MSP staff); app API by DPoP token + tenant grant |
 
 <!-- END GENERATED: manage.py roles_matrix -->

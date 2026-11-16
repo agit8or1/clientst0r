@@ -247,6 +247,12 @@ PERMISSIONS: List[Permission] = [
        'View synced PSA companies, contacts and tickets (raw provider data)', PENDING, staff_only=True),
     _p('integrations_configure', 'integrations', 'settings', C, False, 'Configure integrations'),
     _p('integrations_sync', 'integrations', 'execute', E, False, 'Trigger sync operations'),
+    _p('view_app_connections', 'integrations', 'view', E, False,
+       'Connected applications (Agit8or Connect): view connections, permissions, customer grants and activity',
+       staff_only=True),
+    _p('manage_app_connections', 'integrations', 'settings', C, False,
+       'Connected applications (Agit8or Connect): pair, approve, rotate, disconnect, revoke, kill switch',
+       staff_only=True),
 
     # --- sales / quotes / CRM ---------------------------------------------------
     _p('crm_view', 'sales', 'view', S, False, 'View leads, opportunities, campaigns and the pipeline',
@@ -534,4 +540,5 @@ MODULE_COVERAGE = {
     'network_discovery': 'network_discovery_generate + assets_*',
     'office': 'docs_* / files_* per customer',
     'contracts': 'contracts_* (staff) and portal_contract_* (customer) via accounts.contract_access',
+    'connect': 'view_app_connections / manage_app_connections (MSP staff); app API by DPoP token + tenant grant',
 }

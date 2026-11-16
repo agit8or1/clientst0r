@@ -917,6 +917,13 @@ class RoleTemplate(BaseModel):
     integrations_view = models.BooleanField(default=False, help_text='View integrations')
     integrations_configure = models.BooleanField(default=False, help_text='Configure integrations')
     integrations_sync = models.BooleanField(default=False, help_text='Trigger sync operations')
+    view_app_connections = models.BooleanField(
+        default=False, help_text='Agit8or Connect: see connected applications, their permissions, customer '
+                                 'grants, key fingerprints and activity (never secrets).')
+    manage_app_connections = models.BooleanField(
+        default=False, help_text='Agit8or Connect: pair, approve, test, rotate, disconnect and revoke connected '
+                                 'applications and use the emergency kill switch. High-risk grants also need '
+                                 'a second administrator.')
 
     # Audit Permissions
     audit_view = models.BooleanField(default=False, help_text='View audit logs')
