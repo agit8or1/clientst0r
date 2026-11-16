@@ -2835,10 +2835,10 @@ request catalog (`ServiceCatalogItem`).
 
 Builds on Phase 44, which covers customer sync, invoice create and payment pull for QuickBooks Online and Xero.
 
-- **71.1 Invoice push safety** *(in progress — dev/invoice-push-safety)* — no duplicate invoice after a
+- **71.1 Invoice push safety** *(shipped v3.17.690)* — no duplicate invoice after a
   timeout, idempotency keys, row lock on push.
-- **71.2 QuickBooks Online mapping fixes** *(planned)* — correct item and account references.
-- **71.3 Xero payment account setting** *(planned)* — replace the bank account placeholder.
+- **71.2 QuickBooks Online mapping fixes** *(shipped v3.17.690 — GL code to Item mapping)* — correct item and account references.
+- **71.3 Xero payment account setting** *(shipped v3.17.690)* — replace the bank account placeholder.
 - **71.4 Invoice update, credit memos, refunds and voids** *(planned)*.
 - **71.5 Tax-code mapping** *(planned)*.
 - **71.6 Payment posting to the provider** *(planned)*.
@@ -2846,7 +2846,7 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **71.8 Retry queue and error review** *(planned)*.
 - **71.9 Other providers** *(planned)* — after QuickBooks Online and Xero, additional accounting providers
   as demand and real-provider testing allow.
-- **71.10 Billing-event integrity** *(in progress — dev/invoice-push-safety)* — stable internal billing-event
+- **71.10 Billing-event integrity** *(partial — one invoice per contract period shipped v3.17.690)* — stable internal billing-event
   IDs, idempotency keys, durable sync queue, reconciliation and duplicate detection; ambiguous submissions
   are reconciled before any retry; posted invoices changed only via provider amendment, void or credit memo.
 
@@ -2854,13 +2854,13 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 ## Phase 72 — Payment processing and sales tax **(L · payments)** [in progress]
 
-- **72.1 Stripe** *(in progress — dev/payments)* — currently a stub.
-- **72.2 GoCardless** *(in progress — dev/payments)* — currently a stub.
-- **72.3 Portal billing** *(in progress — dev/payments)* — invoices, balances and online payment for
+- **72.1 Stripe** *(shipped v3.17.690 — needs verification with test-mode keys)*.
+- **72.2 GoCardless** *(shipped v3.17.690 — needs verification with sandbox keys)*.
+- **72.3 Portal billing** *(shipped v3.17.690)* — invoices, balances and online payment for
   customers.
-- **72.4 Payment webhooks, refunds and idempotency** *(planned)*.
-- **72.5 Tax providers** *(in progress — dev/tax)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
-- **72.6 Quote tax default** *(in progress — dev/tax)* — warn instead of defaulting to zero.
+- **72.4 Payment webhooks, refunds and idempotency** *(shipped v3.17.690; posting payments to accounting planned under 71.6)*.
+- **72.5 Tax providers** *(shipped v3.17.690 — needs verification with sandbox credentials)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
+- **72.6 Quote tax default** *(shipped v3.17.690)* — warn instead of defaulting to zero.
 
 **Sizing:** **L** — provider code needs sandbox testing before release.
 
@@ -2982,7 +2982,7 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
   approval.
 - **80.2 Web "sign out everywhere"** *(shipped v3.17.689)* — per-user session cut-off; sign out other
   sessions or everywhere; automatic on password and 2FA changes and on deactivation; administrator sign-out.
-- **80.3 OpenID Connect sign-in client** *(in progress — dev/oidc-client)* — works with any certified
+- **80.3 OpenID Connect sign-in client** *(shipped v3.17.690 — not yet verified against a live Keycloak)* — works with any certified
   provider; off by default; local, Microsoft and LDAP sign-in unchanged.
 - **80.4 Keycloak deployment** *(planned)* — requires approval.
 - **80.5 Single sign-on between Clientst0r and Rem0te** *(planned)*.
@@ -3069,8 +3069,8 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 68 — Commercial price book and service plans | L | in progress (dev/price-book) | Phase 15 contracts; quotes and invoices |
 | 69 — Labor rate cards and cost rates | M | in progress (dev/price-book) | Phase 2 cost rates; Phase 68 |
 | 70 — Contracts, recurring billing and quote conversion | M | planned | Phases 65, 68, 69 |
-| 71 — Accounting sync completion | L | in progress (dev/invoice-push-safety) | extends Phase 44 |
-| 72 — Payment processing and sales tax | L | in progress (dev/payments) | Phase 71; customer portal |
+| 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
+| 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
 | 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (dev/profitability, dev/onboarding-wizard, dev/exec-dashboard) | Phases 68–74 |
@@ -3078,4 +3078,4 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
 | 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (dev/agit8or-connect) | Rem0te contract ticket-rmm-v1 |
-| 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; dev/oidc-client) | Keycloak shared with Rem0te |
+| 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |

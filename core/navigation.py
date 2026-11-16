@@ -606,6 +606,9 @@ SECTIONS = (
     Section('psa_billing', 'psa', _('Billing'), gate=_psa, tabs=(
         Tab(_('Aging Report'), 'psa:aging_report', 'fa-chart-column', gate=_aging_reader),
         Tab(_('Billing Review'), 'psa:billing_review', 'fa-list-check', gate=_billing_reviewer),
+        # Online payments, refunds and provider connections (payments app): MSP staff only.
+        Tab(_('Payments'), 'payments:index', 'fa-credit-card', gate=_msp_staff,
+            also=('payments:connection_create', 'payments:connection_edit', 'payments:attempt_detail')),
     )),
     # Purchasing carries vendor costs: MSP staff only (psa.views._msp_staff_only).
     Section('psa_procurement', 'psa', _('Procurement'), gate=_all(_msp_staff, _psa), tabs=(
