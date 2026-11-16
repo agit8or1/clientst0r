@@ -177,51 +177,116 @@ class EngineTests(Base):
         self.assertEqual(step_logs.get(extra_data__step='customer').organization, s.client)
 
 
+def without(*labels):
+    """Simulate apps that are not installed."""
+    real = apps_is_installed
+
+    def fake(label):
+        return False if label in labels else real(label)
+    return mock.patch('django.apps.apps.is_installed', side_effect=fake)
+
+
+from django.apps import apps as _apps  # noqa: E402
+apps_is_installed = _apps.is_installed
+
+
 class AvailabilityTests(Base):
     def test_pricing_steps_unavailable_without_the_app(self):
+        with without('pricing'):
+            for key in ('service_plan', 'add_ons', 'customer_pricing'):
+                step = registry.get_step(key)
+                self.assertFalse(step.is_available(), key)
+                self.assertIn('Available once the price book is enabled', step.unavailable_reason())
+
+    def test_pricing_steps_available_with_the_app(self):
         for key in ('service_plan', 'add_ons', 'customer_pricing'):
-            step = registry.get_step(key)
-            self.assertFalse(step.is_available(), key)
-            self.assertIn('Available once the price book is enabled', step.unavailable_reason())
+            self.assertTrue(registry.get_step(key).is_available(), key)
+        # installed app whose model cannot be resolved: still unavailable
+        with mock.patch('onboarding.steps.pricing.plan_model', return_value=None):
+            self.assertFalse(registry.get_step('service_plan').is_available())
 
     def test_backup_step_unavailable_without_the_app(self):
-        step = registry.get_step('backup_monitoring')
-        self.assertFalse(step.is_available())
-        self.assertIn('backup monitoring', step.unavailable_reason())
+        with without('backup_monitoring'):
+            step = registry.get_step('backup_monitoring')
+            self.assertFalse(step.is_available())
+            self.assertIn('backup monitoring', step.unavailable_reason())
 
     def test_applying_an_unavailable_step_is_refused_not_faked(self):
         s = self.new_session()
         self.customer(s)
-        with self.assertRaises(StepError) as cm:
-            engine.apply_step(s, 'service_plan', {}, self.tech)
+        with without('pricing'):
+            with self.assertRaises(StepError) as cm:
+                engine.apply_step(s, 'service_plan', {}, self.tech)
         self.assertIn('Available once', str(cm.exception))
         self.assertFalse(s.step_states.filter(step_key='service_plan', status=St.DONE).exists())
 
-    def test_pricing_steps_become_available_when_app_and_model_exist(self):
-        fake_model = mock.Mock()
-        with mock.patch('django.apps.apps.is_installed', return_value=True), \
-                mock.patch('onboarding.steps.pricing.plan_model', return_value=fake_model):
-            self.assertTrue(registry.get_step('service_plan').is_available())
-            self.assertTrue(registry.get_step('add_ons').is_available())
-        # installed app but the model cannot be resolved: still unavailable
-        with mock.patch('django.apps.apps.is_installed', return_value=True), \
-                mock.patch('onboarding.steps.pricing.plan_model', return_value=None):
-            self.assertFalse(registry.get_step('service_plan').is_available())
+    def _plan(self, **kw):
+        from pricing.models import ServicePlan
+        return ServicePlan.objects.create(organization=None, **kw)
 
-    def test_pricing_steps_never_create_commercial_records(self):
-        """With the price book present the step only records the choice."""
+    def test_service_plan_uses_real_plan_prices_and_records_missing_ones(self):
+        from onboarding.steps import common
+        plan = self._plan(name='Gold', monthly_price=Decimal('500.00'), per_user_price=Decimal('40.00'),
+                          per_device_price=Decimal('20.00'))
         s = self.new_session()
         self.customer(s)
-        plan = mock.Mock(pk=7)
-        plan.name = 'Gold'
-        plan.plan_items.select_related.return_value = []
-        step = registry.get_step('service_plan')
-        step.apply(s, {'plan': plan, 'monthly_price': Decimal('499.00')}, self.tech)
-        self.assertEqual(s.step_data('service_plan')['plan_name'], 'Gold')
-        from onboarding.steps import common
-        s.refresh_from_db()
+        self.apply(s, 'quantities', {'users': 10})  # no devices recorded
+        self.apply(s, 'service_plan', {'plan': plan.pk})
+        rows = s.step_data('service_plan')['lines']
+        by = {r['name']: r for r in rows}
+        self.assertEqual(by['Gold']['unit_price'], '500.00')
+        self.assertEqual((by['Gold: per user']['quantity'], by['Gold: per user']['unit_price']), ('10', '40.00'))
+        self.assertIsNone(by['Gold: per device']['unit_price'])   # missing, not zero
+        self.assertIn('no number of devices', by['Gold: per device']['reason'])
         lines = common.lines_from_session(s)
-        self.assertEqual(lines[0]['description'], 'Service plan: Gold')
+        self.assertEqual([l['description'] for l in lines], ['Gold', 'Gold: per user'])
+        self.assertTrue(any('per device' in m for m in common.missing_prices(s)))
+
+    def test_plan_without_any_price_is_missing_never_zero(self):
+        from onboarding.steps import common
+        plan = self._plan(name='Unpriced')
+        s = self.new_session()
+        self.customer(s)
+        self.apply(s, 'service_plan', {'plan': plan.pk})
+        self.assertEqual(common.lines_from_session(s), [])
+        self.assertTrue(common.missing_prices(s))
+
+    def test_generate_refuses_missing_prices_unless_left_out(self):
+        plan = self._plan(name='Half', monthly_price=Decimal('100'), per_user_price=Decimal('5'))
+        s = self.new_session()
+        self.customer(s)
+        self.apply(s, 'service_plan', {'plan': plan.pk})
+        form, summary = engine.apply_step(s, 'generate_document', {'document': 'agreement'}, self.tech)
+        self.assertIsNone(summary)
+        self.assertIn('no price', str(form.non_field_errors()).lower())
+        self.apply(s, 'generate_document', {'document': 'agreement', 'leave_out_unpriced': 'on'})
+        self.assertEqual([l['description'] for l in s.agreement.line_items], ['Half'])
+
+    def test_plans_are_install_wide_or_the_customers_own(self):
+        other = Organization.objects.create(name='Other Cust', slug='other-cust')
+        mine = self._plan(name='Everyone', monthly_price=Decimal('1'))
+        from pricing.models import ServicePlan
+        theirs = ServicePlan.objects.create(organization=other, name='Theirs', monthly_price=Decimal('1'))
+        s = self.new_session()
+        self.customer(s)
+        offered = set(registry.get_step('service_plan').plans(s, False))
+        self.assertIn(mine, offered)
+        self.assertNotIn(theirs, offered)
+
+    def test_customer_pricing_flags_discounts_that_need_approval(self):
+        s = self.new_session()
+        self.customer(s)
+        self.apply(s, 'customer_pricing', {'discount_percent': '10'})
+        self.assertTrue(s.step_data('customer_pricing')['needs_discount_approval'])
+
+    def test_no_cost_data_enters_the_session(self):
+        plan = self._plan(name='Gold', monthly_price=Decimal('500.00'))
+        s = self.new_session()
+        self.customer(s)
+        self.apply(s, 'service_plan', {'plan': plan.pk})
+        blob = str(s.data).lower()
+        self.assertNotIn('cost', blob)
+        self.assertNotIn('margin', blob)
 
     def test_payment_method_field_only_with_payments(self):
         from onboarding.steps.core import PaymentForm
@@ -758,7 +823,8 @@ class ViewTests(Base):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(s.step_states.get(step_key='locations').status, St.SKIPPED)
         # an unavailable pricing step renders its notice
-        page = self.client.get(reverse('onboarding:step', args=[s.pk, 'service_plan']))
+        with without('pricing'):
+            page = self.client.get(reverse('onboarding:step', args=[s.pk, 'service_plan']))
         self.assertContains(page, 'Available once the price book is enabled')
 
     def test_form_errors_re_render_the_step(self):

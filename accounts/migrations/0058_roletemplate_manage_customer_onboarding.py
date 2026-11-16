@@ -7,9 +7,6 @@ quotes and contract drafts before the wizard existed), receive it. Everything
 else stays off. Built-in roles keep their "not customized" state: the seed
 checksum covers every permission field, so it is recomputed with the new field
 for each built-in role whose checksum still matched what was seeded.
-
-Note for the coordinator: other unmerged branches also add an accounts 0051;
-renumber / add a merge migration when combining.
 """
 import hashlib
 

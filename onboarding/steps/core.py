@@ -646,6 +646,9 @@ class DocumentForm(StepForm):
                                           ('quote', 'Quote (draft)'), ('both', 'Both')], initial='agreement')
     valid_days = forms.IntegerField(min_value=1, max_value=365, initial=30, required=False,
                                     label='Quote valid for (days)')
+    leave_out_unpriced = forms.BooleanField(
+        required=False, label='Create the draft without the items whose price is missing',
+        help_text='Missing prices are never filled in with zero; they are left out and listed on the draft note.')
 
 
 class GenerateDocumentStep(Step):
@@ -656,7 +659,8 @@ class GenerateDocumentStep(Step):
     commercial = True
 
     def context(self, session, user=None):
-        return {'lines': common.lines_from_session(session), 'agreement': session.agreement, 'quote': session.quote}
+        return {'lines': common.lines_from_session(session), 'agreement': session.agreement, 'quote': session.quote,
+                'missing_prices': common.missing_prices(session)}
 
     def permission_denial(self, user, session):
         return ''
@@ -664,6 +668,10 @@ class GenerateDocumentStep(Step):
     def apply(self, session, cleaned, user, request=None):
         want = cleaned['document']
         made = []
+        missing = common.missing_prices(session)
+        if missing and not cleaned.get('leave_out_unpriced'):
+            raise StepError('These have no price: ' + '; '.join(missing) +
+                            '. Enter or fix them, or tick the box to leave them out of the draft.')
         if want in ('agreement', 'both'):
             from contracts import permissions as perms
             why = common.contract_denial(user, session.client, perms.EDIT)

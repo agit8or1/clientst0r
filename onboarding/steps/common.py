@@ -58,22 +58,35 @@ def lines_from_session(session):
         if qty and price:
             lines.append({'description': f'{label} (per month)', 'kind': 'recurring', 'quantity': str(qty),
                           'unit_price': str(price), 'discount_percent': '0', 'taxable': False})
-    plan = session.step_data('service_plan')
-    if plan.get('plan_name') and money(plan.get('monthly_price')):
-        lines.append({'description': f'Service plan: {plan["plan_name"]}', 'kind': 'recurring', 'quantity': '1',
-                      'unit_price': str(money(plan.get('monthly_price'))), 'discount_percent': '0',
-                      'taxable': False})
-    addons = session.step_data('add_ons')
-    for item in addons.get('items') or []:
-        if money(item.get('price')):
-            lines.append({'description': f'Add-on: {item.get("name", "")}', 'kind': 'recurring',
-                          'quantity': str(item.get('quantity') or 1), 'unit_price': str(money(item.get('price'))),
-                          'discount_percent': '0', 'taxable': False})
+    for source in [session.step_data('service_plan').get('lines') or []] + [
+            i.get('lines') or [] for i in session.step_data('add_ons').get('items') or []]:
+        for r in source:
+            if r.get('unit_price') is None or not r.get('quantity'):
+                continue
+            lines.append({'description': r['name'], 'kind': r.get('kind', 'recurring'), 'quantity': r['quantity'],
+                          'unit_price': r['unit_price'], 'discount_percent': '0', 'taxable': False})
     disc = money(session.step_data('customer_pricing').get('discount_percent'))
     if disc:
         for ln in lines:
             ln['discount_percent'] = str(disc)
     return lines
+
+
+def missing_prices(session):
+    """Things that should be priced but are not: plan items the price book
+    could not price, and quantities entered without a unit price. Never
+    silently turned into zero."""
+    out = []
+    q = session.step_data('quantities')
+    for key, label in (('users', 'users'), ('devices', 'devices'), ('servers', 'servers'),
+                       ('locations', 'locations')):
+        if int(q.get(key) or 0) and not money(q.get(f'price_{key}')):
+            out.append(f'Price per {label[:-1]}: not entered')
+    sources = [session.step_data('service_plan').get('lines') or []] + [
+        i.get('lines') or [] for i in session.step_data('add_ons').get('items') or []]
+    for source in sources:
+        out += [f'{r["name"]}: {r["reason"] or "no price"}' for r in source if r.get('unit_price') is None]
+    return out
 
 
 def sync_agreement_settings(session, user):
