@@ -172,9 +172,9 @@ def _require_ticket_perm(request, ticket, flag):
 
 def _may_see_margin(request, org):
     """Provider cost and margin (project / contract profitability): MSP
-    staff holding reports_view_financial for the customer. Customer users
+    staff holding view_profitability for the customer. Customer users
     never, whatever their role says."""
-    return _is_msp_staff(request) and _org_perm(request, org, 'reports_view_financial')
+    return _is_msp_staff(request) and _org_perm(request, org, 'view_profitability')
 
 
 def _usable_m365_connections(request, item_org=None):
@@ -3038,7 +3038,7 @@ def project_detail(request, pk):
         # Phase 35.2 (v3.17.549) — budget vs actuals.
         'budget': item.budget_summary(),
         # Phase 35.3 (v3.17.553) — revenue, cost and margin: provider cost
-        # data, so MSP staff whose role includes reports_view_financial for
+        # data, so MSP staff whose role includes view_profitability for
         # this customer only — never a customer user.
         'profit': item.profitability() if _may_see_margin(request, item.organization_id) else None,
         # Phase 35.6 (v3.17.555) — what is waiting to be billed.

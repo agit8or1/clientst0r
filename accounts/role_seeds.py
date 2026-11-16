@@ -161,7 +161,7 @@ _SALES_MANAGER = dict(_SALES_REP, **_on(
 
 _BILLING = _on(
     *VIEW_BASICS, 'billing_view_invoices', 'billing_send_invoices', 'billing_record_payments',
-    'billing_view_aging', 'reports_view_financial', 'reports_manage_scheduled',
+    'billing_view_aging', 'reports_view_financial', 'view_profitability', 'reports_manage_scheduled',
     'procurement_view', 'quotes_view', 'contracts_view', 'contracts_view_pricing', 'contracts_download_signed',
     'tickets_view', 'files_view', 'billing_approve_invoices', 'billing_issue_credit', 'billing_manage_charges',
     'reports_export', 'resourcing_view_payroll',

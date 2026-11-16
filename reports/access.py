@@ -50,6 +50,18 @@ def has_msp_wide_perm(user, perm_name, legacy='membership'):
     return user_has_perm(user, perm_name)
 
 
+def viewer_client_scope(user):
+    """The customers whose figures `user` may see in an MSP-wide report:
+    None for every customer of the install (superusers, staff with client
+    scope 'all'), else a list of customer Organization ids (possibly empty)
+    from the staff member's client_scope. Pass it as `organization=` to the
+    reports.queries functions so aggregates (MRR, churn, utilization,
+    profitability) only add up customers the viewer is entitled to."""
+    from accounts.permission_utils import staff_client_org_ids
+    ids = staff_client_org_ids(user)
+    return None if ids is None else sorted(ids)
+
+
 def require_msp_wide_perm(perm_name, legacy='membership'):
     """View decorator for has_msp_wide_perm."""
     def decorator(view_fn):
