@@ -2839,6 +2839,9 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **71.8 Retry queue and error review** *(planned)*.
 - **71.9 Other providers** *(planned)* — after QuickBooks Online and Xero, additional accounting providers
   as demand and real-provider testing allow.
+- **71.10 Billing-event integrity** *(in progress — dev/invoice-push-safety)* — stable internal billing-event
+  IDs, idempotency keys, durable sync queue, reconciliation and duplicate detection; ambiguous submissions
+  are reconciled before any retry; posted invoices changed only via provider amendment, void or credit memo.
 
 **Sizing:** **L** — safety fixes first, then provider capabilities one at a time.
 
@@ -2849,8 +2852,8 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **72.3 Portal billing** *(in progress — dev/payments)* — invoices, balances and online payment for
   customers.
 - **72.4 Payment webhooks, refunds and idempotency** *(planned)*.
-- **72.5 Tax providers** *(planned)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
-- **72.6 Quote tax default** *(planned)* — warn instead of defaulting to zero.
+- **72.5 Tax providers** *(in progress — dev/tax)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
+- **72.6 Quote tax default** *(in progress — dev/tax)* — warn instead of defaulting to zero.
 
 **Sizing:** **L** — provider code needs sandbox testing before release.
 
@@ -2882,16 +2885,63 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — framework, then providers, then Rem0te contract changes.
 
-## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [planned]
+## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [in progress]
 
-- **75.1 Profitability analytics** *(planned)* — margin by client, contract, plan and service line from
+- **75.1 Profitability analytics** *(in progress — dev/profitability)* — margin by client, contract, plan and service line from
   rate snapshots.
 - **75.2 Customer commercial portal** *(planned)* — plans, invoices, device health and backup status.
-- **75.3 Commercial onboarding wizard** *(planned)* — price book, rates, accounting and payment setup.
-- **75.4 Executive dashboard** *(planned)* — recurring revenue, margin, renewals and receivables.
+- **75.3 Commercial onboarding wizard** *(in progress — dev/onboarding-wizard)* — price book, rates, accounting and payment setup.
+- **75.4 Executive dashboard** *(in progress — dev/exec-dashboard)* — recurring revenue, margin, renewals and receivables.
 - **75.5 Commercial permissions** *(planned)* — roles for rates, cost visibility and payments.
+- **75.6 Executive dashboard drill-down** *(in progress — dev/exec-dashboard)* — drill from every metric to the
+  underlying records, with date, customer, service-line and location filters; estimates labelled as not
+  accounting-certified.
 
 **Sizing:** **L** — depends on Phases 68–74.
+
+## Phase 76 — Profitability and pricing advisor **(L · OPTIONAL AI)** [planned]
+
+- **76.1 Per-customer financial monitoring** *(planned)* — MRR, ARR, labor, vendor, licensing, hardware and
+  delivery costs, gross profit and margin, contract utilization, unbilled work and revenue leakage.
+- **76.2 Detection** *(planned)* — loss-making customers, declining margins, underpriced contracts, support
+  consumption above contract, services delivered without a charge, unused allowances, renewals to review and
+  distributor cost increases not passed through.
+- **76.3 Recommendations** *(planned)* — price increase amounts, renegotiation, after-hours rate, per-device
+  price, bundle review and upsell or tier fit. Each shows its supporting calculations, data and assumptions.
+- **76.4 Approval required** *(planned)* — the advisor never changes pricing or contracts automatically.
+- **76.5 Optional AI narrative (OPTIONAL AI)** *(planned)* — uses the existing multi-LLM architecture and AI
+  permission controls, gated by `psa_ai_enabled`. Explains verified figures separately from estimates and
+  never invents or assumes missing costs.
+
+Depends on Phases 68, 69 and 75 (profitability).
+
+**Sizing:** **L** — deterministic calculations and detection first, then recommendations, then the optional AI narrative.
+
+## Phase 77 — Customer command center portal **(XL · portal)** [planned]
+
+- **77.1 Unified customer dashboard** *(planned)* — sections for IT health, backup and recovery, services and
+  contracts (plan, allowances, renewals), licensing, service desk, financial (invoices, payments, quotes,
+  receipts and provider-hosted payment methods), maintenance and communications.
+- **77.2 Customer self-service requests** *(planned)* — new and removed users, licenses, hardware, upgrades,
+  services, quote and purchase approvals, contract review, tickets, and invoice download and payment. Anything
+  affecting pricing, contracts, security or infrastructure requires MSP approval.
+- **77.3 Multi-location views** *(planned)* — tenant and location-level permissions.
+
+Depends on Phases 72, 73 and 74.
+
+**Sizing:** **XL** — the largest portal surface; split into release-sized slices by section.
+
+## Phase 78 — Customer health score **(M)** [planned]
+
+- **78.1 Health dimensions** *(planned)* — technical, security, backup, service delivery, commercial and
+  satisfaction. Satisfaction reuses the client pulse checks from Phase 66.
+- **78.2 Signals** *(planned)* — ticket trends, SLA, endpoint health, security alerts, backup health, contract
+  profitability, utilization, outstanding invoices and renewal status.
+- **78.3 Configurable weights** *(planned)*.
+- **78.4 Explanations** *(planned)* — each change is explained with the contributing records.
+- **78.5 Unknown is not healthy** *(planned)* — unknown or stale data is shown as unknown, never as healthy.
+
+**Sizing:** **M** — scoring model and explanations first, then dashboard and portal display.
 
 ## Sizing
 
@@ -2976,4 +3026,7 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 | 72 — Payment processing and sales tax | L | in progress (dev/payments) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
-| 75 — Profitability, customer commercial portal and executive dashboard | L | planned | Phases 68–74 |
+| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (dev/profitability, dev/onboarding-wizard, dev/exec-dashboard) | Phases 68–74 |
+| 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
+| 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
+| 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
