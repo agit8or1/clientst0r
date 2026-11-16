@@ -561,6 +561,22 @@ class ViewProfitabilityPermissionTests(_Fixture):
         self.assertIn('view_profitability', reg.STAFF_ONLY_KEYS)
         self.assertFalse(RoleTemplate._meta.get_field('view_profitability').default)
 
+    def test_builtin_roles_after_migration(self):
+        """accounts 0051: roles with reports_view_financial got the flag,
+        technicians didn't, and built-ins still count as not customized."""
+        def builtin(key):
+            return RoleTemplate.objects.get(seed_key=key, organization__isnull=True)
+        for key in ('org_owner', 'billing_finance'):
+            role = builtin(key)
+            self.assertTrue(role.view_profitability, key)
+            self.assertFalse(role.is_customized, key)
+            self.assertEqual(role.seed_version, 2, key)
+        for key in ('tech_l1', 'tech_l2', 'service_manager', 'customer_admin'):
+            self.assertFalse(builtin(key).view_profitability, key)
+        for rt in RoleTemplate.objects.all():
+            if rt.view_profitability:
+                self.assertTrue(rt.reports_view_financial, rt.name)
+
     def test_margin_pages_need_view_profitability(self):
         for name in MARGIN_PAGES:
             with self.subTest(name=name):

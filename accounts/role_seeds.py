@@ -208,7 +208,8 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, adopt=('Owner',), spec_name='Organization Owner',
+                version=2),  # v2: view_profitability (accounts 0051)
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
                 'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN),
@@ -239,7 +240,8 @@ def definitions() -> List[RoleDef]:
                 'contracts only when explicitly added.', _SALES_MANAGER),
         RoleDef('billing_finance', 'Billing / Finance', 'internal',
                 'Billing records, invoices, payment status and financial reports; reads commercial '
-                'agreements. No credentials, remote tools or security settings.', _BILLING),
+                'agreements. No credentials, remote tools or security settings.', _BILLING,
+                version=2),  # v2: view_profitability (accounts 0051)
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
                 'secret reveal, file downloads and exports stay separate.', _AUDITOR),
