@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load advisor_tags %}
+{% block title %}Pricing Advisor finding{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'reports:home' %}">Reports</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'advisor:finding_list' %}">Pricing Advisor</a></li>
+        <li class="breadcrumb-item active">{{ finding.client_org.name }}</li>
+    </ol></nav>
+    <h2 class="h4 mb-1">{{ finding.title }}</h2>
+    <p class="text-muted small mb-2">{{ finding.get_detector_label }} · {{ finding.get_severity_display }} · {{ finding.period_start|date:"Y-m-d" }} to {{ finding.period_end|date:"Y-m-d" }} · {{ finding.get_status_display }} · version {{ finding.version }} ·
+        <a href="{% url 'advisor:client_facts' finding.client_org.pk %}">customer facts</a></p>
+    {% include "advisor/_banner.html" %}
+
+    <div class="card mb-3"><div class="card-body">
+        {% if finding.assessment == 'incomplete' %}<p class="mb-1"><span class="badge bg-warning text-dark">Not evaluated — missing inputs</span></p>{% endif %}
+        <p class="mb-2" data-summary>{{ finding.summary }}</p>
+        {% if finding.missing_inputs %}
+        <div class="small"><strong>Missing inputs</strong><ul class="mb-0">{% for m in finding.missing_inputs %}<li>{{ m }}</li>{% endfor %}</ul></div>
+        {% endif %}
+        {% if narrative and narrative.status == 'accepted' %}
+        <div class="border-top mt-3 pt-2" data-narrative>
+            <div class="small text-muted mb-1"><i class="fas fa-wand-magic-sparkles me-1"></i>Plain-English explanation (OPTIONAL AI, {{ narrative.model_label }}). Every figure in it was checked against the facts below.</div>
+            <p class="mb-0" style="white-space: pre-line">{{ narrative.text }}</p>
+        </div>
+        {% elif narrative and narrative.status == 'rejected' %}
+        <div class="border-top mt-3 pt-2 small text-muted" data-narrative-rejected>The AI explanation for this version used figures not in the facts ({{ narrative.rejected_figures|join:", " }}) and was discarded; the summary above is the calculated one.</div>
+        {% elif can_ai %}
+        <form method="post" action="{% url 'advisor:finding_explain' finding.pk %}" class="border-top mt-3 pt-2">{% csrf_token %}
+            <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fas fa-wand-magic-sparkles me-1"></i>Explain in plain English (OPTIONAL AI)</button>
+            <small class="text-muted ms-2">Sends only these computed figures to your configured AI model. It cannot change anything.</small>
+        </form>
+        {% endif %}
+    </div></div>
+
+    <div class="card mb-3">
+        <div class="card-header"><strong>Calculation breakdown</strong></div>
+        <div class="table-responsive"><table class="table table-sm mb-0 align-top">
+            <thead><tr><th>Fact</th><th>Value</th><th>Source</th><th>Records</th></tr></thead>
+            <tbody>
+            {% for fact in facts %}
+            <tr data-fact="{{ fact.key }}">
+                <td>{{ fact.label }}{% if fact.missing %}<ul class="small text-danger mb-0 ps-3">{% for m in fact.missing %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}</td>
+                <td class="text-nowrap">{% include "advisor/_fact_value.html" %}</td>
+                <td class="small text-muted">{{ fact.source }}{% if fact.note %}<br>{{ fact.note }}{% endif %}</td>
+                <td class="small">{% for r in fact.records|slice:":8" %}{% if r.url %}<a href="{{ r.url }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% if fact.records|length > 8 %}<br><em>and {{ fact.records|length|add:"-8" }} more</em>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+
+    <h3 class="h5">Recommendations</h3>
+    {% for rec in recommendations %}
+    <div class="card mb-3" data-recommendation="{{ rec.pk }}">
+        <div class="card-header d-flex justify-content-between">
+            <span><span class="badge bg-primary me-1">{{ rec.get_rec_type_display }}</span><strong>{{ rec.title }}</strong></span>
+            <span class="badge bg-light text-dark">{{ rec.get_status_display }}</span>
+        </div>
+        <div class="card-body">
+            <p class="mb-2">{{ rec.rationale }}</p>
+            <dl class="row small mb-2">
+                <dt class="col-sm-3">Current</dt><dd class="col-sm-9">{{ rec.proposed.current|money }} {{ rec.proposed.unit }}</dd>
+                <dt class="col-sm-3">Proposed</dt><dd class="col-sm-9">{{ rec.proposed.proposed|money }} {{ rec.proposed.unit }}{% if rec.proposed.is_minimum %} <span class="badge bg-warning text-dark">minimum — some costs unknown</span>{% endif %}</dd>
+                {% if rec.proposed.change %}<dt class="col-sm-3">Change</dt><dd class="col-sm-9">{{ rec.proposed.change|money }}{% if rec.proposed.change_pct %} ({{ rec.proposed.change_pct }}%){% endif %}</dd>{% endif %}
+                {% if rec.proposed.included_hours %}<dt class="col-sm-3">Included hours</dt><dd class="col-sm-9">{{ rec.proposed.included_hours }} h / month</dd>{% endif %}
+            </dl>
+            <details class="small"><summary>Show the work</summary>
+                <p class="mb-1"><strong>Formula:</strong> {{ rec.work.formula }}</p>
+                {% if rec.work.steps %}<ol class="mb-1">{% for s in rec.work.steps %}<li>{{ s }}</li>{% endfor %}</ol>{% endif %}
+                <strong>Inputs</strong>
+                <ul class="mb-1">{% for i in rec.work.inputs %}<li>{{ i.label }}: {% if i.value is None %}<span class="text-danger">unknown</span>{% elif i.unit == 'money' %}{{ i.value|money }}{% elif i.unit == 'pct' %}{{ i.value }}%{% else %}{{ i.value }}{% endif %} <span class="text-muted">({{ i.basis }}{% if i.note %}, {{ i.note }}{% endif %})</span>{% for r in i.records %} <a href="{{ r.url }}">{{ r.label }}</a>{% endfor %}</li>{% endfor %}</ul>
+                {% if rec.work.assumptions %}<strong>Assumptions</strong><ul class="mb-1">{% for a in rec.work.assumptions %}<li>{{ a }}</li>{% endfor %}</ul>{% endif %}
+                {% if rec.work.unknown %}<strong>Unknown</strong><ul class="mb-1 text-danger">{% for u in rec.work.unknown %}<li>{{ u }}</li>{% endfor %}</ul>{% endif %}
+            </details>
+            {% if rec.draft_contract %}<p class="small mt-2 mb-0">Draft contract: <a href="{% url 'psa:contract_detail' rec.draft_contract.pk %}">{{ rec.draft_contract.name }}</a> ({{ rec.draft_contract.get_status_display }})</p>{% endif %}
+            {% if rec.draft_quote %}<p class="small mt-2 mb-0">Draft quote: <a href="{% url 'psa:quote_detail' rec.draft_quote.pk %}">{{ rec.draft_quote.quote_number }}</a> ({{ rec.draft_quote.get_status_display }})</p>{% endif %}
+            {% if rec.status == 'dismissed' %}<p class="small mt-2 mb-0 text-muted">Dismissed by {{ rec.decided_by }} on {{ rec.decided_at|date:"Y-m-d" }}: {{ rec.dismiss_reason }}</p>{% endif %}
+            {% if can_act and rec.status == 'open' %}
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <form method="post" action="{% url 'advisor:recommendation_accept' rec.pk %}">{% csrf_token %}
+                    <button class="btn btn-success btn-sm" type="submit">Accept — create a draft</button></form>
+                <form method="post" action="{% url 'advisor:recommendation_dismiss' rec.pk %}" class="d-flex gap-2">{% csrf_token %}
+                    <input class="form-control form-control-sm" name="reason" required maxlength="2000" placeholder="Reason for dismissing" aria-label="Reason for dismissing">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">Dismiss</button></form>
+            </div>
+            <p class="small text-muted mt-1 mb-0">Accepting creates a draft quote or contract amendment. Active contracts and prices are never changed.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No pricing recommendation for this finding.</p>
+    {% endfor %}
+</div>
+{% endblock %}

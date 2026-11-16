@@ -78,6 +78,8 @@ urlpatterns = [
     path('monitoring/', include('monitoring.urls')),
     path('locations/', include('locations.urls')),
     path('imports/', include('imports.urls')),
+    # Pricing Advisor (Phase 76): under /reports/, so MSP staff only.
+    path('reports/advisor/', include('advisor.urls')),
     path('reports/', include('reports.urls')),
     path('vehicles/', include('vehicles.urls')),
     path('inventory/', include('inventory.urls')),

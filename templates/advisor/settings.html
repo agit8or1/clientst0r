@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Pricing Advisor thresholds{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'advisor:finding_list' %}">Pricing Advisor</a></li>
+        <li class="breadcrumb-item active">Thresholds{% if client %} — {{ client.name }}{% endif %}</li>
+    </ol></nav>
+    <h2 class="h4">Thresholds {% if client %}for {{ client.name }}{% else %}(install-wide default){% endif %}</h2>
+    {% include "advisor/_banner.html" %}
+    <form method="post">{% csrf_token %}
+        {% if client %}<input type="hidden" name="client" value="{{ client.pk }}">{% endif %}
+        {% for f in fields %}
+        <div class="mb-2 row"><label class="col-sm-4 col-form-label" for="s-{{ f.name }}">{{ f.label }}</label>
+            <div class="col-sm-3"><input class="form-control form-control-sm" id="s-{{ f.name }}" name="{{ f.name }}" value="{{ f.value }}"></div>
+            <div class="col-sm-5 small text-muted">{{ f.help }}</div></div>
+        {% endfor %}
+        <fieldset class="mt-3"><legend class="h6">Detectors</legend>
+            {% for d in detectors %}<div class="form-check"><input class="form-check-input" type="checkbox" id="d-{{ d.key }}" name="detector_{{ d.key }}" {% if d.on %}checked{% endif %}>
+                <label class="form-check-label" for="d-{{ d.key }}">{{ d.label }}</label></div>{% endfor %}
+        </fieldset>
+        <button class="btn btn-primary mt-3" type="submit">Save</button>
+    </form>
+</div>
+{% endblock %}

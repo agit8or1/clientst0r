@@ -139,6 +139,12 @@ def _check_geo_admin(u, ctx):
     return u.is_superuser and _is_msp_staff(u)
 
 
+def _check_advisor(u, ctx):
+    """advisor.views: MSP staff with view_profitability for some customer."""
+    from advisor.permissions import can_view_any
+    return can_view_any(u)
+
+
 def _check_contracts(u, ctx):
     """contracts.views.dashboard: MSP staff with contracts_view somewhere."""
     from contracts import permissions as contract_perms
@@ -719,6 +725,9 @@ SECTIONS = (
         # Its home is Security & Monitoring → Security Incidents.
         Tab(_('Security Response Analytics'), 'reports:security_alert_mtta', 'fa-stopwatch',
             gate=_all(_psa, _msp_wide('reports_view_sla')), link_only=True),
+        # Phase 76: profitability findings and pricing recommendations.
+        Tab(_('Pricing Advisor'), 'advisor:finding_list', 'fa-scale-balanced',
+            gate=_view_check(_check_advisor), keywords='profitability margin pricing advisor underpriced renewal'),
     )),
 
     # ---- Settings center: ten categories -------------------------------------
@@ -1337,7 +1346,7 @@ NAMESPACE_GROUP = {
     'assets': 'assets', 'hardware': 'assets', 'network_discovery': 'assets', 'locations': 'assets',
     'statuspage': 'security', 'netconfig': 'security', 'security_alerts': 'security',
     'crm': 'business', 'pulse': 'business', 'contracts': 'business',
-    'reports': 'reports',
+    'reports': 'reports', 'advisor': 'reports',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',
     'audit': 'settings', 'rmm_permissions': 'settings', 'oidc_sso': 'settings', 'connect': 'settings',

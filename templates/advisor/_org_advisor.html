@@ -1,0 +1,18 @@
+{% if show %}
+<section class="card cw-panel mt-3" id="cw-advisor">
+    <div class="card-header cw-panel__head">
+        <h2 class="h6 mb-0"><i class="fas fa-scale-balanced" aria-hidden="true"></i> Pricing Advisor <span class="cw-count">{{ count }} open</span></h2>
+        <a class="small" href="{% url 'advisor:client_facts' organization.pk %}">Profitability facts</a>
+    </div>
+    <div class="cw-strip"><span>Operational estimates — not your accounting P&amp;L. Staff only.</span></div>
+    {% if findings %}
+    <ul class="cw-list">
+        {% for f in findings %}
+        <li><a href="{% url 'advisor:finding_detail' f.pk %}">{{ f.title }}</a>
+            <span class="cw-list__meta">{{ f.get_severity_display }}{% if not f.is_complete %} · incomplete{% endif %}</span></li>
+        {% endfor %}
+    </ul>
+    <div class="card-body py-2 small"><a href="{% url 'advisor:finding_list' %}?client={{ organization.pk }}">All findings for this customer</a></div>
+    {% else %}<div class="card-body text-muted small">No open findings.</div>{% endif %}
+</section>
+{% endif %}
