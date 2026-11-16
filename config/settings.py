@@ -155,6 +155,7 @@ INSTALLED_APPS = [
     'oidc_sso.apps.OidcSsoConfig',
     'payments.apps.PaymentsConfig',
     'tax.apps.TaxConfig',
+    'connect.apps.ConnectConfig',  # Agit8or Connect (app-to-app); off unless AGIT8OR_CONNECT_ENABLED
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).
@@ -712,14 +713,34 @@ REST_FRAMEWORK = {
 }
 
 # Encryption settings
-APP_MASTER_KEY = os.getenv('APP_MASTER_KEY', '')
+def _env_or_file(name, default=''):
+    """NAME from the environment, else the contents of the file named by
+    NAME_FILE (Docker / systemd secrets), else `default`."""
+    value = os.getenv(name, '')
+    if value:
+        return value
+    path = os.getenv(f'{name}_FILE', '')
+    if path:
+        with open(path, encoding='utf-8') as fh:
+            return fh.read().strip()
+    return default
+
+
+APP_MASTER_KEY = _env_or_file('APP_MASTER_KEY')
 if not APP_MASTER_KEY and not DEBUG and not AI_GATEWAY_ROLE:
     raise ValueError("APP_MASTER_KEY must be set in production")
 # Key rotation: previous master key(s), comma-separated. Decryption tries
 # APP_MASTER_KEY first, then these; new ciphertext always uses APP_MASTER_KEY.
 # Set this to the old key while `manage.py rotate_encryption_key` re-encrypts,
 # then remove it.
-APP_MASTER_KEY_PREVIOUS = os.getenv('APP_MASTER_KEY_PREVIOUS', '')
+APP_MASTER_KEY_PREVIOUS = _env_or_file('APP_MASTER_KEY_PREVIOUS')
+
+# Agit8or Connect (connect/, docs/agit8or-connect/): app-to-app connections.
+# Off by default: while off every Connect URL (API, discovery, admin pages)
+# answers 404. AGIT8OR_CONNECT_PUBLIC_URL is the https base other apps reach
+# this installation at; token audiences and DPoP URLs are checked against it.
+AGIT8OR_CONNECT_ENABLED = os.getenv('AGIT8OR_CONNECT_ENABLED', 'False').lower() == 'true'
+AGIT8OR_CONNECT_PUBLIC_URL = os.getenv('AGIT8OR_CONNECT_PUBLIC_URL', '').rstrip('/')
 
 # AI gateway (psa_ai/services/gateway_keys.py): 'in_process' (default, not
 # isolated) or 'worker' (only the restricted worker opens provider keys).

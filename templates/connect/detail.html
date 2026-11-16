@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% comment %}One connection. Key ids and fingerprints only — never private material.{% endcomment %}
+{% block title %}{{ conn.remote_display_name|default:conn.remote_app_type }} — Connected Applications{% endblock %}
+{% block content %}
+<p><a href="{% url 'connect:index' %}">&larr; Connected Applications</a></p>
+<h1 class="h3">{{ identity.display_name }} <i class="fas fa-arrows-left-right"></i> {{ conn.remote_display_name|default:conn.remote_app_type }}
+  <span class="badge {% if conn.state == 'active' %}bg-success{% elif conn.state == 'revoked' or conn.state == 'failed' %}bg-secondary{% elif conn.state == 'suspended' %}bg-danger{% else %}bg-warning text-dark{% endif %}" data-connect-state="{{ conn.state }}">{% if conn.state == 'active' %}CONNECTED{% else %}{{ conn.get_state_display }}{% endif %}</span></h1>
+{% if step %}{% include "connect/_steps.html" %}{% endif %}
+{% if conn.last_error and conn.state != 'active' %}<div class="alert alert-warning">{{ conn.last_error }}</div>{% endif %}
+
+{% if conn.state == 'awaiting_remote_approval' %}
+<div class="alert alert-primary"><strong>Comparison code: <span class="font-monospace fs-4" data-connect-sas>{{ conn.sas }}</span></strong><br>
+The other application's administrator sees a code for this request. It must be identical. Then they approve; click Check status afterwards.</div>
+{% if can_manage %}<form method="post">{% csrf_token %}<button class="btn btn-primary" name="op" value="poll">Check status</button></form>{% endif %}
+{% endif %}
+
+{% if conn.state == 'awaiting_local_approval' and conn.direction == 'outbound' and can_manage %}
+<form method="post">{% csrf_token %}
+<div class="card mb-3"><div class="card-header"><strong>Approve permissions</strong> — the other application approved and asks to do this here</div><div class="card-body">
+{% include "connect/_scopes.html" with name="scopes" groups=approve_groups checked=conn.peer_requested_scopes %}</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Select customers</strong></div><div class="card-body">
+<p class="small text-muted">Pre-filled from the customers the other application mapped for us. Its tenant id is what it sends when it acts for that customer.</p>
+{% include "connect/_grant_rows.html" with rows=remote_grants scopes=conn.peer_requested_scopes %}</div></div>
+<button class="btn btn-primary" name="op" value="approve_local">Approve and connect</button></form>
+{% endif %}
+{% if conn.state == 'awaiting_second_approval' %}<div class="alert alert-warning">A second administrator must approve the high-risk permissions (Settings → Security → Technician Access → protected changes).</div>{% endif %}
+
+<div class="row">
+<div class="col-lg-6">
+<div class="card mb-3"><div class="card-header"><strong>Status</strong></div><div class="card-body small">
+<table class="table table-sm mb-0">
+<tr><th style="width:40%">Other application</th><td>{{ conn.remote_app_type }} {{ conn.remote_app_version }} — <code>{{ conn.remote_installation_id }}</code></td></tr>
+<tr><th>Address</th><td><code>{{ conn.base_url }}</code>{% if conn.allow_private_network %} <span class="badge bg-secondary">private network</span>{% endif %}{% if conn.tls_ca_bundle %} <span class="badge bg-secondary">private CA</span>{% endif %}</td></tr>
+<tr><th>Direction</th><td>{{ conn.get_direction_display }}</td></tr>
+<tr><th>Last successful contact</th><td>{{ conn.last_success_at|date:"Y-m-d H:i:s"|default:"—" }}</td></tr>
+<tr><th>Failed authentications</th><td>{{ conn.auth_failure_count }}</td></tr>
+<tr><th>Delivery failures</th><td>{{ conn.failure_count }}</td></tr>
+<tr><th>Comparison code</th><td class="font-monospace">{{ conn.sas|default:"—" }}</td></tr>
+</table></div></div>
+<div class="card mb-3"><div class="card-header"><strong>Permissions</strong></div><div class="card-body small">
+<h3 class="h6">The other application may, here</h3>{% include "connect/_scope_list.html" with groups=inbound_groups %}
+<h3 class="h6 mt-2">Clientst0r may, there</h3>{% include "connect/_scope_list.html" with groups=outbound_groups %}
+</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Keys</strong></div><div class="card-body small">
+<table class="table table-sm mb-1"><thead><tr><th>Key (SHA-256 thumbprint)</th><th>State</th><th>Created</th></tr></thead><tbody>
+{% for k in keys %}<tr><td class="font-monospace">{{ k.fingerprint|truncatechars:42 }}</td><td>{{ k.state }}</td><td>{{ k.created_at|date:"Y-m-d" }}</td></tr>{% endfor %}</tbody></table>
+<div>Last rotation: {{ conn.last_rotation_at|date:"Y-m-d"|default:"—" }} · next: {{ conn.next_rotation_at|date:"Y-m-d"|default:"—" }}{% if conn.last_rotation_error %} · <span class="text-danger">{{ conn.last_rotation_error }}</span>{% endif %}</div>
+</div></div>
+</div>
+<div class="col-lg-6">
+<div class="card mb-3"><div class="card-header"><strong>Customers reachable through this connection</strong></div><div class="card-body small">
+<table class="table table-sm"><thead><tr><th>Customer</th><th>Their id</th><th>Permissions</th><th></th></tr></thead><tbody>
+{% for g in grants %}<tr class="{% if not g.active %}text-muted{% endif %}"><td>{{ g.organization.name }}</td><td><code>{{ g.remote_tenant_id }}</code></td><td>{{ g.scopes|join:", " }}</td>
+<td>{% if g.active and can_manage %}<form method="post">{% csrf_token %}<input type="hidden" name="grant" value="{{ g.pk }}"><button class="btn btn-sm btn-outline-danger" name="op" value="revoke_grant" data-confirm="Stop {{ g.organization.name }} being reachable through this connection?">Revoke</button></form>{% elif not g.active %}revoked {{ g.revoked_at|date:"Y-m-d" }}{% endif %}</td></tr>
+{% empty %}<tr><td colspan="4" class="text-muted">No customers granted.</td></tr>{% endfor %}</tbody></table>
+{% if conn.state == 'active' and can_manage %}<details><summary>Add a customer</summary><form method="post" class="mt-2">{% csrf_token %}
+{% include "connect/_grant_rows.html" with rows=None scopes=conn.inbound_scopes %}<button class="btn btn-sm btn-primary" name="op" value="add_grant">Grant</button></form></details>{% endif %}
+</div></div>
+{% if conn.last_test.checks %}<div class="card mb-3"><div class="card-header"><strong>Last test</strong> {{ conn.last_test.at|slice:":19" }} — {% if conn.last_test.ok %}<span class="text-success">passed</span>{% else %}<span class="text-danger">failed</span>{% endif %}</div>
+<ul class="list-group list-group-flush small">{% for c in conn.last_test.checks %}<li class="list-group-item">{% if c.ok %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-xmark text-danger"></i>{% endif %} <strong>{{ c.name }}</strong> — {{ c.message }}</li>{% endfor %}</ul></div>{% endif %}
+{% if can_manage %}<div class="card mb-3"><div class="card-body"><form method="post" class="d-flex flex-wrap gap-2">{% csrf_token %}
+{% if conn.state == 'active' %}<button class="btn btn-sm btn-primary" name="op" value="test">Test connection</button>
+<button class="btn btn-sm btn-outline-primary" name="op" value="rotate">Rotate key now</button>
+<button class="btn btn-sm btn-outline-warning" name="op" value="suspend">Suspend</button>{% endif %}
+{% if conn.state == 'suspended' %}<button class="btn btn-sm btn-outline-success" name="op" value="resume">Resume</button>{% endif %}
+{% if conn.state != 'revoked' %}<button class="btn btn-sm btn-outline-danger" name="op" value="disconnect" data-confirm="Disconnect? The other application is told, credentials are destroyed. Customer records and history are kept.">Disconnect</button>
+<button class="btn btn-sm btn-danger" name="op" value="revoke" data-confirm="Revoke immediately without contacting the other application?">Revoke now</button>{% endif %}
+</form></div></div>{% endif %}
+</div></div>
+
+<div class="card mb-3"><div class="card-header"><strong>Recent activity</strong></div>
+<table class="table table-sm small mb-0"><thead><tr><th>When</th><th>Operation</th><th>Result</th><th>By</th><th>Customer</th><th>Scopes</th></tr></thead><tbody>
+{% for a in activity %}<tr><td>{{ a.at|date:"Y-m-d H:i:s" }}</td><td>{{ a.operation }}</td><td>{{ a.result }}</td><td>{{ a.actor|truncatechars:40 }}</td><td>{{ a.tenant }}</td><td>{{ a.scopes|join:" " }}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted">No activity yet.</td></tr>{% endfor %}</tbody></table></div>
+<div class="row"><div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Events sent</strong></div>
+<table class="table table-sm small mb-0"><tbody>{% for e in deliveries %}<tr><td>{{ e.created_at|date:"m-d H:i" }}</td><td>{{ e.event_type }}</td><td>{{ e.get_status_display }}</td><td>{{ e.attempts }} tries</td><td>{{ e.last_error|truncatechars:40 }}</td></tr>{% empty %}<tr><td class="text-muted">None.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Events received</strong></div>
+<table class="table table-sm small mb-0"><tbody>{% for e in inbound %}<tr><td>{{ e.received_at|date:"m-d H:i" }}</td><td>{{ e.event_type }}</td><td>{{ e.status }}</td></tr>{% empty %}<tr><td class="text-muted">None.</td></tr>{% endfor %}</tbody></table></div></div></div>
+{% endblock %}

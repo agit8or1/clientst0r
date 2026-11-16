@@ -73,7 +73,7 @@ def _is_landing(name, pattern, cb):
         return False
     if re.search(r'<|\(\?P|\(\?', pattern):
         return False
-    if (ns in ('api', 'api_mobile', 'integration_api')
+    if (ns in ('api', 'api_mobile', 'integration_api', 'connect_api')
             or re.search(r'(^|/)api/|\.json|\.xml|\.ics|\.csv|\.js$', pattern)
             or short.startswith('api_') or short.endswith('_api')):
         return False

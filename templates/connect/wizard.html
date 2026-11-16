@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Connect {{ app.name }}{% endblock %}
+{% block content %}
+<h1 class="h3"><i class="fas {{ app.icon }}"></i> Connect {{ app.name }}</h1>
+{% include "connect/_steps.html" %}
+{% if app.note %}<div class="alert alert-info small">{{ app.note }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<form method="post">{% csrf_token %}
+<div class="card mb-3"><div class="card-header"><strong>Connect application</strong></div><div class="card-body">
+  <label class="form-label" for="url">Address of {{ app.name }}</label>
+  <input class="form-control" id="url" name="url" required maxlength="500" value="{{ url }}" placeholder="https://rem0te.example.com  or  https://10.0.0.20">
+  <div class="form-text">An https address: public, internal IP, private DNS name or VPN address (internal addresses need Advanced settings → private network).</div>
+</div></div>
+{% include "connect/_advanced.html" with show_rotation=True %}
+{% if not info %}<button class="btn btn-primary" name="op" value="verify">Verify identity</button>
+{% else %}
+<div class="card mb-3 border-success"><div class="card-header"><strong>Verify identity</strong></div><div class="card-body">
+  <table class="table table-sm mb-0">
+    <tr><th style="width:35%">Application</th><td>{{ info.display_name|default:"(no name)" }} — <code>{{ info.app_type }}</code> {{ info.app_version }}</td></tr>
+    <tr><th>Installation</th><td><code>{{ info.installation_id }}</code></td></tr>
+    <tr><th>Protocol</th><td>agit8or-connect/{{ info.version }}</td></tr>
+    <tr><th>Address checked</th><td><code>{{ info.url }}</code> (TLS verified)</td></tr>
+    <tr><th>This Clientst0r</th><td>{{ identity.display_name }} — <code>{{ identity.installation_id }}</code></td></tr>
+  </table>
+  <p class="small text-muted mt-2 mb-0">Ask the other administrator to confirm the installation id. After pairing both sides show the same 8-digit code.</p>
+</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Pair</strong> — permissions to ask for</div><div class="card-body">
+  {% include "connect/_scopes.html" with name="scopes" checked=defaults %}
+  <h3 class="h6 mt-3">Customers to offer</h3>
+  <p class="small text-muted">Only the customers you tick are named to the other application, so its administrator can map them. Nothing is reachable until both sides approve.</p>
+  <div style="max-height:14rem;overflow:auto" class="border rounded p-2 mb-3">{% for o in organizations %}
+    <div class="form-check"><input class="form-check-input" type="checkbox" name="orgs" value="{{ o.pk }}" id="org-{{ o.pk }}"><label class="form-check-label" for="org-{{ o.pk }}">{{ o.name }}</label></div>
+  {% empty %}<span class="text-muted">No customers.</span>{% endfor %}</div>
+  <label class="form-label" for="pairing_secret">Pairing code from {{ app.name }}</label>
+  <input class="form-control font-monospace w-auto" id="pairing_secret" name="pairing_secret" autocomplete="off" required maxlength="20" placeholder="XXXXX-XXXXX">
+  <input type="hidden" name="url" value="{{ url }}">
+</div></div>
+<button class="btn btn-primary" name="op" value="pair">Pair</button>
+{% endif %}
+<a class="btn btn-link" href="{% url 'connect:index' %}">Cancel</a>
+</form>
+{% endblock %}

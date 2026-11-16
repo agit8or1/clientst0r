@@ -1284,6 +1284,10 @@ class ScheduledTask(models.Model):
         ('pulse_send_due', 'Pulse Check Scheduled Sends'),
         # Payments: charge due invoices against authorized default methods.
         ('run_autopay', 'Invoice Autopay (payment providers)'),
+        # Agit8or Connect: signed event delivery queue and key rotation.
+        # Both do nothing unless AGIT8OR_CONNECT_ENABLED and a connection exists.
+        ('connect_deliver_events', 'Connected Applications: Event Delivery'),
+        ('connect_rotate_keys', 'Connected Applications: Key Rotation'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1849,6 +1853,23 @@ class ScheduledTask(models.Model):
             'task_type': 'run_autopay',
             'description': 'Charge invoices that are due for customers who authorized autopay '
                            '(retries failed charges on the connection\'s schedule; e-mails on final failure)',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Agit8or Connect is on and events are queued.
+            'task_type': 'connect_deliver_events',
+            'description': 'Deliver queued signed events to connected applications, retrying with '
+                           'exponential backoff; give up into the failed list after 12 attempts',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Agit8or Connect is on and a key is due.
+            'task_type': 'connect_rotate_keys',
+            'description': 'Rotate connected-application keys that are due (new key validated by the other '
+                           'application before use; the old key stays active if it is refused) and retire '
+                           'keys whose overlap ended',
             'interval_minutes': 60,
             'enabled': True,
         },
