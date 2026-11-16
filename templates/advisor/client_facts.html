@@ -7,7 +7,10 @@
         <li class="breadcrumb-item"><a href="{% url 'advisor:finding_list' %}">Pricing Advisor</a></li>
         <li class="breadcrumb-item active">{{ client.name }}</li>
     </ol></nav>
-    <h2 class="h4">{{ client.name }}: profitability facts</h2>
+    <div class="d-flex justify-content-between align-items-center">
+        <h2 class="h4">{{ client.name }}: profitability facts</h2>
+        {% if can_act %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'advisor:settings' %}?client={{ client.pk }}"><i class="fas fa-sliders-h me-1"></i>Thresholds for this customer</a>{% endif %}
+    </div>
     {% include "advisor/_banner.html" %}
     <div class="card mb-3"><div class="table-responsive"><table class="table table-sm mb-0">
         <thead><tr><th>Fact</th>{% for w in windows %}<th>{% if w.window.months == 1 %}Last month{% else %}Trailing {{ w.window.months }} months{% endif %}<br><small class="text-muted">{{ w.window.label }}</small></th>{% endfor %}</tr></thead>

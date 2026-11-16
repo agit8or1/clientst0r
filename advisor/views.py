@@ -200,7 +200,7 @@ def client_facts(request, org_id):
     findings = Finding.objects.filter(client_org=client, status='open').order_by('severity')
     return render(request, 'advisor/client_facts.html', {
         'banner': BANNER, 'client': client, 'windows': windows, 'table': table, 'findings': findings,
-        'settings_row': settings,
+        'settings_row': settings, 'can_act': perms.can_act(request.user, client),
     })
 
 
