@@ -23,6 +23,15 @@ Planned sources have no code yet and do not appear in the provider list.
 - **Warnings count as completed backups** (a backup was produced) but display as warnings.
 - Customers only ever see their own data: every row is scoped to the customer, and every query is restricted to the customers the user's role reaches.
 
+## Customers and MSP-wide connections
+
+One install serves one MSP, and each organization is one of its customers. A connection is either:
+
+- **Customer-specific**: choose the customer as its organization. Everything it reports belongs to that customer.
+- **MSP-wide**: leave the organization empty (only users whose role reaches every customer may do this), for example one Proxmox Backup Server protecting many customers. Its systems, jobs and repositories start **unmapped** and are visible only to users who reach every customer, under *Unmapped (MSP-wide)* on the dashboard. Map each system to its customer from the link icon next to the system; its jobs and alerts then move to that customer and appear only for people who reach that customer. Setting the connection's **Customer** pin instead maps everything it discovers to that customer automatically.
+
+Server-level items (repositories of an MSP-wide connection) stay MSP-side. Unmapped alerts cannot be turned into tickets until the system is mapped, since a ticket needs a customer.
+
 ## Permissions
 
 | Permission | Allows |
