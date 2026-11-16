@@ -437,18 +437,18 @@ class ViewTests(TestCase):
         self.assertIn("'=HYPERLINK", body)
 
     def test_scoped_staff_cannot_reach_other_customer(self):
-        scoped = User.objects.create_user('scoped', 's@example.com', 'pw')
-        from accounts.models import UserType
-        scoped.profile.user_type = UserType.STAFF   # staff without a global role: memberships decide
+        scoped = make_staff('scoped', self.org, manage_licensing=True)
+        scoped.profile.client_scope = 'selected'      # a global role reaching one customer only
         scoped.profile.save()
-        role = RoleTemplate.objects.create(name='member-role', assets_view=True, manage_licensing=True)
-        Membership.objects.create(user=scoped, organization=self.org, role_template=role, is_active=True)
+        scoped.profile.scope_organizations.add(self.org)
         self.login(scoped)
         self.assertEqual(self.client.get(reverse('licensing:customer', args=[self.org.pk])).status_code, 200)
         self.assertEqual(self.client.get(reverse('licensing:customer', args=[self.other.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse('licensing:subscription_detail', args=[self.rival_sub.pk])).status_code, 404)
         body = self.client.get(reverse('licensing:overview')).content.decode()
-        self.assertNotIn('Rival Inc', body)
+        # (the page chrome's customer switcher may list names; the licensing rows must not)
+        self.assertNotIn(reverse('licensing:customer', args=[self.other.pk]), body)
+        self.assertIn(reverse('licensing:customer', args=[self.org.pk]), body)
         csv_body = self.client.get(reverse('licensing:export_csv')).content.decode()
         self.assertNotIn('Rival', csv_body)
         self.assertEqual(self.client.get(reverse('licensing:export_csv') + f'?customer={self.other.pk}').status_code, 404)
