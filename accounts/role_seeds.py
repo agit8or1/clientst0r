@@ -125,7 +125,7 @@ _ORG_ADMIN = _on(
     'psa_ai_view', 'psa_ai_request_triage', 'psa_ai_admin',
     'reports_export', 'vehicles_view', 'vehicles_manage', 'scheduling_manage_wallboard',
     'psa_manage_workflow_rules', 'timesheets_approve', 'resourcing_view_payroll',
-    'integrations_view_synced_psa',
+    'integrations_view_synced_psa', 'manage_customer_onboarding',
 )
 
 _SERVICE_MANAGER = _on(

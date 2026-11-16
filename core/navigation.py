@@ -506,6 +506,10 @@ SECTIONS = (
             'accounts:organization_create', 'accounts:organization_delete',
             'accounts:organization_service_info', 'accounts:ownership_transfer',
             'accounts:member_add', 'accounts:member_edit', 'accounts:member_remove')),
+        Tab(_('Onboard Customer'), 'onboarding:start', 'fa-user-plus',
+            gate=_all(_msp_staff, _perm_any_org('manage_customer_onboarding')),
+            also=('onboarding:session', 'onboarding:step'),
+            keywords='onboarding new customer wizard lifecycle change renewal offboarding'),
     )),
 
     # ---- Assets & Network ----------------------------------------------------

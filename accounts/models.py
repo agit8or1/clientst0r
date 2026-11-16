@@ -444,6 +444,9 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        # Customer onboarding wizard: owners and administrators keep what they
+        # could already do (create clients, edit quotes and contracts).
+        'manage_customer_onboarding': g('org_manage_settings'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1125,6 +1128,9 @@ class RoleTemplate(BaseModel):
     office_edit_in_m365 = models.BooleanField(default=False,
         help_text='Customer users: edit Office files in Microsoft 365 (a working copy). '
                   'MSP staff follow their edit permission on the file.')
+    manage_customer_onboarding = models.BooleanField(default=False,
+        help_text='Run the customer onboarding and lifecycle change wizards (MSP staff only). Commercial '
+                  'changes are drafts that still go through approval.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,
@@ -1301,6 +1307,7 @@ class RoleTemplate(BaseModel):
                 'org_invite_members': True,
                 'org_manage_members': True,
                 'org_manage_settings': True,
+                'manage_customer_onboarding': True,
                 'api_access': True,
                 'api_keys_manage': True,
                 'psa_ai_view': True,

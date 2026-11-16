@@ -782,6 +782,8 @@ def organization_detail(request, org_id):
         context['ws'] = workspace.overview()
     else:
         context['ws'] = workspace.tab_data(tab)
+    from onboarding.access import can_use as _can_onboard
+    context['can_start_change'] = _can_onboard(request.user, organization)
     return render(request, 'accounts/organization_detail.html', context)
 
 

@@ -45,6 +45,12 @@
            title="SLA risks, uptime incidents, contract renewals, overdue invoices and aging assets for this customer">
             <i class="fas fa-binoculars" aria-hidden="true"></i> Operations
         </a>
+        {% if can_start_change %}
+        <a href="{% url 'onboarding:start' %}?client={{ organization.id }}" class="btn btn-sm btn-outline-secondary"
+           title="Plan change, add or remove users or devices, add a location, renewal, price increase or offboarding: each produces a draft that goes through approval">
+            <i class="fas fa-route" aria-hidden="true"></i> Start change
+        </a>
+        {% endif %}
         {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser or user.is_staff %}
         <a href="{% url 'compliance:evidence_pack' organization.id %}" class="btn btn-sm btn-outline-secondary"
            title="One-click compliance evidence packet — 2FA status, user access, password access history, asset inventory, ticket/SLA history">

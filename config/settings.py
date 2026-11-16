@@ -151,6 +151,7 @@ INSTALLED_APPS = [
     'office.apps.OfficeConfig',
     'contracts.apps.ContractsConfig',
     'pulse.apps.PulseConfig',
+    'onboarding.apps.OnboardingConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).
