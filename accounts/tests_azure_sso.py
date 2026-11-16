@@ -4,6 +4,8 @@ verified (tenant id, object id), never on an e-mail address.
 Nothing here talks to Microsoft: ID tokens are signed with a throwaway RSA key
 and the JWKS lookup and MSAL's token exchange are patched.
 """
+import base64
+import json
 import time
 import uuid
 from types import SimpleNamespace
@@ -116,8 +118,13 @@ class IdTokenVerificationTests(TestCase):
             with self.assertRaises(AzureIdentityError) as cm:
                 self._verify(token)
             self.assertEqual(cm.exception.code, 'invalid_token')
-        unsigned = jwt.encode({'tid': TENANT, 'oid': self.oid, 'nonce': NONCE, 'aud': CLIENT_ID},
-                              None, algorithm='none')
+        # An unsigned token (header alg "none", empty signature), assembled by
+        # hand: the point is that the verifier refuses it, so the test must not
+        # depend on a JWT library being willing to produce one.
+        def _b64(obj):
+            return base64.urlsafe_b64encode(json.dumps(obj).encode()).rstrip(b'=').decode()
+        unsigned = (_b64({'alg': 'none', 'typ': 'JWT'}) + '.'
+                    + _b64({'tid': TENANT, 'oid': self.oid, 'nonce': NONCE, 'aud': CLIENT_ID}) + '.')
         with self.assertRaises(AzureIdentityError):
             self._verify(unsigned)
 
