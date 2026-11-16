@@ -317,6 +317,8 @@ PERMISSIONS: List[Permission] = [
        'Profitability, effective rate, revenue leakage, margin analytics'),
     _p('reports_view_sla', 'reports', 'view', E, False, 'SLA trend report', staff_only=True),
     _p('reports_view_capacity', 'reports', 'view', E, False, 'Capacity / utilization report', staff_only=True),
+    _p('manage_health_score_settings', 'reports', 'settings', E, False,
+       'Customer health score: change the dimension / signal weights and thresholds', staff_only=True),
     _p('reports_manage_dashboards', 'reports', 'edit', E, False, 'Create / edit / delete dashboards and widgets'),
     _p('reports_manage_scheduled', 'reports', 'export', X, False, 'Configure scheduled reports'),
     _p('reports_export', 'reports', 'export', X, False,

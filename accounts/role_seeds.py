@@ -104,7 +104,7 @@ _OWNER.update(network_discovery_generate=False, vault_extension_use=False, vault
 
 _ORG_ADMIN = _on(
     *VIEW_BASICS, 'org_invite_members', 'org_manage_members', 'org_manage_privileged', 'roles_manage',
-    'org_manage_settings', 'integrations_view', 'integrations_configure', 'integrations_sync',
+    'org_manage_settings', 'manage_health_score_settings', 'integrations_view', 'integrations_configure', 'integrations_sync',
     'api_access', 'api_keys_manage', 'audit_view',
     'tickets_view', 'tickets_create', 'tickets_edit', 'tickets_assign', 'tickets_view_all', 'tickets_close',
     'tickets_view_internal', 'routing_manage_rules', 'routing_test', 'routing_override',

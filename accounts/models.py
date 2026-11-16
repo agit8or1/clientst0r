@@ -444,6 +444,7 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        'manage_health_score_settings': g('org_manage_settings'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1125,6 +1126,8 @@ class RoleTemplate(BaseModel):
     office_edit_in_m365 = models.BooleanField(default=False,
         help_text='Customer users: edit Office files in Microsoft 365 (a working copy). '
                   'MSP staff follow their edit permission on the file.')
+    manage_health_score_settings = models.BooleanField(default=False,
+        help_text='Customer health score: change the dimension and signal weights and thresholds.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,
