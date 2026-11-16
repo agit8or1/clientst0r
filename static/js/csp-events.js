@@ -172,7 +172,8 @@
             var to = el.value || '';
             // Path-absolute only: not //host, and not /\host, which browsers treat
             // as //host.
-            if (/^\/(?![\/\\])/.test(to)) window.location.assign(to);
+            // The URL is rebuilt behind a literal '/', so no scheme can lead it.
+            if (/^\/(?![\/\\])/.test(to)) window.location.assign('/' + to.slice(1));
         }
         if (el.hasAttribute('data-on-change')) {
             callNamed(el, 'data-on-change', ev);
