@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.701] - 2026-11-16
+
+### Changed
+- **Settings → Updates has two kinds of build: Official release and Preview / testing.** Official release is
+  published, signed releases; Preview / testing is the latest build from main, pinned to its exact commit.
+  The channel select has those two options and the version list has two tabs. The separate Prerelease
+  channel is removed: an install set to it now follows Preview / testing (data migration). Published
+  GitHub pre-releases are listed as testing builds and still need a signed tag to install. All install
+  checks are unchanged. CLI: `upgrade_apply --allow-prerelease` remains as a hidden compatibility flag.
+
 ## [3.17.700] - 2026-11-16
 
 ### Added
