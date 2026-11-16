@@ -41,10 +41,11 @@ any IdP exists. The rest belong to MIGRATION.md Phase B unless noted.
 - **New:** `accounts/oidc/` package — `client.py` (Authlib registry built
   from DB config), `backend.py` (`OIDCBackend.authenticate(request,
   oidc_claims=…)`), `views.py` (login, callback, link, back-channel logout),
-  `mapping.py`, `adapter.py` (claim normalisation, `acr` mapping).
+  `mapping.py`, `adapter.py` (Keycloak `organization` + `resource_access.<client>.roles` → `agit8or` v1 per ARCHITECTURE.md §4.4; `acr` mapping).
 - **Models:** `OIDCProvider` (issuer, client_id, encrypted secret or private
   key via existing `EncryptedTextField`, scopes, enabled, `jit_enabled`,
-  pinned `msp_org_id` (exactly one; protected change), `min_acr_for_2fa`, token endpoint auth method),
+  pinned Keycloak issuer (realm URL) + MSP Organization id/alias
+  (`msp_org_id`, `msp_org_alias`; exactly one; protected change), `min_acr_for_2fa`, token endpoint auth method),
   `ExternalIdentity(provider, issuer, subject, user, created_at,
   last_login_at)` unique `(issuer, subject)`.
 - **Settings:** add `accounts.oidc.backend.OIDCBackend` to

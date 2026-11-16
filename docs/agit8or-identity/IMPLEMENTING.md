@@ -6,7 +6,11 @@
 > the first adopters (CLIENTST0R_TASKS.md, REM0TE_HANDOFF.md).
 
 The app is an OIDC Relying Party against **any certified OP**; do not code
-against Zitadel- or Keycloak-specific APIs outside a small adapter module.
+against Keycloak-specific APIs outside a small adapter module (claim
+normalisation per ARCHITECTURE.md §4.4, `acr` names). The shared OP is
+Keycloak (realm `agit8or`, one Organization per MSP); the app's client gets
+client roles `<org-alias>:<role>`, `Full scope allowed` off, back-channel
+logout URL + session required, and a per-client assignment-gate flow.
 
 ## 1. Registration
 

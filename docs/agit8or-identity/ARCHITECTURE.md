@@ -130,84 +130,142 @@ Trust rules between boundaries:
 
 ---
 
-## 3. IdP choice — ADR-ID-001
+## 3. IdP choice — ADR-ID-001: Keycloak
 
-**Status:** accepted by the owner (2026-11-16): **Zitadel**, with Keycloak as
-fallback. The Phase A spike gates below still have to pass before production;
-a failed gate switches to Keycloak.
+**Status:** decided by the owner (2026-11-16): **Keycloak**, one instance
+shared by Clientst0r and Rem0te. Rem0te plans to use Keycloak, so Clientst0r
+uses the same one; both apps must target the same Keycloak URL, version and
+realm.
+
+> Rem0te's Keycloak is **planned / external**. A read-only check of the Rem0te
+> repo and host (2026-11-16) found no Keycloak configuration or container
+> yet. Where it runs, its URL, version and realm are an open question (§13).
+> Until that is answered, this document assumes a dedicated Keycloak VM as
+> described in MIGRATION.md Phase A.
 
 ### Context
 
-We need a free, self-hostable, certified OIDC OP with: TOTP + passkeys,
-native multi-organisation support with delegated (per-org) admin, org-scoped
-roles/app assignments, session revocation APIs, back-channel logout, audit
-events, Postgres storage, and a footprint that can share a 4 vCPU / 7 GB host
-if needed. No paid licensing.
+We need a free, self-hosted, certified OIDC OP with TOTP and passkeys, a
+multi-MSP tenancy model with delegated per-MSP admin, back-channel logout,
+session revocation APIs, step-up (`acr`), brute-force protection, audit
+events, Postgres storage and an HA path. No paid licensing.
 
-### Options considered
+### Decision and reasons
 
-| Option | Fit | Concerns |
+**Keycloak ≥ 26.2** (exact minimum to be confirmed in Phase A; 26.x is
+needed for GA Organizations and fine-grained admin permissions v2),
+**Apache-2.0**, self-hosted on Postgres.
+
+- **Ecosystem consistency.** Rem0te will use Keycloak; one OP for all
+  Agit8or apps means one login, one MFA enrolment, one place to suspend a
+  user, one back-channel logout fan-out.
+- **Standards coverage.** OpenID-certified; Authorization Code + PKCE;
+  RP-initiated logout; OIDC Back-Channel Logout per client (with `sid`);
+  `acr_values` / `max_age` with Level-of-Authentication (LoA) flows; `amr`
+  mapper; WebAuthn (second factor and passwordless/passkeys) and TOTP; Admin
+  REST API for session revocation; admin events and login events.
+- **Tenancy.** Organizations (one per MSP, users may belong to several) in a
+  single realm; realm-per-MSP or instance-per-MSP remains available for MSPs
+  that need hard isolation.
+- **Licence.** Apache-2.0 — no copyleft or paid-tier questions.
+- **Cost.** JVM footprint (~1–2 GB RAM) → separate VM recommended
+  (MIGRATION.md §A.3).
+
+### Alternatives considered
+
+| Option | Why not chosen |
+|---|---|
+| Zitadel | Strong native organisations and delegated admin, lighter runtime. **Rejected for ecosystem consistency** (Rem0te targets Keycloak) and because its licence moved to AGPL-3.0 for v3+, which would need a separate review |
+| Authentik | Multi-tenancy is a paid/enterprise feature |
+| Ory (Hydra/Kratos/Keto) | Toolkit; we would build login UI, admin and the org model ourselves |
+| Authelia | No multi-tenancy; limited admin |
+
+### App-side design stays IdP-neutral
+
+Apps integrate with **any certified OIDC OP**. Keycloak-specific behaviour is
+confined to (a) Keycloak configuration (realm, clients, client scopes,
+mappers, flows, admin permissions) kept as code (realm export + scripted
+`kcadm.sh`/Admin REST provisioning), and (b) a small app-side **adapter**:
+
+| Concern | Keycloak mechanism | App-side adapter responsibility |
 |---|---|---|
-| **Zitadel** | Organisations are first-class with org managers (delegated admin); projects, roles, project grants (share an app with another org) and user grants (= application assignment); "check for project / check roles on authentication" gate login on assignment; passkeys + TOTP; OpenID-certified; Go binary, light (~0.5–1 GB RAM + Postgres); Actions to shape custom claims | **Licence must be re-verified**: Zitadel announced a move from Apache-2.0 to **AGPL-3.0** for v3+. Unmodified self-hosting is free, but modifications served over a network carry source obligations — acceptable if we never patch it, but the owner must confirm. A Zitadel user has one owning org; "one person, several MSPs with different roles" must be proven in the spike (grants across orgs vs. duplicate accounts). Back-channel logout support and its exact semantics must be confirmed on the chosen version. |
-| **Keycloak** (fallback) | Most mature; Apache-2.0; certified; back-channel logout, `acr`/LoA step-up flows, admin REST session logout, Organizations (v26+, users can belong to several orgs), fine-grained admin permissions v2 | JVM, 1–2 GB RAM; realm/org modelling heavier; delegated per-org admin is newer and more manual to lock down |
-| Authentik | Good UX, flows | Multi-tenancy is an enterprise feature → fails "no paid licensing" |
-| Ory (Hydra/Kratos/Keto) | Very flexible | A toolkit, not a product: we would build login UI, admin, org model — too close to a custom engine |
-| Authelia | Light | No multi-tenancy, limited admin; not an IdP for many MSPs |
+| Org membership | Organizations feature; `organization` client scope / Organization Membership mapper | Read `organization` claim (alias + id), check pinned org |
+| App assignment + roles | Client roles on each app's client, named `<org-alias>:<role>` (e.g. `acme-msp:technician`), granted via groups; emitted only for that client in `resource_access.<client_id>.roles` | Parse prefixed roles into `agit8or` v1 (§4.4) |
+| Login gate on assignment | Per-client browser-flow override: "Condition – user role" (any role of this client) else "Deny access" | Re-check assignment anyway |
+| `acr` / step-up | ACR-to-LoA mapping on realm/client; "Conditional – Level of Authentication" steps in the browser flow; client "Minimum ACR value" | Map `acr` to `urn:agit8or:acr:*` (already the configured names) |
+| `amr` | AMR protocol mapper (authenticator → `pwd`/`otp`/`hwk`…; verify name/availability in the Phase A version) | Consistency check against `acr` |
+| Back-channel logout | Client "Backchannel logout URL" + "Backchannel logout session required" (`sid`) | Standard endpoint (§6.3) |
+| Session revocation | Admin REST: `POST /admin/realms/{realm}/users/{id}/logout` (all sessions of a user), `DELETE /admin/realms/{realm}/sessions/{id}` (one session); disable user via `PUT /users/{id}` `enabled=false` | Runbook + optional admin helper; apps still rely on back-channel logout |
+| Delegated admin | Fine-grained admin permissions v2 (FGAP v2) scoped to the MSP's group/users and to roles prefixed with the MSP alias; Organizations membership management | None — documented in runbook |
 
-### Decision
+If the OP were ever replaced, only the adapter (claim normalisation, `acr`
+names) and runbooks change; app models, mapping tables and flows do not.
 
-**Zitadel** is the primary OP and **Keycloak** the documented fallback
-(the owner confirmed this). Phase A begins with a time-boxed spike that must pass these gates
-before Zitadel is accepted; failing any gate switches to Keycloak:
+### Tenancy model in Keycloak: single realm + Organizations (recommended)
 
-1. Licence re-checked and acceptable to the owner (AGPL-3.0 for v3+ vs. pinning an
-   Apache-2.0 release — pinning an old release is **not** acceptable long
-   term because it stops security fixes).
-2. One human can hold different roles in two MSP orgs without two accounts
-   (or the owner accepts per-MSP accounts, see open questions).
-3. OIDC Back-Channel Logout delivers a `logout_token` with `sid` and `sub` to
-   each RP on IdP session termination and on admin "terminate sessions".
-4. Org managers of MSP A cannot see or change anything in MSP B (tested via
-   the admin API with an MSP A manager token).
-5. `amr` / `acr` values are emitted predictably for password, password+TOTP
-   and passkey logins, and `max_age` / `prompt=login` force re-authentication.
-6. Footprint fits the chosen host (MIGRATION.md §A.2).
+The unit is **one MSP = one Keycloak Organization = one Clientst0r install
+(one VM) + that MSP's Rem0te tenant and businesses**. Clientst0r serves
+exactly one MSP; its `core.Organization` rows are that MSP's customers.
 
-### App-side design is IdP-neutral
-
-Apps integrate with **any certified OIDC OP**. Everything IdP-specific is
-isolated in a small **claims/admin adapter** on each side:
-
-| IdP-specific concern | Where it is isolated | Zitadel shape | Keycloak shape |
-|---|---|---|---|
-| Org / role claim shape | OP side: a claims action/mapper emits the normalised `agit8or` claim (§4). App side: `adapter.normalise(claims)` as fallback when the OP cannot be customised | `urn:zitadel:iam:org:project:{projectId}:roles` → `{role: {orgId: domain}}`, `urn:zitadel:iam:user:resourceowner:id`; Actions v2 add `agit8or` | Organization membership mapper (`organization` claim), group / client-role mappers; script or hardcoded mapper adds `agit8or` |
-| Application assignment gate | OP project/client setting + app re-check | Project "check authorization on authentication" + user grants | Client role required via authentication flow condition, or org-scoped client access |
-| Session revocation API (admin "kill sessions") | OP admin runbook + adapter `terminate_user_sessions(sub)` | Session API v2 / user sessions endpoints | `POST /admin/realms/{r}/users/{id}/logout` |
-| Back-channel logout | Standard on the RP side (§6); only registration differs | Per-app back-channel logout URI (confirm in spike) | Client "Backchannel logout URL", "session required" on |
-| Delegated admin | OP admin model; documented in runbook, not in apps | Org managers (ORG_OWNER / ORG_USER_MANAGER), IAM managers for platform | Fine-grained admin permissions v2 / org admins |
-| `acr` values | Mapping table in adapter config | Confirm emitted values in spike | LoA mapping (`acr` → level) |
-
-If the OP is replaced, only the adapter and runbooks change; app models,
-mapping tables and flows do not.
-
-### Deployment topologies (both supported by the same app-side design)
-
-The basic unit is **one MSP = one Zitadel Organization = one Clientst0r
-install (one VM) + that MSP's Rem0te tenant and its businesses**. Clientst0r
-always serves exactly one MSP; its `core.Organization` rows are that MSP's
-customers.
-
-| Topology | Description | When |
+| | **A. Single realm `agit8or` + one Organization per MSP** (recommended) | **B. Realm per MSP** |
 |---|---|---|
-| **T1 — Shared Zitadel, many MSPs** | One Zitadel instance (platform operated by Agit8or). Each MSP is a Zitadel Organization with its own org managers. App projects (`clientst0r`, `rem0te`, …) are owned by the platform org and **granted** to each MSP org (project grant); each MSP org assigns its own users (user grants). Each Clientst0r install has its own OIDC client (own redirect URIs) and is pinned to its MSP's org id. | Hosted/managed offering; MSPs that want Agit8or-run SSO |
-| **T2 — One Zitadel per MSP** | The MSP runs its own Zitadel (on its own VM or alongside its Clientst0r VM). It still contains one MSP Organization (plus the instance's default org); projects are local. Apps are pinned to that issuer **and** that org id. | Self-hosting MSPs that want full control, separate failure domain, or data-residency isolation |
+| Rem0te serving several MSPs | One `rem0te` client, one issuer; tenant chosen by org claim | One client + one `OidcProvider` row per MSP realm (Rem0te supports several providers, but config multiplies) |
+| Clientst0r (one MSP per install) | One client per install (`clientst0r-<alias>`), pinned to issuer + org | One client in that MSP's realm, pinned to that realm's issuer |
+| Person working for two MSPs | One account, member of two Organizations, roles per org prefix | Two accounts (one per realm) |
+| Isolation | Logical: org membership + prefixed roles + FGAP v2 admin scoping; one set of realm signing keys | Strong: separate keys, users, sessions, flows, admins per realm |
+| Policy (MFA, passwords, flows, mappers) | Configured once | Repeated per realm (scriptable, but drifts) |
+| Scale | Organizations designed for many tenants per realm | Many realms degrade admin and startup performance |
+| Delegated MSP admin | FGAP v2 + Organizations — must be proven in Phase A gate 4 | Realm-scoped admin roles — mature |
 
-In both topologies the apps pin **issuer + MSP org id**; nothing else in the
-app changes. T1 gives one human (e.g. a contractor working for two MSPs) one
-login; T2 gives the strongest isolation (separate keys, DB, admins, outage
-domain) at the cost of running one OP per MSP. Rem0te, if it hosts several
-MSPs as `Tenant`s, can trust several issuers (T2) or several org ids under one
-issuer (T1) — one binding per `Tenant`.
+**Recommendation: A** — single realm `agit8or` with one Organization per MSP.
+It fits the "Rem0te serves several MSPs, each Clientst0r install is one MSP"
+shape, supports one human in several MSPs, and keeps one policy set.
+
+**Isolation option B** (realm per MSP, or a separate Keycloak per MSP) stays
+supported for MSPs that require separate keys, admins and failure domains.
+The apps need no change: they pin issuer + org, and in B the issuer pin alone
+already separates MSPs. If Phase A gate 4 (admin isolation) fails for A,
+the fallback is B for every MSP.
+
+Pinning:
+
+- **Clientst0r** pins the issuer (realm URL, e.g.
+  `https://id.<domain>/realms/agit8or`) **and** the MSP Organization id
+  (UUID) with its alias, set at setup and changed only via a protected
+  change. Tokens without that org membership and at least one
+  `<alias>:` client role are refused.
+- **Rem0te** binds each `Tenant` to (issuer, org id); a token is mapped only
+  into the tenants whose org it carries.
+
+### Keycloak configuration baseline (planned)
+
+- **Passkeys / WebAuthn:** WebAuthn Passwordless Policy (user verification
+  required, resident key/discoverable credential) for passkey sign-in;
+  WebAuthn Policy for security keys as a second factor; registration via
+  required actions.
+- **TOTP:** OTP policy TOTP, 6 digits, 30 s, SHA-1 (authenticator-app
+  compatibility), look-around 1; `CONFIGURE_TOTP` required action when no
+  other second factor exists.
+- **MFA required** for every member of an MSP Organization (browser flow:
+  password then OTP-or-WebAuthn; or passkey alone counts as `phr`).
+  No SMS or email OTP for staff.
+- **Password policy:** length ≥ 12, not username/email, password history 5,
+  breached-password check if available, Keycloak default hashing (Argon2 on
+  26.x; verify).
+- **Brute-force detection:** on; temporary lockout (not permanent, to limit
+  lockout-as-DoS), max login failures 5, wait increment 1 min, max wait
+  15 min, failure reset 12 h; quick-login-check on. Admin events and login
+  events enabled with retention ≥ 90 days.
+- **Sessions:** SSO session idle 2 h, max 10 h; persistent user sessions
+  (26.x default) so restarts don't log everyone out; offline sessions
+  disabled for staff clients.
+- **Clients:** confidential, Standard Flow only, PKCE S256 required, exact
+  redirect URIs, no implicit/direct-grant/service-account on human clients,
+  front-channel logout off, back-channel logout URL + session required on.
+- **Client scopes:** `openid email profile organization` + an `agit8or`
+  scope that carries the AMR mapper and the client-roles mapper for that
+  client only; "Full scope allowed" **off** on every client so tokens don't
+  carry other clients' roles.
 
 ---
 
@@ -261,7 +319,7 @@ assignments.
     "platform_admin": false,
     "orgs": [
       {
-        "id": "312874650912345678",
+        "id": "6f1c2a9e-3b7d-4c11-9a0e-2f5d8b7c1a01",
         "slug": "acme-msp",
         "kind": "msp",
         "assigned": true,
@@ -269,7 +327,7 @@ assignments.
         "customers": null
       },
       {
-        "id": "312874650998765432",
+        "id": "a83e4b10-77c2-4f6e-b5d9-0c1e2d3f4a5b",
         "slug": "contoso-msp",
         "kind": "msp",
         "assigned": true,
@@ -306,24 +364,74 @@ Rules:
   `null` = no customer-level statement from the IdP (all customers the
   local role allows); otherwise a list of entries
   `{"id": "<customer ext id>", "roles": ["<role key>", …]}` (v1 also accepts
-  a bare id string meaning "no extra roles"). In Zitadel these come from
-  role keys / groups inside the MSP's org (e.g. role key
-  `customer:<ext-id>:<role>` on the app project, normalised by the claims
-  action). The app maps each entry through its mapping table to a local
+  a bare id string meaning "no extra roles"). In Keycloak these come from
+  client roles named `<alias>:customer:<customer-key>:<role>` granted inside
+  the MSP (§4.4). The app maps each entry through its mapping table to a local
   customer membership. For staff it is a **ceiling**: the app intersects it
   with local scope and it never widens a staff role's reach beyond what the
   mapping allows.
-- Size budget: if the claim would exceed ~4 KB the OP emits
-  `"orgs_ref": "userinfo"` and apps fetch it from userinfo during the code
-  exchange (server-side; never via the browser).
+- Size budget: if the role list would make the ID token exceed ~4 KB, the
+  client-roles mapper is set to userinfo only and apps fetch userinfo during
+  the code exchange (server-side; never via the browser).
 
 Clientst0r is pinned to exactly one MSP org id at setup and **rejects any
 token whose `agit8or.orgs[]` does not contain that org id with
 `assigned=true`**; other org entries are discarded before mapping.
 
-Login is scoped to one org at a time where the app needs it: the app passes
-an org hint (`urn:zitadel:iam:org:id:{id}` scope in the Zitadel adapter;
-`organization` / `kc_org` hint in Keycloak) and still re-checks the claim.
+Login is scoped to one org at a time where the app needs it: the app
+requests the `organization:<alias>` scope (Keycloak Organizations; exact
+scope syntax and the resulting claim to be confirmed in Phase A gate 1) and
+still re-checks the claim.
+
+### 4.4 How Keycloak produces `agit8or` v1 (no Keycloak extensions)
+
+Keycloak has no built-in way to emit our exact JSON object without a custom
+mapper SPI (a Java JAR). Phase B/C therefore uses **built-in mappers only**
+and normalises on the app side; a custom mapper that emits `agit8or`
+directly is an optional later step (it must then produce exactly this
+contract).
+
+Raw claims (illustrative; confirm shapes in Phase A):
+
+```json
+{
+  "iss": "https://id.example/realms/agit8or",
+  "aud": "clientst0r-acme-msp",
+  "azp": "clientst0r-acme-msp",
+  "organization": { "acme-msp": { "id": "6f1c…-uuid" } },
+  "resource_access": {
+    "clientst0r-acme-msp": {
+      "roles": [
+        "acme-msp:technician",
+        "acme-msp:customer:cust-ext-0193:technician"
+      ]
+    }
+  },
+  "acr": "urn:agit8or:acr:mfa",
+  "amr": ["pwd", "otp"]
+}
+```
+
+Normalisation rules (adapter, same in every app):
+
+1. `app` = the app key configured for this client id; `aud`/`azp` must equal
+   the client id.
+2. For each `<alias>:` prefix in `resource_access.<client_id>.roles`, the
+   alias **must** also appear in the `organization` claim; otherwise the role
+   is dropped (roles never count without org membership).
+3. `<alias>:<role>` → `orgs[alias].roles`; `<alias>:customer:<key>:<role>` →
+   `orgs[alias].customers[{id:key, roles}]`; at least one role for the alias
+   → `assigned: true`.
+4. `orgs[].id` = the Organization id from the `organization` claim (requires
+   "add organization id" on the mapper); `slug` = alias.
+5. `platform_admin` is always `false` from this path (platform admins are not
+   expressed in app tokens).
+6. `status` = `active` (Keycloak does not issue tokens to disabled users).
+
+Role naming keeps role explosion bounded: per MSP, `apps × roles` plus
+`customers × customer-roles` for customer-scoped staff. If Keycloak
+organization-scoped groups prove usable in the Phase A version, they can feed
+the same client roles without changing the contract.
 
 ---
 
@@ -367,7 +475,7 @@ Current model (verified in `.wt-connect`, dev-work v3.17.687):
 `LDAPGroupMapping` (:2379). **A Clientst0r install serves exactly one MSP**
 (one install per VM); its `core.Organization` rows are that MSP's
 **customers**. The install's OIDC provider config pins one issuer and one
-Zitadel org id (the MSP) at setup; changing it is a protected change
+Keycloak Organization id/alias (the MSP) under a pinned issuer at setup; changing it is a protected change
 (second-admin approval).
 
 | Identity input | Clientst0r target |
@@ -375,10 +483,10 @@ Zitadel org id (the MSP) at setup; changing it is a protected change
 | `(iss, sub)` | New `accounts.ExternalIdentity(provider, issuer, subject, user, last_login_at, last_sid)`, unique `(issuer, subject)` |
 | Token without the pinned MSP org id (assigned) | Refused — no login, audited `auth.sso.login_refused reason=org_mismatch` |
 | Pinned MSP org id + role key (e.g. `technician`) | New `OIDCRoleMapping(provider, idp_org_id, role_key, → user_type=staff, global_role_template, client_scope)` — staff users |
-| Pinned MSP org id + `customers[]` entries (per-customer membership claims/groups within the MSP's Zitadel org) | `core.Organization` resolved by a stored customer external id (new `Organization.identity_customer_key`, set when the admin maps the customer) → `Membership(role_template from mapping, source=oidc, oidc_mapping=…)` |
+| Pinned MSP org id + `customers[]` entries (per-customer membership client roles `<alias>:customer:<key>:<role>` within the MSP) | `core.Organization` resolved by a stored customer external id (new `Organization.identity_customer_key`, set when the admin maps the customer) → `Membership(role_template from mapping, source=oidc, oidc_mapping=…)` |
 | `email`, names | `User.first_name/last_name`, `User.email` (display only; updating email never re-links) |
 | `amr`/`acr`/`auth_time`/`sid` | Session keys used by `Enforce2FAMiddleware` and step-up (§8) |
-| Org users (`user_type=org_user`) | Via `customers[]` mappings; **customer portal users stay local in Phase B–E**; in Phase F they are users of the same MSP Zitadel org (or of a dedicated portal sub-project) — §10 |
+| Org users (`user_type=org_user`) | Via `customers[]` mappings; **customer portal users stay local in Phase B–E**; in Phase F they are members of the same MSP Keycloak Organization with roles on a dedicated portal client — §10 |
 
 Superuser (`is_superuser`) is **never** granted via SSO mapping. Superuser
 remains a local designation and goes through the existing Superuser Approval
@@ -571,7 +679,7 @@ share nothing.
 | Credential stores | OP Postgres; app stores only `(iss, sub)` links and session index | Clientst0r encrypted fields under `APP_MASTER_KEY`; Rem0te root-owned PEM + peers file / planned DB-backed connections |
 | Revocation | OP session kill + back-channel logout | Connect key/connection revocation, replay guards (`Rem0teReplayGuard`, `IntegrationReplayGuard`) |
 | Audit | OP auth events + app `auth.*` audit events | `integration.*` / Connect audit events |
-| Admin permission | IdP platform admins / MSP org managers; app "Identity provider settings" permission | App integration-admin permission (Clientst0r Settings → Integrations + second-admin protected change; Rem0te `technicians.manage` step-up) |
+| Admin permission | Keycloak platform admins (master realm) / MSP admins (FGAP v2, own Organization only); app "Identity provider settings" permission | App integration-admin permission (Clientst0r Settings → Integrations + second-admin protected change; Rem0te `technicians.manage` step-up) |
 
 **Hard rules**
 
@@ -622,8 +730,8 @@ Connect's own protocol is specified separately in `docs/agit8or-connect/`
   from the MSP org by per-customer membership claims/groups
   (`orgs[].customers`).
 - Clientst0r rejects any token whose org claim is not its pinned MSP org
-  (§4, §5.2). In topology T1 (shared Zitadel) this is the control that keeps
-  MSP A's users out of MSP B's install; in T2 (one Zitadel per MSP) the
+  (§4, §5.2). In the single-realm model this is the control that keeps MSP
+  A's users out of MSP B's install; in realm-per-MSP (isolation option B) the
   issuer pin does it as well.
 - A token's org claim **never** grants access to another org. Apps ignore
   `orgs[]` entries not bound to the install/tenant (§5.1 rule 6).
@@ -631,7 +739,8 @@ Connect's own protocol is specified separately in `docs/agit8or-connect/`
   its own roles and assignment. Apps that host several MSPs (Rem0te tenants)
   keep a per-tenant membership; the user picks the active tenant, the app
   re-checks membership on every request (no "current org" from the token).
-- MSP org managers administer only their own org at the OP (users,
+- MSP admins (Keycloak FGAP v2, scoped to their Organization's users and
+  `<alias>:*` roles) administer only their own org at the OP (users,
   assignments, roles, MFA policy within platform minimums, sessions, login
   history). Platform admins are a separate, small group with phishing-
   resistant MFA required, managed only at the OP's instance level.
@@ -644,8 +753,9 @@ Connect's own protocol is specified separately in `docs/agit8or-connect/`
 ### Portal / customer users
 
 Phase F. Target model: portal/customer users are **users of the MSP's own
-Zitadel org** (managed by that MSP's org managers), authorised for the portal
-through a dedicated portal project or portal role keys (sub-project), with
+Keycloak Organization** (managed by that MSP's admins via FGAP v2),
+authorised for the portal through client roles on a dedicated portal client
+(e.g. `portal-<alias>`), with
 their customer given by `orgs[].customers`. They never receive staff role
 keys, and the portal OIDC client is separate from the staff client. Until
 then Clientst0r customer portal users
@@ -692,20 +802,23 @@ undocumented backdoor.
 
 - Postgres: nightly `pg_dump` (logical) + WAL archiving if HA; encrypted with
   a key held outside the IdP host; retained 30 days; offsite copy.
-- OP master key / encryption key (Zitadel `masterkey`; Keycloak realm keys
-  are in DB) backed up separately and offline — without it a DB backup is
-  useless (Zitadel).
+- Keycloak realm signing keys, client secrets and user credentials live in
+  Postgres, so the dump is highly sensitive: encrypt it with a key held
+  outside the Keycloak host.
+- Also nightly `kc.sh export --realm agit8or` (realm configuration, without
+  users) as configuration-as-code, plus the provisioning scripts in git;
+  `kc.sh import` rebuilds a realm from it.
 - Restore tested quarterly into a scratch instance; RPO ≤ 24 h (≤ 5 min with
   WAL), RTO ≤ 4 h.
-- Configuration as code where possible (OP provisioning scripts/Terraform
-  provider) so clients, projects and policies can be rebuilt.
+- Configuration as code where possible (Keycloak provisioning scripts with
+  `kcadm.sh` / Admin REST, kept in git) so clients, scopes, flows and policies can be rebuilt.
 
 ### 11.3 HA options
 
 | Option | Notes |
 |---|---|
 | Single VM + backups (Phase A default) | Simplest; OP outage = SSO outage, local logins + break-glass still work during migration phases |
-| 2 OP nodes behind a load balancer + Postgres primary/replica | Zitadel and Keycloak are stateless-ish against Postgres (Keycloak also needs Infinispan cache config); adds operational load |
+| 2+ Keycloak nodes behind a load balancer + Postgres primary/replica | Keycloak 26 clusters through embedded Infinispan (JGroups discovery via JDBC_PING over the shared DB — no multicast needed); persistent user sessions live in Postgres so a node loss doesn't log users out; Postgres HA via streaming replica (+ Patroni if automatic failover is wanted); adds operational load |
 | Managed-elsewhere Postgres | Not chosen by default (self-hosted brief) |
 
 Apps must degrade safely when the OP is unreachable: existing app sessions
@@ -717,8 +830,9 @@ and (until Phase E enforcement) local logins work.
 1. Confirm scope: OP down, OP misconfigured, admin accounts compromised, or
    signing key problem.
 2. OP down → restore service/DB from backup; apps keep existing sessions.
-3. All OP admins locked out → OP's documented instance-admin recovery
-   (console/CLI on the OP host), then rotate those admins' credentials.
+3. All Keycloak admins locked out → on the Keycloak host, create a temporary
+   admin with `kc.sh bootstrap-admin user` (Keycloak 26) — shell access only,
+   audited, removed afterwards — then rotate those admins' credentials.
 4. App unreachable via SSO → shell on the app host → enable break-glass with
    TTL → sign in with local MFA → fix provider config or switch the app's
    SSO mode to "optional" → disable break-glass.
@@ -741,7 +855,7 @@ and (until Phase E enforcement) local logins work.
 | T6 | Stale sessions after suspension | Back-channel logout; `sessions_valid_after`; silent re-auth at absolute timeout; Phase E sid liveness check |
 | T7 | Forged back-channel logout (DoS by logging users out) | Signed `logout_token` validated against OP JWKS, `aud`, `events`, `jti` replay store |
 | T8 | MFA bypass via weak SSO login | Apps require `acr` mfa/phr + consistent `amr`; per-action `acr_values`/`max_age`; local MFA kept for local accounts |
-| T9 | Compromised MSP org manager escalates to platform or another MSP | OP delegated admin limited to own org; platform admins separate with `phr`; `platform_admin` never auto-maps to app superuser; Phase A gate 4 tests isolation |
+| T9 | Compromised MSP org manager escalates to platform or another MSP | OP delegated admin limited to own org; platform admins separate with `phr`; `platform_admin` never auto-maps to app superuser; Phase A gate 4 tests FGAP v2 isolation; fallback is realm-per-MSP |
 | T10 | Using an Identity token against Connect endpoints / confused deputy | §9 hard rules: Connect rejects Identity issuers and types; delegation is explicit, short-lived, request-bound, re-authorised by the receiver |
 | T11 | OP outage locks everyone out | Local login fallback until enforcement; break-glass; backups; HA option |
 | T12 | Break-glass abuse | Sealed (shell-only enable), TTL, MFA, alerts, second-admin creation |
@@ -755,18 +869,17 @@ and (until Phase E enforcement) local logins work.
 
 ## 13. Open questions (for the owner)
 
-1. Zitadel is confirmed; please confirm its current licence terms
-   (AGPL-3.0 for v3+, to be re-verified in the spike) are acceptable for
-   unmodified self-hosting.
-2. Host: share the 4 vCPU / 7 GB Clientst0r prod host, or a separate VM
-   (recommended)? Which DNS name for the OP?
-3. Same human in several MSPs (topology T1): one account with grants in
-   several MSP orgs (preferred) or separate per-MSP accounts? In T2 they are
-   necessarily separate accounts.
-7. Default topology for new MSPs: shared Zitadel (T1) or one per MSP (T2)?
+1. **Where does the shared Keycloak run?** URL, version and realm name — so
+   Clientst0r and Rem0te target the same instance. (No Keycloak config or
+   container exists on the Rem0te repo/host yet; it is treated as planned.)
+   If it isn't decided: a dedicated VM per MIGRATION.md §A.3, Keycloak ≥ 26.2.
+2. Single realm + Organizations (recommended) for all MSPs, with
+   realm-per-MSP only on request — agreed?
+3. Same person in several MSPs: one account with several Organization
+   memberships (recommended) or separate accounts?
 4. Should Identity platform admins ever map to app superuser, or always stay
    separate (recommended: separate)?
-5. Should existing Azure AD SSO be kept long-term (federated *into* the OP as
-   an upstream IdP) or retired after migration?
-6. Portal/customer users at the OP (Phase F): users of the MSP org with a
-   portal role, or a dedicated portal project per MSP?
+5. Should existing Azure AD SSO be kept long-term (brokered *through*
+   Keycloak as an identity provider) or retired after migration?
+6. Portal/customer users in Keycloak (Phase F): members of the MSP
+   Organization with a portal client role — wanted?

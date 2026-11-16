@@ -17,53 +17,103 @@ Principles for every phase:
 
 ---
 
-## Phase A — Deploy the IdP (requires explicit approval)
+## Phase A — Keycloak deployment (requires explicit approval)
 
-### A.1 Spike (no production impact)
+**First step: find out where the shared Keycloak runs** (URL, version, realm;
+ARCHITECTURE.md §13 Q1). Rem0te plans to use Keycloak, but no configuration
+or container exists on the Rem0te repo/host yet. If an instance already
+exists, Phase A becomes "validate it against the gates below and add the
+Clientst0r client"; if not, deploy one as described here, and Rem0te targets
+the same instance.
 
-Run the chosen OP (Zitadel; Keycloak as fallback) in a scratch environment on
-this server's dev side (not a disposable cloud VM — local testing only) and
-check the six gates in ARCHITECTURE.md §3: licence, multi-org users, back-
-channel logout, delegated admin isolation, `amr`/`acr` behaviour, footprint.
-Record results in this directory before any production deployment.
+### A.1 Validation gates (local test instance; no production impact)
 
-### A.2 Topology
+Run Keycloak (target version, ≥ 26.2) in a local test environment on this
+server's dev side (no disposable cloud VM) with both apps on test configs.
+Record results in this directory. All gates must pass before production:
 
-Two supported topologies (ARCHITECTURE.md §3 "Deployment topologies"):
-**T1** one shared Zitadel serving many MSPs (each MSP = one Zitadel
-Organization) or **T2** one Zitadel per MSP. Phase A deploys one instance
-for the owner's MSP; it is T1-ready (MSPs added later as orgs) and the same
-procedure produces a T2 instance for a self-hosting MSP.
+1. **Organizations behaviour.** Organizations enabled on realm `agit8or`;
+   the `organization` scope / Organization Membership mapper emits alias
+   **and** id; `organization:<alias>` scope limits the token to that org;
+   membership is required for the org to appear; removing membership removes
+   it from the next token.
+2. **Multi-org user.** One user in two Organizations with different
+   prefixed client roles in each; each app's token carries only that app's
+   client roles (`Full scope allowed` off) and the adapter normalises both
+   orgs correctly; Clientst0r pinned to org A ignores org B.
+3. **Back-channel logout to both apps.** `logout_token` with `sid` and `sub`
+   reaches Clientst0r and Rem0te on: RP-initiated logout from either app,
+   admin "sign out" of a user (`POST /admin/realms/agit8or/users/{id}/logout`),
+   deleting a single session, and disabling a user (if disabling does not
+   trigger it, the runbook is "disable, then logout").
+4. **Admin isolation between MSPs.** With fine-grained admin permissions v2,
+   an MSP A admin can manage users/members of org A and map only `acme-msp:*`
+   client roles, and **cannot** view or change MSP B users, map other
+   prefixes or realm roles, edit clients, flows, mappers, keys or realm
+   settings, or impersonate. If this cannot be achieved, fall back to
+   realm-per-MSP (ARCHITECTURE.md §3 option B) — or a small MSP-admin UI on
+   the Admin REST API — before go-live.
+5. **Assurance.** ACR-to-LoA mapping emits `urn:agit8or:acr:pwd|mfa|phr`
+   for password, password+TOTP/WebAuthn and passkey sign-in; the AMR mapper
+   emits consistent `amr`; `acr_values`, `max_age` and `prompt=login` force
+   the right step-up.
+6. **Assignment gate.** A user without any of a client's roles is denied at
+   Keycloak by the per-client flow ("Condition – user role" → "Deny
+   access"), and `prompt=none` returns an error instead of a session.
+7. **Brute-force detection** locks temporarily per the policy and unlocks;
+   login/admin events are recorded with the expected detail.
+8. **Footprint, backup, restore.** Memory/CPU on the target host under a
+   login burst; `pg_dump` + realm export restore into a scratch instance and
+   existing tokens/sessions behave as expected.
 
-### A.2a Sizing
+### A.2 Tenancy
 
-| Host | OP | Postgres | Total budget | Notes |
+Single realm `agit8or`, one Organization per MSP (ARCHITECTURE.md §3).
+First Organization: the owner's MSP (= the owner's Clientst0r install +
+Rem0te tenant). Realm-per-MSP or a separate Keycloak per MSP is the
+isolation option for MSPs that require it; the apps need no change.
+
+### A.3 Sizing
+
+Keycloak is a JVM service: plan ~1–1.5 GB heap plus overhead, CPU dominated
+by password hashing during login bursts.
+
+| Host | Keycloak | Postgres | Total budget | Notes |
 |---|---|---|---|---|
-| **Separate VM (recommended)** | 2 vCPU, 1 GB RSS (Zitadel) / 2 GB (Keycloak) | 1 GB, 20 GB disk | 2 vCPU / 4 GB / 40 GB | Isolates the OP from app outages and app compromise; easiest to back up and to make HA later |
-| Shared 4 vCPU / 7 GB host | Zitadel capped at ~768 MB (systemd `MemoryMax`), Keycloak not recommended here (JVM 1–2 GB) | Dedicated small Postgres cluster, `shared_buffers` 128–256 MB, ~512 MB | ~1.3 GB added | Competes with gunicorn, Collabora and SQLite write load (known login-400 issue under long writes); an app compromise on the host reaches the OP — weaker boundary |
+| **Separate VM (recommended)** | 2 vCPU, 2 GB RAM (`-Xmx` ~1.25 GB / `MaxRAMPercentage`) | 1 GB RAM, 20 GB disk | 2 vCPU / 4 GB / 40 GB | Isolates the OP from app outages and app compromise; easiest to back up and to make HA later (add a second node + replica) |
+| Shared 4 vCPU / 7 GB Clientst0r host | **Not recommended**: needs ~1.5–2 GB + Postgres ~0.5 GB | | ~2–2.5 GB added | Competes with gunicorn, Collabora and SQLite write load (known login-400 issue under long writes); an app compromise on the host reaches the OP |
 
-Native install (systemd unit + Postgres) is the default; a container is fine
-if the owner prefers. TLS via the existing Nginx pattern on a dedicated
-hostname (e.g. `id.<domain>`), HSTS, no other vhosts sharing cookies.
+Native install (Keycloak distribution as a systemd service, `kc.sh build`
+optimised start, Postgres) is the default; the official container image is
+fine if the owner prefers. TLS via Nginx on a dedicated hostname (e.g.
+`id.<domain>`), `KC_PROXY_HEADERS=xforwarded`, HSTS, admin console reachable
+only from the admin network (separate hostname via `KC_HOSTNAME_ADMIN` or
+proxy path restriction), no other vhosts sharing cookies.
 
-### A.3 Baseline configuration
+### A.4 Baseline configuration (as code)
 
-- Instance (platform) admins: two named humans, passkey required.
-- One Zitadel Organization per MSP. First org: the owner's MSP (= the
-  owner's Clientst0r install + Rem0te tenant).
-- One project/app registration per Agit8or app: `clientst0r`, `rem0te`
-  (confidential clients, Auth Code + PKCE, exact redirect URIs, post-logout
-  URIs, back-channel logout URIs).
-- Roles per app (initial keys): Clientst0r `msp_admin`, `technician`,
-  `readonly`; Rem0te `operator_admin`, `technician`, `business_owner`.
-- Claims action/mapper emitting the `agit8or` v1 claim.
-- MFA policy: required for all users of MSP orgs; passkeys + TOTP enabled.
+- Master realm: only for instance administration; two named platform admins
+  with passkeys; never used by apps.
+- Realm `agit8or`: Organizations on; policies per ARCHITECTURE.md §3
+  "Keycloak configuration baseline" (MFA, passkeys, TOTP, password policy,
+  brute-force detection, session lifetimes, events).
+- Clients: `clientst0r-<alias>` per Clientst0r install, `rem0te` (one per
+  Rem0te deployment); confidential, Standard Flow + PKCE S256, exact
+  redirect/post-logout URIs, back-channel logout URL + session required,
+  `Full scope allowed` off, per-client assignment-gate flow.
+- Client roles named `<alias>:<role>` (initial: Clientst0r `msp_admin`,
+  `technician`, `readonly`; Rem0te `operator_admin`, `technician`,
+  `business_owner`) granted through groups per MSP.
+- Client scopes `organization` + `agit8or` (AMR + client-roles mappers).
+- Provisioning scripted (`kcadm.sh` / Admin REST) and stored in git;
+  nightly realm export.
 - Backups + restore test (ARCHITECTURE.md §11.2) before any app is pointed
   at it.
 
-### A.4 Rollback
+### A.5 Rollback
 
-Stop the OP. No app depends on it yet.
+Stop the instance (or remove the Clientst0r client if the instance is shared
+with Rem0te). No app depends on it yet.
 
 ---
 
@@ -87,13 +137,13 @@ until that path is migrated (B.5).
 
 ### B.2 What ships (see CLIENTST0R_TASKS.md for the task list)
 
-- `OIDCProvider` config (issuer, client id, secret/private key, scopes,
-  `jit_enabled`, **pinned `msp_org_id`** (exactly one — set in the setup
+- `OIDCProvider` config (issuer = Keycloak realm URL, client id, secret/private key, scopes,
+  `jit_enabled`, **pinned MSP Keycloak Organization id + alias** (exactly one — set in the setup
   wizard, changed only via a second-admin protected change),
   `min_acr_for_2fa`, enabled flag). Tokens without that org are refused.
 - Customer mapping UI: each `core.Organization` (customer) can be given its
-  identity customer key so per-customer membership claims/groups in the MSP's
-  Zitadel org map to `Membership` rows.
+  identity customer key so client roles `<alias>:customer:<key>:<role>` map
+  to `Membership` rows.
 - `ExternalIdentity(issuer, subject)` and `OIDCRoleMapping`.
 - Login button "Sign in with Agit8or Identity" on `/account/login/` only
   when a provider is enabled. Local, Azure and LDAP forms unchanged.
@@ -122,13 +172,13 @@ JIT.
 
 Unit tests for validation, mapping, linking, logout token handling, 2FA
 acceptance, step-up (CLIENTST0R_TASKS.md CS-ID-12). Live check against the
-spike OP on this server.
+Phase A local test Keycloak on this server.
 
 ### B.5 Azure AD
 
 Fix the email-based matching first (CS-ID-01), independent of Identity. Later
-options: keep Azure as a direct login, or federate Azure into the OP as an
-upstream IdP and retire the direct path (open question in ARCHITECTURE.md).
+options: keep Azure as a direct login, or broker Azure through Keycloak as an
+identity provider (Entra ID as upstream OIDC IdP) and retire the direct path (open question in ARCHITECTURE.md).
 
 ### B.6 Rollback
 
@@ -204,11 +254,11 @@ Rollback: set the mode back to `optional`; local logins return immediately.
 ## Phase F — Customer portal users
 
 Decide (owner) whether portal/customer users move to the OP. If yes: portal
-users are users of the **MSP's own Zitadel org** (no separate customer orgs),
-authorised via a dedicated portal project (or portal role keys on a
-sub-project) and tied to their customer by per-customer membership claims;
-separate OIDC client for the portal host; `user_type=org_user` guard
-unchanged; MSP org managers administer them. MFA policy for
+users are members of the **MSP's own Keycloak Organization** (no separate
+customer orgs), authorised via client roles on a dedicated portal client
+(`portal-<alias>`, e.g. `<alias>:customer:<key>:portal_user`) on the portal
+host; `user_type=org_user` guard unchanged; MSP admins manage them via
+FGAP v2. MFA policy for
 customers set per MSP. Local portal login remains available per customer.
 
 Rollback: disable the portal client; portal users sign in locally.
@@ -217,8 +267,8 @@ Rollback: disable the portal client; portal users sign in locally.
 
 ## Phase G — SCIM / provisioning
 
-Only where it earns its keep. Free OPs generally do not ship a full SCIM
-*server* for downstream apps; options:
+Only where it earns its keep. Keycloak does not ship a SCIM client that
+pushes to downstream apps; options:
 
 1. Keep JIT + login-time reconciliation (default — already removes access on
    next login and kills sessions via back-channel logout).
@@ -226,8 +276,8 @@ Only where it earns its keep. Free OPs generally do not ship a full SCIM
    patch `active`, delete) so a provisioning job can pre-create and
    deprovision users without waiting for a login. Authenticated with a
    Connect-style client credential, **not** a user token.
-3. OP event stream (Zitadel events / Keycloak admin events) → small
-   provisioning worker → app SCIM endpoints.
+3. Keycloak admin events (event listener SPI, or polling the Admin REST
+   events API) → small provisioning worker → app SCIM endpoints.
 
 Rollback: disable the SCIM endpoint; JIT continues.
 

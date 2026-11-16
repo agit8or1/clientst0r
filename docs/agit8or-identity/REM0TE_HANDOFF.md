@@ -7,6 +7,13 @@
 > coordination file only (`INTEGRATION_COORDINATION.clientst0r-response.md`
 > on the Rem0te side) — not by editing Rem0te directly.
 
+**IdP: Keycloak, one instance shared by Rem0te and Clientst0r** (owner
+decision 2026-11-16). A read-only check found no Keycloak configuration or
+container in the Rem0te repo or on the Rem0te host yet, so Rem0te's Keycloak
+is treated as planned/external. Both apps must target the same Keycloak
+URL, version (≥ 26.2) and realm (proposed `agit8or`) — see the first
+question in §4.
+
 Context for the Rem0te session: see `ARCHITECTURE.md` (claims contract §4,
 mapping §5.3, flows §6, revocation §7, Connect separation §9) and
 `MIGRATION.md` Phase C/D.
@@ -25,7 +32,24 @@ mapping §5.3, flows §6, revocation §7, Connect separation §9) and
 - Step-up: `step-up.service.ts` HMAC cookie, 10 min, bound to `iat`;
   `ConfirmPolicy`.
 
+Rem0te's existing `openid-client` SSO already fits Keycloak as-is: discovery
+from the realm issuer (`https://<host>/realms/agit8or`), Authorization Code +
+PKCE, multiple `OidcProvider` rows, `ExternalIdentity(issuer, subject)`
+linking. The work below adds hardening, back-channel logout and the
+Organizations/client-role mapping — no new OIDC library.
+
 ## 2. Proposed tasks
+
+### RR-ID-00 — Keycloak client registration (with the Keycloak owner)
+
+Client `rem0te` in realm `agit8or`: confidential, Standard Flow only, PKCE
+S256 required, exact redirect + post-logout URIs, back-channel logout URL +
+"session required" on, front-channel logout off, `Full scope allowed` off,
+client scopes `openid email profile organization agit8or`, per-client
+assignment-gate flow (deny without a `rem0te` client role). Client roles
+named `<org-alias>:<role>` (initial `operator_admin`, `technician`,
+`business_owner`; per-business `<alias>:customer:<business-key>:<role>`).
+Token endpoint auth `private_key_jwt` preferred.
 
 ### RR-ID-01 — Explicit `iss` / `aud` / `azp` validation
 
@@ -70,11 +94,17 @@ Connect/integration keys or with the OP.
 
 ### RR-ID-06 — Org and app-assignment claim mapping
 
-- `OidcProvider`: add `claimsContract = "agit8or-v1"` mode reading
-  `agit8or.orgs[]` (instead of a flat `groupsClaim`); refuse unknown `v`,
-  `app != "rem0te"`, `status != active`.
-- Tenant binding: `Tenant.identityOrgId` (or provider-level allowlist of org
-  ids per tenant); entries for unbound orgs ignored.
+- `OidcProvider`: add `claimsContract = "agit8or-v1"` mode. With Keycloak
+  built-in mappers the raw input is the `organization` claim (alias → id)
+  plus `resource_access.rem0te.roles` (`<alias>:<role>`,
+  `<alias>:customer:<key>:<role>`); normalise to `agit8or` v1 exactly as
+  ARCHITECTURE.md §4.4 (drop roles whose alias is not in `organization`).
+  Refuse unknown `v`, wrong `aud`/`azp`.
+- Tenant binding: `Tenant.identityOrgId` (Keycloak Organization id, plus
+  alias for display) — one Rem0te deployment can bind several MSP
+  Organizations, one per `Tenant`; entries for unbound orgs ignored. If an
+  MSP uses realm-per-MSP isolation, that tenant binds (issuer, org) via its
+  own `OidcProvider` row.
 - `OidcGroupMapping` keyed by `(provider, orgId, roleKey)` → `Role` +
   capability set; `orgs[].customers` as a ceiling on
   `Membership.customerId` / `TechnicianAssignment`; tag mapped memberships
@@ -114,7 +144,10 @@ Wire them into `scripts/check-security-invariants.mjs` where applicable.
 
 ## 3. Interop test plan (Clientst0r ⇄ Rem0te via the OP)
 
-Run against the Phase A spike OP; both apps on test configs; no production.
+Run against the shared Keycloak's test realm (or the Phase A local test
+instance); both apps on test configs; no production. Admin actions use the
+Keycloak Admin REST API (`POST /admin/realms/agit8or/users/{id}/logout`,
+`DELETE /admin/realms/agit8or/sessions/{id}`, user `enabled=false`).
 
 | # | Scenario | Expected |
 |---|---|---|
@@ -123,7 +156,7 @@ Run against the Phase A spike OP; both apps on test configs; no production.
 | I3 | User with `acr=mfa` session opens a Rem0te action needing `phr` | OP prompts for passkey; Rem0te accepts only after `acr=phr` |
 | I4 | Sign out in Clientst0r | Rem0te session ends within seconds (back-channel logout by `sid`) |
 | I5 | Sign out in Rem0te | Clientst0r session ends (back-channel) |
-| I6 | MSP admin suspends user at OP | Both app sessions end; new logins refused |
+| I6 | MSP admin disables user in Keycloak (then logout per runbook) | Both app sessions end; new logins refused |
 | I7 | Admin "terminate sessions" (no suspension) | Both sessions end; user can log in again |
 | I8 | Rem0te down during logout | Clientst0r logs out; Rem0te session ends at its next silent re-auth / absolute expiry (documented bound) |
 | I9 | Replay a captured `logout_token` | Rejected by both (`jti`) |
@@ -136,6 +169,9 @@ Run against the Phase A spike OP; both apps on test configs; no production.
 
 ## 4. Questions for the Rem0te session
 
+0. Where does (or will) Rem0te's Keycloak run — URL, version, realm — and
+   who administers it? Clientst0r will register against the same instance.
+   Is Organizations enabled and is FGAP v2 available on that version?
 1. Is `JWT_SECRET` used for anything beyond the session cookie, MFA partial
    token and step-up cookie?
 2. Preferred session index for `sid` revocation: DB table, or `sid` in the
