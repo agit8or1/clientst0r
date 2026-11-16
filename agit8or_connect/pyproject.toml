@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agit8or-connect"
+version = "1.0.0"
+description = "Reference SDK for the Agit8or Connect app-to-app protocol (agit8or-connect/1)"
+requires-python = ">=3.10"
+dependencies = ["cryptography>=42", "PyJWT>=2.10"]
+license = {text = "See repository LICENSE"}
+
+[tool.setuptools]
+package-dir = {"agit8or_connect" = "."}
+packages = ["agit8or_connect", "agit8or_connect.adapters", "agit8or_connect.tools", "agit8or_connect.tests"]
