@@ -1,6 +1,7 @@
 {% load static %}
 {% load i18n %}
 {% load portal_theme %}
+{% load payments_portal %}
 {% portal_theme_mode as theme_mode %}
 {% portal_brand_name as msp_name %}
 {% portal_look as look %}
@@ -43,6 +44,9 @@
                 <a href="{% url 'portal:kb_list' %}" {% if current == 'kb_list' or current == 'kb_detail' %}aria-current="page"{% endif %}><i class="fas fa-book" aria-hidden="true"></i> Knowledge Base</a>
                 <a href="{% url 'portal:vault_list' %}" {% if current == 'vault_list' or current == 'org_admin_vault' or current == 'org_admin_vault_item' %}aria-current="page"{% endif %}><i class="fas fa-key" aria-hidden="true"></i> Credentials</a>
                 <a href="{% url 'portal:agreement_list' %}" {% if current == 'agreement_list' or current == 'agreement_detail' %}aria-current="page"{% endif %}><i class="fas fa-file-signature" aria-hidden="true"></i> Agreements</a>
+                {% if request|portal_can_bill %}
+                <a href="{% url 'portal:billing_home' %}" {% if current and current|slice:':8' == 'billing_' %}aria-current="page"{% endif %}><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Billing</a>
+                {% endif %}
                 {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
                 <a href="{% url 'portal:status' %}" {% if current == 'status' %}aria-current="page"{% endif %}><i class="fas fa-heart-pulse" aria-hidden="true"></i> Service Status</a>
                 {% if pulse_enabled %}

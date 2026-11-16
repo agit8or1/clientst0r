@@ -45,6 +45,17 @@ def _superuser(ctx):
     return bool(u is not None and u.is_superuser)
 
 
+def _app_connections_viewer(ctx):
+    """Agit8or Connect pages: only while the feature is on, for holders of
+    view_app_connections."""
+    from django.conf import settings as dj_settings
+    u = _user(ctx)
+    if u is None or not getattr(dj_settings, 'AGIT8OR_CONNECT_ENABLED', False):
+        return False
+    from accounts.permission_utils import user_has_perm
+    return user_has_perm(u, 'view_app_connections')
+
+
 def _msp_staff(ctx):
     """base.html's `is_staff_user or user.is_superuser or user.is_staff`."""
     u = _user(ctx)
@@ -94,6 +105,11 @@ def _has_org(ctx):
 # Gates that mirror a page's own view-level check, so the link appears exactly
 # for the users the page would let in. Each imports lazily (navigation is
 # loaded early) and fails closed.
+
+def _can_manage_sso(user):
+    from oidc_sso.permissions import can_manage_sso
+    return can_manage_sso(user)
+
 
 def _view_check(fn):
     def gate(ctx):
@@ -590,6 +606,9 @@ SECTIONS = (
     Section('psa_billing', 'psa', _('Billing'), gate=_psa, tabs=(
         Tab(_('Aging Report'), 'psa:aging_report', 'fa-chart-column', gate=_aging_reader),
         Tab(_('Billing Review'), 'psa:billing_review', 'fa-list-check', gate=_billing_reviewer),
+        # Online payments, refunds and provider connections (payments app): MSP staff only.
+        Tab(_('Payments'), 'payments:index', 'fa-credit-card', gate=_msp_staff,
+            also=('payments:connection_create', 'payments:connection_edit', 'payments:attempt_detail')),
     )),
     # Purchasing carries vendor costs: MSP staff only (psa.views._msp_staff_only).
     Section('psa_procurement', 'psa', _('Procurement'), gate=_all(_msp_staff, _psa), tabs=(
@@ -757,6 +776,10 @@ SECTIONS = (
             keywords='l1 l2 l3 presets assignments',
             also=('tech_access:why', 'tech_access:assignment_detail', 'tech_access:change_detail')),
         Tab(_('Superuser Approval'), 'tech_access:superuser_policy', 'fa-user-lock', gate=_superuser),
+        Tab(_('Single sign-on (OIDC)'), 'oidc_sso:settings', 'fa-right-to-bracket',
+            gate=_view_check(lambda u, ctx: _can_manage_sso(u)),
+            keywords='sso oidc openid connect keycloak identity provider idp single sign-on federation',
+            also=('oidc_sso:provider_detail',)),
         Tab(_('RMM Permissions'), 'rmm_permissions:index', 'fa-user-lock', gate=_rmm_policy_reader,
             keywords='rmm roles overrides approvals remote actions policy',
             also=('rmm_permissions:approvals', 'rmm_permissions:technician', 'rmm_permissions:customer')),
@@ -773,8 +796,14 @@ SECTIONS = (
             keywords='psa rmm m365 unifi connections overview'),
         Tab(_('RMM · Rem0te'), 'integrations:rem0te_setup', 'fa-desktop', gate=_superuser,
             keywords='remote access rmm'),
+        Tab(_('Connected Applications'), 'connect:index', 'fa-link', gate=_app_connections_viewer,
+            keywords='agit8or connect app pairing rem0te keys kill switch',
+            also=('connect:connect_app', 'connect:invite', 'connect:request_review', 'connect:detail')),
         Tab(_('Accounting'), 'integrations:accounting_list', 'fa-calculator', gate=_django_staff_or_superuser,
             keywords='quickbooks xero'),
+        Tab(_('Sales Tax'), 'tax:settings', 'fa-percent', gate=_perm_any_org('manage_tax_settings'),
+            keywords='sales tax avalara avatax taxjar rates exemptions nexus vat',
+            also=('tax:rate_create', 'tax:rate_edit', 'tax:category_create', 'tax:category_edit')),
         Tab(_('Distributors'), 'integrations:distributor_list', 'fa-warehouse',
             gate=_django_staff_or_superuser, keywords='pricing stock suppliers'),
         Tab(_('Webhooks'), 'core:webhook_list', 'fa-bolt', gate=_org_admin,
@@ -1311,7 +1340,7 @@ NAMESPACE_GROUP = {
     'reports': 'reports',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',
-    'audit': 'settings', 'rmm_permissions': 'settings',
+    'audit': 'settings', 'rmm_permissions': 'settings', 'oidc_sso': 'settings', 'connect': 'settings',
 }
 # PSA pages that are commercial rather than service work.
 _PSA_BUSINESS_PREFIXES = ('invoice', 'quote', 'contract', 'aging', 'billing', 'requisition',

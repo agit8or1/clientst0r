@@ -17,7 +17,7 @@
             <h2 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>Effective Hourly Rate</h2>
             <small class="text-muted">
                 Effective rate = revenue invoiced &divide; billable hours logged.
-                Realization % = effective rate &divide; tech cost rate &times; 100.
+                Realization % = effective rate &divide; the tech's blended loaded cost rate (each entry at the rate on its day) &times; 100.
                 Industry target &ge; 200%.
             </small>
         </div>
@@ -26,6 +26,8 @@
             <i class="fas fa-file-csv me-1"></i>Export CSV
         </a>
     </div>
+
+    {% include 'reports/_profitability_notice.html' %}
 
     {# ---------- Filter bar ---------- #}
     <form method="get" class="card mb-3" id="filter-form">
@@ -167,7 +169,9 @@
                         <td class="text-end">{{ r.billable_hours|floatformat:2 }}</td>
                         <td class="text-end">${{ r.attributed_revenue|floatformat:2 }}</td>
                         <td class="text-end">
-                            {% if r.effective_rate < 75 %}
+                            {% if r.effective_rate is None %}
+                                <span class="text-muted small">Unknown — {{ r.unknown_bill_hours|floatformat:2 }} hours without a bill rate</span>
+                            {% elif r.effective_rate < 75 %}
                                 <span class="badge bg-danger">${{ r.effective_rate|floatformat:2 }}/hr</span>
                             {% elif r.effective_rate < 125 %}
                                 <span class="badge bg-warning text-dark">${{ r.effective_rate|floatformat:2 }}/hr</span>
@@ -177,9 +181,11 @@
                                 <span class="badge bg-info">${{ r.effective_rate|floatformat:2 }}/hr</span>
                             {% endif %}
                         </td>
-                        <td class="text-end text-muted">${{ r.cost_rate|floatformat:2 }}/hr</td>
+                        <td class="text-end text-muted">{% if r.cost_rate is None %}<span class="small">Unknown — {{ r.unknown_cost_hours|floatformat:2 }} hours without a cost rate</span>{% else %}${{ r.cost_rate|floatformat:2 }}/hr{% endif %}</td>
                         <td class="text-end">
-                            {% if r.realization_pct < 150 %}
+                            {% if r.realization_pct is None %}
+                                <span class="badge bg-secondary">Incomplete</span>
+                            {% elif r.realization_pct < 150 %}
                                 <span class="badge bg-danger">{{ r.realization_pct|floatformat:1 }}%</span>
                             {% elif r.realization_pct < 200 %}
                                 <span class="badge bg-warning text-dark">{{ r.realization_pct|floatformat:1 }}%</span>

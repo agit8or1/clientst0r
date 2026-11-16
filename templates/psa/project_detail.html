@@ -82,7 +82,9 @@
         {% if profit %}
         <div class="card mb-3">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                <strong>Profitability</strong>
+                <strong>Profitability
+                    {% if profit.unknown_cost_entries %}<span class="badge bg-warning text-dark ms-1" data-incomplete-badge>Incomplete</span>{% endif %}
+                    <small class="text-muted fw-normal ms-1">Operational profitability estimate — not your accounting P&amp;L</small></strong>
                 {% if profit.margin_percent is not None %}
                     {% if profit.margin_percent < 0 %}
                         <span class="badge bg-danger">Losing money</span>
@@ -104,12 +106,13 @@
                     </div>
                     <div class="col-md-3">
                         <div class="text-muted">Labour cost</div>
-                        <div>{{ profit.cost }}</div>
+                        <div>{{ profit.cost }}{% if profit.unknown_cost_entries %} <span class="text-muted">(known part)</span>{% endif %}</div>
                     </div>
                     <div class="col-md-3">
                         <div class="text-muted">Margin</div>
                         <div>
                             {% if profit.margin is not None %}{{ profit.margin }}
+                            {% elif profit.unknown_cost_entries %}<span class="text-muted">Unknown — {{ profit.unknown_cost_hours|floatformat:2 }} hours without a cost rate</span>
                             {% else %}<span class="text-muted">—</span>{% endif %}
                         </div>
                     </div>
@@ -126,11 +129,12 @@
                     look like a measurement.
                 </div>
                 {% endif %}
-                {% if profit.used_default_cost_for %}
+                {% if profit.unknown_cost_entries %}
                 <div class="text-muted small mt-2">
-                    {{ profit.used_default_cost_for }} time entr{{ profit.used_default_cost_for|pluralize:"y,ies" }}
-                    costed at the system default because that technician has no configured
-                    cost rate — the margin above is partly an estimate.
+                    {{ profit.unknown_cost_entries }} time entr{{ profit.unknown_cost_entries|pluralize:"y,ies" }}
+                    ({{ profit.unknown_cost_hours|floatformat:2 }} h) have no cost rate — no technician recorded,
+                    or no cost rate for that technician on that day — so the labour cost is partial and
+                    no margin is shown. <a href="{% url 'resourcing:tech_cost_rate_list' %}">Set technician cost rates</a>.
                 </div>
                 {% endif %}
             </div>

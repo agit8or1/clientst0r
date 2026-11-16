@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load oidc_sso_tags %}
 {% block title %}Superuser Approval{% endblock %}
 {% block content %}
 <div class="container-fluid">
@@ -46,6 +47,7 @@
                 <input type="text" name="otp" class="form-control form-control-sm w-auto" placeholder="Authenticator code" inputmode="numeric" autocomplete="one-time-code">
                 <button class="btn btn-sm btn-primary">Confirm</button>
             </form>
+            <div class="mb-2">{% oidc_stepup_buttons %}</div>
             {% endif %}
             {% for row in pending %}{% with c=row.change %}
             <div class="border rounded p-2 mb-2" data-change="{{ c.pk }}">

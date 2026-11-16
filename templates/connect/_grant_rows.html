@@ -1,0 +1,13 @@
+{% comment %}Customer ↔ remote tenant rows. rows: list of {id,label} the other app proposed; scopes: grantable scope names.{% endcomment %}
+<table class="table table-sm align-middle">
+<thead><tr><th>Customer here</th><th>Their tenant id</th><th>Permissions for this customer</th></tr></thead><tbody>
+{% for t in rows %}<tr>
+<td><select class="form-select form-select-sm" name="org_{{ forloop.counter0 }}" aria-label="Customer for {{ t.label|default:t.id }}"><option value="">— not granted —</option>{% for o in organizations %}<option value="{{ o.pk }}" {% if o.pk == t.org_pk or o.name == t.label %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></td>
+<td><input class="form-control form-control-sm font-monospace" name="tenant_{{ forloop.counter0 }}" value="{{ t.id }}" maxlength="128" aria-label="Remote tenant id"> <span class="small text-muted">{{ t.label }}</span></td>
+<td>{% for s in scopes %}<label class="me-2 small"><input type="checkbox" name="scope_{{ forloop.parentloop.counter0 }}" value="{{ s }}" checked> {{ s }}</label>{% endfor %}</td></tr>
+{% endfor %}
+<tr><td><select class="form-select form-select-sm" name="org_{{ rows|length }}" aria-label="Customer"><option value="">— add a customer —</option>{% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select></td>
+<td><input class="form-control form-control-sm font-monospace" name="tenant_{{ rows|length }}" maxlength="128" placeholder="their tenant id" aria-label="Remote tenant id"></td>
+<td>{% for s in scopes %}<label class="me-2 small"><input type="checkbox" name="scope_{{ rows|length }}" value="{{ s }}" checked> {{ s }}</label>{% endfor %}</td></tr>
+</tbody></table>
+<input type="hidden" name="grant_rows" value="{{ rows|length|add:1 }}">

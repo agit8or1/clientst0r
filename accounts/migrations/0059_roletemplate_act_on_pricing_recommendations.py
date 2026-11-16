@@ -14,7 +14,9 @@ Built-in roles keep their "not customized" state: their seed checksum covers
 every permission field, so it is recomputed with the new field for each
 built-in role whose checksum still matched what was seeded.
 
-Other branches add accounts 0051 migrations too; the release renumbers them.
+The Owner and Billing / Finance definitions gained the flag (seed version 5,
+after 0055 tax, 0056 pricing and 0058 profitability); uncustomized copies
+already match it after the grant above, so they are marked version 5.
 """
 import hashlib
 
@@ -22,6 +24,8 @@ from django.db import migrations, models
 
 NEW_KEY = 'act_on_pricing_recommendations'
 SKIP = {'is_system_template', 'is_archived'}
+SEED_VERSION = 5
+SEED_KEYS = {'org_owner', 'billing_finance'}
 
 
 def _checksum(values, rmm_tier=''):
@@ -44,13 +48,16 @@ def grant(apps, schema_editor):
         if was_seeded:
             rt.seed_checksum = _checksum({n: getattr(rt, n) for n in names}, rt.rmm_tier)
             fields.append('seed_checksum')
+            if rt.seed_key in SEED_KEYS and rt.seed_version < SEED_VERSION and getattr(rt, NEW_KEY):
+                rt.seed_version = SEED_VERSION
+                fields.append('seed_version')
         rt.save(update_fields=fields)
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0050_dashboard_global_layout'),
+        ('accounts', '0058_roletemplate_view_profitability'),
     ]
 
     operations = [

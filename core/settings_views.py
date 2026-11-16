@@ -547,6 +547,15 @@ def settings_directory(request):
 
         settings.azure_ad_redirect_uri = request.POST.get('azure_ad_redirect_uri', settings.azure_ad_redirect_uri)
         settings.azure_ad_auto_create_users = request.POST.get('azure_ad_auto_create_users') == 'on'
+        if 'azure_ad_allowed_tenant_ids' in request.POST:
+            from accounts.azure_auth import GUID_RE
+            import re as _re
+            raw = [t for t in _re.split(r'[\s,;]+', request.POST.get('azure_ad_allowed_tenant_ids', '').strip().lower()) if t]
+            bad = [t for t in raw if not GUID_RE.match(t)]
+            if bad:
+                messages.warning(request, 'Ignored allowed tenants that are not tenant ID GUIDs: '
+                                          + ', '.join(t[:40] for t in bad[:5]))
+            settings.azure_ad_allowed_tenant_ids = '\n'.join(dict.fromkeys(t for t in raw if GUID_RE.match(t)))
         settings.azure_ad_sync_groups = request.POST.get('azure_ad_sync_groups') == 'on'
 
         settings.updated_by = request.user

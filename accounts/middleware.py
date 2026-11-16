@@ -51,6 +51,42 @@ class SessionIdleTimeoutMiddleware:
         return self.get_response(request)
 
 
+class SessionEpochMiddleware:
+    """
+    Sign out everywhere (accounts.session_epoch): end a web session issued
+    before the user's UserProfile.sessions_valid_after, or one whose account
+    has been deactivated (some backends' get_user, e.g. LDAP, do not check
+    is_active themselves).
+
+    Sits right after AuthenticationMiddleware. Sessions from before the
+    upgrade have no issue stamp: they get one now (from `_auth_started` when
+    present), so upgrading does not sign anybody out.
+    """
+
+    PASS_THROUGH = ('/static/', '/media/', '/account/login/', '/portal/login/',
+                    '/account/logout/', '/portal/logout/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        session = getattr(request, 'session', None)
+        if session is not None and user is not None and user.is_authenticated:
+            from . import session_epoch
+            if not user.is_active or session_epoch.is_revoked(session, user):
+                portal = (session.get('_auth_surface') == 'portal'
+                          or request.path.startswith('/portal/'))
+                logout(request)
+                if not any(request.path.startswith(p) for p in self.PASS_THROUGH):
+                    from django.contrib.auth.views import redirect_to_login
+                    login_url = reverse('portal_auth:login') if portal else None
+                    return redirect_to_login(request.get_full_path(), login_url)
+            elif session.get(session_epoch.ISSUED_AT_KEY) is None:
+                session_epoch.stamp(request, session_epoch.issued_at(session))
+        return self.get_response(request)
+
+
 class UserLanguageMiddleware:
     """
     Activate the UI language saved in the user's profile.
@@ -130,8 +166,10 @@ class Enforce2FAMiddleware:
         # A Microsoft sign-in stands in for 2FA only when Microsoft confirmed
         # MFA (or AZURE_SSO_TRUSTED_AS_2FA); before v3.17.660 any Microsoft
         # sign-in skipped 2FA (accounts.azure_auth.azure_sso_counts_as_2fa).
-        from .azure_auth import azure_sso_counts_as_2fa
-        sso_2fa = azure_sso_counts_as_2fa(request)
+        # An OIDC sign-in only when its provider accepts the IdP's MFA and
+        # the token's acr / amr met it (accounts.sso_mfa).
+        from .sso_mfa import sso_counts_as_2fa, sso_kind, sso_verify_url
+        sso_2fa = sso_counts_as_2fa(request)
 
         # A user with a 2FA device must have passed it in *this* session.
         # Password-only logins (e.g. the stock /admin/login/ form) leave the
@@ -141,8 +179,8 @@ class Enforce2FAMiddleware:
         if not sso_2fa and user_has_device(request.user) and not self._is_verified(request):
             if any(request.path.startswith(path) for path in self.UNVERIFIED_ALLOWED_PATHS):
                 return self.get_response(request)
-            if request.session.get('azure_ad_authenticated', False):
-                verify_url = reverse('accounts:azure_verify')
+            verify_url = sso_verify_url(request)
+            if verify_url:
                 if request.path in (verify_url, '/logout/'):
                     return self.get_response(request)
                 from urllib.parse import urlencode
@@ -168,8 +206,11 @@ class Enforce2FAMiddleware:
                     AuditLog.objects.create(
                         user=request.user,
                         username=request.user.username,
-                        action='azure_ad_2fa_bypass',
-                        description=('Microsoft sign-in accepted as 2FA: '
+                        action=('oidc_sso_2fa_accepted' if sso_kind(request) == 'oidc'
+                                else 'azure_ad_2fa_bypass'),
+                        description=('Single sign-on accepted as 2FA: the identity provider confirmed MFA'
+                                     if sso_kind(request) == 'oidc' else
+                                     'Microsoft sign-in accepted as 2FA: '
                                      + ('Microsoft confirmed MFA' if request.session.get('azure_ad_mfa')
                                         else 'AZURE_SSO_TRUSTED_AS_2FA is set')),
                         ip_address=request.META.get('REMOTE_ADDR'),
@@ -292,7 +333,7 @@ class SectionPermissionMiddleware:
     # Contract documents (/contracts/) are written and sent by the MSP; the
     # people who sign them use the account-less pages under /sign/ instead.
     STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/', '/contracts/',
-                           '/pulse/')
+                           '/pulse/', '/payments/')
 
     # Token- or key-authenticated receivers under those prefixes. They don't
     # rely on a signed-in user, and a signed-in browser must not change that.
@@ -303,6 +344,8 @@ class SectionPermissionMiddleware:
         '/security/siem/webhook/',
         # Signed, no-login unsubscribe link in customer security digests.
         '/security/digest/unsubscribe/',
+        # Signature-verified payment provider webhooks (payments.webhooks).
+        '/payments/webhooks/',
     )
 
     def __call__(self, request):

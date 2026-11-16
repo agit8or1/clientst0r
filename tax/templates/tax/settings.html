@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Sales tax settings{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="mb-0">Sales tax</h1>
+  <a href="{% url 'integrations:accounting_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-calculator" aria-hidden="true"></i> Accounting connections</a>
+</div>
+<p class="text-muted">Tax settings, rates and categories apply to every customer. Customer exemptions are set on each client page. See <code>docs/TAX.md</code> for which system calculates, reports and records each tax amount.</p>
+{% if not row and not inherited %}<div class="alert alert-secondary">Nothing is configured yet: quotes and invoices use the flat rate typed on each document (the default tax rate from General settings). A 0% rate is shown as "Tax not configured".</div>{% endif %}
+
+<form method="post" class="card mb-4">{% csrf_token %}
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label" for="mode">Tax mode</label>
+        <select id="mode" name="mode" class="form-select">{% for v, l in modes %}<option value="{{ v }}"{% if v == current_mode %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label" for="authoritative_system">Authoritative system</label>
+        <select id="authoritative_system" name="authoritative_system" class="form-select">{% for v, l in authority_choices %}<option value="{{ v }}"{% if row.authoritative_system == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="col-12"><label class="form-label" for="authority_note">Note on which system is authoritative</label>
+        <textarea id="authority_note" name="authority_note" rows="2" class="form-control">{{ row.authority_note }}</textarea></div>
+      <div class="col-md-4 form-check ms-2"><input class="form-check-input" type="checkbox" id="labor_taxable" name="labor_taxable"{% if row.labor_taxable %} checked{% endif %}><label class="form-check-label" for="labor_taxable">Labor taxable by default</label></div>
+      <div class="col-md-4 form-check ms-2"><input class="form-check-input" type="checkbox" id="shipping_taxable" name="shipping_taxable"{% if row.shipping_taxable %} checked{% endif %}><label class="form-check-label" for="shipping_taxable">Shipping taxable</label></div>
+      <div class="col-12"><label class="form-label" for="nexus_regions">Nexus regions</label>
+        <input id="nexus_regions" name="nexus_regions" class="form-control" value="{{ row.nexus_regions|join:', ' }}" placeholder="US-CA, US-NY">
+        <div class="form-text">Manual mode collects tax only in these regions (blank: wherever a rate matches). Providers use the nexus configured in the provider account.</div></div>
+      <div class="col-12"><h2 class="h6 mt-2">Origin (ship-from) address</h2></div>
+      <div class="col-md-4"><label class="form-label" for="origin_line1">Street</label><input id="origin_line1" name="origin_line1" class="form-control" value="{{ row.origin_line1 }}"></div>
+      <div class="col-md-3"><label class="form-label" for="origin_city">City</label><input id="origin_city" name="origin_city" class="form-control" value="{{ row.origin_city }}"></div>
+      <div class="col-md-2"><label class="form-label" for="origin_region">State</label><input id="origin_region" name="origin_region" class="form-control" value="{{ row.origin_region }}"></div>
+      <div class="col-md-2"><label class="form-label" for="origin_postal_code">Zip</label><input id="origin_postal_code" name="origin_postal_code" class="form-control" value="{{ row.origin_postal_code }}"></div>
+      <div class="col-md-1"><label class="form-label" for="origin_country">Country</label><input id="origin_country" name="origin_country" class="form-control" value="{{ row.origin_country|default:'US' }}" maxlength="2"></div>
+
+      <div class="col-12"><h2 class="h6 mt-2">Provider credentials</h2>
+        <p class="small text-muted mb-1">Stored sealed on the tax connection; secrets are never shown again. Leave a field blank to keep what is stored.{% if connection %} Connection: {{ connection.name }}{% if connection.last_error %} · <span class="text-danger">last error: {{ connection.last_error|truncatechars:200 }}</span>{% endif %}{% endif %}</p></div>
+      <div class="col-md-4"><label class="form-label" for="avalara_account_id">Avalara account ID</label><input id="avalara_account_id" name="avalara_account_id" class="form-control" placeholder="{{ cred_display.account_id|default:'' }}" autocomplete="off"></div>
+      <div class="col-md-4"><label class="form-label" for="avalara_license_key">Avalara license key</label><input id="avalara_license_key" name="avalara_license_key" type="password" class="form-control" placeholder="{{ cred_display.license_key|default:'' }}" autocomplete="new-password"></div>
+      <div class="col-md-4"><label class="form-label" for="avalara_company_code">Avalara company code</label><input id="avalara_company_code" name="avalara_company_code" class="form-control" placeholder="{{ cred_display.company_code|default:'' }}" autocomplete="off"></div>
+      <div class="col-md-6"><label class="form-label" for="taxjar_api_key">TaxJar API token</label><input id="taxjar_api_key" name="taxjar_api_key" type="password" class="form-control" placeholder="{{ cred_display.api_key|default:'' }}" autocomplete="new-password"></div>
+      <div class="col-md-6 form-check mt-4 ms-2"><input class="form-check-input" type="checkbox" id="sandbox" name="sandbox"{% if row.sandbox %} checked{% endif %}><label class="form-check-label" for="sandbox">Use the provider sandbox</label></div>
+    </div>
+  </div>
+  <div class="card-footer d-flex gap-2"><button class="btn btn-primary">Save tax settings</button></div>
+</form>
+{% if row.is_provider_mode and connection %}
+<form method="post" action="{% url 'tax:test_connection' %}" class="mb-4">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm"><i class="fas fa-plug" aria-hidden="true"></i> Test connection</button></form>
+{% endif %}
+
+<div class="card mb-4"><div class="card-header d-flex justify-content-between align-items-center"><h2 class="h6 mb-0">Manual jurisdiction rates</h2><a class="btn btn-sm btn-outline-primary" href="{% url 'tax:rate_create' %}">Add rate</a></div>
+  <div class="card-body"><p class="small text-muted">Used in manual mode. The most specific matching rate wins (zip, then zip prefix, city, county, state, country); rates do not stack, so enter the combined rate.</p>
+  <table class="table table-sm align-middle"><thead><tr><th>Name</th><th>Jurisdiction</th><th class="text-end">Rate</th><th>Effective</th><th>Categories</th><th>Labor</th><th></th></tr></thead><tbody>
+  {% for r in rates %}<tr{% if not r.is_active %} class="text-muted"{% endif %}><td>{{ r.name }}</td><td>{{ r.country }}{% if r.state %}-{{ r.state }}{% endif %}{% if r.county %} · {{ r.county }} County{% endif %}{% if r.city %} · {{ r.city }}{% endif %}{% if r.zip_pattern %} · {{ r.zip_pattern }}{% endif %}</td>
+    <td class="text-end">{{ r.rate_percent }}%</td><td>{{ r.effective_from|date:"Y-m-d"|default:"—" }} → {{ r.effective_to|date:"Y-m-d"|default:"—" }}</td>
+    <td>{% for c in r.applies_to.all %}{{ c.code }}{% if not forloop.last %}, {% endif %}{% empty %}all{% endfor %}</td>
+    <td>{% if r.labor_taxable is None %}default{% elif r.labor_taxable %}taxable{% else %}not taxable{% endif %}</td>
+    <td class="text-nowrap"><a class="btn btn-sm btn-outline-secondary" href="{% url 'tax:rate_edit' r.pk %}">Edit</a>
+      <form method="post" action="{% url 'tax:rate_delete' r.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+  {% empty %}<tr><td colspan="7" class="text-muted text-center">No manual rates.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+
+<div class="card mb-4"><div class="card-header d-flex justify-content-between align-items-center"><h2 class="h6 mb-0">Tax categories and code mapping</h2><a class="btn btn-sm btn-outline-primary" href="{% url 'tax:category_create' %}">Add category</a></div>
+  <div class="card-body"><table class="table table-sm align-middle"><thead><tr><th>Code</th><th>Name</th><th>Kind</th><th>Taxable</th><th>Avalara</th><th>TaxJar</th><th>QBO</th><th>Xero</th><th></th></tr></thead><tbody>
+  {% for c in categories %}<tr><td><code>{{ c.code }}</code>{% if c.is_default %} <span class="badge text-bg-secondary">default</span>{% endif %}</td><td>{{ c.name }}</td><td>{{ c.get_kind_display }}</td><td>{{ c.taxable|yesno:"yes,no" }}</td>
+    <td>{{ c.avalara_tax_code|default:"—" }}</td><td>{{ c.taxjar_product_tax_code|default:"—" }}</td><td>{{ c.qbo_tax_code_id|default:"—" }}</td><td>{{ c.xero_tax_type|default:"—" }}</td>
+    <td class="text-nowrap"><a class="btn btn-sm btn-outline-secondary" href="{% url 'tax:category_edit' c.pk %}">Edit</a>
+      <form method="post" action="{% url 'tax:category_delete' c.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+  {% empty %}<tr><td colspan="9" class="text-muted text-center">No categories: every line is taxed by its own taxable flag; time-entry lines are not treated as labor until a labor category exists.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+
+<div class="card"><div class="card-header"><h2 class="h6 mb-0">Recent tax calculations</h2></div>
+  <div class="card-body"><table class="table table-sm small"><thead><tr><th>When</th><th>Document</th><th>Provider</th><th>Purpose</th><th>Status</th><th class="text-end">Tax</th><th>Recorded</th></tr></thead><tbody>
+  {% for c in recent %}<tr><td><span data-utc="{{ c.created_at|date:'c' }}">{{ c.created_at|date:"Y-m-d H:i" }}</span></td><td>{% if c.document_type == 'invoice' %}<a href="{% url 'psa:invoice_detail' c.document_id %}">{{ c.document_number }}</a>{% else %}<a href="{% url 'psa:quote_detail' c.document_id %}">{{ c.document_number }}</a>{% endif %}</td>
+    <td>{{ c.get_provider_display }}</td><td>{{ c.get_purpose_display }}</td><td>{{ c.get_status_display }}{% if c.error %} <span class="text-danger" title="{{ c.error }}">!</span>{% endif %}</td><td class="text-end">{% if c.total_tax is None %}—{% else %}{{ c.total_tax }}{% endif %}</td><td>{{ c.committed|yesno:"yes,no" }}</td></tr>
+  {% empty %}<tr><td colspan="7" class="text-muted text-center">None yet.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

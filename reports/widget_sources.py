@@ -233,9 +233,14 @@ def unbilled_hours(params):
     leak = revenue_leakage(date.today() - timedelta(days=365), date.today(),
                            organization=_org_ids(params))
     stale = leak['totals']['stale']
+    unrated = leak['totals']['stale_hours_without_rate']
+    subtitle = 'Stale unbilled time at risk'
+    if unrated:
+        # Hours without a bill rate are counted, not priced at a default.
+        subtitle += f' (incomplete: + {unrated:,.1f} h without a bill rate)'
     return {
         'value': f'${stale:,.0f}',
-        'subtitle': 'Stale unbilled time at risk',
+        'subtitle': subtitle,
         'icon': 'fa-faucet-drip',
         'color': 'danger' if stale > 5000 else 'warning' if stale > 0 else 'success',
     }

@@ -44,7 +44,8 @@
           <span class="es-kpi-label">{{ kpi.label }}</span>
           <i class="fas {{ kpi.icon }} es-kpi-icon"></i>
         </div>
-        <div class="es-kpi-value">{{ kpi.value }}</div>
+        <div class="es-kpi-value">{{ kpi.value }}{% if kpi.incomplete %} <span class="badge bg-warning text-dark align-middle" style="font-size:.6rem" data-incomplete-badge>Incomplete</span>{% endif %}</div>
+        {% if kpi.note %}<div class="small text-muted">{{ kpi.note }}</div>{% endif %}
         {% if kpi.trend_pct is not None %}
           {% if kpi.trend_pct > 0 %}
             <div class="es-trend-up mt-1"><i class="fas fa-arrow-up me-1"></i>{{ kpi.trend_pct }}% vs prior 30d</div>
@@ -121,10 +122,20 @@
       <div class="card h-100">
         <div class="card-header bg-white"><span class="es-section-h">Margin by Service Line</span></div>
         <div class="card-body">
+          {% if not can_see_margin %}
+            <p class="text-muted text-center mb-0 small">Margins need the <code>view_profitability</code> permission.</p>
+          {% else %}
+          <p class="small text-muted mb-2">{{ profitability_label }}</p>
+          {% if margin_incomplete %}
+            <p class="small mb-2"><span class="badge bg-warning text-dark" data-incomplete-badge>Incomplete</span>
+              {{ margin_incomplete }} service line{{ margin_incomplete|pluralize }} left out: some hours have no cost or bill rate.
+              <a href="{% url 'resourcing:tech_cost_rate_list' %}">Set cost rates</a></p>
+          {% endif %}
           {% if pie_data %}
             <canvas id="esMarginPie" height="220"></canvas>
           {% else %}
-            <p class="text-muted text-center mb-0">No margin data in window.</p>
+            <p class="text-muted text-center mb-0">No fully-costed margin data in window.</p>
+          {% endif %}
           {% endif %}
         </div>
       </div>
