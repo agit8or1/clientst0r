@@ -42,6 +42,8 @@ def grant(apps, schema_editor):
         for key in GRANTS.get(rt.seed_key, ()):
             setattr(rt, key, True)
         rt.seed_checksum = _checksum({n: getattr(rt, n) for n in names}, rt.rmm_tier)
+        # Same as the built-in definitions, which are now at version 2.
+        rt.seed_version = max(rt.seed_version, 2) if rt.seed_key in GRANTS else rt.seed_version
         rt.save()
 
 

@@ -58,6 +58,15 @@ def make_push(org, provider='restic', name='restic-1'):
     return conn, secret
 
 
+def seed_psa():
+    from psa.models import Queue, TicketPriority, TicketStatus, TicketType
+    Queue.objects.get_or_create(slug='helpdesk', defaults={'name': 'Helpdesk'})
+    TicketStatus.objects.get_or_create(slug='new', defaults={'name': 'New'})
+    TicketPriority.objects.get_or_create(code='P3', defaults={'name': 'Normal'})
+    TicketPriority.objects.get_or_create(code='P2', defaults={'name': 'High'})
+    TicketType.objects.get_or_create(slug='incident', defaults={'name': 'Incident'})
+
+
 def make_job(conn, ext='job-1', success_ago_h=1, status='success', runs=1, org=None, name=None):
     now = timezone.now()
     job = ensure_job(conn, ext, name or ext, system_external_id=f'sys-{ext}', system_name=f'sys-{ext}')
@@ -350,6 +359,8 @@ class AlertRuleTests(Fixture):
     def setUp(self):
         self.conn, _ = make_push(self.org_a)
         self.now = timezone.now()
+        self.conn.last_poll_at, self.conn.last_poll_status = self.now, 'ok'   # a source that has reported
+        self.conn.save()
 
     def kinds(self):
         return set(BackupAlert.objects.filter(status__in=['open', 'acknowledged']).values_list('kind', flat=True))
@@ -500,7 +511,7 @@ class HealthTests(Fixture):
         pbs = make_pbs(self.org_a)
         job = make_job(pbs, success_ago_h=1)
         self.assertEqual(job_rows([BackupJob.objects.select_related('connection', 'organization').get()])[0]['state'],
-                         'stale')                       # never polled: no contact recorded -> not healthy
+                         'unknown')                     # never polled: not healthy
         pbs.last_poll_at, pbs.last_poll_status = timezone.now(), 'ok'
         pbs.save()
         job = BackupJob.objects.select_related('connection', 'organization').get()
@@ -638,14 +649,14 @@ class ViewTests(Fixture):
     # isolation
     def test_dashboard_shows_only_own_customer(self):
         r = self.client_for(self.staff_a).get(reverse('backup_monitoring:dashboard'))
-        self.assertContains(r, 'Cust A')
-        self.assertNotContains(r, 'Cust B')
+        self.assertContains(r, reverse('backup_monitoring:customer_detail', args=[self.org_a.pk]))
+        self.assertNotContains(r, reverse('backup_monitoring:customer_detail', args=[self.org_b.pk]))
         self.assertNotContains(r, 'RepoB')
 
     def test_superuser_sees_both(self):
         r = self.client_for(self.admin).get(reverse('backup_monitoring:dashboard') + '?customer=all')
-        self.assertContains(r, 'Cust A')
-        self.assertContains(r, 'Cust B')
+        self.assertContains(r, reverse('backup_monitoring:customer_detail', args=[self.org_a.pk]))
+        self.assertContains(r, reverse('backup_monitoring:customer_detail', args=[self.org_b.pk]))
 
     def test_other_customers_records_are_404(self):
         c = self.client_for(self.staff_a)
@@ -760,6 +771,7 @@ class ViewTests(Fixture):
 
     # alerts
     def test_acknowledge_resolve_and_ticket_dedup(self):
+        seed_psa()
         c = self.client_for(self.staff_a)
         url = reverse('backup_monitoring:alert_decide', args=[self.alert_a.pk])
         c.post(url, {'decision': 'acknowledge'})
@@ -775,10 +787,21 @@ class ViewTests(Fixture):
         self.alert_a.refresh_from_db()
         self.assertEqual(self.alert_a.status, 'resolved')
 
+    def test_ticket_without_service_desk_setup_fails_cleanly(self):
+        from psa.models import Ticket
+        c = self.client_for(self.staff_a)
+        r = c.post(reverse('backup_monitoring:alert_decide', args=[self.alert_a.pk]), {'decision': 'ticket'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Ticket.objects.count(), 0)
+        self.assertIsNone(BackupAlert.objects.get(pk=self.alert_a.pk).ticket)
+
     def test_auto_ticket_policy_creates_one_ticket_per_alert(self):
         from psa.models import Ticket
+        seed_psa()
         BackupAlertPolicy.objects.create(organization=self.org_a, auto_ticket=True)
         conn, _ = make_push(self.org_a, name='ticketing')
+        conn.last_poll_at, conn.last_poll_status = timezone.now(), 'ok'
+        conn.save()
         make_job(conn, 'old', success_ago_h=60)
         evaluate_connection(conn)
         evaluate_connection(conn)
@@ -967,12 +990,12 @@ class MspWideConnectionTests(Fixture):
             self.assertEqual(c.get(reverse('backup_monitoring:connection_edit', args=[self.conn.pk])).status_code, 404)
             self.assertEqual(c.post(reverse('backup_monitoring:connection_delete', args=[self.conn.pk])).status_code, 404)
             self.assertNotContains(c.get(reverse('backup_monitoring:connection_list')), 'shared-pbs')
-            self.assertNotContains(c.get(reverse('backup_monitoring:dashboard')), 'Unmapped')
+            self.assertNotContains(c.get(reverse('backup_monitoring:dashboard') + '?customer=all'), 'Unmapped')
         self.assertTrue(BackupConnection.objects.filter(pk=self.conn.pk).exists())
 
     def test_msp_wide_staff_sees_unmapped_section_and_connection(self):
         c = self.client_for(self.root)
-        self.assertContains(c.get(reverse('backup_monitoring:dashboard')), 'Unmapped (MSP-wide)')
+        self.assertContains(c.get(reverse('backup_monitoring:dashboard') + '?customer=all'), 'Unmapped (MSP-wide)')
         self.assertContains(c.get(reverse('backup_monitoring:customer_detail', args=[0])), 'SharedJob')
         self.assertContains(c.get(reverse('backup_monitoring:connection_list')), 'MSP-wide')
         self.assertEqual(c.get(reverse('backup_monitoring:job_detail', args=[self.job.pk])).status_code, 200)
@@ -1023,6 +1046,7 @@ class MspWideConnectionTests(Fixture):
 
     def test_unmapped_alert_cannot_become_a_ticket(self):
         from psa.models import Ticket
+        seed_psa()
         evaluate_connection(self.conn)
         alert = BackupAlert.objects.get(kind='missed')
         BackupAlertPolicy.objects.create(organization=None, auto_ticket=True)
