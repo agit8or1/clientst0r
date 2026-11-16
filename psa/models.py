@@ -2554,16 +2554,30 @@ class Contract(models.Model):
         prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(
             _D('0.01'), rounding=ROUND_HALF_UP)
 
-        inv = Invoice.objects.create(
-            organization=self.organization,
-            client_org=self.client_org,
-            title=f'{self.name} — {self.get_billing_frequency_display()} {on_date:%Y-%m}',
-            invoice_date=on_date,
-            billing_period_start=on_date,
-            currency='USD',
-            source_contract=self,
-            created_by=user,
-        )
+        # The lookup above is check-then-act; two concurrent runs can both
+        # pass it. The unique contract_period_key (and, where supported, the
+        # conditional constraint) stops the second insert — treat that as
+        # "already generated" and return the winner's invoice. A savepoint so
+        # an outer transaction (the recurring generator's) is not poisoned.
+        try:
+            with transaction.atomic():
+                inv = Invoice.objects.create(
+                    organization=self.organization,
+                    client_org=self.client_org,
+                    title=f'{self.name} — {self.get_billing_frequency_display()} {on_date:%Y-%m}',
+                    invoice_date=on_date,
+                    billing_period_start=on_date,
+                    currency='USD',
+                    source_contract=self,
+                    created_by=user,
+                )
+        except IntegrityError:
+            existing = Invoice.objects.filter(
+                source_contract=self, billing_period_start=on_date,
+                is_credit_memo=False).first()
+            if existing is not None:
+                return existing
+            raise
         if prorated_amount > 0:
             descr = (f'{self.get_contract_type_display()} — '
                      f'{self.get_billing_frequency_display()} period '
@@ -4354,6 +4368,19 @@ class Invoice(models.Model):
         help_text='Start of the billing period this invoice covers, when it '
                   'was generated from a contract.')
 
+    # One-invoice-per-contract-period, enforced on every backend.
+    #
+    # The conditional UniqueConstraint below only exists on databases that
+    # support partial indexes. MariaDB/MySQL (the default DB_ENGINE) does not,
+    # and Django silently skips creating it there — so on those installs two
+    # concurrent generator runs could both bill the same period. This column
+    # is "<contract id>:<period start>" for a non-credit-memo contract-period
+    # invoice and NULL otherwise; a plain unique index on a nullable column
+    # works everywhere because NULLs never collide. Maintained by save().
+    contract_period_key = models.CharField(
+        max_length=64, null=True, blank=True, unique=True, editable=False,
+        help_text='Internal: enforces one invoice per contract billing period.')
+
     # Accounting integration handoff
     accounting_provider = models.CharField(max_length=50, blank=True,
         help_text='quickbooks_online | xero | etc.')
@@ -4459,6 +4486,10 @@ class Invoice(models.Model):
             models.Index(fields=['client_org', 'status']),
             models.Index(fields=['requires_approval', 'approved_at']),
         ]
+        permissions = [
+            ('force_repush_invoice',
+             'Can force re-push of an invoice to accounting'),
+        ]
         constraints = [
             # v3.17.564 — one invoice per contract per billing period.
             #
@@ -4516,7 +4547,19 @@ class Invoice(models.Model):
 
         return max(Decimal('0.00'), self.balance - self.credited_amount)
 
+    def compute_contract_period_key(self):
+        if (self.source_contract_id and self.billing_period_start
+                and not self.is_credit_memo):
+            return f'{self.source_contract_id}:{self.billing_period_start.isoformat()}'
+        return None
+
     def save(self, *args, **kwargs):
+        key = self.compute_contract_period_key()
+        if key != self.contract_period_key:
+            self.contract_period_key = key
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'contract_period_key' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['contract_period_key']
         if self.invoice_number:
             return super().save(*args, **kwargs)
 
