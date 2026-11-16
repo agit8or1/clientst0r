@@ -330,6 +330,12 @@ PERMISSIONS: List[Permission] = [
     _p('resourcing_manage_holidays', 'resourcing', 'settings', E, False,
        "Manage holidays (an organization's own business-hours calendar)"),
 
+    _p('manage_licensing', 'procurement', 'edit', E, False,
+       'Create, edit and delete software license subscriptions and assignments; run license syncs',
+       staff_only=True),
+    _p('view_internal_cost_rates', 'billing', 'view', X, False,
+       'See internal cost (what the MSP pays the vendor) on license subscriptions', staff_only=True),
+
     # --- operations -----------------------------------------------------------------
     _p('vehicles_view', 'operations', 'view', S, False, 'View fleet vehicles, receipts and vehicle inventory',
        PENDING, staff_only=True),

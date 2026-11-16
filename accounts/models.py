@@ -444,6 +444,9 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        # Software licensing (staff only): managing follows settings admin, internal cost the owner.
+        'manage_licensing': g('org_manage_settings'),
+        'view_internal_cost_rates': owner,
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1137,6 +1140,10 @@ class RoleTemplate(BaseModel):
     billing_manage_charges = models.BooleanField(default=False,
         help_text='Add charges, invoice tickets / projects, push invoices to accounting.')
     reports_export = models.BooleanField(default=False, help_text='Export reports and report files.')
+    manage_licensing = models.BooleanField(default=False,
+        help_text='Create / edit / delete software license subscriptions and assignments, and run license syncs.')
+    view_internal_cost_rates = models.BooleanField(default=False,
+        help_text='See internal cost (what the MSP pays) on license subscriptions and similar records.')
     vehicles_view = models.BooleanField(default=False, help_text='View fleet vehicles.')
     vehicles_manage = models.BooleanField(default=False, help_text='Create / edit / delete fleet records.')
     scheduling_manage_wallboard = models.BooleanField(default=False,
