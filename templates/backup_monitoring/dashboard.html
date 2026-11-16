@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Backup Monitoring{% endblock %}
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-database me-2"></i>Backup Monitoring</h2>
+{% include "backup_monitoring/_nav.html" with bm_tab="dashboard" %}
+<p class="text-muted small">Health is only "Healthy" on current evidence. A connection that has not reported recently shows
+<span class="badge bg-warning text-dark">Stale data</span>, never green. Restore tests are tracked separately from backup success.</p>
+{% if filtered %}<p class="small"><a href="?customer=all">Show every customer you can see</a></p>{% endif %}
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0 small align-middle">
+  <thead class="table-light"><tr>
+    <th>Customer</th><th>Health</th><th>Jobs</th><th>Newest success</th><th>Oldest success</th>
+    <th style="min-width:180px">Capacity</th><th>Restore test</th><th>Open alerts</th></tr></thead>
+  <tbody>
+  {% for s in summaries %}
+    <tr>
+      <td><a href="{% url 'backup_monitoring:customer_detail' s.org.pk %}"><strong>{{ s.org.name }}</strong></a>
+        {% if s.stale_connections %}<div class="text-warning small" title="{{ s.stale_connections|join:', ' }}">Stale: {{ s.stale_connections|join:", " }}</div>{% endif %}</td>
+      <td><span class="badge bg-{{ s.badge }}" data-state="{{ s.state }}">{{ s.label }}</span></td>
+      <td>{{ s.jobs_total }}{% if s.counts.failed or s.counts.missed %} <span class="text-danger">({{ s.counts.failed|default:0 }} failed, {{ s.counts.missed|default:0 }} missed)</span>{% endif %}</td>
+      <td>{% if s.newest_success %}{{ s.newest_success|timesince }} ago{% else %}<span class="text-muted">never</span>{% endif %}</td>
+      <td>{% if s.oldest_success %}{{ s.oldest_success|timesince }} ago{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td>
+      <td>{% for r in s.repos %}
+        <div class="small">{{ r.name }}{% if not r.available %} <span class="badge bg-danger">unavailable</span>{% endif %}{% if r.freshness != 'fresh' %} <span class="badge bg-warning text-dark">stale</span>{% endif %}</div>
+        {% if r.used_pct is not None %}<div class="progress" style="height:8px" title="{{ r.used_pct }}%"><div class="progress-bar {{ r.bar_class }}" style="width:{{ r.used_pct }}%"></div></div>{% endif %}
+        {% empty %}<span class="text-muted">&mdash;</span>{% endfor %}</td>
+      <td><span class="badge bg-{{ s.restore.badge }}">{{ s.restore.label }}</span></td>
+      <td>{% if s.open_alerts %}<a href="{% url 'backup_monitoring:alert_list' %}"><span class="badge bg-danger">{{ s.open_alerts }}</span></a>{% else %}0{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" class="text-center text-muted py-4">No backup data yet.{% if can_manage %} <a href="{% url 'backup_monitoring:connection_create' %}">Add a connection</a>.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

@@ -93,6 +93,7 @@ urlpatterns = [
     # Pulse checks: staff pages; the customer pages are under /portal/feedback/.
     path('pulse/', include('pulse.urls')),
     path('security/', include('security_alerts.urls')),
+    path('backup-monitoring/', include('backup_monitoring.urls')),
 
     # Phase 8 — Field Ops + Timeclock + privacy
     path('field-ops/', include('field_ops.urls')),

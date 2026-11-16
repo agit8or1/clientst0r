@@ -1,0 +1,6 @@
+<ul class="nav nav-pills mb-3 small">
+  <li class="nav-item"><a class="nav-link {% if bm_tab == 'dashboard' %}active{% endif %}" href="{% url 'backup_monitoring:dashboard' %}">Dashboard</a></li>
+  <li class="nav-item"><a class="nav-link {% if bm_tab == 'alerts' %}active{% endif %}" href="{% url 'backup_monitoring:alert_list' %}">Alerts</a></li>
+  <li class="nav-item"><a class="nav-link {% if bm_tab == 'restore' %}active{% endif %}" href="{% url 'backup_monitoring:restore_test_list' %}">Restore tests</a></li>
+  {% if can_manage %}<li class="nav-item"><a class="nav-link {% if bm_tab == 'connections' %}active{% endif %}" href="{% url 'backup_monitoring:connection_list' %}">Connections</a></li>{% endif %}
+</ul>

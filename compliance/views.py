@@ -273,16 +273,45 @@ def _section_vulnerability_summary(org, days=90):
 
 
 def _section_backup_evidence(org):
-    # v3.17.226 Phase 39 v2: backup status placeholder. No first-party
-    # backup-job tracking model ships with the project today, so this
-    # section currently only records "no backup integration configured"
-    # as evidence — auditors get a documented absence rather than a
-    # blank page. When a backup model is added (future), enrich here.
+    # Real data from backup_monitoring (customer backup jobs reported by the
+    # configured providers). Evidence is as of `generated_at`: a job whose
+    # source has not reported recently is listed as "stale", not healthy, and
+    # restore tests (recorded by people) are reported apart from job results.
+    from backup_monitoring.health import job_rows, restore_test_summary
+    from backup_monitoring.models import BackupAlertPolicy, BackupJob, RestoreTest
+    jobs = list(BackupJob.objects.filter(organization=org).select_related('connection', 'organization', 'system'))
+    job_state_rows = job_rows(jobs)
+    rows = [{
+        'job': r['job'].name,
+        'protected_system': r['job'].system.name if r['job'].system else '',
+        'source': r['job'].connection.get_provider_display(),
+        'state': r['state'],
+        'last_run_status': r['job'].last_status,
+        'last_success_at': r['job'].last_success_at.isoformat() if r['job'].last_success_at else '',
+        'source_data_age': r['data_age'],
+        'schedule': r['job'].schedule,
+        'retention': r['job'].retention,
+    } for r in job_state_rows]
+    tests = list(RestoreTest.objects.filter(organization=org).select_related('system')[:50])
+    restore = restore_test_summary(tests, BackupAlertPolicy.for_org(org))
+    by_state = {}
+    for r in job_state_rows:
+        by_state[r['state']] = by_state.get(r['state'], 0) + 1
+    if not rows:
+        note = 'No backup jobs are reported for this organization (no backup connection has produced data).'
+    else:
+        note = (f"{len(rows)} backup job(s) tracked; {by_state.get('ok', 0)} healthy on current data. "
+                'Jobs whose source has not reported recently are listed as stale, not healthy.')
     return {
-        'rows': [],
+        'rows': rows,
         'summary': {
-            'note': 'No backup-job integration is configured for this organization.',
-            'backup_jobs_tracked': 0,
+            'note': note,
+            'backup_jobs_tracked': len(rows),
+            'jobs_by_state': by_state,
+            'restore_tests_recorded': len(tests),
+            'latest_restore_test': (f"{restore['latest'].tested_on} ({restore['latest'].get_result_display()})"
+                                    if restore['latest'] else 'none recorded'),
+            'restore_test_status': restore['label'],
         },
     }
 

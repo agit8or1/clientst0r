@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Protected system{% endblock %}
+{% block content %}
+<h2>{% if instance %}Edit protected system{% else %}Add protected system{% endif %}</h2>
+<p class="text-muted small">Link the system to its customer and, optionally, an asset so its backup state appears in the Device Workspace.</p>
+<form method="post" class="card card-body" style="max-width:640px">{% csrf_token %}{{ form.as_p }}<div><button class="btn btn-primary">Save</button></div></form>
+{% endblock %}

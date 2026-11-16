@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Backups - {{ org.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'backup_monitoring:dashboard' %}">Backup Monitoring</a></li><li class="breadcrumb-item active">{{ org.name }}</li></ol></nav>
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+  <h2 class="mb-0">{{ org.name }} <span class="badge bg-{{ badge }} fs-6" data-state="{{ s.state }}">{{ label }}</span></h2>
+  {% if can_manage_here %}<div>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:policy_edit' org.pk %}">Alert policy</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:system_create' %}">Add protected system</a>
+    <a class="btn btn-sm btn-primary" href="{% url 'backup_monitoring:restore_test_create' %}">Record restore test</a></div>{% endif %}
+</div>
+{% if s.stale_connections %}<div class="alert alert-warning py-2 small">No recent data from: {{ s.stale_connections|join:", " }}. The state of their jobs below is not current.</div>{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6"><div class="card h-100"><div class="card-header">Repositories</div><div class="card-body">
+    {% for r in s.repos %}
+      <div class="d-flex justify-content-between small"><span>{{ r.name }} <span class="text-muted">({{ r.connection.name }})</span></span>
+        <span>{% if r.used_pct is not None %}{{ r.used_pct }}%{% else %}n/a{% endif %}{% if not r.available %} <span class="badge bg-danger">unavailable</span>{% endif %}</span></div>
+      {% if r.used_pct is not None %}<div class="progress mb-2" style="height:10px"><div class="progress-bar {{ r.bar_class }}" style="width:{{ r.used_pct }}%"></div></div>{% endif %}
+      <div class="text-muted small mb-2">Checked {{ r.last_checked_at|timesince }} ago{% if r.freshness != 'fresh' %} <span class="badge bg-warning text-dark">stale</span>{% endif %}</div>
+    {% empty %}<p class="text-muted small mb-0">No repositories reported.</p>{% endfor %}
+  </div></div></div>
+  <div class="col-md-6"><div class="card h-100"><div class="card-header">Restore testing</div><div class="card-body small">
+    <p><span class="badge bg-{{ s.restore.badge }}">{{ s.restore.label }}</span></p>
+    <p class="text-muted mb-1">A successful backup does not prove it can be restored. Restore tests are recorded by people, separately from job results; they are overdue after {{ s.policy.restore_test_max_age_days }} days.</p>
+    {% for t in s.tests|slice:":5" %}<div>{{ t.tested_on }} &middot; {{ t.label }} &middot; {{ t.get_result_display }}</div>{% endfor %}
+  </div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-header">Jobs</div><div class="card-body p-0">
+<table class="table table-sm mb-0 small align-middle">
+  <thead class="table-light"><tr><th>Job</th><th>System</th><th>Source</th><th>State</th><th>Last success</th><th>Data</th><th>Schedule</th><th>Retention</th></tr></thead>
+  <tbody>{% for r in s.rows %}
+   <tr><td><a href="{% url 'backup_monitoring:job_detail' r.job.pk %}">{{ r.job.name }}</a></td>
+     <td>{% if r.job.system %}{{ r.job.system.name }}{% if can_manage_here %} <a href="{% url 'backup_monitoring:system_edit' r.job.system.pk %}" title="Map to customer / asset"><i class="fas fa-link"></i></a>{% endif %}{% else %}&mdash;{% endif %}</td>
+     <td>{{ r.job.connection.get_provider_display }}</td>
+     <td><span class="badge bg-{{ r.badge }}" data-state="{{ r.state }}">{{ r.label }}</span></td>
+     <td>{{ r.last_success_age }}</td><td class="text-muted">{{ r.data_age }}</td>
+     <td>{{ r.job.schedule|default:"&mdash;" }}</td><td>{{ r.job.retention|default:"&mdash;" }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="text-muted text-center py-3">No jobs reported.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+
+<div class="card"><div class="card-header">Open alerts</div><div class="card-body p-0">
+<table class="table table-sm mb-0 small"><tbody>{% for a in alerts %}
+ <tr><td><span class="badge bg-{% if a.severity == 'critical' %}danger{% else %}warning text-dark{% endif %}">{{ a.get_kind_display }}</span></td><td>{{ a.title }}<div class="text-muted">{{ a.detail|truncatechars:160 }}</div></td><td>{{ a.get_status_display }}</td><td>{{ a.last_seen_at|timesince }} ago</td></tr>
+{% empty %}<tr><td class="text-muted text-center py-3">No open alerts.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

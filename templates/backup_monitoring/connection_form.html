@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Backup connection{% endblock %}
+{% block content %}
+<h2>{% if instance %}Edit{% else %}New{% endif %} backup connection</h2>
+{% if issued_secret %}
+<div class="alert alert-warning"><strong>Signing secret (shown once):</strong>
+ <code data-issued-secret>{{ issued_secret }}</code><br>
+ Report URL: <code>{{ ingest_url }}</code><br>See docs/BACKUP_MONITORING.md for the signing scheme and shell examples.</div>
+{% elif ingest_url %}
+<div class="alert alert-info small">Report URL: <code>{{ ingest_url }}</code>. The signing secret is stored encrypted and cannot be shown again.</div>
+{% endif %}
+<form method="post" class="card card-body" style="max-width:640px">{% csrf_token %}{{ form.as_p }}
+<div><button class="btn btn-primary">Save</button> <a class="btn btn-link" href="{% url 'backup_monitoring:connection_list' %}">Cancel</a>
+{% if instance and instance.is_push %}<button name="regenerate_secret" value="1" class="btn btn-outline-warning float-end" onclick="return confirm('The current secret stops working. Continue?');">Issue new secret</button>{% endif %}</div></form>
+{% endblock %}

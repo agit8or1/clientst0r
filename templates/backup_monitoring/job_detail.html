@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ job.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'backup_monitoring:dashboard' %}">Backup Monitoring</a></li>
+<li class="breadcrumb-item"><a href="{% url 'backup_monitoring:customer_detail' job.organization_id %}">{{ job.organization.name }}</a></li><li class="breadcrumb-item active">{{ job.name }}</li></ol></nav>
+<h2>{{ job.name }} <span class="badge bg-{{ row.badge }} fs-6" data-state="{{ row.state }}">{{ row.label }}</span></h2>
+<dl class="row small">
+  <dt class="col-sm-3">Source</dt><dd class="col-sm-9">{{ job.connection.name }} ({{ job.connection.get_provider_display }}), data {{ row.data_age }}</dd>
+  <dt class="col-sm-3">Protected system</dt><dd class="col-sm-9">{{ job.system.name|default:"&mdash;" }}</dd>
+  <dt class="col-sm-3">Schedule</dt><dd class="col-sm-9">{{ job.schedule|default:"&mdash;" }}</dd>
+  <dt class="col-sm-3">Retention</dt><dd class="col-sm-9">{{ job.retention|default:"&mdash;" }}</dd>
+  <dt class="col-sm-3">Last success</dt><dd class="col-sm-9">{{ row.last_success_age }}</dd>
+</dl>
+{% for a in alerts %}<div class="alert alert-{% if a.severity == 'critical' %}danger{% else %}warning{% endif %} py-2 small">{{ a.title }} &mdash; {{ a.detail }}</div>{% endfor %}
+<div class="card"><div class="card-header">Run history (latest 100)</div><div class="card-body p-0">
+<table class="table table-sm mb-0 small"><thead class="table-light"><tr><th>Started</th><th>Finished</th><th>Status</th><th>Size</th><th>Duration</th><th>Message</th></tr></thead><tbody>
+{% for r in runs %}<tr><td>{{ r.started_at|date:"Y-m-d H:i" }}</td><td>{{ r.finished_at|date:"Y-m-d H:i"|default:"&mdash;" }}</td>
+ <td><span class="badge bg-{% if r.status == 'success' %}success{% elif r.status == 'warning' or r.status == 'running' %}warning text-dark{% else %}danger{% endif %}">{{ r.get_status_display }}</span></td>
+ <td>{% if r.bytes_processed is not None %}{{ r.bytes_processed|filesizeformat }}{% else %}&mdash;{% endif %}</td>
+ <td>{% if r.duration_seconds is not None %}{{ r.duration_seconds }} s{% else %}&mdash;{% endif %}</td><td>{{ r.message|truncatechars:200 }}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-center text-muted py-3">No runs recorded.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

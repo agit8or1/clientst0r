@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Restore Tests{% endblock %}
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-database me-2"></i>Backup Monitoring</h2>
+{% include "backup_monitoring/_nav.html" with bm_tab="restore" %}
+<div class="d-flex justify-content-between mb-2"><p class="text-muted small mb-0">Restore tests are recorded by people and are not derived from backup runs: a green backup is not a verified restore.</p>
+{% if can_manage %}<a class="btn btn-sm btn-primary" href="{% url 'backup_monitoring:restore_test_create' %}">Record restore test</a>{% endif %}</div>
+<div class="card"><div class="card-body p-0"><table class="table table-sm mb-0 small"><thead class="table-light"><tr><th>Date</th><th>Customer</th><th>System</th><th>Result</th><th>Verified by</th><th>Notes</th></tr></thead><tbody>
+{% for t in tests %}<tr><td>{{ t.tested_on }}</td><td>{{ t.organization.name }}</td><td>{{ t.label }}</td>
+<td><span class="badge bg-{% if t.result == 'passed' %}success{% elif t.result == 'partial' %}warning text-dark{% else %}danger{% endif %}">{{ t.get_result_display }}</span></td>
+<td>{{ t.verified_by_name|default:t.verified_by }}</td><td>{{ t.notes|truncatechars:160 }}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No restore tests recorded.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}
