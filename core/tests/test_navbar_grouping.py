@@ -53,7 +53,7 @@ ASSETS = ['assets:asset_list', 'integrations:rmm_devices', 'assets:device_worksp
           'hardware:device_list', ('hardware:diagram', 'connectivity'), 'monitoring:rack_list',
           'backup_monitoring:dashboard', 'monitoring:subnet_list', 'inventory:inventory_dashboard', 'vehicles:vehicle_list']
 BUSINESS = ['crm:home', 'psa:contract_list', 'psa:quote_list', 'psa:invoice_list', 'psa:aging_report',
-            'psa:requisition_list', 'psa:vendor_list', 'pulse:check_list', 'health_score:list']
+            'psa:requisition_list', 'psa:vendor_list', 'licensing:overview', 'pulse:check_list', 'health_score:list']
 KNOWLEDGE = ['docs:document_list', 'psa:kb_browse', 'docs:diagram_list', 'docs:document_drafts_list',
              'readiness:overview', 'vault:password_list', 'vault:personal_vault_list',
              'core:secure_note_inbox']
@@ -354,7 +354,7 @@ class ModuleToggleTests(NavbarTestBase):
         self.assertNotIn('service_desk', nav)
         # Contract documents and client health are not behind a module flag;
         # the rest of Business is.
-        self.assertEqual(nav['business'], urls(['contracts:dashboard', 'health_score:list']))
+        self.assertEqual(nav['business'], urls(['contracts:dashboard', 'licensing:overview', 'health_score:list']))
         self.assertEqual(nav['reports'], urls(REPORTS))   # Reports is ungated
         self.assertNotIn(reverse('psa:my_work'), nav['my_work'])
         self.assertIn(reverse('integrations:rmm_alerts'), nav['security'])

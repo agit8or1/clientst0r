@@ -111,10 +111,23 @@ class LossMakingTests(AdvisorBase):
         f = self.open_findings('loss_making_customer').get()
         self.assertEqual(f.assessment, 'raised')
         self.assertEqual(f.severity, 'critical')
-        # Vendor / licensing costs are not tracked on this install: the loss is an upper bound.
-        self.assertFalse(f.is_complete)
+        # Licensing is tracked and this customer has no subscriptions: the cost is known.
+        self.assertTrue(f.is_complete)
         self.assertEqual(f.facts['gross_margin']['upper'], '-150.00')
         self.assertTrue(f.recommendations.filter(rec_type__in=['price_increase', 'renegotiate']).exists())
+
+    def test_license_without_unit_cost_makes_the_loss_an_upper_bound(self):
+        from licensing.models import LicenseSubscription, SoftwareProduct
+        product = SoftwareProduct.objects.create(vendor='Microsoft', name='M365 Business Premium')
+        LicenseSubscription.objects.create(organization=self.a, product=product, quantity_purchased=10,
+                                           unit_cost=None, status='active')
+        for d in IN_WINDOW:
+            self.invoice(self.a, d, '300')
+            self.entry(self.a, d, 15)
+        self.run_advisor()
+        f = self.open_findings('loss_making_customer').get()
+        self.assertFalse(f.is_complete)          # unknown licence cost is never zero
+        self.assertIn('No unit cost', ' '.join(f.missing_inputs))
 
     def test_profitable_customer_not_raised(self):
         for d in IN_WINDOW:
@@ -152,7 +165,7 @@ class DecliningMarginTests(AdvisorBase):
         self.run_advisor()
         f = self.open_findings('declining_margin').get()
         self.assertEqual(f.evidence['drop_pts'], '40.00')
-        self.assertFalse(f.is_complete)          # labour-only margin compared
+        self.assertTrue(f.is_complete)           # every cost source tracked: gross margin compared
 
     def test_stable_not_raised(self):
         self._setup(4)

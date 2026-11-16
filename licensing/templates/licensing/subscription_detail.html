@@ -12,7 +12,7 @@
         {% if can_manage %}
         <div>
             <a class="btn btn-sm btn-outline-primary" href="{% url 'licensing:subscription_edit' pk=sub.pk %}">Edit</a>
-            <form method="post" action="{% url 'licensing:subscription_delete' pk=sub.pk %}" class="d-inline" onsubmit="return confirm('Delete this subscription and its assignments?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form>
+            <form method="post" action="{% url 'licensing:subscription_delete' pk=sub.pk %}" class="d-inline" data-confirm="Delete this subscription and its assignments?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form>
         </div>
         {% endif %}
     </div>

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.699] - 2026-11-16
+
+### Added
+- **Software licensing** (Business → Licensing). Track each customer's license subscriptions, seats and
+  assignments, renewal dates and utilization, with renewal and over/under-use alerts. Subscriptions sync
+  from Microsoft 365 (per customer connection) and Pax8 (distributor connection with companies mapped to
+  customers); syncs never overwrite cost, price or notes an administrator set. Two scheduled tasks:
+  license sync and license alerts. MSP staff only.
+- License unit cost is internal and needs `pricing_view_internal_cost_rates`. New role permission
+  `manage_licensing`; uncustomized Owner and Organization Administrator roles get it, customized roles
+  are unchanged.
+- The **Pricing Advisor** now counts license cost. A subscription without a unit cost makes the
+  customer's cost (and margin) unknown rather than zero.
+
+### Not included
+- Google Workspace licensing (no Google service-account credential support yet).
+
 ## [3.17.698] - 2026-11-16
 
 ### Changed

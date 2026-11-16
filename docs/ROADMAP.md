@@ -2875,8 +2875,9 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 ## Phase 73 — Procurement, distributors, licensing and warranty lifecycle **(L · procurement)** [in progress]
 
-- **73.1 Software licensing** *(in progress — dev/licensing)* — licenses, seats, renewals; Microsoft 365
-  as a feed.
+- **73.1 Software licensing** *(shipped v3.17.699 — Google Workspace planned)* — license subscriptions,
+  seat assignments, renewals and utilization alerts; Microsoft 365 and Pax8 sync; per-customer monthly
+  license cost feeds the Pricing Advisor (a subscription without a unit cost leaves the cost unknown).
 - **73.2 Distributor ordering** *(planned)* — submit purchase orders to distributors, order status.
 - **73.3 Distributor adapters** *(planned)* — production endpoints, TD SYNNEX catalog, further
   distributors.
@@ -3086,7 +3087,7 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 70 — Contracts, recurring billing and quote conversion | M | planned | Phases 65, 68, 69 |
 | 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
 | 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
-| 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
+| 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (73.1 shipped v3.17.699) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (74.1 shipped v3.17.695) | Phase 63 RMM; Rem0te contract; Phase 9 |
 | 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; dev/onboarding-wizard) | Phases 68–74 |
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | shipped v3.17.696 | Phases 68, 69, 75 (profitability) |
