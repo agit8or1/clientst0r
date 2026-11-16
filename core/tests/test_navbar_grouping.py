@@ -38,7 +38,7 @@ GROUP_ORDER = ['dashboard', 'my_work', 'service_desk', 'clients', 'assets', 'bus
 
 # Entry landing pages per section, for a superuser with every module on and
 # no customer selected. Dashboard ends with the default pin (Tickets).
-OVERVIEW = ['core:dashboard', 'core:favorite_list']
+OVERVIEW = ['core:dashboard', 'core:favorite_list', 'executive:overview']
 # Default pins for a staff user (core.shortcut_strip): My Work and Tickets.
 OVERVIEW_STAFF = OVERVIEW + ['psa:my_work', 'psa:ticket_list']
 MY_WORK = ['psa:my_work', 'scheduling:my_tasks', 'psa:my_timesheet', 'psa:timesheet_approval_queue',
