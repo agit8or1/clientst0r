@@ -156,6 +156,25 @@
                 {% else %}
                 <p class="text-muted small mb-0">None</p>
                 {% endif %}
+                <hr>
+                <h6 class="mb-1">Web sessions</h6>
+                <p class="small text-muted mb-2">Ends every browser signed in as {{ viewed_user.username }} on its next request.</p>
+                <form method="post" action="{% url 'accounts:user_sessions_sign_out' viewed_user.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="revoke_mobile" value="0">
+                    <div class="form-check small mb-1">
+                        <input class="form-check-input" type="checkbox" name="revoke_mobile" value="1" id="uso-mobile" checked>
+                        <label class="form-check-label" for="uso-mobile">Also sign out the mobile app</label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1 mb-1">
+                        <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="Your password" autocomplete="current-password">
+                        <input type="text" name="otp" class="form-control form-control-sm w-auto" placeholder="Authenticator code" inputmode="numeric" autocomplete="one-time-code">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="fas fa-user-slash"></i> Sign this user out everywhere
+                    </button>
+                    <div class="form-text">Needs your password (and authenticator code) unless you confirmed it in the last few minutes.</div>
+                </form>
             </div>
         </div>
     </div>

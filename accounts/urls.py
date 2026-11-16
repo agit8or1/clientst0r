@@ -43,6 +43,7 @@ urlpatterns = [
     path('profile/password/', views.password_change, name='password_change'),
     path('profile/2fa/', views.two_factor_setup, name='two_factor_setup'),
     path('profile/mobile-sessions/revoke/', views.mobile_sessions_revoke, name='mobile_sessions_revoke'),
+    path('profile/sessions/sign-out/', views.sessions_sign_out, name='sessions_sign_out'),
 
     # Organization Management
     path('organizations/', views.organization_list, name='organization_list'),
@@ -68,6 +69,7 @@ urlpatterns = [
     path('users/<int:user_id>/add-membership/', views.user_add_membership, name='user_add_membership'),
     path('users/<int:user_id>/password/', views.user_password_reset, name='user_password_reset'),
     path('users/<int:user_id>/mobile-sessions/revoke/', views.mobile_sessions_revoke, name='user_mobile_sessions_revoke'),
+    path('users/<int:user_id>/sessions/sign-out/', views.user_sessions_sign_out, name='user_sessions_sign_out'),
     path('users/<int:user_id>/delete/', views.user_delete, name='user_delete'),
 
     # Role Management (RBAC)

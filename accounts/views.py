@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import update_session_auth_hash
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
+from django.conf import settings as django_settings
 from django.db.models import Count, Q
 from core.models import Organization, SupportRating
 from core.decorators import require_owner
@@ -238,6 +239,76 @@ def mobile_sessions_revoke(request, user_id=None):
     return back
 
 
+def _wants_mobile_revoke(request, default):
+    """The 'also sign out the mobile app' choice. The forms send a hidden 0
+    before the checkbox's 1, so the last value wins; absent = `default`."""
+    values = request.POST.getlist('revoke_mobile')
+    if not values:
+        return default
+    return values[-1] in ('1', 'on', 'true')
+
+
+@login_required
+@require_POST
+def sessions_sign_out(request):
+    """The signed-in user ends their own web sessions.
+
+    scope=others (default): every other browser; this one stays signed in.
+    scope=all: every browser, this one too; mobile app sessions are revoked
+    as well unless the user unticks it.
+    Only ever acts on request.user (no user id is read from the request).
+    """
+    from . import session_epoch
+    scope = session_epoch.SCOPE_ALL if request.POST.get('scope') == 'all' else session_epoch.SCOPE_OTHERS
+    user = request.user
+    revoke_mobile = _wants_mobile_revoke(request, default=(scope == session_epoch.SCOPE_ALL))
+    n = session_epoch.sign_out(user, scope, actor=user, request=request,
+                               reason='signed out by the user', revoke_mobile=revoke_mobile)
+    if scope == session_epoch.SCOPE_ALL:
+        return redirect(django_settings.LOGIN_URL)
+    msg = 'Signed out of all other web sessions.'
+    if revoke_mobile:
+        msg += f' {n} mobile app session(s) signed out.'
+    messages.success(request, msg)
+    return redirect('accounts:profile')
+
+
+@login_required
+@require_POST
+def user_sessions_sign_out(request, user_id):
+    """An administrator signs another user out of every web session (and,
+    by default, the mobile app). Superuser only, like the rest of the user
+    pages, and needs the administrator's password (+ authenticator code)
+    confirmed within the last few minutes (tech_access.protected)."""
+    from tech_access.protected import has_fresh_auth, reauthenticate
+    from . import session_epoch
+
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to manage this user's sessions.")
+        return redirect('core:dashboard')
+    target = get_object_or_404(User, id=user_id)
+    password = request.POST.get('password', '')
+    if password:
+        err = reauthenticate(request, password, request.POST.get('otp', ''))
+        if err:
+            messages.error(request, err)
+            return redirect('accounts:user_detail', user_id=target.id)
+    if not has_fresh_auth(request):
+        messages.error(request, 'Confirm your password to sign this user out everywhere.')
+        return redirect('accounts:user_detail', user_id=target.id)
+
+    revoke_mobile = _wants_mobile_revoke(request, default=True)
+    n = session_epoch.sign_out(target, session_epoch.SCOPE_ALL, actor=request.user, request=request,
+                               reason='signed out by an administrator', revoke_mobile=revoke_mobile)
+    if target.pk == request.user.pk:
+        return redirect(django_settings.LOGIN_URL)
+    msg = f"Signed {target.username} out of every web session."
+    if revoke_mobile:
+        msg += f' {n} mobile app session(s) signed out.'
+    messages.success(request, msg)
+    return redirect('accounts:user_detail', user_id=target.id)
+
+
 @login_required
 def profile_edit(request):
     """
@@ -393,7 +464,13 @@ def password_change(request):
                     request.session['_auth_user_otp_device_id'] = otp_device_id
                     request.session.modified = True
 
-                messages.success(request, 'Your password was successfully updated!')
+                # Every other web session of the account ends (this one stays).
+                from . import session_epoch
+                session_epoch.sign_out(user, session_epoch.SCOPE_OTHERS, actor=user, request=request,
+                                       reason='password changed')
+
+                messages.success(request, 'Your password was successfully updated! '
+                                          'Your other sessions have been signed out.')
                 return redirect('accounts:profile')
             except Exception as e:
                 messages.error(request, f'Error updating password: {str(e)}')
@@ -1652,7 +1729,16 @@ def user_password_reset(request, user_id):
         if form.is_valid():
             user.set_password(form.cleaned_data['password1'])
             user.save()
-            messages.success(request, f"Password for user '{user.username}' has been reset.")
+            from . import session_epoch
+            if user.pk == request.user.pk:
+                update_session_auth_hash(request, user)
+                session_epoch.sign_out(user, session_epoch.SCOPE_OTHERS, actor=request.user,
+                                       request=request, reason='password reset by administrator')
+            else:
+                session_epoch.sign_out(user, session_epoch.SCOPE_ALL, actor=request.user,
+                                       request=request, reason='password reset by administrator')
+            messages.success(request, f"Password for user '{user.username}' has been reset. "
+                                      f"Their web sessions have been signed out.")
             return redirect('accounts:user_detail', user_id=user.id)
     else:
         form = UserPasswordResetForm()

@@ -51,6 +51,42 @@ class SessionIdleTimeoutMiddleware:
         return self.get_response(request)
 
 
+class SessionEpochMiddleware:
+    """
+    Sign out everywhere (accounts.session_epoch): end a web session issued
+    before the user's UserProfile.sessions_valid_after, or one whose account
+    has been deactivated (some backends' get_user, e.g. LDAP, do not check
+    is_active themselves).
+
+    Sits right after AuthenticationMiddleware. Sessions from before the
+    upgrade have no issue stamp: they get one now (from `_auth_started` when
+    present), so upgrading does not sign anybody out.
+    """
+
+    PASS_THROUGH = ('/static/', '/media/', '/account/login/', '/portal/login/',
+                    '/account/logout/', '/portal/logout/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        session = getattr(request, 'session', None)
+        if session is not None and user is not None and user.is_authenticated:
+            from . import session_epoch
+            if not user.is_active or session_epoch.is_revoked(session, user):
+                portal = (session.get('_auth_surface') == 'portal'
+                          or request.path.startswith('/portal/'))
+                logout(request)
+                if not any(request.path.startswith(p) for p in self.PASS_THROUGH):
+                    from django.contrib.auth.views import redirect_to_login
+                    login_url = reverse('portal_auth:login') if portal else None
+                    return redirect_to_login(request.get_full_path(), login_url)
+            elif session.get(session_epoch.ISSUED_AT_KEY) is None:
+                session_epoch.stamp(request, session_epoch.issued_at(session))
+        return self.get_response(request)
+
+
 class UserLanguageMiddleware:
     """
     Activate the UI language saved in the user's profile.

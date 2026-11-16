@@ -506,6 +506,12 @@ class UserProfile(BaseModel):
         ('own', 'Records the user created'),
     ], default='organization', help_text='MSP staff: which records of in-scope clients the global role covers.')
 
+    # Sign out everywhere (accounts.session_epoch): every web session issued
+    # before this moment is ended on its next request. Null = never used.
+    sessions_valid_after = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Web sessions signed in before this time are signed out on their next request.')
+
     # Name fields
     phone = models.CharField(max_length=50, blank=True)
     title = models.CharField(max_length=100, blank=True, help_text='Job title')
@@ -729,6 +735,25 @@ class UserProfile(BaseModel):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+    # Written only by accounts.session_epoch (queryset update). A full save()
+    # of a profile loaded earlier (save_user_profile on every User save, the
+    # profile and 2FA views) must not write an older value back and undo a
+    # sign-out, so it is left out unless named in update_fields.
+    _EPOCH_FIELD = 'sessions_valid_after'
+
+    def save(self, *args, **kwargs):
+        if (not self._state.adding and self.pk and kwargs.get('update_fields') is None
+                and not kwargs.get('force_insert') and not (args and args[0])):
+            from django.db import DatabaseError
+            fields = [f.name for f in self._meta.concrete_fields
+                      if not f.primary_key and f.name != self._EPOCH_FIELD]
+            try:
+                return super().save(*args, **dict(kwargs, update_fields=fields))
+            except DatabaseError:
+                # Row gone (update matched nothing): fall back to a plain save.
+                pass
+        return super().save(*args, **kwargs)
 
     def is_staff_user(self):
         """Check if this is a staff user (MSP tech)."""

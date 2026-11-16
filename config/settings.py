@@ -174,6 +174,7 @@ MIDDLEWARE = [
     'core.portal_surface.PortalHostMiddleware',  # optional dedicated portal host name
     'core.csrf_middleware.MultiDomainCsrfViewMiddleware',  # Custom CSRF for multi-domain support
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'accounts.middleware.SessionEpochMiddleware',  # sign out everywhere (session epoch)
     'core.firewall_middleware.FirewallMiddleware',  # IP and GeoIP firewall (after auth for request.user)
     'django_otp.middleware.OTPMiddleware',
     'core.portal_surface.PortalUserGuardMiddleware',  # customer users stay on the portal surface

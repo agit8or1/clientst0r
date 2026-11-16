@@ -88,6 +88,31 @@
                 {% else %}
                 <p class="text-muted small mb-0">{% trans "Not signed in to the mobile app anywhere." %}</p>
                 {% endif %}
+
+                <hr>
+                <h6><i class="fas fa-globe"></i> {% trans "Web sessions" %}</h6>
+                <p class="text-muted small mb-2">{% trans "End every browser signed in to your account, for example a computer you no longer use." %}</p>
+                <form method="post" action="{% url 'accounts:sessions_sign_out' %}" class="mb-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="scope" value="others">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-user-slash"></i> {% trans "Sign out of all other sessions" %}
+                    </button>
+                    <div class="form-text">{% trans "You stay signed in here." %}</div>
+                </form>
+                <form method="post" action="{% url 'accounts:sessions_sign_out' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="scope" value="all">
+                    <input type="hidden" name="revoke_mobile" value="0">
+                    <div class="form-check small mb-1">
+                        <input class="form-check-input" type="checkbox" name="revoke_mobile" value="1" id="so-mobile" checked>
+                        <label class="form-check-label" for="so-mobile">{% trans "Also sign out the mobile app" %}</label>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="fas fa-sign-out-alt"></i> {% trans "Sign out everywhere" %}
+                    </button>
+                    <div class="form-text">{% trans "Includes this browser: you will need to sign in again." %}</div>
+                </form>
             </div>
         </div>
     </div>
