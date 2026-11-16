@@ -3316,6 +3316,13 @@ class Quote(models.Model):
         # the accounting providers by a cent on exact half-cent results.
         self.tax_amount = (taxable_sub * rate).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Sales tax (tax app): a tax calculated for exactly these lines (manual
+        # rates, Avalara / TaxJar, an exemption or an audited override) wins
+        # over rate x taxable lines; tax mode "none" is zero. See docs/TAX.md.
+        from tax.services import applied_tax_amount
+        _applied = applied_tax_amount(self)
+        if _applied is not None:
+            self.tax_amount = _applied
         self.total = sub + self.tax_amount
         self.save(update_fields=['subtotal', 'tax_amount', 'total'])
 
@@ -4617,6 +4624,13 @@ class Invoice(models.Model):
         # results; `provider_tax_amount` exists to catch that kind of drift.
         self.tax_amount = (taxable_sub * rate).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Sales tax (tax app): a tax calculated for exactly these lines (manual
+        # rates, Avalara / TaxJar, an exemption or an audited override) wins
+        # over rate x taxable lines; tax mode "none" is zero. See docs/TAX.md.
+        from tax.services import applied_tax_amount
+        _applied = applied_tax_amount(self)
+        if _applied is not None:
+            self.tax_amount = _applied
         self.total = sub + self.tax_amount
         # Recompute amount_paid from related Payment rows
         paid = sum((Decimal(str(p.amount or '0')) for p in self.payments.all()), Decimal('0'))
