@@ -947,7 +947,9 @@ class TaxConnectionScaffoldTests(TestCase):
         p = get_tax_provider(conn)
         self.assertIsInstance(p, TaxJarProvider)
 
-    def test_compute_tax_returns_unimplemented_when_creds_present(self):
+    def test_legacy_compute_tax_fails_without_a_zero(self):
+        """compute_tax() is the v3.17.297 entry point; tax.services.calculate_tax
+        replaced it. It must fail loudly, never report a zero tax amount."""
         from .models import TaxConnection
         from .providers.tax import get_tax_provider
         conn = TaxConnection.objects.create(
@@ -959,9 +961,10 @@ class TaxConnectionScaffoldTests(TestCase):
         p = get_tax_provider(conn)
         result = p.compute_tax(invoice=None)
         self.assertFalse(result['success'])
-        self.assertIn('not yet implemented', result['error'])
+        self.assertIsNone(result['tax_amount'])
+        self.assertIn('calculate_tax', result['error'])
 
-    def test_compute_tax_complains_without_creds(self):
+    def test_calculate_complains_without_creds(self):
         from .models import TaxConnection
         from .providers.tax import get_tax_provider
         conn = TaxConnection.objects.create(
@@ -969,9 +972,10 @@ class TaxConnectionScaffoldTests(TestCase):
             name='No-key',
         )
         p = get_tax_provider(conn)
-        result = p.compute_tax(invoice=None)
-        self.assertFalse(result['success'])
-        self.assertIn('not configured', result['error'])
+        self.assertIn('not configured', p.missing_credentials())
+        ok, msg = p.test_connection()
+        self.assertFalse(ok)
+        self.assertIn('not configured', msg)
 
 
 class WarrantyConnectionScaffoldTests(TestCase):
