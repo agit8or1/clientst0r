@@ -91,6 +91,7 @@ MODULES = {
     'procurement': ('Procurement', 'Purchase requisitions and purchase orders.'),
     'reports': ('Reports & dashboards', 'Dashboards, financial / SLA / capacity reports, schedules.'),
     'resourcing': ('Resourcing', 'Team roster, cost rates, leave and holidays.'),
+    'pricing': ('Pricing & rate cards', 'Price books, service plans, labor rate cards, internal costs.'),
     'api': ('API & automation', 'API access and API keys.'),
     'audit': ('Audit logs', 'Audit trail viewing and export.'),
     'ai': ('AI assistance (OPTIONAL AI)', 'AI suggestions, replies and actions; gated by psa_ai_enabled.'),
@@ -330,6 +331,19 @@ PERMISSIONS: List[Permission] = [
     _p('resourcing_manage_holidays', 'resourcing', 'settings', E, False,
        "Manage holidays (an organization's own business-hours calendar)"),
 
+    # --- pricing --------------------------------------------------------------------
+    _p('pricing_manage_price_books', 'pricing', 'edit', X, False,
+       'Create and edit price books, items, tiers, customer price overrides and scheduled price changes',
+       staff_only=True),
+    _p('pricing_manage_service_plans', 'pricing', 'edit', X, False,
+       'Create and edit service plans, their entitlements and customer plan subscriptions', staff_only=True),
+    _p('pricing_view_internal_cost_rates', 'pricing', 'view', X, False,
+       'See internal costs, margins and technician cost rates (hidden from everyone else)', staff_only=True),
+    _p('pricing_manage_labor_rate_cards', 'pricing', 'edit', X, False,
+       'Create and edit labor roles, rate cards and billing rules', staff_only=True),
+    _p('pricing_approve_discounts', 'pricing', 'approve', X, False,
+       'Approve customer prices below an item minimum price', staff_only=True),
+
     # --- operations -----------------------------------------------------------------
     _p('vehicles_view', 'operations', 'view', S, False, 'View fleet vehicles, receipts and vehicle inventory',
        PENDING, staff_only=True),
@@ -525,6 +539,7 @@ MODULE_COVERAGE = {
     'rmm_permissions': 'RMM tier from the global role x technician access assignment',
     'portal': 'customer membership + portal_* permissions; never internal notes or other customers',
     'resourcing': 'resourcing_* (MSP staff)',
+    'pricing': 'pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions)',
     'crm': 'crm_* (MSP staff only section)',
     'security_alerts': 'security_alerts_* (MSP staff only section)',
     'compliance': 'membership role per customer',

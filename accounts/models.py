@@ -437,6 +437,11 @@ def derive_legacy_flags(ns, role):
         'scheduling_manage_wallboard': g('org_manage_settings'),
         'psa_manage_workflow_rules': g('org_manage_settings'),
         'resourcing_view_payroll': owner,
+        'pricing_manage_price_books': owner,
+        'pricing_manage_service_plans': owner,
+        'pricing_manage_labor_rate_cards': owner,
+        'pricing_approve_discounts': owner,
+        'pricing_view_internal_cost_rates': owner or g('resourcing_view_team'),
         'vault_approve_reveal': g('vault_view_password'),
         'netconfig_view_configs': g('vault_view_password'),
         'integrations_view_synced_psa': g('integrations_view'),
@@ -1146,6 +1151,17 @@ class RoleTemplate(BaseModel):
     timesheets_approve = models.BooleanField(default=False, help_text='Approve timesheets.')
     resourcing_view_payroll = models.BooleanField(default=False,
         help_text='Timeclock dashboard and payroll export.')
+    # Pricing (price books, service plans, labor rate cards).
+    pricing_manage_price_books = models.BooleanField(default=False,
+        help_text='Create / edit price books, items, tiers, customer overrides and scheduled changes.')
+    pricing_manage_service_plans = models.BooleanField(default=False,
+        help_text='Create / edit service plans and customer plan subscriptions.')
+    pricing_view_internal_cost_rates = models.BooleanField(default=False,
+        help_text='See internal costs, margins and technician cost rates in pricing.')
+    pricing_manage_labor_rate_cards = models.BooleanField(default=False,
+        help_text='Create / edit labor roles, rate cards and billing rules.')
+    pricing_approve_discounts = models.BooleanField(default=False,
+        help_text='Approve customer prices below an item minimum price.')
     contracts_view = models.BooleanField(default=False, help_text='View contracts.')
     contracts_view_pricing = models.BooleanField(default=False, help_text='View contract pricing.')
     contracts_edit_draft = models.BooleanField(default=False, help_text='Create / edit contract drafts.')
