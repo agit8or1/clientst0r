@@ -48,7 +48,7 @@ OPERATIONS = ['psa:ticket_list', 'psa:dispatch_board', 'scheduling:task_list',
               'resourcing:shift_schedule', 'psa:project_list', 'psa:service_catalog',
               'processes:process_list']
 # Client Workspace opens the selected client (these tests select one).
-CLIENTS = ['accounts:organization_list', 'CURRENT_ORG', 'core:customer_ops_current']
+CLIENTS = ['accounts:organization_list', 'CURRENT_ORG', 'onboarding:start', 'core:customer_ops_current']
 ASSETS = ['assets:asset_list', 'integrations:rmm_devices', 'assets:device_workspace_home',
           'hardware:device_list', ('hardware:diagram', 'connectivity'), 'monitoring:rack_list',
           'backup_monitoring:dashboard', 'monitoring:subnet_list', 'inventory:inventory_dashboard', 'vehicles:vehicle_list']

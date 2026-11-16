@@ -127,7 +127,7 @@ _ORG_ADMIN = _on(
     'psa_ai_view', 'psa_ai_request_triage', 'psa_ai_admin',
     'reports_export', 'vehicles_view', 'vehicles_manage', 'scheduling_manage_wallboard',
     'psa_manage_workflow_rules', 'timesheets_approve', 'resourcing_view_payroll',
-    'integrations_view_synced_psa', 'view_backup_status', 'manage_backup_integrations', 'manage_licensing',
+    'integrations_view_synced_psa', 'view_backup_status', 'manage_backup_integrations', 'manage_licensing', 'manage_customer_onboarding',
 )
 
 _SERVICE_MANAGER = _on(
@@ -219,10 +219,10 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=8, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=9, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
-                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=4),
+                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=5),
         RoleDef('service_manager', 'Service Manager', 'internal',
                 'Service operations: queues, assignment, escalation, change / problem / release and service '
                 'reports for authorized clients. No billing administration, secrets or security settings.',

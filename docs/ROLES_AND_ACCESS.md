@@ -253,6 +253,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `crm_create_lead` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
 | `crm_manage_pipeline` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
 | `crm_manage_campaigns` | ✔ |  |  |  |  |  |  | ✔ |  |  |
+| `manage_customer_onboarding` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | `crm_view_forecast` | ✔ |  |  |  |  |  |  | ✔ |  |  |
 | `crm_approve_commissions` | ✔ |  |  |  |  |  |  | ✔ |  |  |
 | `quotes_view` | ✔ | ✔ |  |  |  |  | ✔ | ✔ | ✔ | ✔ |
@@ -585,6 +586,7 @@ Leads, pipeline, campaigns, forecast and quotes.
 | `crm_create_lead` | Create | standard | staff only | enforced | Create / edit leads |
 | `crm_manage_pipeline` | Edit | elevated | staff only | enforced | Move opportunities through stages, convert leads |
 | `crm_manage_campaigns` | Edit | elevated | staff only | enforced | Create / edit marketing campaigns and view ROI |
+| `manage_customer_onboarding` | Create | elevated | staff only | enforced | Run the customer onboarding and lifecycle change wizards (commercial changes are drafts that still go through approval; each step also needs the permission of the thing it changes) |
 | `crm_view_forecast` | View / list | sensitive | staff only | enforced | See the weighted pipeline forecast |
 | `crm_approve_commissions` | Approve | sensitive | staff only | pending | Decide and pay out sales commissions |
 | `quotes_view` | View / list | standard | staff only | pending | View quotes and the priced service catalog |

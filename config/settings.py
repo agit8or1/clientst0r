@@ -161,6 +161,7 @@ INSTALLED_APPS = [
     'tax.apps.TaxConfig',
     'connect.apps.ConnectConfig',  # Agit8or Connect (app-to-app); off unless AGIT8OR_CONNECT_ENABLED
     'health_score.apps.HealthScoreConfig',
+    'onboarding.apps.OnboardingConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).

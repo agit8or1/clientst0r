@@ -459,6 +459,9 @@ def derive_legacy_flags(ns, role):
         # Payment processing: new, never derived from an older permission.
         'process_refunds': False,
         'manage_payment_providers': False,
+        # Customer onboarding wizard: owners and administrators keep what they
+        # could already do (create clients, edit quotes and contracts).
+        'manage_customer_onboarding': g('org_manage_settings'),
         # Cost / margin visibility split out of reports_view_financial
         # (accounts 0051): whoever could see financial reports keeps it.
         'view_profitability': g('reports_view_financial'),
@@ -1222,6 +1225,9 @@ class RoleTemplate(BaseModel):
                   'linked accounts.')
     manage_health_score_settings = models.BooleanField(default=False,
         help_text='Customer health score: change the dimension and signal weights and thresholds.')
+    manage_customer_onboarding = models.BooleanField(default=False,
+        help_text='Run the customer onboarding and lifecycle change wizards (MSP staff only). Commercial '
+                  'changes are drafts that still go through approval.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,
@@ -1419,6 +1425,7 @@ class RoleTemplate(BaseModel):
                 'org_invite_members': True,
                 'org_manage_members': True,
                 'org_manage_settings': True,
+                'manage_customer_onboarding': True,
                 'api_access': True,
                 'api_keys_manage': True,
                 'psa_ai_view': True,

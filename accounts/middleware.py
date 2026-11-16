@@ -332,7 +332,7 @@ class SectionPermissionMiddleware:
     #
     # Contract documents (/contracts/) are written and sent by the MSP; the
     # people who sign them use the account-less pages under /sign/ instead.
-    STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/', '/contracts/',
+    STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/', '/contracts/', '/onboarding/',
                            '/pulse/', '/client-health/', '/payments/', '/backup-monitoring/', '/licensing/')
 
     # Token- or key-authenticated receivers under those prefixes. They don't

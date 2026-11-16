@@ -70,6 +70,7 @@ urlpatterns = [
     path('files/', include('files.urls')),
     path('office/', include('office.urls')),
     path('contracts/', include('contracts.urls')),
+    path('onboarding/', include('onboarding.urls')),
     # Public, account-less contract signing pages (opaque tokens; see contracts/public_views.py).
     path('sign/', include('contracts.public_urls')),
     path('integrations/', include('integrations.urls')),

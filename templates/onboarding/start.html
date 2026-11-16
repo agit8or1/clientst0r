@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Onboard customer{% endblock %}
+{% block content %}
+<h2 class="h4 card card-body cd-page-head mb-3">Customer onboarding</h2>
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card mb-3">
+            <div class="card-header"><strong>In progress</strong></div>
+            {% if sessions %}
+            <ul class="list-group list-group-flush">
+                {% for s in sessions %}
+                <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                    <div>
+                        <a href="{% url 'onboarding:session' s.pk %}"><strong>{{ s.display_title }}</strong></a>
+                        <div class="small text-body-secondary">{{ s.get_kind_display }} &middot; started {{ s.created_at|date:"j M Y" }}{% if s.created_by %} by {{ s.created_by.get_full_name|default:s.created_by.username }}{% endif %}</div>
+                    </div>
+                    <span class="d-flex align-items-center gap-2">
+                        <span class="badge text-bg-{% if s.status == 'draft' %}secondary{% elif s.status == 'in_progress' %}primary{% else %}warning{% endif %}">{{ s.get_status_display }}</span>
+                        <a class="btn btn-sm btn-outline-primary" href="{% url 'onboarding:session' s.pk %}">Resume</a>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="card-body text-body-secondary">Nothing in progress. Start one on the right; you can leave and resume it later.</div>
+            {% endif %}
+        </div>
+        {% if recent %}
+        <div class="card">
+            <div class="card-header"><strong>Recently closed</strong></div>
+            <ul class="list-group list-group-flush">
+                {% for s in recent %}<li class="list-group-item d-flex justify-content-between"><a href="{% url 'onboarding:session' s.pk %}">{{ s.display_title }}</a><span class="badge text-bg-light">{{ s.get_status_display }}</span></li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-lg-5">
+        <form method="post" class="card card-body mb-3">
+            {% csrf_token %}
+            <h3 class="h6">New customer</h3>
+            <p class="small text-body-secondary">Walks through the customer record, locations, plan, agreement, integrations and activation. Only the first step is required to create the customer; the rest can be skipped or finished later.</p>
+            <button class="btn btn-primary" name="kind" value="new_customer"><i class="fas fa-user-plus" aria-hidden="true"></i> Onboard a customer</button>
+        </form>
+        <form method="post" class="card card-body">
+            {% csrf_token %}
+            <h3 class="h6">Change for an existing customer</h3>
+            <p class="small text-body-secondary">Every change that touches price or contract creates a draft that goes through the normal approval flow. Nothing is applied directly.</p>
+            <div class="mb-2">
+                <label class="form-label" for="client">Customer</label>
+                <select class="form-select" id="client" name="client" required>
+                    <option value="">Choose a customer…</option>
+                    {% for c in clients %}<option value="{{ c.pk }}" {% if preselect_client == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="kind">Change</label>
+                <select class="form-select" id="kind" name="kind">
+                    {% for k, label in lifecycle_kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-outline-primary">Start change</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

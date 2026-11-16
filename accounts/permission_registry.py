@@ -274,6 +274,10 @@ PERMISSIONS: List[Permission] = [
        staff_only=True),
     _p('crm_manage_campaigns', 'sales', 'edit', E, False, 'Create / edit marketing campaigns and view ROI',
        staff_only=True),
+    _p('manage_customer_onboarding', 'sales', 'create', E, False,
+       'Run the customer onboarding and lifecycle change wizards (commercial changes are drafts that still '
+       'go through approval; each step also needs the permission of the thing it changes)',
+       ENFORCED, staff_only=True),
     _p('crm_view_forecast', 'sales', 'view', X, False, 'See the weighted pipeline forecast', staff_only=True),
     _p('crm_approve_commissions', 'sales', 'approve', X, False, 'Decide and pay out sales commissions',
        PENDING, staff_only=True),

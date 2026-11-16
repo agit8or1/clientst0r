@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ step.title }} - {{ session.display_title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'onboarding:start' %}">Onboarding</a></li><li class="breadcrumb-item"><a href="{% url 'onboarding:session' session.pk %}">{{ session.display_title }}</a></li><li class="breadcrumb-item active">{{ step.title }}</li></ol></nav>
+<div class="row g-3">
+    <aside class="col-lg-4 order-lg-2">
+        <div class="card mb-2"><div class="card-body py-2 small">{{ counts.done }} done, {{ counts.skipped }} skipped of {{ counts.total }}
+            <div class="progress mt-1" role="progressbar" aria-label="Progress" aria-valuenow="{{ counts.percent }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width: {{ counts.percent }}%"></div></div></div></div>
+        {% include "onboarding/_checklist.html" %}
+        <p class="small text-body-secondary mt-2">Progress is saved after every step. Leave any time and resume from Onboarding.</p>
+    </aside>
+    <div class="col-lg-8 order-lg-1">
+        <div class="card card-body">
+            <h2 class="h5">{{ step.title }}{% if step.commercial %} <span class="badge text-bg-info" title="Only ever creates or edits a draft; approval still applies">draft only</span>{% endif %}</h2>
+            <p class="text-body-secondary">{{ step.summary }}</p>
+            {% if row.status == 'done' %}<div class="alert alert-success py-2">This step is done. You can change the answers and save again.</div>{% elif row.status == 'skipped' %}<div class="alert alert-secondary py-2">Skipped{% if row.state.notes %}: {{ row.state.notes }}{% endif %}.</div>{% endif %}
+            {% if not row.available %}
+                <div class="alert alert-warning">{{ row.unavailable_reason }} You can skip this step now and come back after it is enabled.</div>
+            {% elif denial %}
+                <div class="alert alert-warning">{{ denial }}</div>
+            {% endif %}
+            {% if ctx.note %}<div class="alert alert-info py-2">{{ ctx.note }}</div>{% endif %}
+            {% if ctx.existing_locations %}<h3 class="h6">Locations so far</h3><ul>{% for l in ctx.existing_locations %}<li>{{ l.name }}, {{ l.city }}{% if l.is_primary %} (primary){% endif %}</li>{% endfor %}</ul>{% endif %}
+            {% if ctx.lines %}<h3 class="h6">Lines the draft will contain</h3><table class="table table-sm"><thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Discount %</th></tr></thead><tbody>{% for l in ctx.lines %}<tr><td>{{ l.description }}</td><td class="text-end">{{ l.quantity }}</td><td class="text-end">{{ l.unit_price }}</td><td class="text-end">{{ l.discount_percent }}</td></tr>{% endfor %}</tbody></table>{% elif ctx.lines != None and step.key == 'generate_document' %}<p class="small text-body-secondary">No priced lines yet: record quantities and prices first, or edit the draft by hand.</p>{% endif %}
+            {% if ctx.missing_prices %}<div class="alert alert-warning py-2"><strong>Prices missing</strong><ul class="mb-0">{% for m in ctx.missing_prices %}<li>{{ m }}</li>{% endfor %}</ul></div>{% endif %}
+            {% if ctx.missing %}<div class="alert alert-warning py-2"><strong>No price for</strong><ul class="mb-0">{% for m in ctx.missing %}<li>{{ m.name }}: {{ m.reason }}</li>{% endfor %}</ul></div>{% endif %}
+            {% if ctx.agreement %}<p class="small">Agreement draft: <a href="{% url 'contracts:detail' ctx.agreement.pk %}">{{ ctx.agreement.reference }}</a> ({{ ctx.agreement.get_status_display }})</p>{% endif %}
+            {% if ctx.quote %}<p class="small">Quote draft: <a href="{% url 'psa:quote_detail' ctx.quote.pk %}">{{ ctx.quote.quote_number }}</a> ({{ ctx.quote.get_status_display }})</p>{% endif %}
+            {% if ctx.proration %}
+            <div class="alert alert-light border py-2">
+                <strong>Proration preview</strong>
+                {% if ctx.proration.factor %}
+                <div>Effective part of the {{ ctx.proration.frequency }} period starting {{ ctx.proration.period_start|date:"j M Y" }}: {{ ctx.proration.factor }}. First-period amount {{ ctx.proration.prorated }} instead of {{ ctx.proration.full }}.</div>
+                {% endif %}
+                <div class="small text-body-secondary">{{ ctx.proration.note }}</div>
+            </div>
+            {% endif %}
+            {% if form and row.available %}
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3">
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                        <div class="form-check">{{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+                    {% else %}
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+                    {% endif %}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" {% if denial %}disabled{% endif %}>Save and continue</button>
+                    <button class="btn btn-outline-primary" name="save_and_exit" value="1" {% if denial %}disabled{% endif %}>Save and finish later</button>
+                    {% if step.key == 'locations' %}<button class="btn btn-outline-secondary" name="stay" value="1" {% if denial %}disabled{% endif %}>Save and add another</button>{% endif %}
+                </div>
+            </form>
+            {% endif %}
+            {% if not form and row.available and not denial %}<p class="text-body-secondary">This step has nothing to fill in.</p>{% endif %}
+            {% if row.skippable and session.is_open %}
+            <form method="post" action="{% url 'onboarding:skip' session.pk step.key %}" class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+                {% csrf_token %}
+                <input class="form-control form-control-sm" style="max-width: 20rem;" name="note" maxlength="200" placeholder="Why skip it? (optional)" aria-label="Reason for skipping">
+                <button class="btn btn-sm btn-outline-secondary">Skip this step</button>
+            </form>
+            {% endif %}
+            {% if row.status in 'done,skipped' and session.is_open %}
+            <form method="post" action="{% url 'onboarding:reopen' session.pk step.key %}" class="mt-2">{% csrf_token %}<button class="btn btn-sm btn-link p-0">Reopen this step</button></form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

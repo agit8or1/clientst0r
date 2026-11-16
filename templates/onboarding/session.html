@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ session.display_title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'onboarding:start' %}">Onboarding</a></li><li class="breadcrumb-item active">{{ session.display_title }}</li></ol></nav>
+<div class="card card-body cd-page-head mb-3 d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h2 class="h4 mb-1">{{ session.display_title }}</h2>
+        <span class="badge text-bg-secondary">{{ session.get_status_display }}</span>
+        <span class="small text-body-secondary ms-2">{{ counts.done }} done, {{ counts.skipped }} skipped of {{ counts.total }}</span>
+    </div>
+    <div class="d-flex gap-2">
+        {% if session.client %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:organization_detail' session.client.pk %}">Open customer</a>{% endif %}
+        {% if session.is_open %}<a class="btn btn-sm btn-primary" href="{% url 'onboarding:step' session.pk session.current_step %}">Continue</a>{% endif %}
+    </div>
+</div>
+<div class="progress mb-3" role="progressbar" aria-label="Progress" aria-valuenow="{{ counts.percent }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width: {{ counts.percent }}%"></div></div>
+<div class="row g-3">
+    <div class="col-lg-8">{% include "onboarding/_checklist.html" %}</div>
+    <div class="col-lg-4">
+        <div class="card card-body mb-3">
+            <h3 class="h6">Drafts made by this session</h3>
+            {% if session.agreement %}<p class="mb-1"><i class="fas fa-file-contract" aria-hidden="true"></i> Agreement <a href="{% url 'contracts:detail' session.agreement.pk %}">{{ session.agreement.reference }}</a> <span class="badge text-bg-light">{{ session.agreement.get_status_display }}</span></p>{% endif %}
+            {% if session.quote %}<p class="mb-1"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Quote <a href="{% url 'psa:quote_detail' session.quote.pk %}">{{ session.quote.quote_number }}</a> <span class="badge text-bg-light">{{ session.quote.get_status_display }}</span></p>{% endif %}
+            {% if not session.agreement and not session.quote %}<p class="small text-body-secondary mb-0">None yet.</p>{% endif %}
+        </div>
+        {% if session.is_open %}
+        <form method="post" action="{% url 'onboarding:cancel' session.pk %}" data-confirm="Cancel this session? Drafts and records already created are kept.">
+            {% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancel session</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
