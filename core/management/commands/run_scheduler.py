@@ -67,6 +67,8 @@ COMMAND_TASKS = {
     'contracts_maintenance': ('contracts_maintenance', []),
     'm365_edit_sessions': ('m365_edit_sessions', []),
     'pulse_send_due': ('pulse_send_due', []),
+    'connect_deliver_events': ('connect_deliver_events', []),
+    'connect_rotate_keys': ('connect_rotate_keys', []),
 }
 
 

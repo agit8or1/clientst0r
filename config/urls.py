@@ -110,6 +110,11 @@ urlpatterns = [
     path('settings/security/rmm-permissions/', include('rmm_permissions.urls')),
     # Ticket ↔ paired RMM integration (ticket-rmm-v1): signed requests only.
     path('api/integration/v1/', include('psa_ai.integration_api')),
+    # Agit8or Connect (app-to-app): discovery, pairing, token, events and the
+    # Connected Applications admin pages. Every route 404s unless
+    # AGIT8OR_CONNECT_ENABLED is on.
+    path('', include('connect.urls_api')),
+    path('settings/integrations/connected-apps/', include('connect.urls_ui')),
 
     # API
     path('api/', include('api.urls')),

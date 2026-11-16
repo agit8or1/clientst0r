@@ -475,6 +475,10 @@ export function verifyPairingPoll(token: string, initiatorKey: KeyObject, o: { i
 // --- webhooks ------------------------------------------------------------------
 
 export const EVENT_PREFIX = 'agit8or-connect-event-v1';
+/** Connection-level events: no tenant, accepted from any active connection. */
+export const CONNECTION_EVENTS = ['connect.test', 'connect.connection.revoked'];
+export const isConnectionEvent = (env: { type?: unknown; tenant?: unknown }): boolean =>
+  CONNECTION_EVENTS.includes(String(env.type)) && !env.tenant;
 
 export function eventSigningString(o: { connectionId: string; eventId: string; timestamp: number; sender: string; receiver: string; body: Buffer }): string {
   return [EVENT_PREFIX, o.connectionId, o.eventId, String(o.timestamp), o.sender, o.receiver, sha256Hex(o.body)].join('\n');

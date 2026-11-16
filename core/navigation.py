@@ -45,6 +45,17 @@ def _superuser(ctx):
     return bool(u is not None and u.is_superuser)
 
 
+def _app_connections_viewer(ctx):
+    """Agit8or Connect pages: only while the feature is on, for holders of
+    view_app_connections."""
+    from django.conf import settings as dj_settings
+    u = _user(ctx)
+    if u is None or not getattr(dj_settings, 'AGIT8OR_CONNECT_ENABLED', False):
+        return False
+    from accounts.permission_utils import user_has_perm
+    return user_has_perm(u, 'view_app_connections')
+
+
 def _msp_staff(ctx):
     """base.html's `is_staff_user or user.is_superuser or user.is_staff`."""
     u = _user(ctx)
@@ -773,6 +784,9 @@ SECTIONS = (
             keywords='psa rmm m365 unifi connections overview'),
         Tab(_('RMM · Rem0te'), 'integrations:rem0te_setup', 'fa-desktop', gate=_superuser,
             keywords='remote access rmm'),
+        Tab(_('Connected Applications'), 'connect:index', 'fa-link', gate=_app_connections_viewer,
+            keywords='agit8or connect app pairing rem0te keys kill switch',
+            also=('connect:connect_app', 'connect:invite', 'connect:request_review', 'connect:detail')),
         Tab(_('Accounting'), 'integrations:accounting_list', 'fa-calculator', gate=_django_staff_or_superuser,
             keywords='quickbooks xero'),
         Tab(_('Distributors'), 'integrations:distributor_list', 'fa-warehouse',
@@ -1311,7 +1325,7 @@ NAMESPACE_GROUP = {
     'reports': 'reports',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',
-    'audit': 'settings', 'rmm_permissions': 'settings',
+    'audit': 'settings', 'rmm_permissions': 'settings', 'connect': 'settings',
 }
 # PSA pages that are commercial rather than service work.
 _PSA_BUSINESS_PREFIXES = ('invoice', 'quote', 'contract', 'aging', 'billing', 'requisition',

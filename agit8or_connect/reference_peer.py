@@ -351,7 +351,11 @@ class ReferencePeer:
             return self._json(200, {'status': 'duplicate', 'id': eid})
         if env['loop']:
             return self._json(200, {'status': 'ignored_loop', 'id': eid})
-        authorize(self.grants, conn.id, env.get('tenant', ''), 'events:publish', conn.inbound_scopes)
+        if webhooks.is_connection_event(env):
+            if env['type'] == 'connect.connection.revoked':
+                conn.state = 'revoked'
+        else:
+            authorize(self.grants, conn.id, env.get('tenant', ''), 'events:publish', conn.inbound_scopes)
         conn.received_events.append(env)
         return self._json(200, {'status': 'accepted', 'id': eid})
 

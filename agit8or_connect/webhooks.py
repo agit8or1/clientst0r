@@ -105,6 +105,15 @@ def body_of(env: dict) -> bytes:
     return canonical_bytes(env)
 
 
+# Connection-level events: no tenant, accepted from any active connection
+# (no events:publish needed). Any other type needs a granted tenant.
+CONNECTION_EVENTS = ('connect.test', 'connect.connection.revoked')
+
+
+def is_connection_event(env: dict) -> bool:
+    return env.get('type') in CONNECTION_EVENTS and not env.get('tenant')
+
+
 def validate_envelope(env, *, event_id: str, sender: str, receiver: str) -> dict:
     """Checks the members the protocol needs; unknown members are ignored
     (forward compatibility). Returns {'loop': bool, ...env}."""

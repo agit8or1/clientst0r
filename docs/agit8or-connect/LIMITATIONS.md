@@ -9,6 +9,9 @@ What is **not** done or not proven yet. Keep this list current. Don't describe a
   "Available — needs a Rem0te release with Agit8or Connect support (not yet released)". Every other app is "Planned".
 - **Off by default.** `AGIT8OR_CONNECT_ENABLED=False` makes every Connect route and page answer 404.
   `AGIT8OR_CONNECT_PUBLIC_URL` should be set to the externally reachable https address before turning it on.
+- **Only superusers by default.** The new role permissions `view_app_connections` and
+  `manage_app_connections` (MSP staff only) are off for every role, built-in ones included. Grant them in a role
+  to let other staff see or manage connected applications.
 - **Only three scopes are available**: `connection:read`, `customers:read`, `events:publish`.
   `assets:read`, `tickets:read`, `tickets:write` and `ticket_analysis:submit` (the transitional ticket-rmm-v1
   profile) are advertised as unavailable. So are `remote_actions:execute` (high risk) and `connection:admin`.

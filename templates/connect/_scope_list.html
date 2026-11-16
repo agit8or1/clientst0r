@@ -1,0 +1,1 @@
+{% for g in groups %}<div><span class="{% if g.risk == 'high_risk' or g.risk == 'admin' %}text-danger{% endif %}">{{ g.label }}:</span> {% for s in g.scopes %}{{ s.description }}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% empty %}<div class="text-muted">Nothing.</div>{% endfor %}

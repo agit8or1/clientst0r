@@ -1,0 +1,14 @@
+{% comment %}Checkbox list of scopes grouped by risk. name=field name, checked=list, disabled_unavailable{% endcomment %}
+{% for g in groups %}
+<fieldset class="mb-2">
+  <legend class="h6 {% if g.risk == 'high_risk' or g.risk == 'admin' %}text-danger{% endif %}">{{ g.label }}</legend>
+  {% for s in g.scopes %}
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="{{ name }}" value="{{ s.name }}" id="{{ name }}-{{ s.name }}"
+      {% if s.name in checked %}checked{% endif %} {% if not s.available %}disabled{% endif %}>
+    <label class="form-check-label" for="{{ name }}-{{ s.name }}">{{ s.description }} <code class="small">{{ s.name }}</code>{% if not s.available %} <span class="badge bg-secondary">not available yet</span>{% endif %}</label>
+  </div>
+  {% endfor %}
+</fieldset>
+{% empty %}<p class="text-muted">None.</p>
+{% endfor %}
