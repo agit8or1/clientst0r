@@ -21,8 +21,8 @@
         </div>
         <div>
             <span class="badge bg-light text-dark border">Current rate as of {{ today|date:"Y-m-d" }}:
-                <strong>${{ current_rate }}</strong>
-                {% if not has_explicit_cost_rate %}<span class="text-muted ms-1">(default)</span>{% endif %}
+                {% if has_explicit_cost_rate %}<strong>${{ current_rate }}</strong>
+                {% else %}<strong>not set</strong><span class="text-muted ms-1">(cost reported as unknown)</span>{% endif %}
             </span>
         </div>
     </div>
@@ -103,7 +103,7 @@
                             {% empty %}
                             <tr>
                                 <td colspan="5" class="text-center text-muted py-3">
-                                    No cost-rate rows yet. The default of <strong>${{ default_rate }}/hr</strong> is in effect.
+                                    No cost-rate rows yet. Profitability reports show this technician's cost as unknown until a rate is added.
                                 </td>
                             </tr>
                             {% endfor %}

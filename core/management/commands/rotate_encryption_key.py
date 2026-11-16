@@ -143,17 +143,18 @@ class Command(BaseCommand):
                 if value in (None, ''):
                     skipped += 1
                     continue
+                aad = field.row_aad(pk)  # column AAD, or "<aad>#<pk>" for bind_row fields
                 try:
                     with v1.using_master_keys(target, decrypt_keys):
                         if sf.is_sealed(value):
-                            plaintext = sf.unseal(value, field.aad)
+                            plaintext = sf.unseal(value, aad)
                         else:
                             # Pre-envelope value: once the old key is gone
                             # nothing could read it, so convert it now.
                             plaintext = sf.decode_legacy(value, field.legacy)
-                        new_value = sf.seal(plaintext, field.aad)
+                        new_value = sf.seal(plaintext, aad)
                     with v1.using_master_keys(target, [target]):
-                        if sf.unseal(new_value, field.aad) != plaintext:
+                        if sf.unseal(new_value, aad) != plaintext:
                             raise ValueError('verification mismatch')
                 except Exception as e:
                     self.failures.append((label, pk, type(e).__name__))

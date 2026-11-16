@@ -278,7 +278,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `billing_approve_invoices` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `billing_issue_credit` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `billing_manage_charges` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `view_internal_cost_rates` | ✔ | ✔ |  |  |  |  |  |  | ✔ |  |
+| `manage_tax_settings` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | **Procurement** | | | | | | | | | | |
 | `procurement_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  | ✔ | ✔ |
 | `procurement_create_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
@@ -289,6 +289,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | **Reports & dashboards** | | | | | | | | | | |
 | `reports_view_dashboards` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `reports_view_financial` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `view_profitability` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `reports_view_sla` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `reports_view_capacity` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `reports_manage_dashboards` | ✔ | ✔ | ✔ |  |  |  |  | ✔ |  |  |
@@ -299,6 +300,12 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `resourcing_manage_cost_rates` | ✔ |  |  |  |  |  |  |  |  |  |
 | `resourcing_approve_leave` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
 | `resourcing_manage_holidays` | ✔ | ✔ |  |  |  |  |  |  |  |  |
+| **Pricing & rate cards** | | | | | | | | | | |
+| `pricing_manage_price_books` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_manage_service_plans` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_view_internal_cost_rates` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_manage_labor_rate_cards` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_approve_discounts` | ✔ |  |  |  |  |  |  | ✔ | ✔ |  |
 | **API & automation** | | | | | | | | | | |
 | `api_access` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | `api_keys_manage` | ✔ | ✔ |  |  |  |  |  |  |  |  |
@@ -410,6 +417,7 @@ Members, invitations, roles, ownership and organization settings.
 | `org_manage_privileged` | Manage roles | critical | no | enforced | Assign or remove privileged roles (roles holding user, role, security or platform administration) |
 | `roles_manage` | Manage roles | critical | no | enforced | Create, clone, edit and archive custom roles |
 | `org_manage_settings` | Manage settings | critical | no | enforced | Change organization settings |
+| `manage_sso_settings` | Manage settings | critical | staff only | enforced | Configure single sign-on (OIDC): identity providers, role and customer mappings, linked accounts |
 | `org_owner` | Manage roles | critical | no | enforced | Organization owner: ownership transfer, owner-only operations, billing and security policy. Only granted through ownership transfer. |
 
 ### Tickets & queues
@@ -550,6 +558,8 @@ PSA / RMM / M365 and other connections and syncs.
 | `integrations_view_synced_psa` | View / list | elevated | staff only | pending | View synced PSA companies, contacts and tickets (raw provider data) |
 | `integrations_configure` | Manage settings | critical | no | enforced | Configure integrations |
 | `integrations_sync` | Execute scripts / actions | elevated | no | enforced | Trigger sync operations |
+| `view_app_connections` | View / list | elevated | staff only | enforced | Connected applications (Agit8or Connect): view connections, permissions, customer grants and activity |
+| `manage_app_connections` | Manage settings | critical | staff only | enforced | Connected applications (Agit8or Connect): pair, approve, rotate, disconnect, revoke, kill switch |
 
 ### Sales, quotes & CRM
 
@@ -601,7 +611,9 @@ Invoices, payments, aging.
 | `billing_approve_invoices` | Approve | sensitive | staff only | pending | Approve invoices through the approval gate |
 | `billing_issue_credit` | Edit | sensitive | staff only | pending | Issue credit memos |
 | `billing_manage_charges` | Edit | sensitive | staff only | pending | Add charges, invoice tickets / projects and push invoices to accounting |
-| `view_internal_cost_rates` | View / list | sensitive | staff only | enforced | See internal cost (what the MSP pays the vendor) on license subscriptions |
+| `process_refunds` | Edit | sensitive | staff only | enforced | Refund card / bank payments through the payment provider (full or partial) |
+| `manage_payment_providers` | Manage settings | critical | staff only | enforced | Configure payment provider connections (keys, webhook secrets) and autopay |
+| `manage_tax_settings` | Manage settings | sensitive | staff only | enforced | Configure sales tax (mode, provider, manual rates, categories, customer exemptions) and apply audited manual tax overrides |
 
 ### Procurement
 
@@ -624,6 +636,7 @@ Dashboards, financial / SLA / capacity reports, schedules.
 |---|---|---|---|---|---|
 | `reports_view_dashboards` | View / list | standard | yes | enforced | View dashboards |
 | `reports_view_financial` | View / list | sensitive | no | enforced | Profitability, effective rate, revenue leakage, margin analytics |
+| `view_profitability` | View / list | sensitive | staff only | enforced | Labour cost and margin: profitability reports, margin analytics, effective rate / realization, contract and project margin (MSP staff only) |
 | `reports_view_sla` | View / list | elevated | staff only | enforced | SLA trend report |
 | `reports_view_capacity` | View / list | elevated | staff only | enforced | Capacity / utilization report |
 | `reports_manage_dashboards` | Edit | elevated | no | enforced | Create / edit / delete dashboards and widgets |
@@ -640,6 +653,18 @@ Team roster, cost rates, leave and holidays.
 | `resourcing_manage_cost_rates` | Edit | sensitive | staff only | enforced | Edit per-tech loaded cost rates |
 | `resourcing_approve_leave` | Approve | elevated | staff only | enforced | Approve / deny leave requests |
 | `resourcing_manage_holidays` | Manage settings | elevated | no | enforced | Manage holidays (an organization's own business-hours calendar) |
+
+### Pricing & rate cards
+
+Price books, service plans, labor rate cards, internal costs.
+
+| Key | Action | Sensitivity | Customer | Status | Description |
+|---|---|---|---|---|---|
+| `pricing_manage_price_books` | Edit | sensitive | staff only | enforced | Create and edit price books, items, tiers, customer price overrides and scheduled price changes |
+| `pricing_manage_service_plans` | Edit | sensitive | staff only | enforced | Create and edit service plans, their entitlements and customer plan subscriptions |
+| `pricing_view_internal_cost_rates` | View / list | sensitive | staff only | enforced | See internal costs, margins and technician cost rates (hidden from everyone else) |
+| `pricing_manage_labor_rate_cards` | Edit | sensitive | staff only | enforced | Create and edit labor roles, rate cards and billing rules |
+| `pricing_approve_discounts` | Approve | sensitive | staff only | enforced | Approve customer prices below an item minimum price |
 
 ### API & automation
 
@@ -702,7 +727,7 @@ What a customer user may do in the portal beyond the basics.
 | `portal_tickets_reply` | Edit | standard | yes | enforced | Reply, send secure replies, escalate and vote on tickets the user can see |
 | `portal_approve_requests` | Approve | elevated | yes | enforced | Request approver: decide client approvals for the customer |
 | `portal_agreements_view_org` | View / list | sensitive | yes | enforced | See coworkers' agreement signatures and their evidence (not only the user's own) |
-| `portal_billing_contact` | View / list | sensitive | yes | pending | Billing contact: see invoices and billing notices for the customer |
+| `portal_billing_contact` | View / list | sensitive | yes | enforced | Billing contact: see invoices, pay them online, payment history and autopay for the customer |
 | `portal_contract_review` | View / list | elevated | yes | pending | Contract reviewer: read contracts sent to the customer |
 | `portal_contract_sign` | Sign / countersign | sensitive | yes | enforced | Authorized contract signer: sign contracts for the customer |
 
@@ -738,6 +763,7 @@ What a customer user may do in the portal beyond the basics.
 | `rmm_permissions` | RMM tier from the global role x technician access assignment |
 | `portal` | customer membership + portal_* permissions; never internal notes or other customers |
 | `resourcing` | resourcing_* (MSP staff) |
+| `pricing` | pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions) |
 | `crm` | crm_* (MSP staff only section) |
 | `security_alerts` | security_alerts_* (MSP staff only section) |
 | `compliance` | membership role per customer |
@@ -747,5 +773,7 @@ What a customer user may do in the portal beyond the basics.
 | `network_discovery` | network_discovery_generate + assets_* |
 | `office` | docs_* / files_* per customer |
 | `contracts` | contracts_* (staff) and portal_contract_* (customer) via accounts.contract_access |
+| `payments` | manage_payment_providers / process_refunds (MSP staff); portal_billing_contact (customer) |
+| `connect` | view_app_connections / manage_app_connections (MSP staff); app API by DPoP token + tenant grant |
 
 <!-- END GENERATED: manage.py roles_matrix -->

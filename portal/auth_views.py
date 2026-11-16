@@ -28,6 +28,7 @@ from django.shortcuts import redirect, render
 from django.template import loader
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 from two_factor.forms import AuthenticationTokenForm, BackupTokenForm
 from two_factor.views.core import (
@@ -189,6 +190,12 @@ class PortalPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
             return None
         return user
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        from accounts import session_epoch
+        session_epoch.sign_out(form.user, session_epoch.SCOPE_ALL, reason='portal password reset')
+        return response
+
 
 class PortalPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
     template_name = 'portal/auth/password_reset_complete.html'
@@ -265,6 +272,9 @@ def portal_password_change(request):
                 request.session['_auth_user_otp_device_id'] = otp_device_id
                 request.session.modified = True
             revoked = active_before
+            from accounts import session_epoch
+            session_epoch.sign_out(user, session_epoch.SCOPE_OTHERS, actor=user, request=request,
+                                   reason='portal password changed')
             try:
                 from api_mobile.models import MobileAuthToken
                 MobileAuthToken.revoke_all_for(user)
@@ -291,6 +301,24 @@ def portal_password_change(request):
     else:
         form = PasswordChangeForm(user)
     return render(request, 'portal/auth/password_change.html', {'form': form})
+
+
+@require_POST
+def portal_sessions_sign_out(request):
+    """A portal user signs out of every other browser (this one stays).
+    Acts on request.user only; staff accounts are refused like on the rest
+    of the portal account pages."""
+    from django.contrib.auth.views import redirect_to_login
+    from accounts import session_epoch
+
+    if not request.user.is_authenticated:
+        return redirect_to_login(reverse('portal_auth:password_change'), reverse('portal_auth:login'))
+    if not portal_surface.is_portal_user(request.user):
+        return render(request, 'portal/auth/staff_account.html', status=404)
+    session_epoch.sign_out(request.user, session_epoch.SCOPE_OTHERS, actor=request.user,
+                           request=request, reason='portal: signed out by the user')
+    messages.success(request, 'Signed out of all other sessions. This browser stays signed in.')
+    return redirect('portal_auth:password_change')
 
 
 # ---------------------------------------------------------------------------
@@ -328,6 +356,10 @@ def portal_set_password(request, uidb64, token):
             user.set_password(pw1)
             user.is_active = True
             user.save()
+            # Any session from before the new password ends; the sign-in
+            # below stamps this browser after the epoch.
+            from accounts import session_epoch
+            session_epoch.sign_out(user, session_epoch.SCOPE_ALL, reason='portal password set')
             # Signed in straight away; the 2FA middleware then asks for
             # enrolment on the portal's 2FA pages when 2FA is required.
             user.backend = 'django.contrib.auth.backends.ModelBackend'

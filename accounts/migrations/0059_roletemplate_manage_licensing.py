@@ -1,18 +1,19 @@
-"""Software licensing: `manage_licensing` and `view_internal_cost_rates`.
+"""Software licensing: the `manage_licensing` role permission.
 
-Both are new, MSP-staff-only role permissions and off for every existing role
-(no existing access changes). Built-in roles keep their "not customized"
+New, MSP-staff-only and off for every existing role (no existing access
+changes). License cost visibility reuses `pricing_view_internal_cost_rates`.
+Built-in roles keep their "not customized"
 state: their seed checksum is recomputed with the new fields (False) for each
 built-in role whose checksum still matched what was seeded. The seed
-definitions are then re-applied (Owner, Organization Administrator and
-Billing / Finance moved to version 2): untouched built-ins pick up the new
+definitions are then re-applied (Owner moved to version 5, Organization
+Administrator to version 2): untouched built-ins pick up the new
 permissions, customized ones are left alone and listed for review.
 """
 import hashlib
 
 from django.db import migrations, models
 
-NEW_KEYS = ('manage_licensing', 'view_internal_cost_rates')
+NEW_KEYS = ('manage_licensing',)
 SKIP = {'is_system_template', 'is_archived'}
 
 
@@ -44,7 +45,7 @@ def reseed(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0050_dashboard_global_layout'),
+        ('accounts', '0058_roletemplate_view_profitability'),
     ]
 
     operations = [
@@ -52,11 +53,6 @@ class Migration(migrations.Migration):
             model_name='roletemplate',
             name='manage_licensing',
             field=models.BooleanField(default=False, help_text='Create / edit / delete software license subscriptions and assignments, and run license syncs.'),
-        ),
-        migrations.AddField(
-            model_name='roletemplate',
-            name='view_internal_cost_rates',
-            field=models.BooleanField(default=False, help_text='See internal cost (what the MSP pays) on license subscriptions and similar records.'),
         ),
         migrations.RunPython(keep_seed_checksums, migrations.RunPython.noop),
         migrations.RunPython(reseed, migrations.RunPython.noop),

@@ -958,6 +958,45 @@ class TicketTimeEntry(models.Model):
         django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='+')
 
+    # Pricing snapshot (pricing app). Filled once when the entry is created,
+    # by pricing.services.snapshot_time_entry; later rate card / cost rate
+    # edits never change them. All NULL on entries created before pricing
+    # existed (rate_missing NULL = "never rated", not "rated fine").
+    RATE_TYPE_CHOICES = [
+        ('standard', 'Standard'), ('after_hours', 'After hours'), ('weekend', 'Weekend'),
+        ('holiday', 'Holiday'), ('emergency', 'Emergency'), ('onsite', 'Onsite'),
+        ('remote', 'Remote'), ('travel', 'Travel'), ('project', 'Project'),
+        ('consulting', 'Consulting'), ('fixed', 'Fixed'), ('minimum_charge', 'Minimum charge'),
+    ]
+    COVERAGE_CHOICES = [
+        ('', 'Not evaluated'), ('included', 'Included in allowance'), ('overage', 'Overage'),
+        ('partial', 'Partly included'), ('flat_fee', 'Covered by flat fee'),
+        ('no_contract', 'No contract'), ('non_billable', 'Non-billable'),
+    ]
+    bill_rate_snapshot = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Hourly bill rate resolved when the entry was created.')
+    cost_rate_snapshot = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Loaded cost per hour when the entry was created. NULL = unknown.')
+    rate_card_line = models.ForeignKey(
+        'pricing.RateCardLine', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='time_entries')
+    labor_role = models.ForeignKey(
+        'pricing.LaborRole', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='time_entries')
+    rate_type = models.CharField(max_length=20, choices=RATE_TYPE_CHOICES, blank=True, default='')
+    contract = models.ForeignKey(
+        'psa.Contract', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='rated_time_entries',
+        help_text='Contract in force when the entry was created (snapshot).')
+    included_vs_overage = models.CharField(
+        max_length=20, choices=COVERAGE_CHOICES, blank=True, default='')
+    rate_missing = models.BooleanField(
+        null=True, blank=True,
+        help_text='True = billable time with no resolvable bill rate. NULL = not rated.')
+    rate_missing_reason = models.CharField(max_length=300, blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1018,6 +1057,17 @@ class TicketTimeEntry(models.Model):
         if self.ended_at and self.started_at and not self.duration_minutes:
             delta = self.ended_at - self.started_at
             self.duration_minutes = max(0, int(delta.total_seconds() // 60))
+        if is_new and self.rate_missing is None:
+            # Rate snapshot, taken once. A pricing failure must never stop
+            # time from being recorded: flag the entry instead.
+            try:
+                from pricing.services import snapshot_time_entry
+                snapshot_time_entry(self)
+            except Exception as exc:  # pragma: no cover - defensive
+                import logging
+                logging.getLogger(__name__).exception('time entry rate snapshot failed')
+                self.rate_missing = bool(self.is_billable)
+                self.rate_missing_reason = f'Rate lookup failed: {exc.__class__.__name__}'[:300]
         super().save(*args, **kwargs)
 
         if approved_prior is not None:
@@ -1631,45 +1681,33 @@ class Project(models.Model):
         """Labour cost of the time logged against this project.
 
         Each entry is costed at the rate that applied to that technician on the
-        day the work happened — `TechCostRate` is effective-dated for exactly
-        this reason, so a raise in June does not retroactively make March's
-        work more expensive.
+        day the work happened (`reports.costing`: the entry's rate snapshot,
+        else the effective-dated `TechCostRate`), so a raise in June does not
+        retroactively make March's work more expensive.
 
-        `used_default_for` counts entries costed at the system default because
-        the technician has no configured rate. The number is still produced —
-        a default is better than refusing to cost anything — but the caller is
-        told, so a margin built on guesses is not presented as measured.
+        Entries with no rate — no technician recorded, or a technician with no
+        cost rate on that day — are NOT costed at a default. They are counted
+        in `unknown_cost_entries` / `unknown_cost_hours` (and, for backwards
+        compatibility, `used_default_for`), and `cost` is the known part only.
         """
         from decimal import Decimal
 
-        from resourcing.models import TechCostRate
+        from reports.costing import LaborTally, RateBook, entry_hours
 
         entries = (TicketTimeEntry.objects
                    .filter(ticket__project=self)
-                   .select_related('user'))
-
-        total = Decimal('0.00')
-        used_default_for = 0
-        rate_cache = {}
+                   .select_related('user', 'ticket'))
+        book = RateBook()
+        tally = LaborTally()
         for entry in entries:
-            if entry.user_id is None:
-                # Nobody to cost it against. Skipping is the honest choice:
-                # charging it at a default would attribute cost to a person
-                # who is not recorded.
-                continue
-            day = timezone.localtime(entry.started_at or entry.created_at).date()
-            key = (entry.user_id, day)
-            if key not in rate_cache:
-                rate_cache[key] = TechCostRate.rate_for(entry.user, day)
-                if not TechCostRate.objects.filter(
-                        user_id=entry.user_id, effective_from__lte=day).exists():
-                    used_default_for += 1
-            hours = Decimal(entry.duration_minutes or 0) / Decimal(60)
-            total += (hours * Decimal(str(rate_cache[key])))
+            tally.add_cost(entry_hours(entry), book.entry_cost_rate(entry))
 
         return {
-            'cost': total.quantize(Decimal('0.01')),
-            'used_default_for': used_default_for,
+            'cost': tally.cost.quantize(Decimal('0.01')),
+            'unknown_cost_entries': tally.unknown_cost_entries,
+            'unknown_cost_hours': float(round(tally.unknown_cost_hours, 2)),
+            'is_complete': tally.cost_complete,
+            'used_default_for': tally.unknown_cost_entries,
         }
 
     def actual_cost(self):
@@ -1690,7 +1728,9 @@ class Project(models.Model):
 
         margin = None
         margin_percent = None
-        if revenue is not None:
+        # No margin from a partial cost: hours without a cost rate would make
+        # the margin look better than it is.
+        if revenue is not None and breakdown['is_complete']:
             margin = (Decimal(str(revenue)) - cost).quantize(Decimal('0.01'))
             if revenue:
                 margin_percent = float(
@@ -1702,6 +1742,9 @@ class Project(models.Model):
             'margin': margin,
             'margin_percent': margin_percent,
             'used_default_cost_for': breakdown['used_default_for'],
+            'unknown_cost_entries': breakdown['unknown_cost_entries'],
+            'unknown_cost_hours': breakdown['unknown_cost_hours'],
+            'is_complete': breakdown['is_complete'] and revenue is not None,
             'billable_hours': self.actual_hours(billable_only=True),
             'total_hours': self.actual_hours(),
         }
@@ -2554,16 +2597,30 @@ class Contract(models.Model):
         prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(
             _D('0.01'), rounding=ROUND_HALF_UP)
 
-        inv = Invoice.objects.create(
-            organization=self.organization,
-            client_org=self.client_org,
-            title=f'{self.name} — {self.get_billing_frequency_display()} {on_date:%Y-%m}',
-            invoice_date=on_date,
-            billing_period_start=on_date,
-            currency='USD',
-            source_contract=self,
-            created_by=user,
-        )
+        # The lookup above is check-then-act; two concurrent runs can both
+        # pass it. The unique contract_period_key (and, where supported, the
+        # conditional constraint) stops the second insert — treat that as
+        # "already generated" and return the winner's invoice. A savepoint so
+        # an outer transaction (the recurring generator's) is not poisoned.
+        try:
+            with transaction.atomic():
+                inv = Invoice.objects.create(
+                    organization=self.organization,
+                    client_org=self.client_org,
+                    title=f'{self.name} — {self.get_billing_frequency_display()} {on_date:%Y-%m}',
+                    invoice_date=on_date,
+                    billing_period_start=on_date,
+                    currency='USD',
+                    source_contract=self,
+                    created_by=user,
+                )
+        except IntegrityError:
+            existing = Invoice.objects.filter(
+                source_contract=self, billing_period_start=on_date,
+                is_credit_memo=False).first()
+            if existing is not None:
+                return existing
+            raise
         if prorated_amount > 0:
             descr = (f'{self.get_contract_type_display()} — '
                      f'{self.get_billing_frequency_display()} period '
@@ -2836,13 +2893,21 @@ class Contract(models.Model):
 
     def profitability_snapshot(self):
         """
-        Coarse profitability dict for the active period. Revenue = invoiced
-        amount tied to this client (period-aware). Cost = hours_used × an
-        assumed loaded rate (TODO Phase 3: per-tech cost rate). Margin in %.
+        Operational profitability estimate for the contract window.
+
+        Revenue = bundled subtotal + allowance hours × hourly_rate + overage
+        hours × overage_rate (approximated from the contract's terms, not
+        from invoices). Cost = each qualifying time entry × the technician's
+        cost rate on the day of the work (`reports.costing`: entry snapshot,
+        else effective-dated TechCostRate, else unknown — never an assumed
+        share of the bill rate).
+
+        When any hour has no cost rate, `cost` is the known part only,
+        `is_complete` is False and `margin` / `margin_pct` are None.
         """
         from decimal import Decimal
-        # Revenue: bundled subtotal + (hours_used × hourly_rate) +
-        #         (overage_minutes × overage_rate). Approximate.
+        from reports.costing import LaborTally, RateBook, entry_hours, margin_fields
+
         bundled = self.bundled_subtotal()
         hours_used = Decimal(str(self.hours_used or 0))
         billed_hours = min(hours_used, self.total_hours or hours_used)
@@ -2852,20 +2917,23 @@ class Contract(models.Model):
             + billed_hours * (self.hourly_rate or Decimal('0'))
             + overage_hours * ((self.overage_rate or self.hourly_rate) or Decimal('0'))
         )
-        # Cost: placeholder — Phase 3 wires per-tech loaded rates. For now
-        # assume 60% of hourly_rate as cost-of-delivery.
-        assumed_cost_rate = (self.hourly_rate or Decimal('0')) * Decimal('0.60')
-        cost = hours_used * assumed_cost_rate
-        margin = revenue - cost
-        margin_pct = float((margin / revenue) * 100) if revenue else 0.0
-        return {
+
+        book = RateBook()
+        tally = LaborTally()
+        for entry in self.qualifying_time_entries().select_related('user', 'ticket'):
+            tally.add_cost(entry_hours(entry), book.entry_cost_rate(entry))
+        cost_fields = tally.cost_fields()
+        out = {
             'revenue': float(revenue),
-            'cost': float(cost),
-            'margin': float(margin),
-            'margin_pct': round(margin_pct, 1),
+            'cost': cost_fields['cost'],
             'hours_used': float(hours_used),
             'overage_hours': float(overage_hours),
+            'unknown_cost_hours': cost_fields['unknown_cost_hours'],
+            'unknown_cost_entries': cost_fields['unknown_cost_entries'],
         }
+        out.update(margin_fields(out['revenue'], out['cost'],
+                                 cost_complete=tally.cost_complete))
+        return out
 
 
 class ContractMeter(models.Model):
@@ -2956,6 +3024,20 @@ class ContractBundleItem(models.Model):
         max_length=20, choices=PERIOD_CHOICES, default='monthly',
     )
     sort_order = models.PositiveIntegerField(default=0)
+
+    # Pricing snapshot (pricing app): the price book item this line came
+    # from and what it cost / listed at when added. Nullable; lines typed
+    # by hand keep working as before, and nothing re-prices a line later.
+    price_book_item = models.ForeignKey(
+        'pricing.PriceBookItem', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='%(class)s_lines')
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Internal unit cost when the line was priced (snapshot).')
+    list_price_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Price book list price when the line was priced (snapshot).')
+    price_source = models.CharField(max_length=40, blank=True, default='',
+        help_text='How the price was resolved, e.g. pricing:price_book.')
+    price_resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -3316,6 +3398,13 @@ class Quote(models.Model):
         # the accounting providers by a cent on exact half-cent results.
         self.tax_amount = (taxable_sub * rate).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Sales tax (tax app): a tax calculated for exactly these lines (manual
+        # rates, Avalara / TaxJar, an exemption or an audited override) wins
+        # over rate x taxable lines; tax mode "none" is zero. See docs/TAX.md.
+        from tax.services import applied_tax_amount
+        _applied = applied_tax_amount(self)
+        if _applied is not None:
+            self.tax_amount = _applied
         self.total = sub + self.tax_amount
         self.save(update_fields=['subtotal', 'tax_amount', 'total'])
 
@@ -3446,6 +3535,20 @@ class QuoteLineItem(models.Model):
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_taxable = models.BooleanField(default=True)
+
+    # Pricing snapshot (pricing app): the price book item this line came
+    # from and what it cost / listed at when added. Nullable; lines typed
+    # by hand keep working as before, and nothing re-prices a line later.
+    price_book_item = models.ForeignKey(
+        'pricing.PriceBookItem', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='%(class)s_lines')
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Internal unit cost when the line was priced (snapshot).')
+    list_price_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Price book list price when the line was priced (snapshot).')
+    price_source = models.CharField(max_length=40, blank=True, default='',
+        help_text='How the price was resolved, e.g. pricing:price_book.')
+    price_resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'psa_quote_line_items'
@@ -4354,6 +4457,19 @@ class Invoice(models.Model):
         help_text='Start of the billing period this invoice covers, when it '
                   'was generated from a contract.')
 
+    # One-invoice-per-contract-period, enforced on every backend.
+    #
+    # The conditional UniqueConstraint below only exists on databases that
+    # support partial indexes. MariaDB/MySQL (the default DB_ENGINE) does not,
+    # and Django silently skips creating it there — so on those installs two
+    # concurrent generator runs could both bill the same period. This column
+    # is "<contract id>:<period start>" for a non-credit-memo contract-period
+    # invoice and NULL otherwise; a plain unique index on a nullable column
+    # works everywhere because NULLs never collide. Maintained by save().
+    contract_period_key = models.CharField(
+        max_length=64, null=True, blank=True, unique=True, editable=False,
+        help_text='Internal: enforces one invoice per contract billing period.')
+
     # Accounting integration handoff
     accounting_provider = models.CharField(max_length=50, blank=True,
         help_text='quickbooks_online | xero | etc.')
@@ -4459,6 +4575,10 @@ class Invoice(models.Model):
             models.Index(fields=['client_org', 'status']),
             models.Index(fields=['requires_approval', 'approved_at']),
         ]
+        permissions = [
+            ('force_repush_invoice',
+             'Can force re-push of an invoice to accounting'),
+        ]
         constraints = [
             # v3.17.564 — one invoice per contract per billing period.
             #
@@ -4516,7 +4636,19 @@ class Invoice(models.Model):
 
         return max(Decimal('0.00'), self.balance - self.credited_amount)
 
+    def compute_contract_period_key(self):
+        if (self.source_contract_id and self.billing_period_start
+                and not self.is_credit_memo):
+            return f'{self.source_contract_id}:{self.billing_period_start.isoformat()}'
+        return None
+
     def save(self, *args, **kwargs):
+        key = self.compute_contract_period_key()
+        if key != self.contract_period_key:
+            self.contract_period_key = key
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'contract_period_key' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['contract_period_key']
         if self.invoice_number:
             return super().save(*args, **kwargs)
 
@@ -4617,6 +4749,13 @@ class Invoice(models.Model):
         # results; `provider_tax_amount` exists to catch that kind of drift.
         self.tax_amount = (taxable_sub * rate).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Sales tax (tax app): a tax calculated for exactly these lines (manual
+        # rates, Avalara / TaxJar, an exemption or an audited override) wins
+        # over rate x taxable lines; tax mode "none" is zero. See docs/TAX.md.
+        from tax.services import applied_tax_amount
+        _applied = applied_tax_amount(self)
+        if _applied is not None:
+            self.tax_amount = _applied
         self.total = sub + self.tax_amount
         # Recompute amount_paid from related Payment rows
         paid = sum((Decimal(str(p.amount or '0')) for p in self.payments.all()), Decimal('0'))
@@ -4808,6 +4947,20 @@ class InvoiceLineItem(models.Model):
         help_text='Provider-side GL account code (QBO Item ref or '
                   'Xero AccountCode). Blank uses the connection default.',
     )
+
+    # Pricing snapshot (pricing app): the price book item this line came
+    # from and what it cost / listed at when added. Nullable; lines typed
+    # by hand keep working as before, and nothing re-prices a line later.
+    price_book_item = models.ForeignKey(
+        'pricing.PriceBookItem', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='%(class)s_lines')
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Internal unit cost when the line was priced (snapshot).')
+    list_price_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Price book list price when the line was priced (snapshot).')
+    price_source = models.CharField(max_length=40, blank=True, default='',
+        help_text='How the price was resolved, e.g. pricing:price_book.')
+    price_resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'psa_invoice_line_items'

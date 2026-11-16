@@ -1,10 +1,9 @@
-"""
-Phase 15 v12 (v3.17.297) — sales-tax compute provider adapters.
+"""Sales-tax provider adapters (Avalara AvaTax, TaxJar).
 
-Avalara AvaTax + TaxJar stubs ship today. Live compute_tax() implementations
-land when an MSP wires up a real account.
+Callers go through tax.services.calculate_tax(), which builds the request
+from a quote / invoice and records a TaxCalculation; see docs/TAX.md.
 """
-from .base import BaseTaxProvider, TaxProviderError
+from .base import BaseTaxProvider, TaxLine, TaxProviderError, TaxRequest, TaxResult
 from .avalara import AvalaraProvider
 from .taxjar import TaxJarProvider
 
@@ -15,8 +14,8 @@ PROVIDER_REGISTRY = {
 }
 
 
-def get_tax_provider(connection):
+def get_tax_provider(connection, sandbox=False):
     cls = PROVIDER_REGISTRY.get(connection.provider_type)
     if cls is None:
         return None
-    return cls(connection)
+    return cls(connection, sandbox=sandbox)

@@ -1,0 +1,48 @@
+{
+  "installations": {
+    "A": "11111111-1111-4111-8111-111111111111",
+    "B": "22222222-2222-4222-8222-222222222222"
+  },
+  "keys": {
+    "A": {
+      "fingerprint": "PYaB r5K5 adpR VgVz nHun WEov RNbX MBZV AK-A KdqE 1ys",
+      "public_jwk": {
+        "alg": "EdDSA",
+        "crv": "Ed25519",
+        "kid": "PYaBr5K5adpRVgVznHunWEovRNbXMBZVAK-AKdqE1ys",
+        "kty": "OKP",
+        "use": "sig",
+        "x": "DGKe1jXJyl7s9ci8QUasHdXqiwm1qFDJfORPf-3XWek"
+      },
+      "seed_hex": "587564735469c3291575ce95a75679f5859878ed4746ed33f90c8b3f6b517fef",
+      "thumbprint": "PYaBr5K5adpRVgVznHunWEovRNbXMBZVAK-AKdqE1ys"
+    },
+    "B": {
+      "fingerprint": "kI4y n7Ww yn8k TteO gD_w bpee wPPa IgjL 1cih uBkK BKI",
+      "public_jwk": {
+        "alg": "EdDSA",
+        "crv": "Ed25519",
+        "kid": "kI4yn7Wwyn8kTteOgD_wbpeewPPaIgjL1cihuBkKBKI",
+        "kty": "OKP",
+        "use": "sig",
+        "x": "xr2OHnm7XNny-HCmtDkM4IY0-XfMVnyhadY06Hr-PyA"
+      },
+      "seed_hex": "97580667966ff57653978c777085e1afcf31b303457ca9866f39bf61efc8a243",
+      "thumbprint": "kI4yn7Wwyn8kTteOgD_wbpeewPPaIgjL1cihuBkKBKI"
+    },
+    "C": {
+      "fingerprint": "JBN_ p67e XaAv UsjG qiMm Pdq3 9i2f DSwi K05D YPxY 5NY",
+      "public_jwk": {
+        "alg": "EdDSA",
+        "crv": "Ed25519",
+        "kid": "JBN_p67eXaAvUsjGqiMmPdq39i2fDSwiK05DYPxY5NY",
+        "kty": "OKP",
+        "use": "sig",
+        "x": "N_RaKcue9fB34VME97WKgMPgi7L5gvvtDXm0s_GJwjQ"
+      },
+      "seed_hex": "8ba2feaf4b41a7d81bc140645551c0a5e084f362df5386380434c4cded8e4f02",
+      "thumbprint": "JBN_p67eXaAvUsjGqiMmPdq39i2fDSwiK05DYPxY5NY"
+    }
+  },
+  "notice": "TEST-ONLY KEYS. Published seeds; never use outside conformance tests."
+}

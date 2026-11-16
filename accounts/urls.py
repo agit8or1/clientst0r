@@ -25,6 +25,11 @@ urlpatterns = [
     path('auth/azure/callback/', oauth_views.azure_callback, name='azure_callback'),
     path('auth/azure/status/', oauth_views.azure_status, name='azure_status'),
     path('auth/azure/verify/', oauth_views.azure_verify, name='azure_verify'),
+    path('auth/azure/link/', oauth_views.azure_link_start, name='azure_link_start'),
+    path('auth/azure/unlink/', oauth_views.azure_unlink, name='azure_unlink'),
+    path('users/<int:user_id>/azure-link/<int:request_id>/', oauth_views.azure_link_request_decide,
+         name='azure_link_request_decide'),
+    path('users/<int:user_id>/azure-unlink/', oauth_views.azure_admin_unlink, name='azure_admin_unlink'),
 
     path('switch/<int:org_id>/', views.switch_organization, name='switch_organization'),
     path('switch-global/', views.switch_to_global_view, name='switch_to_global_view'),
@@ -43,6 +48,7 @@ urlpatterns = [
     path('profile/password/', views.password_change, name='password_change'),
     path('profile/2fa/', views.two_factor_setup, name='two_factor_setup'),
     path('profile/mobile-sessions/revoke/', views.mobile_sessions_revoke, name='mobile_sessions_revoke'),
+    path('profile/sessions/sign-out/', views.sessions_sign_out, name='sessions_sign_out'),
 
     # Organization Management
     path('organizations/', views.organization_list, name='organization_list'),
@@ -68,6 +74,7 @@ urlpatterns = [
     path('users/<int:user_id>/add-membership/', views.user_add_membership, name='user_add_membership'),
     path('users/<int:user_id>/password/', views.user_password_reset, name='user_password_reset'),
     path('users/<int:user_id>/mobile-sessions/revoke/', views.mobile_sessions_revoke, name='user_mobile_sessions_revoke'),
+    path('users/<int:user_id>/sessions/sign-out/', views.user_sessions_sign_out, name='user_sessions_sign_out'),
     path('users/<int:user_id>/delete/', views.user_delete, name='user_delete'),
 
     # Role Management (RBAC)

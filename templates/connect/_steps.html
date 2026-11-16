@@ -1,0 +1,4 @@
+{% comment %}Wizard progress. `step` is the index into `steps` of the current step.{% endcomment %}
+<ol class="list-inline small mb-3" aria-label="Connection steps">
+{% for s in steps %}<li class="list-inline-item {% if forloop.counter0 == step %}fw-bold text-primary{% elif forloop.counter0 < step %}text-success{% else %}text-muted{% endif %}">{% if forloop.counter0 < step %}<i class="fas fa-check"></i>{% else %}{{ forloop.counter }}.{% endif %} {{ s }}</li>{% endfor %}
+</ol>

@@ -352,7 +352,7 @@ class ViewTests(TestCase):
         cls.rival_sub = make_sub(cls.other, qty=4, unit_cost='1.11', sku='r')
         cls.viewer = make_staff('viewer', cls.org)
         cls.manager = make_staff('manager', cls.org, manage_licensing=True)
-        cls.coster = make_staff('coster', cls.org, manage_licensing=True, view_internal_cost_rates=True)
+        cls.coster = make_staff('coster', cls.org, manage_licensing=True, pricing_view_internal_cost_rates=True)
 
     def login(self, user):
         self.client.force_login(user)
@@ -460,7 +460,7 @@ class ViewTests(TestCase):
 class PermissionDefinitionTests(TestCase):
     def test_registered_staff_only_and_default_off(self):
         from accounts import permission_registry as reg
-        for key in ('manage_licensing', 'view_internal_cost_rates'):
+        for key in ('manage_licensing', 'pricing_view_internal_cost_rates'):
             self.assertIn(key, reg.ALL_KEYS)
             self.assertIn(key, reg.STAFF_ONLY_KEYS)
             self.assertNotIn(key, reg.CUSTOMER_ASSIGNABLE_KEYS)
@@ -470,20 +470,46 @@ class PermissionDefinitionTests(TestCase):
         owner = RoleTemplate.objects.get(seed_key='org_owner')
         admin = RoleTemplate.objects.get(seed_key='org_admin')
         tech = RoleTemplate.objects.get(seed_key='tech_l2')
-        self.assertTrue(owner.manage_licensing and owner.view_internal_cost_rates)
-        self.assertTrue(admin.manage_licensing and admin.view_internal_cost_rates)
-        self.assertFalse(tech.manage_licensing or tech.view_internal_cost_rates)
+        self.assertTrue(owner.manage_licensing and owner.pricing_view_internal_cost_rates)
+        self.assertTrue(admin.manage_licensing)
+        self.assertFalse(tech.manage_licensing or tech.pricing_view_internal_cost_rates)
 
     def test_customer_user_never_holds_them(self):
         from accounts.permission_utils import user_has_org_perm
         org = Organization.objects.create(name='C', slug='c')
         u = User.objects.create_user('cust', 'c@example.com', 'pw')
-        role = RoleTemplate.objects.create(name='cust-all', manage_licensing=True, view_internal_cost_rates=True)
+        role = RoleTemplate.objects.create(name='cust-all', manage_licensing=True, pricing_view_internal_cost_rates=True)
         Membership.objects.create(user=u, organization=org, role_template=role, is_active=True)
-        self.assertFalse(user_has_org_perm(u, org, 'view_internal_cost_rates'))
+        self.assertFalse(user_has_org_perm(u, org, 'pricing_view_internal_cost_rates'))
         self.assertFalse(user_has_org_perm(u, org, 'manage_licensing'))
 
     def test_scheduler_registered(self):
         from core.management.commands.run_scheduler import COMMAND_TASKS
         self.assertIn('sync_licenses', COMMAND_TASKS)
         self.assertIn('licensing_alerts', COMMAND_TASKS)
+
+
+class MonthlyCostTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='Acme Co', slug='acme-co')
+
+    def test_unknown_is_never_zero(self):
+        from .costing import monthly_license_cost
+        r = monthly_license_cost(self.org)
+        self.assertEqual((r['monthly_cost'], r['complete'], r['subscriptions']), (None, True, 0))
+        make_sub(self.org, qty=10, unit_cost='6.00', billing_frequency='monthly', sku='a')
+        make_sub(self.org, qty=2, unit_cost='120.00', billing_frequency='annual', sku='b')
+        make_sub(self.org, qty=5, billing_frequency='monthly', sku='c')              # no cost known
+        make_sub(self.org, qty=1, unit_cost='50', billing_frequency='one_time', sku='d')
+        make_sub(self.org, qty=9, unit_cost='9', status='cancelled', sku='e')
+        r = monthly_license_cost(self.org)
+        self.assertEqual(str(r['monthly_cost']), '80.00')          # 60 + 240/12
+        self.assertEqual((r['unknown_cost_count'], r['one_time_count'], r['complete']), (1, 1, False))
+
+    def test_mixed_currency_is_not_summed(self):
+        from .costing import monthly_license_cost
+        make_sub(self.org, qty=1, unit_cost='10', currency='USD', sku='a')
+        make_sub(self.org, qty=1, unit_cost='10', currency='EUR', sku='b')
+        r = monthly_license_cost(self.org)
+        self.assertEqual((r['monthly_cost'], r['mixed_currency'], r['complete']), (None, True, False))
+        self.assertEqual(set(r['by_currency']), {'USD', 'EUR'})

@@ -172,9 +172,9 @@ def _require_ticket_perm(request, ticket, flag):
 
 def _may_see_margin(request, org):
     """Provider cost and margin (project / contract profitability): MSP
-    staff holding reports_view_financial for the customer. Customer users
+    staff holding view_profitability for the customer. Customer users
     never, whatever their role says."""
-    return _is_msp_staff(request) and _org_perm(request, org, 'reports_view_financial')
+    return _is_msp_staff(request) and _org_perm(request, org, 'view_profitability')
 
 
 def _usable_m365_connections(request, item_org=None):
@@ -3038,7 +3038,7 @@ def project_detail(request, pk):
         # Phase 35.2 (v3.17.549) — budget vs actuals.
         'budget': item.budget_summary(),
         # Phase 35.3 (v3.17.553) — revenue, cost and margin: provider cost
-        # data, so MSP staff whose role includes reports_view_financial for
+        # data, so MSP staff whose role includes view_profitability for
         # this customer only — never a customer user.
         'profit': item.profitability() if _may_see_margin(request, item.organization_id) else None,
         # Phase 35.6 (v3.17.555) — what is waiting to be billed.
@@ -4209,10 +4209,19 @@ def quote_form(request, pk=None):
         from .form_fields import PostedFields
         f = PostedFields(request.POST)
         item.description = f.text('description', item.description or '')
+        status_before = item.status if pk else 'draft'
         item.status = f.choice('status', item.status or 'draft', dict(Quote.STATUS_CHOICES))
+        # Sending is gated on tax (tax.document_hooks.gate_send, below): the
+        # quote stays a draft until its tax is determined.
+        requested_sent = item.status == 'sent' and status_before == 'draft'
+        if requested_sent:
+            item.status = 'draft'
         item.valid_until = f.date('valid_until', item.valid_until, blank=None)
         if not pk:
-            default_tax = SystemSetting.get_settings().psa_default_tax_rate or Decimal('0')
+            # Explicit, never a silent zero: tax.document_hooks reports
+            # "tax not configured" when no rate or tax mode applies.
+            from tax.document_hooks import default_tax_rate
+            default_tax = default_tax_rate(item_org)
         else:
             default_tax = item.tax_rate
         item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'), maximum=Decimal('1'))
@@ -4251,6 +4260,15 @@ def quote_form(request, pk=None):
                     description=d, quantity=qd, unit_price=pd,
                 )
         item.recompute_totals()
+        from tax.document_hooks import gate_send, on_document_saved
+        on_document_saved(item, request)
+        if requested_sent:
+            if gate_send(item, request):
+                item.status = 'sent'
+                item.sent_at = item.sent_at or timezone.now()
+                item.save(update_fields=['status', 'sent_at', 'updated_at'])
+            else:
+                messages.warning(request, f'"{item.quote_number}" was saved as a draft.')
 
         f.warn(request, f'Saved "{item.quote_number}"')
         messages.success(request, f'Saved "{item.quote_number}".')
@@ -5631,7 +5649,8 @@ def invoice_form(request, pk=None):
         else:
             _settings = SystemSetting.get_settings()
             default_currency = getattr(_settings, 'psa_default_currency', None) or 'USD'
-            default_tax = getattr(_settings, 'psa_default_tax_rate', None) or Decimal('0')
+            from tax.document_hooks import default_tax_rate
+            default_tax = default_tax_rate(item_org)
         item.currency = (f.text('currency', default_currency) or default_currency)[:8]
         item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'), maximum=Decimal('1'))
         item.notes = f.text('notes', item.notes or '')
@@ -5658,6 +5677,8 @@ def invoice_form(request, pk=None):
             else:
                 _sync_invoice_lines(item, descs, qtys, prices, ids, malformed=f.malformed)
         item.recompute_totals()
+        from tax.document_hooks import on_document_saved
+        on_document_saved(item, request)
 
         # An approval covers the amount that was approved. If the total moves
         # afterwards, the invoice goes back on hold.
@@ -5674,6 +5695,7 @@ def invoice_form(request, pk=None):
         status_note = ''
         if requested_status != 'draft':
             # Voiding never needs approval; anything that bills does.
+            from tax.document_hooks import gate_send
             if item.requires_approval and requested_status != 'void':
                 messages.error(
                     request,
@@ -5681,6 +5703,10 @@ def invoice_form(request, pk=None):
                     f'marked {requested_status} '
                     f'({item.approval_reason or "no reason given"}); saved as draft.')
                 status_note = f'; status change to {requested_status} refused (approval pending)'
+            elif requested_status != 'void' and not gate_send(item, request):
+                # Tax could not be determined (tax.services.finalize_document):
+                # never billed at a silent zero.
+                status_note = f'; status change to {requested_status} refused (tax not determined)'
             else:
                 item.status = requested_status
                 fields = ['status', 'updated_at']
@@ -6038,7 +6064,21 @@ def invoice_push_to_accounting(request, pk):
     # A re-push is still possible (the invoice was deleted provider-side, say)
     # but it now has to be asked for explicitly rather than being one stray
     # click away.
-    if invoice.accounting_external_id and not request.POST.get('force'):
+    # v3.17.6xx: `force` is a deliberate, permissioned act. It no longer skips
+    # anything else: the push service still checks the recorded provider copy
+    # is gone and searches for one carrying our push key before creating.
+    force = bool(request.POST.get('force'))
+    if force and invoice.accounting_external_id:
+        from .visibility import is_msp_staff
+        if not (is_msp_staff(request.user)
+                and request.user.has_perm('psa.force_repush_invoice')):
+            messages.error(
+                request,
+                'Re-pushing an invoice that already has an accounting id needs '
+                'MSP staff with the "Can force re-push of an invoice to '
+                'accounting" permission.')
+            return redirect('psa:invoice_detail', pk=invoice.pk)
+    if invoice.accounting_external_id and not force:
         pushed = invoice.pushed_to_accounting_at
         # `accounting_provider` is a plain CharField with no choices, so there
         # is no get_..._display() to call — format the stored slug instead.
@@ -6081,16 +6121,37 @@ def invoice_push_to_accounting(request, pk):
         messages.error(request, 'Provider class not registered.')
         return redirect('psa:invoice_detail', pk=invoice.pk)
 
+    from integrations.services.invoice_push import push_invoice_safely
     try:
-        result = provider.push_invoice(invoice)
+        result = push_invoice_safely(invoice, conn, provider,
+                                     user=request.user, force=force)
     except Exception as exc:
         messages.error(request, f'Push failed: {exc}')
         return redirect('psa:invoice_detail', pk=invoice.pk)
 
-    if result.get('success'):
-        messages.success(request, f'Pushed to {conn.get_provider_type_display()} (id {result.get("invoice_id")}).')
+    outcome = result.get('outcome')
+    where = conn.get_provider_type_display()
+    if outcome == 'created':
+        messages.success(request, f'Pushed to {where} (id {result.get("invoice_id")}).')
+    elif outcome == 'adopted':
+        messages.success(
+            request,
+            f'Found this invoice already in {where} (id {result.get("invoice_id")}) '
+            f'from an earlier push and linked it. No new invoice was created.')
+    elif outcome in ('in_flight', 'unknown', 'already_pushed', 'exists'):
+        messages.warning(request, result.get('error') or 'Not pushed.')
     else:
-        messages.error(request, f'Push failed: {result.get("error", "unknown")}')
+        messages.error(request, f'Push failed: {result.get("error") or "unknown"}')
+    AuditLog.log(
+        user=request.user, action='update',
+        organization=invoice.organization,
+        object_type='psa.Invoice', object_id=invoice.pk,
+        object_repr=invoice.invoice_number,
+        description=(f'Accounting push of {invoice.invoice_number} to {conn.name}'
+                     f'{" (forced)" if force else ""}: {outcome}'
+                     + (f' id {result.get("invoice_id")}' if result.get('invoice_id') else '')),
+        ip_address=_client_ip(request), path=request.path,
+    )
     return redirect('psa:invoice_detail', pk=invoice.pk)
 
 
@@ -6161,6 +6222,11 @@ def quote_email(request, pk):
     if not recipient or '@' not in recipient:
         messages.error(request, 'Provide a valid recipient email.')
         return redirect('psa:quote_list')
+    if quote.status == 'draft':
+        from tax.document_hooks import gate_send
+        if not gate_send(quote, request):
+            return redirect('psa:quote_detail', pk=quote.pk)
+        quote.refresh_from_db()
     try:
         ok = email_quote(quote, recipient=recipient, subject=subject, body=body, request=request)
     except Exception as exc:
@@ -6221,6 +6287,11 @@ def invoice_email(request, pk):
             f'Invoice {invoice.invoice_number} requires approval before it can '
             f'be sent ({invoice.approval_reason or "no reason given"}).')
         return redirect('psa:invoice_detail', pk=invoice.pk)
+    if invoice.status == 'draft':
+        from tax.document_hooks import gate_send
+        if not gate_send(invoice, request):
+            return redirect('psa:invoice_detail', pk=invoice.pk)
+        invoice.refresh_from_db()
     try:
         ok = email_invoice(invoice, recipient=recipient, subject=subject, body=body)
     except Exception as exc:

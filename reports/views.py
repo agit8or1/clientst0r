@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from accounts.permission_utils import user_has_perm, require_perm
-from .access import require_msp_wide_perm, has_msp_wide_perm
+from .access import require_msp_wide_perm, has_msp_wide_perm, viewer_client_scope
 from .models import (
     Dashboard, DashboardWidget, ReportTemplate, GeneratedReport,
     ScheduledReport, AnalyticsEvent, Wallboard, WallboardWidget,
@@ -138,6 +138,7 @@ def reports_home(request):
     perm = {
         'view_dashboards': True,  # we got past require_perm above
         'view_financial': user_has_perm(request.user, 'reports_view_financial'),
+        'view_profitability': has_msp_wide_perm(request.user, 'view_profitability'),
         'view_sla': user_has_perm(request.user, 'reports_view_sla'),
         'view_capacity': user_has_perm(request.user, 'reports_view_capacity'),
         'manage_dashboards': user_has_perm(request.user, 'reports_manage_dashboards'),
@@ -1001,112 +1002,57 @@ def _parse_date(s, fallback):
         return fallback
 
 
-@login_required
-@require_msp_wide_perm('reports_view_financial')
-def psa_profitability_by_client(request):
-    """
-    Per-client profitability report — revenue, cost, margin over a
-    user-chosen window. CSV via ?format=csv. Pulls from the canonical
-    `reports.queries` layer.
-    """
-    from .queries import (
-        profitability_by_client,
-        DEFAULT_LOADED_RATE,
-    )
+def _fmt_money(v):
+    return '' if v is None else f"{v:.2f}"
 
-    today = date.today()
-    default_start = today - timedelta(days=30)
-    start_date = _parse_date(request.GET.get('start'), default_start)
-    end_date = _parse_date(request.GET.get('end'), today)
-    if end_date < start_date:
-        start_date, end_date = end_date, start_date
 
-    # Loaded rate override
-    loaded_rate_raw = (request.GET.get('loaded_rate') or '').strip()
-    loaded_rate = DEFAULT_LOADED_RATE
-    if loaded_rate_raw:
-        try:
-            loaded_rate = Decimal(loaded_rate_raw)
-        except (InvalidOperation, ValueError):
-            loaded_rate = DEFAULT_LOADED_RATE
+def _fmt_pct(v):
+    return '' if v is None else f"{v:.1f}"
 
-    rows = profitability_by_client(start_date, end_date,
-                                   default_loaded_rate=loaded_rate)
 
-    # Aggregates
-    total_revenue = sum(r['revenue'] for r in rows)
-    total_cost = sum(r['cost'] for r in rows)
-    total_margin = total_revenue - total_cost
-    blended_margin_pct = (total_margin / total_revenue * 100) if total_revenue else 0.0
+def _margin_csv(r):
+    """CSV margin cells: blank margin + an 'Unknown' note when incomplete."""
+    if r.get('margin') is None:
+        return ['', '', 'incomplete']
+    return [_fmt_money(r['margin']), _fmt_pct(r['margin_pct']), '']
 
-    fmt = (request.GET.get('format') or 'html').lower()
-    if fmt == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = (
-            f'attachment; filename="profitability-by-client-'
-            f'{start_date.isoformat()}-{end_date.isoformat()}.csv"'
-        )
-        writer = _csv.writer(response)
-        writer.writerow(['Client', 'Hours', 'Revenue', 'Cost', 'Margin', 'Margin %'])
-        for r in rows:
-            writer.writerow([
-                r['client_name'],
-                f"{r['hours']:.2f}",
-                f"{r['revenue']:.2f}",
-                f"{r['cost']:.2f}",
-                f"{r['margin']:.2f}",
-                f"{r['margin_pct']:.1f}",
-            ])
-        # Totals row
-        writer.writerow([
-            'TOTAL', '',
-            f"{total_revenue:.2f}", f"{total_cost:.2f}",
-            f"{total_margin:.2f}", f"{round(blended_margin_pct, 1):.1f}",
-        ])
-        return response
 
-    context = {
+PROFITABILITY_LABEL = 'Operational profitability estimate — not your accounting P&L'
+
+
+def _profitability_context(rows, start_date, end_date, revenue_key='revenue', **extra):
+    from .costing import summarize
+    ctx = {
         'rows': rows,
         'start_date': start_date,
         'end_date': end_date,
-        'loaded_rate': loaded_rate,
-        'default_loaded_rate': DEFAULT_LOADED_RATE,
-        'total_revenue': total_revenue,
-        'total_cost': total_cost,
-        'total_margin': total_margin,
-        'blended_margin_pct': round(blended_margin_pct, 1),
+        'summary': summarize(rows, revenue_key=revenue_key),
+        'profitability_label': PROFITABILITY_LABEL,
     }
-    return render(request, 'reports/psa_profitability_by_client.html', context)
+    ctx.update(ctx['summary'])
+    ctx.update(extra)
+    return ctx
 
-
-# ---------------------------------------------------------------------------
-# Phase 3.2 — Profitability by Tech / Contract / Project (PSA)
-# ---------------------------------------------------------------------------
 
 def _profitability_window(request):
-    """Parse start/end/loaded_rate query params → tuple."""
+    """Parse start/end query params → (start_date, end_date)."""
     today = date.today()
     default_start = today - timedelta(days=30)
     start_date = _parse_date(request.GET.get('start'), default_start)
     end_date = _parse_date(request.GET.get('end'), today)
     if end_date < start_date:
         start_date, end_date = end_date, start_date
-    loaded_rate_raw = (request.GET.get('loaded_rate') or '').strip()
-    from .queries import DEFAULT_LOADED_RATE
-    loaded_rate = DEFAULT_LOADED_RATE
-    if loaded_rate_raw:
-        try:
-            loaded_rate = Decimal(loaded_rate_raw)
-        except (InvalidOperation, ValueError):
-            loaded_rate = DEFAULT_LOADED_RATE
-    return start_date, end_date, loaded_rate, DEFAULT_LOADED_RATE
+    return start_date, end_date
 
 
-def _csv_response(filename, header, rows, totals_row=None):
-    """Helper: stream a CSV with a header, rows, and an optional totals row."""
+def _csv_response(filename, header, rows, totals_row=None, label=None):
+    """Helper: stream a CSV with an optional label line, a header, rows, and
+    an optional totals row."""
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     writer = _csv.writer(response)
+    if label:
+        writer.writerow([f'# {label}'])
     writer.writerow(header)
     for r in rows:
         writer.writerow(r)
@@ -1115,144 +1061,131 @@ def _csv_response(filename, header, rows, totals_row=None):
     return response
 
 
+def _totals_margin(summary):
+    if summary['total_margin'] is None:
+        return ['', '', 'incomplete']
+    return [_fmt_money(summary['total_margin']), _fmt_pct(summary['blended_margin_pct']), '']
+
+
 @login_required
-@require_msp_wide_perm('reports_view_financial')
+@require_msp_wide_perm('view_profitability')
+def psa_profitability_by_client(request):
+    """
+    Per-client profitability report — revenue, cost, margin over a
+    user-chosen window. CSV via ?format=csv. Pulls from the canonical
+    `reports.queries` layer; costs from `reports.costing` (unknown when a
+    technician has no cost rate — never a default).
+    """
+    from .queries import profitability_by_client
+
+    start_date, end_date = _profitability_window(request)
+    rows = profitability_by_client(start_date, end_date,
+                                   organization=viewer_client_scope(request.user))
+    ctx = _profitability_context(rows, start_date, end_date)
+
+    if (request.GET.get('format') or 'html').lower() == 'csv':
+        s = ctx['summary']
+        return _csv_response(
+            f'profitability-by-client-{start_date.isoformat()}-{end_date.isoformat()}.csv',
+            ['Client', 'Hours', 'Revenue', 'Cost (known)', 'Margin', 'Margin %', 'Status',
+             'Hours without cost rate'],
+            [[r['client_name'], f"{r['hours']:.2f}", _fmt_money(r['revenue']),
+              _fmt_money(r['cost']), *_margin_csv(r), f"{r['unknown_cost_hours']:.2f}"]
+             for r in rows],
+            totals_row=['TOTAL', '', _fmt_money(s['total_revenue']), _fmt_money(s['total_cost']),
+                        *_totals_margin(s), f"{s['unknown_cost_hours']:.2f}"],
+            label=PROFITABILITY_LABEL,
+        )
+    return render(request, 'reports/psa_profitability_by_client.html', ctx)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.2 — Profitability by Tech / Contract / Project (PSA)
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_msp_wide_perm('view_profitability')
 def psa_profitability_by_tech(request):
     """Per-tech profitability — hours / cost / attributed revenue / margin /
     utilization %. CSV export via ?format=csv."""
     from .queries import profitability_by_tech
 
-    start_date, end_date, loaded_rate, default_rate = _profitability_window(request)
+    start_date, end_date = _profitability_window(request)
     rows = profitability_by_tech(start_date, end_date,
-                                 default_loaded_rate=loaded_rate)
+                                 organization=viewer_client_scope(request.user))
+    ctx = _profitability_context(rows, start_date, end_date, revenue_key='attributed_revenue')
 
-    total_revenue = sum(r['attributed_revenue'] for r in rows)
-    total_cost = sum(r['cost'] for r in rows)
-    total_margin = total_revenue - total_cost
-    blended_margin_pct = (total_margin / total_revenue * 100) if total_revenue else 0.0
-
-    fmt = (request.GET.get('format') or 'html').lower()
-    if fmt == 'csv':
+    if (request.GET.get('format') or 'html').lower() == 'csv':
+        s = ctx['summary']
         return _csv_response(
             f'profitability-by-tech-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Tech', 'Hours', 'Cost', 'Attributed Revenue', 'Margin', 'Margin %', 'Utilization %'],
-            [[
-                r['tech_username'],
-                f"{r['hours']:.2f}",
-                f"{r['cost']:.2f}",
-                f"{r['attributed_revenue']:.2f}",
-                f"{r['margin']:.2f}",
-                f"{r['margin_pct']:.1f}",
-                f"{r['utilization_pct']:.1f}",
-            ] for r in rows],
-            totals_row=[
-                'TOTAL', '',
-                f"{total_cost:.2f}", f"{total_revenue:.2f}",
-                f"{total_margin:.2f}", f"{round(blended_margin_pct, 1):.1f}", '',
-            ],
+            ['Tech', 'Hours', 'Cost (known)', 'Attributed Revenue (known)', 'Margin', 'Margin %',
+             'Status', 'Hours without cost rate', 'Billable hours without bill rate',
+             'Utilization %'],
+            [[r['tech_username'], f"{r['hours']:.2f}", _fmt_money(r['cost']),
+              _fmt_money(r['attributed_revenue']), *_margin_csv(r),
+              f"{r['unknown_cost_hours']:.2f}", f"{r['unknown_bill_hours']:.2f}",
+              _fmt_pct(r['utilization_pct'])] for r in rows],
+            totals_row=['TOTAL', '', _fmt_money(s['total_cost']), _fmt_money(s['total_revenue']),
+                        *_totals_margin(s), f"{s['unknown_cost_hours']:.2f}",
+                        f"{s['unknown_bill_hours']:.2f}", ''],
+            label=PROFITABILITY_LABEL,
         )
-
-    return render(request, 'reports/psa_profitability_by_tech.html', {
-        'rows': rows,
-        'start_date': start_date,
-        'end_date': end_date,
-        'loaded_rate': loaded_rate,
-        'default_loaded_rate': default_rate,
-        'total_revenue': total_revenue,
-        'total_cost': total_cost,
-        'total_margin': total_margin,
-        'blended_margin_pct': round(blended_margin_pct, 1),
-    })
+    return render(request, 'reports/psa_profitability_by_tech.html', ctx)
 
 
 @login_required
-@require_msp_wide_perm('reports_view_financial')
+@require_msp_wide_perm('view_profitability')
 def psa_profitability_by_contract(request):
     """Per-contract profitability."""
     from .queries import profitability_by_contract
 
-    start_date, end_date, loaded_rate, default_rate = _profitability_window(request)
+    start_date, end_date = _profitability_window(request)
     rows = profitability_by_contract(start_date, end_date,
-                                     default_loaded_rate=loaded_rate)
+                                     organization=viewer_client_scope(request.user))
+    ctx = _profitability_context(rows, start_date, end_date)
 
-    total_revenue = sum(r['revenue'] for r in rows)
-    total_cost = sum(r['cost'] for r in rows)
-    total_margin = total_revenue - total_cost
-    blended_margin_pct = (total_margin / total_revenue * 100) if total_revenue else 0.0
-
-    fmt = (request.GET.get('format') or 'html').lower()
-    if fmt == 'csv':
+    if (request.GET.get('format') or 'html').lower() == 'csv':
+        s = ctx['summary']
         return _csv_response(
             f'profitability-by-contract-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Contract', 'Client', 'Hours', 'Revenue', 'Cost', 'Margin', 'Margin %'],
-            [[
-                r['contract_name'], r['client_name'],
-                f"{r['hours']:.2f}", f"{r['revenue']:.2f}", f"{r['cost']:.2f}",
-                f"{r['margin']:.2f}", f"{r['margin_pct']:.1f}",
-            ] for r in rows],
-            totals_row=[
-                'TOTAL', '', '',
-                f"{total_revenue:.2f}", f"{total_cost:.2f}",
-                f"{total_margin:.2f}", f"{round(blended_margin_pct, 1):.1f}",
-            ],
+            ['Contract', 'Client', 'Hours', 'Revenue', 'Cost (known)', 'Margin', 'Margin %',
+             'Status', 'Hours without cost rate'],
+            [[r['contract_name'], r['client_name'], f"{r['hours']:.2f}",
+              _fmt_money(r['revenue']), _fmt_money(r['cost']), *_margin_csv(r),
+              f"{r['unknown_cost_hours']:.2f}"] for r in rows],
+            totals_row=['TOTAL', '', '', _fmt_money(s['total_revenue']), _fmt_money(s['total_cost']),
+                        *_totals_margin(s), f"{s['unknown_cost_hours']:.2f}"],
+            label=PROFITABILITY_LABEL,
         )
-
-    return render(request, 'reports/psa_profitability_by_contract.html', {
-        'rows': rows,
-        'start_date': start_date,
-        'end_date': end_date,
-        'loaded_rate': loaded_rate,
-        'default_loaded_rate': default_rate,
-        'total_revenue': total_revenue,
-        'total_cost': total_cost,
-        'total_margin': total_margin,
-        'blended_margin_pct': round(blended_margin_pct, 1),
-    })
+    return render(request, 'reports/psa_profitability_by_contract.html', ctx)
 
 
 @login_required
-@require_msp_wide_perm('reports_view_financial')
+@require_msp_wide_perm('view_profitability')
 def psa_profitability_by_project(request):
     """Per-project profitability."""
     from .queries import profitability_by_project
 
-    start_date, end_date, loaded_rate, default_rate = _profitability_window(request)
+    start_date, end_date = _profitability_window(request)
     rows = profitability_by_project(start_date, end_date,
-                                    default_loaded_rate=loaded_rate)
+                                    organization=viewer_client_scope(request.user))
+    ctx = _profitability_context(rows, start_date, end_date)
 
-    total_revenue = sum(r['revenue'] for r in rows)
-    total_cost = sum(r['cost'] for r in rows)
-    total_margin = total_revenue - total_cost
-    blended_margin_pct = (total_margin / total_revenue * 100) if total_revenue else 0.0
-
-    fmt = (request.GET.get('format') or 'html').lower()
-    if fmt == 'csv':
+    if (request.GET.get('format') or 'html').lower() == 'csv':
+        s = ctx['summary']
         return _csv_response(
             f'profitability-by-project-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Project', 'Client', 'Hours', 'Revenue', 'Cost', 'Margin', 'Margin %'],
-            [[
-                r['project_name'], r['client_name'],
-                f"{r['hours']:.2f}", f"{r['revenue']:.2f}", f"{r['cost']:.2f}",
-                f"{r['margin']:.2f}", f"{r['margin_pct']:.1f}",
-            ] for r in rows],
-            totals_row=[
-                'TOTAL', '', '',
-                f"{total_revenue:.2f}", f"{total_cost:.2f}",
-                f"{total_margin:.2f}", f"{round(blended_margin_pct, 1):.1f}",
-            ],
+            ['Project', 'Client', 'Hours', 'Revenue', 'Cost (known)', 'Margin', 'Margin %',
+             'Status', 'Hours without cost rate'],
+            [[r['project_name'], r['client_name'], f"{r['hours']:.2f}",
+              _fmt_money(r['revenue']), _fmt_money(r['cost']), *_margin_csv(r),
+              f"{r['unknown_cost_hours']:.2f}"] for r in rows],
+            totals_row=['TOTAL', '', '', _fmt_money(s['total_revenue']), _fmt_money(s['total_cost']),
+                        *_totals_margin(s), f"{s['unknown_cost_hours']:.2f}"],
+            label=PROFITABILITY_LABEL,
         )
-
-    return render(request, 'reports/psa_profitability_by_project.html', {
-        'rows': rows,
-        'start_date': start_date,
-        'end_date': end_date,
-        'loaded_rate': loaded_rate,
-        'default_loaded_rate': default_rate,
-        'total_revenue': total_revenue,
-        'total_cost': total_cost,
-        'total_margin': total_margin,
-        'blended_margin_pct': round(blended_margin_pct, 1),
-    })
+    return render(request, 'reports/psa_profitability_by_project.html', ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -1271,7 +1204,7 @@ def _median(vals):
 
 
 @login_required
-@require_msp_wide_perm('reports_view_financial')
+@require_msp_wide_perm('view_profitability')
 def psa_effective_hourly_rate(request):
     """
     Effective hourly rate report — `revenue ÷ billable_hours` per client
@@ -1294,15 +1227,18 @@ def psa_effective_hourly_rate(request):
     if tab not in ('client', 'tech'):
         tab = 'client'
 
-    client_rows = effective_hourly_rate_by_client(start_date, end_date)
-    tech_rows = effective_hourly_rate_by_tech(start_date, end_date)
+    scope = viewer_client_scope(request.user)
+    client_rows = effective_hourly_rate_by_client(start_date, end_date, organization=scope)
+    tech_rows = effective_hourly_rate_by_tech(start_date, end_date, organization=scope)
 
     # Summary stats are computed on the active tab's rates (excluding
     # zero-rates from rows with no billable hours so they don't drag
     # avg/median to zero).
     active_rows = client_rows if tab == 'client' else tech_rows
     rate_vals = [r['effective_rate'] for r in active_rows
-                 if r['effective_rate'] > 0]
+                 if r['effective_rate'] is not None and r['effective_rate'] > 0]
+    from .costing import summarize
+    tech_summary = summarize(tech_rows, revenue_key='attributed_revenue')
     avg_rate = round(sum(rate_vals) / len(rate_vals), 2) if rate_vals else 0.0
     highest = max(rate_vals) if rate_vals else 0.0
     lowest = min(rate_vals) if rate_vals else 0.0
@@ -1319,10 +1255,11 @@ def psa_effective_hourly_rate(request):
                     r['tech_username'],
                     f"{r['billable_hours']:.2f}",
                     f"{r['attributed_revenue']:.2f}",
-                    f"{r['effective_rate']:.2f}",
-                    f"{r['cost_rate']:.2f}",
-                    f"{r['realization_pct']:.1f}",
+                    _fmt_money(r['effective_rate']),
+                    _fmt_money(r['cost_rate']),
+                    _fmt_pct(r['realization_pct']),
                 ] for r in tech_rows],
+                label=PROFITABILITY_LABEL,
             )
         return _csv_response(
             f'effective-rate-by-client-{start_date.isoformat()}-{end_date.isoformat()}.csv',
@@ -1342,6 +1279,8 @@ def psa_effective_hourly_rate(request):
         'tab': tab,
         'client_rows': client_rows,
         'tech_rows': tech_rows,
+        'summary': tech_summary,
+        'profitability_label': PROFITABILITY_LABEL,
         'start_date': start_date,
         'end_date': end_date,
         'avg_rate': avg_rate,
@@ -1373,7 +1312,8 @@ def psa_revenue_leakage(request):
     except (TypeError, ValueError):
         stale_days = 30
 
-    data = revenue_leakage(start_date, end_date, stale_days=stale_days)
+    data = revenue_leakage(start_date, end_date, stale_days=stale_days,
+                          organization=viewer_client_scope(request.user))
 
     fmt = (request.GET.get('format') or 'html').lower()
     if fmt == 'csv':
@@ -1397,7 +1337,7 @@ def psa_revenue_leakage(request):
             writer.writerow([
                 'Expired Block', r['client_name'], r['contract_name'],
                 f"{r['unused_hours']:.2f} h unused",
-                f"{r['unused_value']:.2f}",
+                _fmt_money(r['unused_value']) or 'unknown (no hourly rate)',
             ])
         for r in data['stuck_drafts']:
             writer.writerow([
@@ -1523,7 +1463,7 @@ def psa_sla_trends(request):
 
 
 @login_required
-@require_msp_wide_perm('reports_view_financial')
+@require_msp_wide_perm('view_profitability')
 def psa_margin_analytics(request):
     """
     Margin grouped by service-line dimension — ticket_type / closure_category
@@ -1543,29 +1483,31 @@ def psa_margin_analytics(request):
         dimension = 'ticket_type'
 
     rows = margin_analytics_by_service_line(start_date, end_date,
+                                            organization=viewer_client_scope(request.user),
                                             dimension=dimension)
 
-    total_revenue = sum(r['revenue'] for r in rows)
-    total_cost = sum(r['cost'] for r in rows)
-    total_margin = total_revenue - total_cost
-    blended_margin_pct = (total_margin / total_revenue * 100) if total_revenue else 0.0
+    from .costing import summarize
+    summary = summarize(rows)
 
     fmt = (request.GET.get('format') or 'html').lower()
     if fmt == 'csv':
         return _csv_response(
             f'margin-analytics-{dimension}-{start_date.isoformat()}-{end_date.isoformat()}.csv',
             [dimension.replace('_', ' ').title(), 'Tickets', 'Hours',
-             'Revenue', 'Cost', 'Margin', 'Margin %'],
+             'Revenue (known)', 'Cost (known)', 'Margin', 'Margin %', 'Status',
+             'Hours without cost rate', 'Billable hours without bill rate'],
             [[
                 r['label'], r['tickets'], f"{r['hours']:.2f}",
-                f"{r['revenue']:.2f}", f"{r['cost']:.2f}",
-                f"{r['margin']:.2f}", f"{r['margin_pct']:.1f}",
+                _fmt_money(r['revenue']), _fmt_money(r['cost']), *_margin_csv(r),
+                f"{r['unknown_cost_hours']:.2f}", f"{r['unknown_bill_hours']:.2f}",
             ] for r in rows],
             totals_row=[
                 'TOTAL', '', '',
-                f"{total_revenue:.2f}", f"{total_cost:.2f}",
-                f"{total_margin:.2f}", f"{round(blended_margin_pct, 1):.1f}",
+                _fmt_money(summary['total_revenue']), _fmt_money(summary['total_cost']),
+                *_totals_margin(summary), f"{summary['unknown_cost_hours']:.2f}",
+                f"{summary['unknown_bill_hours']:.2f}",
             ],
+            label=PROFITABILITY_LABEL,
         )
 
     chart_payload = {
@@ -1589,10 +1531,9 @@ def psa_margin_analytics(request):
         'dimension': dimension,
         'dimension_choices': dimension_choices,
         'chart_payload': jsonable(chart_payload),
-        'total_revenue': total_revenue,
-        'total_cost': total_cost,
-        'total_margin': total_margin,
-        'blended_margin_pct': round(blended_margin_pct, 1),
+        'summary': summary,
+        'profitability_label': PROFITABILITY_LABEL,
+        **summary,
     })
 
 
@@ -1730,11 +1671,13 @@ def exec_scorecard(request):
     prior_end = start_30 - _td(days=1)
 
     # --- Hero KPIs ----------------------------------------------------------
-    rev_30 = sum(r['invoiced'] for r in revenue_by_client(start_30, today))
-    rev_prior = sum(r['invoiced'] for r in revenue_by_client(prior_start, prior_end))
+    # Only the customers this viewer's client scope reaches.
+    scope = viewer_client_scope(request.user)
+    rev_30 = sum(r['invoiced'] for r in revenue_by_client(start_30, today, scope))
+    rev_prior = sum(r['invoiced'] for r in revenue_by_client(prior_start, prior_end, scope))
     rev_trend_pct = ((rev_30 - rev_prior) / rev_prior * 100) if rev_prior else 0.0
 
-    hrs_rows = hours_minutes_by_client(start_30, today)
+    hrs_rows = hours_minutes_by_client(start_30, today, scope)
     total_billable_min = sum(r['billable_minutes'] for r in hrs_rows)
     total_billable_hrs = total_billable_min / 60.0
     realized_rate = (rev_30 / total_billable_hrs) if total_billable_hrs else 0.0
@@ -1766,18 +1709,11 @@ def exec_scorecard(request):
         .values('organization').distinct().count()
     )
 
-    # Tech utilization (avg actual hrs / target hrs across all techs with targets)
-    from resourcing.models import BillableTarget
-    util_pcts = []
-    for bt in BillableTarget.objects.filter(is_active=True).select_related('user'):
-        target_hrs = float(bt.target_hours_per_week) * 4.3  # ~30 days
-        actual_min = TicketTimeEntry.objects.filter(
-            user=bt.user, started_at__date__gte=start_30,
-        ).aggregate(s=Sum('duration_minutes'))['s'] or 0
-        actual_hrs = actual_min / 60.0
-        if target_hrs:
-            util_pcts.append((actual_hrs / target_hrs) * 100)
-    avg_util = sum(util_pcts) / len(util_pcts) if util_pcts else 0.0
+    # Tech utilization: billable ÷ available hours (shifts / working hours /
+    # billable target). Techs with none of those are not guessed at.
+    from .queries import utilization_summary, msp_metrics
+    util = utilization_summary(start_30, today, scope)
+    metrics = msp_metrics(today, organization=scope, window_days=30)
 
     kpis = [
         {'label': 'Revenue (30d)', 'value': f'${rev_30:,.0f}',
@@ -1794,41 +1730,72 @@ def exec_scorecard(request):
          'trend_pct': None, 'icon': 'fa-stopwatch'},
         {'label': 'Active Clients', 'value': str(active_clients),
          'trend_pct': None, 'icon': 'fa-building'},
-        {'label': 'Tech Utilization', 'value': f'{avg_util:.0f}%',
-         'trend_pct': None, 'icon': 'fa-users-gear'},
+        {'label': 'Tech Utilization',
+         'value': (f"{util['utilization_pct']:.0f}%" if util['utilization_pct'] is not None
+                   else 'Unknown'),
+         'trend_pct': None, 'icon': 'fa-users-gear',
+         'incomplete': not util['is_complete'],
+         'note': (f"{util['techs_without_basis']} tech(s) without shifts, working hours or a target"
+                  if util['techs_without_basis'] else '')},
+        {'label': 'MRR', 'value': f"${metrics['recurring']['mrr']:,.0f}",
+         'trend_pct': metrics['mrr_trend']['mom_growth_pct'], 'icon': 'fa-rotate',
+         'incomplete': not metrics['mrr_trend']['is_complete'], 'note': ''},
+        {'label': 'ARR', 'value': f"${metrics['recurring']['arr']:,.0f}",
+         'trend_pct': None, 'icon': 'fa-calendar-check', 'incomplete': False, 'note': ''},
+        {'label': 'Churned MRR (30d)', 'value': f"${metrics['churn']['churned_mrr']:,.0f}",
+         'trend_pct': None, 'icon': 'fa-user-minus',
+         'incomplete': not metrics['churn']['is_complete'],
+         'note': f"{metrics['churn']['churned_count']} contract(s) ended without renewal"},
+        {'label': 'Unbilled Time (30d)', 'value': f"${metrics['unbilled']['amount']:,.0f}",
+         'trend_pct': None, 'icon': 'fa-faucet-drip',
+         'incomplete': not metrics['unbilled']['is_complete'],
+         'note': (f"+ {metrics['unbilled']['hours_without_rate']:.1f} h without a bill rate"
+                  if metrics['unbilled']['entries_without_rate'] else
+                  f"{metrics['unbilled']['hours']:.1f} h")},
+        {'label': 'Expiring ≤ 90d', 'value': str(metrics['expiring']['windows'][90]['count']),
+         'trend_pct': None, 'icon': 'fa-hourglass-half', 'incomplete': False,
+         'note': (f"30d: {metrics['expiring']['windows'][30]['count']} · "
+                  f"60d: {metrics['expiring']['windows'][60]['count']}")},
     ]
 
     # Top 5 clients by revenue
     top_clients = sorted(
-        revenue_by_client(start_30, today),
+        revenue_by_client(start_30, today, scope),
         key=lambda r: r['invoiced'], reverse=True,
     )[:5]
     # Top 5 techs by billable hours
     top_techs = sorted(
-        hours_minutes_by_tech(start_30, today),
+        hours_minutes_by_tech(start_30, today, scope),
         key=lambda r: r['billable_minutes'], reverse=True,
     )[:5]
     for r in top_techs:
         r['billable_hours'] = round(r['billable_minutes'] / 60.0, 1)
 
-    # Margin by service line — top 5 + Other
-    margin_rows = margin_analytics_by_service_line(
-        start_30, today, dimension='ticket_type'
-    )
+    # Margin by service line — top 5 + Other. Only for viewers who may see
+    # margins, and only service lines whose margin is fully known: a pie
+    # slice built on a partial cost would overstate the margin.
     pie_data = []
-    for r in margin_rows[:5]:
-        pie_data.append({'label': r['label'], 'value': r['margin']})
-    if len(margin_rows) > 5:
-        other_total = sum(r['margin'] for r in margin_rows[5:])
-        pie_data.append({'label': 'Other', 'value': other_total})
+    margin_incomplete = 0
+    can_see_margin = has_msp_wide_perm(request.user, 'view_profitability')
+    if can_see_margin:
+        margin_rows = margin_analytics_by_service_line(
+            start_30, today, organization=scope, dimension='ticket_type'
+        )
+        known = [r for r in margin_rows if r['margin'] is not None]
+        margin_incomplete = len(margin_rows) - len(known)
+        for r in known[:5]:
+            pie_data.append({'label': r['label'], 'value': r['margin']})
+        if len(known) > 5:
+            pie_data.append({'label': 'Other', 'value': sum(r['margin'] for r in known[5:])})
 
     # 30d daily revenue + ticket counts for the dual-line chart
     days = [start_30 + timedelta(days=i) for i in range(30)]
     rev_by_day = {d: 0.0 for d in days}
-    for inv in Invoice.objects.filter(
+    from .queries import scope_to_organizations
+    for inv in scope_to_organizations(Invoice.objects.filter(
         invoice_date__gte=start_30, invoice_date__lte=today,
         status__in=['sent', 'partial', 'paid', 'overdue'],
-    ):
+    ), 'client_org', scope):
         if inv.invoice_date in rev_by_day:
             rev_by_day[inv.invoice_date] += float(inv.total or 0)
     tix_by_day = {d: 0 for d in days}
@@ -1851,6 +1818,10 @@ def exec_scorecard(request):
         'top_techs': top_techs,
         'pie_data': pie_data,
         'pie_payload': jsonable(pie_data),
+        'can_see_margin': can_see_margin,
+        'margin_incomplete': margin_incomplete,
+        'metrics': metrics,
+        'profitability_label': PROFITABILITY_LABEL,
         'chart': chart,
         'chart_payload': jsonable(chart),
         'as_of': timezone.now(),
@@ -3429,17 +3400,11 @@ def mrr_forecast_report(request):
                  .select_related('client_org'))
 
     monthly_by_contract = []
+    from .queries import monthly_amount
     for c in contracts:
-        amount = c.effective_recurring_amount
-        if amount <= 0:
-            continue
-        if c.billing_frequency == 'monthly':
-            mrr = amount
-        elif c.billing_frequency == 'quarterly':
-            mrr = (amount / _D('3')).quantize(_D('0.01'))
-        elif c.billing_frequency == 'yearly':
-            mrr = (amount / _D('12')).quantize(_D('0.01'))
-        else:
+        # One normalization rule for every MRR figure (reports.queries).
+        mrr = monthly_amount(c)
+        if mrr is None:
             continue
         monthly_by_contract.append({
             'contract': c,

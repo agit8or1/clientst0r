@@ -29,6 +29,7 @@ ALLOWED_UNLINKED = {
     'accounts:password_change': 'reached from accounts:profile',
     'accounts:quick_add_menu': 'legacy quick-add launcher (require_admin); only its own quick forms link back to it. Not linked on purpose',
     'accounts:two_factor_setup': 'reached from accounts:profile',
+    'oidc_sso:account': 'reached from accounts:profile (Single sign-on button)',
     'assets:contact_list': 'reached from assets:contact_detail',
     'assets:equipment_model_list': 'reached from assets:equipment_model_detail',
     'assets:relationship_map': 'BROKEN: its template assets/relationship_map.html does not exist (500). Not linked until it is fixed',

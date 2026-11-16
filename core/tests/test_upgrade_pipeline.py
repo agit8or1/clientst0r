@@ -610,6 +610,12 @@ class SharedChannelStateTests(_TmpMixin, TestCase):
         r = self._apply(self.b, reviewed, _github(stable='3.17.666'))
         self.assertEqual(r.status_code, 409)
         self.assertIn('v3.17.666', r.json()['message'])
+        # The page is told what is on offer now, so it can show it for review.
+        body = r.json()
+        self.assertEqual(body['reason'], 'target_changed')
+        self.assertEqual(body['target']['ref'], 'v3.17.666')
+        self.assertTrue(body['target']['sha'])
+        self.assertFalse(self.performed)
 
     def test_apply_refuses_when_github_is_unreachable(self):
         import requests
@@ -981,6 +987,11 @@ class UpdatesViewTests(_TmpMixin, TestCase):
         self.assertIn('19', html)                    # commits on main since the release
         self.assertIn('feat: newest', html)
         self.assertIn('no LTS', html.replace('There is no LTS', 'no LTS'))
+        # The page can say when a newer build appears while it is open, and
+        # offer it for review instead of a dead end.
+        self.assertIn('id="newerBuild"', html)
+        self.assertIn('id="updateMoved"', html)
+        self.assertIn("data.reason === 'target_changed'", html)
 
     def test_updates_page_survives_github_being_down(self):
         import requests

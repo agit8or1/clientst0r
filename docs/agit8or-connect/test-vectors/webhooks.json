@@ -1,0 +1,50 @@
+{
+  "backoff_ceiling_seconds": [
+    30,
+    60,
+    120,
+    240,
+    480,
+    960,
+    1920,
+    3600,
+    3600,
+    3600
+  ],
+  "body_utf8": "{\"causation_id\":\"\",\"correlation_id\":\"77777777-7777-4777-8777-777777777777\",\"data\":{\"alert_id\":\"a-1\",\"severity\":\"high\"},\"hops\":0,\"id\":\"77777777-7777-4777-8777-777777777777\",\"idempotency_key\":\"77777777-7777-4777-8777-777777777777\",\"occurred_at\":1767225600,\"origin\":\"11111111-1111-4111-8111-111111111111\",\"sender\":\"11111111-1111-4111-8111-111111111111\",\"tenant\":\"org-1\",\"type\":\"alert.raised\",\"version\":1}",
+  "connection_id": "66666666-6666-4666-8666-666666666666",
+  "headers": {
+    "Agit8or-Connection": "66666666-6666-4666-8666-666666666666",
+    "Agit8or-Event-Id": "77777777-7777-4777-8777-777777777777",
+    "Agit8or-Key-Id": "PYaBr5K5adpRVgVznHunWEovRNbXMBZVAK-AKdqE1ys",
+    "Agit8or-Signature": "s-r6_Metbdah66gu0cvG8ErNaLN6PeThxw3SFPE0NustM1VmM_inJ9EBKrX2jwqPAmr5jZ2KDyOzHxl9mrtWCQ",
+    "Agit8or-Timestamp": "1767225600",
+    "Content-Type": "application/json"
+  },
+  "notice": "TEST-ONLY KEYS. Published seeds; never use outside conformance tests.",
+  "now": 1767225600,
+  "receiver": "22222222-2222-4222-8222-222222222222",
+  "sender": "11111111-1111-4111-8111-111111111111",
+  "signer": "A",
+  "signing_string": "agit8or-connect-event-v1\n66666666-6666-4666-8666-666666666666\n77777777-7777-4777-8777-777777777777\n1767225600\n11111111-1111-4111-8111-111111111111\n22222222-2222-4222-8222-222222222222\nc3e043ecc827d6d2a65f9f42626e7a8c46e06af66e8ceb470300b023ac077a26",
+  "verify": [
+    {
+      "at": 1767225719,
+      "expect": "valid"
+    },
+    {
+      "at": 1767225721,
+      "expect": "expired"
+    },
+    {
+      "at": 1767225600,
+      "expect": "invalid_signature",
+      "mutate_body": true
+    },
+    {
+      "at": 1767225600,
+      "expect": "invalid_signature",
+      "receiver": "11111111-1111-4111-8111-111111111111"
+    }
+  ]
+}

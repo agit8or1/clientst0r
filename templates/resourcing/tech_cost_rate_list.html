@@ -15,7 +15,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h2 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Tech Cost Rates</h2>
-            <small class="text-muted">Loaded $/hr cost per tech, used by Phase 3 profitability reporting. When unset, the default of <strong>${{ default_rate }}/hr</strong> is used.</small>
+            <small class="text-muted">Loaded $/hr cost per tech, used by Phase 3 profitability reporting. When unset, that technician's time is reported with an <strong>unknown</strong> cost and margins that include it are marked incomplete — no default rate is assumed.</small>
         </div>
     </div>
 
@@ -39,8 +39,8 @@
                         <td><code>{{ r.user.username }}</code></td>
                         <td class="text-end">
                             {% if r.is_default %}
-                                <span class="text-muted">${{ default_rate }}</span>
-                                <span class="badge bg-secondary ms-1">default</span>
+                                <span class="text-muted">Not set</span>
+                                <span class="badge bg-warning text-dark ms-1">unknown in reports</span>
                             {% else %}
                                 <strong>${{ r.rate }}</strong>
                             {% endif %}

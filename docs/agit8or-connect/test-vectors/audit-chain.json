@@ -1,0 +1,41 @@
+{
+  "chain": [
+    {
+      "hash": "141937de3d4d9c97862153249a370ef314c59ccdcc7860c54b9e61e700161b57",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "record": {
+        "actor": "user:1",
+        "connection_id": "",
+        "correlation_id": "c-1",
+        "detail": {},
+        "initiating_app": "11111111-1111-4111-8111-111111111111",
+        "operation": "pairing.invitation_created",
+        "result": "ok",
+        "scopes": [],
+        "seq": 1,
+        "tenant": "",
+        "ts_us": 1767225600000000
+      }
+    },
+    {
+      "hash": "95053cf0da662830c581a2a9e8e89a959f4bc240f48e051cdb9f463a99244919",
+      "prev_hash": "141937de3d4d9c97862153249a370ef314c59ccdcc7860c54b9e61e700161b57",
+      "record": {
+        "actor": "app:22222222-2222-4222-8222-222222222222",
+        "connection_id": "66666666-6666-4666-8666-666666666666",
+        "correlation_id": "c-2",
+        "detail": {},
+        "initiating_app": "22222222-2222-4222-8222-222222222222",
+        "operation": "token.issued",
+        "result": "ok",
+        "scopes": [
+          "customers:read"
+        ],
+        "seq": 2,
+        "tenant": "",
+        "ts_us": 1767225600000001
+      }
+    }
+  ],
+  "genesis": "0000000000000000000000000000000000000000000000000000000000000000"
+}

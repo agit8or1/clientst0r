@@ -100,7 +100,9 @@ VIEW_BASICS = ('org_view_members', 'kb_view_articles', 'reports_view_dashboards'
 _OWNER = {k: True for k in ALL_KEYS}
 _OWNER.update(network_discovery_generate=False, vault_extension_use=False, vault_extension_offline_cache=False,
               portal_billing_contact=False, portal_contract_review=False, docs_view_internal=False,
-              portal_contract_sign=False, office_edit_in_m365=False)
+              portal_contract_sign=False, office_edit_in_m365=False,
+              manage_sso_settings=False, process_refunds=False, manage_payment_providers=False,
+              view_app_connections=False, manage_app_connections=False)
 
 _ORG_ADMIN = _on(
     *VIEW_BASICS, 'org_invite_members', 'org_manage_members', 'org_manage_privileged', 'roles_manage',
@@ -125,7 +127,7 @@ _ORG_ADMIN = _on(
     'psa_ai_view', 'psa_ai_request_triage', 'psa_ai_admin',
     'reports_export', 'vehicles_view', 'vehicles_manage', 'scheduling_manage_wallboard',
     'psa_manage_workflow_rules', 'timesheets_approve', 'resourcing_view_payroll',
-    'integrations_view_synced_psa', 'manage_licensing', 'view_internal_cost_rates',
+    'integrations_view_synced_psa', 'manage_licensing',
 )
 
 _SERVICE_MANAGER = _on(
@@ -157,14 +159,20 @@ _SALES_REP = _on(
 _SALES_MANAGER = dict(_SALES_REP, **_on(
     'crm_manage_campaigns', 'crm_view_forecast', 'quotes_send', 'quotes_approve_discount',
     'contracts_download_signed', 'reports_manage_dashboards', 'crm_approve_commissions', 'reports_export',
+    'pricing_approve_discounts',  # v2 (accounts 0056)
 ))
 
 _BILLING = _on(
     *VIEW_BASICS, 'billing_view_invoices', 'billing_send_invoices', 'billing_record_payments',
-    'billing_view_aging', 'reports_view_financial', 'reports_manage_scheduled',
+    'billing_view_aging', 'reports_view_financial', 'view_profitability', 'reports_manage_scheduled',
     'procurement_view', 'quotes_view', 'contracts_view', 'contracts_view_pricing', 'contracts_download_signed',
     'tickets_view', 'files_view', 'billing_approve_invoices', 'billing_issue_credit', 'billing_manage_charges',
-    'reports_export', 'resourcing_view_payroll', 'view_internal_cost_rates',
+    'reports_export', 'resourcing_view_payroll',
+    # v2 (accounts 0055): sales tax.
+    'manage_tax_settings',
+    # v3 (accounts 0056): pricing.
+    'pricing_manage_price_books', 'pricing_manage_service_plans', 'pricing_view_internal_cost_rates',
+    'pricing_manage_labor_rate_cards', 'pricing_approve_discounts',
 )
 
 _AUDITOR = _on(
@@ -208,7 +216,7 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, adopt=('Owner',), spec_name='Organization Owner', version=2),
+                _OWNER, version=5, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
                 'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=2),
@@ -236,10 +244,11 @@ def definitions() -> List[RoleDef]:
                 'discounts and countersigning are separate.', _SALES_REP),
         RoleDef('sales_manager', 'Sales Manager', 'internal',
                 "The sales team's pipeline, quotes, pricing exceptions and forecast. Approving or sending "
-                'contracts only when explicitly added.', _SALES_MANAGER),
+                'contracts only when explicitly added.', _SALES_MANAGER, version=2),
         RoleDef('billing_finance', 'Billing / Finance', 'internal',
                 'Billing records, invoices, payment status and financial reports; reads commercial '
-                'agreements. No credentials, remote tools or security settings.', _BILLING, version=2),
+                'agreements and configures sales tax. No credentials, remote tools or security settings.',
+                _BILLING, version=4),
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
                 'secret reveal, file downloads and exports stay separate.', _AUDITOR),

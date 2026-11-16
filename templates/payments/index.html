@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Payments{% endblock %}
+{% block content %}
+<div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
+    <h2 class="h4 mb-0 me-auto"><i class="fas fa-credit-card me-1"></i> Payments</h2>
+    {% if can_create %}<a class="btn btn-sm btn-primary" href="{% url 'payments:connection_create' %}"><i class="fas fa-plus"></i> New payment connection</a>{% endif %}
+</div>
+<p class="text-body-secondary small">The payment provider only collects: invoices and their schedule stay here, and collected payments are recorded on the invoice and queued for your accounting system.{% if pending_accounting %} <strong>{{ pending_accounting }}</strong> payment(s) are waiting to be posted to accounting.{% endif %}</p>
+
+{% if connections %}
+<h3 class="h6">Connections</h3>
+<div class="table-responsive mb-4"><table class="table table-sm align-middle">
+    <thead><tr><th>Name</th><th>Provider</th><th>Live</th><th>Autopay</th></tr></thead>
+    <tbody>{% for c in connections %}
+    <tr><td><a href="{% url 'payments:connection_edit' c.pk %}">{{ c.name }}</a></td><td>{{ c.get_provider_type_display }}</td>
+        <td>{% if c.is_active and c.sync_enabled %}<span class="badge text-bg-success">Live</span>{% else %}<span class="badge text-bg-secondary">Off</span>{% endif %}</td>
+        <td>{% if c.gateway_settings.autopay_enabled %}On{% else %}Off{% endif %}</td></tr>
+    {% endfor %}</tbody>
+</table></div>
+{% endif %}
+
+<h3 class="h6">Payment attempts</h3>
+<form class="d-flex gap-2 mb-2" method="get">
+    <select name="status" class="form-select form-select-sm w-auto">
+        <option value="">All statuses</option>
+        {% for v, l in attempts.model.STATUS_CHOICES %}<option value="{{ v }}" {% if v == status %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+</form>
+<div class="table-responsive"><table class="table table-sm align-middle">
+    <thead><tr><th>When</th><th>Customer</th><th>Invoice</th><th>Kind</th><th class="text-end">Amount</th><th class="text-end">Fee</th><th>Status</th><th>Accounting</th></tr></thead>
+    <tbody>{% for a in attempts %}
+    <tr><td><a href="{% url 'payments:attempt_detail' a.pk %}">{{ a.created_at|date:"Y-m-d H:i" }}</a></td>
+        <td>{{ a.client_org.name }}</td><td>{{ a.invoice.invoice_number }}</td><td>{{ a.get_kind_display }}{% if a.kind == 'autopay' %} #{{ a.attempt_number }}{% endif %}</td>
+        <td class="text-end">{{ a.amount|floatformat:2 }} {{ a.currency }}</td><td class="text-end">{{ a.fee_amount|floatformat:2|default:"—" }}</td>
+        <td>{{ a.get_status_display }}</td><td>{{ a.get_accounting_post_status_display }}</td></tr>
+    {% empty %}<tr><td colspan="8" class="text-body-secondary">No payment attempts.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

@@ -53,7 +53,9 @@ def ctx_for(user, view_name, args=(), **extra):
     return ctx
 
 
-@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+# Feature-flagged pages (Connected Applications answers 404 while its flag is
+# off) are checked with the flag on.
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, AGIT8OR_CONNECT_ENABLED=True)
 class EveryTabOpensTests(NavbarTestBase):
     """Deep links: every tab URL still opens, and carries its section strip."""
 

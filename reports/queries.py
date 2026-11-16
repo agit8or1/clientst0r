@@ -74,8 +74,7 @@ def hours_minutes_by_tech(start_date, end_date, organization=None):
         started_at__date__gte=start_date,
         started_at__date__lte=end_date,
     ).select_related('user', 'ticket__organization')
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
+    qs = scope_to_organizations(qs, 'ticket__organization', organization)
 
     out = {}
     for te in qs:
@@ -195,8 +194,8 @@ def revenue_by_client(start_date, end_date, organization=None):
         invoice_date__lte=end_date,
         status__in=['sent', 'partial', 'paid', 'overdue'],
     ).select_related('client_org')
-    if organization is not None:
-        qs = qs.filter(organization=organization)
+    if organization is not None:  # scoped by customer
+        qs = scope_to_organizations(qs, 'client_org', organization)
 
     out = {}
     for inv in qs:
@@ -234,7 +233,7 @@ def revenue_by_contract(start_date, end_date, organization=None):
 
     contract_qs = Contract.objects.select_related('client_org')
     if organization is not None:
-        contract_qs = contract_qs.filter(organization=organization)
+        contract_qs = scope_to_organizations(contract_qs, 'client_org', organization)
     # We only care about contracts active during the window
     contract_qs = contract_qs.filter(
         Q(end_date__isnull=True) | Q(end_date__gte=start_date),
@@ -260,7 +259,7 @@ def revenue_by_contract(start_date, end_date, organization=None):
         source_contract__isnull=False,
     )
     if organization is not None:
-        inv_qs = inv_qs.filter(organization=organization)
+        inv_qs = scope_to_organizations(inv_qs, 'client_org', organization)
     for inv in inv_qs:
         cid = inv.source_contract_id
         if cid not in out:
@@ -305,7 +304,7 @@ def revenue_by_project(start_date, end_date, organization=None):
                      'source_ticket__project__client_org',
                      'source_ticket__organization')
     if organization is not None:
-        qs = qs.filter(organization=organization)
+        qs = scope_to_organizations(qs, 'client_org', organization)
 
     out = {}
     for inv in qs:
@@ -329,24 +328,31 @@ def revenue_by_project(start_date, end_date, organization=None):
 
 
 # ---- Cost ------------------------------------------------------------------
+#
+# Every cost, margin and attributed-revenue figure below reads its rates
+# from `reports.costing`: a per-entry snapshot when the time entry carries
+# one, else the effective-dated rate on the day of the work, else UNKNOWN.
+# There is no default rate. Rows carry `unknown_cost_hours`,
+# `unknown_cost_entries` and `is_complete`; `margin` / `margin_pct` are None
+# whenever any part of the cost (or attributed revenue) is unknown.
 
-# Canonical default loaded-rate per tech ($/hr). Per-tech rates from
-# `resourcing.TechCostRate` win when present; this is the ultimate fallback.
+# Legacy constant kept only because `resourcing.TechCostRate.rate_for`
+# imports it for its own display fallback. No report uses it: an hour with
+# no configured cost rate is reported as unknown, never costed at $60.
 DEFAULT_LOADED_RATE = Decimal('60')
 
 
-def cost_for_period(user, minutes, period_midpoint):
+def cost_for_period(user, minutes, on_date):
     """
-    Decimal cost for `user` × `minutes` of work, using the active
-    `TechCostRate` on `period_midpoint` (or DEFAULT_LOADED_RATE when no
-    rate is configured).
-
-    `minutes` can be int or Decimal; `period_midpoint` is a date.
+    Decimal cost of `minutes` of `user`'s time at the `TechCostRate` in
+    effect on `on_date`, or None when the user has no rate for that day.
     """
-    from resourcing.models import TechCostRate
-    rate = TechCostRate.rate_for(user, period_midpoint) if user else Decimal(str(DEFAULT_LOADED_RATE))
+    from .costing import cost_rate_for
+    rate = cost_rate_for(user, on_date)
+    if rate is None:
+        return None
     hours = Decimal(str(minutes or 0)) / Decimal('60')
-    return (hours * Decimal(str(rate))).quantize(Decimal('0.01'))
+    return (hours * rate).quantize(Decimal('0.01'))
 
 
 def _period_midpoint(start_date, end_date):
@@ -361,359 +367,324 @@ def _period_midpoint(start_date, end_date):
     return start_date + timedelta(days=delta)
 
 
-def cost_estimate_by_client(start_date, end_date, organization=None,
-                            default_loaded_rate=None):
-    """
-    Cost-of-delivery estimate per client. Now uses **per-tech**
-    `TechCostRate.rate_for(user, midpoint)` × the user's minutes on tickets
-    for that client. Falls back to `default_loaded_rate` (or
-    DEFAULT_LOADED_RATE) when no per-tech rate is configured.
-
-    Returns: list of {'client_id', 'client_name', 'hours', 'cost'} dicts.
-    """
+def _time_entries(start_date, end_date, organization=None):
     from psa.models import TicketTimeEntry
-    from resourcing.models import TechCostRate
-
-    fallback_rate = Decimal(str(default_loaded_rate or DEFAULT_LOADED_RATE))
-    midpoint = _period_midpoint(start_date, end_date)
-
-    qs = TicketTimeEntry.objects.filter(
-        started_at__date__gte=start_date,
-        started_at__date__lte=end_date,
-    ).select_related('user', 'ticket__organization')
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
-
-    out = {}
-    for te in qs:
-        org = te.ticket.organization
-        if not org:
-            continue
-        # Per-tech rate (with fallback to the param-or-default)
-        if te.user_id:
-            rate = TechCostRate.rate_for(te.user, midpoint)
-            # `rate_for` falls back to DEFAULT_LOADED_RATE when no rows
-            # exist; if the caller passed a custom default_loaded_rate
-            # AND there's still no row, prefer the caller's value.
-            if rate == DEFAULT_LOADED_RATE and default_loaded_rate is not None:
-                rate = fallback_rate
-        else:
-            rate = fallback_rate
-        mins = te.duration_minutes or 0
-        hours = Decimal(mins) / Decimal('60')
-        row = out.setdefault(org.id, {
-            'client_id': org.id, 'client_name': org.name,
-            'hours': Decimal('0'), 'cost': Decimal('0'),
-        })
-        row['hours'] += hours
-        row['cost'] += hours * Decimal(str(rate))
-
-    for r in out.values():
-        r['hours'] = float(r['hours'])
-        r['cost'] = float(r['cost'])
-    return sorted(out.values(), key=lambda r: r['cost'], reverse=True)
-
-
-def cost_estimate_by_contract(start_date, end_date, organization=None,
-                              default_loaded_rate=None):
-    """Per-contract cost estimate using per-tech rates, mirroring
-    `cost_estimate_by_client` but grouped by `Contract.for_ticket`."""
-    from psa.models import TicketTimeEntry, Contract
-    from resourcing.models import TechCostRate
-
-    fallback_rate = Decimal(str(default_loaded_rate or DEFAULT_LOADED_RATE))
-    midpoint = _period_midpoint(start_date, end_date)
-
-    qs = TicketTimeEntry.objects.filter(
-        started_at__date__gte=start_date,
-        started_at__date__lte=end_date,
-    ).select_related('user', 'ticket__organization')
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
-
-    out = {}
-    for te in qs:
-        contract = Contract.for_ticket(te.ticket)
-        if contract is None:
-            continue
-        if te.user_id:
-            rate = TechCostRate.rate_for(te.user, midpoint)
-            if rate == DEFAULT_LOADED_RATE and default_loaded_rate is not None:
-                rate = fallback_rate
-        else:
-            rate = fallback_rate
-        mins = te.duration_minutes or 0
-        hours = Decimal(mins) / Decimal('60')
-        row = out.setdefault(contract.id, {
-            'contract_id': contract.id,
-            'contract_name': contract.name,
-            'client_id': contract.client_org_id,
-            'client_name': contract.client_org.name if contract.client_org else '',
-            'hours': Decimal('0'),
-            'cost': Decimal('0'),
-        })
-        row['hours'] += hours
-        row['cost'] += hours * Decimal(str(rate))
-
-    for r in out.values():
-        r['hours'] = float(r['hours'])
-        r['cost'] = float(r['cost'])
-    return sorted(out.values(), key=lambda r: r['cost'], reverse=True)
-
-
-def cost_estimate_by_project(start_date, end_date, organization=None,
-                             default_loaded_rate=None):
-    """Per-project cost estimate using per-tech rates."""
-    from psa.models import TicketTimeEntry
-    from resourcing.models import TechCostRate
-
-    fallback_rate = Decimal(str(default_loaded_rate or DEFAULT_LOADED_RATE))
-    midpoint = _period_midpoint(start_date, end_date)
-
-    qs = TicketTimeEntry.objects.filter(
-        started_at__date__gte=start_date,
-        started_at__date__lte=end_date,
-        ticket__project__isnull=False,
-    ).select_related('user', 'ticket__project',
-                     'ticket__project__client_org',
-                     'ticket__organization')
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
-
-    out = {}
-    for te in qs:
-        project = te.ticket.project
-        if not project:
-            continue
-        if te.user_id:
-            rate = TechCostRate.rate_for(te.user, midpoint)
-            if rate == DEFAULT_LOADED_RATE and default_loaded_rate is not None:
-                rate = fallback_rate
-        else:
-            rate = fallback_rate
-        mins = te.duration_minutes or 0
-        hours = Decimal(mins) / Decimal('60')
-        client = project.client_org or te.ticket.organization
-        row = out.setdefault(project.id, {
-            'project_id': project.id,
-            'project_name': project.name,
-            'client_id': client.id if client else None,
-            'client_name': client.name if client else '',
-            'hours': Decimal('0'),
-            'cost': Decimal('0'),
-        })
-        row['hours'] += hours
-        row['cost'] += hours * Decimal(str(rate))
-
-    for r in out.values():
-        r['hours'] = float(r['hours'])
-        r['cost'] = float(r['cost'])
-    return sorted(out.values(), key=lambda r: r['cost'], reverse=True)
-
-
-# ---- Profitability ---------------------------------------------------------
-
-def profitability_by_client(start_date, end_date, organization=None,
-                            default_loaded_rate=None):
-    """
-    Combine revenue + cost into per-client profitability rows.
-    Returns: list of {'client_id', 'client_name', 'revenue', 'cost',
-    'margin', 'margin_pct', 'hours'} dicts, sorted by revenue desc.
-    """
-    rev = {r['client_id']: r for r in revenue_by_client(start_date, end_date, organization)}
-    cost = {r['client_id']: r for r in cost_estimate_by_client(start_date, end_date, organization, default_loaded_rate)}
-    client_ids = set(rev.keys()) | set(cost.keys())
-
-    rows = []
-    for cid in client_ids:
-        r = rev.get(cid, {})
-        c = cost.get(cid, {})
-        revenue = r.get('invoiced', 0.0)
-        cost_v = c.get('cost', 0.0)
-        margin = revenue - cost_v
-        margin_pct = (margin / revenue * 100) if revenue else 0.0
-        rows.append({
-            'client_id': cid,
-            'client_name': r.get('client_name') or c.get('client_name') or '?',
-            'revenue': revenue,
-            'cost': cost_v,
-            'margin': margin,
-            'margin_pct': round(margin_pct, 1),
-            'hours': c.get('hours', 0.0),
-        })
-    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
-
-
-def profitability_by_contract(start_date, end_date, organization=None,
-                              default_loaded_rate=None):
-    """Per-contract profitability. Same shape as `profitability_by_client`
-    but pivoted on Contract."""
-    rev = {r['contract_id']: r for r in revenue_by_contract(start_date, end_date, organization)}
-    cost = {r['contract_id']: r for r in cost_estimate_by_contract(start_date, end_date, organization, default_loaded_rate)}
-    ids = set(rev.keys()) | set(cost.keys())
-
-    rows = []
-    for cid in ids:
-        r = rev.get(cid, {})
-        c = cost.get(cid, {})
-        revenue = r.get('revenue', 0.0)
-        cost_v = c.get('cost', 0.0)
-        margin = revenue - cost_v
-        margin_pct = (margin / revenue * 100) if revenue else 0.0
-        rows.append({
-            'contract_id': cid,
-            'contract_name': r.get('contract_name') or c.get('contract_name') or '?',
-            'client_id': r.get('client_id') or c.get('client_id'),
-            'client_name': r.get('client_name') or c.get('client_name') or '',
-            'revenue': revenue,
-            'cost': cost_v,
-            'margin': margin,
-            'margin_pct': round(margin_pct, 1),
-            'hours': c.get('hours', 0.0),
-        })
-    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
-
-
-def profitability_by_project(start_date, end_date, organization=None,
-                             default_loaded_rate=None):
-    """Per-project profitability. Same shape pivoted on Project."""
-    rev = {r['project_id']: r for r in revenue_by_project(start_date, end_date, organization)}
-    cost = {r['project_id']: r for r in cost_estimate_by_project(start_date, end_date, organization, default_loaded_rate)}
-    ids = set(rev.keys()) | set(cost.keys())
-
-    rows = []
-    for pid in ids:
-        r = rev.get(pid, {})
-        c = cost.get(pid, {})
-        revenue = r.get('revenue', 0.0)
-        cost_v = c.get('cost', 0.0)
-        margin = revenue - cost_v
-        margin_pct = (margin / revenue * 100) if revenue else 0.0
-        rows.append({
-            'project_id': pid,
-            'project_name': r.get('project_name') or c.get('project_name') or '?',
-            'client_id': r.get('client_id') or c.get('client_id'),
-            'client_name': r.get('client_name') or c.get('client_name') or '',
-            'revenue': revenue,
-            'cost': cost_v,
-            'margin': margin,
-            'margin_pct': round(margin_pct, 1),
-            'hours': c.get('hours', 0.0),
-        })
-    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
-
-
-def profitability_by_tech(start_date, end_date, organization=None,
-                          default_loaded_rate=None):
-    """
-    Per-tech profitability and utilization.
-
-    Cost: hours × the tech's `TechCostRate` (or DEFAULT_LOADED_RATE).
-    Attributed revenue: per-tech billable hours × the active contract's
-    `hourly_rate` (best-effort approximation — exact per-entry billing rates
-    arrive in Phase 3.4).
-    Utilization: actual_hours / target_hours_per_week × weeks_in_period × 100.
-
-    Returns: list of {'tech_id', 'tech_username', 'hours',
-    'billable_minutes', 'cost', 'attributed_revenue', 'margin',
-    'margin_pct', 'utilization_pct'} dicts, sorted by attributed_revenue
-    desc.
-    """
-    from decimal import Decimal as _D
-    from psa.models import TicketTimeEntry, Contract
-    from resourcing.models import TechCostRate, BillableTarget
-
-    fallback_rate = _D(str(default_loaded_rate or DEFAULT_LOADED_RATE))
-    midpoint = _period_midpoint(start_date, end_date)
-
     qs = TicketTimeEntry.objects.filter(
         started_at__date__gte=start_date,
         started_at__date__lte=end_date,
     ).select_related('user', 'ticket', 'ticket__organization')
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
+    return scope_to_organizations(qs, 'ticket__organization', organization)
 
-    # Cache per-ticket contract lookups
-    contract_cache = {}
 
-    out = {}
+def _cost_rows(entries, key_fn, book=None):
+    """Group `entries` by `key_fn(entry) -> (key, base_row_dict) | None` and
+    tally hours / known cost / unknown cost per group."""
+    from .costing import LaborTally, RateBook, entry_hours
+    book = book or RateBook()
+    groups = {}
+    for te in entries:
+        keyed = key_fn(te)
+        if keyed is None:
+            continue
+        key, base = keyed
+        row = groups.get(key)
+        if row is None:
+            row = groups[key] = (dict(base), LaborTally())
+        row[1].add_cost(entry_hours(te), book.entry_cost_rate(te))
+    out = []
+    for base, tally in groups.values():
+        base.update(tally.cost_fields())
+        base['is_complete'] = tally.cost_complete
+        out.append(base)
+    return sorted(out, key=lambda r: r['cost'], reverse=True)
+
+
+def cost_estimate_by_client(start_date, end_date, organization=None):
+    """
+    Cost of delivery per client: each time entry costed at its technician's
+    rate on the day of the work (see `reports.costing`).
+
+    Returns: list of {'client_id', 'client_name', 'hours', 'cost',
+    'unknown_cost_hours', 'unknown_cost_entries', 'cost_complete',
+    'is_complete'} dicts. `cost` is the known part only.
+    """
+    def key(te):
+        org = te.ticket.organization
+        if not org:
+            return None
+        return org.id, {'client_id': org.id, 'client_name': org.name}
+    return _cost_rows(_time_entries(start_date, end_date, organization), key)
+
+
+def cost_estimate_by_contract(start_date, end_date, organization=None):
+    """Per-contract cost, grouped by the contract each entry belongs to
+    (`RateBook.contract_for_entry`: covering the entry date)."""
+    from .costing import RateBook
+    book = RateBook()
+
+    def key(te):
+        contract = book.contract_for_entry(te)
+        if contract is None:
+            return None
+        return contract.id, {
+            'contract_id': contract.id,
+            'contract_name': contract.name,
+            'client_id': contract.client_org_id,
+            'client_name': contract.client_org.name if contract.client_org_id else '',
+        }
+    return _cost_rows(_time_entries(start_date, end_date, organization), key, book)
+
+
+def cost_estimate_by_project(start_date, end_date, organization=None):
+    """Per-project cost, each entry at its technician's rate on the day."""
+    qs = _time_entries(start_date, end_date, organization).filter(
+        ticket__project__isnull=False,
+    ).select_related('ticket__project', 'ticket__project__client_org')
+
+    def key(te):
+        project = te.ticket.project
+        if not project:
+            return None
+        client = project.client_org or te.ticket.organization
+        return project.id, {
+            'project_id': project.id,
+            'project_name': project.name,
+            'client_id': client.id if client else None,
+            'client_name': client.name if client else '',
+        }
+    return _cost_rows(qs, key)
+
+
+# ---- Profitability ---------------------------------------------------------
+
+_EMPTY_COST = {'hours': 0.0, 'cost': 0.0, 'unknown_cost_hours': 0.0,
+               'unknown_cost_entries': 0, 'cost_complete': True}
+
+
+def _profit_row(base, revenue, c):
+    from .costing import margin_fields
+    cost = c.get('cost', 0.0)
+    row = dict(base)
+    row.update({
+        'revenue': revenue,
+        'cost': cost,
+        'hours': c.get('hours', 0.0),
+        'unknown_cost_hours': c.get('unknown_cost_hours', 0.0),
+        'unknown_cost_entries': c.get('unknown_cost_entries', 0),
+    })
+    row.update(margin_fields(revenue, cost, cost_complete=c.get('cost_complete', True)))
+    return row
+
+
+def profitability_by_client(start_date, end_date, organization=None):
+    """
+    Combine invoiced revenue + labour cost into per-client rows.
+    Returns: list of {'client_id', 'client_name', 'revenue', 'cost',
+    'margin', 'margin_pct', 'hours', 'unknown_cost_hours',
+    'unknown_cost_entries', 'is_complete'} dicts, sorted by revenue desc.
+    `margin` / `margin_pct` are None when any hour lacks a cost rate.
+    """
+    rev = {r['client_id']: r for r in revenue_by_client(start_date, end_date, organization)}
+    cost = {r['client_id']: r for r in cost_estimate_by_client(start_date, end_date, organization)}
+    rows = []
+    for cid in set(rev) | set(cost):
+        r = rev.get(cid, {})
+        c = cost.get(cid, _EMPTY_COST)
+        rows.append(_profit_row({
+            'client_id': cid,
+            'client_name': r.get('client_name') or c.get('client_name') or '?',
+        }, r.get('invoiced', 0.0), c))
+    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
+
+
+def profitability_by_contract(start_date, end_date, organization=None):
+    """Per-contract profitability. Same shape as `profitability_by_client`
+    but pivoted on Contract."""
+    rev = {r['contract_id']: r for r in revenue_by_contract(start_date, end_date, organization)}
+    cost = {r['contract_id']: r for r in cost_estimate_by_contract(start_date, end_date, organization)}
+    rows = []
+    for cid in set(rev) | set(cost):
+        r = rev.get(cid, {})
+        c = cost.get(cid, _EMPTY_COST)
+        rows.append(_profit_row({
+            'contract_id': cid,
+            'contract_name': r.get('contract_name') or c.get('contract_name') or '?',
+            'client_id': r.get('client_id') or c.get('client_id'),
+            'client_name': r.get('client_name') or c.get('client_name') or '',
+        }, r.get('revenue', 0.0), c))
+    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
+
+
+def profitability_by_project(start_date, end_date, organization=None):
+    """Per-project profitability. Same shape pivoted on Project."""
+    rev = {r['project_id']: r for r in revenue_by_project(start_date, end_date, organization)}
+    cost = {r['project_id']: r for r in cost_estimate_by_project(start_date, end_date, organization)}
+    rows = []
+    for pid in set(rev) | set(cost):
+        r = rev.get(pid, {})
+        c = cost.get(pid, _EMPTY_COST)
+        rows.append(_profit_row({
+            'project_id': pid,
+            'project_name': r.get('project_name') or c.get('project_name') or '?',
+            'client_id': r.get('client_id') or c.get('client_id'),
+            'client_name': r.get('client_name') or c.get('client_name') or '',
+        }, r.get('revenue', 0.0), c))
+    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
+
+
+def available_hours(user, start_date, end_date):
+    """
+    Hours `user` was available to work in [start, end], or (None, None)
+    when nothing says so.
+
+    Basis, in order: the shift schedule (non-on-call shifts), else
+    WorkingHours rows, each skipping holidays and approved leave; else the
+    weekly BillableTarget pro-rated to the window. Returns
+    (hours: Decimal | None, basis: 'shifts' | 'working_hours' |
+    'billable_target' | None).
+    """
+    from resourcing.models import BillableTarget, Holiday, LeaveRequest
+    from resourcing import shifts as _shifts
+
+    def _skip(day):
+        return Holiday.is_holiday(day) or LeaveRequest.is_user_on_leave(user, day)
+
+    days = []
+    cur = start_date
+    while cur <= end_date:
+        days.append(cur)
+        cur += timedelta(days=1)
+
+    rows = list(_shifts.assignments_qs(user))
+    if rows:
+        tz = _shifts.user_tz(user)
+        minutes = 0
+        for day in days:
+            if _skip(day):
+                continue
+            for s in _shifts.shifts_on(user, day, rows=rows, tz=tz):
+                if not s.on_call:
+                    minutes += s.template.duration_minutes
+        return Decimal(minutes) / Decimal('60'), 'shifts'
+
+    whs = list(user.resourcing_working_hours.filter(is_active=True))
+    if whs:
+        by_weekday = {}
+        for wh in whs:
+            mins = ((wh.end_time.hour * 60 + wh.end_time.minute)
+                    - (wh.start_time.hour * 60 + wh.start_time.minute))
+            if mins > 0:
+                by_weekday[wh.weekday] = by_weekday.get(wh.weekday, 0) + mins
+        minutes = sum(by_weekday.get(d.weekday(), 0) for d in days
+                      if by_weekday.get(d.weekday()) and not _skip(d))
+        return Decimal(minutes) / Decimal('60'), 'working_hours'
+
+    bt = BillableTarget.objects.filter(user=user, is_active=True).first()
+    if bt and bt.target_hours_per_week:
+        weeks = Decimal(len(days)) / Decimal('7')
+        return Decimal(str(bt.target_hours_per_week)) * weeks, 'billable_target'
+    return None, None
+
+
+def technician_utilization(start_date, end_date, organization=None, users=None):
+    """
+    Billable hours ÷ available hours per technician who logged time in the
+    window (or each of `users`). `utilization_pct` is None when the
+    technician has no shifts, working hours or billable target to measure
+    against.
+
+    Returns: list of {'tech_id', 'tech_username', 'hours',
+    'billable_hours', 'available_hours', 'basis', 'utilization_pct'}.
+    """
+    qs = _time_entries(start_date, end_date, organization).filter(user__isnull=False)
+    per = {}
     for te in qs:
+        row = per.setdefault(te.user_id, {'user': te.user, 'minutes': 0, 'billable_minutes': 0})
+        row['minutes'] += te.duration_minutes or 0
+        if te.is_billable:
+            row['billable_minutes'] += te.duration_minutes or 0
+    for u in users or []:
+        per.setdefault(u.pk, {'user': u, 'minutes': 0, 'billable_minutes': 0})
+
+    out = []
+    for uid, row in per.items():
+        avail, basis = available_hours(row['user'], start_date, end_date)
+        billable = Decimal(row['billable_minutes']) / Decimal('60')
+        util = (round(float(billable / avail * 100), 1)
+                if avail is not None and avail > 0 else None)
+        out.append({
+            'tech_id': uid,
+            'tech_username': row['user'].username,
+            'hours': round(row['minutes'] / 60.0, 2),
+            'billable_hours': float(round(billable, 2)),
+            'available_hours': float(round(avail, 2)) if avail is not None else None,
+            'basis': basis,
+            'utilization_pct': util,
+        })
+    return sorted(out, key=lambda r: r['tech_username'])
+
+
+def profitability_by_tech(start_date, end_date, organization=None):
+    """
+    Per-tech profitability and utilization.
+
+    Cost: each entry × the tech's cost rate on the day of the work.
+    Attributed revenue: each billable entry × its bill rate (entry snapshot,
+    else the covering contract's hourly / overage rate). Entries without a
+    rate are counted in `unknown_cost_*` / `unknown_bill_*` instead of being
+    priced at a default, and `margin` is None while either side is
+    incomplete.
+    Utilization: billable hours ÷ available hours (`technician_utilization`).
+
+    Returns: list of {'tech_id', 'tech_username', 'hours',
+    'billable_minutes', 'cost', 'attributed_revenue', 'margin',
+    'margin_pct', 'utilization_pct', 'unknown_cost_hours',
+    'unknown_cost_entries', 'unknown_bill_hours', 'unknown_bill_entries',
+    'is_complete'} dicts, sorted by attributed_revenue desc.
+    """
+    from .costing import LaborTally, RateBook, entry_hours, margin_fields
+
+    book = RateBook()
+    tallies = {}
+    users = {}
+    for te in _time_entries(start_date, end_date, organization):
         if not te.user_id:
             continue
-        # Cost rate
-        rate = TechCostRate.rate_for(te.user, midpoint)
-        if rate == DEFAULT_LOADED_RATE and default_loaded_rate is not None:
-            rate = fallback_rate
-        mins = te.duration_minutes or 0
-        hours = _D(mins) / _D('60')
-        # Attributed revenue: billable minutes × contract hourly_rate.
-        # NOTE: exact per-entry billing rates arrive in Phase 3.4 — this
-        # approximates revenue using the active contract's hourly_rate
-        # (or `default_loaded_rate` fallback as a stand-in for retail).
-        contract = contract_cache.get(te.ticket_id)
-        if te.ticket_id not in contract_cache:
-            contract = Contract.for_ticket(te.ticket)
-            contract_cache[te.ticket_id] = contract
+        users[te.user_id] = te.user
+        tally = tallies.setdefault(te.user_id, LaborTally())
+        hours = entry_hours(te)
+        tally.add_cost(hours, book.entry_cost_rate(te))
         if te.is_billable:
-            billable_hours = hours
-        else:
-            billable_hours = _D('0')
-        if contract and contract.hourly_rate:
-            billing_rate = _D(str(contract.hourly_rate))
-        else:
-            billing_rate = fallback_rate
-        attr_rev = billable_hours * billing_rate
+            tally.add_revenue(hours, book.bill_rate_for(te), te.duration_minutes)
 
-        row = out.setdefault(te.user_id, {
-            'tech_id': te.user_id,
-            'tech_username': te.user.username,
-            'hours': _D('0'),
-            'billable_minutes': 0,
-            'cost': _D('0'),
-            'attributed_revenue': _D('0'),
-        })
-        row['hours'] += hours
-        if te.is_billable:
-            row['billable_minutes'] += mins
-        row['cost'] += hours * _D(str(rate))
-        row['attributed_revenue'] += attr_rev
-
-    # Utilization: pull each tech's BillableTarget once.
-    bt_by_user = {
-        bt.user_id: bt for bt in BillableTarget.objects.filter(user_id__in=list(out.keys()))
-    }
-    days_in_period = ((end_date - start_date).days + 1) if end_date and start_date else 0
-    weeks_in_period = _D(str(max(days_in_period, 1))) / _D('7')
+    util = {r['tech_id']: r for r in technician_utilization(
+        start_date, end_date, organization, users=list(users.values()))}
 
     rows = []
-    for uid, row in out.items():
-        revenue = float(row['attributed_revenue'])
-        cost_v = float(row['cost'])
-        margin = revenue - cost_v
-        margin_pct = (margin / revenue * 100) if revenue else 0.0
-
-        bt = bt_by_user.get(uid)
-        target_per_week = (
-            _D(str(bt.target_hours_per_week)) if bt and bt.is_active
-            else _D('32')
-        )
-        target_hours = target_per_week * weeks_in_period
-        actual_hours = row['hours']
-        util = float((actual_hours / target_hours) * 100) if target_hours else 0.0
-
-        rows.append({
-            'tech_id': row['tech_id'],
-            'tech_username': row['tech_username'],
-            'hours': float(round(actual_hours, 2)),
-            'billable_minutes': row['billable_minutes'],
-            'cost': cost_v,
-            'attributed_revenue': revenue,
-            'margin': margin,
-            'margin_pct': round(margin_pct, 1),
-            'utilization_pct': round(util, 1),
-        })
+    for uid, tally in tallies.items():
+        c = tally.cost_fields()
+        rv = tally.revenue_fields()
+        row = {
+            'tech_id': uid,
+            'tech_username': users[uid].username,
+            'hours': c['hours'],
+            'billable_minutes': tally.billable_minutes,
+            'cost': c['cost'],
+            'attributed_revenue': rv['attributed_revenue'],
+            'unknown_cost_hours': c['unknown_cost_hours'],
+            'unknown_cost_entries': c['unknown_cost_entries'],
+            'unknown_bill_hours': rv['unknown_bill_hours'],
+            'unknown_bill_entries': rv['unknown_bill_entries'],
+            'cost_complete': c['cost_complete'],
+            'revenue_complete': rv['revenue_complete'],
+            'utilization_pct': util.get(uid, {}).get('utilization_pct'),
+            'utilization_basis': util.get(uid, {}).get('basis'),
+        }
+        row.update(margin_fields(rv['attributed_revenue'], c['cost'],
+                                 cost_complete=tally.cost_complete,
+                                 revenue_complete=tally.revenue_complete))
+        rows.append(row)
     return sorted(rows, key=lambda r: r['attributed_revenue'], reverse=True)
-
 
 # ---- Phase 3.3: Effective hourly rate + Revenue leakage --------------------
 
@@ -758,44 +729,52 @@ def effective_hourly_rate_by_tech(start_date, end_date, organization=None):
     """
     Per-tech effective hourly rate = (attributed revenue) / billable_hours.
 
-    Reuses `profitability_by_tech` which already computes attributed revenue
-    + billable minutes per tech. Looks up each tech's TechCostRate at the
-    period midpoint to compute realization %.
+    Reuses `profitability_by_tech`. `cost_rate` is the tech's blended
+    loaded rate over the window (known cost ÷ hours, each entry at the rate
+    in effect on its day); realization_pct = effective_rate / cost_rate ×
+    100 (target ≥ 200%).
+
+    `effective_rate` is None when some billable hours have no bill rate;
+    `cost_rate` and `realization_pct` are None when some hours have no cost
+    rate. Unknown is reported as unknown, not as a default.
 
     Returns: list of {'tech_id', 'tech_username', 'attributed_revenue',
-    'billable_hours', 'effective_rate', 'cost_rate', 'realization_pct'}
-    where realization_pct = effective_rate / cost_rate × 100 (target ≥ 200%).
+    'billable_hours', 'effective_rate', 'cost_rate', 'realization_pct',
+    'unknown_cost_hours', 'unknown_bill_hours', 'is_complete'}.
     """
-    from resourcing.models import TechCostRate
-
     rows = profitability_by_tech(start_date, end_date, organization=organization)
-    midpoint = _period_midpoint(start_date, end_date)
 
     out = []
     for r in rows:
-        billable_min = r.get('billable_minutes', 0) or 0
-        billable_hours = billable_min / 60.0
+        billable_hours = (r.get('billable_minutes', 0) or 0) / 60.0
         revenue = r.get('attributed_revenue', 0.0) or 0.0
-        eff_rate = (revenue / billable_hours) if billable_hours else 0.0
-
-        # Cost rate via TechCostRate; falls back to DEFAULT_LOADED_RATE
-        try:
-            user = User.objects.get(pk=r['tech_id'])
-            cost_rate = float(TechCostRate.rate_for(user, midpoint))
-        except User.DoesNotExist:
-            cost_rate = float(DEFAULT_LOADED_RATE)
-
-        realization = (eff_rate / cost_rate * 100) if cost_rate else 0.0
+        if not r['revenue_complete']:
+            eff_rate = None
+        else:
+            eff_rate = round(revenue / billable_hours, 2) if billable_hours else 0.0
+        hours = r.get('hours') or 0.0
+        if r['cost_complete'] and hours:
+            cost_rate = round(r['cost'] / hours, 2)
+        else:
+            cost_rate = None
+        realization = (round(eff_rate / cost_rate * 100, 1)
+                       if eff_rate is not None and cost_rate else None)
         out.append({
             'tech_id': r['tech_id'],
             'tech_username': r['tech_username'],
             'attributed_revenue': round(revenue, 2),
             'billable_hours': round(billable_hours, 2),
-            'effective_rate': round(eff_rate, 2),
-            'cost_rate': round(cost_rate, 2),
-            'realization_pct': round(realization, 1),
+            'effective_rate': eff_rate,
+            'cost_rate': cost_rate,
+            'realization_pct': realization,
+            'unknown_cost_hours': r['unknown_cost_hours'],
+            'unknown_cost_entries': r['unknown_cost_entries'],
+            'unknown_bill_hours': r['unknown_bill_hours'],
+            'unknown_bill_entries': r['unknown_bill_entries'],
+            'is_complete': r['is_complete'],
         })
-    return sorted(out, key=lambda r: r['effective_rate'], reverse=True)
+    return sorted(out, key=lambda r: (r['effective_rate'] is not None, r['effective_rate'] or 0),
+                  reverse=True)
 
 
 def revenue_leakage(start_date, end_date, organization=None,
@@ -827,9 +806,16 @@ def revenue_leakage(start_date, end_date, organization=None,
         'expired_blocks': [...],
         'stuck_drafts':   [...],
         'totals': {'stale': float, 'expired_blocks': float,
-                   'stuck': float, 'grand_total': float},
+                   'stuck': float, 'grand_total': float,
+                   'stale_hours_without_rate': float,
+                   'stale_entries_without_rate': int,
+                   'expired_blocks_without_rate': int,
+                   'is_complete': bool},
         'stale_days': int,
       }
+
+    Amounts are the known part only: time without a bill rate and expired
+    blocks without an hourly rate are counted, not priced (`is_complete`).
     """
     from datetime import timedelta
     from django.utils import timezone
@@ -840,15 +826,14 @@ def revenue_leakage(start_date, end_date, organization=None,
     stuck_cutoff = today - timedelta(days=14)
 
     # --- 1. Stale unbilled time ---------------------------------------------
-    # TicketTimeEntry has no direct Invoice FK. We use the heuristic
-    # InvoiceLineItem.source='time' + source_id=str(entry.pk), filtering
-    # out void invoices.
-    billed_entry_ids = set(
-        int(sid) for sid in InvoiceLineItem.objects.filter(
-            source='time',
-        ).exclude(invoice__status='void').values_list('source_id', flat=True)
-        if sid and str(sid).isdigit()
-    )
+    # TicketTimeEntry has no direct Invoice FK: an entry is billed when a
+    # live invoice line (source='time', source_id=entry pk) points at it.
+    # Each entry is valued at its own bill rate (reports.costing); entries
+    # without one are counted in `hours_without_rate` and left out of the
+    # amount instead of being priced at a made-up rate.
+    from .costing import RateBook, entry_hours
+    book = RateBook()
+    billed_entry_ids = InvoiceLineItem.billed_source_ids('time')
 
     te_qs = TicketTimeEntry.objects.filter(
         is_billable=True,
@@ -866,58 +851,62 @@ def revenue_leakage(start_date, end_date, organization=None,
         row = stale_rows.setdefault(client.id, {
             'client_id': client.id, 'client_name': client.name,
             'oldest_at': te.started_at, 'entry_count': 0,
-            'minutes': 0,
+            'minutes': 0, 'amount': Decimal('0'),
+            'unrated_hours': Decimal('0'), 'unrated_entries': 0,
         })
         row['entry_count'] += 1
         row['minutes'] += (te.duration_minutes or 0)
+        hours = entry_hours(te)
+        rate = book.bill_rate_for(te)
+        if rate is None:
+            if hours > 0:
+                row['unrated_hours'] += hours
+                row['unrated_entries'] += 1
+        else:
+            row['amount'] += hours * rate
         if te.started_at < row['oldest_at']:
             row['oldest_at'] = te.started_at
 
-    DEFAULT_BILL_RATE = Decimal('150')
     stale_out = []
     for cid, row in stale_rows.items():
-        # Best-effort representative rate: active contract's hourly_rate
-        contract = Contract.objects.filter(
-            client_org_id=cid, status='active',
-        ).first()
-        rate = (contract.hourly_rate
-                if contract and contract.hourly_rate
-                else DEFAULT_BILL_RATE) or DEFAULT_BILL_RATE
-        amount = float(Decimal(str(row['minutes'])) / Decimal('60') * Decimal(str(rate)))
         stale_out.append({
             'client_id': row['client_id'],
             'client_name': row['client_name'],
             'oldest_at': row['oldest_at'].isoformat() if row['oldest_at'] else None,
             'entry_count': row['entry_count'],
             'hours_at_risk': round(row['minutes'] / 60.0, 2),
-            'amount_at_risk': round(amount, 2),
+            'amount_at_risk': round(float(row['amount']), 2),
+            'hours_without_rate': float(round(row['unrated_hours'], 2)),
+            'entries_without_rate': row['unrated_entries'],
+            'is_complete': row['unrated_entries'] == 0,
         })
     stale_out.sort(key=lambda r: r['amount_at_risk'], reverse=True)
 
     # --- 2. Expired contract blocks ----------------------------------------
     expired_qs = Contract.objects.filter(status='expired').select_related('client_org')
-    expired_qs = scope_to_organizations(expired_qs, 'organization', organization)
+    expired_qs = scope_to_organizations(expired_qs, 'client_org', organization)
     expired_out = []
     for c in expired_qs:
         if not c.total_hours or c.hours_used >= float(c.total_hours):
             continue
         unused = float(c.total_hours) - c.hours_used
-        rate = float(c.hourly_rate or 0)
+        rate = book.contract_bill_rate(c)
         expired_out.append({
             'client_id': c.client_org_id,
             'client_name': c.client_org.name if c.client_org else '?',
             'contract_id': c.id,
             'contract_name': c.name,
             'unused_hours': round(unused, 2),
-            'unused_value': round(unused * rate, 2),
+            # None = the contract has no hourly rate to value the hours at.
+            'unused_value': round(unused * float(rate), 2) if rate is not None else None,
         })
-    expired_out.sort(key=lambda r: r['unused_value'], reverse=True)
+    expired_out.sort(key=lambda r: r['unused_value'] or 0, reverse=True)
 
     # --- 3. Stuck drafts ----------------------------------------------------
     stuck_qs = Invoice.objects.filter(
         status='draft', invoice_date__lte=stuck_cutoff,
     ).select_related('client_org')
-    stuck_qs = scope_to_organizations(stuck_qs, 'organization', organization)
+    stuck_qs = scope_to_organizations(stuck_qs, 'client_org', organization)
     stuck_out = []
     for inv in stuck_qs:
         days_stuck = (today - inv.invoice_date).days
@@ -933,9 +922,14 @@ def revenue_leakage(start_date, end_date, organization=None,
 
     totals = {
         'stale': round(sum(r['amount_at_risk'] for r in stale_out), 2),
-        'expired_blocks': round(sum(r['unused_value'] for r in expired_out), 2),
+        'expired_blocks': round(sum(r['unused_value'] or 0 for r in expired_out), 2),
         'stuck': round(sum(r['amount'] for r in stuck_out), 2),
+        'stale_hours_without_rate': round(sum(r['hours_without_rate'] for r in stale_out), 2),
+        'stale_entries_without_rate': sum(r['entries_without_rate'] for r in stale_out),
+        'expired_blocks_without_rate': sum(1 for r in expired_out if r['unused_value'] is None),
     }
+    totals['is_complete'] = (totals['stale_entries_without_rate'] == 0
+                             and totals['expired_blocks_without_rate'] == 0)
     totals['grand_total'] = round(
         totals['stale'] + totals['expired_blocks'] + totals['stuck'], 2
     )
@@ -1104,34 +1098,24 @@ def margin_analytics_by_service_line(start_date, end_date, organization=None,
     Ticket.closure_category, or Ticket.queue. Useful for seeing which
     buckets of work are profitable vs. which are loss leaders.
 
-    Revenue attribution per TicketTimeEntry:
-      `billable_minutes / 60 × ticket.contract.hourly_rate`
-      (or DEFAULT_BILL_RATE = $150 if no active contract).
-    Cost = billable_minutes / 60 × TechCostRate.rate_for(user, midpoint).
+    Per TicketTimeEntry (rates from `reports.costing`):
+      revenue = billable hours × the entry's bill rate (snapshot, else the
+                covering contract's hourly / overage rate);
+      cost    = hours (billable or not — unbilled work still costs) × the
+                tech's cost rate on the day of the work.
+    Entries without a rate are counted in `unknown_*` and `margin` is None
+    for a group with any.
 
     dimension: 'ticket_type' | 'closure_category' | 'queue'
     """
-    from psa.models import TicketTimeEntry, Contract
-    from resourcing.models import TechCostRate
+    from .costing import LaborTally, RateBook, entry_hours, margin_fields
 
-    DEFAULT_BILL_RATE = Decimal('150')
-    midpoint = _period_midpoint(start_date, end_date)
-
-    qs = TicketTimeEntry.objects.filter(
-        is_billable=True,
-        started_at__date__gte=start_date,
-        started_at__date__lte=end_date,
-    ).select_related(
+    book = RateBook()
+    qs = _time_entries(start_date, end_date, organization).select_related(
         'ticket__ticket_type', 'ticket__queue',
-        'ticket__organization', 'user',
     )
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
 
     out = {}
-    contract_cache = {}
-    rate_cache = {}
-
     for te in qs:
         ticket = te.ticket
         if dimension == 'ticket_type':
@@ -1147,51 +1131,35 @@ def margin_analytics_by_service_line(start_date, end_date, organization=None,
             key = '_unknown'
             label = 'Unknown'
 
-        # Resolve revenue rate — active contract on ticket org
-        org_id = ticket.organization_id
-        if org_id not in contract_cache:
-            c = Contract.objects.filter(
-                client_org_id=org_id, status='active',
-            ).first()
-            contract_cache[org_id] = c.hourly_rate if c and c.hourly_rate else None
-        rev_rate = contract_cache.get(org_id) or DEFAULT_BILL_RATE
-
-        # Cost rate per tech (cached)
-        if te.user_id not in rate_cache:
-            try:
-                rate_cache[te.user_id] = float(TechCostRate.rate_for(te.user, midpoint)) if te.user_id else 0.0
-            except Exception:
-                rate_cache[te.user_id] = 0.0
-        cost_rate = rate_cache[te.user_id]
-
-        hours = Decimal(te.duration_minutes or 0) / Decimal(60)
-        revenue = float(hours * Decimal(str(rev_rate)))
-        cost = float(hours * Decimal(str(cost_rate)))
-
-        row = out.setdefault(key, {
-            'key': str(key), 'label': label,
-            'tickets': set(), 'hours': 0.0,
-            'revenue': 0.0, 'cost': 0.0,
-        })
+        row = out.setdefault(key, {'key': str(key), 'label': label,
+                                   'tickets': set(), 'tally': LaborTally()})
         row['tickets'].add(ticket.id)
-        row['hours'] += float(hours)
-        row['revenue'] += revenue
-        row['cost'] += cost
+        hours = entry_hours(te)
+        row['tally'].add_cost(hours, book.entry_cost_rate(te))
+        if te.is_billable:
+            row['tally'].add_revenue(hours, book.bill_rate_for(te), te.duration_minutes)
 
     rows = []
     for r in out.values():
-        ticket_count = len(r['tickets'])
-        margin = r['revenue'] - r['cost']
-        margin_pct = (margin / r['revenue'] * 100) if r['revenue'] else 0.0
-        rows.append({
+        t = r['tally']
+        c = t.cost_fields()
+        rv = t.revenue_fields()
+        row = {
             'key': r['key'], 'label': r['label'],
-            'tickets': ticket_count,
-            'hours': round(r['hours'], 2),
-            'revenue': round(r['revenue'], 2),
-            'cost': round(r['cost'], 2),
-            'margin': round(margin, 2),
-            'margin_pct': round(margin_pct, 1),
-        })
+            'tickets': len(r['tickets']),
+            'hours': c['hours'],
+            'billable_hours': rv['billable_hours'],
+            'revenue': rv['attributed_revenue'],
+            'cost': c['cost'],
+            'unknown_cost_hours': c['unknown_cost_hours'],
+            'unknown_cost_entries': c['unknown_cost_entries'],
+            'unknown_bill_hours': rv['unknown_bill_hours'],
+            'unknown_bill_entries': rv['unknown_bill_entries'],
+        }
+        row.update(margin_fields(row['revenue'], row['cost'],
+                                 cost_complete=t.cost_complete,
+                                 revenue_complete=t.revenue_complete))
+        rows.append(row)
     rows.sort(key=lambda r: r['revenue'], reverse=True)
     return rows
 
@@ -1462,3 +1430,382 @@ def security_alert_mtta(start_date, end_date, organization=None):
             'unack_count': r['unack_count'],
         })
     return sorted(rows, key=lambda r: r['count'], reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# MSP-wide business metrics: recurring revenue, churn, service lines,
+# utilization, unbilled time, upcoming expirations.
+#
+# One install serves one MSP; every Organization is one of its customers. These
+# aggregate across all customers, or across `organization` (one customer or a
+# list — pass reports.access.viewer_client_scope(user) so a technician with a
+# limited client scope only adds up their customers). Contracts and invoices
+# are scoped by `client_org` (the customer). Each function returns
+# completeness flags for inputs it could not use, so a dashboard can show
+# "incomplete" instead of a confident wrong number.
+# ---------------------------------------------------------------------------
+
+MONTHS_PER_PERIOD = {'monthly': Decimal('1'), 'quarterly': Decimal('3'), 'yearly': Decimal('12')}
+
+
+def monthly_amount(contract):
+    """A contract's recurring amount normalized to one month, or None when
+    it has no recurring billing frequency or amount."""
+    months = MONTHS_PER_PERIOD.get(contract.billing_frequency)
+    if months is None:
+        return None
+    amount = contract.effective_recurring_amount
+    if not amount or amount <= 0:
+        return None
+    return (Decimal(str(amount)) / months).quantize(Decimal('0.01'))
+
+
+def _contracts_running_on(on_date, organization=None):
+    """Non-draft contracts that were billing on `on_date`, plus the ones
+    whose stop date is unknown (cancelled / expired with no end date)."""
+    from django.utils import timezone
+    from psa.models import Contract
+    qs = Contract.objects.exclude(status='draft').filter(start_date__lte=on_date).filter(
+        Q(end_date__isnull=True) | Q(end_date__gte=on_date))
+    qs = scope_to_organizations(qs, 'client_org', organization).select_related('client_org')
+    today = timezone.localdate()
+    running, undated = [], []
+    for c in qs:
+        if c.status == 'active':
+            if on_date >= today and c.paused_at:
+                continue  # paused contracts are not billing now
+            running.append(c)
+        elif c.end_date is None:
+            undated.append(c)   # stopped, but we can't tell when
+        elif on_date < today:
+            running.append(c)   # ran until its end date
+    return running, undated
+
+
+def recurring_revenue(on_date=None, organization=None):
+    """
+    MRR / ARR on `on_date` (default today) from contracts' recurring
+    amounts normalized by billing frequency (quarterly ÷ 3, yearly ÷ 12).
+
+    Returns: {'as_of', 'mrr', 'arr', 'contract_count', 'contracts': [...],
+    'contracts_without_amount', 'contracts_unknown_end', 'is_complete'}.
+    `contracts_without_amount` counts running contracts whose recurring
+    billing is off or has no amount (their revenue is not recurring here);
+    `contracts_unknown_end` counts stopped contracts with no end date, which
+    can't be placed in a past month.
+    """
+    from django.utils import timezone
+    on_date = on_date or timezone.localdate()
+    running, undated = _contracts_running_on(on_date, organization)
+    rows = []
+    without_amount = 0
+    for c in running:
+        m = monthly_amount(c)
+        if m is None:
+            without_amount += 1
+            continue
+        rows.append({'contract_id': c.id, 'contract_name': c.name,
+                     'client_id': c.client_org_id, 'client_name': c.client_org.name,
+                     'frequency': c.billing_frequency, 'mrr': float(m),
+                     'next_billing_date': c.next_billing_date,
+                     'end_date': c.end_date})
+    rows.sort(key=lambda r: -r['mrr'])
+    mrr = round(sum(r['mrr'] for r in rows), 2)
+    unknown_end = len(undated) if on_date < timezone.localdate() else 0
+    return {
+        'as_of': on_date,
+        'mrr': mrr,
+        'arr': round(mrr * 12, 2),
+        'contract_count': len(rows),
+        'contracts': rows,
+        'contracts_without_amount': without_amount,
+        'contracts_unknown_end': unknown_end,
+        'is_complete': unknown_end == 0,
+    }
+
+
+def _month_end(d):
+    from calendar import monthrange
+    return d.replace(day=monthrange(d.year, d.month)[1])
+
+
+def mrr_trend(months=12, ref_date=None, organization=None):
+    """
+    MRR at the end of each of the last `months` months (the current month
+    as of `ref_date`), with month-over-month growth.
+
+    Returns: {'points': [{'month', 'mrr', 'growth', 'growth_pct',
+    'is_complete'}], 'mom_growth', 'mom_growth_pct', 'is_complete'}.
+    `growth_pct` is None when the prior month's MRR is zero.
+    """
+    from django.utils import timezone
+    from dateutil.relativedelta import relativedelta
+    ref = ref_date or timezone.localdate()
+    points = []
+    for i in range(months - 1, -1, -1):
+        month_start = (ref.replace(day=1) - relativedelta(months=i))
+        point_date = min(_month_end(month_start), ref)
+        rr = recurring_revenue(point_date, organization)
+        points.append({'month': month_start.strftime('%Y-%m'), 'as_of': point_date,
+                       'mrr': rr['mrr'], 'is_complete': rr['is_complete']})
+    prev = None
+    for p in points:
+        if prev is None:
+            p['growth'] = None
+            p['growth_pct'] = None
+        else:
+            p['growth'] = round(p['mrr'] - prev['mrr'], 2)
+            p['growth_pct'] = (round((p['mrr'] - prev['mrr']) / prev['mrr'] * 100, 1)
+                               if prev['mrr'] else None)
+        prev = p
+    last = points[-1] if points else {}
+    return {
+        'points': points,
+        'mom_growth': last.get('growth'),
+        'mom_growth_pct': last.get('growth_pct'),
+        'is_complete': all(p['is_complete'] for p in points),
+    }
+
+
+def _was_renewed(contract, contracts_by_client):
+    """A contract counts as renewed when a renewal points at it, or another
+    non-draft contract for the same client starts within 31 days of its end
+    and runs past it."""
+    if contract.renewals.exclude(status='draft').exists():
+        return True
+    end = contract.end_date
+    for other in contracts_by_client.get(contract.client_org_id, ()):
+        if other.pk == contract.pk or other.status == 'draft':
+            continue
+        if other.start_date and other.start_date <= end + timedelta(days=31) \
+                and (other.end_date is None or other.end_date > end) \
+                and other.start_date >= contract.start_date:
+            return True
+    return False
+
+
+def contract_churn(start_date, end_date, organization=None):
+    """
+    Contracts that ended (cancelled or expired, end date in the window)
+    without a renewal.
+
+    Returns: {'churned': [...], 'churned_count', 'churned_mrr',
+    'starting_mrr', 'churn_rate_pct', 'undated_cancellations',
+    'is_complete'}. `churn_rate_pct` = churned MRR ÷ MRR at the start of
+    the window (None when that is zero). Cancelled / expired contracts with
+    no end date can't be placed in a window; they are counted in
+    `undated_cancellations` and make the result incomplete.
+    """
+    from psa.models import Contract
+    ended = scope_to_organizations(
+        Contract.objects.filter(status__in=('cancelled', 'expired')),
+        'client_org', organization).select_related('client_org')
+    in_window = [c for c in ended
+                 if c.end_date and start_date <= c.end_date <= end_date]
+    undated = sum(1 for c in ended if c.end_date is None)
+
+    client_ids = {c.client_org_id for c in in_window}
+    by_client = {}
+    for c in Contract.objects.filter(client_org_id__in=client_ids):
+        by_client.setdefault(c.client_org_id, []).append(c)
+
+    churned = []
+    for c in in_window:
+        if _was_renewed(c, by_client):
+            continue
+        m = monthly_amount(c)
+        churned.append({'contract_id': c.id, 'contract_name': c.name,
+                        'client_id': c.client_org_id, 'client_name': c.client_org.name,
+                        'status': c.status, 'end_date': c.end_date,
+                        'mrr': float(m) if m is not None else None})
+    churned_mrr = round(sum(r['mrr'] or 0 for r in churned), 2)
+    starting = recurring_revenue(start_date, organization)
+    rate = (round(churned_mrr / starting['mrr'] * 100, 1) if starting['mrr'] else None)
+    return {
+        'churned': churned,
+        'churned_count': len(churned),
+        'churned_mrr': churned_mrr,
+        'starting_mrr': starting['mrr'],
+        'churn_rate_pct': rate,
+        'undated_cancellations': undated,
+        'is_complete': undated == 0 and starting['is_complete'],
+    }
+
+
+def revenue_by_service_line(start_date, end_date, organization=None):
+    """
+    Invoiced revenue (sent / partial / paid / overdue) by service line:
+    the contract type of the invoice's source contract, "Projects" for
+    project invoices, "Ticket work" for ticket invoices, and "Unattributed"
+    for anything else. `unattributed` is reported so a large share of
+    unclassified revenue is visible.
+
+    Returns: {'rows': [{'key', 'label', 'invoices', 'revenue'}],
+    'total', 'unattributed', 'is_complete'}.
+    """
+    from psa.models import Contract, Invoice
+    labels = dict(Contract.CONTRACT_TYPES)
+    qs = Invoice.objects.filter(
+        invoice_date__gte=start_date, invoice_date__lte=end_date,
+        status__in=['sent', 'partial', 'paid', 'overdue'],
+    ).select_related('source_contract')
+    qs = scope_to_organizations(qs, 'client_org', organization)
+    out = {}
+    for inv in qs:
+        if inv.source_contract_id:
+            key = inv.source_contract.contract_type
+            label = labels.get(key, key)
+        elif getattr(inv, 'project_id', None):
+            key, label = 'project', 'Projects'
+        elif inv.source_ticket_id:
+            key, label = 'ticket', 'Ticket work'
+        else:
+            key, label = 'unattributed', 'Unattributed'
+        row = out.setdefault(key, {'key': key, 'label': label, 'invoices': 0,
+                                   'revenue': Decimal('0')})
+        row['invoices'] += 1
+        row['revenue'] += inv.total or Decimal('0')
+    rows = sorted(({**r, 'revenue': float(r['revenue'])} for r in out.values()),
+                  key=lambda r: -r['revenue'])
+    unattributed = out.get('unattributed', {}).get('revenue', Decimal('0'))
+    return {
+        'rows': rows,
+        'total': round(sum(r['revenue'] for r in rows), 2),
+        'unattributed': float(unattributed),
+        'is_complete': not unattributed,
+    }
+
+
+def utilization_summary(start_date, end_date, organization=None):
+    """Team utilization: billable hours ÷ available hours across the techs
+    who have a basis to measure against. Techs without one are counted in
+    `techs_without_basis` (and make the summary incomplete)."""
+    rows = technician_utilization(start_date, end_date, organization)
+    measured = [r for r in rows if r['available_hours']]
+    billable = sum(r['billable_hours'] for r in measured)
+    available = sum(r['available_hours'] for r in measured)
+    without = len(rows) - len(measured)
+    return {
+        'rows': rows,
+        'billable_hours': round(billable, 2),
+        'available_hours': round(available, 2),
+        'utilization_pct': round(billable / available * 100, 1) if available else None,
+        'techs_measured': len(measured),
+        'techs_without_basis': without,
+        'is_complete': without == 0,
+    }
+
+
+def unbilled_time(start_date, end_date, organization=None):
+    """
+    Billable, finished time entries in the window that are not on any live
+    invoice (`InvoiceLineItem.billed_source_ids`), valued at each entry's
+    bill rate. Entries without a bill rate are counted, not priced.
+
+    Returns: {'rows': [{'client_id', 'client_name', 'entries', 'hours',
+    'amount', 'hours_without_rate'}], 'entries', 'hours', 'amount',
+    'hours_without_rate', 'entries_without_rate', 'is_complete'}.
+    """
+    from psa.models import InvoiceLineItem
+    from .costing import RateBook, entry_hours
+    book = RateBook()
+    qs = _time_entries(start_date, end_date, organization).filter(
+        is_billable=True, ended_at__isnull=False, duration_minutes__gt=0)
+    billed = InvoiceLineItem.billed_source_ids('time')
+    per = {}
+    for te in qs:
+        if te.pk in billed:
+            continue
+        org = te.ticket.organization
+        if not org:
+            continue
+        row = per.setdefault(org.id, {'client_id': org.id, 'client_name': org.name,
+                                      'entries': 0, 'hours': Decimal('0'),
+                                      'amount': Decimal('0'),
+                                      'hours_without_rate': Decimal('0'),
+                                      'entries_without_rate': 0})
+        hours = entry_hours(te)
+        row['entries'] += 1
+        row['hours'] += hours
+        rate = book.bill_rate_for(te)
+        if rate is None:
+            row['hours_without_rate'] += hours
+            row['entries_without_rate'] += 1
+        else:
+            row['amount'] += hours * rate
+    rows = []
+    for r in per.values():
+        rows.append({**r, 'hours': float(round(r['hours'], 2)),
+                     'amount': float(r['amount'].quantize(Decimal('0.01'))),
+                     'hours_without_rate': float(round(r['hours_without_rate'], 2))})
+    rows.sort(key=lambda r: -r['amount'])
+    without = sum(r['entries_without_rate'] for r in rows)
+    return {
+        'rows': rows,
+        'entries': sum(r['entries'] for r in rows),
+        'hours': round(sum(r['hours'] for r in rows), 2),
+        'amount': round(sum(r['amount'] for r in rows), 2),
+        'hours_without_rate': round(sum(r['hours_without_rate'] for r in rows), 2),
+        'entries_without_rate': without,
+        'is_complete': without == 0,
+    }
+
+
+def contracts_expiring(ref_date=None, organization=None, windows=(30, 60, 90)):
+    """
+    Active contracts whose end date falls within each window from
+    `ref_date` (cumulative: the 60-day bucket includes the 30-day one).
+
+    Returns: {'windows': {30: {'count', 'mrr', 'auto_renew', 'contracts'},
+    ...}, 'contracts_without_amount': int, 'is_complete'}. `mrr` is the
+    recurring revenue at stake; contracts without a recurring amount are
+    listed but add nothing to it.
+    """
+    from django.utils import timezone
+    from psa.models import Contract
+    ref = ref_date or timezone.localdate()
+    horizon = ref + timedelta(days=max(windows))
+    qs = scope_to_organizations(
+        Contract.objects.filter(status='active', end_date__isnull=False,
+                                end_date__gte=ref, end_date__lte=horizon),
+        'client_org', organization).select_related('client_org').order_by('end_date')
+    contracts = list(qs)
+    out = {}
+    for w in windows:
+        limit = ref + timedelta(days=w)
+        rows = []
+        for c in contracts:
+            if c.end_date > limit:
+                continue
+            m = monthly_amount(c)
+            rows.append({'contract_id': c.id, 'contract_name': c.name,
+                         'client_id': c.client_org_id, 'client_name': c.client_org.name,
+                         'end_date': c.end_date, 'auto_renew': c.auto_renew,
+                         'days_left': (c.end_date - ref).days,
+                         'mrr': float(m) if m is not None else None})
+        out[w] = {'count': len(rows),
+                  'mrr': round(sum(r['mrr'] or 0 for r in rows), 2),
+                  'auto_renew': sum(1 for r in rows if r['auto_renew']),
+                  'contracts': rows}
+    without = sum(1 for c in contracts if monthly_amount(c) is None)
+    return {'windows': out, 'contracts_without_amount': without,
+            'is_complete': without == 0}
+
+
+def msp_metrics(ref_date=None, organization=None, window_days=30):
+    """All the MSP-wide metrics above for one dashboard, over the last
+    `window_days` days ending `ref_date`."""
+    from django.utils import timezone
+    ref = ref_date or timezone.localdate()
+    start = ref - timedelta(days=window_days - 1)
+    return {
+        'as_of': ref,
+        'window_start': start,
+        'recurring': recurring_revenue(ref, organization),
+        'mrr_trend': mrr_trend(12, ref, organization),
+        'churn': contract_churn(start, ref, organization),
+        'service_lines': revenue_by_service_line(start, ref, organization),
+        'utilization': utilization_summary(start, ref, organization),
+        'unbilled': unbilled_time(start, ref, organization),
+        'expiring': contracts_expiring(ref, organization),
+    }

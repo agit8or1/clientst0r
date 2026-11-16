@@ -1,0 +1,10 @@
+{
+  "name": "@agit8or/connect",
+  "version": "1.0.0",
+  "description": "Reference TypeScript SDK for the Agit8or Connect protocol (agit8or-connect/1). node:crypto only, no dependencies.",
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": { "node": ">=22.18" },
+  "scripts": { "test": "node --test test/*.test.ts" },
+  "license": "SEE LICENSE IN ../../../LICENSE"
+}

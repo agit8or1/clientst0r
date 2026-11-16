@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Tax exemptions · {{ client.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'accounts:organization_detail' client.pk %}">{{ client.name }}</a></li><li class="breadcrumb-item active" aria-current="page">Tax exemptions</li></ol></nav>
+<h1>Sales tax exemptions</h1>
+<p class="text-muted">An exemption applies only once verified, with a certificate number, inside its dates and for the listed regions (none listed: everywhere). It zeroes tax in manual and flat modes, and is sent to Avalara (exemptionNo / entityUseCode) or TaxJar (exemption_type) in provider modes.</p>
+<div class="card mb-4"><div class="card-body"><table class="table table-sm align-middle"><thead><tr><th>Reason</th><th>Certificate</th><th>Regions</th><th>Valid</th><th>Status</th><th>Verified by</th><th></th></tr></thead><tbody>
+{% for e in exemptions %}<tr><td>{{ e.get_reason_display }}</td><td>{{ e.certificate_number }}{% if e.certificate %} · <a href="{% url 'tax:exemption_certificate' client.pk e.pk %}">file</a>{% endif %}</td>
+  <td>{{ e.jurisdictions|join:", "|default:"all" }}</td><td>{{ e.valid_from|date:"Y-m-d"|default:"—" }} → {{ e.valid_to|date:"Y-m-d"|default:"—" }}</td>
+  <td>{{ e.status_label }}</td><td>{{ e.verified_by|default:"—" }}</td>
+  <td class="text-nowrap">{% if not e.verified_at %}<form method="post" action="{% url 'tax:exemption_action' client.pk e.pk 'verify' %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-success">Verify</button></form>{% endif %}
+    {% if e.is_active %}<form method="post" action="{% url 'tax:exemption_action' client.pk e.pk 'deactivate' %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Deactivate</button></form>
+    {% else %}<form method="post" action="{% url 'tax:exemption_action' client.pk e.pk 'activate' %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">Reactivate</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="7" class="text-muted text-center">No exemptions.</td></tr>{% endfor %}
+</tbody></table></div></div>
+<form method="post" enctype="multipart/form-data" class="card"><div class="card-header"><h2 class="h6 mb-0">Add exemption</h2></div><div class="card-body row g-3">{% csrf_token %}
+  <div class="col-md-3"><label class="form-label" for="reason">Reason</label><select id="reason" name="reason" class="form-select">{% for v, l in reasons %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><label class="form-label" for="certificate_number">Certificate number</label><input id="certificate_number" name="certificate_number" class="form-control" required></div>
+  <div class="col-md-3"><label class="form-label" for="valid_from">Valid from</label><input id="valid_from" name="valid_from" type="date" class="form-control"></div>
+  <div class="col-md-3"><label class="form-label" for="valid_to">Valid to</label><input id="valid_to" name="valid_to" type="date" class="form-control"></div>
+  <div class="col-md-6"><label class="form-label" for="jurisdictions">Regions</label><input id="jurisdictions" name="jurisdictions" class="form-control" placeholder="US-CA, US-NV (blank: all)"></div>
+  <div class="col-md-6"><label class="form-label" for="certificate">Certificate file (PDF or image)</label><input id="certificate" name="certificate" type="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg"></div>
+  <div class="col-12"><label class="form-label" for="notes">Notes</label><textarea id="notes" name="notes" rows="2" class="form-control"></textarea></div>
+</div><div class="card-footer"><button class="btn btn-primary">Add exemption</button></div></form>
+{% endblock %}

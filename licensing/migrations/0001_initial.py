@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('assets', '0029_serial_events'),
-        ('core', '0105_alter_scheduledtask_task_type'),
+        ('core', '0107_scheduledtask_connect_tasks'),
     ]
 
     operations = [

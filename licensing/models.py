@@ -15,7 +15,7 @@ Counts (all computed, never stored):
   utilization    assigned / purchased, as a percentage
 
 `unit_cost` is what the MSP pays the vendor. It is internal and must only be
-shown to people holding the `view_internal_cost_rates` role permission; use
+shown to people holding the `pricing_view_internal_cost_rates` role permission; use
 `LicenseSubscription.cost_for(can_see_cost)` or check the flag in the view.
 """
 from django.db import models
@@ -93,7 +93,7 @@ class LicenseSubscription(BaseModel):
         help_text="Units the vendor reports as in use (e.g. Microsoft consumedUnits).")
     unit_cost = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True,
-        help_text='What the MSP pays per unit. Internal: requires view_internal_cost_rates.')
+        help_text='What the MSP pays per unit. Internal: requires pricing_view_internal_cost_rates.')
     unit_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True,
                                      help_text='What the customer pays per unit.')
     currency = models.CharField(max_length=3, default='USD')

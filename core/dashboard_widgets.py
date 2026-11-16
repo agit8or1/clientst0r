@@ -281,8 +281,8 @@ def gate_quick_actions(request):
 
 
 def _has_2fa(request):
-    from accounts.azure_auth import azure_sso_counts_as_2fa
-    if azure_sso_counts_as_2fa(request):
+    from accounts.sso_mfa import sso_counts_as_2fa
+    if sso_counts_as_2fa(request):
         return True
     if hasattr(request.user, 'totpdevice_set'):
         return request.user.totpdevice_set.filter(confirmed=True).exists()

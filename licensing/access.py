@@ -5,7 +5,7 @@ STAFF_ONLY_PREFIXES). Within that:
 
   view   assets_view in the customer (orgs_with_perm)
   manage manage_licensing in the customer
-  cost   view_internal_cost_rates in the customer
+  cost   pricing_view_internal_cost_rates in the customer
 
 `unit_cost` (what the MSP pays) is never rendered, exported or accepted by a
 form unless `can_see_cost` holds for the subscription's customer.
@@ -31,7 +31,7 @@ def can_manage(user, org):
 
 
 def can_see_cost(user, org):
-    return user_has_org_perm(user, org, 'view_internal_cost_rates')
+    return user_has_org_perm(user, org, 'pricing_view_internal_cost_rates')
 
 
 def viewable_orgs(user):

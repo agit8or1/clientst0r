@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ provider.name }} - Single sign-on{% endblock %}
+{% block content %}
+<p><a href="{% url 'oidc_sso:settings' %}">&larr; Single sign-on</a></p>
+
+{% if test_result %}
+<div class="alert {% if test_result.ok %}alert-success{% else %}alert-danger{% endif %}">
+  {% if test_result.ok %}
+    <strong>Discovery OK.</strong> Issuer matches; {{ test_result.key_count }} signing key(s).
+    <ul class="small mb-0">
+      <li>Authorization: <code>{{ test_result.meta.authorization_endpoint }}</code></li>
+      <li>Token: <code>{{ test_result.meta.token_endpoint }}</code></li>
+      <li>End session: <code>{{ test_result.meta.end_session_endpoint|default:"(none)" }}</code></li>
+      <li>Back-channel logout supported: {{ test_result.meta.backchannel_logout_supported|yesno:"yes,no" }}, with session id: {{ test_result.meta.backchannel_logout_session_supported|yesno:"yes,no" }}</li>
+    </ul>
+  {% else %}
+    <strong>Discovery failed:</strong> {{ test_result.error }}
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row">
+<div class="col-lg-7">
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">{{ provider.name }}</h5>
+    <form method="post" class="mb-0">{% csrf_token %}<input type="hidden" name="action" value="test"><button class="btn btn-sm btn-outline-secondary">Test discovery</button></form>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% for field in form %}
+        <div class="mb-3{% if field.field.widget.input_type == 'checkbox' %} form-check{% endif %}">
+          {% if field.field.widget.input_type == 'checkbox' %}
+            {{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% else %}
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+          {% endif %}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+      {% for e in form.non_field_errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      <button class="btn btn-primary">Save</button>
+    </form>
+  </div>
+</div>
+</div>
+
+<div class="col-lg-5">
+<div class="card mb-4">
+  <div class="card-header"><h6 class="mb-0">Register at the identity provider</h6></div>
+  <div class="card-body small">
+    <dl>
+      <dt>Valid redirect URI</dt><dd><code>{{ redirect_uri }}</code></dd>
+      <dt>Back-channel logout URL</dt><dd><code>{{ backchannel_uri }}</code> (session required: on)</dd>
+      <dt>Valid post logout redirect URI</dt><dd><code>{{ post_logout_uri }}</code></dd>
+      <dt>Client authentication</dt><dd>{{ provider.get_client_auth_method_display }}</dd>
+    </dl>
+    {% if public_jwk %}
+      <p class="mb-1">Public key (JWK) for "Signed JWT" &mdash; import it, or use the JWKS URL <code>{{ jwks_uri }}</code> (served while enabled):</p>
+      <pre class="border rounded p-2 small" style="white-space: pre-wrap; word-break: break-all;">{{ public_jwk }}</pre>
+      <p class="text-muted">Key id {{ provider.key_id }}, created {{ provider.key_created_at|date:"Y-m-d H:i" }}. The private key is stored encrypted and never shown.</p>
+    {% endif %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="regenerate_key"><button class="btn btn-sm btn-outline-warning">Generate a new key pair</button></form>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h6 class="mb-0">Role mappings</h6></div>
+  <div class="card-body">
+    <p class="small text-muted">A token role <code>{{ provider.msp_org_alias|default:"&lt;alias&gt;" }}:&lt;key&gt;</code> maps to an MSP staff global role (applied only to accounts SSO manages); <code>{{ provider.msp_org_alias|default:"&lt;alias&gt;" }}:customer:&lt;customer key&gt;:&lt;key&gt;</code> to a membership in that customer. A token with no mapped role cannot sign in. Mapping a privileged role needs a superuser.</p>
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Role key</th><th>Target</th><th>Role</th><th>Scope</th><th>Priority</th><th></th></tr></thead>
+      <tbody>{% for m in role_mappings %}
+        <tr><td><code>{{ m.role_key }}</code></td><td>{{ m.get_target_display }}</td><td>{{ m.role_template.name }}</td>
+          <td>{% if m.target == 'staff' %}{{ m.get_client_scope_display }}{% endif %}</td><td>{{ m.priority }}</td>
+          <td class="text-end"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="delete_role_mapping"><input type="hidden" name="mapping_id" value="{{ m.pk }}"><button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+      {% empty %}<tr><td colspan="6" class="text-muted">No role mappings yet.</td></tr>{% endfor %}</tbody>
+    </table>
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}<input type="hidden" name="action" value="add_role_mapping">
+      <div class="col-md-2"><label class="form-label">Role key</label><input class="form-control" name="role_key" required placeholder="technician"></div>
+      <div class="col-md-2"><label class="form-label">Target</label><select class="form-select" name="target"><option value="staff">MSP staff global role</option><option value="customer">Customer membership role</option></select></div>
+      <div class="col-md-3"><label class="form-label">Role</label><select class="form-select" name="role_template" required><option value="">Choose...</option>
+        {% for r in customer_roles %}<option value="{{ r.pk }}">{{ r.name }}{% if r.organization %} ({{ r.organization.name }} only){% endif %}</option>{% endfor %}</select></div>
+      <div class="col-md-2"><label class="form-label">Staff scope</label><select class="form-select" name="client_scope"><option value="all">All clients</option><option value="assigned">Assigned clients</option></select></div>
+      <div class="col-md-1"><label class="form-label">Priority</label><input class="form-control" name="priority" value="100"></div>
+      <div class="col-md-2"><button class="btn btn-primary w-100">Add</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h6 class="mb-0">Customer keys</h6></div>
+  <div class="card-body">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Customer key</th><th>Customer</th><th></th></tr></thead>
+      <tbody>{% for c in customer_mappings %}
+        <tr><td><code>{{ c.customer_key }}</code></td><td>{{ c.organization.name }}</td>
+          <td class="text-end"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="delete_customer_mapping"><input type="hidden" name="mapping_id" value="{{ c.pk }}"><button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+      {% empty %}<tr><td colspan="3" class="text-muted">No customer keys yet.</td></tr>{% endfor %}</tbody>
+    </table>
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}<input type="hidden" name="action" value="add_customer_mapping">
+      <div class="col-md-4"><label class="form-label">Customer key</label><input class="form-control" name="customer_key" required placeholder="cust-0193"></div>
+      <div class="col-md-5"><label class="form-label">Customer</label><select class="form-select" name="organization" required><option value="">Choose...</option>{% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><button class="btn btn-primary w-100">Add</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h6 class="mb-0">Linked accounts</h6></div>
+  <div class="card-body">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>User</th><th>Subject (sub)</th><th>Linked</th><th>Last sign-in</th><th>SSO manages staff role</th><th></th></tr></thead>
+      <tbody>{% for i in identities %}
+        <tr><td>{{ i.user.username }}</td><td><code>{{ i.sub }}</code></td><td>{{ i.linked_at|date:"Y-m-d" }}{% if i.linked_by %} by {{ i.linked_by.username }}{% endif %}</td>
+          <td>{{ i.last_login_at|date:"Y-m-d H:i"|default:"never" }}</td>
+          <td>{{ i.manages_staff_role|yesno:"yes,no" }}{% if is_superuser %}
+            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="toggle_managed"><input type="hidden" name="identity_id" value="{{ i.pk }}"><button class="btn btn-link btn-sm p-0 ms-1">change</button></form>{% endif %}</td>
+          <td class="text-end"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="unlink"><input type="hidden" name="identity_id" value="{{ i.pk }}"><button class="btn btn-sm btn-outline-danger">Unlink</button></form></td></tr>
+      {% empty %}<tr><td colspan="6" class="text-muted">No linked accounts.</td></tr>{% endfor %}</tbody>
+    </table>
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}<input type="hidden" name="action" value="prelink">
+      <div class="col-md-4"><label class="form-label">User</label><select class="form-select" name="user" required><option value="">Choose...</option>{% for u in users %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></div>
+      <div class="col-md-5"><label class="form-label">Subject (sub) from the OP console</label><input class="form-control" name="sub" required maxlength="255"></div>
+      <div class="col-md-3"><button class="btn btn-primary w-100">Pre-link</button></div>
+    </form>
+  </div>
+</div>
+
+{% if is_superuser %}
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-outline-danger">Delete provider</button></form>
+{% endif %}
+{% endblock %}

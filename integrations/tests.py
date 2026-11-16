@@ -625,6 +625,11 @@ class GLAccountMappingTests(TestCase):
             organization=self.org, provider_type='quickbooks_online',
             name='qbo-gl-test',
         )
+        # QBO ItemRef takes an Item id, not the GL account code: the code is
+        # mapped to an Item on the connection.
+        from .models import AccountingItemMapping
+        AccountingItemMapping.objects.create(
+            connection=conn, gl_account_code='4100', provider_item_id='77')
         provider = QuickBooksOnlineProvider(conn)
         captured = {}
 
@@ -651,7 +656,7 @@ class GLAccountMappingTests(TestCase):
                               if l['Description'] == 'Mapped line'), None)
         self.assertIsNotNone(line_with_ref)
         self.assertEqual(line_with_ref['SalesItemLineDetail']['ItemRef'],
-                          {'value': '4100'})
+                          {'value': '77'})
         # Unmapped line does NOT include ItemRef
         line_default = next((l for l in lines
                              if l['Description'] == 'Default line'), None)
@@ -829,7 +834,7 @@ class BidirectionalPaymentSyncTests(TestCase):
 
 
 class PaymentConnectionScaffoldTests(TestCase):
-    """Phase 15 v8 (v3.17.296): payment processor adapter stubs."""
+    """Payment processor adapters (live REST adapters since the payments app)."""
 
     def setUp(self):
         self.org = Organization.objects.create(name='PayCo')
@@ -877,22 +882,32 @@ class PaymentConnectionScaffoldTests(TestCase):
         p2 = get_payment_provider(conn)
         self.assertTrue(p2.test_connection())
 
-    def test_stub_charge_returns_unimplemented_marker(self):
+    def test_charge_posts_off_session_payment_intent(self):
+        """The live adapter (payments app) posts an off-session PaymentIntent
+        with the Idempotency-Key header; no SDK, no Stripe invoice."""
+        from unittest import mock
         from .models import PaymentConnection
         from .providers.payment import get_payment_provider
         from decimal import Decimal as _D
         conn = PaymentConnection.objects.create(
             organization=self.org, provider_type='stripe',
-            name='Stub-stripe',
+            name='Live-stripe',
         )
-        conn.set_credentials({'api_key': 'sk_xxx'})
+        conn.set_credentials({'api_key': 'sk_test_xxx'})
         conn.save()
         p = get_payment_provider(conn)
-        result = p.charge({'amount': _D('100'), 'currency': 'usd',
-                           'customer_token': 'cus_xx',
-                           'description': 'test'})
-        self.assertFalse(result['success'])
-        self.assertIn('not yet implemented', result['error'])
+        resp = mock.Mock(status_code=200)
+        resp.json.return_value = {'id': 'pi_1', 'status': 'succeeded'}
+        with mock.patch('requests.request', return_value=resp) as req:
+            result = p.charge({'amount': _D('100'), 'currency': 'usd',
+                               'customer_token': 'cus_xx', 'payment_method': 'pm_1',
+                               'description': 'test', 'idempotency_key': 'k1'})
+        self.assertTrue(result['success'])
+        self.assertEqual(result['charge_id'], 'pi_1')
+        args, kwargs = req.call_args
+        self.assertEqual(args[1], 'https://api.stripe.com/v1/payment_intents')
+        self.assertEqual(kwargs['headers']['Idempotency-Key'], 'k1')
+        self.assertIn(('amount', '10000'), kwargs['data'])
 
     def test_unknown_provider_returns_none(self):
         from .models import PaymentConnection
@@ -947,7 +962,9 @@ class TaxConnectionScaffoldTests(TestCase):
         p = get_tax_provider(conn)
         self.assertIsInstance(p, TaxJarProvider)
 
-    def test_compute_tax_returns_unimplemented_when_creds_present(self):
+    def test_legacy_compute_tax_fails_without_a_zero(self):
+        """compute_tax() is the v3.17.297 entry point; tax.services.calculate_tax
+        replaced it. It must fail loudly, never report a zero tax amount."""
         from .models import TaxConnection
         from .providers.tax import get_tax_provider
         conn = TaxConnection.objects.create(
@@ -959,9 +976,10 @@ class TaxConnectionScaffoldTests(TestCase):
         p = get_tax_provider(conn)
         result = p.compute_tax(invoice=None)
         self.assertFalse(result['success'])
-        self.assertIn('not yet implemented', result['error'])
+        self.assertIsNone(result['tax_amount'])
+        self.assertIn('calculate_tax', result['error'])
 
-    def test_compute_tax_complains_without_creds(self):
+    def test_calculate_complains_without_creds(self):
         from .models import TaxConnection
         from .providers.tax import get_tax_provider
         conn = TaxConnection.objects.create(
@@ -969,9 +987,10 @@ class TaxConnectionScaffoldTests(TestCase):
             name='No-key',
         )
         p = get_tax_provider(conn)
-        result = p.compute_tax(invoice=None)
-        self.assertFalse(result['success'])
-        self.assertIn('not configured', result['error'])
+        self.assertIn('not configured', p.missing_credentials())
+        ok, msg = p.test_connection()
+        self.assertFalse(ok)
+        self.assertIn('not configured', msg)
 
 
 class WarrantyConnectionScaffoldTests(TestCase):

@@ -151,9 +151,14 @@
         col.addEventListener('drop', (e) => {
             e.preventDefault();
             col.classList.remove('drop-target');
-            const oppId = e.dataTransfer.getData('text/plain');
+            // The id comes from the card being dragged on this page, never from
+            // the drag payload: text dropped from another page or application
+            // would otherwise choose the URL this page POSTs to with its CSRF
+            // token. Only a positive integer reaches the URL.
+            if (!dragged) return;
+            const oppId = dragged.dataset.oppId;
             const targetStage = col.dataset.stage;
-            if (!oppId || !dragged) return;
+            if (!/^[0-9]+$/.test(oppId || '')) return;
 
             const fromCol = dragged.closest('.kanban-col-body');
             if (fromCol === col) return;  // no-op
@@ -164,7 +169,7 @@
             const fd = new FormData();
             fd.append('csrfmiddlewaretoken', csrf);
             fd.append('stage', targetStage);
-            fetch(`/crm/opportunities/${oppId}/stage/`, {method: 'POST', body: fd})
+            fetch(`/crm/opportunities/${encodeURIComponent(oppId)}/stage/`, {method: 'POST', body: fd})
                 .then(r => r.json())
                 .then(data => {
                     if (data.ok) {
