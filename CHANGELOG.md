@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.697] - 2026-11-16
+
+### Changed
+- **Settings → Updates redesigned.** A summary shows the installed version, channel, latest stable,
+  latest prerelease and latest development build, and says plainly when the installed build is ahead of
+  the latest stable release (it is never shown as "up to date" after a failed check). One Available
+  Versions table lists every published stable release and prerelease plus the development build from
+  main, with filters, search, release notes and signature status, regardless of the channel.
+- **Channels are policy, not visibility.** New **Prerelease** channel (stable plus signed prereleases).
+  The channel only decides what is recommended, notified, auto-installed and what "Update now"
+  targets; saving it never installs anything. Installing a version outside the channel leaves the
+  channel unchanged.
+- **Review before install.** Any eligible version opens a review: from → to, upgrade / older version /
+  out-of-channel, release notes, tag signature, migration compatibility and preflight, with a
+  confirmation for each risk. The server re-checks the target against GitHub before starting.
+  Prerelease tags are verified like stable tags; versions whose tags are unsigned, or whose code lacks
+  migrations this database already has, are shown but not installable, with the reason.
+- **Rollback**: restore points kept by retention are listed with the exact restore command (restoring
+  needs the services stopped, so it is not a web button).
+- Release discovery reads every page of the GitHub Releases API with conditional requests and refuses
+  to show a partial list when a page fails. CLI: `upgrade_apply --allow-prerelease`.
+
+### Fixed
+- **Apply did nothing for some admins.** With a background image or colour set, the confirm dialog sat
+  under the "Install Client St0r" banner, so the click never reached the server. Dialogs now open
+  above everything on the page.
+
 ## [3.17.696] - 2026-11-16
 
 ### Added

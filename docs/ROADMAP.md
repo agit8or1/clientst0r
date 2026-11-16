@@ -1682,6 +1682,14 @@ are built on top of them.
   Updates and the Apply pre-check ask whether the app may run the root helper,
   which every update uses, instead of probing old `sudo systemctl` rules. A
   failed old probe no longer shows a setup banner asking for NOPASSWD rules.
+- **Updates page: every version, channel as policy, review before install** *(shipped v3.17.697)* —
+  Settings → Updates lists every published stable release and prerelease (all pages of the GitHub
+  Releases API, drafts excluded) and the development build from main, whatever the channel. The
+  channel (Stable, Prerelease, Preview) only sets what is recommended, notified and auto-installed.
+  Installing any eligible version goes through a review (signature, compatibility, preflight) and
+  explicit confirmation; older versions need a migration-compatibility check. Restore points are
+  listed with the exact restore command. The confirm dialog can no longer be hidden behind the
+  app-install banner.
 - **Customer users on technician pages, reveal defaults, password hashing**
   *(shipped v3.17.650)* — a customer user who opened a shared ticket's staff
   page saw time entries, expenses, kit, workflows, similar tickets and
