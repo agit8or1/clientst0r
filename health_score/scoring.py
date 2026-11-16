@@ -105,7 +105,7 @@ def _ref_key(r):
     return (r.get('model'), r.get('pk'))
 
 
-def explain_change(current, previous, exclude=()):
+def explain_change(current, previous, exclude=(), exclude_requires=()):
     """What moved between two snapshots, per signal, with the records that
     appeared or went away. Returns a list ordered by size of the move."""
     if previous is None:
@@ -118,7 +118,7 @@ def explain_change(current, previous, exclude=()):
         before_sigs = {s['key']: s for s in (before_dims.get(dkey) or {}).get('signals', [])}
         for sig in dim.get('signals', []):
             old = before_sigs.get(sig['key'])
-            if old is None:
+            if old is None or sig.get('requires') in exclude_requires:
                 continue
             v_new, v_old = sig.get('value'), old.get('value')
             s_new, s_old = sig.get('status'), old.get('status')

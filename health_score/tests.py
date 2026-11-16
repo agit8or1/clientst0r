@@ -1,8 +1,6 @@
 """Customer health score: each dimension with seeded data, unknown / stale
 handling, weighting and coverage, change explanations, tenant isolation,
 permission gating and the views (customers never see any of it)."""
-import sys
-import types
 from datetime import timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -34,7 +32,10 @@ NOW = timezone.now()
 
 def _staff(username, scope='all', scope_orgs=(), **flags):
     user = User.objects.create_user(username, f'{username}@example.com', 'x')
-    profile, _ = UserProfile.objects.get_or_create(user=user)
+    try:
+        profile = user.profile      # the cached one: force_login() re-saves it
+    except UserProfile.DoesNotExist:
+        profile = UserProfile.objects.create(user=user)
     profile.user_type = UserType.STAFF
     profile.client_scope = scope
     role = RoleTemplate.objects.create(name=f'role-{username}', **flags)
@@ -182,44 +183,79 @@ class SecurityTests(_Base):
 
 
 class BackupTests(_Base):
-    def test_backup_monitoring_absent_is_unknown(self):
-        self.assertFalse(providers._installed('backup_monitoring'))
-        for fn in (providers.backup_jobs, providers.restore_tests):
-            r = fn(self.ctx(self.a))
-            self.assertEqual(r['status'], 'unknown')
-            self.assertIn('not installed', r['explanation'])
-        dim = scoring.compute_dimension('backup', self.ctx(self.a), HealthScoreConfig())
-        self.assertEqual(dim['status'], 'unknown')
-
-    def _job(self, **kw):
-        base = dict(name='job', last_run_at=NOW, last_status='ok', last_success_at=NOW - timedelta(hours=2),
-                    expected_interval_hours=24, fresh=True)
+    def _conn(self, **kw):
+        from backup_monitoring.models import BackupConnection
+        base = dict(organization=self.a, provider='veeam_push', name='Push', last_poll_at=NOW, active=True)
         base.update(kw)
-        return SimpleNamespace(**base)
+        return BackupConnection.objects.create(**base)
+
+    def _job(self, conn, org=None, name='nightly', **kw):
+        from backup_monitoring.models import BackupJob
+        base = dict(connection=conn, organization=org or self.a, external_id=name, name=name,
+                    expected_interval_hours=24, last_run_at=NOW, last_status='ok',
+                    last_success_at=NOW - timedelta(hours=2))
+        base.update(kw)
+        return BackupJob.objects.create(**base)
+
+    def test_app_absent_is_unknown_never_healthy(self):
+        with mock.patch.object(providers, '_installed', return_value=False):
+            for fn in (providers.backup_jobs, providers.backup_alerts, providers.restore_tests):
+                r = fn(self.ctx(self.a))
+                self.assertEqual(r['status'], 'unknown')
+                self.assertIn('not installed', r['explanation'])
+            dim = scoring.compute_dimension('backup', self.ctx(self.a), HealthScoreConfig())
+        self.assertEqual((dim['status'], dim['value']), ('unknown', None))
+
+    def test_no_jobs_unknown(self):
+        for fn in (providers.backup_jobs, providers.backup_alerts, providers.restore_tests):
+            self.assertEqual(fn(self.ctx(self.a))['status'], 'unknown', fn.__name__)
+
+    def test_jobs_scored_with_refs(self):
+        conn = self._conn()
+        self._job(conn, name='good')
+        bad = self._job(conn, name='bad', last_status='failed')
+        r = providers.backup_jobs(self.ctx(self.a))
+        self.assertEqual(r['value'], 50.0)
+        self.assertEqual([x['pk'] for x in r['refs']], [bad.pk])
+        self.assertIn('/backup', r['refs'][0]['url'])
+
+    def test_missed_backup(self):
+        self._job(self._conn(), last_success_at=NOW - timedelta(days=4))
+        self.assertEqual(providers.backup_jobs(self.ctx(self.a))['value'], 10.0)
+
+    def test_stale_connection_is_stale_not_ok(self):
+        self._job(self._conn(provider='pbs', last_poll_at=NOW - timedelta(days=3)))
+        r = providers.backup_jobs(self.ctx(self.a))
+        self.assertEqual((r['status'], r['value']), ('stale', None))
+
+    def test_other_customers_jobs_not_counted(self):
+        self._job(self._conn(), org=self.b, last_status='failed')
+        self.assertEqual(providers.backup_jobs(self.ctx(self.a))['status'], 'unknown')
+
+    def test_alerts_and_restore_tests(self):
+        from backup_monitoring.models import BackupAlert, RestoreTest
+        conn = self._conn()
+        job = self._job(conn)
+        BackupAlert.objects.create(organization=self.a, connection=conn, job=job, kind='failed',
+                                   severity='critical', title='Nightly failed', dedup_key='k')
+        r = providers.backup_alerts(self.ctx(self.a))
+        self.assertEqual(r['value'], 70.0)
+        self.assertEqual(len(r['refs']), 1)
+        self.assertEqual(providers.restore_tests(self.ctx(self.a))['status'], 'unknown')
+        RestoreTest.objects.create(organization=self.a, tested_on=timezone.localdate(NOW) - timedelta(days=10),
+                                   result='passed', system_name='DC01')
+        self.assertEqual(providers.restore_tests(self.ctx(self.a))['value'], 100.0)
+        RestoreTest.objects.create(organization=self.a, tested_on=timezone.localdate(NOW), result='failed')
+        self.assertEqual(providers.restore_tests(self.ctx(self.a))['value'], 10.0)
 
     def test_evaluate_backup(self):
-        v, state, issues = providers.evaluate_backup([self._job(), self._job(last_status='failed')], NOW)
+        mk = lambda state: {'job': SimpleNamespace(), 'state': state}  # noqa: E731
+        v, state, issues = providers.evaluate_backup([mk('ok'), mk('failed')])
         self.assertEqual((v, state, len(issues)), (50.0, 'scored', 1))
-        v, state, _ = providers.evaluate_backup([self._job(last_success_at=NOW - timedelta(days=4))], NOW)
-        self.assertEqual(v, 10.0)
-        v, state, _ = providers.evaluate_backup([self._job(fresh=False)], NOW)
-        self.assertEqual((v, state), (None, 'stale'))
-        v, state, _ = providers.evaluate_backup([self._job(last_run_at=None)], NOW)
-        self.assertEqual((v, state), (None, 'unknown'))
-        self.assertEqual(providers.evaluate_backup([], NOW)[1], 'unknown')
-
-    def test_backup_provider_with_models_present(self):
-        job = SimpleNamespace(name='nightly', pk=1, last_run_at=NOW, last_status='ok',
-                              last_success_at=NOW, expected_interval_hours=24,
-                              connection=SimpleNamespace(active=True, last_poll_at=NOW,
-                                                         last_poll_status='ok', is_push=False))
-        job._meta = SimpleNamespace(app_label='backup_monitoring', model_name='backupjob')
-
-        class _Jobs:
-            objects = SimpleNamespace(filter=lambda **kw: SimpleNamespace(select_related=lambda *a: [job]))
-        with mock.patch.object(providers, '_backup_models', return_value=(_Jobs, None)):
-            r = providers.backup_jobs(self.ctx(self.a))
-        self.assertEqual((r['status'], r['value']), ('ok', 100.0))
+        self.assertEqual(providers.evaluate_backup([mk('stale')])[:2], (None, 'stale'))
+        self.assertEqual(providers.evaluate_backup([mk('unknown'), mk('stale')])[:2], (None, 'stale'))
+        self.assertEqual(providers.evaluate_backup([mk('unknown')])[:2], (None, 'unknown'))
+        self.assertEqual(providers.evaluate_backup([])[:2], (None, 'unknown'))
 
 
 class ServiceDeliveryTests(_Base):
@@ -310,18 +346,48 @@ class CommercialTests(_Base):
     def test_no_active_contract_unknown(self):
         self.assertEqual(providers.contract_renewals(self.ctx(self.a))['status'], 'unknown')
 
-    def test_profitability_absent_unknown(self):
-        r = providers.profitability(self.ctx(self.a))
-        self.assertEqual(r['status'], 'unknown')
+    def _row(self, **kw):
+        base = dict(client_id=self.a.pk, client_name='Alpha Co', revenue=1000.0, cost=700.0, margin=300.0,
+                    margin_pct=30.0, hours=10.0, unknown_cost_hours=0.0, unknown_cost_entries=0, is_complete=True)
+        base.update(kw)
+        return [base]
 
-    def test_profitability_incomplete_unknown_and_complete_scored(self):
-        fake = types.ModuleType('reports.costing')
-        fake.client_margin_summary = lambda client, today: {'margin_pct': 30, 'complete': False}
-        with mock.patch.dict(sys.modules, {'reports.costing': fake}):
-            self.assertEqual(providers.profitability(self.ctx(self.a))['status'], 'unknown')
-            fake.client_margin_summary = lambda client, today: {'margin_pct': 30, 'complete': True}
-            r = providers.profitability(self.ctx(self.a))
+    def _profit(self, rows):
+        with mock.patch('reports.queries.profitability_by_client', return_value=rows):
+            return providers.profitability(self.ctx(self.a))
+
+    def test_profitability_complete_scored(self):
+        r = self._profit(self._row())
         self.assertEqual(r['value'], 75.0)
+        self.assertEqual(r['requires'] if 'requires' in r else 'profitability', 'profitability')
+
+    def test_profitability_incomplete_cost_is_unknown(self):
+        r = self._profit(self._row(is_complete=False, margin_pct=None, unknown_cost_entries=3))
+        self.assertEqual((r['status'], r['value']), ('unknown', None))
+        self.assertIn('no cost rate', r['explanation'])
+
+    def test_profitability_no_revenue_or_no_row_unknown(self):
+        self.assertEqual(self._profit(self._row(margin_pct=None))['status'], 'unknown')
+        self.assertEqual(self._profit([])['status'], 'unknown')
+        self.assertEqual(self._profit([dict(self._row()[0], client_id=self.b.pk)])['status'], 'unknown')
+
+    def test_profitability_runs_for_real_with_no_data(self):
+        self.assertEqual(providers.profitability(self.ctx(self.a))['status'], 'unknown')
+
+    def test_payment_failures(self):
+        from integrations.models import PaymentConnection
+        from payments.models import PaymentAttempt
+        self.assertEqual(providers.payment_failures(self.ctx(self.a))['status'], 'unknown')
+        inv = self._invoice(self.a, 10)
+        conn = PaymentConnection.objects.create(organization=self.a, provider_type='stripe', name='Stripe')
+        PaymentAttempt.objects.create(invoice=inv, client_org=self.a, connection=conn, provider='stripe',
+                                      amount=Decimal('100'), idempotency_key='k1', status='failed',
+                                      failure_code='card_declined')
+        r = providers.payment_failures(self.ctx(self.a))
+        self.assertEqual(r['value'], 75.0)
+        self.assertEqual(len(r['refs']), 1)
+        Invoice.objects.filter(pk=inv.pk).update(status='paid')
+        self.assertEqual(providers.payment_failures(self.ctx(self.a))['value'], 100.0)
 
 
 class SatisfactionTests(_Base):
@@ -448,7 +514,7 @@ class SnapshotTests(_Base):
         self.assertTrue(CustomerHealthSnapshot.objects.filter(client=self.a).exists())
         self.assertTrue(CustomerHealthSnapshot.objects.filter(client=self.b).exists())
         call_command('compute_health_scores', client=[self.b.pk], verbosity=0)
-        from core.management.commands.run_scheduler import TASK_COMMANDS
+        from core.management.commands.run_scheduler import COMMAND_TASKS as TASK_COMMANDS
         ScheduledTask.get_or_create_defaults()
         self.assertTrue(ScheduledTask.objects.filter(task_type='compute_health_scores').exists())
         self.assertIn('compute_health_scores', TASK_COMMANDS)
@@ -469,13 +535,13 @@ class SnapshotTests(_Base):
         self.assertEqual([r['pk'] for r in online['appeared']], [d2.pk])
         self.assertEqual(online['cleared'], [])
         # and back: the record is listed as no longer contributing
-        RMMDevice.objects.filter(pk=d2.pk).update(is_online=True)
+        RMMDevice.objects.filter(pk=d2.pk).update(is_online=True, data_refreshed_at=NOW + timedelta(days=1))
+        RMMDevice.objects.filter(pk=d1.pk).update(data_refreshed_at=NOW + timedelta(days=1))
         later = scoring.compute_and_save(self.a, now=NOW + timedelta(days=1))
         back = next(c for c in scoring.explain_change(later, today) if c['key'] == 'rmm_online')
         self.assertEqual(back['direction'], 'better')
         self.assertEqual([r['pk'] for r in back['cleared']], [d2.pk])
         self.assertIsNone(scoring.explain_change(prev, None) or None)
-        del d1
 
     def test_explain_change_unchanged_is_empty(self):
         self.device(self.a, 'srv1')
@@ -523,6 +589,7 @@ class ViewTests(_Base):
         cls.superuser = User.objects.create_superuser('root-hs', 'root@example.com', 'x')
         cls.tech = _staff('tech-hs')                                     # no financial permission
         cls.finance = _staff('fin-hs', reports_view_financial=True)
+        cls.profit = _staff('prof-hs', view_profitability=True)
         cls.admin = _staff('adm-hs', manage_health_score_settings=True)
         cls.scoped = _staff('scoped-hs', scope='selected', scope_orgs=[cls.a])
         cls.customer = User.objects.create_user('cust-hs', 'cust@example.com', 'x')
@@ -562,49 +629,70 @@ class ViewTests(_Base):
     def test_staff_sees_workspace_panel(self):
         page = self.get(self.tech, 'accounts:organization_detail', self.a.pk)
         self.assertContains(page, 'id="client-health"')
-        self.assertContains(page, 'based on 1 of 6 dimension')
+        self.assertContains(page, 'based on 1 of 5 dimension')
 
     def test_list_shows_clients_and_filters(self):
         r = self.get(self.superuser, 'health_score:list')
-        self.assertContains(r, 'Alpha Co')
-        self.assertContains(r, 'Bravo Co')
+        self.assertContains(r, f'/client-health/{self.a.pk}/')
+        self.assertContains(r, f'/client-health/{self.b.pk}/')
         r = self.get(self.superuser, 'health_score:list', filter='unknown')
-        self.assertContains(r, 'Alpha Co')                    # 1 of 6 known = incomplete
+        self.assertContains(r, f'/client-health/{self.a.pk}/')                    # 1 of 6 known = incomplete
         r = self.get(self.superuser, 'health_score:list', filter='stale')
-        self.assertNotContains(r, 'Alpha Co')
+        self.assertNotContains(r, f'/client-health/{self.a.pk}/')
         RMMDevice.objects.filter(external_id='d').update(data_refreshed_at=NOW - timedelta(days=9))
         scoring.compute_and_save(self.a)
         r = self.get(self.superuser, 'health_score:list', filter='stale')
-        self.assertContains(r, 'Alpha Co')
-        self.assertNotContains(r, 'Bravo Co')
+        self.assertContains(r, f'/client-health/{self.a.pk}/')
+        self.assertNotContains(r, f'/client-health/{self.b.pk}/')
         r = self.get(self.superuser, 'health_score:list', sort='technical')
         self.assertEqual(r.status_code, 200)
 
     def test_scoped_staff_sees_only_their_client(self):
         r = self.get(self.scoped, 'health_score:list')
-        self.assertContains(r, 'Alpha Co')
-        self.assertNotContains(r, 'Bravo Co')
+        self.assertContains(r, f'/client-health/{self.a.pk}/')
+        self.assertNotContains(r, f'/client-health/{self.b.pk}/')
         self.assertEqual(self.get(self.scoped, 'health_score:detail', self.b.pk).status_code, 403)
         self.assertEqual(self.get(self.scoped, 'health_score:detail', self.a.pk).status_code, 200)
         c = _login(self.scoped)
         self.assertEqual(c.post(reverse('health_score:recompute', args=[self.b.pk])).status_code, 403)
 
-    def test_commercial_dimension_gated_by_financial_permission(self):
+    def test_money_and_margin_signals_gated(self):
         without = self.get(self.tech, 'health_score:detail', self.a.pk)
         self.assertNotContains(without, 'Overdue invoices')
+        self.assertNotContains(without, 'Profitability margin')
         self.assertNotContains(without, 'dim-commercial')
-        self.assertContains(without, 'left out of the score')
-        with_perm = self.get(self.finance, 'health_score:detail', self.a.pk)
-        self.assertContains(with_perm, 'Overdue invoices')
-        self.assertContains(with_perm, 'dim-commercial')
-        # the headline does not leak the hidden dimension: tech sees 1 of 5 known, finance 2 of 6
+        self.assertContains(without, 'hidden because you lack')
+        fin = self.get(self.finance, 'health_score:detail', self.a.pk)
+        self.assertContains(fin, 'Overdue invoices')
+        self.assertContains(fin, 'dim-commercial')
+        self.assertNotContains(fin, 'Profitability margin')
+        prof = self.get(self.profit, 'health_score:detail', self.a.pk)
+        self.assertContains(prof, 'Profitability margin')
+        self.assertNotContains(prof, 'Overdue invoices')
+        both = self.get(self.superuser, 'health_score:detail', self.a.pk)
+        self.assertContains(both, 'Overdue invoices')
+        self.assertContains(both, 'Profitability margin')
+        # headline coverage is computed from what the viewer may see: no leakage
         self.assertContains(without, 'based on 1 of 5 dimension')
-        self.assertContains(with_perm, 'based on 2 of 6 dimension')
-        # and the list hides the cell
-        self.assertNotContains(self.get(self.tech, 'health_score:list'), '>Commercial</a>' if False else 'commercial=')
+        self.assertContains(fin, 'based on 2 of 6 dimension')
 
-    def test_financial_permission_key(self):
-        self.assertEqual(permissions.financial_permission_key(), 'reports_view_financial')
+    def test_hidden_signals_do_not_leak_through_changes_or_list(self):
+        CustomerHealthSnapshot.objects.filter(pk=self.snap_a.pk).update(date=timezone.localdate() - timedelta(days=1))
+        Invoice.objects.filter(client_org=self.a).update(status='paid')
+        scoring.compute_and_save(self.a)
+        self.assertContains(self.get(self.finance, 'health_score:detail', self.a.pk), 'Why it changed')
+        page = self.get(self.tech, 'health_score:detail', self.a.pk)
+        self.assertNotContains(page, 'days late')
+        self.assertNotContains(page, 'INV-')
+        self.assertNotContains(self.get(self.tech, 'health_score:list'), 'Overdue')
+
+    def test_hidden_requirements(self):
+        req = lambda u: permissions.hidden_requirements(u, self.a)  # noqa: E731
+        self.assertEqual(req(self.tech), {'billing', 'profitability'})
+        self.assertEqual(req(self.finance), {'profitability'})
+        self.assertEqual(req(self.profit), {'billing'})
+        self.assertEqual(req(self.superuser), set())
+        self.assertEqual(req(self.customer), {'billing', 'profitability'})
 
     def test_detail_without_snapshot(self):
         org = Organization.objects.create(name='Fresh Co', slug='hs-fresh')

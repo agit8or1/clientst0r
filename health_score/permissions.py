@@ -1,20 +1,16 @@
 """Who sees what. The score is for MSP staff only (customers never see it,
-in the portal or anywhere else) and only for clients the user can reach; the
-commercial dimension also needs the financial permission (`view_profitability`
-where the profitability feature is installed, else `reports_view_financial`).
-Changing weights needs `manage_health_score_settings`."""
+in the portal or anywhere else) and only for clients the user can reach.
+Money signals need the billing / financial permission and margin needs
+`view_profitability` (see `hidden_requirements`). Changing weights needs
+`manage_health_score_settings`."""
 from __future__ import annotations
 
-from accounts import permission_registry
+from reports.access import has_msp_wide_perm
 from accounts.permission_utils import user_has_org_perm, user_has_perm
 from core.tenancy import accessible_org_ids
 from psa.visibility import is_msp_staff
 
 SETTINGS_PERM = 'manage_health_score_settings'
-
-
-def financial_permission_key():
-    return 'view_profitability' if permission_registry.is_known('view_profitability') else 'reports_view_financial'
 
 
 def can_use(request):
@@ -36,15 +32,20 @@ def can_view_client(request, client):
     return allowed is None or client.pk in allowed
 
 
-def can_view_commercial(user, client):
+def hidden_requirements(user, client):
+    """Signal requirements (`Signal.requires`) this user may not see for
+    `client`: 'billing' (invoices, renewals, payments: billing_view_invoices
+    or reports_view_financial at the client) and 'profitability' (labour cost
+    and margin: the MSP-wide view_profitability permission, staff only)."""
+    hidden = set()
     if not is_msp_staff(user):
-        return False
-    return user.is_superuser or user_has_org_perm(user, client, financial_permission_key())
-
-
-def hidden_dimensions(user, client):
-    """Dimension keys this user may not see for `client`."""
-    return () if can_view_commercial(user, client) else ('commercial',)
+        return {'billing', 'profitability'}
+    if not (user.is_superuser or user_has_org_perm(user, client, 'billing_view_invoices')
+            or user_has_org_perm(user, client, 'reports_view_financial')):
+        hidden.add('billing')
+    if not has_msp_wide_perm(user, 'view_profitability'):
+        hidden.add('profitability')
+    return hidden
 
 
 def can_manage_settings(user, client=None):

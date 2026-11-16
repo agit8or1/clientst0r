@@ -176,71 +176,41 @@ def security_incidents(ctx: Context):
 
 # ------------------------------------------------------------------- backup
 
-def _backup_models():
-    if not _installed('backup_monitoring'):
-        return None
-    try:
-        return (apps.get_model('backup_monitoring', 'BackupJob'),
-                apps.get_model('backup_monitoring', 'RestoreTest'))
-    except LookupError:
-        return None
+BACKUP_SCORE = {'ok': 100.0, 'warning': 75.0, 'missed': 10.0, 'failed': 0.0}
+BACKUP_WHY = {'failed': 'last run failed', 'missed': 'no successful run within the expected interval',
+              'warning': 'last run finished with warnings', 'stale': 'its connection has not reported recently',
+              'unknown': 'never reported'}
 
 
-BACKUP_STALE_POLL = timedelta(minutes=120)
-
-
-def evaluate_backup(jobs, now, missed_hours=26):
-    """Pure scoring of backup jobs. `jobs`: iterables of objects with name,
-    last_run_at, last_status, last_success_at, expected_interval_hours and
-    `fresh` (bool: the connection reported recently). Returns
-    (value or None, status, issues[(job, why)])."""
-    jobs = list(jobs)
-    if not jobs:
+def evaluate_backup(rows):
+    """Pure scoring of backup_monitoring.health.job_rows(). Only ok / warning /
+    missed / failed jobs are scored; stale and unknown jobs carry no value.
+    Returns (value or None, 'scored' | 'stale' | 'unknown', issues[(job, why)])."""
+    rows = list(rows)
+    if not rows:
         return None, 'unknown', []
-    scored, issues, stale = [], [], 0
-    for j in jobs:
-        if not getattr(j, 'fresh', True):
-            stale += 1
-            issues.append((j, 'stale: its connection has not reported recently'))
-            continue
-        if j.last_run_at is None:
-            issues.append((j, 'never reported'))
-            continue
-        limit = timedelta(hours=j.expected_interval_hours or missed_hours)
-        if j.last_status == 'failed':
-            scored.append(0.0)
-            issues.append((j, 'last run failed'))
-        elif j.last_success_at is None or now - j.last_success_at > limit:
-            scored.append(10.0)
-            issues.append((j, 'no successful run within the expected interval'))
-        elif j.last_status == 'warning':
-            scored.append(75.0)
-            issues.append((j, 'last run finished with warnings'))
-        else:
-            scored.append(100.0)
+    scored = [BACKUP_SCORE[r['state']] for r in rows if r['state'] in BACKUP_SCORE]
+    issues = [(r['job'], BACKUP_WHY[r['state']]) for r in rows if r['state'] != 'ok']
     if not scored:
-        return None, ('stale' if stale else 'unknown'), issues
+        return None, ('stale' if any(r['state'] == 'stale' for r in rows) else 'unknown'), issues
     return sum(scored) / len(scored), 'scored', issues
 
 
 @signal('backup', 'backup_jobs', 'Backup jobs', weight=3,
-        description='Last successful backup age and failures per protected job (needs Backup monitoring).')
+        description='Last successful backup age and failures per protected job (Backup monitoring).')
 def backup_jobs(ctx: Context):
-    models = _backup_models()
     src = 'Backup monitoring'
-    if models is None:
+    if not _installed('backup_monitoring'):
         return unknown('Backup monitoring is not installed, so backup health is not measured.', src)
-    BackupJob, _RestoreTest = models
-    jobs = list(BackupJob.objects.filter(organization=ctx.client).select_related('connection'))
+    from backup_monitoring.health import job_rows
+    from backup_monitoring.models import BackupJob
+    jobs = list(BackupJob.objects.filter(organization=ctx.client).select_related('connection', 'organization'))
     if not jobs:
-        return unknown('No backup jobs are monitored for this client.', src)
-    for j in jobs:
-        c = j.connection
-        j.fresh = bool(c.active and c.last_poll_at and (
-            getattr(c, 'is_push', False) or (c.last_poll_status != 'error' and ctx.now - c.last_poll_at <= BACKUP_STALE_POLL)))
-    value, state, issues = evaluate_backup(jobs, ctx.now)
+        return unknown('No backup jobs are mapped to this client.', src)
+    rows = job_rows(jobs, ctx.now)
+    value, state, issues = evaluate_backup(rows)
     as_of = _latest(*[j.last_run_at for j in jobs])
-    refs = [ref(j, f'{j.name}: {why}') for j, why in issues][:MAX_LIST]
+    refs = [ref(j, f'{j.name}: {why}', _url('backup_monitoring:job_detail', j.pk)) for j, why in issues][:MAX_LIST]
     if state != 'scored':
         return unknown('Backup data is stale or has not reported yet.', src, status=state, as_of=as_of, refs=refs)
     return result(value, ctx.grade(value), as_of, src, refs,
@@ -248,30 +218,41 @@ def backup_jobs(ctx: Context):
                   else f'All {len(jobs)} backup job(s) succeeded on schedule.')
 
 
-RESTORE_OK_DAYS = 180
+@signal('backup', 'backup_alerts', 'Open backup alerts', weight=1,
+        description='Unresolved missed / failed / capacity alerts from Backup monitoring.')
+def backup_alerts(ctx: Context):
+    src = 'Backup alerts'
+    if not _installed('backup_monitoring'):
+        return unknown('Backup monitoring is not installed.', src)
+    from backup_monitoring.models import BackupAlert, BackupJob
+    if not BackupJob.objects.filter(organization=ctx.client).exists():
+        return unknown('No backup jobs are mapped to this client.', src)
+    alerts = list(BackupAlert.objects.filter(organization=ctx.client, status__in=('open', 'acknowledged'))
+                  .order_by('-last_seen_at'))
+    value = max(0.0, 100.0 - sum(30 if a.severity == 'critical' else 10 for a in alerts))
+    return result(value, ctx.grade(value), _latest(*[a.last_seen_at for a in alerts[:1]]), src,
+                  [ref(a, a.title, _url('backup_monitoring:alert_list')) for a in alerts][:MAX_LIST],
+                  f'{len(alerts)} open backup alert(s).' if alerts else 'No open backup alerts.')
 
 
 @signal('backup', 'restore_tests', 'Restore tests', weight=1,
-        description='Recency and result of the latest restore test (needs Backup monitoring).')
+        description='Recency and result of the latest restore test (Backup monitoring).')
 def restore_tests(ctx: Context):
-    models = _backup_models()
     src = 'Restore tests'
-    if models is None:
+    if not _installed('backup_monitoring'):
         return unknown('Backup monitoring is not installed, so restore tests are not measured.', src)
-    _Job, RestoreTest = models
-    last = RestoreTest.objects.filter(organization=ctx.client).order_by('-tested_on').first()
-    if last is None:
+    from backup_monitoring.health import restore_test_summary
+    from backup_monitoring.models import BackupAlertPolicy, RestoreTest
+    tests = list(RestoreTest.objects.filter(organization=ctx.client).order_by('-tested_on')[:50])
+    if not tests:
         return unknown('No restore test has been recorded for this client.', src)
-    age = (ctx.today - last.tested_on).days
-    if last.result == 'failed':
-        value = 10.0
-    else:
-        value = 100.0 if last.result == 'passed' else 70.0
-        if age > RESTORE_OK_DAYS:
-            value = max(0.0, value - min(60.0, (age - RESTORE_OK_DAYS) / 3.0))
+    summ = restore_test_summary(tests, BackupAlertPolicy.for_org(ctx.client), ctx.now)
+    last = summ['latest']
+    value = {'failed': 10.0, 'overdue': 50.0}.get(summ['state'], 100.0 if last.result == 'passed' else 70.0)
     return result(value, ctx.grade(value), last.tested_on, src,
-                  [ref(last, f'{last.system_name or "restore test"} on {last.tested_on}: {last.result}')],
-                  f'Last restore test {age} day(s) ago: {last.result}.')
+                  [ref(last, f'{last.system_name or "restore test"} on {last.tested_on}: {last.result}',
+                       _url('backup_monitoring:restore_test_list'))],
+                  f'Latest restore test: {summ["label"].lower()}.')
 
 
 # --------------------------------------------------------- service delivery
@@ -352,7 +333,7 @@ OPEN_INVOICE = ('sent', 'partial', 'overdue')
 RENEWAL_WINDOW_DAYS = 60
 
 
-@signal('commercial', 'overdue_invoices', 'Overdue invoices', weight=2,
+@signal('commercial', 'overdue_invoices', 'Overdue invoices', weight=2, requires='billing',
         description='Unpaid invoices past their due date, weighted by days late and amount.')
 def overdue_invoices(ctx: Context):
     from psa.models import Invoice
@@ -374,7 +355,7 @@ def overdue_invoices(ctx: Context):
                   f'{len(late)} overdue invoice(s).' if late else 'No overdue invoices.')
 
 
-@signal('commercial', 'contract_renewals', 'Contract renewals', weight=1,
+@signal('commercial', 'contract_renewals', 'Contract renewals', weight=1, requires='billing',
         description='Active contracts ending within 60 days that have no renewal draft.')
 def contract_renewals(ctx: Context):
     from psa.models import Contract
@@ -397,30 +378,53 @@ def contract_renewals(ctx: Context):
                    if risky else f'No contract ends within {RENEWAL_WINDOW_DAYS} days without a renewal.'))
 
 
-@signal('commercial', 'profitability', 'Profitability margin', weight=2,
-        description='Client margin from the profitability report (needs Profitability and complete cost data).')
+@signal('commercial', 'payment_failures', 'Failed payments (90 days)', weight=1, requires='billing',
+        description='Card / bank payment attempts that failed on invoices that are still unpaid (Payments).')
+def payment_failures(ctx: Context):
+    src = 'Payments'
+    if not _installed('payments'):
+        return unknown('Payments is not installed.', src)
+    from payments.models import PaymentAttempt
+    attempts = PaymentAttempt.objects.filter(client_org=ctx.client)
+    if not attempts.exists():
+        return unknown('No online payment has been attempted for this client.', src)
+    since = ctx.now - timedelta(days=90)
+    failed = list(attempts.filter(status='failed', created_at__gte=since,
+                                  invoice__status__in=OPEN_INVOICE).select_related('invoice').order_by('-created_at'))
+    value = max(0.0, 100.0 - 25.0 * len(failed))
+    return result(value, ctx.grade(value), _latest(*[a.created_at for a in attempts.order_by('-created_at')[:1]]), src,
+                  [ref(a, f'{a.invoice.invoice_number}: {a.amount} {a.currency} failed ({a.failure_code or "declined"})',
+                       _url('payments:attempt_detail', a.pk)) for a in failed][:MAX_LIST],
+                  f'{len(failed)} failed payment attempt(s) on unpaid invoices.' if failed
+                  else 'No failed payments on unpaid invoices.')
+
+
+PROFIT_WINDOW_DAYS = 90
+
+
+@signal('commercial', 'profitability', 'Profitability margin (90 days)', weight=2, requires='profitability',
+        description='Client margin from the profitability report. Needs view_profitability; unknown when any '
+                    'labour hour lacks a cost rate or there is no revenue.')
 def profitability(ctx: Context):
-    """Feature-detected: `reports.costing.client_margin_summary(client, today)`
-    returning {margin_pct, complete, as_of, detail?, url?}. Absent or incomplete
-    is unknown, never healthy."""
-    src = 'Profitability'
-    try:
-        from reports import costing
-        fn = getattr(costing, 'client_margin_summary', None)
-    except ImportError:
-        fn = None
-    if fn is None:
-        return unknown('Profitability reporting is not available, so margin is not measured.', src)
-    data = fn(ctx.client, ctx.today) or {}
-    if not data.get('complete') or data.get('margin_pct') is None:
-        return unknown('Cost data for this client is incomplete, so margin is not scored.', src,
-                       as_of=data.get('as_of'))
-    margin = float(data['margin_pct'])
+    src = 'Profitability report'
+    from reports import queries
+    start = ctx.today - timedelta(days=PROFIT_WINDOW_DAYS - 1)
+    rows = [r for r in queries.profitability_by_client(start, ctx.today, ctx.client)
+            if r.get('client_id') == ctx.client.pk]
+    if not rows:
+        return unknown('No invoiced revenue or labour cost in the last 90 days.', src)
+    row = rows[0]
+    if not row.get('is_complete'):
+        return unknown(f'{row.get("unknown_cost_entries", 0)} time entr(ies) have no cost rate, so margin is '
+                       'not scored.', src, as_of=ctx.today)
+    margin = row.get('margin_pct')
+    if margin is None:
+        return unknown('There is no revenue in the period, so margin is not defined.', src, as_of=ctx.today)
     value = max(0.0, min(100.0, margin * 100.0 / 40.0))     # a 40% margin is full marks
-    return result(value, ctx.grade(value), data.get('as_of'), src,
-                  [{'model': 'reports.profitability', 'pk': ctx.client.pk, 'label': 'Client profitability',
-                    'url': data.get('url', '')}],
-                  f'Margin {margin:.1f}%.')
+    return result(value, ctx.grade(value), ctx.today, src,
+                  [{'model': 'reports.profitability', 'pk': ctx.client.pk, 'label': 'Client profitability report',
+                    'url': _url('reports:psa_profitability_by_client')}],
+                  f'Margin {margin:.1f}% over {PROFIT_WINDOW_DAYS} days.')
 
 
 # ------------------------------------------------------------- satisfaction

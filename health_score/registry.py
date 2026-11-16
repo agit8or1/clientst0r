@@ -58,18 +58,19 @@ class Signal:
     fn: Callable
     weight: float = 1.0
     description: str = ''
+    requires: str = ''      # '' | 'billing' | 'profitability': extra permission to see it
 
 
 _SIGNALS: Dict[str, Signal] = {}
 
 
-def signal(dimension, key, label, weight=1.0, description=''):
+def signal(dimension, key, label, weight=1.0, description='', requires=''):
     """Register a signal provider."""
     if dimension not in DIMENSION_LABELS:
         raise ValueError(f'Unknown health dimension {dimension!r}')
 
     def deco(fn):
-        _SIGNALS[key] = Signal(dimension, key, label, fn, weight, description)
+        _SIGNALS[key] = Signal(dimension, key, label, fn, weight, description, requires)
         return fn
     return deco
 
@@ -144,5 +145,5 @@ def run_signal(sig: Signal, ctx: Context) -> dict:
         logger.exception('health_score signal %s failed for client %s', sig.key, getattr(ctx.client, 'pk', None))
         out = unknown('This signal could not be computed.')
     out.setdefault('refs', [])
-    out.update({'key': sig.key, 'label': sig.label, 'dimension': sig.dimension})
+    out.update({'key': sig.key, 'label': sig.label, 'dimension': sig.dimension, 'requires': sig.requires})
     return out
