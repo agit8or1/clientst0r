@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.693] - 2026-11-16
+
+### Added
+- **Business Overview (executive dashboard).** Dashboard → Business Overview (`/reports/business-overview/`), MSP staff only. Cards for MRR and ARR with trend and month-over-month growth, invoiced revenue by month and service line, gross margin, most and least profitable customers, customer growth and churn, renewals in 30/60/90 days with the recurring revenue at stake, unbilled work, technician utilization, SLA attainment, accounts receivable, outstanding quotes, ticket backlog and age, critical issues, security alerts, procurement, and payments needing attention.
+  - Every number uses the same calculation as the matching report, and every card opens a records page listing exactly the records behind it (also as JSON).
+  - Missing inputs show as "—" with an *Incomplete* badge and the reason (for example "12 hours without a cost rate"), never as zero.
+  - Each card needs its own permission; cost and margin cards need `view_profitability` and are labelled operational estimates, not accounting results. Figures cover only the customers in the viewer's client scope. Customer users can't open any of it.
+  - Cards load separately and are cached for 5 minutes per viewer scope and filters.
+  - Backup failures and license renewals show "not configured" until those modules ship.
+
 ## [3.17.692] - 2026-11-16
 
 ### Added
