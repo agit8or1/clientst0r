@@ -1,6 +1,7 @@
 {% extends "two_factor/_base_focus.html" %}
 {% load i18n %}
 {% load two_factor_tags %}
+{% load oidc_sso_tags %}
 
 {% block extra_media %}
   {{ form.media }}
@@ -52,6 +53,9 @@
 
 {% block content %}
   <h1>{% block title %}{% trans "Login" %}{% endblock %}</h1>
+
+  {# Generic OIDC single sign-on buttons (only for enabled providers) #}
+  {% if wizard.steps.current == 'auth' %}{% oidc_login_buttons %}{% endif %}
 
   <!-- Azure AD SSO Button (if enabled) -->
   <div id="azure-sso-container" style="display: none;">

@@ -10,6 +10,7 @@ from two_factor.urls import urlpatterns as tf_urls
 
 from accounts.otp_views import BackupTokensView
 from accounts.views import StaffLoginView
+from oidc_sso.views import SSOLogoutView
 
 from core.views import privacy_policy as core_privacy_policy
 from core.views import beta_onboarding as core_beta_onboarding
@@ -48,8 +49,9 @@ urlpatterns = [
     path('account/login/', StaffLoginView.as_view(), name='staff_login'),
     path('', include(tf_urls)),
 
-    # Legacy logout alias (for compatibility)
-    path('logout/', LogoutView.as_view(next_page='/'), name='logout'),
+    # Sign-out. After a single sign-on session it continues to the identity
+    # provider's end_session_endpoint (oidc_sso.views.SSOLogoutView).
+    path('logout/', SSOLogoutView.as_view(next_page='/'), name='logout'),
 
     # Home - redirect to dashboard
     path('', RedirectView.as_view(url='/core/dashboard/', permanent=False), name='home'),
@@ -57,6 +59,8 @@ urlpatterns = [
     # Apps
     path('core/', include('core.urls')),
     path('accounts/', include('accounts.urls')),
+    # Generic OIDC single sign-on (sign-in, linking, step-up, back-channel logout, settings).
+    path('accounts/sso/oidc/', include('oidc_sso.urls')),
     path('assets/', include('assets.urls')),
     path('vault/', include('vault.urls')),
     path('docs/', include('docs.urls')),

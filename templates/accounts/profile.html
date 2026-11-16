@@ -41,6 +41,9 @@
                     <a href="{% url 'accounts:two_factor_setup' %}" class="btn btn-outline-secondary">
                         <i class="fas fa-shield-alt"></i> {% trans "2FA Settings" %}
                     </a>
+                    <a href="{% url 'oidc_sso:account' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-right-to-bracket"></i> {% trans "Single sign-on (link SSO account)" %}
+                    </a>
                 </div>
             </div>
         </div>

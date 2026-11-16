@@ -1,0 +1,10 @@
+{% if show %}
+<hr>
+<h6 class="mb-1">Single sign-on</h6>
+{% for i in identities %}
+<p class="small mb-1">{{ i.provider.name }}: <code>{{ i.sub }}</code>{% if i.last_login_at %} &middot; last used {{ i.last_login_at|date:"M j, Y" }}{% endif %}</p>
+{% empty %}
+<p class="text-muted small mb-1">Not linked.</p>
+{% endfor %}
+{% if can_manage %}<a class="small" href="{% url 'oidc_sso:settings' %}">Link SSO account / manage</a>{% endif %}
+{% endif %}

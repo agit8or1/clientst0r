@@ -151,6 +151,7 @@ INSTALLED_APPS = [
     'office.apps.OfficeConfig',
     'contracts.apps.ContractsConfig',
     'pulse.apps.PulseConfig',
+    'oidc_sso.apps.OidcSsoConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).
@@ -302,6 +303,9 @@ AUTHENTICATION_BACKENDS = [
     # apply to LDAP attempts too. Needs python-ldap + django-auth-ldap
     # (requirements-optional.txt); without them it is a no-op.
     'accounts.ldap_backend.ClientSt0rLDAPBackend',
+    # Generic OIDC single sign-on (oidc_sso). Never accepts credentials:
+    # it only names the backend of sessions the OIDC callback signed in.
+    'oidc_sso.backends.OIDCBackend',
 ]
 
 # Internationalization

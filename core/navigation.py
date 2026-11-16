@@ -95,6 +95,11 @@ def _has_org(ctx):
 # for the users the page would let in. Each imports lazily (navigation is
 # loaded early) and fails closed.
 
+def _can_manage_sso(user):
+    from oidc_sso.permissions import can_manage_sso
+    return can_manage_sso(user)
+
+
 def _view_check(fn):
     def gate(ctx):
         u = _user(ctx)
@@ -757,6 +762,10 @@ SECTIONS = (
             keywords='l1 l2 l3 presets assignments',
             also=('tech_access:why', 'tech_access:assignment_detail', 'tech_access:change_detail')),
         Tab(_('Superuser Approval'), 'tech_access:superuser_policy', 'fa-user-lock', gate=_superuser),
+        Tab(_('Single sign-on (OIDC)'), 'oidc_sso:settings', 'fa-right-to-bracket',
+            gate=_view_check(lambda u, ctx: _can_manage_sso(u)),
+            keywords='sso oidc openid connect keycloak identity provider idp single sign-on federation',
+            also=('oidc_sso:provider_detail',)),
         Tab(_('RMM Permissions'), 'rmm_permissions:index', 'fa-user-lock', gate=_rmm_policy_reader,
             keywords='rmm roles overrides approvals remote actions policy',
             also=('rmm_permissions:approvals', 'rmm_permissions:technician', 'rmm_permissions:customer')),
@@ -1311,7 +1320,7 @@ NAMESPACE_GROUP = {
     'reports': 'reports',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',
-    'audit': 'settings', 'rmm_permissions': 'settings',
+    'audit': 'settings', 'rmm_permissions': 'settings', 'oidc_sso': 'settings',
 }
 # PSA pages that are commercial rather than service work.
 _PSA_BUSINESS_PREFIXES = ('invoice', 'quote', 'contract', 'aging', 'billing', 'requisition',
