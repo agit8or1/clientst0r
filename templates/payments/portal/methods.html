@@ -1,0 +1,53 @@
+{% extends "portal/base.html" %}
+{% block title %}Payment methods{% endblock %}
+{% block content %}
+<p><a href="{% url 'portal:billing_home' %}">&larr; Billing</a></p>
+<h4 class="mb-2"><i class="fas fa-credit-card me-1"></i>Payment methods &amp; autopay</h4>
+<p class="text-muted small">Card and bank details are entered on the payment provider's own page and held by the provider. We keep only a reference and the last four digits.</p>
+
+<div class="card mb-3"><div class="list-group list-group-flush">
+    {% for m in methods %}
+    <div class="list-group-item">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="me-auto"><strong>{{ m.display }}</strong>
+                {% if m.is_default %}<span class="badge bg-primary">Default</span>{% endif %}
+                {% if m.authorized_for_autopay %}<span class="badge bg-success">Autopay</span>{% endif %}
+                {% if m.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>{% elif m.status == 'inactive' %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+                {% if m.authorized_for_autopay and m.autopay_authorized_at %}<span class="text-muted small">authorized {{ m.autopay_authorized_at|date:"Y-m-d" }}{% if m.autopay_authorized_by %} by {{ m.autopay_authorized_by.get_full_name|default:m.autopay_authorized_by.username }}{% endif %}</span>{% endif %}
+            </span>
+            {% if not m.is_default and m.usable %}
+            <form method="post" action="{% url 'portal:billing_method_action' m.pk %}" class="m-0">{% csrf_token %}
+                <button class="btn btn-sm btn-outline-secondary" name="action" value="default">Make default</button></form>{% endif %}
+            {% if m.authorized_for_autopay %}
+            <form method="post" action="{% url 'portal:billing_method_action' m.pk %}" class="m-0">{% csrf_token %}
+                <button class="btn btn-sm btn-outline-warning" name="action" value="autopay_off">Turn off autopay</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'portal:billing_method_action' m.pk %}" class="m-0">{% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" name="action" value="remove">Remove</button></form>
+        </div>
+        {% if autopay_available and not m.authorized_for_autopay and m.usable %}
+        <form method="post" action="{% url 'portal:billing_method_action' m.pk %}" class="mt-2">{% csrf_token %}
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="autopay_consent" id="consent-{{ m.pk }}">
+                <label class="form-check-label small" for="consent-{{ m.pk }}">I authorize charging this method for {{ organization.name }}'s invoices when they are due, until I turn autopay off.</label></div>
+            <button class="btn btn-sm btn-success mt-1" name="action" value="autopay_on">Turn on autopay</button>
+        </form>
+        {% endif %}
+    </div>
+    {% empty %}<div class="list-group-item text-muted">No saved payment methods.</div>{% endfor %}
+</div></div>
+
+{% if connection %}
+<div class="card card-body">
+    <form method="post" action="{% url 'portal:billing_method_add' %}">{% csrf_token %}
+        <p class="mb-2">Add or replace a payment method on the provider's secure page.</p>
+        {% if autopay_available %}
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="autopay" id="new-autopay">
+            <label class="form-check-label" for="new-autopay">Use it for autopay</label></div>
+        <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="autopay_consent" id="new-consent">
+            <label class="form-check-label small" for="new-consent">If using it for autopay: I authorize charging it for {{ organization.name }}'s invoices when they are due, until I turn autopay off.</label></div>
+        {% endif %}
+        <button class="btn btn-primary"><i class="fas fa-plus"></i> Add payment method</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

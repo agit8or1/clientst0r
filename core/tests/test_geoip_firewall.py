@@ -95,3 +95,34 @@ class UsOnlyFirewallTests(TestCase):
         FirewallIPRule.objects.all().delete()
         self.assertNotEqual(self.get('/accounts/login/', '8.8.8.8').status_code, 403)
         self.assertEqual(self.get('/', '8.8.8.8').status_code, 403)
+
+    # Payment provider webhooks (v3.17.690)
+
+    def post(self, path, client_ip):
+        return self.client.post(path, data=b'{}', content_type='application/json',
+                                HTTP_X_FORWARDED_FOR=client_ip)
+
+    def test_payment_webhooks_skip_country_check(self):
+        """Reaches the view (404: no such connection) instead of the firewall's 403."""
+        for path in ('/payments/webhooks/stripe/999/', '/payments/webhooks/gocardless/999/'):
+            self.assertEqual(self.post(path, '5.255.255.70').status_code, 404, path)
+
+    def test_webhook_exemption_is_narrow(self):
+        for path in ('/payments/', '/payments/webhooks/', '/payments/webhooks/stripe/x/',
+                     '/payments/webhooks/stripe/1/extra/', '/payments/webhooks/paypal/1/'):
+            self.assertEqual(self.post(path, '5.255.255.70').status_code, 403, path)
+        # GET is not a webhook delivery.
+        self.assertEqual(self.get('/payments/webhooks/stripe/999/', '5.255.255.70').status_code, 403)
+
+    def test_webhook_skips_ip_allowlist_but_not_blocklist(self):
+        s = FirewallSettings.get_settings()
+        s.geoip_firewall_enabled = False
+        s.ip_firewall_enabled = True
+        s.ip_firewall_mode = 'allowlist'
+        s.save()
+        FirewallIPRule.objects.all().delete()
+        self.assertEqual(self.post('/payments/webhooks/stripe/999/', '8.8.8.8').status_code, 404)
+        s.ip_firewall_mode = 'blocklist'
+        s.save()
+        FirewallIPRule.objects.create(ip_address='8.8.8.8', is_active=True)
+        self.assertEqual(self.post('/payments/webhooks/stripe/999/', '8.8.8.8').status_code, 403)

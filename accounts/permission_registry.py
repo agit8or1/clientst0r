@@ -91,6 +91,7 @@ MODULES = {
     'procurement': ('Procurement', 'Purchase requisitions and purchase orders.'),
     'reports': ('Reports & dashboards', 'Dashboards, financial / SLA / capacity reports, schedules.'),
     'resourcing': ('Resourcing', 'Team roster, cost rates, leave and holidays.'),
+    'pricing': ('Pricing & rate cards', 'Price books, service plans, labor rate cards, internal costs.'),
     'api': ('API & automation', 'API access and API keys.'),
     'audit': ('Audit logs', 'Audit trail viewing and export.'),
     'ai': ('AI assistance (OPTIONAL AI)', 'AI suggestions, replies and actions; gated by psa_ai_enabled.'),
@@ -143,6 +144,9 @@ PERMISSIONS: List[Permission] = [
        'Assign or remove privileged roles (roles holding user, role, security or platform administration)'),
     _p('roles_manage', 'org', 'roles', C, False, 'Create, clone, edit and archive custom roles'),
     _p('org_manage_settings', 'org', 'settings', C, False, 'Change organization settings'),
+    _p('manage_sso_settings', 'org', 'settings', C, False,
+       'Configure single sign-on (OIDC): identity providers, role and customer mappings, linked accounts',
+       staff_only=True),
     _p('org_owner', 'org', 'roles', C, False,
        'Organization owner: ownership transfer, owner-only operations, billing and security policy. '
        'Only granted through ownership transfer.'),
@@ -247,6 +251,12 @@ PERMISSIONS: List[Permission] = [
        'View synced PSA companies, contacts and tickets (raw provider data)', PENDING, staff_only=True),
     _p('integrations_configure', 'integrations', 'settings', C, False, 'Configure integrations'),
     _p('integrations_sync', 'integrations', 'execute', E, False, 'Trigger sync operations'),
+    _p('view_app_connections', 'integrations', 'view', E, False,
+       'Connected applications (Agit8or Connect): view connections, permissions, customer grants and activity',
+       staff_only=True),
+    _p('manage_app_connections', 'integrations', 'settings', C, False,
+       'Connected applications (Agit8or Connect): pair, approve, rotate, disconnect, revoke, kill switch',
+       staff_only=True),
 
     # --- sales / quotes / CRM ---------------------------------------------------
     _p('crm_view', 'sales', 'view', S, False, 'View leads, opportunities, campaigns and the pipeline',
@@ -305,6 +315,13 @@ PERMISSIONS: List[Permission] = [
     _p('billing_issue_credit', 'billing', 'edit', X, False, 'Issue credit memos', PENDING, staff_only=True),
     _p('billing_manage_charges', 'billing', 'edit', X, False,
        'Add charges, invoice tickets / projects and push invoices to accounting', PENDING, staff_only=True),
+    _p('process_refunds', 'billing', 'edit', X, False,
+       'Refund card / bank payments through the payment provider (full or partial)', staff_only=True),
+    _p('manage_payment_providers', 'billing', 'settings', C, False,
+       'Configure payment provider connections (keys, webhook secrets) and autopay', staff_only=True),
+    _p('manage_tax_settings', 'billing', 'settings', X, False,
+       'Configure sales tax (mode, provider, manual rates, categories, customer exemptions) and apply '
+       'audited manual tax overrides', ENFORCED, staff_only=True),
     _p('procurement_view', 'procurement', 'view', S, True, 'View purchase requisitions and orders'),
     _p('procurement_create_pr', 'procurement', 'create', S, False, 'Create / edit purchase requisitions'),
     _p('procurement_approve_pr', 'procurement', 'approve', E, False, 'Approve / reject purchase requisitions'),
@@ -315,6 +332,9 @@ PERMISSIONS: List[Permission] = [
     _p('reports_view_dashboards', 'reports', 'view', S, True, 'View dashboards'),
     _p('reports_view_financial', 'reports', 'view', X, False,
        'Profitability, effective rate, revenue leakage, margin analytics'),
+    _p('view_profitability', 'reports', 'view', X, False,
+       'Labour cost and margin: profitability reports, margin analytics, effective rate / realization, '
+       'contract and project margin (MSP staff only)', staff_only=True),
     _p('reports_view_sla', 'reports', 'view', E, False, 'SLA trend report', staff_only=True),
     _p('reports_view_capacity', 'reports', 'view', E, False, 'Capacity / utilization report', staff_only=True),
     _p('reports_manage_dashboards', 'reports', 'edit', E, False, 'Create / edit / delete dashboards and widgets'),
@@ -329,6 +349,19 @@ PERMISSIONS: List[Permission] = [
        staff_only=True),
     _p('resourcing_manage_holidays', 'resourcing', 'settings', E, False,
        "Manage holidays (an organization's own business-hours calendar)"),
+
+    # --- pricing --------------------------------------------------------------------
+    _p('pricing_manage_price_books', 'pricing', 'edit', X, False,
+       'Create and edit price books, items, tiers, customer price overrides and scheduled price changes',
+       staff_only=True),
+    _p('pricing_manage_service_plans', 'pricing', 'edit', X, False,
+       'Create and edit service plans, their entitlements and customer plan subscriptions', staff_only=True),
+    _p('pricing_view_internal_cost_rates', 'pricing', 'view', X, False,
+       'See internal costs, margins and technician cost rates (hidden from everyone else)', staff_only=True),
+    _p('pricing_manage_labor_rate_cards', 'pricing', 'edit', X, False,
+       'Create and edit labor roles, rate cards and billing rules', staff_only=True),
+    _p('pricing_approve_discounts', 'pricing', 'approve', X, False,
+       'Approve customer prices below an item minimum price', staff_only=True),
 
     # --- operations -----------------------------------------------------------------
     _p('vehicles_view', 'operations', 'view', S, False, 'View fleet vehicles, receipts and vehicle inventory',
@@ -383,7 +416,7 @@ PERMISSIONS: List[Permission] = [
     _p('portal_agreements_view_org', 'portal', 'view', X, True,
        "See coworkers' agreement signatures and their evidence (not only the user's own)"),
     _p('portal_billing_contact', 'portal', 'view', X, True,
-       'Billing contact: see invoices and billing notices for the customer', PENDING),
+       'Billing contact: see invoices, pay them online, payment history and autopay for the customer'),
     _p('portal_contract_review', 'portal', 'view', E, True,
        'Contract reviewer: read contracts sent to the customer', PENDING),
     _p('portal_contract_sign', 'portal', 'sign', X, True,
@@ -525,6 +558,7 @@ MODULE_COVERAGE = {
     'rmm_permissions': 'RMM tier from the global role x technician access assignment',
     'portal': 'customer membership + portal_* permissions; never internal notes or other customers',
     'resourcing': 'resourcing_* (MSP staff)',
+    'pricing': 'pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions)',
     'crm': 'crm_* (MSP staff only section)',
     'security_alerts': 'security_alerts_* (MSP staff only section)',
     'compliance': 'membership role per customer',
@@ -534,4 +568,6 @@ MODULE_COVERAGE = {
     'network_discovery': 'network_discovery_generate + assets_*',
     'office': 'docs_* / files_* per customer',
     'contracts': 'contracts_* (staff) and portal_contract_* (customer) via accounts.contract_access',
+    'payments': 'manage_payment_providers / process_refunds (MSP staff); portal_billing_contact (customer)',
+    'connect': 'view_app_connections / manage_app_connections (MSP staff); app API by DPoP token + tenant grant',
 }

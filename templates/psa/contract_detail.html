@@ -117,39 +117,55 @@
     </div>
 </div>
 
-{# Profitability snapshot #}
+{# Profitability snapshot — only sent to MSP staff holding view_profitability. #}
 {% if snapshot %}
-<div class="card mt-3">
+<div class="card mt-3" data-profitability-snapshot>
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
-        <strong><i class="fas fa-chart-line me-1"></i>Profitability snapshot</strong>
-        <small class="text-muted">Coarse — Phase 3 will replace cost with per-tech loaded rates</small>
+        <strong><i class="fas fa-chart-line me-1"></i>Profitability snapshot
+            {% if not snapshot.is_complete %}<span class="badge bg-warning text-dark ms-1" data-incomplete-badge>Incomplete</span>{% endif %}</strong>
+        <small class="text-muted">Operational profitability estimate — not your accounting P&amp;L</small>
     </div>
     <div class="card-body">
         <div class="row g-3 text-center">
             <div class="col-md-3">
-                <div class="text-muted small">Revenue</div>
+                <div class="text-muted small">Revenue (from contract terms)</div>
                 <div class="h4 mb-0">${{ snapshot.revenue|floatformat:2 }}</div>
             </div>
             <div class="col-md-3">
-                <div class="text-muted small">Cost</div>
+                <div class="text-muted small">Labour cost{% if not snapshot.is_complete %} (known part){% endif %}</div>
                 <div class="h4 mb-0">${{ snapshot.cost|floatformat:2 }}</div>
             </div>
             <div class="col-md-3">
                 <div class="text-muted small">Margin</div>
+                {% if snapshot.margin is None %}
+                <div class="small text-muted">Unknown — {{ snapshot.unknown_cost_hours|floatformat:2 }} hours without a cost rate</div>
+                {% else %}
                 <div class="h4 mb-0 {% if snapshot.margin > 0 %}text-success{% elif snapshot.margin < 0 %}text-danger{% endif %}">
                     ${{ snapshot.margin|floatformat:2 }}
                 </div>
+                {% endif %}
             </div>
             <div class="col-md-3">
                 <div class="text-muted small">Margin %</div>
+                {% if snapshot.margin_pct is None %}
+                <div class="small text-muted">{% if snapshot.margin is None %}Incomplete{% else %}—{% endif %}</div>
+                {% else %}
                 <div class="h4 mb-0 {% if snapshot.margin_pct > 0 %}text-success{% elif snapshot.margin_pct < 0 %}text-danger{% endif %}">
                     {{ snapshot.margin_pct }}%
                 </div>
+                {% endif %}
             </div>
         </div>
         <div class="row g-2 mt-2 small text-muted">
             <div class="col-md-6">Hours used: <strong>{{ snapshot.hours_used|floatformat:2 }}</strong></div>
             <div class="col-md-6">Overage hours: <strong>{{ snapshot.overage_hours|floatformat:2 }}</strong></div>
+        </div>
+        <div class="small text-muted mt-2">
+            Cost is each qualifying time entry at the technician's loaded cost rate on the day of the work.
+            {% if not snapshot.is_complete %}
+            {{ snapshot.unknown_cost_entries }} time entr{{ snapshot.unknown_cost_entries|pluralize:"y,ies" }} ({{ snapshot.unknown_cost_hours|floatformat:2 }} h) have no cost rate, so no margin is shown.
+            <a href="{% url 'resourcing:tech_cost_rate_list' %}">Set technician cost rates</a>.
+            {% endif %}
         </div>
     </div>
 </div>

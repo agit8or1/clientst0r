@@ -17,11 +17,13 @@
             <h2 class="mb-0"><i class="fas fa-chart-line me-2"></i>Profitability by Client</h2>
             <small class="text-muted">Revenue vs. cost-of-delivery per client over the selected window. Data sourced from <code>reports/queries.py</code>.</small>
         </div>
-        <a href="?start={{ start_date|date:'Y-m-d' }}&end={{ end_date|date:'Y-m-d' }}&loaded_rate={{ loaded_rate }}&format=csv"
+        <a href="?start={{ start_date|date:'Y-m-d' }}&end={{ end_date|date:'Y-m-d' }}&format=csv"
            class="btn btn-outline-secondary">
             <i class="fas fa-file-csv me-1"></i>Export CSV
         </a>
     </div>
+
+    {% include 'reports/_profitability_notice.html' %}
 
     {# ---------- Filter bar ---------- #}
     <form method="get" class="card mb-3" id="filter-form">
@@ -38,14 +40,6 @@
                     <input type="date" name="end" id="filter-end"
                            class="form-control form-control-sm"
                            value="{{ end_date|date:'Y-m-d' }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small mb-1">Loaded rate ($/hr)</label>
-                    <input type="number" step="0.01" min="0" name="loaded_rate"
-                           class="form-control form-control-sm"
-                           value="{{ loaded_rate }}"
-                           placeholder="{{ default_loaded_rate }}">
-                    <small class="text-muted" style="font-size: 0.7rem;">Defaults to ${{ default_loaded_rate }}/hr until per-tech cost rates ship in Phase 3.2</small>
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-sm btn-primary w-100">Apply</button>
@@ -76,7 +70,7 @@
             <div class="card border-warning h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-1">Cost</h6>
-                    <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>
+                    <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>{% if summary.unknown_cost_entries %}<small class="text-warning">known part only · {{ summary.unknown_cost_hours|floatformat:2 }} h without a cost rate</small>{% endif %}
                 </div>
             </div>
         </div>
@@ -84,7 +78,7 @@
             <div class="card border-success h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-1">Margin</h6>
-                    <h3 class="mb-0">${{ total_margin|floatformat:2 }}</h3>
+                    <h3 class="mb-0">{% if total_margin is None %}<span class="text-muted fs-6">Unknown — {% if summary.unknown_cost_hours %}{{ summary.unknown_cost_hours|floatformat:2 }} hours without a cost rate{% else %}{{ summary.unknown_bill_hours|floatformat:2 }} hours without a bill rate{% endif %}</span>{% else %}${{ total_margin|floatformat:2 }}{% endif %}</h3>
                 </div>
             </div>
         </div>
@@ -92,7 +86,7 @@
             <div class="card border-info h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-1">Blended Margin %</h6>
-                    <h3 class="mb-0">{{ blended_margin_pct }}%</h3>
+                    <h3 class="mb-0">{% if blended_margin_pct is None %}<span class="badge bg-warning text-dark">Incomplete</span>{% else %}{{ blended_margin_pct }}%{% endif %}</h3>
                 </div>
             </div>
         </div>
@@ -120,18 +114,10 @@
                         <td>{{ r.client_name }}</td>
                         <td class="text-end">{{ r.hours|floatformat:2 }}</td>
                         <td class="text-end">${{ r.revenue|floatformat:2 }}</td>
-                        <td class="text-end">${{ r.cost|floatformat:2 }}</td>
-                        <td class="text-end">${{ r.margin|floatformat:2 }}</td>
+                        <td class="text-end">${{ r.cost|floatformat:2 }}{% if r.unknown_cost_entries %}<br><small class="text-warning">+ {{ r.unknown_cost_hours|floatformat:2 }} h without a cost rate</small>{% endif %}</td>
+                        <td class="text-end">{% include "reports/_margin_cell.html" %}</td>
                         <td class="text-end">
-                            {% if r.margin_pct < 0 %}
-                                <span class="badge bg-danger">{{ r.margin_pct }}%</span>
-                            {% elif r.margin_pct < 15 %}
-                                <span class="badge bg-warning text-dark">{{ r.margin_pct }}%</span>
-                            {% elif r.margin_pct < 30 %}
-                                <span class="badge bg-info">{{ r.margin_pct }}%</span>
-                            {% else %}
-                                <span class="badge bg-success">{{ r.margin_pct }}%</span>
-                            {% endif %}
+                            {% include "reports/_margin_pct_cell.html" %}
                         </td>
                         <td class="text-end">
                             <a href="{% url 'accounts:organization_detail' r.client_id %}"

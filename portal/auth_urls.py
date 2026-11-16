@@ -20,6 +20,7 @@ urlpatterns = [
          name='password_reset_complete'),
     path('set-password/<uidb64>/<token>/', auth_views.portal_set_password, name='set_password'),
     path('account/password/', auth_views.portal_password_change, name='password_change'),
+    path('account/sessions/sign-out/', auth_views.portal_sessions_sign_out, name='sessions_sign_out'),
     path('account/two-factor/setup/', auth_views.PortalTwoFactorSetupView.as_view(),
          name='two_factor_setup'),
     path('account/two-factor/qrcode/', auth_views.PortalQRGeneratorView.as_view(),

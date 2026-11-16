@@ -13,6 +13,8 @@ from . import request_views as _request_views  # noqa: E402
 from . import agreement_views as _agreement_views  # noqa: E402
 # Pulse checks (service-feedback surveys). Each view 404s while they are off.
 from pulse import portal_views as _pulse_views  # noqa: E402
+# Billing: invoices, online payment, receipts, autopay (billing contacts only).
+from payments import portal_views as _billing_views  # noqa: E402
 
 urlpatterns = [
     path('', views.ticket_list, name='ticket_list'),
@@ -67,6 +69,17 @@ urlpatterns = [
     path('feedback/<int:pk>/', _pulse_views.answer, name='pulse_answer'),
     path('feedback/r/<str:token>/', _pulse_views.respond, name='pulse_respond'),
     path('feedback/opt-out/<str:token>/', _pulse_views.opt_out, name='pulse_opt_out'),
+    # Billing (portal_billing_contact): invoices, Pay now, receipts, autopay.
+    path('billing/', _billing_views.billing_home, name='billing_home'),
+    path('billing/invoices/<int:pk>/', _billing_views.invoice_detail, name='billing_invoice'),
+    path('billing/invoices/<int:pk>/pay/', _billing_views.invoice_pay, name='billing_invoice_pay'),
+    path('billing/payments/<int:pk>/return/', _billing_views.pay_return, name='billing_pay_return'),
+    path('billing/payments/<int:pk>/cancel/', _billing_views.pay_cancel, name='billing_pay_cancel'),
+    path('billing/receipts/<int:pk>/', _billing_views.receipt, name='billing_receipt'),
+    path('billing/methods/', _billing_views.methods, name='billing_methods'),
+    path('billing/methods/add/', _billing_views.method_add, name='billing_method_add'),
+    path('billing/methods/<int:pk>/', _billing_views.method_action, name='billing_method_action'),
+    path('billing/setup/<int:pk>/return/', _billing_views.setup_return, name='billing_setup_return'),
     # Customer switcher for users who belong to several customers.
     path('switch/', views.switch_customer, name='switch_customer'),
 ]

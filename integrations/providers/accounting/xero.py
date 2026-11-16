@@ -22,6 +22,7 @@ from urllib.parse import urlencode
 import requests
 
 from .base import (
+    AccountingAmbiguousError,
     AccountingAuthError,
     AccountingProviderError,
     BaseAccountingProvider,
@@ -226,22 +227,45 @@ class XeroProvider(BaseAccountingProvider):
         contact_id = contacts[0]['ContactID']
         self._save_link(client_org, contact_id, source='push',
                         display_name=contacts[0].get('Name', ''))
+        log_accounting_call(
+            connection=self.connection, action='push_customer',
+            resource_type='customer', resource_id=client_org.pk,
+            external_id=contact_id, success=True,
+            http_status=resp.status_code,
+            request_summary=f'create {client_org.name}',
+            response_summary=f'xero_contact_id={contact_id}',
+        )
         return contact_id
 
-    def push_invoice(self, invoice) -> Dict[str, Any]:
+    @staticmethod
+    def _reference_for(invoice, key):
+        """Xero Reference (shown on the invoice): our number plus the push key
+        reconciliation searches for."""
+        ref = f'{invoice.invoice_number} ({key})' if invoice.invoice_number else key
+        return ref[:255]
+
+    def push_invoice(self, invoice, *, idempotency_key=None, request_id=None) -> Dict[str, Any]:
+        """Create the invoice in Xero. Same return shape as the QBO adapter:
+        `ambiguous` means it may exist in Xero without our knowing its id."""
         from django.utils import timezone
-        try:
-            contact_id = self._ensure_contact(invoice.client_org)
-        except Exception as exc:
-            invoice.last_push_error = str(exc)[:500]
+
+        def _fail(err, *, http_status=None, ambiguous=False, response_summary=''):
+            invoice.last_push_error = str(err)[:500]
             invoice.save(update_fields=['last_push_error', 'updated_at'])
             log_accounting_call(
                 connection=self.connection, action='push_invoice',
                 resource_type='invoice', resource_id=invoice.pk,
-                success=False, error_message=str(exc),
-                request_summary=f'invoice={invoice.invoice_number}',
+                success=False, http_status=http_status, error_message=str(err),
+                request_summary=f'invoice={invoice.invoice_number} key={idempotency_key or "-"}',
+                response_summary=response_summary,
             )
-            return {'success': False, 'error': str(exc)}
+            return {'success': False, 'error': str(err), 'ambiguous': ambiguous,
+                    'preflight': False}
+
+        try:
+            contact_id = self._ensure_contact(invoice.client_org)
+        except Exception as exc:
+            return _fail(exc)
 
         # Phase 27 v6 (v3.17.278): include AccountCode when the line has
         # gl_account_code set, so revenue lands in the right Xero account.
@@ -254,37 +278,42 @@ class XeroProvider(BaseAccountingProvider):
             if getattr(li, 'gl_account_code', '') and li.gl_account_code:
                 row['AccountCode'] = li.gl_account_code
             return row
-        body = {
-            'Invoices': [{
-                'Type': 'ACCREC',
-                'Contact': {'ContactID': contact_id},
-                'Date': invoice.invoice_date.isoformat() if invoice.invoice_date else None,
-                'DueDate': invoice.due_date.isoformat() if invoice.due_date else None,
-                'LineItems': [_line(li) for li in invoice.line_items.all()],
-                'Status': 'AUTHORISED',
-            }],
+        inv_body = {
+            'Type': 'ACCREC',
+            'Contact': {'ContactID': contact_id},
+            'Date': invoice.invoice_date.isoformat() if invoice.invoice_date else None,
+            'DueDate': invoice.due_date.isoformat() if invoice.due_date else None,
+            'LineItems': [_line(li) for li in invoice.line_items.all()],
+            'Status': 'AUTHORISED',
         }
-        # Strip None
-        body['Invoices'][0] = {k: v for k, v in body['Invoices'][0].items() if v is not None}
+        if idempotency_key:
+            inv_body['Reference'] = self._reference_for(invoice, idempotency_key)
+        body = {'Invoices': [{k: v for k, v in inv_body.items() if v is not None}]}
 
-        resp = self._api('POST', '/Invoices', json=body)
+        headers = {}
+        if request_id:
+            # Xero replays the original response for a repeated key.
+            headers['Idempotency-Key'] = str(request_id)
+        try:
+            resp = self._api('POST', '/Invoices', json=body, headers=headers)
+        except AccountingAmbiguousError as exc:
+            return _fail(exc, ambiguous=True)
         if resp.status_code not in (200, 201):
             err = f'HTTP {resp.status_code}: {resp.text[:500]}'
-            invoice.last_push_error = err
-            invoice.save(update_fields=['last_push_error', 'updated_at'])
-            log_accounting_call(
-                connection=self.connection, action='push_invoice',
-                resource_type='invoice', resource_id=invoice.pk,
-                success=False, http_status=resp.status_code,
-                error_message=err,
-                request_summary=f'invoice={invoice.invoice_number} lines={len(body["Invoices"][0].get("LineItems", []))}',
-                response_summary=resp.text[:500],
-            )
-            return {'success': False, 'error': err}
+            return _fail(err, http_status=resp.status_code,
+                         ambiguous=resp.status_code >= 500,
+                         response_summary=resp.text[:500])
 
-        data = resp.json() or {}
-        invoices = data.get('Invoices') or []
-        ext_id = (invoices[0].get('InvoiceID') if invoices else '') or ''
+        try:
+            data = resp.json() or {}
+            invoices = data.get('Invoices') or []
+            ext_id = (invoices[0].get('InvoiceID') if invoices else '') or ''
+        except Exception as exc:
+            return _fail(f'unreadable Xero response: {exc}',
+                         http_status=resp.status_code, ambiguous=True)
+        if not ext_id:
+            return _fail('Xero returned no InvoiceID',
+                         http_status=resp.status_code, ambiguous=True)
         invoice.accounting_provider = self.provider_type
         invoice.accounting_external_id = str(ext_id)
         invoice.pushed_to_accounting_at = timezone.now()
@@ -307,24 +336,83 @@ class XeroProvider(BaseAccountingProvider):
             resource_type='invoice', resource_id=invoice.pk,
             external_id=invoice.accounting_external_id,
             success=True, http_status=resp.status_code,
-            request_summary=f'invoice={invoice.invoice_number} lines={len(body["Invoices"][0].get("LineItems", []))}',
+            request_summary=f'invoice={invoice.invoice_number} lines={len(body["Invoices"][0].get("LineItems", []))} key={idempotency_key or "-"}',
             response_summary=f'xero_id={invoice.accounting_external_id}',
         )
         return {'success': True, 'invoice_id': invoice.accounting_external_id}
+
+    def find_invoice_by_key(self, invoice, key: str) -> Dict[str, Any]:
+        """Look for a live Xero sales invoice whose Reference holds our key."""
+        from urllib.parse import quote
+        safe = key.replace('"', '')
+        where = quote(f'Type=="ACCREC"&&Reference!=null&&Reference.Contains("{safe}")')
+
+        def _done(status, *, external_id='', data=None, error='', http_status=None):
+            log_accounting_call(
+                connection=self.connection, action='reconcile_invoice',
+                resource_type='invoice', resource_id=invoice.pk,
+                external_id=external_id, success=status != 'error',
+                http_status=http_status, error_message=error,
+                request_summary=f'invoice={invoice.invoice_number} key={key}',
+                response_summary=f'status={status}',
+            )
+            return {'status': status, 'external_id': external_id,
+                    'data': data or {}, 'error': error}
+
+        try:
+            resp = self._api('GET', f'/Invoices?where={where}')
+        except AccountingProviderError as exc:
+            return _done('error', error=str(exc))
+        if resp.status_code != 200:
+            return _done('error', http_status=resp.status_code,
+                         error=f'HTTP {resp.status_code}: {resp.text[:200]}')
+        for row in (resp.json() or {}).get('Invoices') or []:
+            if key not in str(row.get('Reference') or ''):
+                continue
+            if str(row.get('Status') or '').upper() in ('VOIDED', 'DELETED'):
+                continue
+            return _done('found', external_id=str(row.get('InvoiceID') or ''),
+                         data=row)
+        return _done('absent')
 
     def record_payment(self, payment) -> Dict[str, Any]:
         invoice = payment.invoice
         if not invoice.accounting_external_id:
             return {'skipped': True, 'reason': 'invoice not yet pushed'}
+        summary = (f'payment={payment.pk} amount={payment.amount} '
+                   f'invoice={invoice.invoice_number}')
+        # The deposit account must be configured. This used to fall back to
+        # the first ten characters of the payment's own reference (a cheque
+        # number, say) or a hard-coded '090' — posting real money against
+        # whatever account that happened to name.
+        account_code = (getattr(self.connection, 'payment_account_code', '') or '').strip()
+        if not account_code:
+            err = (f'No payment bank account configured on Xero connection '
+                   f'"{self.connection.name}". Set the payment account code '
+                   f'on the connection before pushing payments.')
+            log_accounting_call(
+                connection=self.connection, action='push_refused',
+                resource_type='payment', resource_id=payment.pk,
+                success=False, error_message=err, request_summary=summary)
+            return {'success': False, 'error': err, 'preflight': True}
         body = {
             'Payments': [{
                 'Invoice': {'InvoiceID': invoice.accounting_external_id},
                 'Amount': float(payment.amount),
                 'Date': payment.paid_on.isoformat(),
-                'Account': {'Code': payment.reference[:10] or '090'},  # let admin override
+                'Account': {'Code': account_code},
+                'Reference': (payment.reference or '')[:255],
             }],
         }
-        resp = self._api('POST', '/Payments', json=body)
+        try:
+            resp = self._api('POST', '/Payments', json=body)
+        except AccountingProviderError as exc:
+            log_accounting_call(
+                connection=self.connection, action='record_payment',
+                resource_type='payment', resource_id=payment.pk,
+                success=False, error_message=str(exc), request_summary=summary)
+            return {'success': False, 'error': str(exc),
+                    'ambiguous': isinstance(exc, AccountingAmbiguousError)}
         if resp.status_code not in (200, 201):
             err = f'HTTP {resp.status_code}: {resp.text[:200]}'
             log_accounting_call(
@@ -332,18 +420,21 @@ class XeroProvider(BaseAccountingProvider):
                 resource_type='payment', resource_id=payment.pk,
                 success=False, http_status=resp.status_code,
                 error_message=err,
-                request_summary=f'payment={payment.pk} amount={payment.amount} invoice={invoice.invoice_number}',
+                request_summary=summary,
                 response_summary=resp.text[:500],
             )
             return {'success': False, 'error': err}
+        rows = (resp.json() or {}).get('Payments') or []
+        ext_id = str((rows[0].get('PaymentID') if rows else '') or '')
         log_accounting_call(
             connection=self.connection, action='record_payment',
             resource_type='payment', resource_id=payment.pk,
+            external_id=ext_id,
             success=True, http_status=resp.status_code,
-            request_summary=f'payment={payment.pk} amount={payment.amount} invoice={invoice.invoice_number}',
-            response_summary='ok',
+            request_summary=summary,
+            response_summary=f'xero_payment_id={ext_id or "?"}',
         )
-        return {'success': True}
+        return {'success': True, 'payment_id': ext_id}
 
     # ---- Pull (Phase 27 gap: payments, invoice state, customers) ----------
 

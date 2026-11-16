@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Review pairing request{% endblock %}
+{% block content %}
+<h1 class="h3"><i class="fas fa-user-check"></i> Review pairing request</h1>
+{% include "connect/_steps.html" %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<div class="row"><div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Requesting application</strong></div><div class="card-body small">
+  <div>{{ conn.remote_display_name|default:"(no name)" }} — <code>{{ conn.remote_app_type }}</code> {{ conn.remote_app_version }}</div>
+  <div>Installation <code>{{ conn.remote_installation_id }}</code></div>
+  <div>Address <code>{{ conn.base_url }}</code></div>
+  <div>Sent from {{ preq.source_ip|default:"—" }} at {{ preq.created_at|date:"Y-m-d H:i" }}</div></div></div></div>
+<div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>This Clientst0r</strong></div><div class="card-body small">
+  <div>{{ identity.display_name }}</div><div>Installation <code>{{ identity.installation_id }}</code></div></div></div></div></div>
+<div class="alert alert-primary"><strong>Comparison code: <span class="font-monospace fs-4" data-connect-sas>{{ conn.sas }}</span></strong><br>
+The other application shows a code too. Approve only if the two are identical — a different code means someone else is in the middle.</div>
+{% if preq.status == 'pending' and can_manage %}
+<form method="post">{% csrf_token %}
+<div class="card mb-3"><div class="card-header"><strong>Approve permissions</strong> — what {{ conn.remote_display_name|default:conn.remote_app_type }} may do here</div><div class="card-body">
+  {% include "connect/_scopes.html" with name="scopes" checked=conn.peer_requested_scopes %}
+  {% if unknown %}<p class="small text-muted">Asked for but not offered by Clientst0r (ignored): {{ unknown|join:", " }}</p>{% endif %}
+</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Select customers</strong> — only these are reachable, each under the other application's id</div><div class="card-body">
+  {% include "connect/_grant_rows.html" with rows=proposed scopes=conn.peer_requested_scopes %}
+</div></div>
+{% if remote_groups %}<div class="card mb-3"><div class="card-header"><strong>What Clientst0r asks in return</strong> (optional)</div><div class="card-body">{% include "connect/_scopes.html" with name="requested_scopes" groups=remote_groups checked="" %}</div></div>{% endif %}
+{% if discovery_problem %}<div class="alert alert-warning small">Could not look up the requesting application yet: {{ discovery_problem }}</div>{% endif %}
+{% include "connect/_advanced.html" %}
+<button class="btn btn-primary" name="op" value="approve">Approve</button>
+<button class="btn btn-outline-danger" name="op" value="reject" formnovalidate>Reject</button>
+</form>
+{% else %}<p>Status: <strong>{{ preq.get_status_display }}</strong>.</p>{% endif %}
+{% endblock %}

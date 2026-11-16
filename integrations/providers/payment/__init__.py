@@ -1,8 +1,9 @@
 """
-Phase 15 v8 (v3.17.296) — Payment processor adapters.
+Payment processor adapters (Stripe, GoCardless), REST over `requests`.
 
-Stripe + GoCardless stubs ship today. Live OAuth flows + actual
-`charge()` calls land when an MSP connects a real account.
+Collect-only: invoices and the billing schedule stay in ClientSt0r. The
+`payments` app drives these adapters (portal checkout, autopay, webhooks,
+refunds).
 """
 from .base import BasePaymentProvider, PaymentProviderError
 from .stripe import StripeProvider

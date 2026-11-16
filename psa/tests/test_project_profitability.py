@@ -89,26 +89,43 @@ class ProjectProfitabilityTests(TestCase):
         self._log(60, days_ago=30)   # old rate
         self.assertEqual(self.project.actual_cost(), Decimal('40.00'))
 
-    def test_missing_rate_is_counted_and_still_costed(self):
-        """A default is better than refusing to cost anything, but the caller
-        is told so a guess is not presented as a measurement."""
+    def test_missing_rate_is_counted_not_costed(self):
+        """No cost rate means unknown cost — never a default. The caller is
+        told how much is missing so a partial cost isn't read as complete."""
         self._log(60)
         breakdown = self.project.cost_breakdown()
         self.assertEqual(breakdown['used_default_for'], 1)
-        self.assertGreater(breakdown['cost'], Decimal('0.00'))
+        self.assertEqual(breakdown['unknown_cost_entries'], 1)
+        self.assertEqual(breakdown['unknown_cost_hours'], 1.0)
+        self.assertFalse(breakdown['is_complete'])
+        self.assertEqual(breakdown['cost'], Decimal('0.00'))
+
+    def test_unknown_cost_means_no_margin(self):
+        self._contract(150)
+        self._cost_rate(50)
+        self._log(60)
+        other = User.objects.create_user('techb', 'b@example.com', 'pw')
+        self._log(60, user=other)          # no rate for techb
+        p = self.project.profitability()
+        self.assertEqual(p['cost'], Decimal('50.00'))   # known part only
+        self.assertIsNone(p['margin'])
+        self.assertIsNone(p['margin_percent'])
+        self.assertFalse(p['is_complete'])
+        self.assertEqual(p['unknown_cost_hours'], 1.0)
 
     def test_a_configured_rate_is_not_flagged_as_default(self):
         self._cost_rate(50)
         self._log(60)
         self.assertEqual(self.project.cost_breakdown()['used_default_for'], 0)
 
-    def test_entries_without_a_user_are_skipped(self):
+    def test_entries_without_a_user_are_not_costed(self):
         """Charging them at a default would attribute cost to a person who is
-        not recorded."""
+        not recorded: they count as unknown cost instead."""
         self._cost_rate(50)
         self._log(60)
         self._log(60, user=None)
         self.assertEqual(self.project.actual_cost(), Decimal('50.00'))
+        self.assertEqual(self.project.cost_breakdown()['unknown_cost_entries'], 1)
 
     def test_cost_is_per_project(self):
         other = Project.objects.create(organization=self.org, name='Other')

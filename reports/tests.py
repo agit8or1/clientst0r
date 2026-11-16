@@ -67,13 +67,26 @@ class ProfitabilityQueryTests(TestCase):
         self.assertEqual(rows[0]['outstanding'], 300.0)
 
     def test_profitability_combines(self):
+        from decimal import Decimal
+        from resourcing.models import TechCostRate
         from reports.queries import profitability_by_client
-        rows = profitability_by_client(self.today, self.today, default_loaded_rate=60)
+        TechCostRate.objects.create(user=self.user, rate_per_hour=Decimal('60'),
+                                    effective_from=self.today)
+        rows = profitability_by_client(self.today, self.today)
         self.assertEqual(len(rows), 1)
-        # 2h × $60 = $120 cost; revenue $500; margin $380; pct 76%
+        # 2h × $60 configured rate = $120 cost; revenue $500; margin $380; 76%
         self.assertAlmostEqual(rows[0]['cost'], 120.0, places=1)
         self.assertAlmostEqual(rows[0]['margin'], 380.0, places=1)
         self.assertAlmostEqual(rows[0]['margin_pct'], 76.0, places=1)
+        self.assertTrue(rows[0]['is_complete'])
+
+    def test_profitability_without_cost_rate_is_unknown(self):
+        from reports.queries import profitability_by_client
+        rows = profitability_by_client(self.today, self.today)
+        self.assertEqual(rows[0]['cost'], 0.0)
+        self.assertIsNone(rows[0]['margin'])
+        self.assertEqual(rows[0]['unknown_cost_hours'], 2.0)
+        self.assertFalse(rows[0]['is_complete'])
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -258,8 +271,21 @@ class ProfitabilityByContractTests(TestCase):
         self.assertEqual(r['client_name'], 'ClientCo')
         # Revenue includes the $500 invoice
         self.assertGreaterEqual(r['revenue'], 500.0)
-        # Cost = 1h × default $60 = $60
+        # No cost rate configured: cost unknown (never a $60 default)
+        self.assertAlmostEqual(r['cost'], 0.0, places=1)
+        self.assertEqual(r['unknown_cost_hours'], 1.0)
+        self.assertIsNone(r['margin'])
+
+    def test_contract_cost_uses_configured_rate(self):
+        from decimal import Decimal
+        from resourcing.models import TechCostRate
+        from reports.queries import profitability_by_contract
+        TechCostRate.objects.create(user=self.user, rate_per_hour=Decimal('60'),
+                                    effective_from=self.today)
+        r = [r for r in profitability_by_contract(self.today, self.today)
+             if r['contract_id'] == self.contract.id][0]
         self.assertAlmostEqual(r['cost'], 60.0, places=1)
+        self.assertTrue(r['is_complete'])
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -314,8 +340,10 @@ class ProfitabilityByProjectTests(TestCase):
         r = match[0]
         self.assertEqual(r['project_name'], 'Migration')
         self.assertAlmostEqual(r['revenue'], 900.0, places=1)
-        # 3h × $60 default = $180
-        self.assertAlmostEqual(r['cost'], 180.0, places=1)
+        # No cost rate configured: 3h unknown, not 3h × $60
+        self.assertAlmostEqual(r['cost'], 0.0, places=1)
+        self.assertEqual(r['unknown_cost_hours'], 3.0)
+        self.assertIsNone(r['margin'])
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)

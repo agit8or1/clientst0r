@@ -1,0 +1,14 @@
+<details class="mb-3">
+  <summary>Advanced settings</summary>
+  <div class="border rounded p-2 mt-2">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" name="allow_private" id="allow_private" {% if allow_private %}checked{% endif %}>
+      <label class="form-check-label" for="allow_private">Allow a private network address (internal IP, VPN, private DNS). Cloud metadata addresses stay blocked.</label>
+    </div>
+    <label class="form-label" for="ca_pem">Private CA bundle (PEM) — trust only these CAs for this connection</label>
+    <textarea class="form-control form-control-sm font-monospace mb-2" rows="3" name="ca_pem" id="ca_pem" placeholder="-----BEGIN CERTIFICATE-----">{{ ca_pem|default:'' }}</textarea>
+    {% if show_rotation %}<label class="form-label" for="rotation_days">Rotate this connection's key every (days)</label>
+    <input class="form-control form-control-sm mb-2" type="number" min="7" max="365" name="rotation_days" id="rotation_days" value="{{ rotation_days|default:90 }}">{% endif %}
+    <p class="small text-muted mb-0">TLS certificates are always verified (TLS 1.2 or newer). Endpoints come from the other application's discovery document and must be on the same address. Webhooks are signed with this connection's key; there is no shared secret to configure.</p>
+  </div>
+</details>

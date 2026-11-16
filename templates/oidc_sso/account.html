@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load oidc_sso_tags %}
+{% block title %}Single sign-on{% endblock %}
+{% block content %}
+<div class="row"><div class="col-lg-8">
+<div class="card mb-3">
+  <div class="card-header"><h5 class="mb-0"><i class="fas fa-right-to-bracket"></i> Single sign-on</h5></div>
+  <div class="card-body">
+    <p class="text-muted">Link your account at your organization's identity provider to sign in with it. Accounts are linked only from here (or by an administrator) &mdash; never by matching e-mail addresses.</p>
+    {% if not rows %}<p class="mb-0">Single sign-on is not set up on this server.</p>{% endif %}
+    {% if rows %}
+      <div class="mb-3" id="reauth">
+      {% if fresh_auth %}
+        <span class="badge bg-success">Confirmed for the next few minutes</span>
+      {% else %}
+        <p class="small mb-2">Linking and unlinking need you to confirm it's you first.</p>
+        {% if has_password %}
+        <form method="post" action="{% url 'oidc_sso:reauth' %}" class="row g-2 align-items-end">
+          {% csrf_token %}
+          <div class="col-sm-5"><label class="form-label" for="pw">Password</label><input type="password" id="pw" name="password" class="form-control" autocomplete="current-password" required></div>
+          <div class="col-sm-4"><label class="form-label" for="otp">Authenticator code</label><input type="text" id="otp" name="otp" class="form-control" inputmode="numeric" autocomplete="one-time-code"></div>
+          <div class="col-sm-3"><button class="btn btn-primary w-100">Confirm</button></div>
+        </form>
+        {% endif %}
+        <div class="mt-2">{% oidc_stepup_buttons %}</div>
+      {% endif %}
+      </div>
+      <table class="table table-sm align-middle">
+        <thead><tr><th>Provider</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.provider.name }}</td>
+            <td>{% if r.identity %}<span class="badge bg-success">Linked</span> <span class="small text-muted">since {{ r.identity.linked_at|date:"Y-m-d" }}{% if r.identity.last_login_at %}, last used {{ r.identity.last_login_at|date:"Y-m-d H:i" }}{% endif %}</span>{% else %}<span class="badge bg-secondary">Not linked</span>{% endif %}</td>
+            <td class="text-end">
+              {% if r.identity %}
+              <form method="post" action="{% url 'oidc_sso:unlink' r.provider.slug %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" {% if not fresh_auth %}disabled{% endif %}>Unlink</button></form>
+              {% else %}
+              <form method="post" action="{% url 'oidc_sso:link' r.provider.slug %}">{% csrf_token %}<button class="btn btn-sm btn-primary" {% if not fresh_auth %}disabled{% endif %}>Link SSO account</button></form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+</div>
+</div></div>
+{% endblock %}

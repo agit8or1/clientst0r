@@ -169,7 +169,7 @@ class Membership(BaseModel):
                 kb_view_articles=True, kb_edit_articles=True, kb_move_articles=True,
                 kb_manage_categories=True, kb_publish_articles=True,
                 # Reports + financials (v3.17.145) — Owner: all True
-                reports_view_dashboards=True, reports_view_financial=True,
+                reports_view_dashboards=True, reports_view_financial=True, view_profitability=True,
                 reports_view_sla=True, reports_view_capacity=True,
                 reports_manage_dashboards=True, reports_manage_scheduled=True,
                 resourcing_view_team=True, resourcing_manage_cost_rates=True,
@@ -219,7 +219,7 @@ class Membership(BaseModel):
                 kb_manage_categories=True, kb_publish_articles=True,
                 # Reports + financials (v3.17.145) — Admin: all True except
                 # reports_manage_scheduled (admins typically delegate that).
-                reports_view_dashboards=True, reports_view_financial=True,
+                reports_view_dashboards=True, reports_view_financial=True, view_profitability=True,
                 reports_view_sla=True, reports_view_capacity=True,
                 reports_manage_dashboards=True, reports_manage_scheduled=False,
                 resourcing_view_team=True, resourcing_manage_cost_rates=True,
@@ -429,6 +429,9 @@ def derive_legacy_flags(ns, role):
         'billing_approve_invoices': g('billing_send_invoices'),
         'billing_issue_credit': g('billing_send_invoices'),
         'billing_manage_charges': g('billing_send_invoices'),
+        # Sales tax configuration (tax app): whoever manages the
+        # organization's settings.
+        'manage_tax_settings': owner or g('org_manage_settings'),
         'crm_approve_commissions': g('crm_view_forecast'),
         'timesheets_approve': g('resourcing_approve_leave'),
         'reports_export': True,
@@ -437,6 +440,11 @@ def derive_legacy_flags(ns, role):
         'scheduling_manage_wallboard': g('org_manage_settings'),
         'psa_manage_workflow_rules': g('org_manage_settings'),
         'resourcing_view_payroll': owner,
+        'pricing_manage_price_books': owner,
+        'pricing_manage_service_plans': owner,
+        'pricing_manage_labor_rate_cards': owner,
+        'pricing_approve_discounts': owner,
+        'pricing_view_internal_cost_rates': owner or g('resourcing_view_team'),
         'vault_approve_reveal': g('vault_view_password'),
         'netconfig_view_configs': g('vault_view_password'),
         'integrations_view_synced_psa': g('integrations_view'),
@@ -444,6 +452,14 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        # Single sign-on settings: new, never derived from a simple role.
+        'manage_sso_settings': False,
+        # Payment processing: new, never derived from an older permission.
+        'process_refunds': False,
+        'manage_payment_providers': False,
+        # Cost / margin visibility split out of reports_view_financial
+        # (accounts 0051): whoever could see financial reports keeps it.
+        'view_profitability': g('reports_view_financial'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -505,6 +521,12 @@ class UserProfile(BaseModel):
         ('assigned', 'Records assigned to the user'),
         ('own', 'Records the user created'),
     ], default='organization', help_text='MSP staff: which records of in-scope clients the global role covers.')
+
+    # Sign out everywhere (accounts.session_epoch): every web session issued
+    # before this moment is ended on its next request. Null = never used.
+    sessions_valid_after = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Web sessions signed in before this time are signed out on their next request.')
 
     # Name fields
     phone = models.CharField(max_length=50, blank=True)
@@ -710,6 +732,7 @@ class UserProfile(BaseModel):
             ('azure_ad', 'Azure AD / Microsoft Entra ID'),
             ('ldap', 'LDAP/Active Directory'),
             ('local', 'Local'),
+            ('oidc', 'Single sign-on (OIDC)'),
         ],
         default='local',
         help_text='Authentication source for this user'
@@ -717,11 +740,29 @@ class UserProfile(BaseModel):
     # When the background LDAP group sync (accounts.ldap_group_sync) last
     # re-checked this LDAP user's mapped groups; it works oldest-first.
     ldap_groups_checked_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Microsoft Entra ID identity this account is linked to (v3.17.688).
+    # A Microsoft sign-in is matched on (tenant id, object id) only — never on
+    # an e-mail address. Both are GUIDs from a verified ID token.
     azure_ad_oid = models.CharField(
         max_length=255,
         blank=True,
         default='',
-        help_text='Azure AD Object ID (OID)'
+        db_index=True,
+        help_text='Microsoft Entra object ID (oid) this account is linked to'
+    )
+    azure_ad_tid = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Microsoft Entra tenant ID (tid) this account is linked to. '
+                  'Empty on links made before v3.17.688; captured on the next sign-in.'
+    )
+    azure_ad_linked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the Microsoft identity was explicitly linked (by the user after '
+                  're-authenticating, or by an administrator). Empty for links made '
+                  'automatically before v3.17.688.'
     )
 
     class Meta:
@@ -729,6 +770,25 @@ class UserProfile(BaseModel):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+    # Written only by accounts.session_epoch (queryset update). A full save()
+    # of a profile loaded earlier (save_user_profile on every User save, the
+    # profile and 2FA views) must not write an older value back and undo a
+    # sign-out, so it is left out unless named in update_fields.
+    _EPOCH_FIELD = 'sessions_valid_after'
+
+    def save(self, *args, **kwargs):
+        if (not self._state.adding and self.pk and kwargs.get('update_fields') is None
+                and not kwargs.get('force_insert') and not (args and args[0])):
+            from django.db import DatabaseError
+            fields = [f.name for f in self._meta.concrete_fields
+                      if not f.primary_key and f.name != self._EPOCH_FIELD]
+            try:
+                return super().save(*args, **dict(kwargs, update_fields=fields))
+            except DatabaseError:
+                # Row gone (update matched nothing): fall back to a plain save.
+                pass
+        return super().save(*args, **kwargs)
 
     def is_staff_user(self):
         """Check if this is a staff user (MSP tech)."""
@@ -917,6 +977,13 @@ class RoleTemplate(BaseModel):
     integrations_view = models.BooleanField(default=False, help_text='View integrations')
     integrations_configure = models.BooleanField(default=False, help_text='Configure integrations')
     integrations_sync = models.BooleanField(default=False, help_text='Trigger sync operations')
+    view_app_connections = models.BooleanField(
+        default=False, help_text='Agit8or Connect: see connected applications, their permissions, customer '
+                                 'grants, key fingerprints and activity (never secrets).')
+    manage_app_connections = models.BooleanField(
+        default=False, help_text='Agit8or Connect: pair, approve, test, rotate, disconnect and revoke connected '
+                                 'applications and use the emergency kill switch. High-risk grants also need '
+                                 'a second administrator.')
 
     # Audit Permissions
     audit_view = models.BooleanField(default=False, help_text='View audit logs')
@@ -978,6 +1045,12 @@ class RoleTemplate(BaseModel):
         default=False,
         help_text='Profitability, effective hourly rate, revenue leakage, '
                   'margin analytics — surfaces revenue + cost numbers.',
+    )
+    view_profitability = models.BooleanField(
+        default=False,
+        help_text='MSP staff only: labour cost, margin and profitability '
+                  '(profitability reports, margin analytics, effective rate, '
+                  'contract / project margin). Never shown to customer users.',
     )
     reports_view_sla = models.BooleanField(default=False,
         help_text='SLA trend report. Defaults off because techs don\'t need it.')
@@ -1125,6 +1198,9 @@ class RoleTemplate(BaseModel):
     office_edit_in_m365 = models.BooleanField(default=False,
         help_text='Customer users: edit Office files in Microsoft 365 (a working copy). '
                   'MSP staff follow their edit permission on the file.')
+    manage_sso_settings = models.BooleanField(default=False,
+        help_text='MSP staff (global role): configure single sign-on (OIDC) providers, mappings and '
+                  'linked accounts.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,
@@ -1134,8 +1210,16 @@ class RoleTemplate(BaseModel):
     crm_approve_commissions = models.BooleanField(default=False, help_text='Decide and pay out commissions.')
     billing_approve_invoices = models.BooleanField(default=False, help_text='Approve invoices.')
     billing_issue_credit = models.BooleanField(default=False, help_text='Issue credit memos.')
+    # Payment processing (payments app): refunds through the gateway, and the
+    # gateway connections themselves (keys, webhook secrets, autopay policy).
+    process_refunds = models.BooleanField(default=False,
+        help_text='Refund card / bank payments through the payment provider.')
+    manage_payment_providers = models.BooleanField(default=False,
+        help_text='Configure payment provider connections, webhook secrets and autopay.')
     billing_manage_charges = models.BooleanField(default=False,
         help_text='Add charges, invoice tickets / projects, push invoices to accounting.')
+    manage_tax_settings = models.BooleanField(default=False,
+        help_text='Configure sales tax and apply audited manual tax overrides.')
     reports_export = models.BooleanField(default=False, help_text='Export reports and report files.')
     vehicles_view = models.BooleanField(default=False, help_text='View fleet vehicles.')
     vehicles_manage = models.BooleanField(default=False, help_text='Create / edit / delete fleet records.')
@@ -1146,6 +1230,17 @@ class RoleTemplate(BaseModel):
     timesheets_approve = models.BooleanField(default=False, help_text='Approve timesheets.')
     resourcing_view_payroll = models.BooleanField(default=False,
         help_text='Timeclock dashboard and payroll export.')
+    # Pricing (price books, service plans, labor rate cards).
+    pricing_manage_price_books = models.BooleanField(default=False,
+        help_text='Create / edit price books, items, tiers, customer overrides and scheduled changes.')
+    pricing_manage_service_plans = models.BooleanField(default=False,
+        help_text='Create / edit service plans and customer plan subscriptions.')
+    pricing_view_internal_cost_rates = models.BooleanField(default=False,
+        help_text='See internal costs, margins and technician cost rates in pricing.')
+    pricing_manage_labor_rate_cards = models.BooleanField(default=False,
+        help_text='Create / edit labor roles, rate cards and billing rules.')
+    pricing_approve_discounts = models.BooleanField(default=False,
+        help_text='Approve customer prices below an item minimum price.')
     contracts_view = models.BooleanField(default=False, help_text='View contracts.')
     contracts_view_pricing = models.BooleanField(default=False, help_text='View contract pricing.')
     contracts_edit_draft = models.BooleanField(default=False, help_text='Create / edit contract drafts.')
@@ -1323,6 +1418,7 @@ class RoleTemplate(BaseModel):
                 # Reports + financials (v3.17.145) — Owner: all True
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'view_profitability': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
@@ -1443,6 +1539,7 @@ class RoleTemplate(BaseModel):
                 # except reports_manage_scheduled (admins delegate that).
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'view_profitability': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
@@ -1794,6 +1891,7 @@ class RoleTemplate(BaseModel):
                 # manage_cost_rates (owner-only).
                 'reports_view_dashboards': True,
                 'reports_view_financial': True,
+                'view_profitability': True,
                 'reports_view_sla': True,
                 'reports_view_capacity': True,
                 'reports_manage_dashboards': True,
@@ -2309,7 +2407,7 @@ class RoleTemplate(BaseModel):
                 billing_send_invoices=True,
                 billing_record_payments=True,
                 billing_view_aging=True,
-                reports_view_financial=True,
+                reports_view_financial=True, view_profitability=True,
                 reports_manage_dashboards=True,
                 reports_manage_scheduled=True,
                 resourcing_manage_cost_rates=True,
@@ -2486,3 +2584,35 @@ class OwnershipTransfer(models.Model):
     class Meta:
         db_table = 'ownership_transfers'
         ordering = ['-created_at']
+
+
+class AzureADLinkRequest(models.Model):
+    """A Microsoft sign-in that named the e-mail address of an existing
+    account which is not linked to that Microsoft identity (v3.17.688).
+
+    The sign-in is refused. An administrator may confirm the link from the
+    user's page after checking with the person; nothing is linked otherwise.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='azure_link_requests')
+    tenant_id = models.CharField(max_length=64)
+    object_id = models.CharField(max_length=64)
+    claimed_email = models.CharField(max_length=320, blank=True, default='')
+    claimed_name = models.CharField(max_length=255, blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+
+    class Meta:
+        db_table = 'azure_ad_link_requests'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user} <- {self.tenant_id}/{self.object_id} ({self.status})'

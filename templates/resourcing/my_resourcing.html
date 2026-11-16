@@ -212,9 +212,11 @@
                 <div>
                     <small class="text-muted">Loaded cost rate</small>
                     <div class="h5 mb-0">
-                        ${{ current_cost_rate }}<small class="text-muted">/hr</small>
-                        {% if not has_explicit_cost_rate %}
-                            <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">default</span>
+                        {% if has_explicit_cost_rate %}
+                            ${{ current_cost_rate }}<small class="text-muted">/hr</small>
+                        {% else %}
+                            <span class="text-muted">Not set</span>
+                            <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;" title="Profitability reports show this technician's cost as unknown">unknown in reports</span>
                         {% endif %}
                     </div>
                 </div>

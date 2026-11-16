@@ -1,0 +1,10 @@
+{% load i18n %}{% if providers %}
+<div class="oidc-sso-buttons mb-3">
+  {% for p in providers %}
+  <a href="{% url 'oidc_sso:login' p.slug %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="btn btn-outline-primary w-100 mb-2">
+    <i class="fas fa-right-to-bracket"></i> {% blocktrans with name=p.name %}Sign in with {{ name }}{% endblocktrans %}
+  </a>
+  {% endfor %}
+  <div class="divider"><span>{% trans "OR" %}</span></div>
+</div>
+{% endif %}
