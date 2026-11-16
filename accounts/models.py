@@ -460,6 +460,7 @@ def derive_legacy_flags(ns, role):
         # Cost / margin visibility split out of reports_view_financial
         # (accounts 0051): whoever could see financial reports keeps it.
         'view_profitability': g('reports_view_financial'),
+        'manage_health_score_settings': g('org_manage_settings'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1145,6 +1146,13 @@ class RoleTemplate(BaseModel):
     security_alerts_create_rules = models.BooleanField(default=False,
         help_text='Create / edit / delete auto-ticket rules + suppression windows.')
 
+    # --- Backup monitoring ---
+    view_backup_status = models.BooleanField(default=False,
+        help_text='View backup monitoring: jobs, runs, repositories, alerts and restore tests.')
+    manage_backup_integrations = models.BooleanField(default=False,
+        help_text='Create / edit / delete backup connections and alert policies; record restore tests; '
+                  'acknowledge backup alerts.')
+
     # --- PSA Tickets (v3.17.477) ---
     # Until v3.17.477 ticket actions in the PSA / mobile surfaces were
     # gated only by membership + assignment. Now that the mobile app can
@@ -1201,6 +1209,8 @@ class RoleTemplate(BaseModel):
     manage_sso_settings = models.BooleanField(default=False,
         help_text='MSP staff (global role): configure single sign-on (OIDC) providers, mappings and '
                   'linked accounts.')
+    manage_health_score_settings = models.BooleanField(default=False,
+        help_text='Customer health score: change the dimension and signal weights and thresholds.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,

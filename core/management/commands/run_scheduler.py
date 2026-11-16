@@ -40,6 +40,7 @@ COMMAND_TASKS = {
     'sync_distributors': ('sync_distributors', []),
     'run_scheduled_reports': ('run_scheduled_reports', []),
     'poll_security_alerts': ('poll_security_alerts', []),
+    'poll_backup_monitoring': ('poll_backup_monitoring', []),
     'check_incident_sla_breaches': ('check_incident_sla_breaches', []),
     'recompute_exposure_scores': ('recompute_exposure_scores', []),
     'assets_warranty_alerts': ('assets_warranty_alerts', []),
@@ -70,6 +71,7 @@ COMMAND_TASKS = {
     'run_autopay': ('run_autopay', []),
     'connect_deliver_events': ('connect_deliver_events', []),
     'connect_rotate_keys': ('connect_rotate_keys', []),
+    'compute_health_scores': ('compute_health_scores', []),
 }
 
 

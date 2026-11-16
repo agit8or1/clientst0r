@@ -553,6 +553,20 @@ SECTIONS = (
         Tab(_('Patch Panels'), 'monitoring:patch_panel_list', 'fa-grip'),
         Tab(_('Port Configurations'), 'assets:port_config_list', 'fa-ethernet'),
     )),
+    # Customer backup health (backup_monitoring); not the platform's own backups.
+    Section('assets_backups', 'assets', _('Backup Monitoring'), gate=_perm_any_org('view_backup_status'),
+            render_tabs=False, tabs=(
+        Tab(_('Dashboard'), 'backup_monitoring:dashboard', 'fa-database',
+            also=('backup_monitoring:customer_detail', 'backup_monitoring:job_detail',
+                  'backup_monitoring:policy_edit', 'backup_monitoring:system_create',
+                  'backup_monitoring:system_edit')),
+        Tab(_('Alerts'), 'backup_monitoring:alert_list', 'fa-bell'),
+        Tab(_('Restore Tests'), 'backup_monitoring:restore_test_list', 'fa-rotate-left',
+            also=('backup_monitoring:restore_test_create',)),
+        Tab(_('Connections'), 'backup_monitoring:connection_list', 'fa-plug',
+            gate=_perm_any_org('manage_backup_integrations'),
+            also=('backup_monitoring:connection_create', 'backup_monitoring:connection_edit')),
+    )),
     Section('assets_ipam', 'assets', _('IPAM'), tabs=(
         Tab(_('Subnets & IPs'), 'monitoring:subnet_list', 'fa-sitemap', keywords='ipam subnets addresses'),
         # The VLAN register with its subnets (the canonical VLAN list).
@@ -625,6 +639,12 @@ SECTIONS = (
                   'pulse:send_detail'), tabs=(
         Tab(_('Pulse Checks'), 'pulse:check_list', 'fa-heart-pulse'),
         Tab(_('Opt-outs'), 'pulse:opt_out_list', 'fa-user-slash'),
+    )),
+
+    Section('mod_health', 'modules', _('Client Health'), gate=_msp_staff,
+            also=('health_score:detail', 'health_score:recompute'), tabs=(
+        Tab(_('Client Health'), 'health_score:list', 'fa-heart-circle-check'),
+        Tab(_('Weights'), 'health_score:settings', 'fa-sliders', gate=_perm('manage_health_score_settings')),
     )),
 
     # ---- Knowledge & Vault ---------------------------------------------------
@@ -912,8 +932,8 @@ NAMESPACE_MENU = {
     'psa': 'psa', 'psa_ai': 'psa',
     'processes': 'ops', 'inventory': 'ops', 'scheduling': 'ops',
     'vehicles': 'ops', 'statuspage': 'ops', 'netconfig': 'ops',
-    'security_alerts': 'modules', 'crm': 'modules', 'reports': 'modules', 'pulse': 'modules',
-    'assets': 'assets', 'hardware': 'assets',
+    'security_alerts': 'modules', 'crm': 'modules', 'reports': 'modules', 'pulse': 'modules', 'health_score': 'modules',
+    'assets': 'assets', 'hardware': 'assets', 'backup_monitoring': 'assets',
     'docs': 'docs', 'readiness': 'docs', 'locations': 'docs',
     'vault': 'vault',
     'resourcing': 'account',
@@ -1231,6 +1251,8 @@ PRIMARY = (
               keywords='connectivity topology vlan view'),
         Entry(_('Infrastructure'), section='assets_infra', icon='fa-server',
               keywords='racks closets patch panels ports'),
+        Entry(_('Backup Monitoring'), section='assets_backups', icon='fa-database',
+              keywords='backups restore proxmox pbs restic borg kopia repositories'),
         Entry(_('IPAM'), section='assets_ipam', icon='fa-sitemap', keywords='subnets ip addresses vlans'),
         Entry(_('Inventory'), section='ops_inventory', icon='fa-boxes', keywords='stock tools low'),
         Entry(_('Vehicles'), section='ops_vehicles', icon='fa-truck-pickup', keywords='fleet'),
@@ -1249,6 +1271,8 @@ PRIMARY = (
         Entry(_('Vendors'), section='psa_vendors', icon='fa-truck', keywords='suppliers'),
         Entry(_('Pulse Checks'), section='mod_pulse', icon='fa-heart-pulse',
               keywords='feedback survey nps satisfaction client health'),
+        Entry(_('Client Health'), section='mod_health', icon='fa-heart-circle-check',
+              keywords='customer health score churn risk unknown stale weights'),
     )),
     Group('knowledge', _('Knowledge & Vault'), 'fa-book-open', shortcut='k', entries=(
         Entry(_('Documentation'), section='docs_documents', icon='fa-file-alt',
@@ -1342,8 +1366,9 @@ NAMESPACE_GROUP = {
     'resourcing': 'my_work',
     'inventory': 'assets', 'vehicles': 'assets',
     'assets': 'assets', 'hardware': 'assets', 'network_discovery': 'assets', 'locations': 'assets',
+    'backup_monitoring': 'assets',
     'statuspage': 'security', 'netconfig': 'security', 'security_alerts': 'security',
-    'crm': 'business', 'pulse': 'business', 'contracts': 'business',
+    'crm': 'business', 'pulse': 'business', 'health_score': 'business', 'contracts': 'business',
     'reports': 'reports', 'executive': 'dashboard',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',

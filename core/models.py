@@ -1247,6 +1247,7 @@ class ScheduledTask(models.Model):
         ('sync_distributors', 'Distributor Health Probe'),
         ('run_scheduled_reports', 'Scheduled Reports'),
         ('poll_security_alerts', 'Security Alert Polling'),
+        ('poll_backup_monitoring', 'Backup Monitoring Poll + Alerts'),
         ('check_incident_sla_breaches', 'Security Incident SLA Breach Check'),
         ('recompute_exposure_scores', 'Security Exposure Score Recompute'),
         ('assets_warranty_alerts', 'Asset Warranty Expiry Emails'),
@@ -1288,6 +1289,8 @@ class ScheduledTask(models.Model):
         # Both do nothing unless AGIT8OR_CONNECT_ENABLED and a connection exists.
         ('connect_deliver_events', 'Connected Applications: Event Delivery'),
         ('connect_rotate_keys', 'Connected Applications: Key Rotation'),
+        # Customer health score: nightly snapshot per client.
+        ('compute_health_scores', 'Customer Health Score Snapshots'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1704,6 +1707,12 @@ class ScheduledTask(models.Model):
             'enabled': True,
         },
         {
+            'task_type': 'poll_backup_monitoring',
+            'description': 'Poll backup provider connections and evaluate backup alert rules',
+            'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
             'task_type': 'poll_security_alerts',
             'description': 'Poll security vendor connections for new alerts',
             'interval_minutes': 5,
@@ -1871,6 +1880,14 @@ class ScheduledTask(models.Model):
                            'application before use; the old key stays active if it is refused) and retire '
                            'keys whose overlap ended',
             'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Read-only over existing data; stores one snapshot per client per day.
+            'task_type': 'compute_health_scores',
+            'description': 'Compute and store each active client\'s customer health score snapshot '
+                           '(unknown or stale data is never counted as healthy)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
         {

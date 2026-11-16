@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Health: {{ client.name }}{% endblock %}
+{% block content %}
+<div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
+    <h2 class="h4 mb-0 me-auto"><i class="fas fa-heart-circle-check me-1"></i> {{ client.name }} &mdash; customer health</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:list' %}">All clients</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:organization_detail' client.pk %}">Client page</a>
+    {% if can_manage %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:settings' %}?client={{ client.pk }}">Weights</a>{% endif %}
+    <form method="post" action="{% url 'health_score:recompute' client.pk %}" class="d-inline">{% csrf_token %}
+        <button class="btn btn-sm btn-primary"><i class="fas fa-rotate"></i> Recompute now</button></form>
+</div>
+{% if not p %}
+{% include "core/_empty_state.html" with icon="fa-heart-circle-check" title="No health snapshot yet" text="Snapshots are computed nightly. Use Recompute now to compute one." %}
+{% else %}
+<div class="card card-body mb-3">
+    {% include "health_score/_score.html" %}
+    <div class="small text-body-secondary mt-2">Computed {{ p.snapshot.computed_at|date:"Y-m-d H:i" }}.
+        {% if p.overall_delta is not None %}Change since {{ p.previous.date|date:"Y-m-d" }}: {{ p.overall_delta|floatformat:1 }} points.{% elif p.previous %}Not comparable with {{ p.previous.date|date:"Y-m-d" }}.{% else %}No earlier snapshot to compare with.{% endif %}
+        {% if p.hidden %}Some signals are hidden because you lack the permission to see them (billing or profitability); they are left out of the score.{% endif %}</div>
+</div>
+
+<h3 class="h5">Why it changed</h3>
+{% if p.changes %}
+<ul class="list-group mb-4">
+{% for c in p.changes %}
+    <li class="list-group-item">
+        <div><span class="badge text-bg-{% if c.direction == 'worse' %}danger{% elif c.direction == 'better' %}success{% else %}secondary{% endif %}">{{ c.direction }}</span>
+            <strong>{{ c.dimension_label }} &rsaquo; {{ c.label }}</strong>:
+            {% if c.before is not None %}{{ c.before|floatformat:0 }}{% else %}{{ c.before_status }}{% endif %}
+            &rarr; {% if c.after is not None %}{{ c.after|floatformat:0 }}{% else %}{{ c.after_status }}{% endif %}
+            {% if c.delta is not None %}({{ c.delta|floatformat:1 }}){% endif %}</div>
+        <div class="small text-body-secondary">{{ c.explanation }}</div>
+        {% if c.appeared %}<div class="small">New: {% for r in c.appeared %}{% if r.url %}<a href="{{ r.url }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+        {% if c.cleared %}<div class="small">No longer listed: {% for r in c.cleared %}{% if r.url %}<a href="{{ r.url }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+    </li>
+{% endfor %}
+</ul>
+{% else %}
+<p class="text-body-secondary small">{% if p.previous %}Nothing changed since {{ p.previous.date|date:"Y-m-d" }}.{% else %}There is no earlier snapshot to compare with yet.{% endif %}</p>
+{% endif %}
+
+<h3 class="h5">Dimensions</h3>
+{% for d in p.dimensions %}
+<div class="card mb-3" id="dim-{{ d.key }}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>{{ d.label }}</strong>
+        <span><span class="badge text-bg-{{ d.badge }}">{{ d.status_label }}{% if d.value is not None %} &middot; {{ d.value|floatformat:0 }}{% endif %}</span>
+            <span class="small text-body-secondary ms-1">weight {{ d.weight|floatformat:"-1" }}; {{ d.signals_scored }} of {{ d.signals_total }} signal{{ d.signals_total|pluralize }} with data</span></span>
+    </div>
+    <ul class="list-group list-group-flush">
+    {% for s in d.signals %}
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between"><span>{{ s.label }}</span>
+                <span><span class="badge text-bg-{{ s.badge }}">{{ s.status_label }}{% if s.value is not None %} &middot; {{ s.value|floatformat:0 }}{% endif %}</span></span></div>
+            <div class="small text-body-secondary">{{ s.explanation }}{% if s.weight == 0 %} (turned off){% endif %}
+                {% if s.as_of %}&middot; data as of {{ s.as_of|slice:":16" }}{% endif %} &middot; source: {{ s.source }}</div>
+            {% if s.refs %}<div class="small mt-1">Contributing records: {% for r in s.refs %}{% if r.url %}<a href="{{ r.url }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

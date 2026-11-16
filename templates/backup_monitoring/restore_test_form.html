@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Record restore test{% endblock %}
+{% block content %}
+<h2>Record restore test</h2>
+<form method="post" class="card card-body" style="max-width:640px">{% csrf_token %}{{ form.as_p }}
+<div><button class="btn btn-primary">Save</button> <a class="btn btn-link" href="{% url 'backup_monitoring:restore_test_list' %}">Cancel</a></div></form>
+{% endblock %}

@@ -333,7 +333,7 @@ class SectionPermissionMiddleware:
     # Contract documents (/contracts/) are written and sent by the MSP; the
     # people who sign them use the account-less pages under /sign/ instead.
     STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/', '/contracts/',
-                           '/pulse/', '/payments/')
+                           '/pulse/', '/client-health/', '/payments/', '/backup-monitoring/')
 
     # Token- or key-authenticated receivers under those prefixes. They don't
     # rely on a signed-in user, and a signed-in browser must not change that.
@@ -341,6 +341,8 @@ class SectionPermissionMiddleware:
         '/crm/leads/capture/',
         '/crm/api/leads/capture/',
         '/security/webhook/',
+        # Signed push reports from backup hosts (HMAC per connection).
+        '/backup-monitoring/ingest/',
         '/security/siem/webhook/',
         # Signed, no-login unsubscribe link in customer security digests.
         '/security/digest/unsubscribe/',

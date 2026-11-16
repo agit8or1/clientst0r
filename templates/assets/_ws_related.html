@@ -22,3 +22,15 @@
         {% endif %}
     </div>
 </div>
+
+{% if backups %}
+<div class="small mt-3" data-ws-backups>
+    <h6 class="text-uppercase text-muted small">Backups</h6>
+    {% for b in backups %}
+    <div class="mb-2"><strong>{{ b.system.name }}</strong>
+        <span class="badge bg-{% if b.state == 'ok' %}success{% elif b.state == 'failed' or b.state == 'missed' %}danger{% elif b.state == 'unknown' %}secondary{% else %}warning text-dark{% endif %}" data-backup-state="{{ b.state }}">{% if b.state == 'ok' %}Healthy{% elif b.state == 'stale' %}Stale data{% elif b.state == 'unknown' %}No data{% else %}{{ b.state|capfirst }}{% endif %}</span>
+        <span class="text-muted">via {{ b.source }} ({{ b.connection }})</span>
+        <ul class="list-unstyled mb-0 ms-3">{% for r in b.rows %}<li><a href="{% url 'backup_monitoring:job_detail' r.job.pk %}">{{ r.job.name }}</a> &middot; last success {{ r.last_success_age }} &middot; data {{ r.data_age }}</li>{% empty %}<li class="text-muted">No backup job reports on this system.</li>{% endfor %}</ul></div>
+    {% endfor %}
+</div>
+{% endif %}

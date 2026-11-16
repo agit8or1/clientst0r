@@ -106,6 +106,7 @@ def device_workspace(request, pk):
         'psa_on': psa_on,
         'docs': ws.related_docs(asset),
         'runbooks': ws.related_runbooks(asset),
+        'backups': ws.backup_panel(asset, request.user),
         'credentials': ws.related_credentials(asset, request.user),
         'history': ws.remediation_history(devices),
         'launches': ws.launch_history(devices),

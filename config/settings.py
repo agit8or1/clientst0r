@@ -143,6 +143,7 @@ INSTALLED_APPS = [
     'resourcing.apps.ResourcingConfig',
     'crm.apps.CrmConfig',
     'security_alerts.apps.SecurityAlertsConfig',
+    'backup_monitoring.apps.BackupMonitoringConfig',
     'compliance.apps.ComplianceConfig',
     'field_ops.apps.FieldOpsConfig',
     'statuspage.apps.StatusPageConfig',
@@ -157,6 +158,7 @@ INSTALLED_APPS = [
     'payments.apps.PaymentsConfig',
     'tax.apps.TaxConfig',
     'connect.apps.ConnectConfig',  # Agit8or Connect (app-to-app); off unless AGIT8OR_CONNECT_ENABLED
+    'health_score.apps.HealthScoreConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Backup Alerts{% endblock %}
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-database me-2"></i>Backup Monitoring</h2>
+{% include "backup_monitoring/_nav.html" with bm_tab="alerts" %}
+<div class="mb-2 small"><a href="?show=live">Live</a> &middot; <a href="?show=all">All, including resolved</a></div>
+<div class="card"><div class="card-body p-0"><table class="table table-sm mb-0 small align-middle">
+<thead class="table-light"><tr><th>Customer</th><th>Alert</th><th>Status</th><th>Seen</th><th>Ticket</th><th></th></tr></thead><tbody>
+{% for a in alerts %}<tr>
+ <td>{{ a.organization.name|default:'MSP-wide / unmapped' }}</td>
+ <td><span class="badge bg-{% if a.severity == 'critical' %}danger{% else %}warning text-dark{% endif %}">{{ a.get_kind_display }}</span> {{ a.title }}<div class="text-muted">{{ a.detail|truncatechars:200 }}</div></td>
+ <td>{{ a.get_status_display }}</td><td>{{ a.last_seen_at|timesince }} ago (x{{ a.occurrences }})</td>
+ <td>{% if a.ticket %}<a href="{% url 'psa:ticket_detail' a.ticket.ticket_number %}">{{ a.ticket.ticket_number }}</a>{% endif %}</td>
+ <td class="text-nowrap">{% if a.can_act and a.status != 'resolved' %}<form method="post" action="{% url 'backup_monitoring:alert_decide' a.pk %}" class="d-inline">{% csrf_token %}
+   {% if a.status == 'open' %}<button name="decision" value="acknowledge" class="btn btn-sm btn-outline-secondary">Acknowledge</button>{% endif %}
+   {% if not a.ticket %}<button name="decision" value="ticket" class="btn btn-sm btn-outline-primary">Create ticket</button>{% endif %}
+   <button name="decision" value="resolve" class="btn btn-sm btn-outline-success">Resolve</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No alerts.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

@@ -83,6 +83,7 @@ MODULES = {
     'files': ('Files & attachments', 'Uploaded files, photos and attachments.'),
     'vault': ('Passwords & secrets', 'The password vault and the browser extension.'),
     'monitoring': ('Monitoring & alerts', 'Website / WAN monitors, expirations, racks, IPAM.'),
+    'backup': ('Backup monitoring', 'Customer backup jobs, repositories, alerts and restore tests.'),
     'security': ('Security alerts', 'EDR / AV / firewall alert ingestion and rules.'),
     'integrations': ('Integrations & RMM', 'PSA / RMM / M365 and other connections and syncs.'),
     'sales': ('Sales, quotes & CRM', 'Leads, pipeline, campaigns, forecast and quotes.'),
@@ -245,6 +246,13 @@ PERMISSIONS: List[Permission] = [
     _p('security_alerts_create_rules', 'security', 'settings', E, False,
        'Create / edit / delete auto-ticket rules and suppression windows', staff_only=True),
 
+    # --- backup monitoring ------------------------------------------------------
+    _p('view_backup_status', 'backup', 'view', S, False,
+       'View backup monitoring: jobs, runs, repositories, alerts and restore tests', staff_only=True),
+    _p('manage_backup_integrations', 'backup', 'settings', X, False,
+       'Create / edit / delete backup connections (provider credentials, ingest secrets) and alert policies; '
+       'record restore tests and acknowledge backup alerts', staff_only=True),
+
     # --- integrations -----------------------------------------------------------
     _p('integrations_view', 'integrations', 'view', S, False, 'View integrations'),
     _p('integrations_view_synced_psa', 'integrations', 'view', E, False,
@@ -337,6 +345,8 @@ PERMISSIONS: List[Permission] = [
        'contract and project margin (MSP staff only)', staff_only=True),
     _p('reports_view_sla', 'reports', 'view', E, False, 'SLA trend report', staff_only=True),
     _p('reports_view_capacity', 'reports', 'view', E, False, 'Capacity / utilization report', staff_only=True),
+    _p('manage_health_score_settings', 'reports', 'settings', E, False,
+       'Customer health score: change the dimension / signal weights and thresholds', staff_only=True),
     _p('reports_manage_dashboards', 'reports', 'edit', E, False, 'Create / edit / delete dashboards and widgets'),
     _p('reports_manage_scheduled', 'reports', 'export', X, False, 'Configure scheduled reports'),
     _p('reports_export', 'reports', 'export', X, False,
@@ -561,6 +571,7 @@ MODULE_COVERAGE = {
     'pricing': 'pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions)',
     'crm': 'crm_* (MSP staff only section)',
     'security_alerts': 'security_alerts_* (MSP staff only section)',
+    'backup_monitoring': 'view_backup_status / manage_backup_integrations per customer (MSP staff only section)',
     'compliance': 'membership role per customer',
     'field_ops': 'MSP staff + tickets_*',
     'statuspage': 'membership admin role',

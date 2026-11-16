@@ -102,7 +102,9 @@ urlpatterns = [
     path('pulse/', include('pulse.urls')),
     # Payment processing: staff pages + provider webhooks; customer pages are /portal/billing/.
     path('payments/', include('payments.urls')),
+    path('client-health/', include('health_score.urls')),
     path('security/', include('security_alerts.urls')),
+    path('backup-monitoring/', include('backup_monitoring.urls')),
 
     # Phase 8 — Field Ops + Timeclock + privacy
     path('field-ops/', include('field_ops.urls')),
