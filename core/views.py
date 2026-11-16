@@ -708,7 +708,10 @@ def apply_update(request):
         current = (info.get('target') or {})
         if (current.get('kind'), current.get('ref'), current.get('sha')) != \
                 (reviewed.kind, reviewed.ref, reviewed.sha):
-            return JsonResponse({'status': 'error', 'message':
+            # Not a failure: a newer build was published while the page was
+            # open. Say what is on offer now so the page can show it for review.
+            return JsonResponse({'status': 'error', 'reason': 'target_changed',
+                                 'target': current or None, 'message':
                                  'What this channel offers has changed since the page was loaded '
                                  f"(now: {current.get('ref') or 'nothing'} "
                                  f"{(current.get('sha') or '')[:12]}). Reload the page and review it "

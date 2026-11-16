@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.694] - 2026-11-16
+
+### Fixed
+- **Settings → Updates: a newer build published while the page is open is now offered for review instead of a dead end.** Apply installs only the exact build the page showed, and refuses if the channel has moved on (most often on the Preview channel, when `main` gets a new commit). That refusal used to appear as *Update failed*; it now says nothing was installed, names the build on offer now (ref, version and commit), and has a **Review this build** button that reloads the page with it.
+- The page's 5-minute re-check now notices when the build on offer changes (not only when an update first appears) and shows a *A newer build is on offer* notice with the same button, instead of reloading the page under you.
+
 ## [3.17.693] - 2026-11-16
 
 ### Added
