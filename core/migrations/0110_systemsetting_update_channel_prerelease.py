@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0107_scheduledtask_connect_tasks'),
+        ('core', '0109_scheduledtask_run_advisor'),
     ]
 
     operations = [
