@@ -295,14 +295,48 @@ class TechCostRate(models.Model):
         django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='resourcing_cost_rates',
     )
-    rate_per_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    rate_per_hour = models.DecimalField(
+        max_digits=8, decimal_places=2,
+        help_text='Loaded cost per hour. When the burden fields below are set '
+                  '(base_hourly at least), this is computed from them on save.')
     effective_from = models.DateField(
         help_text='Rate applies from this date forward (inclusive). The '
                   'most recent effective_from <= a given report date wins.',
     )
+    # Burden breakdown (pricing, v3.17.x). All optional: a row with only
+    # rate_per_hour keeps working exactly as before.
+    base_hourly = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text='Base wage per hour before payroll tax, benefits and overhead.')
+    payroll_tax_pct = models.DecimalField(
+        max_digits=6, decimal_places=3, null=True, blank=True,
+        help_text='Employer payroll taxes as a % of base wage.')
+    benefits_pct = models.DecimalField(
+        max_digits=6, decimal_places=3, null=True, blank=True,
+        help_text='Benefits as a % of base wage.')
+    overhead_alloc = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text='Overhead allocated per hour (tools, licences, office), added after the percentages.')
     notes = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def fully_burdened(self):
+        """base x (1 + payroll tax % + benefits %) + overhead per hour, to the
+        cent; None when no base wage is recorded."""
+        from decimal import Decimal, ROUND_HALF_UP
+        if self.base_hourly is None:
+            return None
+        pct = (Decimal(self.payroll_tax_pct or 0) + Decimal(self.benefits_pct or 0)) / Decimal('100')
+        value = Decimal(self.base_hourly) * (1 + pct) + Decimal(self.overhead_alloc or 0)
+        return value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    def save(self, *args, **kwargs):
+        burdened = self.fully_burdened
+        if burdened is not None:
+            self.rate_per_hour = burdened
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'resourcing_tech_cost_rates'
@@ -316,7 +350,11 @@ class TechCostRate(models.Model):
     @classmethod
     def rate_for(cls, user, target_date):
         """Best-matching rate for `user` on `target_date`. Returns Decimal
-        (or DEFAULT_LOADED_RATE if no rate is configured)."""
+        (or DEFAULT_LOADED_RATE if no rate is configured).
+
+        Legacy behaviour kept for the existing reports. New callers should use
+        `pricing.services.resolve_cost_rate`, which reports an unknown rate
+        instead of assuming the $60 default."""
         from decimal import Decimal
         row = cls.objects.filter(
             user=user, effective_from__lte=target_date
