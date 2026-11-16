@@ -11,6 +11,6 @@
 <td class="text-nowrap"><a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:connection_edit' r.c.pk %}">Edit</a>
  <form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_test' r.c.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-info">Test</button></form>
  {% if not r.c.is_push %}<form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_poll' r.c.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Poll now</button></form>{% endif %}
- <form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_delete' r.c.pk %}" onsubmit="return confirm('Delete this connection and all its history?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+ <form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_delete' r.c.pk %}" data-confirm="Delete this connection and all its history?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
 {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No connections.</td></tr>{% endfor %}</tbody></table></div></div>
 {% endblock %}

@@ -11,5 +11,5 @@
 {% endif %}
 <form method="post" class="card card-body" style="max-width:640px">{% csrf_token %}{{ form.as_p }}
 <div><button class="btn btn-primary">Save</button> <a class="btn btn-link" href="{% url 'backup_monitoring:connection_list' %}">Cancel</a>
-{% if instance and instance.is_push %}<button name="regenerate_secret" value="1" class="btn btn-outline-warning float-end" onclick="return confirm('The current secret stops working. Continue?');">Issue new secret</button>{% endif %}</div></form>
+{% if instance and instance.is_push %}<button name="regenerate_secret" value="1" class="btn btn-outline-warning float-end" data-confirm="The current secret stops working. Continue?">Issue new secret</button>{% endif %}</div></form>
 {% endblock %}
