@@ -1690,6 +1690,7 @@ are built on top of them.
   explicit confirmation; older versions need a migration-compatibility check. Restore points are
   listed with the exact restore command. The confirm dialog can no longer be hidden behind the
   app-install banner.
+  Compact layout (status strip, collapsed version list and sections) *(shipped v3.17.698)*.
 - **Customer users on technician pages, reveal defaults, password hashing**
   *(shipped v3.17.650)* — a customer user who opened a shared ticket's staff
   page saw time entries, expenses, kit, workflows, similar tickets and

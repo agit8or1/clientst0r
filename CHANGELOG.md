@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.698] - 2026-11-16
+
+### Changed
+- **Settings → Updates is compact.** One status strip shows the installed build, channel (with an
+  inline Save), latest stable / prerelease / development versions, when it last checked, and an
+  Install button when the channel offers something newer. The version list is collapsed to newer
+  builds plus the installed one, with "Show all versions" for the rest; release notes open per row.
+  Backups and rollback, update history, command line and OS packages are collapsed sections. The review
+  dialog lists checks as pass/fail lines; progress is one bar with a collapsible log. At 1400×900 the
+  page fits on one screen (was about 4,400 px tall). Behaviour and server-side checks are unchanged.
+
 ## [3.17.697] - 2026-11-16
 
 ### Changed
