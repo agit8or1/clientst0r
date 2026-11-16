@@ -1057,6 +1057,11 @@ Suggested MVP, matching the request: customers, invoices and payments, with the 
 
 Dependencies: Phase 27 (reconciliation reporting + audit log) and the existing `AccountingConnection` OAuth pattern. The PSA and RMM sync jobs are the closest in-repo model for scheduled bidirectional pulls — there is no existing two-way accounting sync to copy from; Xero is push-only in exactly the same shape as QBO.
 
+> **Correction (commercial operations audit, v3.17.687):** this phase covers QuickBooks Online and Xero
+> customer push and pull, invoice create and payment pull. Invoice updates, credit memos, refunds, tax-code
+> mapping, webhooks and payment posting are not implemented and are tracked in
+> Phase 71. See [docs/plans/COMMERCIAL_OPS_AUDIT.md](plans/COMMERCIAL_OPS_AUDIT.md).
+
 ## Phase 45 — System-wide Appearance Controls **(S)** [shipped — v3.17.527]
 
 **Starting background (v3.17.551, softened in v3.17.552):** a new profile starts on the **Navy Space** preset (`UserProfile.background_mode='preset'`, `preset_background='abstract-12'`) and every control stays the user's to change. The system-wide `background_policy` remains `'user'`: enforcing a house style would grey out everybody's own background controls, which is a decision an admin should make deliberately rather than inherit from an install default. Should an admin switch the policy to colour, the preset it lands on is the same Navy Space, so the two layers agree. Existing profiles and installs are untouched — a Django field default applies only to a row that does not exist yet.
@@ -2780,6 +2785,114 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
 
+## Phase 68 — Commercial price book and service plans **(L · sales)** [in progress]
+
+A single priced catalog and named service plans, so quotes, contracts and invoices stop typing prices by
+hand. Audit: [docs/plans/COMMERCIAL_OPS_AUDIT.md](plans/COMMERCIAL_OPS_AUDIT.md). Separate from the ticket
+request catalog (`ServiceCatalogItem`).
+
+- **68.1 Price book and products** *(in progress — dev/price-book)* — products and services with SKU,
+  unit, cost, list price and markup.
+- **68.2 Service plans** *(in progress — dev/price-book)* — named plans (included hours, meters, bundled
+  items) that a contract can reference.
+- **68.3 Catalog links on quote, invoice and contract lines** *(planned)* — optional product reference on
+  each line type.
+- **68.4 Distributor price into the price book** *(planned)* — copy distributor pricing at quote time.
+
+**Sizing:** **L** — models and admin, then line-level integration across quotes, contracts and invoices.
+
+## Phase 69 — Labor rate cards and cost rates **(M · billing)** [in progress]
+
+- **69.1 Rate cards** *(in progress — dev/price-book)* — bill rates by role, client and ticket type, with
+  effective dates.
+- **69.2 Rate snapshots on time entries** *(in progress — dev/price-book)* — bill and cost rate stored on
+  each entry so history does not drift.
+- **69.3 Remove placeholder rates** *(planned)* — replace the 60% cost assumption and the fixed fallback
+  rates in profitability and reports with real rate lookups.
+- **69.4 Effective-dated billable targets** *(planned)*.
+
+**Sizing:** **M** — rate models, time-entry snapshot, then report changes.
+
+## Phase 70 — Contracts, recurring billing and quote conversion **(M · billing)** [planned]
+
+- **70.1 Quote to contract** *(planned)* — accepting a quote can create a billing contract.
+- **70.2 Quote to invoice** *(planned)* — one-off lines copied to an invoice using the existing source link.
+- **70.3 Signed document to billing contract** *(planned)* — carry line items, hours, rates and next billing
+  date across.
+- **70.4 Bill bundle items and recurring charges** *(planned)*.
+- **70.5 Database uniqueness for recurring invoices** *(planned)* — constraint on contract and billing period.
+
+**Sizing:** **M** — conversions and the recurring-billing hardening.
+
+## Phase 71 — Accounting sync completion **(L · accounting)** [in progress]
+
+Builds on Phase 44, which covers customer sync, invoice create and payment pull for QuickBooks Online and Xero.
+
+- **71.1 Invoice push safety** *(in progress — dev/invoice-push-safety)* — no duplicate invoice after a
+  timeout, idempotency keys, row lock on push.
+- **71.2 QuickBooks Online mapping fixes** *(planned)* — correct item and account references.
+- **71.3 Xero payment account setting** *(planned)* — replace the bank account placeholder.
+- **71.4 Invoice update, credit memos, refunds and voids** *(planned)*.
+- **71.5 Tax-code mapping** *(planned)*.
+- **71.6 Payment posting to the provider** *(planned)*.
+- **71.7 Webhooks with signature checks** *(planned)*.
+- **71.8 Retry queue and error review** *(planned)*.
+- **71.9 Other providers** *(planned)* — after QuickBooks Online and Xero, additional accounting providers
+  as demand and real-provider testing allow.
+
+**Sizing:** **L** — safety fixes first, then provider capabilities one at a time.
+
+## Phase 72 — Payment processing and sales tax **(L · payments)** [in progress]
+
+- **72.1 Stripe** *(in progress — dev/payments)* — currently a stub.
+- **72.2 GoCardless** *(in progress — dev/payments)* — currently a stub.
+- **72.3 Portal billing** *(in progress — dev/payments)* — invoices, balances and online payment for
+  customers.
+- **72.4 Payment webhooks, refunds and idempotency** *(planned)*.
+- **72.5 Tax providers** *(planned)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
+- **72.6 Quote tax default** *(planned)* — warn instead of defaulting to zero.
+
+**Sizing:** **L** — provider code needs sandbox testing before release.
+
+## Phase 73 — Procurement, distributors, licensing and warranty lifecycle **(L · procurement)** [in progress]
+
+- **73.1 Software licensing** *(in progress — dev/licensing)* — licenses, seats, renewals; Microsoft 365
+  as a feed.
+- **73.2 Distributor ordering** *(planned)* — submit purchase orders to distributors, order status.
+- **73.3 Distributor adapters** *(planned)* — production endpoints, TD SYNNEX catalog, further
+  distributors.
+- **73.4 Receiving to inventory and assets** *(planned)* — stock movements, complete asset records, no
+  swallowed errors.
+- **73.5 Warranty consolidation** *(planned)* — one warranty lookup path and credential store.
+- **73.6 Asset acquisition cost and replacement history** *(planned)*.
+- **73.7 Vendor bills** *(planned)*.
+
+**Sizing:** **L** — licensing first, then procurement wiring.
+
+## Phase 74 — Backup monitoring and endpoint health **(L · monitoring)** [in progress]
+
+- **74.1 Backup monitoring framework** *(in progress — dev/backup-monitoring)* — jobs, last success,
+  alerts, device and client views.
+- **74.2 Standalone backup providers** *(planned)* — Proxmox Backup Server, restic, borg and kopia first;
+  commercial products as they can be tested.
+- **74.3 Rem0te backup and endpoint health** *(planned)* — needs additions to the Rem0te contract.
+- **74.4 Security product adapters** *(planned)* — replace the Defender stub; further vendors.
+- **74.5 Device workspace panels** *(planned)* — backup, security and events.
+- **74.6 Compliance backup evidence** *(planned)* — replace the hard-coded zero.
+
+**Sizing:** **L** — framework, then providers, then Rem0te contract changes.
+
+## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [planned]
+
+- **75.1 Profitability analytics** *(planned)* — margin by client, contract, plan and service line from
+  rate snapshots.
+- **75.2 Customer commercial portal** *(planned)* — plans, invoices, device health and backup status.
+- **75.3 Commercial onboarding wizard** *(planned)* — price book, rates, accounting and payment setup.
+- **75.4 Executive dashboard** *(planned)* — recurring revenue, margin, renewals and receivables.
+- **75.5 Commercial permissions** *(planned)* — roles for rates, cost visibility and payments.
+
+**Sizing:** **L** — depends on Phases 68–74.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2856,3 +2969,11 @@ validation across roles and viewports.
 **Phases 10-30**: long-term operational deepening. None should be positioned as fully implemented today; each extends or adds to the foundations already shipped. Items overlapping shipped phases call out the deltas explicitly. AI-assisted features are explicitly **OPTIONAL AI** and gated by `psa_ai_enabled` (existing pattern from v3.17.125 AI Triage).
 
 **Scope note:** This is a PSA + Asset + Vault + Documentation + Monitoring platform that integrates with external RMMs (Phase 9 connection framework + Phase 7 Integration SDK). First-party RMM agents and remote-access relays aren't on the roadmap — installs that need those capabilities use the supported third-party tools (TacticalRMM, NinjaOne, Datto RMM, ConnectWise Automate, ScreenConnect, RustDesk, MeshCentral, etc.).
+| 68 — Commercial price book and service plans | L | in progress (dev/price-book) | Phase 15 contracts; quotes and invoices |
+| 69 — Labor rate cards and cost rates | M | in progress (dev/price-book) | Phase 2 cost rates; Phase 68 |
+| 70 — Contracts, recurring billing and quote conversion | M | planned | Phases 65, 68, 69 |
+| 71 — Accounting sync completion | L | in progress (dev/invoice-push-safety) | extends Phase 44 |
+| 72 — Payment processing and sales tax | L | in progress (dev/payments) | Phase 71; customer portal |
+| 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
+| 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
+| 75 — Profitability, customer commercial portal and executive dashboard | L | planned | Phases 68–74 |
