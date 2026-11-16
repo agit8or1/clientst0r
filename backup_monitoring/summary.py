@@ -27,7 +27,8 @@ def customer_summary(org, now=None):
     tests = list(RestoreTest.objects.filter(organization=org).select_related('system')[:50])
     successes = [r['job'].last_success_at for r in rows if r['job'].last_success_at]
     return {
-        'org': org, 'rows': rows, 'counts': counts, 'state': state, 'badge': BADGE[state], 'label': LABEL[state], 'jobs_total': len(rows),
+        'org': org, 'org_pk': org.pk if org else 0, 'name': org.name if org else 'Unmapped (MSP-wide)',
+        'rows': rows, 'counts': counts, 'state': state, 'badge': BADGE[state], 'label': LABEL[state], 'jobs_total': len(rows),
         'newest_success': max(successes) if successes else None,
         'oldest_success': min(successes) if len(successes) == len(rows) and successes else None,
         'repos': repos, 'restore': restore_test_summary(tests, policy, now), 'tests': tests,

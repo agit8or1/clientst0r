@@ -3,7 +3,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from accounts.permission_utils import require_perm_any_org, user_has_org_perm, user_has_perm_any_org
 
 from . import ingest as ingest_mod
-from .access import MANAGE, VIEW, allowed_orgs
+from .access import MANAGE, VIEW, allowed_orgs, can_act_on, has_global_reach, visible
 from .alerts import evaluate_connection
 from .forms import (BackupAlertPolicyForm, BackupConnectionForm, ManualSystemForm, ProtectedSystemForm,
                     RestoreTestForm)
@@ -51,6 +51,10 @@ def dashboard(request):
     elif current is not None:
         orgs = orgs.filter(pk=current.pk)
     summaries = [customer_summary(o) for o in customers_with_data(orgs)]
+    if has_global_reach(request.user) and not wanted.isdigit() and current is None:
+        unmapped = customer_summary(None)
+        if unmapped['jobs_total'] or unmapped['repos'] or unmapped['open_alerts']:
+            summaries.append(unmapped)
     summaries.sort(key=lambda s: -{'failed': 5, 'missed': 4, 'stale': 3, 'warning': 2, 'unknown': 1,
                                    'ok': 0}[s['state']])
     return render(request, 'backup_monitoring/dashboard.html', _ctx(
@@ -60,20 +64,26 @@ def dashboard(request):
 @login_required
 @require_perm_any_org(VIEW)
 def customer_detail(request, org_id):
-    org = get_object_or_404(allowed_orgs(request.user), pk=org_id)
+    if org_id == 0:
+        if not has_global_reach(request.user):
+            raise Http404()
+        org = None
+    else:
+        org = get_object_or_404(allowed_orgs(request.user), pk=org_id)
     s = customer_summary(org)
     alerts = BackupAlert.objects.filter(organization=org, status__in=['open', 'acknowledged']) \
         .select_related('connection', 'job')[:50]
     return render(request, 'backup_monitoring/customer_detail.html', _ctx(
         request, s=s, org=org, alerts=alerts, badge=BADGE[s['state']], label=LABEL[s['state']],
-        can_manage_here=user_has_org_perm(request.user, org.pk, MANAGE)))
+        can_manage_here=can_act_on(request.user, org.pk if org else None)))
 
 
 @login_required
 @require_perm_any_org(VIEW)
 def job_detail(request, pk):
-    job = get_object_or_404(BackupJob.objects.select_related('connection', 'organization', 'system'),
-                            pk=pk, organization__in=allowed_orgs(request.user))
+    job = get_object_or_404(
+        BackupJob.objects.select_related('connection', 'organization', 'system').filter(visible(request.user)),
+        pk=pk)
     row = job_rows([job])[0]
     runs = job.runs.order_by('-started_at')[:100]
     return render(request, 'backup_monitoring/job_detail.html', _ctx(
@@ -87,15 +97,16 @@ def job_detail(request, pk):
 @login_required
 @require_perm_any_org(VIEW)
 def alert_list(request):
-    qs = BackupAlert.objects.filter(organization__in=allowed_orgs(request.user)).select_related(
+    qs = BackupAlert.objects.filter(visible(request.user)).select_related(
         'organization', 'connection', 'job', 'ticket')
     show = request.GET.get('show', 'live')
     if show == 'live':
         qs = qs.filter(status__in=['open', 'acknowledged'])
     manage_ids = set(allowed_orgs(request.user, MANAGE).values_list('pk', flat=True))
+    global_manage = has_global_reach(request.user, MANAGE)
     alerts = list(qs.order_by('-last_seen_at')[:300])
     for a in alerts:
-        a.can_act = a.organization_id in manage_ids
+        a.can_act = global_manage if a.organization_id is None else a.organization_id in manage_ids
     return render(request, 'backup_monitoring/alert_list.html', _ctx(request, alerts=alerts, show=show))
 
 
@@ -103,7 +114,7 @@ def alert_list(request):
 @require_perm_any_org(MANAGE)
 @require_POST
 def alert_decide(request, pk):
-    alert = get_object_or_404(BackupAlert, pk=pk, organization__in=allowed_orgs(request.user, MANAGE))
+    alert = get_object_or_404(BackupAlert.objects.filter(visible(request.user, MANAGE)), pk=pk)
     decision = request.POST.get('decision')
     now = timezone.now()
     if decision == 'acknowledge' and alert.status == 'open':
@@ -115,6 +126,9 @@ def alert_decide(request, pk):
         messages.info(request, 'Resolved. It reopens on the next check if the condition is still present.')
     elif decision == 'ticket':
         from .tickets import create_ticket_for_alert
+        if alert.organization_id is None:
+            messages.error(request, 'Map this to a customer first: a ticket needs a customer.')
+            return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
         ticket, created = create_ticket_for_alert(alert, request.user)
         messages.success(request, f"{'Created' if created else 'Already linked to'} ticket {ticket.ticket_number}.")
     return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
@@ -163,7 +177,7 @@ def restore_test_form(request):
 @login_required
 @require_perm_any_org(MANAGE)
 def connection_list(request):
-    conns = BackupConnection.objects.filter(organization__in=allowed_orgs(request.user, MANAGE)) \
+    conns = BackupConnection.objects.filter(visible(request.user, MANAGE)) \
         .select_related('organization', 'customer')
     rows = []
     for c in conns:
@@ -176,17 +190,17 @@ def connection_list(request):
 @require_perm_any_org(MANAGE)
 def connection_form(request, pk=None):
     orgs = allowed_orgs(request.user, MANAGE)
-    instance = get_object_or_404(BackupConnection, pk=pk, organization__in=orgs) if pk else None
+    instance = get_object_or_404(BackupConnection.objects.filter(visible(request.user, MANAGE)), pk=pk) if pk else None
     if instance and request.method == 'POST' and request.POST.get('regenerate_secret') and instance.is_push:
         instance.issue_ingest_secret()
         instance.save(update_fields=['ingest_secret', 'updated_at'])
         messages.warning(request, 'New signing secret issued. The previous one no longer works.')
         return render(request, 'backup_monitoring/connection_form.html', _ctx(
-            request, form=BackupConnectionForm(instance=instance, orgs=orgs), instance=instance,
+            request, form=BackupConnectionForm(instance=instance, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE)), instance=instance,
             issued_secret=instance.issued_ingest_secret,
             ingest_url=request.build_absolute_uri(_ingest_path(instance))))
     if request.method == 'POST':
-        form = BackupConnectionForm(request.POST, instance=instance, orgs=orgs)
+        form = BackupConnectionForm(request.POST, instance=instance, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE))
         if form.is_valid():
             obj = form.save(commit=False)
             if not instance:
@@ -196,7 +210,7 @@ def connection_form(request, pk=None):
             if secret:
                 messages.success(request, 'Connection saved. Copy the signing secret now; it is not shown again.')
                 return render(request, 'backup_monitoring/connection_form.html', _ctx(
-                    request, form=BackupConnectionForm(instance=obj, orgs=orgs), instance=obj,
+                    request, form=BackupConnectionForm(instance=obj, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE)), instance=obj,
                     issued_secret=secret, ingest_url=request.build_absolute_uri(_ingest_path(obj))))
             messages.success(request, 'Connection saved.')
             return redirect('backup_monitoring:connection_list')
@@ -205,7 +219,8 @@ def connection_form(request, pk=None):
         current = getattr(request, 'current_organization', None)
         if not instance and current is not None and orgs.filter(pk=current.pk).exists():
             initial['organization'] = current
-        form = BackupConnectionForm(instance=instance, orgs=orgs, initial=initial)
+        form = BackupConnectionForm(instance=instance, orgs=orgs, initial=initial,
+                                  msp_wide=has_global_reach(request.user, MANAGE))
     return render(request, 'backup_monitoring/connection_form.html', _ctx(
         request, form=form, instance=instance,
         ingest_url=request.build_absolute_uri(_ingest_path(instance)) if instance and instance.is_push else ''))
@@ -221,7 +236,7 @@ def _ingest_path(conn):
 @require_POST
 def connection_test(request, pk):
     from .providers import get_backup_provider
-    conn = get_object_or_404(BackupConnection, pk=pk, organization__in=allowed_orgs(request.user, MANAGE))
+    conn = get_object_or_404(BackupConnection.objects.filter(visible(request.user, MANAGE)), pk=pk)
     try:
         result = get_backup_provider(conn).test_connection()
     except Exception as exc:
@@ -234,7 +249,7 @@ def connection_test(request, pk):
 @require_perm_any_org(MANAGE)
 @require_POST
 def connection_poll(request, pk):
-    conn = get_object_or_404(BackupConnection, pk=pk, organization__in=allowed_orgs(request.user, MANAGE))
+    conn = get_object_or_404(BackupConnection.objects.filter(visible(request.user, MANAGE)), pk=pk)
     result = poll_connection(conn)
     stats = evaluate_connection(conn)
     if result['ok']:
@@ -249,7 +264,7 @@ def connection_poll(request, pk):
 @require_perm_any_org(MANAGE)
 @require_POST
 def connection_delete(request, pk):
-    conn = get_object_or_404(BackupConnection, pk=pk, organization__in=allowed_orgs(request.user, MANAGE))
+    conn = get_object_or_404(BackupConnection.objects.filter(visible(request.user, MANAGE)), pk=pk)
     name = conn.name
     conn.delete()
     messages.success(request, f'Deleted connection {name} and the history it collected.')
@@ -265,7 +280,7 @@ def connection_delete(request, pk):
 def system_create(request):
     import uuid
     orgs = allowed_orgs(request.user, MANAGE)
-    conns = BackupConnection.objects.filter(organization__in=orgs)
+    conns = BackupConnection.objects.filter(visible(request.user, MANAGE))
     form = ManualSystemForm(request.POST or None, orgs=orgs, connections=conns)
     if request.method == 'POST' and form.is_valid():
         obj = form.save(commit=False)
@@ -280,11 +295,12 @@ def system_create(request):
 @require_perm_any_org(MANAGE)
 def system_edit(request, pk):
     orgs = allowed_orgs(request.user, MANAGE)
-    system = get_object_or_404(ProtectedSystem, pk=pk, customer__in=orgs)
+    system = get_object_or_404(ProtectedSystem.objects.filter(visible(request.user, MANAGE, 'customer')), pk=pk)
     form = ProtectedSystemForm(request.POST or None, instance=system, orgs=orgs)
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         # Jobs follow their system's customer; so do repositories-less alerts.
+        # Mapping a system moves its jobs and their alerts to that customer.
         obj.jobs.update(organization=obj.customer)
         obj.alerts.update(organization=obj.customer)
         messages.success(request, 'Saved.')

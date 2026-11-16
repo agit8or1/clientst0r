@@ -926,3 +926,117 @@ class IntegrationPointTests(Fixture):
         self.assertTrue(by_key['tech_l1'].get('view_backup_status'))
         self.assertFalse(by_key['tech_l1'].get('manage_backup_integrations'))
         self.assertFalse(by_key['customer_admin'].get('view_backup_status'))
+
+
+# ------------------------------------------- MSP-wide connections (one MSP)
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class MspWideConnectionTests(Fixture):
+    """One install = one MSP; Organization = a customer. A connection with no
+    organization serves many customers; its systems are mapped per customer
+    and isolation is customer against customer."""
+
+    def setUp(self):
+        self.root = make_staff('bm-msp', 'bm msp all', **ROLE_MANAGE)           # reaches every customer
+        self.staff_a = make_staff('bm-msp-a', 'bm msp A', scope_orgs=[self.org_a], **ROLE_MANAGE)
+        self.staff_b = make_staff('bm-msp-b', 'bm msp B', scope_orgs=[self.org_b], **ROLE_MANAGE)
+        self.conn = make_pbs(None, 'shared-pbs')
+        self.conn.last_poll_at, self.conn.last_poll_status = timezone.now(), 'ok'
+        self.conn.save()
+        self.job = make_job(self.conn, 'shared-job', success_ago_h=40, name='SharedJob')
+        record_repository(self.conn, 'ds', 'SharedStore', 100, 90)
+
+    def client_for(self, user):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s.save()
+        return c
+
+    def test_discovered_rows_are_unmapped(self):
+        self.assertIsNone(self.job.organization)
+        self.assertIsNone(self.job.system.customer)
+        self.assertIsNone(BackupRepository.objects.get().organization)
+
+    def test_unmapped_data_is_invisible_to_customer_scoped_staff(self):
+        for user in (self.staff_a, self.staff_b):
+            c = self.client_for(user)
+            self.assertEqual(c.get(reverse('backup_monitoring:job_detail', args=[self.job.pk])).status_code, 404)
+            self.assertEqual(c.get(reverse('backup_monitoring:customer_detail', args=[0])).status_code, 404)
+            self.assertEqual(c.get(reverse('backup_monitoring:connection_edit', args=[self.conn.pk])).status_code, 404)
+            self.assertEqual(c.post(reverse('backup_monitoring:connection_delete', args=[self.conn.pk])).status_code, 404)
+            self.assertNotContains(c.get(reverse('backup_monitoring:connection_list')), 'shared-pbs')
+            self.assertNotContains(c.get(reverse('backup_monitoring:dashboard')), 'Unmapped')
+        self.assertTrue(BackupConnection.objects.filter(pk=self.conn.pk).exists())
+
+    def test_msp_wide_staff_sees_unmapped_section_and_connection(self):
+        c = self.client_for(self.root)
+        self.assertContains(c.get(reverse('backup_monitoring:dashboard')), 'Unmapped (MSP-wide)')
+        self.assertContains(c.get(reverse('backup_monitoring:customer_detail', args=[0])), 'SharedJob')
+        self.assertContains(c.get(reverse('backup_monitoring:connection_list')), 'MSP-wide')
+        self.assertEqual(c.get(reverse('backup_monitoring:job_detail', args=[self.job.pk])).status_code, 200)
+
+    def test_mapping_a_system_moves_it_to_exactly_one_customer(self):
+        evaluate_connection(self.conn)
+        alert = BackupAlert.objects.get(kind='missed')
+        self.assertIsNone(alert.organization)
+        c = self.client_for(self.root)
+        system = self.job.system
+        r = c.post(reverse('backup_monitoring:system_edit', args=[system.pk]), {
+            'name': system.name, 'customer': self.org_a.pk})
+        self.assertEqual(r.status_code, 302)
+        self.job.refresh_from_db()
+        alert.refresh_from_db()
+        self.assertEqual((self.job.organization, alert.organization), (self.org_a, self.org_a))
+        ca, cb = self.client_for(self.staff_a), self.client_for(self.staff_b)
+        self.assertEqual(ca.get(reverse('backup_monitoring:job_detail', args=[self.job.pk])).status_code, 200)
+        self.assertEqual(cb.get(reverse('backup_monitoring:job_detail', args=[self.job.pk])).status_code, 404)
+        self.assertContains(ca.get(reverse('backup_monitoring:alert_list')), 'SharedJob')
+        self.assertNotContains(cb.get(reverse('backup_monitoring:alert_list')), 'SharedJob')
+        # A can see their job but not the MSP-wide connection or its server-level repository.
+        self.assertEqual(ca.get(reverse('backup_monitoring:connection_edit', args=[self.conn.pk])).status_code, 404)
+        self.assertNotContains(ca.get(reverse('backup_monitoring:customer_detail', args=[self.org_a.pk])),
+                               'SharedStore')
+
+    def test_scoped_staff_cannot_map_unmapped_system(self):
+        r = self.client_for(self.staff_a).post(
+            reverse('backup_monitoring:system_edit', args=[self.job.system.pk]),
+            {'name': 'x', 'customer': self.org_a.pk})
+        self.assertEqual(r.status_code, 404)
+
+    def test_only_msp_wide_staff_can_create_msp_wide_connection(self):
+        data = {'name': 'wide2', 'provider': 'borg', 'organization': '', 'active': 'on'}
+        r = self.client_for(self.staff_a).post(reverse('backup_monitoring:connection_create'), data)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(BackupConnection.objects.filter(name='wide2').exists())
+        r = self.client_for(self.root).post(reverse('backup_monitoring:connection_create'), data)
+        self.assertEqual(r.status_code, 200)       # secret shown once
+        self.assertIsNone(BackupConnection.objects.get(name='wide2').organization)
+
+    def test_customer_pin_maps_discoveries_to_that_customer(self):
+        conn = make_pbs(None, 'pinned')
+        conn.customer = self.org_a
+        conn.save()
+        job = make_job(conn, 'pinned-job')
+        self.assertEqual((job.organization, job.system.customer), (self.org_a, self.org_a))
+
+    def test_unmapped_alert_cannot_become_a_ticket(self):
+        from psa.models import Ticket
+        evaluate_connection(self.conn)
+        alert = BackupAlert.objects.get(kind='missed')
+        BackupAlertPolicy.objects.create(organization=None, auto_ticket=True)
+        BackupAlert.objects.all().delete()
+        evaluate_connection(self.conn)
+        self.assertEqual(Ticket.objects.count(), 0)
+        alert = BackupAlert.objects.get(kind='missed')
+        self.client_for(self.root).post(reverse('backup_monitoring:alert_decide', args=[alert.pk]),
+                                        {'decision': 'ticket'})
+        self.assertEqual(Ticket.objects.count(), 0)
+        self.assertIsNone(BackupAlert.objects.get(pk=alert.pk).ticket)
+
+    def test_unmapped_system_without_job_alerts_use_default_policy(self):
+        from .recording import ensure_system
+        ensure_system(self.conn, 'bare', 'bare-host')
+        evaluate_connection(self.conn)
+        self.assertTrue(BackupAlert.objects.filter(kind='no_job', organization__isnull=True).exists())

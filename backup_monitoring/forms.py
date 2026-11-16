@@ -17,17 +17,24 @@ class BackupConnectionForm(forms.ModelForm):
         model = BackupConnection
         fields = ['name', 'provider', 'organization', 'customer', 'base_url', 'verify_tls', 'active']
 
-    def __init__(self, *args, orgs=None, **kwargs):
+    def __init__(self, *args, orgs=None, msp_wide=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.msp_wide = msp_wide
         if orgs is not None:
             self.fields['organization'].queryset = orgs
             self.fields['customer'].queryset = orgs
+        # Empty owner = MSP-wide connection (one server, many customers):
+        # only users who reach every customer may create one.
+        self.fields['organization'].required = not msp_wide
+        self.fields['organization'].empty_label = 'MSP-wide (all customers)' if msp_wide else None
         self.fields['customer'].required = False
         if self.instance.pk and self.instance.credentials:
             self.fields['api_token'].widget.attrs['placeholder'] = SECRET_PLACEHOLDER
 
     def clean(self):
         data = super().clean()
+        if not data.get('organization') and not self.msp_wide:
+            self.add_error('organization', 'Choose a customer.')
         provider = data.get('provider')
         if provider and not is_push_provider(provider):
             url = data.get('base_url') or ''
@@ -89,6 +96,7 @@ class ProtectedSystemForm(forms.ModelForm):
     def __init__(self, *args, orgs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['customer'].queryset = orgs
+        self.fields['customer'].required = True
         from assets.models import Asset
         self.fields['asset'].required = False
         self.fields['asset'].queryset = Asset.objects.filter(organization__in=orgs).order_by('name')

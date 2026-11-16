@@ -34,9 +34,10 @@ def _desired_for_connection(conn, now):
     policies = {}
 
     def policy_for(org):
-        if org.pk not in policies:
-            policies[org.pk] = BackupAlertPolicy.for_org(org)
-        return policies[org.pk]
+        key = org.pk if org is not None else None
+        if key not in policies:
+            policies[key] = BackupAlertPolicy.for_org(org)
+        return policies[key]
 
     for job in conn.jobs.select_related('organization', 'system'):
         policy = policy_for(job.organization)
@@ -79,7 +80,7 @@ def _desired_for_connection(conn, now):
                 title=f'Backup repository {pct:g}% full: {repo.name}',
                 detail=f'Threshold {policy.capacity_pct}%.')
 
-    for system in conn.systems.select_related('customer').filter(jobs__isnull=True):
+    for system in conn.systems.select_related('customer').filter(jobs__isnull=True):  # unmapped (customer NULL) uses the default policy
         if policy_for(system.customer).alert_missing_protected_device:
             out[f'no_job:{system.external_id}'] = dict(
                 organization=system.customer, system=system, kind='no_job', severity='warning',
@@ -142,7 +143,9 @@ def evaluate_connection(conn: BackupConnection, now=None) -> dict:
 
 
 def _maybe_ticket(alert):
-    if not BackupAlertPolicy.for_org(alert.organization).auto_ticket or alert.ticket_id:
+    if alert.organization_id is None or alert.ticket_id:
+        return   # a ticket needs a customer
+    if not BackupAlertPolicy.for_org(alert.organization).auto_ticket:
         return
     from .tickets import create_ticket_for_alert
     try:

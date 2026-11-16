@@ -14,7 +14,7 @@
   <tbody>
   {% for s in summaries %}
     <tr>
-      <td><a href="{% url 'backup_monitoring:customer_detail' s.org.pk %}"><strong>{{ s.org.name }}</strong></a>
+      <td><a href="{% url 'backup_monitoring:customer_detail' s.org_pk %}"><strong>{{ s.name }}</strong></a>
         {% if s.stale_connections %}<div class="text-warning small" title="{{ s.stale_connections|join:', ' }}">Stale: {{ s.stale_connections|join:", " }}</div>{% endif %}</td>
       <td><span class="badge bg-{{ s.badge }}" data-state="{{ s.state }}">{{ s.label }}</span></td>
       <td>{{ s.jobs_total }}{% if s.counts.failed or s.counts.missed %} <span class="text-danger">({{ s.counts.failed|default:0 }} failed, {{ s.counts.missed|default:0 }} missed)</span>{% endif %}</td>

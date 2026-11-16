@@ -1,13 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Backups - {{ org.name }}{% endblock %}
+{% block title %}Backups - {{ s.name }}{% endblock %}
 {% block content %}
-<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'backup_monitoring:dashboard' %}">Backup Monitoring</a></li><li class="breadcrumb-item active">{{ org.name }}</li></ol></nav>
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'backup_monitoring:dashboard' %}">Backup Monitoring</a></li><li class="breadcrumb-item active">{{ s.name }}</li></ol></nav>
 <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
-  <h2 class="mb-0">{{ org.name }} <span class="badge bg-{{ badge }} fs-6" data-state="{{ s.state }}">{{ label }}</span></h2>
+  <h2 class="mb-0">{{ s.name }} <span class="badge bg-{{ badge }} fs-6" data-state="{{ s.state }}">{{ label }}</span></h2>
   {% if can_manage_here %}<div>
-    <a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:policy_edit' org.pk %}">Alert policy</a>
+    {% if org %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:policy_edit' org.pk %}">Alert policy</a>{% endif %}
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:system_create' %}">Add protected system</a>
-    <a class="btn btn-sm btn-primary" href="{% url 'backup_monitoring:restore_test_create' %}">Record restore test</a></div>{% endif %}
+    {% if org %}<a class="btn btn-sm btn-primary" href="{% url 'backup_monitoring:restore_test_create' %}">Record restore test</a>{% endif %}</div>{% endif %}
+{% if not org %}<p class="text-muted small w-100">Systems found by MSP-wide connections that are not mapped to a customer yet. Use the link icon next to a job's system to map it; it then appears under that customer.</p>{% endif %}
 </div>
 {% if s.stale_connections %}<div class="alert alert-warning py-2 small">No recent data from: {{ s.stale_connections|join:", " }}. The state of their jobs below is not current.</div>{% endif %}
 

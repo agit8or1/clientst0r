@@ -7,7 +7,7 @@
 <div class="card"><div class="card-body p-0"><table class="table table-sm mb-0 small align-middle">
 <thead class="table-light"><tr><th>Customer</th><th>Alert</th><th>Status</th><th>Seen</th><th>Ticket</th><th></th></tr></thead><tbody>
 {% for a in alerts %}<tr>
- <td>{{ a.organization.name }}</td>
+ <td>{{ a.organization.name|default:'MSP-wide / unmapped' }}</td>
  <td><span class="badge bg-{% if a.severity == 'critical' %}danger{% else %}warning text-dark{% endif %}">{{ a.get_kind_display }}</span> {{ a.title }}<div class="text-muted">{{ a.detail|truncatechars:200 }}</div></td>
  <td>{{ a.get_status_display }}</td><td>{{ a.last_seen_at|timesince }} ago (x{{ a.occurrences }})</td>
  <td>{% if a.ticket %}<a href="{% url 'psa:ticket_detail' a.ticket.ticket_number %}">{{ a.ticket.ticket_number }}</a>{% endif %}</td>

@@ -7,11 +7,14 @@ products report: jobs, runs, repositories, the alerts derived from them, and
 restore tests, which are tracked separately from backup success on purpose:
 a backup that ran proves nothing about whether it can be restored.
 
-Tenancy: every data row carries `organization`, the customer whose data it is
-(the boundary views filter on). A connection's `organization` is the owner
-that configured it; `customer` optionally pins everything it discovers to one
-customer, otherwise discovered systems start at the owner and are reassigned
-in the UI.
+Tenancy: one install serves exactly one MSP and `Organization` is a customer
+of that MSP. Every data row carries `organization`, the customer whose data it
+is (the boundary views filter on); NULL means not mapped to a customer yet and
+is visible only to users who reach every customer. A connection is customer-
+specific (`organization` set) or MSP-wide (`organization` NULL, e.g. one
+Proxmox Backup Server serving many customers): its systems/jobs start
+unmapped (or at `customer` if that pins them) and are mapped to customers in
+the UI. Isolation is customer against customer.
 """
 import json
 import secrets
@@ -44,9 +47,10 @@ RUN_STATUS_CHOICES = [
 
 
 class BackupConnection(models.Model):
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
                                      related_name='backup_connections',
-                                     help_text='The organization that owns this connection.')
+                                     help_text='The customer this connection belongs to. Empty = MSP-wide '
+                                               '(one backup server serving many customers).')
     customer = models.ForeignKey('core.Organization', on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='backup_connections_for_customer',
                                  help_text='Optional: pin everything this connection reports to one customer.')
@@ -117,8 +121,9 @@ class BackupConnection(models.Model):
 
 class ProtectedSystem(models.Model):
     connection = models.ForeignKey(BackupConnection, on_delete=models.CASCADE, related_name='systems')
-    customer = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
-                                 related_name='backup_protected_systems')
+    customer = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+                                 related_name='backup_protected_systems',
+                                 help_text='Empty until mapped (systems found by an MSP-wide connection).')
     asset = models.ForeignKey('assets.Asset', on_delete=models.SET_NULL, null=True, blank=True,
                               related_name='backup_systems')
     name = models.CharField(max_length=255)
@@ -135,8 +140,9 @@ class ProtectedSystem(models.Model):
 
 class BackupJob(models.Model):
     connection = models.ForeignKey(BackupConnection, on_delete=models.CASCADE, related_name='jobs')
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='backup_jobs',
-                                     help_text='The customer whose data this job protects.')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='backup_jobs',
+                                     help_text='The customer whose data this job protects (empty = unmapped).')
     system = models.ForeignKey(ProtectedSystem, on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='jobs')
     external_id = models.CharField(max_length=255)
@@ -182,7 +188,7 @@ class BackupRun(models.Model):
 
 class BackupRepository(models.Model):
     connection = models.ForeignKey(BackupConnection, on_delete=models.CASCADE, related_name='repositories')
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
                                      related_name='backup_repositories')
     external_id = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
@@ -289,8 +295,9 @@ SEVERITY_CHOICES = [('warning', 'Warning'), ('critical', 'Critical')]
 
 
 class BackupAlert(models.Model):
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
-                                     related_name='backup_alerts')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='backup_alerts',
+                                     help_text='Customer the alert concerns; empty = MSP-wide / unmapped.')
     connection = models.ForeignKey(BackupConnection, on_delete=models.CASCADE, related_name='alerts')
     job = models.ForeignKey(BackupJob, on_delete=models.CASCADE, null=True, blank=True, related_name='alerts')
     system = models.ForeignKey(ProtectedSystem, on_delete=models.CASCADE, null=True, blank=True,

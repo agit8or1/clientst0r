@@ -2,7 +2,7 @@
 {% block title %}{{ job.name }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'backup_monitoring:dashboard' %}">Backup Monitoring</a></li>
-<li class="breadcrumb-item"><a href="{% url 'backup_monitoring:customer_detail' job.organization_id %}">{{ job.organization.name }}</a></li><li class="breadcrumb-item active">{{ job.name }}</li></ol></nav>
+<li class="breadcrumb-item"><a href="{% url 'backup_monitoring:customer_detail' job.organization_id|default:0 %}">{{ job.organization.name|default:"Unmapped" }}</a></li><li class="breadcrumb-item active">{{ job.name }}</li></ol></nav>
 <h2>{{ job.name }} <span class="badge bg-{{ row.badge }} fs-6" data-state="{{ row.state }}">{{ row.label }}</span></h2>
 <dl class="row small">
   <dt class="col-sm-3">Source</dt><dd class="col-sm-9">{{ job.connection.name }} ({{ job.connection.get_provider_display }}), data {{ row.data_age }}</dd>
