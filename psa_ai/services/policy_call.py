@@ -41,7 +41,16 @@ class ProviderFailed(Exception):
 
 def prepare(ticket, user):
     """(policy, profile) for this ticket, or PolicyRefused with the reason."""
-    org = ticket.organization
+    policy, profile = prepare_for_org(ticket.organization, user)
+    if not policy.share_ticket_text:
+        raise PolicyRefused("This customer's sharing rules withhold ticket text from AI.")
+    return policy, profile
+
+
+def prepare_for_org(org, user):
+    """(policy, profile) for a call about `org` that carries no ticket text
+    (e.g. the Pricing Advisor's computed figures), or PolicyRefused. Same
+    policy, exclusion, gateway-mode and profile rules as ticket AI."""
     policy = profiles.policy_for(org)
     if policy is None:
         raise PolicyRefused("This customer has no AI policy, so ticket AI is off for it.")
@@ -49,8 +58,6 @@ def prepare(ticket, user):
         raise PolicyRefused(EXCLUDED_MESSAGE)
     if not policy.analysis_enabled:
         raise PolicyRefused("This customer's AI policy doesn't allow ticket AI.")
-    if not policy.share_ticket_text:
-        raise PolicyRefused("This customer's sharing rules withhold ticket text from AI.")
     if gateway_keys.mode() == 'worker':
         raise PolicyRefused('This feature needs the in-process AI gateway. Use "Analyze ticket" or '
                             'AI Troubleshoot, which run through the AI gateway worker.')
@@ -67,7 +74,11 @@ def model_label(profile) -> str:
 def complete(ticket, policy, profile, system: str, user_text: str) -> Tuple[str, int, int]:
     """(text, input tokens, output tokens). PolicyRefused when the budget
     has no room; ProviderFailed when the call failed (reservation released)."""
-    org = ticket.organization
+    return complete_for_org(ticket.organization, policy, profile, system, user_text)
+
+
+def complete_for_org(org, policy, profile, system: str, user_text: str) -> Tuple[str, int, int]:
+    """`complete` charged to `org`'s AI budget, for calls with no ticket."""
     _, _, cost = profiles.estimate(profile, len(system) + len(user_text))
     if cost and not budget.reserve(org, cost, policy.daily_budget_cents * 100):
         raise PolicyRefused(budget.installation_refusal(cost)

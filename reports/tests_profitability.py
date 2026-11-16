@@ -570,7 +570,8 @@ class ViewProfitabilityPermissionTests(_Fixture):
             role = builtin(key)
             self.assertTrue(role.view_profitability, key)
             self.assertFalse(role.is_customized, key)
-            self.assertGreaterEqual(role.seed_version, 4, key)  # later releases bump it again
+            # 4 at accounts 0058; later flags (0059 act_on_pricing_recommendations) bump it again.
+            self.assertGreaterEqual(role.seed_version, 4, key)
         for key in ('tech_l1', 'tech_l2', 'service_manager', 'customer_admin'):
             self.assertFalse(builtin(key).view_profitability, key)
         for rt in RoleTemplate.objects.all():

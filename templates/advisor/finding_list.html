@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Pricing Advisor{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'reports:home' %}">Reports</a></li>
+        <li class="breadcrumb-item active">Pricing Advisor</li>
+    </ol></nav>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h2 class="mb-0"><i class="fas fa-scale-balanced me-2" aria-hidden="true"></i>Pricing Advisor</h2>
+            <small class="text-muted">Loss-making customers, underpriced contracts, unbilled work and renewals to review. Recommendations only create drafts.</small>
+        </div>
+        {% if can_edit_defaults %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'advisor:settings' %}"><i class="fas fa-sliders-h me-1"></i>Thresholds</a>{% endif %}
+    </div>
+    {% include "advisor/_banner.html" %}
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto"><label class="form-label small mb-0" for="f-status">Status</label>
+            <select id="f-status" name="status" class="form-select form-select-sm">
+                {% for k, l in statuses %}<option value="{{ k }}" {% if f.status == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                <option value="all" {% if f.status == 'all' %}selected{% endif %}>All</option>
+            </select></div>
+        <div class="col-auto"><label class="form-label small mb-0" for="f-sev">Severity</label>
+            <select id="f-sev" name="severity" class="form-select form-select-sm"><option value="">Any</option>
+                {% for k, l in severities %}<option value="{{ k }}" {% if f.severity == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+        <div class="col-auto"><label class="form-label small mb-0" for="f-det">Detector</label>
+            <select id="f-det" name="detector" class="form-select form-select-sm"><option value="">Any</option>
+                {% for k, l in detectors %}<option value="{{ k }}" {% if f.detector == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select></div>
+        <div class="col-auto"><label class="form-label small mb-0" for="f-client">Customer</label>
+            <select id="f-client" name="client" class="form-select form-select-sm"><option value="">Any</option>
+                {% for c in clients %}<option value="{{ c.pk }}" {% if f.client == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select></div>
+        <div class="col-auto"><label class="form-label small mb-0" for="f-complete">Data</label>
+            <select id="f-complete" name="complete" class="form-select form-select-sm"><option value="">Any</option>
+                <option value="yes" {% if f.complete == 'yes' %}selected{% endif %}>Complete</option>
+                <option value="no" {% if f.complete == 'no' %}selected{% endif %}>Incomplete</option>
+            </select></div>
+        <div class="col-auto"><button class="btn btn-primary btn-sm" type="submit">Filter</button></div>
+    </form>
+
+    {% for g in groups %}
+    <div class="card mb-3" data-severity="{{ g.key }}">
+        <div class="card-header"><strong>{{ g.label }}</strong> <span class="badge bg-secondary">{{ g.findings|length }}</span></div>
+        <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+            <thead><tr><th>Customer</th><th>Finding</th><th>Detector</th><th>Period</th><th>Data</th><th>Recommendations</th></tr></thead>
+            <tbody>
+            {% for f in g.findings %}
+            <tr>
+                <td>{{ f.client_org.name }}</td>
+                <td><a href="{% url 'advisor:finding_detail' f.pk %}">{{ f.title }}</a></td>
+                <td class="small">{{ f.get_detector_label }}</td>
+                <td class="small">{{ f.period_start|date:"M Y" }} – {{ f.period_end|date:"M Y" }}</td>
+                <td>{% if f.is_complete %}<span class="badge bg-success">complete</span>{% else %}<span class="badge bg-warning text-dark">incomplete</span>{% endif %}</td>
+                <td class="small">{{ f.recommendations.count }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+    {% empty %}
+    <div class="card card-body text-muted mb-3">No findings match. {% if not last_run %}The advisor has not run yet; it runs nightly (Scheduled Tasks → Pricing Advisor).{% endif %}</div>
+    {% endfor %}
+
+    <div class="card mb-4">
+        <div class="card-header"><strong>Detector coverage</strong>{% if last_run %} <small class="text-muted">last run {{ last_run.finished_at|date:"Y-m-d H:i" }}</small>{% endif %}</div>
+        <ul class="list-group list-group-flush small">
+            {% for key, c in coverage.items %}
+            <li class="list-group-item" data-detector="{{ key }}">
+                {% if c.evaluated %}<span class="badge bg-success me-1">live</span>{% else %}<span class="badge bg-secondary me-1">not evaluated</span>{% endif %}
+                <strong>{{ c.label }}</strong> — {{ c.description }}{% if c.reason %} <em class="text-muted">{{ c.reason }}</em>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="card-body small border-top"><strong>Inputs</strong>
+            <ul class="mb-0">{% for label, src in sources %}<li>{{ label }}: {{ src }}</li>{% endfor %}</ul></div>
+    </div>
+</div>
+{% endblock %}

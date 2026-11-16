@@ -1291,6 +1291,8 @@ class ScheduledTask(models.Model):
         ('connect_rotate_keys', 'Connected Applications: Key Rotation'),
         # Customer health score: nightly snapshot per client.
         ('compute_health_scores', 'Customer Health Score Snapshots'),
+        # Pricing Advisor: nightly profitability facts and detectors (never changes prices).
+        ('run_advisor', 'Pricing Advisor (profitability findings)'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1854,6 +1856,16 @@ class ScheduledTask(models.Model):
             'description': 'Send repeated (monthly / quarterly) pulse checks that are due this period '
                            '(only while pulse checks are turned on)',
             'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Pricing Advisor (Phase 76): recompute findings nightly. Read-only
+            # for contracts and prices; one open finding per customer, detector
+            # and period, updated in place.
+            'task_type': 'run_advisor',
+            'description': 'Compute per-customer profitability facts and run the Pricing Advisor detectors '
+                           '(creates and updates findings only; never changes contracts or prices)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
         {

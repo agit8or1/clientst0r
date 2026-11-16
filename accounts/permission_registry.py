@@ -343,6 +343,9 @@ PERMISSIONS: List[Permission] = [
     _p('view_profitability', 'reports', 'view', X, False,
        'Labour cost and margin: profitability reports, margin analytics, effective rate / realization, '
        'contract and project margin (MSP staff only)', staff_only=True),
+    _p('act_on_pricing_recommendations', 'reports', 'approve', X, False,
+       'Accept or dismiss Pricing Advisor recommendations (accepting creates a draft quote or contract '
+       'amendment only; MSP staff only)', staff_only=True),
     _p('reports_view_sla', 'reports', 'view', E, False, 'SLA trend report', staff_only=True),
     _p('reports_view_capacity', 'reports', 'view', E, False, 'Capacity / utilization report', staff_only=True),
     _p('manage_health_score_settings', 'reports', 'settings', E, False,
@@ -557,6 +560,8 @@ MODULE_COVERAGE = {
     'locations': 'membership write role per customer',
     'imports': 'superuser / org_manage_settings',
     'reports': 'reports_* (MSP staff only section)',
+    'advisor': 'view_profitability (else reports_view_financial) per customer + act_on_pricing_recommendations '
+               '(MSP staff only, under /reports/)',
     'vehicles': 'membership write role per customer',
     'inventory': 'membership write / admin role per customer',
     'scheduling': 'membership write / admin role per customer',

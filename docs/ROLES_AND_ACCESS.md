@@ -292,6 +292,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `reports_view_dashboards` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `reports_view_financial` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `view_profitability` | ✔ |  |  |  |  |  |  |  | ✔ |  |
+| `act_on_pricing_recommendations` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `reports_view_sla` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `reports_view_capacity` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `manage_health_score_settings` | ✔ | ✔ |  |  |  |  |  |  |  |  |
@@ -648,6 +649,7 @@ Dashboards, financial / SLA / capacity reports, schedules.
 | `reports_view_dashboards` | View / list | standard | yes | enforced | View dashboards |
 | `reports_view_financial` | View / list | sensitive | no | enforced | Profitability, effective rate, revenue leakage, margin analytics |
 | `view_profitability` | View / list | sensitive | staff only | enforced | Labour cost and margin: profitability reports, margin analytics, effective rate / realization, contract and project margin (MSP staff only) |
+| `act_on_pricing_recommendations` | Approve | sensitive | staff only | enforced | Accept or dismiss Pricing Advisor recommendations (accepting creates a draft quote or contract amendment only; MSP staff only) |
 | `reports_view_sla` | View / list | elevated | staff only | enforced | SLA trend report |
 | `reports_view_capacity` | View / list | elevated | staff only | enforced | Capacity / utilization report |
 | `manage_health_score_settings` | Manage settings | elevated | staff only | enforced | Customer health score: change the dimension / signal weights and thresholds |
@@ -764,6 +766,7 @@ What a customer user may do in the portal beyond the basics.
 | `locations` | membership write role per customer |
 | `imports` | superuser / org_manage_settings |
 | `reports` | reports_* (MSP staff only section) |
+| `advisor` | view_profitability (else reports_view_financial) per customer + act_on_pricing_recommendations (MSP staff only, under /reports/) |
 | `vehicles` | membership write role per customer |
 | `inventory` | membership write / admin role per customer |
 | `scheduling` | membership write / admin role per customer |

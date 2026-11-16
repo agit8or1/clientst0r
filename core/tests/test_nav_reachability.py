@@ -26,6 +26,7 @@ BASE_HTML = {
 }
 
 ALLOWED_UNLINKED = {
+    'advisor:settings': 'reached from advisor:finding_list (Thresholds button) and per customer from the advisor pages',
     'accounts:password_change': 'reached from accounts:profile',
     'accounts:quick_add_menu': 'legacy quick-add launcher (require_admin); only its own quick forms link back to it. Not linked on purpose',
     'accounts:two_factor_setup': 'reached from accounts:profile',

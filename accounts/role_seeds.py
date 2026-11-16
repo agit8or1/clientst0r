@@ -173,6 +173,8 @@ _BILLING = _on(
     # v3 (accounts 0056): pricing.
     'pricing_manage_price_books', 'pricing_manage_service_plans', 'pricing_view_internal_cost_rates',
     'pricing_manage_labor_rate_cards', 'pricing_approve_discounts',
+    # v5 (accounts 0059): pricing advisor.
+    'act_on_pricing_recommendations',
 )
 
 _AUDITOR = _on(
@@ -217,7 +219,7 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=6, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=7, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
                 'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=3),
@@ -249,7 +251,7 @@ def definitions() -> List[RoleDef]:
         RoleDef('billing_finance', 'Billing / Finance', 'internal',
                 'Billing records, invoices, payment status and financial reports; reads commercial '
                 'agreements and configures sales tax. No credentials, remote tools or security settings.',
-                _BILLING, version=4),
+                _BILLING, version=5),
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
                 'secret reveal, file downloads and exports stay separate.', _AUDITOR, version=2),

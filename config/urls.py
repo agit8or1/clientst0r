@@ -81,6 +81,8 @@ urlpatterns = [
     # Business Overview (executive dashboard). Under /reports/ so the
     # staff-only prefix rule in SectionPermissionMiddleware covers it.
     path('reports/business-overview/', include('executive.urls')),
+    # Pricing Advisor (Phase 76): under /reports/, so MSP staff only.
+    path('reports/advisor/', include('advisor.urls')),
     path('reports/', include('reports.urls')),
     path('vehicles/', include('vehicles.urls')),
     path('inventory/', include('inventory.urls')),

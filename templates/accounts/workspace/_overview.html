@@ -1,4 +1,4 @@
-{% load contracts_tags %}{% load pulse_tags %}{% load health_score_tags %}
+{% load contracts_tags %}{% load pulse_tags %}{% load health_score_tags %}{% load advisor_tags %}
 {% comment %}
 Client workspace Overview. Every data panel appears only when its tab is
 visible (accounts/client_workspace.py decides; counts and a few rows each).
@@ -285,6 +285,8 @@ support difficulty, contract documents, pulse trend) is shown as before.
 
 {# Health panel (MSP staff only) #}
 {% client_health_panel organization %}
+<!-- Pricing Advisor (MSP staff with the profitability permission only) -->
+{% org_advisor organization %}
 
 <!-- Pulse check trend (MSP staff only, while pulse checks are on) -->
 {% org_pulse organization %}
