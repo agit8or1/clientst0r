@@ -311,6 +311,10 @@ class ChangeDraftStep(Step):
             if session.kind == S.RENEWAL:
                 data['duration_months'] = int(d.get('term_months') or 12)
             sections = [dict(s) for s in doc.sections]
+            for sec in sections:  # the amendment template's placeholder is the change summary
+                if '[[Describe the changes]]' in (sec.get('body') or ''):
+                    sec['body'] = sec['body'].replace('<p>[[Describe the changes]]</p>', summary_html(session)
+                                                      ).replace('[[Describe the changes]]', '')
             at = next((i for i, s in enumerate(sections) if s.get('type') == 'signatures'), len(sections))
             sections.insert(at, {'title': 'Change summary', 'type': 'text', 'body': summary_html(session),
                                  'include': True})

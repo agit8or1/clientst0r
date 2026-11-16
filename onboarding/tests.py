@@ -70,7 +70,8 @@ class Base(TestCase):
         return summary
 
     def customer(self, session, name='Acme Dental', **extra):
-        data = {'mode': 'new', 'name': name}
+        data = {'mode': 'new', 'name': name, 'hide_until_activation': 'on',
+                'primary_contact_name': 'Pat Owner', 'primary_contact_email': 'pat@example.com'}
         data.update(extra)
         return self.apply(session, 'customer', data)
 
@@ -512,7 +513,9 @@ class LifecycleTests(Base):
         super().setUpTestData()
         from contracts import services
         from psa.models import Contract
-        cls.client_org = Organization.objects.create(name='Established', slug='established')
+        cls.client_org = Organization.objects.create(name='Established', slug='established',
+                                                  primary_contact_name='Boss',
+                                                  primary_contact_email='boss@established.example')
         doc = services.create_contract(cls.client_org, cls.tech, title='MSA')
         services.save_draft(doc, {'line_items': [
             {'description': 'Managed users', 'kind': 'recurring', 'quantity': '10', 'unit_price': '100.00',
@@ -725,7 +728,7 @@ class TenantIsolationTests(Base):
         cls.org_b = Organization.objects.create(name='Org B', slug='org-b')
         cls.a_tech = make_staff('a_tech', scope=[cls.org_a])
         cls.b_tech = make_staff('b_tech', scope=[cls.org_b])
-        cls.b_session = engine.create_session(cls.b_tech, S.NEW_CUSTOMER, cls.org_b)
+        cls.b_session = engine.create_session(cls.b_tech, S.NEW_CUSTOMER, cls.org_b, title='Secret B Session')
         cls.b_client = Organization.objects.create(name='B Client', slug='b-client', parent=cls.org_b)
         cls.b_change = engine.create_session(cls.b_tech, S.ADD_USERS, cls.org_b, cls.org_b)
 
@@ -777,7 +780,7 @@ class TenantIsolationTests(Base):
         self.client.force_login(self.a_tech)
         resp = self.client.get(reverse('onboarding:start'))
         self.assertEqual(resp.status_code, 200)
-        self.assertNotContains(resp, 'Org B')
+        self.assertNotContains(resp, 'Secret B Session')
 
     @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
     def test_start_post_cannot_target_an_unreachable_customer(self):
@@ -880,5 +883,5 @@ class ViewTests(Base):
 
     def test_navigation_has_one_onboard_entry_in_clients(self):
         from core import navigation
-        tabs = [t for sec in navigation.SECTIONS if sec.key == 'clients_all' for t in sec.tabs]
+        tabs = [t for sec in navigation.SECTIONS if sec.menu == 'clients' for t in sec.tabs]
         self.assertEqual([t.url_name for t in tabs if t.url_name.startswith('onboarding:')], ['onboarding:start'])

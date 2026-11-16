@@ -17,6 +17,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
+from contracts.content import ContentError
 from onboarding import access
 from onboarding.models import OnboardingSession as S
 from onboarding.registry import Step, StepError, StepForm, register_step
@@ -785,7 +786,7 @@ class SendForApprovalStep(Step):
             if doc.status == D.DRAFT:
                 try:
                     services.submit(doc, user, request=request)
-                except services.ContractError as exc:
+                except (services.ContractError, ContentError) as exc:
                     raise StepError(str(exc))
                 doc.refresh_from_db()
             did.append(f'agreement {doc.reference} is "{doc.get_status_display()}"')
@@ -795,7 +796,7 @@ class SendForApprovalStep(Step):
                     raise StepError(why)
                 try:
                     services.send(doc, user, email=True, request=request)
-                except services.ContractError as exc:
+                except (services.ContractError, ContentError) as exc:
                     raise StepError(str(exc))
                 doc.refresh_from_db()
                 did.append('sent for signature')
