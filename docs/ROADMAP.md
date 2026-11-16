@@ -2798,11 +2798,11 @@ A single priced catalog and named service plans, so quotes, contracts and invoic
 hand. Audit: [docs/plans/COMMERCIAL_OPS_AUDIT.md](plans/COMMERCIAL_OPS_AUDIT.md). Separate from the ticket
 request catalog (`ServiceCatalogItem`).
 
-- **68.1 Price book and products** *(in progress — dev/price-book)* — products and services with SKU,
+- **68.1 Price book and products** *(shipped v3.17.692)* — products and services with SKU,
   unit, cost, list price and markup.
-- **68.2 Service plans** *(in progress — dev/price-book)* — named plans (included hours, meters, bundled
+- **68.2 Service plans** *(shipped v3.17.692)* — named plans (included hours, meters, bundled
   items) that a contract can reference.
-- **68.3 Catalog links on quote, invoice and contract lines** *(planned)* — optional product reference on
+- **68.3 Catalog links on quote, invoice and contract lines** *(partial — line fields and price snapshot shipped v3.17.692; picking items in the quote and invoice editors planned)* — optional product reference on
   each line type.
 - **68.4 Distributor price into the price book** *(planned)* — copy distributor pricing at quote time.
 
@@ -2810,11 +2810,11 @@ request catalog (`ServiceCatalogItem`).
 
 ## Phase 69 — Labor rate cards and cost rates **(M · billing)** [in progress]
 
-- **69.1 Rate cards** *(in progress — dev/price-book)* — bill rates by role, client and ticket type, with
+- **69.1 Rate cards** *(shipped v3.17.692)* — bill rates by role, client and ticket type, with
   effective dates.
-- **69.2 Rate snapshots on time entries** *(in progress — dev/price-book)* — bill and cost rate stored on
+- **69.2 Rate snapshots on time entries** *(shipped v3.17.692)* — bill and cost rate stored on
   each entry so history does not drift.
-- **69.3 Remove placeholder rates** *(planned)* — replace the 60% cost assumption and the fixed fallback
+- **69.3 Remove placeholder rates** *(shipped v3.17.692)* — replace the 60% cost assumption and the fixed fallback
   rates in profitability and reports with real rate lookups.
 - **69.4 Effective-dated billable targets** *(planned)*.
 
@@ -2827,7 +2827,7 @@ request catalog (`ServiceCatalogItem`).
 - **70.3 Signed document to billing contract** *(planned)* — carry line items, hours, rates and next billing
   date across.
 - **70.4 Bill bundle items and recurring charges** *(planned)*.
-- **70.5 Database uniqueness for recurring invoices** *(planned)* — constraint on contract and billing period.
+- **70.5 Database uniqueness for recurring invoices** *(shipped v3.17.690)* — constraint on contract and billing period.
 
 **Sizing:** **M** — conversions and the recurring-billing hardening.
 
@@ -2894,12 +2894,12 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 ## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [in progress]
 
-- **75.1 Profitability analytics** *(in progress — dev/profitability)* — margin by client, contract, plan and service line from
+- **75.1 Profitability analytics** *(shipped v3.17.692)* — margin by client, contract, plan and service line from
   rate snapshots.
 - **75.2 Customer commercial portal** *(planned)* — plans, invoices, device health and backup status.
 - **75.3 Commercial onboarding wizard** *(in progress — dev/onboarding-wizard)* — price book, rates, accounting and payment setup.
 - **75.4 Executive dashboard** *(in progress — dev/exec-dashboard)* — recurring revenue, margin, renewals and receivables.
-- **75.5 Commercial permissions** *(planned)* — roles for rates, cost visibility and payments.
+- **75.5 Commercial permissions** *(partial — pricing, profitability, payments and tax permissions shipped v3.17.690–692)* — roles for rates, cost visibility and payments.
 - **75.6 Executive dashboard drill-down** *(in progress — dev/exec-dashboard)* — drill from every metric to the
   underlying records, with date, customer, service-line and location filters; estimates labelled as not
   accounting-certified.
@@ -2956,16 +2956,16 @@ A reusable, self-hosted standard for Agit8or applications to discover, pair, aut
 events with each other, starting with Clientst0r and Rem0te. It runs alongside the existing
 `ticket-rmm-v1` link, which keeps working unchanged.
 
-- **79.1 Protocol and SDKs** *(in progress — dev/agit8or-connect)* — versioned protocol and OpenAPI spec;
+- **79.1 Protocol and SDKs** *(shipped v3.17.692)* — versioned protocol and OpenAPI spec;
   Python and TypeScript SDKs checked against shared test vectors.
-- **79.2 Pairing and credentials** *(in progress — dev/agit8or-connect)* — single-use, short-lived pairing
+- **79.2 Pairing and credentials** *(shipped v3.17.692)* — single-use, short-lived pairing
   codes with administrator approval on the receiving side; a key pair per connection; short-lived access
   tokens; no long-lived shared API keys.
-- **79.3 Permissions and customer grants** *(in progress — dev/agit8or-connect)* — human-readable scopes in
+- **79.3 Permissions and customer grants** *(partial — framework and three read/publish scopes shipped v3.17.692)* — human-readable scopes in
   risk tiers; explicit per-customer grants; per-grant revocation and an emergency disconnect.
-- **79.4 Signed events and webhooks** *(in progress — dev/agit8or-connect)* — signed, replay-protected
+- **79.4 Signed events and webhooks** *(shipped v3.17.692 — incoming events are stored; acting on them is planned)* — signed, replay-protected
   delivery with retries and a failed-delivery queue.
-- **79.5 Connection wizard and credential dashboard** *(in progress — dev/agit8or-connect)* — off by default
+- **79.5 Connection wizard and credential dashboard** *(shipped v3.17.692)* — off by default
   until enabled by an administrator.
 - **79.6 Rem0te side** *(planned)* — implemented in the Rem0te repository against the shared contract.
 - **79.7 Device sync, alert tickets, ticket-to-device and approved remote actions over Connect** *(planned)*.
@@ -3066,16 +3066,16 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 **Phases 10-30**: long-term operational deepening. None should be positioned as fully implemented today; each extends or adds to the foundations already shipped. Items overlapping shipped phases call out the deltas explicitly. AI-assisted features are explicitly **OPTIONAL AI** and gated by `psa_ai_enabled` (existing pattern from v3.17.125 AI Triage).
 
 **Scope note:** This is a PSA + Asset + Vault + Documentation + Monitoring platform that integrates with external RMMs (Phase 9 connection framework + Phase 7 Integration SDK). First-party RMM agents and remote-access relays aren't on the roadmap — installs that need those capabilities use the supported third-party tools (TacticalRMM, NinjaOne, Datto RMM, ConnectWise Automate, ScreenConnect, RustDesk, MeshCentral, etc.).
-| 68 — Commercial price book and service plans | L | in progress (dev/price-book) | Phase 15 contracts; quotes and invoices |
-| 69 — Labor rate cards and cost rates | M | in progress (dev/price-book) | Phase 2 cost rates; Phase 68 |
+| 68 — Commercial price book and service plans | L | in progress (68.1–68.2 shipped v3.17.692) | Phase 15 contracts; quotes and invoices |
+| 69 — Labor rate cards and cost rates | M | in progress (69.1–69.3 shipped v3.17.692) | Phase 2 cost rates; Phase 68 |
 | 70 — Contracts, recurring billing and quote conversion | M | planned | Phases 65, 68, 69 |
 | 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
 | 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
-| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (dev/profitability, dev/onboarding-wizard, dev/exec-dashboard) | Phases 68–74 |
+| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; dev/onboarding-wizard, dev/exec-dashboard) | Phases 68–74 |
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
 | 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
-| 79 — Agit8or Connect | XL | in progress (dev/agit8or-connect) | Rem0te contract ticket-rmm-v1 |
+| 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |

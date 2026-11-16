@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.692] - 2026-11-16
+
+### Added
+- **Price book and service plans.** New `pricing` app (managed in the admin): price books with products, services, licenses and labor items, price tiers, customer price overrides (fixed price or cost + markup), scheduled price changes and an append-only price history. Service plans with items and entitlements, and customer plan subscriptions (one active primary plan per customer; add-ons unlimited).
+- **Labor rate cards and cost rates.** Labor roles, rate cards with 12 rate types (standard, after-hours, emergency, travel and more) and technician/skill/category/location qualifiers, and billing rules (minimum minutes, increments, rounding, travel and dispatch fees). Technician cost rates gain base wage, payroll tax, benefits and overhead; the fully burdened rate is calculated from them.
+  - Rate precedence: customer + contract card, customer card, contract card, MSP default card, then the labor role's default rate. When nothing matches, the rate is **missing**, never guessed.
+  - New time entries store the bill and cost rate used (a snapshot); later rate changes don't re-rate them. Quote, invoice and contract lines can reference a price-book item and keep the price they were given.
+  - Five new staff-only permissions: manage price books, manage service plans, view internal cost rates, manage labor rate cards, approve discounts below an item's minimum price. Owner and Billing / Finance get all five; Sales Manager gets discount approval; roles that could see cost rates keep that.
+- **Profitability with real costs.** Profitability, margin analytics, effective rate and contract/project margin no longer use made-up rates (the 60% labor-cost assumption, the $60 cost and $150 bill fallbacks, the 32-hour target). Work without a rate shows as **Unknown — N hours without a cost rate** and the page is marked *Incomplete*; every page is labelled an operational estimate, not your accounting P&L. New metrics: MRR/ARR, month-over-month growth, churn, revenue by service line, utilization, unbilled time and contracts expiring in 30/60/90 days. MSP-wide figures cover only the customers in the viewer's client scope.
+  - Cost and margin need the new staff-only `view_profitability` permission. Every role that could see financial reports gets it, so nobody loses access.
+- **Agit8or Connect (Phase 1), off by default.** A self-hosted standard for Agit8or applications to pair and exchange data, starting with Clientst0r and Rem0te. Pairing uses a one-time code, a comparison code shown on both sides and administrator approval on both sides; each connection has its own key pair, private keys encrypted and bound to their row. Short-lived (5-minute) tokens bound to the caller's key; replayed requests refused. Explicit per-customer grants, signed and replay-protected events with retries, key rotation, emergency disconnect and an audit trail. Python and TypeScript SDKs with shared test vectors and an OpenAPI description (`docs/agit8or-connect/`). New staff-only permissions to view and manage connected applications (off for every role). The existing Rem0te integration is unchanged.
+  - Not yet: the Rem0te side, and anything beyond reading connection and customer details and publishing events (tickets, assets and remote actions come later).
+
+### Fixed
+- Profitability: margin by service line now counts non-billable hours as cost. Revenue reports filter on the invoice's customer.
+
+### Upgrade notes
+- Migrations: `accounts.0056`–`0058` (pricing, connected applications and profitability permissions; built-in Owner and Billing / Finance roles move to definition version 4 when not customized; customized ones are listed for review), `core.0107` (Connect scheduled tasks), `resourcing.0005` (cost-rate burden), `psa.0087` (rate and price snapshots), `pricing.0001`, `connect.0001`, `tech_access.0007`.
+- Reports that showed a margin from placeholder rates may now show *Unknown* until technician cost rates are entered.
+- Agit8or Connect stays off unless `AGIT8OR_CONNECT_ENABLED` is set.
+
 ## [3.17.691] - 2026-11-16
 
 ### Security
