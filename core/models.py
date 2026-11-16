@@ -1273,6 +1273,8 @@ class ScheduledTask(models.Model):
         ('m365_edit_sessions', 'Microsoft 365 Edit Sessions'),
         # Pulse checks: monthly / quarterly service-feedback sends.
         ('pulse_send_due', 'Pulse Check Scheduled Sends'),
+        # Customer health score: nightly snapshot per client.
+        ('compute_health_scores', 'Customer Health Score Snapshots'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1830,6 +1832,14 @@ class ScheduledTask(models.Model):
             'description': 'Send repeated (monthly / quarterly) pulse checks that are due this period '
                            '(only while pulse checks are turned on)',
             'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Read-only over existing data; stores one snapshot per client per day.
+            'task_type': 'compute_health_scores',
+            'description': 'Compute and store each active client\'s customer health score snapshot '
+                           '(unknown or stale data is never counted as healthy)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
         {

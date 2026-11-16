@@ -1,0 +1,9 @@
+{# Headline score with its coverage. Expects `p` (health_score.present.present). Unknown is never shown as healthy. #}
+{% if p.overall is not None %}
+<span class="fs-3 fw-bold">{{ p.overall|floatformat:0 }}</span>
+<span class="badge text-bg-{{ p.badge }} align-middle">{{ p.status_label }}</span>
+<div class="small text-body-secondary">Score {{ p.overall|floatformat:0 }} &middot; based on {{ p.known }} of {{ p.total }} dimension{{ p.total|pluralize }} ({{ p.coverage_pct }}% coverage)</div>
+{% else %}
+<span class="fs-5 fw-semibold">No score</span> <span class="badge text-bg-secondary align-middle">Unknown</span>
+<div class="small text-body-secondary">No dimension has trustworthy data yet (0 of {{ p.total }}).</div>
+{% endif %}

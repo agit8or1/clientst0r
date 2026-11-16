@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Health score weights{% endblock %}
+{% block content %}
+<div class="card card-body d-flex flex-row flex-wrap gap-2 align-items-center mb-3">
+    <h2 class="h4 mb-0 me-auto"><i class="fas fa-sliders me-1"></i> Health score weights{% if client %} &mdash; {{ client.name }}{% else %} &mdash; default{% endif %}</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:list' %}">Client health</a>
+</div>
+<p class="text-body-secondary small">A weight of 0 turns a dimension or signal off. Weights only matter between the parts that have data: an unknown dimension is left out, not scored as healthy. New weights apply from the next computation.</p>
+<form method="post">{% csrf_token %}
+    {% if client %}<input type="hidden" name="client" value="{{ client.pk }}">{% endif %}
+    <div class="row g-3 mb-3">
+        <div class="col-auto"><label class="form-label" for="ok_threshold">Healthy at or above</label>
+            <input class="form-control" id="ok_threshold" name="ok_threshold" type="number" min="0" max="100" value="{{ config.ok_threshold }}"></div>
+        <div class="col-auto"><label class="form-label" for="warn_threshold">At risk below</label>
+            <input class="form-control" id="warn_threshold" name="warn_threshold" type="number" min="0" max="100" value="{{ config.warn_threshold }}"></div>
+    </div>
+    {% for d in dims %}
+    <div class="card mb-3">
+        <div class="card-header d-flex align-items-center gap-2"><strong class="me-auto">{{ d.label }}</strong>
+            <label class="small" for="dim_{{ d.key }}">Dimension weight</label>
+            <input class="form-control form-control-sm w-auto" style="width:6rem" id="dim_{{ d.key }}" name="dim_{{ d.key }}" type="number" step="any" min="0" value="{{ d.weight|floatformat:'-2' }}"></div>
+        <ul class="list-group list-group-flush">
+        {% for s in d.signals %}
+            <li class="list-group-item d-flex align-items-center gap-2"><span class="me-auto">{{ s.label }}<br><span class="small text-body-secondary">{{ s.description }}</span></span>
+                <input class="form-control form-control-sm" style="width:6rem" aria-label="Weight for {{ s.label }}" name="sig_{{ s.key }}" type="number" step="any" min="0" value="{{ s.weight|floatformat:'-2' }}"></li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary">Save</button>
+    {% if has_override %}<button class="btn btn-outline-danger" name="reset" value="1">Use the default weights for this client</button>{% endif %}
+</form>
+{% endblock %}

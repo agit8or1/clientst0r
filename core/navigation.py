@@ -608,6 +608,12 @@ SECTIONS = (
         Tab(_('Opt-outs'), 'pulse:opt_out_list', 'fa-user-slash'),
     )),
 
+    Section('mod_health', 'modules', _('Client Health'), gate=_msp_staff,
+            also=('health_score:detail', 'health_score:recompute'), tabs=(
+        Tab(_('Client Health'), 'health_score:list', 'fa-heart-circle-check'),
+        Tab(_('Weights'), 'health_score:settings', 'fa-sliders'),
+    )),
+
     # ---- Knowledge & Vault ---------------------------------------------------
     Section('docs_documents', 'docs', _('Documentation'), tabs=(
         Tab(_('Documents'), 'docs:document_list', 'fa-file-alt'),
@@ -883,7 +889,7 @@ NAMESPACE_MENU = {
     'psa': 'psa', 'psa_ai': 'psa',
     'processes': 'ops', 'inventory': 'ops', 'scheduling': 'ops',
     'vehicles': 'ops', 'statuspage': 'ops', 'netconfig': 'ops',
-    'security_alerts': 'modules', 'crm': 'modules', 'reports': 'modules', 'pulse': 'modules',
+    'security_alerts': 'modules', 'crm': 'modules', 'reports': 'modules', 'pulse': 'modules', 'health_score': 'modules',
     'assets': 'assets', 'hardware': 'assets',
     'docs': 'docs', 'readiness': 'docs', 'locations': 'docs',
     'vault': 'vault',
@@ -1213,6 +1219,8 @@ PRIMARY = (
         Entry(_('Vendors'), section='psa_vendors', icon='fa-truck', keywords='suppliers'),
         Entry(_('Pulse Checks'), section='mod_pulse', icon='fa-heart-pulse',
               keywords='feedback survey nps satisfaction client health'),
+        Entry(_('Client Health'), section='mod_health', icon='fa-heart-circle-check',
+              keywords='customer health score churn risk unknown stale weights'),
     )),
     Group('knowledge', _('Knowledge & Vault'), 'fa-book-open', shortcut='k', entries=(
         Entry(_('Documentation'), section='docs_documents', icon='fa-file-alt',
@@ -1307,7 +1315,7 @@ NAMESPACE_GROUP = {
     'inventory': 'assets', 'vehicles': 'assets',
     'assets': 'assets', 'hardware': 'assets', 'network_discovery': 'assets', 'locations': 'assets',
     'statuspage': 'security', 'netconfig': 'security', 'security_alerts': 'security',
-    'crm': 'business', 'pulse': 'business', 'contracts': 'business',
+    'crm': 'business', 'pulse': 'business', 'health_score': 'business', 'contracts': 'business',
     'reports': 'reports',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',
     'integrations': 'settings', 'tech_access': 'settings', 'imports': 'settings',

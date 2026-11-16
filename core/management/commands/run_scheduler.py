@@ -67,6 +67,7 @@ COMMAND_TASKS = {
     'contracts_maintenance': ('contracts_maintenance', []),
     'm365_edit_sessions': ('m365_edit_sessions', []),
     'pulse_send_due': ('pulse_send_due', []),
+    'compute_health_scores': ('compute_health_scores', []),
 }
 
 

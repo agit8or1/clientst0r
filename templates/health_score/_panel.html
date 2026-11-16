@@ -1,0 +1,21 @@
+{% if show %}
+<div class="card mb-4" id="client-health">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-heart-circle-check me-1"></i> Customer health</h5>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'health_score:detail' client.pk %}">Details</a>
+    </div>
+    <div class="card-body">
+    {% if p %}
+        {% include "health_score/_score.html" %}
+        <div class="d-flex flex-wrap gap-2 mt-2">
+        {% for d in p.dimensions %}
+            <a class="badge text-bg-{{ d.badge }} text-decoration-none" href="{% url 'health_score:detail' client.pk %}#dim-{{ d.key }}" title="{{ d.status_label }}">{{ d.label }}: {% if d.value is not None %}{{ d.value|floatformat:0 }}{% else %}{{ d.status_label }}{% endif %}</a>
+        {% endfor %}
+        </div>
+        <div class="small text-body-secondary mt-2">Computed {{ p.snapshot.computed_at|date:"Y-m-d H:i" }}</div>
+    {% else %}
+        {% include "core/_empty_state.html" with compact=True title="No health snapshot yet" text="Snapshots are computed nightly; open Details to compute one now." %}
+    {% endif %}
+    </div>
+</div>
+{% endif %}
