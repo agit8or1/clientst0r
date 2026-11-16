@@ -288,7 +288,8 @@ class Command(BaseCommand):
         provider = get_accounting_provider(conn)
         if provider is None:
             return
-        result = provider.push_invoice(invoice)
+        from integrations.services.invoice_push import push_invoice_safely
+        result = push_invoice_safely(invoice, conn, provider)
         if result.get('success'):
             self.stdout.write(self.style.SUCCESS(
                 f'  pushed {invoice.invoice_number} → {conn.provider_type} '

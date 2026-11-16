@@ -39,6 +39,25 @@
                 <label class="form-check-label" for="is_active">Active</label>
             </div>
 
+            <div class="col-12"><hr><h5>Posting</h5>
+                <p class="text-muted small mb-2">Where invoice lines and payments land in the accounting system.</p>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="default_item_id">Default item id (QuickBooks Online)</label>
+                <input type="text" id="default_item_id" name="default_item_id" class="form-control" value="{{ item.default_item_id|default:'' }}">
+                <div class="form-text">Item used for invoice lines whose GL code has no mapping below. Leave blank to refuse such lines instead.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="payment_account_code">Payment bank account code (Xero)</label>
+                <input type="text" id="payment_account_code" name="payment_account_code" class="form-control" value="{{ item.payment_account_code|default:'' }}">
+                <div class="form-text">Bank account payments are recorded against. Payments are not pushed until this is set.</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="item_mappings">GL code to item mappings (QuickBooks Online)</label>
+                <textarea id="item_mappings" name="item_mappings" rows="4" class="form-control font-monospace" placeholder="4100 = 12">{{ item_mappings_text }}</textarea>
+                <div class="form-text">One per line: <code>GL code = QuickBooks Item id</code>. The Item's income account decides where the revenue lands.</div>
+            </div>
+
             <div class="col-12"><hr><h5>OAuth credentials</h5>
                 <p class="text-muted small mb-2">Paste the client_id + client_secret from your provider portal. After saving, click <strong>Connect</strong> to start the OAuth flow.</p>
             </div>

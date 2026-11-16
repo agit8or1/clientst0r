@@ -625,6 +625,11 @@ class GLAccountMappingTests(TestCase):
             organization=self.org, provider_type='quickbooks_online',
             name='qbo-gl-test',
         )
+        # QBO ItemRef takes an Item id, not the GL account code: the code is
+        # mapped to an Item on the connection.
+        from .models import AccountingItemMapping
+        AccountingItemMapping.objects.create(
+            connection=conn, gl_account_code='4100', provider_item_id='77')
         provider = QuickBooksOnlineProvider(conn)
         captured = {}
 
@@ -651,7 +656,7 @@ class GLAccountMappingTests(TestCase):
                               if l['Description'] == 'Mapped line'), None)
         self.assertIsNotNone(line_with_ref)
         self.assertEqual(line_with_ref['SalesItemLineDetail']['ItemRef'],
-                          {'value': '4100'})
+                          {'value': '77'})
         # Unmapped line does NOT include ItemRef
         line_default = next((l for l in lines
                              if l['Description'] == 'Default line'), None)

@@ -6038,7 +6038,21 @@ def invoice_push_to_accounting(request, pk):
     # A re-push is still possible (the invoice was deleted provider-side, say)
     # but it now has to be asked for explicitly rather than being one stray
     # click away.
-    if invoice.accounting_external_id and not request.POST.get('force'):
+    # v3.17.6xx: `force` is a deliberate, permissioned act. It no longer skips
+    # anything else: the push service still checks the recorded provider copy
+    # is gone and searches for one carrying our push key before creating.
+    force = bool(request.POST.get('force'))
+    if force and invoice.accounting_external_id:
+        from .visibility import is_msp_staff
+        if not (is_msp_staff(request.user)
+                and request.user.has_perm('psa.force_repush_invoice')):
+            messages.error(
+                request,
+                'Re-pushing an invoice that already has an accounting id needs '
+                'MSP staff with the "Can force re-push of an invoice to '
+                'accounting" permission.')
+            return redirect('psa:invoice_detail', pk=invoice.pk)
+    if invoice.accounting_external_id and not force:
         pushed = invoice.pushed_to_accounting_at
         # `accounting_provider` is a plain CharField with no choices, so there
         # is no get_..._display() to call — format the stored slug instead.
@@ -6081,16 +6095,37 @@ def invoice_push_to_accounting(request, pk):
         messages.error(request, 'Provider class not registered.')
         return redirect('psa:invoice_detail', pk=invoice.pk)
 
+    from integrations.services.invoice_push import push_invoice_safely
     try:
-        result = provider.push_invoice(invoice)
+        result = push_invoice_safely(invoice, conn, provider,
+                                     user=request.user, force=force)
     except Exception as exc:
         messages.error(request, f'Push failed: {exc}')
         return redirect('psa:invoice_detail', pk=invoice.pk)
 
-    if result.get('success'):
-        messages.success(request, f'Pushed to {conn.get_provider_type_display()} (id {result.get("invoice_id")}).')
+    outcome = result.get('outcome')
+    where = conn.get_provider_type_display()
+    if outcome == 'created':
+        messages.success(request, f'Pushed to {where} (id {result.get("invoice_id")}).')
+    elif outcome == 'adopted':
+        messages.success(
+            request,
+            f'Found this invoice already in {where} (id {result.get("invoice_id")}) '
+            f'from an earlier push and linked it. No new invoice was created.')
+    elif outcome in ('in_flight', 'unknown', 'already_pushed', 'exists'):
+        messages.warning(request, result.get('error') or 'Not pushed.')
     else:
-        messages.error(request, f'Push failed: {result.get("error", "unknown")}')
+        messages.error(request, f'Push failed: {result.get("error") or "unknown"}')
+    AuditLog.log(
+        user=request.user, action='update',
+        organization=invoice.organization,
+        object_type='psa.Invoice', object_id=invoice.pk,
+        object_repr=invoice.invoice_number,
+        description=(f'Accounting push of {invoice.invoice_number} to {conn.name}'
+                     f'{" (forced)" if force else ""}: {outcome}'
+                     + (f' id {result.get("invoice_id")}' if result.get('invoice_id') else '')),
+        ip_address=_client_ip(request), path=request.path,
+    )
     return redirect('psa:invoice_detail', pk=invoice.pk)
 
 
