@@ -1,26 +1,42 @@
 """The Business Overview metrics, one provider per card.
 
-Every provider reads an existing source. Where a canonical reporting function
-exists in `reports.queries` (or `reports.costing`) it is looked up with
-getattr / find_spec at call time, so a server without it reports the card as
-"not configured" instead of computing a stand-in. Apps that are not installed
-(backup monitoring, licensing) are detected through the app registry.
+Every provider reads an existing source and reuses the calculation the
+reports already make (one source of truth):
 
-The value and the drill-down rows always come from the same collect() call;
-see executive.metrics. docs/plans/EXECUTIVE_METRICS.md lists every metric,
-its source and which branch completes it.
+  reports.queries   recurring_revenue / mrr_trend (MRR, ARR), contract_churn,
+                    _contracts_running_on (active customers), revenue_by_client
+                    and revenue_by_service_line (invoiced revenue),
+                    profitability_by_client + reports.costing.summarize (margin),
+                    contracts_expiring, unbilled_time, utilization_summary,
+                    sla_trend_by_priority
+  psa.models        get_psa_balance (accounts receivable, as the aging report)
+  payments          payment attempts and disputes
+  security_alerts   alerts and incidents
+
+Each carries the source's completeness: a figure the source cannot know is
+reported as unknown and incomplete, never as zero or healthy. Apps that are
+not installed (backup monitoring, licensing) are detected through the app
+registry and reported as "not configured".
+
+Every collect() receives the viewer's customer ids (their client scope, the
+same rule as the profitability reports) and passes them to the source as
+`organization=`, so aggregates only add up customers the viewer may see.
+The value and the drill-down rows always come from the same collect() call
+(executive.metrics). docs/plans/EXECUTIVE_METRICS.md lists every metric.
 """
 from __future__ import annotations
 
 from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
-from importlib.util import find_spec
 
 from django.apps import apps
 from django.db.models import F, Q
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+
+from reports import queries
+from reports.costing import summarize
 
 from .metrics import (
     ALL_FILTERS, F_CUSTOMER, F_DATE, F_LOCATION, F_SERVICE_LINE, Collected, Column,
@@ -28,11 +44,9 @@ from .metrics import (
 )
 
 ZERO = Decimal('0')
-# Issued invoices, the set revenue reports count (reports.queries.revenue_by_client).
+# Issued invoices, the set the revenue reports count (reports.queries.revenue_by_client).
 REVENUE_STATUSES = ('sent', 'partial', 'paid', 'overdue')
-# Invoices that can still carry a receivable.
-AR_STATUSES = ('sent', 'partial', 'overdue')
-PROFITABILITY_BRANCH = 'dev/profitability'
+PROFITABILITY_LABEL = 'Operational estimate, not accounting results'
 
 
 # -- shared helpers ------------------------------------------------------------
@@ -44,24 +58,6 @@ def _url(name, *args):
         return ''
 
 
-def _queries_fn(name):
-    """reports.queries.<name> when this server has it, else None."""
-    try:
-        from reports import queries
-    except Exception:  # pragma: no cover - reports is always installed
-        return None
-    return getattr(queries, name, None)
-
-
-def has_costing():
-    """reports.costing: per-entry cost and bill rates with completeness
-    (no placeholder rates). Lands with dev/profitability."""
-    try:
-        return find_spec('reports.costing') is not None
-    except (ImportError, ValueError):
-        return False
-
-
 def _psa_off():
     from core.models import SystemSetting
     if not SystemSetting.get_settings().psa_enabled:
@@ -69,30 +65,13 @@ def _psa_off():
     return None
 
 
-def _as_set(ids):
-    return None if ids is None else set(ids)
+def _org_arg(ids):
+    """The `organization=` argument the reports.queries functions take."""
+    return None if ids is None else sorted(ids)
 
 
 def _money(v):
     return Decimal(str(v or 0)).quantize(Decimal('0.01'))
-
-
-def _hours(minutes):
-    return round((minutes or 0) / 60.0, 2)
-
-
-def _perm_known(key):
-    from accounts.permission_registry import is_known
-    return is_known(key)
-
-
-def _monthly_amount(contract):
-    """reports.queries.monthly_amount (dev/profitability) when present."""
-    fn = _queries_fn('monthly_amount')
-    if fn is None:
-        return None
-    m = fn(contract)
-    return None if m is None else Decimal(str(m))
 
 
 class PsaProvider(MetricProvider):
@@ -111,43 +90,39 @@ class MrrArr(PsaProvider):
     chart = 'line'
     order = 10
     source = ('Billing contracts: recurring amount normalized to a month '
-              '(reports.queries.recurring_revenue / mrr_trend)')
+              '(reports.queries.recurring_revenue, mrr_trend)')
     supported_filters = (F_DATE, F_CUSTOMER)
     columns = (Column('label', 'Contract'), Column('client_name', 'Customer'),
                Column('frequency', 'Billing frequency'), Column('mrr', 'MRR', 'currency'),
                Column('next_billing_date', 'Next billing', 'date'), Column('end_date', 'Ends', 'date'))
 
-    def availability(self):
-        if _queries_fn('recurring_revenue') is None or _queries_fn('mrr_trend') is None:
-            return ('Recurring revenue reporting (reports.queries.recurring_revenue) is not on this '
-                    f'server yet; it arrives with {PROFITABILITY_BRANCH}.')
-        return super().availability()
-
     def as_of(self, filters):
         return filters.end
 
     def collect(self, scope, filters):
-        ids = _as_set(scope.customer_ids(filters))
-        rr = _queries_fn('recurring_revenue')(filters.end, ids)
-        trend = _queries_fn('mrr_trend')(12, filters.end, ids)
-        rows = [dict(c, label=c.get('contract_name', ''),
-                     url=_url('psa:contract_detail', c['contract_id']))
-                for c in rr.get('contracts', [])]
+        org = _org_arg(scope.customer_ids(filters))
+        rr = queries.recurring_revenue(filters.end, org)
+        trend = queries.mrr_trend(12, filters.end, org)
+        rows = [dict(c, label=c.get('contract_name', ''), url=_url('psa:contract_detail', c['contract_id']))
+                for c in rr['contracts']]
         reasons, notes = [], []
         if rr.get('contracts_unknown_end'):
             reasons.append(f"{rr['contracts_unknown_end']} stopped contracts have no end date")
+        incomplete_months = [p['month'] for p in trend['points'] if not p.get('is_complete', True)]
+        if incomplete_months and not reasons:
+            reasons.append(f'{len(incomplete_months)} months include stopped contracts with no end date')
         if rr.get('contracts_without_amount'):
-            notes.append(f"{rr['contracts_without_amount']} running contracts have no recurring "
-                         'amount and add nothing to MRR.')
+            notes.append(f"{rr['contracts_without_amount']} running contracts have no recurring amount "
+                         'and add nothing to MRR.')
+        growth = trend.get('mom_growth_pct')
         return Collected(
-            value=rr.get('mrr'), rows=rows,
-            trend=[{'label': p['month'], 'value': p['mrr']} for p in trend.get('points', [])],
-            breakdown=[{'label': 'ARR', 'value': rr.get('arr'), 'unit': 'currency'},
-                       {'label': 'Contracts', 'value': rr.get('contract_count', len(rows))}],
-            is_complete=bool(rr.get('is_complete', True)) and bool(trend.get('is_complete', True)),
-            unknown_reason='; '.join(reasons) or (
-                '' if trend.get('is_complete', True) else 'Some months include contracts with no end date'),
-            notes=notes,
+            value=rr['mrr'], rows=rows,
+            trend=[{'label': p['month'], 'value': p['mrr']} for p in trend['points']],
+            breakdown=[{'label': 'ARR', 'value': rr['arr'], 'unit': 'currency'},
+                       {'label': 'Month-over-month', 'value': growth, 'unit': 'percent'},
+                       {'label': 'Contracts', 'value': rr['contract_count']}],
+            is_complete=bool(rr['is_complete']) and bool(trend['is_complete']),
+            unknown_reason='; '.join(reasons), notes=notes,
         )
 
 
@@ -159,88 +134,82 @@ class RevenueTrend(PsaProvider):
     unit = 'currency'
     chart = 'bar'
     order = 20
-    source = 'Issued invoices (sent, partially paid, paid, overdue) by invoice date'
+    source = ('Issued invoices (sent, partially paid, paid, overdue) by invoice date '
+              '(reports.queries.revenue_by_client / revenue_by_service_line)')
     supported_filters = (F_DATE, F_CUSTOMER, F_SERVICE_LINE)
     columns = (Column('label', 'Invoice'), Column('client_name', 'Customer'),
                Column('invoice_date', 'Date', 'date'), Column('status', 'Status'),
                Column('service_line', 'Service line'), Column('total', 'Total', 'currency'))
 
+    @staticmethod
+    def _total(start, end, org, service_line):
+        if service_line:
+            lines = queries.revenue_by_service_line(start, end, org)
+            return _money(sum(r['revenue'] for r in lines['rows'] if r['key'] == service_line))
+        return _money(sum(r['invoiced'] for r in queries.revenue_by_client(start, end, org)))
+
     def collect(self, scope, filters):
         from psa.models import Contract, Invoice
         ids = scope.customer_ids(filters)
+        org = _org_arg(ids)
+        total = self._total(filters.start, filters.end, org, filters.service_line)
+        trend = [{'label': label, 'value': self._total(m_start, m_end, org, filters.service_line)}
+                 for label, m_start, m_end in months_between(filters.start, filters.end)]
+        # The records: the invoices revenue_by_client sums (same statuses, dates
+        # and customer field), narrowed like revenue_by_service_line for a line.
         qs = Invoice.objects.filter(invoice_date__gte=filters.start, invoice_date__lte=filters.end,
                                     status__in=REVENUE_STATUSES)
         qs = limit_to(qs, 'client_org', ids)
         if filters.service_line:
             qs = qs.filter(source_contract__contract_type=filters.service_line)
         labels = dict(Contract.CONTRACT_TYPES)
-        rows, by_month = [], OrderedDict((m[0], ZERO) for m in months_between(filters.start, filters.end))
+        rows = []
         for inv in qs.select_related('client_org', 'source_contract').order_by('invoice_date', 'pk'):
-            total = _money(inv.total)
-            by_month[inv.invoice_date.strftime('%Y-%m')] = by_month.get(
-                inv.invoice_date.strftime('%Y-%m'), ZERO) + total
             sl = inv.source_contract.contract_type if inv.source_contract_id else ''
             rows.append({'id': inv.pk, 'label': inv.invoice_number or f'#{inv.pk}',
                          'client_name': inv.client_org.name, 'invoice_date': inv.invoice_date,
                          'status': inv.status, 'service_line': labels.get(sl, ''),
-                         'total': total, 'url': _url('psa:invoice_detail', inv.pk)})
-        total = sum((r['total'] for r in rows), ZERO)
-        return Collected(value=total, rows=rows,
-                         trend=[{'label': k, 'value': v} for k, v in by_month.items()],
-                         breakdown=[{'label': 'Invoices', 'value': len(rows)}])
+                         'total': _money(inv.total), 'url': _url('psa:invoice_detail', inv.pk)})
+        notes, breakdown = [], []
+        if not filters.service_line:
+            lines = queries.revenue_by_service_line(filters.start, filters.end, org)
+            breakdown = [{'label': r['label'], 'value': r['revenue'], 'unit': 'currency'}
+                         for r in lines['rows']]
+            if lines['unattributed']:
+                notes.append(f"{lines['unattributed']:,.2f} of revenue is not attributed to a service line.")
+        return Collected(value=total, rows=rows, trend=trend, breakdown=breakdown, notes=notes,
+                         secondary=f'{len(rows)} invoices')
 
 
 class _Profitability(PsaProvider):
     """Shared source for the margin cards: reports.queries.profitability_by_client
-    as rewritten on dev/profitability (each entry costed at its technician's
-    rate on the day; hours without a rate reported as unknown_cost_hours)."""
+    (each entry costed at its technician's rate on the day; hours without a
+    rate are unknown) summed with reports.costing.summarize, exactly as the
+    profitability report does. Margin is unknown while any hour lacks a rate."""
     section = 'Profitability'
-    label = 'Operational estimate, not accounting results'
+    label = PROFITABILITY_LABEL
+    permission = 'view_profitability'
     source = ('Invoiced revenue less labour cost at each technician\'s cost rate '
               '(reports.queries.profitability_by_client, reports.costing)')
     supported_filters = (F_DATE, F_CUSTOMER)
 
-    def permission_key(self):
-        return 'view_profitability' if _perm_known('view_profitability') else 'reports_view_financial'
-
-    @property
-    def permission_note(self):
-        if _perm_known('view_profitability'):
-            return ''
-        return ('Gated by reports_view_financial: the view_profitability permission is not on this '
-                f'server yet ({PROFITABILITY_BRANCH}).')
-
-    def availability(self):
-        if not has_costing() or _queries_fn('profitability_by_client') is None:
-            return ('Cost and margin need per-technician cost rates without placeholder fallbacks '
-                    f'(reports.costing), which arrive with {PROFITABILITY_BRANCH}.')
-        return super().availability()
-
     def _rows(self, scope, filters, start=None, end=None):
-        ids = scope.customer_ids(filters)
-        # Called for every customer and narrowed here: the per-client rows are
-        # the records, so filtering them is exact, and it does not depend on
-        # which invoice field the query function filters on.
-        raw = _queries_fn('profitability_by_client')(start or filters.start, end or filters.end, None)
-        out = []
-        for r in raw:
-            if ids is not None and r.get('client_id') not in ids:
-                continue
-            out.append(r)
-        return out
+        return queries.profitability_by_client(start or filters.start, end or filters.end,
+                                               organization=_org_arg(scope.customer_ids(filters)))
 
     @staticmethod
-    def _totals(rows):
-        revenue = sum((_money(r.get('revenue')) for r in rows), ZERO)
-        cost = sum((_money(r.get('cost')) for r in rows), ZERO)
-        unknown = sum(float(r.get('unknown_cost_hours') or 0) for r in rows)
-        return revenue, cost, unknown
+    def _rows_out(rows):
+        return [dict(r, label=r.get('client_name', ''), url=_url('accounts:organization_detail', r['client_id']))
+                for r in rows]
 
 
-def _unknown_hours_reason(hours):
-    if not hours:
-        return ''
-    return f'{round(hours, 1):g} hours without a cost rate'
+def _unknown_reason(summary):
+    parts = []
+    if summary.get('unknown_cost_hours'):
+        parts.append(f"{summary['unknown_cost_hours']:g} hours without a cost rate")
+    if summary.get('unknown_bill_hours'):
+        parts.append(f"{summary['unknown_bill_hours']:g} hours without a bill rate")
+    return '; '.join(parts)
 
 
 class GrossMargin(_Profitability):
@@ -250,29 +219,25 @@ class GrossMargin(_Profitability):
     unit = 'percent'
     chart = 'line'
     order = 30
-    columns = (Column('client_name', 'Customer'), Column('revenue', 'Revenue', 'currency'),
+    columns = (Column('label', 'Customer'), Column('revenue', 'Revenue', 'currency'),
                Column('cost', 'Labour cost (known)', 'currency'), Column('margin', 'Margin', 'currency'),
                Column('margin_pct', 'Margin %', 'percent'),
                Column('unknown_cost_hours', 'Hours without cost rate', 'hours'))
 
     def collect(self, scope, filters):
         rows = self._rows(scope, filters)
-        revenue, cost, unknown = self._totals(rows)
-        pct = float((revenue - cost) / revenue * 100) if revenue else None
+        s = summarize(rows)
         trend = []
         for label, m_start, m_end in months_between(filters.start, filters.end):
-            m_rev, m_cost, _u = self._totals(self._rows(scope, filters, m_start, m_end))
             trend.append({'label': label,
-                          'value': round(float((m_rev - m_cost) / m_rev * 100), 1) if m_rev else None})
-        out = [dict(r, label=r.get('client_name', ''),
-                    url=_url('accounts:organization_detail', r['client_id'])) for r in rows]
+                          'value': summarize(self._rows(scope, filters, m_start, m_end))['blended_margin_pct']})
         return Collected(
-            value=None if pct is None else round(pct, 1), rows=out, trend=trend,
-            breakdown=[{'label': 'Revenue', 'value': revenue, 'unit': 'currency'},
-                       {'label': 'Labour cost', 'value': cost, 'unit': 'currency'},
-                       {'label': 'Margin', 'value': revenue - cost, 'unit': 'currency'}],
-            is_complete=not unknown, unknown_reason=_unknown_hours_reason(unknown),
-            secondary='' if revenue else 'No invoiced revenue in this period.',
+            value=s['blended_margin_pct'], rows=self._rows_out(rows), trend=trend,
+            breakdown=[{'label': 'Revenue', 'value': s['total_revenue'], 'unit': 'currency'},
+                       {'label': 'Labour cost (known)', 'value': s['total_cost'], 'unit': 'currency'},
+                       {'label': 'Margin', 'value': s['total_margin'], 'unit': 'currency'}],
+            is_complete=s['is_complete'], unknown_reason=_unknown_reason(s),
+            secondary='' if s['total_revenue'] else 'No invoiced revenue in this period.',
         )
 
 
@@ -281,51 +246,31 @@ class CustomerProfitability(_Profitability):
     title = 'Customer profitability'
     icon = 'fa-ranking-star'
     unit = 'count'
-    chart = 'bars_signed'
+    chart = 'none'
     order = 40
     columns = GrossMargin.columns
 
     def collect(self, scope, filters):
         rows = self._rows(scope, filters)
-        _r, _c, unknown = self._totals(rows)
-        ranked = [r for r in rows if r.get('margin') is not None]
-        ranked.sort(key=lambda r: r['margin'], reverse=True)
-        top, bottom = ranked[:5], list(reversed(ranked[-5:])) if len(ranked) > 5 else []
-        breakdown = [{'label': r['client_name'], 'value': r['margin'], 'unit': 'currency', 'group': 'Top'}
+        s = summarize(rows)
+        ranked = sorted((r for r in rows if r.get('margin') is not None), key=lambda r: r['margin'], reverse=True)
+        top = ranked[:5]
+        bottom = list(reversed(ranked[5:][-5:]))
+        breakdown = [{'label': r['client_name'], 'value': r['margin'], 'unit': 'currency', 'group': 'Most profitable'}
                      for r in top]
         breakdown += [{'label': r['client_name'], 'value': r['margin'], 'unit': 'currency',
-                       'group': 'Bottom'} for r in bottom]
+                       'group': 'Least profitable'} for r in bottom]
         unranked = len(rows) - len(ranked)
-        out = [dict(r, label=r.get('client_name', ''),
-                    url=_url('accounts:organization_detail', r['client_id']))
-               for r in sorted(rows, key=lambda r: (r.get('margin') is None, -(r.get('margin') or 0)))]
-        reason = _unknown_hours_reason(unknown)
+        reason = _unknown_reason(s)
         if unranked:
-            reason = (reason + '; ' if reason else '') + f'{unranked} customers cannot be ranked'
-        return Collected(value=len(rows), rows=out, breakdown=breakdown,
-                         is_complete=not unknown and not unranked, unknown_reason=reason,
-                         secondary=f'{len(ranked)} ranked by margin')
+            reason = (reason + '; ' if reason else '') + f'{unranked} customers have an unknown margin'
+        ordered = ranked + [r for r in rows if r.get('margin') is None]
+        return Collected(value=len(rows), rows=self._rows_out(ordered), breakdown=breakdown,
+                         is_complete=not unranked and s['is_complete'], unknown_reason=reason,
+                         secondary=f'{len(ranked)} customers ranked by margin')
 
 
 # -- customers & contracts -----------------------------------------------------
-
-def _running_contracts(on_date, ids, service_line=''):
-    """Non-draft contracts running on `on_date` and the stopped ones whose
-    stop date is unknown (cancelled / expired, no end date)."""
-    from psa.models import Contract
-    qs = Contract.objects.exclude(status='draft').filter(start_date__lte=on_date).filter(
-        Q(end_date__isnull=True) | Q(end_date__gte=on_date))
-    qs = limit_to(qs, 'client_org', ids)
-    if service_line:
-        qs = qs.filter(contract_type=service_line)
-    running, unknown = [], []
-    for c in qs.select_related('client_org'):
-        if c.status == 'active' or c.end_date is not None:
-            running.append(c)
-        else:
-            unknown.append(c)
-    return running, unknown
-
 
 class CustomerGrowth(PsaProvider):
     key = 'customer_growth'
@@ -335,8 +280,8 @@ class CustomerGrowth(PsaProvider):
     unit = 'count'
     chart = 'line'
     order = 50
-    source = ('Customers with a running billing contract; churn from '
-              'reports.queries.contract_churn when available')
+    source = ('Customers with a running billing contract (reports.queries._contracts_running_on); '
+              'churn from reports.queries.contract_churn')
     supported_filters = (F_DATE, F_CUSTOMER, F_SERVICE_LINE)
     columns = (Column('label', 'Customer'), Column('contracts', 'Running contracts', 'number'),
                Column('first_start', 'Customer since', 'date'), Column('new_in_period', 'New in period', 'bool'))
@@ -344,10 +289,19 @@ class CustomerGrowth(PsaProvider):
     def as_of(self, filters):
         return filters.end
 
+    @staticmethod
+    def _running(on_date, org, service_line):
+        running, undated = queries._contracts_running_on(on_date, org)
+        if service_line:
+            running = [c for c in running if c.contract_type == service_line]
+            undated = [c for c in undated if c.contract_type == service_line]
+        return running, undated
+
     def collect(self, scope, filters):
         from psa.models import Contract
         ids = scope.customer_ids(filters)
-        running, unknown = _running_contracts(filters.end, ids, filters.service_line)
+        org = _org_arg(ids)
+        running, undated = self._running(filters.end, org, filters.service_line)
         customers = OrderedDict()
         for c in sorted(running, key=lambda c: c.client_org.name.lower()):
             customers.setdefault(c.client_org_id, {'org': c.client_org, 'contracts': 0})
@@ -364,31 +318,24 @@ class CustomerGrowth(PsaProvider):
                  'first_start': first.get(oid), 'new_in_period': oid in new_ids,
                  'url': _url('accounts:organization_detail', oid)} for oid, v in customers.items()]
         trend = []
-        unknown_months = 0
         for label, _s, m_end in months_between(filters.start, filters.end):
-            r, u = _running_contracts(m_end, ids, filters.service_line)
-            unknown_months += bool(u)
+            r, _u = self._running(m_end, org, filters.service_line)
             trend.append({'label': label, 'value': len({c.client_org_id for c in r})})
-        breakdown = [{'label': 'New customers in period', 'value': len(new_ids)}]
+        churn = queries.contract_churn(filters.start, filters.end, org)
         reasons, notes = [], []
-        if unknown:
-            reasons.append(f'{len(unknown)} stopped contracts have no end date')
-        churn_fn = _queries_fn('contract_churn')
-        if churn_fn is None:
-            reasons.append(f'contract churn reporting arrives with {PROFITABILITY_BRANCH}')
-        else:
-            churn = churn_fn(filters.start, filters.end, _as_set(ids))
-            breakdown.append({'label': 'Churned contracts', 'value': churn.get('churned_count')})
-            breakdown.append({'label': 'Churned MRR', 'value': churn.get('churned_mrr'), 'unit': 'currency'})
-            if churn.get('churn_rate_pct') is not None:
-                breakdown.append({'label': 'Revenue churn', 'value': churn['churn_rate_pct'],
-                                  'unit': 'percent'})
-            if filters.service_line:
-                notes.append('Churn figures cover every service line.')
-            if not churn.get('is_complete', True):
-                reasons.append(f"{churn.get('undated_cancellations', 0)} cancellations have no end date")
-        return Collected(value=len(rows), rows=rows, trend=trend, breakdown=breakdown,
-                         is_complete=not reasons, unknown_reason='; '.join(reasons), notes=notes)
+        if undated:
+            reasons.append(f'{len(undated)} stopped contracts have no end date')
+        if not churn['is_complete']:
+            reasons.append(f"{churn['undated_cancellations']} cancellations have no end date")
+        if filters.service_line:
+            notes.append('Churn figures cover every service line.')
+        return Collected(
+            value=len(rows), rows=rows, trend=trend,
+            breakdown=[{'label': 'New customers in period', 'value': len(new_ids)},
+                       {'label': 'Churned contracts', 'value': churn['churned_count']},
+                       {'label': 'Churned MRR', 'value': churn['churned_mrr'], 'unit': 'currency'},
+                       {'label': 'Revenue churn', 'value': churn['churn_rate_pct'], 'unit': 'percent'}],
+            is_complete=not reasons, unknown_reason='; '.join(reasons), notes=notes)
 
 
 class ContractRenewals(PsaProvider):
@@ -400,41 +347,25 @@ class ContractRenewals(PsaProvider):
     chart = 'bar'
     order = 60
     point_in_time = True
-    source = 'Active billing contracts by end date'
-    supported_filters = (F_CUSTOMER, F_SERVICE_LINE)
+    source = 'Active billing contracts by end date (reports.queries.contracts_expiring)'
+    supported_filters = (F_CUSTOMER,)
     columns = (Column('label', 'Contract'), Column('client_name', 'Customer'),
                Column('end_date', 'Ends', 'date'), Column('days_left', 'Days left', 'number'),
                Column('auto_renew', 'Auto-renews', 'bool'), Column('mrr', 'MRR at stake', 'currency'))
 
     def collect(self, scope, filters):
-        from psa.models import Contract
-        ids = scope.customer_ids(filters)
-        today = timezone.localdate()
-        qs = Contract.objects.filter(status='active', end_date__isnull=False,
-                                     end_date__gte=today, end_date__lte=today + timedelta(days=90))
-        qs = limit_to(qs, 'client_org', ids)
-        if filters.service_line:
-            qs = qs.filter(contract_type=filters.service_line)
-        priced = _queries_fn('monthly_amount') is not None
-        rows = []
-        for c in qs.select_related('client_org').order_by('end_date', 'pk'):
-            rows.append({'id': c.pk, 'label': c.name, 'client_name': c.client_org.name,
-                         'end_date': c.end_date, 'days_left': (c.end_date - today).days,
-                         'auto_renew': c.auto_renew, 'mrr': _monthly_amount(c) if priced else None,
-                         'url': _url('psa:contract_detail', c.pk)})
-        breakdown = []
-        for w in (30, 60, 90):
-            inside = [r for r in rows if r['days_left'] <= w]
-            item = {'label': f'{w} days', 'value': len(inside)}
-            breakdown.append(item)
-        notes = []
-        if priced:
-            breakdown.append({'label': 'MRR at stake (90 days)', 'unit': 'currency',
-                              'value': sum((r['mrr'] or ZERO for r in rows), ZERO)})
-        else:
-            notes.append(f'MRR at stake appears once recurring revenue reporting lands ({PROFITABILITY_BRANCH}).')
-        return Collected(value=len(rows), rows=rows, breakdown=breakdown, notes=notes,
-                         secondary=f"{sum(1 for r in rows if r['auto_renew'])} set to auto-renew")
+        exp = queries.contracts_expiring(timezone.localdate(), _org_arg(scope.customer_ids(filters)))
+        w = exp['windows']
+        rows = [dict(c, id=c['contract_id'], label=c['contract_name'], url=_url('psa:contract_detail', c['contract_id']))
+                for c in w[90]['contracts']]
+        breakdown = [{'label': f'{d} days', 'value': w[d]['count']} for d in (30, 60, 90)]
+        breakdown.append({'label': 'MRR at stake (90 days)', 'unit': 'currency', 'value': w[90]['mrr']})
+        without = exp['contracts_without_amount']
+        return Collected(value=w[90]['count'], rows=rows, breakdown=breakdown,
+                         is_complete=exp['is_complete'],
+                         unknown_reason=(f'{without} contracts have no recurring amount; MRR at stake '
+                                         'leaves them out' if without else ''),
+                         secondary=f"{w[90]['auto_renew']} set to auto-renew")
 
 
 class OutstandingQuotes(PsaProvider):
@@ -488,63 +419,31 @@ class UnbilledWork(PsaProvider):
     title = 'Unbilled work'
     section = 'Billing'
     icon = 'fa-hourglass-half'
-    unit = 'hours'
+    unit = 'currency'
     chart = 'bar'
     order = 80
-    source = ('Billable, finished time entries not on any live invoice '
-              '(InvoiceLineItem.billed_source_ids)')
-    supported_filters = (F_DATE, F_CUSTOMER, F_LOCATION)
-    columns = (Column('label', 'Ticket'), Column('client_name', 'Customer'),
-               Column('technician', 'Technician'), Column('date', 'Date', 'date'),
-               Column('hours', 'Hours', 'hours'), Column('amount', 'Value at bill rate', 'currency'))
+    source = ('Billable, finished time entries on no live invoice, at each entry\'s bill rate '
+              '(reports.queries.unbilled_time)')
+    supported_filters = (F_DATE, F_CUSTOMER)
+    columns = (Column('label', 'Customer'), Column('entries', 'Time entries', 'number'),
+               Column('hours', 'Hours', 'hours'), Column('amount', 'Value (priced entries)', 'currency'),
+               Column('hours_without_rate', 'Hours without a bill rate', 'hours'))
 
     def collect(self, scope, filters):
-        from psa.models import InvoiceLineItem, TicketTimeEntry
-        ids = scope.customer_ids(filters)
-        qs = TicketTimeEntry.objects.filter(
-            started_at__date__gte=filters.start, started_at__date__lte=filters.end,
-            is_billable=True, ended_at__isnull=False, duration_minutes__gt=0, rejected_at__isnull=True)
-        qs = limit_to(qs, 'ticket__organization', ids)
-        if filters.location:
-            qs = qs.filter(ticket__site_id=filters.location)
-        billed = InvoiceLineItem.billed_source_ids('time')
-        book = None
-        if has_costing():
-            from reports.costing import RateBook
-            book = RateBook()
-        rows, by_client = [], OrderedDict()
-        without_rate = 0
-        for te in qs.select_related('ticket', 'ticket__organization', 'user').order_by('started_at', 'pk'):
-            if te.pk in billed:
-                continue
-            org = te.ticket.organization
-            hours = _hours(te.duration_minutes)
-            amount = None
-            if book is not None:
-                rate = book.bill_rate_for(te)
-                if rate is None:
-                    without_rate += 1
-                else:
-                    amount = _money(Decimal(str(hours)) * Decimal(str(rate)))
-            rows.append({'id': te.pk, 'label': te.ticket.ticket_number or f'#{te.ticket_id}',
-                         'client_name': org.name if org else '', 'technician': te.user.username if te.user else '',
-                         'date': te.started_at.date(), 'hours': hours, 'amount': amount,
-                         'url': _url('psa:ticket_detail', te.ticket.ticket_number)})
-            key = org.name if org else '—'
-            by_client[key] = by_client.get(key, 0) + hours
-        total_hours = round(sum(r['hours'] for r in rows), 2)
-        top = sorted(by_client.items(), key=lambda kv: -kv[1])[:8]
-        breakdown = [{'label': k, 'value': round(v, 2), 'unit': 'hours'} for k, v in top]
-        if book is None:
-            return Collected(value=total_hours, rows=rows, breakdown=breakdown,
-                             secondary=f'{len(rows)} time entries',
-                             notes=['Valued in hours. Valuation at bill rates arrives with '
-                                    f'{PROFITABILITY_BRANCH} (rate snapshots).'])
-        amount = sum((r['amount'] or ZERO for r in rows), ZERO)
-        return Collected(value=amount, unit='currency', rows=rows, breakdown=breakdown,
-                         secondary=f'{total_hours:g} hours in {len(rows)} time entries',
-                         is_complete=not without_rate,
-                         unknown_reason=f'{without_rate} entries without a bill rate' if without_rate else '')
+        u = queries.unbilled_time(filters.start, filters.end, _org_arg(scope.customer_ids(filters)))
+        rows = [dict(r, id=r['client_id'], label=r['client_name'],
+                     url=_url('accounts:organization_detail', r['client_id'])) for r in u['rows']]
+        reason = ''
+        if u['entries_without_rate']:
+            reason = (f"{u['entries_without_rate']} entries ({u['hours_without_rate']:g} hours) "
+                      'without a bill rate')
+        # Nothing priced: the value is unknown, not zero.
+        priced = u['entries'] - u['entries_without_rate']
+        return Collected(
+            value=u['amount'] if priced or not u['entries'] else None, rows=rows,
+            breakdown=[{'label': r['client_name'], 'value': r['hours'], 'unit': 'hours'} for r in u['rows'][:8]],
+            is_complete=u['is_complete'], unknown_reason=reason,
+            secondary=f"{u['hours']:g} hours in {u['entries']} time entries")
 
 
 class AccountsReceivable(PsaProvider):
@@ -557,58 +456,107 @@ class AccountsReceivable(PsaProvider):
     order = 90
     point_in_time = True
     permission = 'billing_view_aging'
+    source = 'Invoice balances and aging per customer (psa.get_psa_balance, as the aging report)'
     supported_filters = (F_CUSTOMER,)
-    columns = (Column('label', 'Invoice'), Column('client_name', 'Customer'),
-               Column('due', 'Due', 'date'), Column('days_overdue', 'Days past due', 'number'),
-               Column('balance', 'Balance due', 'currency'), Column('synced', 'Synced from accounting', 'bool'))
-    BUCKETS = ('Current', '1–30 days', '31–60 days', '61–90 days', 'Over 90 days')
-
-    @staticmethod
-    def _bucket(days):
-        if days <= 0:
-            return 'Current'
-        if days <= 30:
-            return '1–30 days'
-        if days <= 60:
-            return '31–60 days'
-        if days <= 90:
-            return '61–90 days'
-        return 'Over 90 days'
+    columns = (Column('label', 'Invoice'), Column('client_name', 'Customer'), Column('status', 'Status'),
+               Column('due', 'Due', 'date'), Column('days', 'Days since due', 'number'),
+               Column('balance', 'Balance', 'currency'), Column('synced', 'Synced from accounting', 'bool'))
+    BUCKETS = (('0_30', '0–30 days'), ('31_60', '31–60 days'), ('61_90', '61–90 days'), ('90_plus', 'Over 90 days'))
 
     def collect(self, scope, filters):
-        from psa.models import Invoice
+        from core.models import Organization
+        from psa.models import Invoice, get_psa_balance
         ids = scope.customer_ids(filters)
-        qs = Invoice.objects.filter(status__in=AR_STATUSES, is_credit_memo=False)
-        qs = limit_to(qs, 'client_org', ids)
+        # The aging report's rule: every customer with a non-void invoice,
+        # each summed by get_psa_balance.
+        client_ids = set(limit_to(Invoice.objects.exclude(status='void'), 'client_org', ids)
+                         .values_list('client_org_id', flat=True))
+        totals = {'outstanding': ZERO, 'net_balance': ZERO, 'credits': ZERO}
+        aging = OrderedDict((k, ZERO) for k, _l in self.BUCKETS)
+        for client in Organization.objects.filter(pk__in=client_ids):
+            s = get_psa_balance(client)
+            totals['outstanding'] += s['outstanding']
+            totals['net_balance'] += s['net_balance']
+            totals['credits'] += s['credit_total'] + s['invoice_credits']
+            for k in aging:
+                aging[k] += s['aging'][k]
+        # The records: the invoices get_psa_balance counts as outstanding.
         today = timezone.localdate()
-        rows = []
-        buckets = OrderedDict((b, ZERO) for b in self.BUCKETS)
-        last_sync = None
-        for inv in qs.select_related('client_org').prefetch_related('credit_memos').order_by('due_date', 'pk'):
-            balance = _money(inv.net_balance_due)
-            if balance <= 0:
+        rows, last_sync = [], None
+        qs = Invoice.objects.filter(client_org_id__in=client_ids).exclude(status='void')
+        for inv in qs.select_related('client_org').order_by('due_date', 'invoice_date', 'pk'):
+            bal = _money(inv.balance)
+            if bal <= 0:
                 continue
             due = inv.due_date or inv.invoice_date
-            days = (today - due).days if due else 0
-            bucket = self._bucket(days)
-            buckets[bucket] += balance
-            synced = bool(inv.provider_synced_at)
-            if synced and (last_sync is None or inv.provider_synced_at > last_sync):
+            if inv.provider_synced_at and (last_sync is None or inv.provider_synced_at > last_sync):
                 last_sync = inv.provider_synced_at
-            rows.append({'id': inv.pk, 'label': inv.invoice_number or f'#{inv.pk}',
-                         'client_name': inv.client_org.name, 'due': due, 'days_overdue': max(days, 0),
-                         'balance': balance, 'bucket': bucket, 'synced': synced,
+            rows.append({'id': inv.pk, 'label': inv.invoice_number or f'#{inv.pk}', 'client_name': inv.client_org.name,
+                         'status': inv.status, 'due': due, 'days': (today - due).days if due else None,
+                         'balance': bal, 'synced': bool(inv.provider_synced_at),
                          'url': _url('psa:invoice_detail', inv.pk)})
-        synced_n = sum(1 for r in rows if r['synced'])
-        if synced_n:
-            source = (f'Invoices; payment status synced from the accounting provider for {synced_n} of '
-                      f'{len(rows)} (last read {timezone.localtime(last_sync):%Y-%m-%d %H:%M})')
+        synced = sum(1 for r in rows if r['synced'])
+        if synced:
+            source = (f'Invoices; payment status synced from the accounting provider for {synced} of '
+                      f'{len(rows)} (last read {timezone.localtime(last_sync):%Y-%m-%d %H:%M}); '
+                      'aging as psa.get_psa_balance')
         else:
-            source = 'Invoices and payments recorded here (no accounting sync on these invoices)'
-        overdue = sum((r['balance'] for r in rows if r['days_overdue'] > 0), ZERO)
-        return Collected(value=sum((r['balance'] for r in rows), ZERO), rows=rows, source=source,
-                         breakdown=[{'label': k, 'value': v, 'unit': 'currency'} for k, v in buckets.items()],
-                         secondary=f'{len(rows)} invoices; {overdue:,.2f} past due')
+            source = 'Invoices and payments recorded here, no accounting sync (aging as psa.get_psa_balance)'
+        breakdown = [{'label': label, 'value': aging[k], 'unit': 'currency'} for k, label in self.BUCKETS]
+        breakdown.append({'label': 'Net of credits', 'value': totals['net_balance'], 'unit': 'currency'})
+        return Collected(value=totals['outstanding'], rows=rows, source=source, breakdown=breakdown,
+                         secondary=f'{len(rows)} invoices with a balance')
+
+
+class PaymentCollection(MetricProvider):
+    key = 'payment_collection'
+    title = 'Payments needing attention'
+    section = 'Billing'
+    icon = 'fa-credit-card'
+    unit = 'count'
+    chart = 'none'
+    order = 95
+    permission = 'billing_view_invoices'
+    source = 'Online payment attempts and disputes (payments)'
+    supported_filters = (F_DATE, F_CUSTOMER)
+    columns = (Column('kind', 'Type'), Column('label', 'Invoice'), Column('client_name', 'Customer'),
+               Column('amount', 'Amount', 'currency'), Column('detail', 'Detail'), Column('when', 'When', 'date'))
+
+    def availability(self):
+        if not apps.is_installed('payments'):
+            return 'Online payments are not installed on this server.'
+        from integrations.models import PaymentConnection
+        if not PaymentConnection.objects.exists():
+            return 'No payment gateway connection is set up.'
+        return None
+
+    def collect(self, scope, filters):
+        from payments.models import Dispute, PaymentAttempt
+        ids = scope.customer_ids(filters)
+        window = Q(created_at__date__gte=filters.start, created_at__date__lte=filters.end)
+        attempts = limit_to(PaymentAttempt.objects.filter(window), 'client_org', ids)
+        rows = []
+        for a in attempts.filter(status='failed').select_related('invoice', 'client_org').order_by('created_at', 'pk'):
+            rows.append({'part': 'failed', 'kind': f'Failed {a.get_kind_display().lower()}', 'id': a.pk,
+                         'label': a.invoice.invoice_number, 'client_name': a.client_org.name,
+                         'amount': _money(a.amount), 'detail': a.failure_message or a.failure_code,
+                         'when': a.created_at, 'autopay': a.kind == 'autopay',
+                         'url': _url('payments:attempt_detail', a.pk)})
+        disputes = limit_to(Dispute.objects.filter(status='open'), 'attempt__client_org', ids)
+        for d in disputes.select_related('attempt', 'attempt__invoice', 'attempt__client_org').order_by('opened_at'):
+            rows.append({'part': 'dispute', 'kind': 'Open dispute', 'id': d.pk,
+                         'label': d.attempt.invoice.invoice_number, 'client_name': d.attempt.client_org.name,
+                         'amount': _money(d.amount), 'detail': d.reason, 'when': d.opened_at, 'autopay': False,
+                         'url': _url('payments:attempt_detail', d.attempt_id)})
+        collected = sum((_money(a.amount_received if a.amount_received is not None else a.amount)
+                         for a in attempts.filter(status='succeeded')), ZERO)
+        failed = sum(1 for r in rows if r['part'] == 'failed')
+        return Collected(value=len(rows), rows=rows, breakdown=[
+            {'label': 'Failed payments', 'value': failed, 'part': 'failed'},
+            {'label': 'of which autopay', 'value': sum(1 for r in rows if r['autopay'])},
+            {'label': 'Open disputes', 'value': len(rows) - failed, 'part': 'dispute'},
+            {'label': 'Collected online in period', 'value': collected, 'unit': 'currency'},
+        ])
 
 
 # -- delivery ------------------------------------------------------------------
@@ -629,25 +577,18 @@ class TechnicianUtilization(PsaProvider):
                Column('available_hours', 'Available hours', 'hours'), Column('basis', 'Basis'),
                Column('utilization_pct', 'Utilization', 'percent'))
 
-    def availability(self):
-        if _queries_fn('utilization_summary') is None:
-            return ('Utilization against available hours (reports.queries.utilization_summary) is not on '
-                    f'this server yet; it arrives with {PROFITABILITY_BRANCH}.')
-        return super().availability()
-
     def collect(self, scope, filters):
-        ids = _as_set(scope.customer_ids(filters))
-        s = _queries_fn('utilization_summary')(filters.start, filters.end, ids)
-        rows = [dict(r, label=r.get('tech_username', '')) for r in s.get('rows', [])]
-        without = s.get('techs_without_basis', 0)
+        s = queries.utilization_summary(filters.start, filters.end, _org_arg(scope.customer_ids(filters)))
+        rows = [dict(r, id=r['tech_id'], label=r['tech_username']) for r in s['rows']]
+        without = s['techs_without_basis']
         return Collected(
-            value=s.get('utilization_pct'), rows=rows,
-            breakdown=[{'label': r['label'], 'value': r.get('utilization_pct'), 'unit': 'percent'}
-                       for r in rows if r.get('utilization_pct') is not None][:12],
-            is_complete=bool(s.get('is_complete', not without)),
+            value=s['utilization_pct'], rows=rows,
+            breakdown=[{'label': r['label'], 'value': r['utilization_pct'], 'unit': 'percent'}
+                       for r in rows if r['utilization_pct'] is not None][:12],
+            is_complete=s['is_complete'],
             unknown_reason=(f'{without} technicians have no shifts, working hours or billable target'
                             if without else ''),
-            secondary=f"{s.get('billable_hours', 0):g} of {s.get('available_hours', 0):g} available hours",
+            secondary=f"{s['billable_hours']:g} of {s['available_hours']:g} available hours",
         )
 
 
@@ -663,8 +604,8 @@ class SlaAttainment(PsaProvider):
     chart = 'line'
     order = 110
     permission = 'reports_view_sla'
-    source = ('Tickets created in the period: resolution SLA met '
-              '(same breach rules as reports.queries.sla_trend_by_priority)')
+    source = ('Tickets created in the period without a resolution SLA breach '
+              '(reports.queries.sla_trend_by_priority)')
     supported_filters = (F_DATE, F_CUSTOMER)
     columns = (Column('label', 'Ticket'), Column('client_name', 'Customer'), Column('priority', 'Priority'),
                Column('created', 'Created', 'date'), Column('response_breached', 'Response breached', 'bool'),
@@ -672,12 +613,22 @@ class SlaAttainment(PsaProvider):
 
     def collect(self, scope, filters):
         from psa.models import Ticket
-        from reports.queries import sla_trend_by_priority
         ids = scope.customer_ids(filters)
+        sla = queries.sla_trend_by_priority(filters.start, filters.end, _org_arg(ids), bucket='month')
+        totals = sla['totals_by_priority'].values()
+        n = sum(t['tickets'] for t in totals)
+        breaches = sum(t['resolution_breaches'] for t in totals)
+        resp_breaches = sum(t['response_breaches'] for t in totals)
+        trend = []
+        for i, label in enumerate(sla['buckets']):
+            t = sum(sla['series'][p][i]['tickets'] for p in sla['priorities'])
+            b = sum(sla['series'][p][i]['resolution_breaches'] for p in sla['priorities'])
+            trend.append({'label': label, 'value': round(100 - b / t * 100, 1) if t else None})
+        # The records: the tickets that report counts, flagged with its breach rules.
         now = timezone.now()
-        qs = Ticket.objects.filter(priority__code__in=PRIORITY_CODES,
-                                   created_at__date__gte=filters.start, created_at__date__lte=filters.end)
-        qs = limit_to(qs, 'organization', ids)
+        qs = limit_to(Ticket.objects.filter(priority__code__in=sla['priorities'],
+                                            created_at__date__gte=filters.start,
+                                            created_at__date__lte=filters.end), 'organization', ids)
         resp = set(qs.exclude(first_response_due_at__isnull=True).filter(
             Q(first_response_at__gt=F('first_response_due_at'))
             | Q(first_response_at__isnull=True, first_response_due_at__lt=now)).values_list('pk', flat=True))
@@ -688,15 +639,6 @@ class SlaAttainment(PsaProvider):
                  'response_breached': t.pk in resp, 'resolution_breached': t.pk in res,
                  'url': _url('psa:ticket_detail', t.ticket_number)}
                 for t in qs.select_related('organization', 'priority').order_by('created_at', 'pk')]
-        n = len(rows)
-        breaches = sum(1 for r in rows if r['resolution_breached'])
-        resp_breaches = sum(1 for r in rows if r['response_breached'])
-        trend_src = sla_trend_by_priority(filters.start, filters.end, _as_set(ids), bucket='month')
-        trend = []
-        for i, label in enumerate(trend_src['buckets']):
-            t = sum(trend_src['series'][p][i]['tickets'] for p in trend_src['priorities'])
-            b = sum(trend_src['series'][p][i]['resolution_breaches'] for p in trend_src['priorities'])
-            trend.append({'label': label, 'value': round(100 - b / t * 100, 1) if t else None})
         return Collected(
             value=round(100 - breaches / n * 100, 1) if n else None, rows=rows, trend=trend,
             breakdown=[{'label': 'Tickets', 'value': n},
@@ -775,34 +717,30 @@ class CriticalIssues(PsaProvider):
                  'client_name': t.organization.name, 'opened': t.created_at,
                  'url': _url('psa:ticket_detail', t.ticket_number)}
                 for t in qs.select_related('organization').order_by('created_at', 'pk')]
-        reasons, notes = [], []
-        sec = scope.other('security_alerts_view')
-        incidents = 0
+        reasons, notes, incidents = [], [], 0
         if filters.location:
             notes.append('Security incidents carry no location; with a location filter only P1 tickets count.')
         else:
             try:
-                inc_ids = sec.customer_ids(filters)
+                inc_ids = scope.other('security_alerts_view').customer_ids(filters)
             except Forbidden:
-                inc_ids = None
                 reasons.append('security incidents hidden: your role lacks security_alerts_view')
-        if not filters.location and not reasons:
-            iqs = SecurityIncident.objects.filter(status__in=self.INCIDENT_OPEN, severity__in=('high', 'critical'))
-            iqs = limit_customer_or_owner(iqs, inc_ids)
-            for i in iqs.select_related('client_org', 'organization').order_by('opened_at', 'pk'):
-                incidents += 1
-                cust = i.client_org or i.organization
-                rows.append({'part': 'incident', 'kind': f'{i.get_severity_display()} incident', 'id': i.pk,
-                             'label': f'INC-{i.pk}', 'title': i.title, 'client_name': cust.name,
-                             'opened': i.opened_at, 'url': _url('security_alerts:incident_detail', i.pk)})
-        p1 = len(rows) - incidents
+            else:
+                iqs = SecurityIncident.objects.filter(status__in=self.INCIDENT_OPEN, severity__in=('high', 'critical'))
+                for i in limit_customer_or_owner(iqs, inc_ids).select_related(
+                        'client_org', 'organization').order_by('opened_at', 'pk'):
+                    incidents += 1
+                    cust = i.client_org or i.organization
+                    rows.append({'part': 'incident', 'kind': f'{i.get_severity_display()} incident', 'id': i.pk,
+                                 'label': f'INC-{i.pk}', 'title': i.title, 'client_name': cust.name,
+                                 'opened': i.opened_at, 'url': _url('security_alerts:incident_detail', i.pk)})
         return Collected(value=len(rows), rows=rows,
-                         breakdown=[{'label': 'Open P1 tickets', 'value': p1, 'part': 'p1'},
+                         breakdown=[{'label': 'Open P1 tickets', 'value': len(rows) - incidents, 'part': 'p1'},
                                     {'label': 'Security incidents', 'value': incidents, 'part': 'incident'}],
                          is_complete=not reasons, unknown_reason='; '.join(reasons), notes=notes)
 
 
-# -- risk ----------------------------------------------------------------------
+# -- risk / operations -----------------------------------------------------------
 
 class SecurityIssues(MetricProvider):
     key = 'security_issues'
@@ -860,7 +798,8 @@ class BackupFailures(MetricProvider):
                Column('severity', 'Severity'), Column('last_seen', 'Last seen', 'date'))
 
     def permission_key(self):
-        return 'view_backup_status' if _perm_known('view_backup_status') else 'monitoring_view'
+        from accounts.permission_registry import is_known
+        return 'view_backup_status' if is_known('view_backup_status') else 'monitoring_view'
 
     def availability(self):
         if not apps.is_installed('backup_monitoring'):
@@ -883,8 +822,8 @@ class BackupFailures(MetricProvider):
         qs = limit_to(alert.objects.filter(status__in=('open', 'acknowledged')), 'organization', ids)
         rows, kinds = [], OrderedDict()
         for a in qs.select_related('organization').order_by('-pk'):
-            kind = getattr(a, 'kind', '')
-            kinds[kind or 'other'] = kinds.get(kind or 'other', 0) + 1
+            kind = getattr(a, 'kind', '') or 'other'
+            kinds[kind] = kinds.get(kind, 0) + 1
             job_id = getattr(a, 'job_id', None)
             rows.append({'id': a.pk, 'label': a.title, 'client_name': a.organization.name, 'kind': kind,
                          'severity': getattr(a, 'severity', ''), 'last_seen': getattr(a, 'last_seen_at', None),
@@ -976,20 +915,18 @@ class LicensingRenewals(MetricProvider):
             raise NotConfigured('The installed licensing app has an unexpected subscription schema.')
         ids = scope.customer_ids(filters)
         today = timezone.localdate()
-        qs = sub.objects.filter(status__in=self.LIVE, renewal_date__gte=today,
-                                renewal_date__lte=today + timedelta(days=90))
-        qs = limit_to(qs, 'organization', ids)
+        qs = limit_to(sub.objects.filter(status__in=self.LIVE, renewal_date__gte=today,
+                                         renewal_date__lte=today + timedelta(days=90)), 'organization', ids)
         rows, unpriced = [], 0
-        for s in qs.select_related('organization', 'product').order_by('renewal_date', 'pk'):
+        for s in qs.select_related('organization').order_by('renewal_date', 'pk'):
             value = None
             if s.unit_price is None:
                 unpriced += 1
             else:
                 value = _money(Decimal(str(s.unit_price)) * s.quantity_purchased)
-            rows.append({'id': s.pk, 'label': str(getattr(s, 'product', '') or s.pk),
-                         'client_name': s.organization.name, 'renewal_date': s.renewal_date,
-                         'days_left': (s.renewal_date - today).days, 'quantity': s.quantity_purchased,
-                         'value': value, 'url': ''})
+            rows.append({'id': s.pk, 'label': str(s), 'client_name': s.organization.name,
+                         'renewal_date': s.renewal_date, 'days_left': (s.renewal_date - today).days,
+                         'quantity': s.quantity_purchased, 'value': value, 'url': ''})
         breakdown = [{'label': f'{w} days', 'unit': 'currency',
                       'value': sum((r['value'] or ZERO for r in rows if r['days_left'] <= w), ZERO)}
                      for w in (30, 60, 90)]
@@ -1001,7 +938,7 @@ class LicensingRenewals(MetricProvider):
 
 PROVIDERS = tuple(sorted((
     MrrArr(), RevenueTrend(), GrossMargin(), CustomerProfitability(), CustomerGrowth(),
-    ContractRenewals(), OutstandingQuotes(), UnbilledWork(), AccountsReceivable(),
+    ContractRenewals(), OutstandingQuotes(), UnbilledWork(), AccountsReceivable(), PaymentCollection(),
     TechnicianUtilization(), SlaAttainment(), TicketBacklog(), CriticalIssues(),
     SecurityIssues(), BackupFailures(), ProcurementStatus(), LicensingRenewals(),
 ), key=lambda p: p.order))

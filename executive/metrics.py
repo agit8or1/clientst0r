@@ -18,11 +18,13 @@ States
   error           the provider raised; the reason is logged, not shown
 
 Scope (tenant isolation)
-  Every card is computed over the customers the viewer holds the card's
-  permission for (`accounts.permission_utils.orgs_with_perm`: None = every
-  customer, a set = only those, an empty set = none → forbidden). A customer
-  filter can only narrow that set; a customer outside it is forbidden, not
-  "zero".
+  One MSP per install; an Organization is a customer. Every card needs its
+  permission across customers (`reports.access.has_msp_wide_perm`, the
+  technician's global role) and is computed over the technician's client
+  scope (`reports.access.viewer_client_scope`: None = every customer, else a
+  list) — the rule the profitability reports use. Customer users hold no
+  MSP-wide permission, so they see nothing. A customer filter can only narrow
+  the scope; a customer outside it is forbidden, not "zero".
 """
 from __future__ import annotations
 
@@ -162,17 +164,26 @@ class Filters:
 
 @dataclass(frozen=True)
 class Scope:
-    """The customers one viewer may see for one permission."""
+    """What one viewer may see for one metric.
+
+    The same rule the reports use (reports.views profitability pages): the
+    permission is read MSP-wide (`reports.access.has_msp_wide_perm`, the
+    technician's global role), and the customers are the technician's client
+    scope (`reports.access.viewer_client_scope`). Customer users never hold an
+    MSP-wide permission, so every scope of theirs is empty.
+    """
     user: object
     perm: str
-    org_ids: Optional[frozenset]   # None = every customer
+    org_ids: Optional[frozenset]   # None = every customer of the install
+    allowed: bool = True
 
     @classmethod
-    def for_user(cls, user, perm):
-        from accounts.permission_utils import orgs_with_perm
-        allowed = orgs_with_perm(user, perm)
-        return cls(user=user, perm=perm,
-                   org_ids=None if allowed is None else frozenset(allowed))
+    def for_user(cls, user, perm, legacy='membership'):
+        from reports.access import has_msp_wide_perm, viewer_client_scope
+        if not has_msp_wide_perm(user, perm, legacy=legacy):
+            return cls(user=user, perm=perm, org_ids=frozenset(), allowed=False)
+        ids = viewer_client_scope(user)
+        return cls(user=user, perm=perm, org_ids=None if ids is None else frozenset(ids))
 
     @property
     def empty(self):
@@ -186,6 +197,8 @@ class Scope:
         """The customer ids a query should be limited to (None = no limit).
 
         A customer filter narrows the scope; one outside it is Forbidden."""
+        if not self.allowed:
+            raise Forbidden(f"Your role does not include the '{self.perm}' permission.")
         if filters.customer:
             if self.org_ids is not None and filters.customer not in self.org_ids:
                 raise Forbidden('You do not have access to that customer for this metric.')
@@ -354,8 +367,10 @@ def _collect(provider, scope, filters, use_cache=True):
     reason = provider.availability()
     if reason:
         return None, STATE_NOT_CONFIGURED, reason
+    if not scope.allowed:
+        return None, STATE_FORBIDDEN, f"Your role does not include the '{scope.perm}' permission."
     if scope.empty:
-        return None, STATE_FORBIDDEN, 'Your role does not include this metric.'
+        return None, STATE_FORBIDDEN, 'Your client scope includes no customers.'
     key = _cache_key(provider, scope, filters, 'collect')
     if use_cache:
         hit = cache.get(key)
