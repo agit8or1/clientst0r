@@ -57,7 +57,7 @@ def forwards(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0050_dashboard_global_layout'),
+        ('accounts', '0054_payment_permissions'),
     ]
 
     operations = [
