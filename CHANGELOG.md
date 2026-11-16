@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.690] - 2026-11-16
+
+### Added
+- **Payment processing (Stripe, GoCardless).** New `payments` app: customers pay invoices online from the portal (card / ACH through Stripe Checkout, Direct Debit through GoCardless), save a payment method and turn on autopay. Staff see payments, refunds and disputes, and can refund (new `process_refunds` permission). Payment connections are install-wide (new `manage_payment_providers` permission). Both new permissions are off for every role.
+  - Provider APIs are called directly (no new dependencies); every create sends an idempotency key. Webhook signatures are verified; duplicate or out-of-order events produce exactly one payment record per settlement, and refunds and lost disputes one negative record each.
+  - No card numbers, CVVs or bank account numbers are stored. Nothing is created in Stripe as an invoice, subscription or price, so invoices are never billed twice.
+  - Autopay runs hourly as a scheduled task, with retries.
+  - Staff open it from Billing → Payments.
+  - Settled payments are marked for accounting; posting them to QuickBooks Online / Xero is not wired yet.
+  - Tested against mocked provider responses only: check with Stripe test-mode and GoCardless sandbox keys before taking real payments. See `docs/PAYMENTS.md`.
+- **Sales tax (Avalara AvaTax, TaxJar, manual rates).** New `tax` app with an MSP-wide tax mode, manual rates by jurisdiction with effective dates, tax categories, labor taxability, and per-customer exemption certificates. New `manage_tax_settings` permission (Owner and Billing / Finance built-in roles).
+  - A provider failure is an error, never a zero amount: emailing or marking a quote or invoice sent is refused while tax can't be determined. The old silent zero-tax default for new quotes and invoices is gone.
+  - Manual overrides need the permission and are audit-logged. Voiding an invoice voids the provider transaction.
+  - With no tax settings, the existing flat-rate behaviour is kept; a 0% rate shows "Tax not configured".
+  - Tested against mocked provider responses only. See `docs/TAX.md`.
+- **OpenID Connect sign-in (single sign-on).** New `oidc_sso` app, off by default: staff can sign in through a standards-based identity provider (Keycloak walkthrough in `docs/OIDC_SSO.md`). PKCE, nonce, state, signed ID token checks against the provider's keys, issuer and organization pinning, `private_key_jwt` or client-secret client auth, back-channel logout, and sign-out continuing to the provider. Provider step-up counts for Technician Access and Superuser Approval when the provider confirms MFA. New `manage_sso_settings` permission (off for every role). Local, Microsoft and LDAP sign-in are unchanged, and local superuser login always stays available. Not yet verified against a live Keycloak.
+
+### Security
+- **Accounting invoice push can no longer create duplicates.** Every push (manual and recurring auto-push) records an attempt first, allows one in flight per invoice, treats timeouts and 5xx as "unknown" rather than "failed", and searches QuickBooks Online / Xero for the invoice before creating it again. Creates send the provider's idempotency key, reused on retry. Re-pushing with `force` needs the new `psa.force_repush_invoice` permission and still checks the provider first.
+- **Recurring billing:** a second invoice for the same contract period is blocked on every database (the earlier constraint was skipped on MariaDB/MySQL). The upgrade stops and lists duplicates if any already exist; run `manage.py find_duplicate_contract_invoices` first to check. Nothing is deleted.
+- **QuickBooks Online lines** now reference the mapped Item (new GL-code → Item mapping and default Item on the accounting connection); a line with a GL code and no mapping is refused before anything is sent.
+- **Xero payments** need the new *payment account code* setting; the old placeholder bank account fallback is removed.
+- **Firewall:** payment provider webhooks (`POST /payments/webhooks/stripe/<id>/` and `/gocardless/<id>/`) skip the GeoIP country check and the IP allowlist, so providers' servers abroad can deliver them; their signatures are verified. An IP blocklist entry still applies.
+
+### Upgrade notes
+- Migrations: `accounts.0053`–`0055` (SSO, payment and tax permissions), `core.0106` (autopay task), `psa.0086` (contract-period key), `integrations.0043` (push attempts, item mapping), `oidc_sso.0001`, `payments.0001`, `tax.0001`.
+- If `psa.0086` stops on duplicate contract invoices, resolve them (void or merge) and run the upgrade again.
+- Xero users: set the payment account code on the accounting connection before recording payments.
+
 ## [3.17.689] - 2026-11-16
 
 ### Security
