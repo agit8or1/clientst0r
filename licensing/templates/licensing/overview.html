@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Licensing{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <h1 class="h3 mb-1"><i class="fas fa-key"></i> Software licensing</h1>
+    <p class="text-muted">What each customer has purchased, what is assigned, and when it renews.</p>
+    {% include "licensing/_nav.html" %}
+    <p><strong>{{ totals.purchased }}</strong> licenses purchased, <strong>{{ totals.assigned }}</strong> assigned,
+       <strong>{{ totals.unused }}</strong> unused, <strong>{{ totals.over }}</strong> over-allocated.</p>
+    {% include "licensing/_alerts.html" with alerts=alerts show_customer=True %}
+    {% if alert_total > alerts|length %}<p class="small text-muted">{{ alert_total }} notices in all; showing {{ alerts|length }}.</p>{% endif %}
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Customer</th><th>Subscriptions</th><th>Purchased</th><th>Assigned</th><th>Unused</th><th>Over-allocated</th><th>Next renewal</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td><a href="{% url 'licensing:customer' org_id=r.org.pk %}">{{ r.org.name }}</a></td>
+            <td>{{ r.subscriptions }}</td><td>{{ r.purchased }}</td><td>{{ r.assigned }}</td>
+            <td>{{ r.unused }}</td><td>{% if r.over %}<span class="text-danger">{{ r.over }}</span>{% else %}0{% endif %}</td>
+            <td>{{ r.next_renewal|default:"-" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-muted">No license subscriptions yet. Open a customer to add one or sync Microsoft 365.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

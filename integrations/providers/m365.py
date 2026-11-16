@@ -167,6 +167,17 @@ class M365Provider:
             logger.warning(f"M365 get_licenses failed: {e}")
             return []
 
+    def get_licensed_users(self) -> list:
+        """Users holding at least one license: {id, userPrincipalName,
+        displayName, mail, assignedLicenses[{skuId}]}. Pages through every
+        result (Graph caps a page at 999). Raises on failure so a sync can
+        record the error instead of treating it as "no users"."""
+        users = self._get_all('/users', params={
+            '$select': 'id,displayName,userPrincipalName,mail,assignedLicenses',
+            '$top': '999',
+        })
+        return [u for u in users if u.get('assignedLicenses')]
+
     def get_shared_mailboxes(self) -> list:
         """Get shared mailboxes (users with mailbox but no assigned licenses)."""
         try:

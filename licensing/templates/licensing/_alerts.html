@@ -1,0 +1,12 @@
+{% if alerts %}
+<div class="card mb-3"><div class="card-header">Needs attention</div>
+<ul class="list-group list-group-flush">
+{% for a in alerts %}
+    <li class="list-group-item small">
+        <span class="badge {% if a.kind == 'renewal' %}bg-info{% elif a.kind == 'over_allocated' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{% if a.kind == 'renewal' %}Renewal{% elif a.kind == 'over_allocated' %}Over-allocated{% else %}Unused{% endif %}</span>
+        {% if show_customer %}<a href="{% url 'licensing:customer' org_id=a.subscription.organization_id %}">{{ a.subscription.organization.name }}</a>: {% endif %}
+        <a href="{% url 'licensing:subscription_detail' pk=a.subscription.pk %}">{{ a.text }}</a>
+    </li>
+{% endfor %}
+</ul></div>
+{% endif %}

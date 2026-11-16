@@ -1,0 +1,6 @@
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link {% if active == 'overview' %}active{% endif %}" href="{% url 'licensing:overview' %}">Overview</a></li>
+    <li class="nav-item"><a class="nav-link {% if active == 'renewals' %}active{% endif %}" href="{% url 'licensing:renewals' %}">Renewals</a></li>
+    <li class="nav-item"><a class="nav-link {% if active == 'mappings' %}active{% endif %}" href="{% url 'licensing:mappings' %}">Vendor customer mapping</a></li>
+    <li class="nav-item ms-auto"><a class="nav-link" href="{% url 'licensing:export_csv' %}"><i class="fas fa-download"></i> Export CSV</a></li>
+</ul>

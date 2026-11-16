@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Vendor customer mapping{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <h1 class="h3 mb-1">Vendor customer mapping</h1>
+    {% include "licensing/_nav.html" %}
+    <p class="text-muted small">Pax8 subscriptions are imported only for companies mapped to a customer. A company whose name exactly matches one customer is mapped automatically at sync time.</p>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Source</th><th>Vendor customer</th><th>Id</th><th>Customer</th><th></th></tr></thead>
+        <tbody>
+        {% for m in maps %}
+        <tr><td>{{ m.get_source_display }}</td><td>{{ m.external_name|default:"-" }}</td><td><code>{{ m.external_id }}</code></td><td>{{ m.organization.name }}</td>
+            <td><form method="post" action="{% url 'licensing:mapping_delete' pk=m.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-0">Remove</button></form></td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted">No mappings.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    <form method="post" class="row g-2">
+        {% csrf_token %}{{ form.non_field_errors }}
+        <div class="col-md-2">{{ form.source }}</div><div class="col-md-3">{{ form.external_id }}</div>
+        <div class="col-md-3">{{ form.external_name }}</div><div class="col-md-3">{{ form.organization }}</div>
+        <div class="col-md-1"><button class="btn btn-primary btn-sm">Add</button></div>
+        <div class="col-12 text-danger small">{{ form.errors }}</div>
+    </form>
+</div>
+{% endblock %}

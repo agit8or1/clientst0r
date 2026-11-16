@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{% if sub %}Edit subscription{% else %}New subscription{% endif %}{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 900px;">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'licensing:customer' org_id=org.pk %}">{{ org.name }}</a></li>
+        <li class="breadcrumb-item active">{% if sub %}Edit{% else %}New subscription{% endif %}</li>
+    </ol></nav>
+    {% if sub and sub.source != 'manual' %}<div class="alert alert-info small">Quantity, status and product come from {{ sub.get_source_display }} and are refreshed by each sync. Cost, price, notes and renewal date are yours.</div>{% endif %}
+    <form method="post">
+        {% csrf_token %}{{ form.non_field_errors }}
+        <div class="row g-3">
+        {% for f in form %}
+            <div class="col-md-6">{{ f.label_tag }} {{ f }} {{ f.errors }}{% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}</div>
+        {% endfor %}
+        </div>
+        <button class="btn btn-primary mt-3">Save</button>
+    </form>
+</div>
+{% endblock %}

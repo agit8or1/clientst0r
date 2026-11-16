@@ -119,6 +119,7 @@ INSTALLED_APPS = [
     'assets.apps.AssetsConfig',
     'docs.apps.DocsConfig',
     'readiness.apps.ReadinessConfig',
+    'licensing.apps.LicensingConfig',
     'files.apps.FilesConfig',
     'audit.apps.AuditConfig',
     'api.apps.ApiConfig',

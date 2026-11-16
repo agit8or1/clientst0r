@@ -14,6 +14,8 @@ Endpoints used:
   GET    /v1/products/{id}               — product detail
   GET    /v1/orders/products             — pricing for a product (or POST /v1/orders for an order)
   POST   /v1/orders                      — order placement
+  GET    /v1/subscriptions               — subscriptions (licensing app sync)
+  GET    /v1/companies                   — customer companies (licensing app sync)
 
 Webhook signature header: `X-Pax8-Signature: <hex>` over the raw body,
 HMAC'd with the connection's webhook_secret.
@@ -121,6 +123,53 @@ class Pax8Provider(BaseDistributorProvider):
                 'short_description': it.get('shortDescription') or '',
             })
         return rows
+
+    def _get_pages(self, path: str, params: Optional[Dict[str, Any]] = None,
+                   max_pages: int = 200) -> List[Dict[str, Any]]:
+        """Walk a paged Pax8 list endpoint ({page: {totalPages}, content: [...]}).
+        Raises ProviderError on any failure (callers record it)."""
+        rows: List[Dict[str, Any]] = []
+        page = 0
+        while page < max_pages:
+            q = dict(params or {})
+            q.update({'page': page, 'size': 200})
+            try:
+                r = self.session.get(f'{self.base_url}{path}', headers=self._auth_headers(),
+                                     params=q, timeout=30)
+            except requests.RequestException as e:
+                raise ProviderError(f'Pax8 {path} call failed: {e}')
+            if r.status_code != 200:
+                raise ProviderError(f'Pax8 {path} returned HTTP {r.status_code}')
+            try:
+                payload = r.json()
+            except ValueError:
+                raise ProviderError(f'Pax8 {path} returned unparseable JSON')
+            rows.extend(payload.get('content') or [])
+            total_pages = (payload.get('page') or {}).get('totalPages') or 1
+            page += 1
+            if page >= total_pages:
+                break
+        return rows
+
+    def list_subscriptions(self) -> List[Dict[str, Any]]:
+        """GET /v1/subscriptions: every subscription the partner has (raw rows:
+        id, companyId, productId, quantity, status, billingTerm, price,
+        partnerCost, startDate, endDate, ...)."""
+        return self._get_pages('/v1/subscriptions')
+
+    def get_product(self, product_id: str) -> Dict[str, Any]:
+        """GET /v1/products/{id}: name and vendor of one product, {} when
+        it cannot be read (callers fall back to a generic name)."""
+        try:
+            r = self.session.get(f'{self.base_url}/v1/products/{product_id}',
+                                 headers=self._auth_headers(), timeout=30)
+            return r.json() if r.status_code == 200 else {}
+        except (requests.RequestException, ValueError):
+            return {}
+
+    def list_companies(self) -> List[Dict[str, Any]]:
+        """GET /v1/companies: the partner's customer companies (id, name)."""
+        return self._get_pages('/v1/companies')
 
     def get_pricing(self, sku: str, *, qty: int = 1,
                     customer_id: Optional[str] = None) -> Dict[str, Any]:

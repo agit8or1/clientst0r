@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Licensing - {{ org.name }}{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'licensing:overview' %}">Licensing</a></li>
+        <li class="breadcrumb-item active">{{ org.name }}</li>
+    </ol></nav>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="h3 mb-0">{{ org.name }}</h1>
+        <div>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'licensing:export_csv' %}?customer={{ org.pk }}">Export CSV</a>
+            {% if can_manage %}
+            <form method="post" action="{% url 'licensing:sync_now' org_id=org.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Sync Microsoft 365</button></form>
+            <a class="btn btn-sm btn-primary" href="{% url 'licensing:subscription_create' org_id=org.pk %}">Add subscription</a>
+            {% endif %}
+        </div>
+    </div>
+    <p><strong>{{ totals.purchased }}</strong> purchased, <strong>{{ totals.assigned }}</strong> assigned,
+       <strong>{{ totals.unused }}</strong> unused, <strong>{{ totals.over }}</strong> over-allocated.</p>
+    {% include "licensing/_alerts.html" with alerts=alerts %}
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Product</th><th>Source</th><th>Status</th><th>Purchased</th><th>Assigned</th><th>Unused</th><th>Use</th>
+            {% if can_cost %}<th>Unit cost</th>{% endif %}<th>Unit price</th><th>Renews</th></tr></thead>
+        <tbody>
+        {% for s in subs %}
+        <tr>
+            <td><a href="{% url 'licensing:subscription_detail' pk=s.pk %}">{{ s.product.name }}</a><div class="small text-muted">{{ s.product.vendor }}</div></td>
+            <td>{{ s.get_source_display }}</td><td>{{ s.get_status_display }}</td>
+            <td>{{ s.quantity_purchased }}</td><td>{{ s.assigned }}</td>
+            <td>{% if s.has_usage_data %}{{ s.available }}{% else %}-{% endif %}{% if s.over_allocated %} <span class="badge bg-danger">+{{ s.over_allocated }} over</span>{% endif %}</td>
+            <td>{% if s.utilization_pct is not None %}{{ s.utilization_pct }}%{% else %}-{% endif %}</td>
+            {% if can_cost %}<td>{{ s.unit_cost|default_if_none:"-" }}</td>{% endif %}
+            <td>{{ s.unit_price|default_if_none:"-" }}</td>
+            <td>{{ s.renewal_date|default:"-" }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="10" class="text-muted">No subscriptions.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

@@ -61,6 +61,7 @@ urlpatterns = [
     path('vault/', include('vault.urls')),
     path('docs/', include('docs.urls')),
     path('readiness/', include('readiness.urls')),
+    path('licensing/', include('licensing.urls')),
     path('processes/', include('processes.urls')),
     path('files/', include('files.urls')),
     path('office/', include('office.urls')),

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ sub.product.name }}{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'licensing:overview' %}">Licensing</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'licensing:customer' org_id=org.pk %}">{{ org.name }}</a></li>
+        <li class="breadcrumb-item active">{{ sub.product.name }}</li>
+    </ol></nav>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="h3 mb-0">{{ sub.product.vendor }} {{ sub.product.name }}</h1>
+        {% if can_manage %}
+        <div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'licensing:subscription_edit' pk=sub.pk %}">Edit</a>
+            <form method="post" action="{% url 'licensing:subscription_delete' pk=sub.pk %}" class="d-inline" onsubmit="return confirm('Delete this subscription and its assignments?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form>
+        </div>
+        {% endif %}
+    </div>
+    <dl class="row small">
+        <dt class="col-sm-3">Source</dt><dd class="col-sm-9">{{ sub.get_source_display }}{% if sub.last_synced_at %} (synced {{ sub.last_synced_at }}){% endif %}</dd>
+        {% if sub.sync_error %}<dt class="col-sm-3">Sync error</dt><dd class="col-sm-9 text-danger">{{ sub.sync_error }}</dd>{% endif %}
+        <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ sub.get_status_display }}</dd>
+        <dt class="col-sm-3">Purchased / assigned</dt><dd class="col-sm-9">{{ sub.quantity_purchased }} / {{ sub.assigned }}
+            {% if sub.has_usage_data %}({{ sub.available }} unused{% if sub.over_allocated %}, {{ sub.over_allocated }} over-allocated{% endif %}){% endif %}</dd>
+        {% if can_cost %}<dt class="col-sm-3">Unit cost</dt><dd class="col-sm-9">{{ sub.unit_cost|default_if_none:"-" }} {{ sub.currency }}</dd>{% endif %}
+        <dt class="col-sm-3">Unit price</dt><dd class="col-sm-9">{{ sub.unit_price|default_if_none:"-" }} {{ sub.currency }} ({{ sub.get_billing_frequency_display }})</dd>
+        <dt class="col-sm-3">Term</dt><dd class="col-sm-9">{{ sub.term_start|default:"-" }} to {{ sub.renewal_date|default:"-" }}{% if sub.auto_renew %} (auto-renews){% endif %}</dd>
+        {% if sub.notes %}<dt class="col-sm-3">Notes</dt><dd class="col-sm-9">{{ sub.notes|linebreaksbr }}</dd>{% endif %}
+    </dl>
+    <h2 class="h5">Assignments</h2>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Assigned to</th><th>Contact</th><th>Asset</th><th>Since</th><th></th></tr></thead>
+        <tbody>
+        {% for a in assignments %}
+        <tr><td>{{ a.assigned_to }}</td><td>{{ a.contact|default:"-" }}</td><td>{{ a.asset|default:"-" }}</td><td>{{ a.assigned_at }}</td>
+            <td>{% if can_manage %}<form method="post" action="{% url 'licensing:assignment_delete' pk=a.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-0">Remove</button></form>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted">No assignments.{% if sub.vendor_consumed %} The vendor reports {{ sub.vendor_consumed }} in use.{% endif %}</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    {% if can_manage %}
+    <form method="post" action="{% url 'licensing:assignment_add' pk=sub.pk %}" class="row g-2">
+        {% csrf_token %}
+        <div class="col-md-3">{{ form.assigned_to }}</div><div class="col-md-3">{{ form.contact }}</div>
+        <div class="col-md-3">{{ form.asset }}</div><div class="col-md-2">{{ form.assigned_at }}</div>
+        <div class="col-md-1"><button class="btn btn-primary btn-sm">Assign</button></div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -43,6 +43,8 @@ COMMAND_TASKS = {
     'check_incident_sla_breaches': ('check_incident_sla_breaches', []),
     'recompute_exposure_scores': ('recompute_exposure_scores', []),
     'assets_warranty_alerts': ('assets_warranty_alerts', []),
+    'sync_licenses': ('sync_licenses', []),
+    'licensing_alerts': ('licensing_alerts', []),
     'assets_capture_baselines': ('assets_capture_baselines', []),
     'assets_generate_remediation_suggestions': ('assets_generate_remediation_suggestions', []),
     'send_compliance_recertifications': ('send_compliance_recertifications', []),
