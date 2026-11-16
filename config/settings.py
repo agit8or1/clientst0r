@@ -151,6 +151,7 @@ INSTALLED_APPS = [
     'office.apps.OfficeConfig',
     'contracts.apps.ContractsConfig',
     'pricing.apps.PricingConfig',
+    'advisor.apps.AdvisorConfig',
     'pulse.apps.PulseConfig',
     'oidc_sso.apps.OidcSsoConfig',
     'payments.apps.PaymentsConfig',
