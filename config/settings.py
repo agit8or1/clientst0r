@@ -129,6 +129,7 @@ INSTALLED_APPS = [
     'locations.apps.LocationsConfig',
     'imports.apps.ImportsConfig',
     'reports.apps.ReportsConfig',
+    'executive.apps.ExecutiveConfig',
     'vehicles.apps.VehiclesConfig',
     'inventory.apps.InventoryConfig',
     'scheduling.apps.SchedulingConfig',
