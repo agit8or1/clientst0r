@@ -292,7 +292,7 @@ class SectionPermissionMiddleware:
     # Contract documents (/contracts/) are written and sent by the MSP; the
     # people who sign them use the account-less pages under /sign/ instead.
     STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/', '/integrations/rmm/', '/contracts/',
-                           '/pulse/')
+                           '/pulse/', '/payments/')
 
     # Token- or key-authenticated receivers under those prefixes. They don't
     # rely on a signed-in user, and a signed-in browser must not change that.
@@ -303,6 +303,8 @@ class SectionPermissionMiddleware:
         '/security/siem/webhook/',
         # Signed, no-login unsubscribe link in customer security digests.
         '/security/digest/unsubscribe/',
+        # Signature-verified payment provider webhooks (payments.webhooks).
+        '/payments/webhooks/',
     )
 
     def __call__(self, request):

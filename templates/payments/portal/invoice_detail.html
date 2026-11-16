@@ -1,0 +1,59 @@
+{% extends "portal/base.html" %}
+{% block title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'portal:billing_home' %}">&larr; Billing</a></p>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <h4 class="mb-0 me-auto">Invoice {{ invoice.invoice_number }}</h4>
+    <span class="badge {% if invoice.status == 'paid' %}bg-success{% elif invoice.status == 'overdue' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ invoice.get_status_display }}</span>
+</div>
+<p class="text-muted small mb-3">{{ invoice.title }} · dated {{ invoice.invoice_date|date:"Y-m-d" }}{% if invoice.due_date %} · due {{ invoice.due_date|date:"Y-m-d" }}{% endif %}</p>
+{% if invoice.description %}<p>{{ invoice.description|linebreaksbr }}</p>{% endif %}
+
+<div class="card mb-3"><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
+    <tbody>{% for li in lines %}
+    <tr><td>{{ li.description }}</td><td class="text-end">{{ li.quantity }}</td><td class="text-end">{{ li.unit_price|floatformat:2 }}</td><td class="text-end">{{ li.line_total|floatformat:2 }}</td></tr>
+    {% endfor %}</tbody>
+    <tfoot>
+        <tr><td colspan="3" class="text-end">Subtotal</td><td class="text-end">{{ invoice.subtotal|floatformat:2 }}</td></tr>
+        <tr><td colspan="3" class="text-end">Tax</td><td class="text-end">{{ invoice.tax_amount|floatformat:2 }}</td></tr>
+        <tr><td colspan="3" class="text-end"><strong>Total</strong></td><td class="text-end"><strong>{{ invoice.total|floatformat:2 }} {{ invoice.currency }}</strong></td></tr>
+        <tr><td colspan="3" class="text-end">Paid</td><td class="text-end">{{ invoice.amount_paid|floatformat:2 }}</td></tr>
+        {% if invoice.credited_amount %}<tr><td colspan="3" class="text-end">Credited</td><td class="text-end">{{ invoice.credited_amount|floatformat:2 }}</td></tr>{% endif %}
+        <tr><td colspan="3" class="text-end"><strong>Balance due</strong></td><td class="text-end"><strong>{{ invoice.net_balance_due|floatformat:2 }} {{ invoice.currency }}</strong></td></tr>
+    </tfoot>
+</table></div></div>
+
+{% if processing %}
+<div class="alert alert-info">A payment for this invoice is processing. Bank payments can take a few days to clear.</div>
+{% elif can_pay %}
+<div class="card card-body mb-3">
+    <form method="post" action="{% url 'portal:billing_invoice_pay' invoice.pk %}">
+        {% csrf_token %}
+        <p class="mb-2">Pay <strong>{{ due|floatformat:2 }} {{ invoice.currency }}</strong> securely with
+            {% if provider == 'gocardless' %}Direct Debit (GoCardless){% else %}card or bank account (Stripe){% endif %}.
+            You will be taken to the payment provider's page; we never see or store your card or bank details.</p>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="save_for_autopay" id="save_for_autopay">
+            <label class="form-check-label" for="save_for_autopay">Save this method and pay future invoices automatically (autopay)</label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="autopay_consent" id="autopay_consent">
+            <label class="form-check-label small" for="autopay_consent">If saving for autopay: I authorize {{ invoice.organization.name }} to charge this payment method for invoices to {{ invoice.client_org.name }} when they are due, until I turn autopay off.</label>
+        </div>
+        <button class="btn btn-primary"><i class="fas fa-lock"></i> Pay now</button>
+    </form>
+</div>
+{% endif %}
+
+{% if payments %}
+<div class="card"><div class="card-header"><strong>Payments on this invoice</strong></div>
+<div class="table-responsive"><table class="table table-sm mb-0">
+    <tbody>{% for p in payments %}
+    <tr><td>{{ p.paid_on|date:"Y-m-d" }}</td><td class="text-end">{{ p.amount|floatformat:2 }} {{ invoice.currency }}</td>
+        <td>{% if p.amount < 0 %}Refund / reversal{% else %}{{ p.get_method_display }}{% endif %}</td>
+        <td>{% if p.amount > 0 %}<a href="{% url 'portal:billing_receipt' p.pk %}">Receipt</a>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+{% endblock %}
