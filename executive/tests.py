@@ -72,14 +72,20 @@ class Base(TestCase):
         cls.owner_role = RoleTemplate.objects.create(
             name='Exec owner', organization=None, reports_view_dashboards=True,
             reports_view_financial=True, reports_view_sla=True, reports_view_capacity=True,
-            billing_view_aging=True, tickets_view=True, procurement_view=True,
-            security_alerts_view=True)
+            billing_view_aging=True, billing_view_invoices=True, tickets_view=True, procurement_view=True,
+            security_alerts_view=True, view_profitability=True)
+        # Revenue but not cost: view_profitability gates cost and margin.
+        cls.fin_role = RoleTemplate.objects.create(
+            name='Exec finance', organization=None, reports_view_dashboards=True,
+            reports_view_financial=True, view_profitability=False)
         cls.l1_role = RoleTemplate.objects.create(
-            name='Exec L1', organization=None, reports_view_dashboards=True, tickets_view=True)
+            name='Exec L1', organization=None, reports_view_dashboards=True, tickets_view=True,
+            reports_view_financial=False, security_alerts_view=False)
         cls.scoped = _make_msp_tech(User.objects.create_user('ex_scoped', 's@x.com', 'pw'), cls.owner_role)
         cls.scoped.profile.client_scope = 'selected'
         cls.scoped.profile.save()
         cls.scoped.profile.scope_organizations.set([cls.a])
+        cls.fin = _make_msp_tech(User.objects.create_user('ex_fin', 'f@x.com', 'pw'), cls.fin_role)
         cls.l1 = _make_msp_tech(User.objects.create_user('ex_l1', 'l1@x.com', 'pw'), cls.l1_role)
         cls.customer = User.objects.create_user('ex_cust', 'c@x.com', 'pw')
         Membership.objects.create(user=cls.customer, organization=cls.a, role='owner', is_active=True)
@@ -125,12 +131,13 @@ class RevenueTests(Base):
                                         status='sent', total=Decimal('100'), source_contract=cls.contract)
         cls.i2 = Invoice.objects.create(organization=cls.a, client_org=cls.a, title='i2', invoice_date=d,
                                         status='paid', total=Decimal('200'), amount_paid=Decimal('200'))
-        Invoice.objects.create(organization=cls.a, client_org=cls.a, title='draft', invoice_date=d,
-                               status='draft', total=Decimal('999'))
+        cls.draft = Invoice.objects.create(organization=cls.a, client_org=cls.a, title='draft', invoice_date=d,
+                                           status='draft', total=Decimal('999'))
         Invoice.objects.create(organization=cls.a, client_org=cls.a, title='void', invoice_date=d,
                                status='void', total=Decimal('999'))
         Invoice.objects.create(organization=cls.a, client_org=cls.a, title='old',
-                               invoice_date=cls.today - timedelta(days=400), status='paid', total=Decimal('7'))
+                               invoice_date=cls.today - timedelta(days=400), status='paid', total=Decimal('7'),
+                               amount_paid=Decimal('7'))
         cls.ib = Invoice.objects.create(organization=cls.b, client_org=cls.b, title='ib', invoice_date=d,
                                         status='overdue', total=Decimal('50'),
                                         due_date=cls.today - timedelta(days=45))
@@ -150,26 +157,38 @@ class RevenueTests(Base):
         self.assertEqual([x['id'] for x in self.rows('revenue_trend', service_line='managed_services')],
                          [self.i1.pk])
 
-    def test_accounts_receivable(self):
+    def test_accounts_receivable_follows_the_aging_report(self):
+        from psa.models import get_psa_balance
         r = self.run_metric('accounts_receivable')
-        # i1 100 outstanding (no due date: current), ib 50 at 45 days.
-        self.assertEqual(r.value, Decimal('150.00'))
+        expected = get_psa_balance(self.a)['outstanding'] + get_psa_balance(self.b)['outstanding']
+        self.assertEqual(r.value, expected)
+        # get_psa_balance counts every non-void invoice with a balance.
+        self.assertEqual(r.value, Decimal('1149.00'))
         buckets = {b['label']: b['value'] for b in r.breakdown}
         self.assertEqual(buckets['31–60 days'], Decimal('50.00'))
-        self.assertEqual(buckets['Current'], Decimal('100.00'))
-        self.assertEqual({x['id'] for x in self.rows('accounts_receivable')}, {self.i1.pk, self.ib.pk})
+        self.assertEqual(buckets['0–30 days'], Decimal('1099.00'))
+        rows = self.rows('accounts_receivable')
+        self.assertEqual({x['id'] for x in rows}, {self.i1.pk, self.draft.pk, self.ib.pk})
+        self.assertEqual(sum(Decimal(str(x['balance'])) for x in rows), r.value)
         self.assertIn('no accounting sync', r.source)
 
     def test_accounts_receivable_labels_synced_status(self):
         self.i1.provider_synced_at = timezone.now()
         self.i1.save(update_fields=['provider_synced_at'])
         r = self.run_metric('accounts_receivable')
-        self.assertIn('synced from the accounting provider for 1 of 2', r.source)
+        self.assertIn('synced from the accounting provider for 1 of 3', r.source)
 
     def test_service_line_is_ignored_by_ar(self):
         r = self.run_metric('accounts_receivable', service_line='retainer')
         self.assertIn('service_line', r.ignored_filters)
-        self.assertEqual(r.value, Decimal('150.00'))
+        self.assertEqual(r.value, Decimal('1149.00'))
+        self.assertEqual(self.run_metric('accounts_receivable', user=self.scoped).value, Decimal('1099.00'))
+
+    def test_revenue_matches_report_function(self):
+        from reports.queries import revenue_by_client
+        start, end = _filters().start, _filters().end
+        self.assertEqual(self.run_metric('revenue_trend').value,
+                         Decimal(str(sum(r['invoiced'] for r in revenue_by_client(start, end)))).quantize(Decimal('0.01')))
 
     def test_outstanding_quotes(self):
         from psa.models import Quote
@@ -211,137 +230,138 @@ class ContractTests(Base):
         w = {b['label']: b['value'] for b in r.breakdown}
         self.assertEqual((w['30 days'], w['60 days'], w['90 days']), (1, 2, 2))
         self.assertEqual([x['id'] for x in self.rows('contract_renewals')], [self.c10.pk, self.c45.pk])
-        self.assertEqual(self.run_metric('contract_renewals', service_line='managed_services').value, 1)
+        # No recurring amounts: MRR at stake is flagged, not presented as complete.
+        self.assertFalse(r.is_complete)
+        self.assertIn('2 contracts have no recurring amount', r.unknown_reason)
+        self.assertEqual(self.run_metric('contract_renewals', customer=self.a.pk).value, 1)
+        self.assertIn('service_line', self.run_metric('contract_renewals', service_line='retainer').ignored_filters)
 
     def test_customer_growth(self):
         r = self.run_metric('customer_growth')
         self.assertEqual(r.value, 2)
         self.assertEqual({x['id'] for x in self.rows('customer_growth')}, {self.a.pk, self.b.pk})
-        new = {b['label']: b['value'] for b in r.breakdown}['New customers in period']
-        self.assertEqual(new, 0)  # Bravo's first contract started 300 days ago
-        # Churn reporting is not on this branch: flagged, not zero.
-        if providers._queries_fn('contract_churn') is None:
-            self.assertFalse(r.is_complete)
-            self.assertIn('contract churn', r.unknown_reason)
-
-    def test_customer_growth_with_churn_function(self):
-        churn = {'churned_count': 1, 'churned_mrr': 250.0, 'churn_rate_pct': 5.0, 'is_complete': True,
-                 'undated_cancellations': 0}
-        with mock.patch('reports.queries.contract_churn', create=True, return_value=churn) as fn:
-            r = self.run_metric('customer_growth', customer=self.a.pk)
-        self.assertEqual(fn.call_args[0][2], {self.a.pk})
         b = {x['label']: x['value'] for x in r.breakdown}
-        self.assertEqual(b['Churned contracts'], 1)
-        self.assertEqual(b['Revenue churn'], 5.0)
+        self.assertEqual(b['New customers in period'], 0)  # Bravo's first contract started 300 days ago
+        self.assertEqual(b['Churned contracts'], 0)
         self.assertTrue(r.is_complete)
+        self.assertEqual(self.run_metric('customer_growth', service_line='managed_services').value, 1)
+
+    def test_customer_growth_flags_undated_cancellation(self):
+        from psa.models import Contract
+        Contract.objects.create(organization=self.a, client_org=self.a, name='gone', status='cancelled',
+                                start_date=self.today - timedelta(days=100))
+        r = self.run_metric('customer_growth')
+        self.assertFalse(r.is_complete)
+        self.assertIn('cancellations have no end date', r.unknown_reason)
+
+    def test_customer_growth_passes_scope_to_churn(self):
+        from reports import queries as rq
+        real = rq.contract_churn
+        with mock.patch('reports.queries.contract_churn', side_effect=real) as fn:
+            r = self.run_metric('customer_growth', user=self.scoped)
+        self.assertEqual(fn.call_args[0][2], [self.a.pk])
         self.assertEqual(r.value, 1)
+
+    def test_mrr_from_recurring_revenue(self):
+        from psa.models import Contract
+        Contract.objects.filter(pk=self.c120.pk).update(billing_frequency='monthly', recurring_amount=Decimal('900'))
+        Contract.objects.filter(pk=self.cnew.pk).update(billing_frequency='quarterly', recurring_amount=Decimal('300'))
+        r = self.run_metric('mrr_arr')
+        self.assertEqual(r.value, 1000.0)
+        self.assertEqual(r.breakdown[0], {'label': 'ARR', 'value': 12000.0, 'unit': 'currency'})
+        self.assertEqual({x['contract_id'] for x in self.rows('mrr_arr')}, {self.c120.pk, self.cnew.pk})
+        self.assertEqual(self.run_metric('mrr_arr', user=self.scoped).value, 900.0)
+        self.assertTrue(any('no recurring amount' in n for n in r.notes))
 
 
 # -- delegated metrics (reports.queries functions from dev/profitability) ------
 
-class DelegatedTests(Base):
+class ProfitabilityTests(Base):
 
-    def test_mrr_not_configured_without_reporting_function(self):
-        if providers._queries_fn('recurring_revenue') is not None:
-            self.skipTest('recurring_revenue is installed')
-        r = self.run_metric('mrr_arr')
-        self.assertEqual(r.state, 'not_configured')
-        self.assertIsNone(r.value)
-        self.assertIn('dev/profitability', r.reason)
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        from psa.models import Invoice, TicketTimeEntry
+        from resourcing.models import TechCostRate
+        d = cls.today - timedelta(days=3)
+        Invoice.objects.create(organization=cls.a, client_org=cls.a, title='a', invoice_date=d,
+                               status='sent', total=Decimal('1000'))
+        Invoice.objects.create(organization=cls.b, client_org=cls.b, title='b', invoice_date=d,
+                               status='sent', total=Decimal('500'))
+        cls.rated = _make_msp_tech(User.objects.create_user('ex_rated', 'r@x.com', 'pw'))
+        cls.unrated = _make_msp_tech(User.objects.create_user('ex_unrated', 'u@x.com', 'pw'))
+        TechCostRate.objects.create(user=cls.rated, rate_per_hour=Decimal('50'),
+                                    effective_from=cls.today - timedelta(days=365))
+        from psa.models import Queue, Ticket, TicketPriority, TicketStatus, TicketType
+        base = dict(status=TicketStatus.objects.filter(is_terminal=False).first(),
+                    priority=TicketPriority.objects.get(code='P3'), ticket_type=TicketType.objects.first(),
+                    queue=Queue.objects.first())
+        ta = Ticket.objects.create(organization=cls.a, subject='a work', **base)
+        tb = Ticket.objects.create(organization=cls.b, subject='b work', **base)
+        start = timezone.now() - timedelta(days=3)
+        TicketTimeEntry.objects.create(ticket=ta, user=cls.rated, started_at=start,
+                                       ended_at=start + timedelta(hours=2), duration_minutes=120)
+        TicketTimeEntry.objects.create(ticket=tb, user=cls.unrated, started_at=start,
+                                       ended_at=start + timedelta(hours=12), duration_minutes=720)
 
-    def _rr(self, on_date, organization=None):
-        return {'mrr': 1500.0, 'arr': 18000.0, 'contract_count': 1, 'contracts_without_amount': 2,
-                'contracts_unknown_end': 1, 'is_complete': False,
-                'contracts': [{'contract_id': 7, 'contract_name': 'Alpha MSA', 'client_id': self.a.pk,
-                               'client_name': 'Alpha Exec', 'frequency': 'monthly', 'mrr': 1500.0,
-                               'next_billing_date': None, 'end_date': None}]}
-
-    def test_mrr_maps_reporting_function_and_propagates_incomplete(self):
-        trend = {'points': [{'month': '2026-10', 'mrr': 1000.0, 'is_complete': True},
-                            {'month': '2026-11', 'mrr': 1500.0, 'is_complete': True}], 'is_complete': True}
-        with mock.patch('reports.queries.recurring_revenue', create=True, side_effect=self._rr) as rr, \
-                mock.patch('reports.queries.mrr_trend', create=True, return_value=trend):
-            r = self.run_metric('mrr_arr', user=self.scoped)
-            rows = self.rows('mrr_arr', user=self.scoped)
+    def test_gross_margin_unknown_when_hours_lack_a_cost_rate(self):
+        r = self.run_metric('gross_margin')
         self.assertEqual(r.state, 'ok')
-        self.assertEqual(r.value, 1500.0)
-        self.assertEqual(r.breakdown[0], {'label': 'ARR', 'value': 18000.0, 'unit': 'currency'})
-        self.assertFalse(r.is_complete)
-        self.assertIn('1 stopped contracts have no end date', r.unknown_reason)
-        self.assertEqual([p['value'] for p in r.trend], [1000.0, 1500.0])
-        self.assertEqual([x['contract_id'] for x in rows], [7])
-        # The scoped technician's customers are passed down.
-        self.assertEqual(rr.call_args[0][1], {self.a.pk})
-
-    def test_margin_not_configured_without_costing(self):
-        if providers.has_costing():
-            self.skipTest('reports.costing is installed')
-        for key in ('gross_margin', 'customer_profitability'):
-            r = self.run_metric(key)
-            self.assertEqual(r.state, 'not_configured', key)
-            self.assertIsNone(r.value)
-
-    def _profit_rows(self, start, end, organization=None):
-        return [
-            {'client_id': self.a.pk, 'client_name': 'Alpha Exec', 'revenue': 1000.0, 'cost': 400.0,
-             'margin': 600.0, 'margin_pct': 60.0, 'unknown_cost_hours': 0.0},
-            {'client_id': self.b.pk, 'client_name': 'Bravo Exec', 'revenue': 500.0, 'cost': 300.0,
-             'margin': None, 'margin_pct': None, 'unknown_cost_hours': 12.0},
-        ]
-
-    def _with_costing(self):
-        return (mock.patch('executive.providers.has_costing', return_value=True),
-                mock.patch('reports.queries.profitability_by_client', create=True,
-                           side_effect=self._profit_rows))
-
-    def test_gross_margin_incomplete_badge(self):
-        p1, p2 = self._with_costing()
-        with p1, p2:
-            r = self.run_metric('gross_margin')
-            rows = self.rows('gross_margin')
-            scoped = self.run_metric('gross_margin', user=self.scoped)
-        self.assertEqual(r.value, 46.7)  # (1500 - 700) / 1500
+        self.assertIsNone(r.value)  # unknown, never a partial margin
         self.assertFalse(r.is_complete)
         self.assertEqual(r.unknown_reason, '12 hours without a cost rate')
         self.assertEqual(r.label, 'Operational estimate, not accounting results')
-        self.assertEqual({x['client_id'] for x in rows}, {self.a.pk, self.b.pk})
-        # Scoped to Alpha: Bravo's revenue and unknown hours are not counted.
-        self.assertEqual(scoped.value, 60.0)
-        self.assertTrue(scoped.is_complete)
+        self.assertEqual({x['client_id'] for x in self.rows('gross_margin')}, {self.a.pk, self.b.pk})
 
-    def test_customer_profitability_ranks_and_flags_unranked(self):
-        p1, p2 = self._with_costing()
-        with p1, p2:
-            r = self.run_metric('customer_profitability')
+    def test_gross_margin_scoped_is_complete(self):
+        r = self.run_metric('gross_margin', user=self.scoped)
+        self.assertEqual(r.value, 90.0)  # (1000 - 2h x 50) / 1000
+        self.assertTrue(r.is_complete)
+        self.assertEqual([x['client_id'] for x in self.rows('gross_margin', user=self.scoped)], [self.a.pk])
+
+    def test_margin_matches_profitability_report(self):
+        from reports.costing import summarize
+        from reports.queries import profitability_by_client
+        f = _filters(customer=self.a.pk)
+        expected = summarize(profitability_by_client(f.start, f.end, organization=[self.a.pk]))
+        self.assertEqual(self.run_metric('gross_margin', customer=self.a.pk).value, expected['blended_margin_pct'])
+
+    def test_customer_profitability_ranks_known_margins_only(self):
+        r = self.run_metric('customer_profitability')
         self.assertEqual(r.value, 2)
         self.assertEqual([b['label'] for b in r.breakdown], ['Alpha Exec'])
-        self.assertIn('1 customers cannot be ranked', r.unknown_reason)
-
-    def test_cost_cards_feature_detect_view_profitability(self):
-        p = providers.get('gross_margin')
-        with mock.patch('executive.providers._perm_known', return_value=False):
-            self.assertEqual(p.permission_key(), 'reports_view_financial')
-            self.assertIn('reports_view_financial', p.permission_note)
-        with mock.patch('executive.providers._perm_known', return_value=True):
-            self.assertEqual(p.permission_key(), 'view_profitability')
-            self.assertEqual(p.permission_note, '')
-
-    def test_utilization(self):
-        self.assertEqual(self.run_metric('technician_utilization').state,
-                         'ok' if providers._queries_fn('utilization_summary') else 'not_configured')
-        summary = {'rows': [{'tech_id': 1, 'tech_username': 'tech1', 'billable_hours': 30.0,
-                             'available_hours': 40.0, 'basis': 'shifts', 'utilization_pct': 75.0},
-                            {'tech_id': 2, 'tech_username': 'tech2', 'billable_hours': 5.0,
-                             'available_hours': None, 'basis': None, 'utilization_pct': None}],
-                   'utilization_pct': 75.0, 'billable_hours': 30.0, 'available_hours': 40.0,
-                   'techs_without_basis': 1, 'is_complete': False}
-        with mock.patch('reports.queries.utilization_summary', create=True, return_value=summary):
-            r = self.run_metric('technician_utilization')
-            rows = self.rows('technician_utilization')
-        self.assertEqual(r.value, 75.0)
         self.assertFalse(r.is_complete)
-        self.assertIn('1 technicians have no shifts', r.unknown_reason)
-        self.assertEqual(len(rows), 2)
+        self.assertIn('1 customers have an unknown margin', r.unknown_reason)
+
+    def test_cost_cards_need_view_profitability(self):
+        self.assertEqual(self.run_metric('revenue_trend', user=self.fin).state, 'ok')
+        for key in ('gross_margin', 'customer_profitability'):
+            r = self.run_metric(key, user=self.fin)
+            self.assertEqual(r.state, 'forbidden', key)
+            self.assertIsNone(r.value)
+
+    def test_unbilled_time_without_bill_rates_is_unknown(self):
+        r = self.run_metric('unbilled_work')
+        self.assertIsNone(r.value)
+        self.assertFalse(r.is_complete)
+        self.assertIn('2 entries', r.unknown_reason)
+        self.assertEqual({x['client_id'] for x in self.rows('unbilled_work')}, {self.a.pk, self.b.pk})
+        self.assertEqual([x['client_id'] for x in self.rows('unbilled_work', user=self.scoped)], [self.a.pk])
+
+    def test_utilization_without_basis_is_unknown(self):
+        r = self.run_metric('technician_utilization')
+        self.assertEqual(r.state, 'ok')
+        self.assertIsNone(r.value)
+        self.assertFalse(r.is_complete)
+        self.assertIn('2 technicians have no shifts', r.unknown_reason)
+        self.assertEqual(len(self.rows('technician_utilization')), 2)
+
+    def test_utilization_with_target(self):
+        from resourcing.models import BillableTarget
+        BillableTarget.objects.create(user=self.rated, target_hours_per_week=Decimal('40'), is_active=True)
+        r = self.run_metric('technician_utilization', user=self.scoped)
+        self.assertTrue(r.is_complete)
+        self.assertIsNotNone(r.value)
 
 
 # -- delivery ------------------------------------------------------------------
@@ -349,26 +369,27 @@ class DelegatedTests(Base):
 class DeliveryTests(Base):
 
     def test_unbilled_work_excludes_billed_and_nonbillable(self):
-        from psa.models import Invoice, InvoiceLineItem, TicketTimeEntry
-        t = self.ticket(self.a, 'work', site=self.loc_a)
-        tb = self.ticket(self.b, 'work b')
+        from psa.models import Contract, Invoice, InvoiceLineItem, TicketTimeEntry
+        Contract.objects.create(organization=self.a, client_org=self.a, name='hourly', status='active',
+                                contract_type='block_hours', hourly_rate=Decimal('100'),
+                                start_date=self.today - timedelta(days=30))
+        t = self.ticket(self.a, 'work')
         start = self.now - timedelta(days=3)
         mk = lambda ticket, mins, **kw: TicketTimeEntry.objects.create(  # noqa: E731
             ticket=ticket, user=self.su, started_at=start, ended_at=start + timedelta(minutes=mins),
             duration_minutes=mins, **kw)
-        e1 = mk(t, 90)
+        mk(t, 90)
         billed = mk(t, 60)
         mk(t, 30, is_billable=False)
-        e4 = mk(tb, 30)
         inv = Invoice.objects.create(organization=self.a, client_org=self.a, title='x',
                                      invoice_date=self.today, status='draft')
         InvoiceLineItem.objects.create(invoice=inv, description='t', source='time', source_id=str(billed.pk))
         r = self.run_metric('unbilled_work')
-        self.assertEqual({x['id'] for x in self.rows('unbilled_work')}, {e1.pk, e4.pk})
-        if not providers.has_costing():
-            self.assertEqual(r.value, 2.0)
-            self.assertEqual(r.unit, 'hours')
-        self.assertEqual({x['id'] for x in self.rows('unbilled_work', location=self.loc_a.pk)}, {e1.pk})
+        rows = self.rows('unbilled_work')
+        self.assertEqual([(x['client_id'], x['entries']) for x in rows], [(self.a.pk, 1)])
+        if r.is_complete:
+            self.assertEqual(r.value, 150.0)  # 1.5 h at the contract's 100/h
+        self.assertEqual(r.value, sum(x['amount'] for x in rows) if r.value is not None else None)
 
     def test_sla_attainment_matches_report_and_rows(self):
         from psa.models import Ticket
@@ -448,6 +469,11 @@ class RiskOpsTests(Base):
         self.assertEqual([x['id'] for x in self.rows('procurement_status', part='back_orders')], [bo.pk])
         self.assertEqual(self.run_metric('procurement_status', user=self.scoped).value, 1)
 
+    def test_payments_not_configured_without_gateway(self):
+        r = self.run_metric('payment_collection')
+        self.assertEqual(r.state, 'not_configured')
+        self.assertIsNone(r.value)
+
     def test_apps_not_installed_are_not_configured(self):
         from django.apps import apps
         for key, app in (('backup_failures', 'backup_monitoring'), ('licensing_renewals', 'licensing')):
@@ -513,8 +539,10 @@ class AccessTests(Base):
         # The customer picker offers only their customer.
         self.client.force_login(self.scoped)
         page = self.client.get(reverse('executive:overview')).content.decode()
-        self.assertIn('Alpha Exec', page)
-        self.assertNotIn('Bravo Exec', page)
+        picker = page[page.index('id="bo-customer"'):]
+        picker = picker[:picker.index('</select>')]
+        self.assertIn('Alpha Exec', picker)
+        self.assertNotIn('Bravo Exec', picker)
 
     def test_cache_is_per_scope(self):
         f = _filters()
