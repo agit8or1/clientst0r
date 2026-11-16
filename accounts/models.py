@@ -444,6 +444,8 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        # Single sign-on settings: new, never derived from a simple role.
+        'manage_sso_settings': False,
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -710,6 +712,7 @@ class UserProfile(BaseModel):
             ('azure_ad', 'Azure AD / Microsoft Entra ID'),
             ('ldap', 'LDAP/Active Directory'),
             ('local', 'Local'),
+            ('oidc', 'Single sign-on (OIDC)'),
         ],
         default='local',
         help_text='Authentication source for this user'
@@ -1125,6 +1128,9 @@ class RoleTemplate(BaseModel):
     office_edit_in_m365 = models.BooleanField(default=False,
         help_text='Customer users: edit Office files in Microsoft 365 (a working copy). '
                   'MSP staff follow their edit permission on the file.')
+    manage_sso_settings = models.BooleanField(default=False,
+        help_text='MSP staff (global role): configure single sign-on (OIDC) providers, mappings and '
+                  'linked accounts.')
     vault_approve_reveal = models.BooleanField(default=False,
         help_text="Approve another technician's password reveal request.")
     integrations_view_synced_psa = models.BooleanField(default=False,

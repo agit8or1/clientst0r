@@ -143,6 +143,9 @@ PERMISSIONS: List[Permission] = [
        'Assign or remove privileged roles (roles holding user, role, security or platform administration)'),
     _p('roles_manage', 'org', 'roles', C, False, 'Create, clone, edit and archive custom roles'),
     _p('org_manage_settings', 'org', 'settings', C, False, 'Change organization settings'),
+    _p('manage_sso_settings', 'org', 'settings', C, False,
+       'Configure single sign-on (OIDC): identity providers, role and customer mappings, linked accounts',
+       staff_only=True),
     _p('org_owner', 'org', 'roles', C, False,
        'Organization owner: ownership transfer, owner-only operations, billing and security policy. '
        'Only granted through ownership transfer.'),

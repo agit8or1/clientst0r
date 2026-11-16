@@ -131,8 +131,8 @@ def classic_dashboard(request, org):
 
     # Check if user has 2FA enabled or authenticated via Azure AD SSO
     has_2fa = False
-    from accounts.azure_auth import azure_sso_counts_as_2fa
-    if azure_sso_counts_as_2fa(request):
+    from accounts.sso_mfa import sso_counts_as_2fa
+    if sso_counts_as_2fa(request):
         # Microsoft confirmed MFA for this sign-in (v3.17.660: no longer any
         # Microsoft sign-in)
         has_2fa = True

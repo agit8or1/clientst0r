@@ -130,8 +130,10 @@ class Enforce2FAMiddleware:
         # A Microsoft sign-in stands in for 2FA only when Microsoft confirmed
         # MFA (or AZURE_SSO_TRUSTED_AS_2FA); before v3.17.660 any Microsoft
         # sign-in skipped 2FA (accounts.azure_auth.azure_sso_counts_as_2fa).
-        from .azure_auth import azure_sso_counts_as_2fa
-        sso_2fa = azure_sso_counts_as_2fa(request)
+        # An OIDC sign-in only when its provider accepts the IdP's MFA and
+        # the token's acr / amr met it (accounts.sso_mfa).
+        from .sso_mfa import sso_counts_as_2fa, sso_kind, sso_verify_url
+        sso_2fa = sso_counts_as_2fa(request)
 
         # A user with a 2FA device must have passed it in *this* session.
         # Password-only logins (e.g. the stock /admin/login/ form) leave the
@@ -141,8 +143,8 @@ class Enforce2FAMiddleware:
         if not sso_2fa and user_has_device(request.user) and not self._is_verified(request):
             if any(request.path.startswith(path) for path in self.UNVERIFIED_ALLOWED_PATHS):
                 return self.get_response(request)
-            if request.session.get('azure_ad_authenticated', False):
-                verify_url = reverse('accounts:azure_verify')
+            verify_url = sso_verify_url(request)
+            if verify_url:
                 if request.path in (verify_url, '/logout/'):
                     return self.get_response(request)
                 from urllib.parse import urlencode
@@ -168,8 +170,11 @@ class Enforce2FAMiddleware:
                     AuditLog.objects.create(
                         user=request.user,
                         username=request.user.username,
-                        action='azure_ad_2fa_bypass',
-                        description=('Microsoft sign-in accepted as 2FA: '
+                        action=('oidc_sso_2fa_accepted' if sso_kind(request) == 'oidc'
+                                else 'azure_ad_2fa_bypass'),
+                        description=('Single sign-on accepted as 2FA: the identity provider confirmed MFA'
+                                     if sso_kind(request) == 'oidc' else
+                                     'Microsoft sign-in accepted as 2FA: '
                                      + ('Microsoft confirmed MFA' if request.session.get('azure_ad_mfa')
                                         else 'AZURE_SSO_TRUSTED_AS_2FA is set')),
                         ip_address=request.META.get('REMOTE_ADDR'),

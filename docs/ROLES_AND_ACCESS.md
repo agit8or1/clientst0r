@@ -408,6 +408,7 @@ Members, invitations, roles, ownership and organization settings.
 | `org_manage_privileged` | Manage roles | critical | no | enforced | Assign or remove privileged roles (roles holding user, role, security or platform administration) |
 | `roles_manage` | Manage roles | critical | no | enforced | Create, clone, edit and archive custom roles |
 | `org_manage_settings` | Manage settings | critical | no | enforced | Change organization settings |
+| `manage_sso_settings` | Manage settings | critical | staff only | enforced | Configure single sign-on (OIDC): identity providers, role and customer mappings, linked accounts |
 | `org_owner` | Manage roles | critical | no | enforced | Organization owner: ownership transfer, owner-only operations, billing and security policy. Only granted through ownership transfer. |
 
 ### Tickets & queues
