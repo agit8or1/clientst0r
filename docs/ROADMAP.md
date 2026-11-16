@@ -2950,6 +2950,46 @@ Depends on Phases 72, 73 and 74.
 
 **Sizing:** **M** — scoring model and explanations first, then dashboard and portal display.
 
+## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
+
+A reusable, self-hosted standard for Agit8or applications to discover, pair, authenticate and exchange
+events with each other, starting with Clientst0r and Rem0te. It runs alongside the existing
+`ticket-rmm-v1` link, which keeps working unchanged.
+
+- **79.1 Protocol and SDKs** *(in progress — dev/agit8or-connect)* — versioned protocol and OpenAPI spec;
+  Python and TypeScript SDKs checked against shared test vectors.
+- **79.2 Pairing and credentials** *(in progress — dev/agit8or-connect)* — single-use, short-lived pairing
+  codes with administrator approval on the receiving side; a key pair per connection; short-lived access
+  tokens; no long-lived shared API keys.
+- **79.3 Permissions and customer grants** *(in progress — dev/agit8or-connect)* — human-readable scopes in
+  risk tiers; explicit per-customer grants; per-grant revocation and an emergency disconnect.
+- **79.4 Signed events and webhooks** *(in progress — dev/agit8or-connect)* — signed, replay-protected
+  delivery with retries and a failed-delivery queue.
+- **79.5 Connection wizard and credential dashboard** *(in progress — dev/agit8or-connect)* — off by default
+  until enabled by an administrator.
+- **79.6 Rem0te side** *(planned)* — implemented in the Rem0te repository against the shared contract.
+- **79.7 Device sync, alert tickets, ticket-to-device and approved remote actions over Connect** *(planned)*.
+
+**Sizing:** **XL** — protocol and Clientst0r side first, then the Rem0te side, then integration features.
+
+## Phase 80 — Agit8or Identity: single sign-on for people **(L · security)** [in progress]
+
+Single sign-on across Agit8or applications through a shared, self-hosted Keycloak, using standard OpenID
+Connect. Each application keeps making its own authorization decisions; signing in to one application never
+grants access to another. Kept separate from Agit8or Connect (separate keys, audiences, revocation and audit).
+
+- **80.1 Architecture and migration plan** *(in progress)* — design documents; nothing is deployed without
+  approval.
+- **80.2 Web "sign out everywhere"** *(shipped v3.17.689)* — per-user session cut-off; sign out other
+  sessions or everywhere; automatic on password and 2FA changes and on deactivation; administrator sign-out.
+- **80.3 OpenID Connect sign-in client** *(in progress — dev/oidc-client)* — works with any certified
+  provider; off by default; local, Microsoft and LDAP sign-in unchanged.
+- **80.4 Keycloak deployment** *(planned)* — requires approval.
+- **80.5 Single sign-on between Clientst0r and Rem0te** *(planned)*.
+- **80.6 Customer portal users** *(planned)*.
+
+**Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -3037,3 +3077,5 @@ Depends on Phases 72, 73 and 74.
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
 | 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
+| 79 — Agit8or Connect | XL | in progress (dev/agit8or-connect) | Rem0te contract ticket-rmm-v1 |
+| 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; dev/oidc-client) | Keycloak shared with Rem0te |

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.689] - 2026-11-16
+
+### Security
+- **Sign out everywhere (web).** My Profile → Web sessions now has *Sign out of all other sessions* (keeps this browser) and *Sign out everywhere* (includes this browser, and by default also signs out the mobile app). Each user has a session cut-off time; any web session signed in before it ends on its next request.
+- Administrators can sign a user out everywhere from the user's page (superuser, confirmed with their password and authenticator code unless confirmed in the last few minutes). Customer portal users get *Sign out of all other sessions* on their portal account page; it only ever acts on the signed-in user and refuses staff accounts.
+- Other sessions now end automatically when a password is changed or reset (staff and portal), when a 2FA device is removed or re-keyed, and all sessions end when an account, a customer membership or a customer organization is deactivated. Reactivating does not restore old sessions.
+- A session whose account has been deactivated now ends on its next request for every sign-in method (the LDAP backend did not check this itself).
+- Fixed: saving a user profile loaded earlier in a request (on any User save, and in the 2FA "disable" view) could write back a stale value; the session cut-off is now only written when named explicitly.
+- Every sign-out is audit-logged (actor, target user, scope, reason, mobile sessions revoked); no session keys are logged.
+
+### Upgrade notes
+- Upgrading signs nobody out: existing sessions are dated from when they started (or first seen), so later sign-outs still end them.
+- Revoked rows in the session table are not deleted (avoids a full scan on SQLite); they stop working and expire or are removed by `clearsessions`.
+- Migration `accounts.0052` (session cut-off time). Includes the merge of v3.17.688.
+
 ## [3.17.688] - 2026-11-16
 
 ### Security
