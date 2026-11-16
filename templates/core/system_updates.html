@@ -87,6 +87,83 @@
     details {
         border-radius: 0.5rem;
     }
+
+    /* Settings -> Updates redesign: theme variables only (themes.css). */
+    .upd-muted { color: var(--text-muted, var(--bs-secondary-color)); }
+    .upd-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .75rem; }
+    .upd-tile { border: 1px solid var(--border-color, var(--bs-border-color)); border-radius: .5rem;
+        padding: .6rem .75rem; background: var(--surface, transparent); min-width: 0; }
+    .upd-tile__label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-muted, var(--bs-secondary-color)); }
+    .upd-tile__value { font-size: 1.05rem; font-weight: 600; color: var(--text-primary, inherit);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    .upd-tile__meta { font-size: .78rem; color: var(--text-secondary, inherit); overflow-wrap: anywhere; }
+    .upd-status { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between;
+        margin-top: .85rem; padding: .65rem .85rem; border-radius: .5rem;
+        border: 1px solid var(--border-color, var(--bs-border-color)); border-left-width: 4px;
+        background: var(--surface-raised, transparent); color: var(--text-primary, inherit); }
+    .upd-status__text { min-width: 0; flex: 1 1 280px; }
+    .upd-status__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .upd-status--ok { border-left-color: var(--success-color, #198754); }
+    .upd-status--update { border-left-color: var(--primary-color, #0d6efd); }
+    .upd-status--stale { border-left-color: var(--warning-color, #ffc107); }
+    .upd-status--error { border-left-color: var(--danger-color, #dc3545); }
+    .upd-tone { font-weight: 600; }
+    .upd-tone--success { color: var(--success-ink, var(--success-color, #198754)); }
+    .upd-tone--primary { color: var(--primary-color, #0d6efd); }
+    .upd-tone--info { color: var(--info-color, #0dcaf0); }
+    .upd-tone--warning { color: var(--warning-color, #b58100); }
+    .upd-tone--danger { color: var(--danger-ink, var(--danger-color, #dc3545)); }
+    .upd-tone--muted { color: var(--text-secondary, inherit); font-weight: 500; }
+    .upd-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+    .upd-tabs { display: flex; flex-wrap: wrap; gap: .25rem; }
+    .upd-tab { border: 1px solid var(--border-color, var(--bs-border-color)); background: transparent;
+        color: var(--text-secondary, inherit); border-radius: 999px; padding: .2rem .7rem; font-size: .85rem; }
+    .upd-tab.active { background: var(--primary-color, #0d6efd); border-color: var(--primary-color, #0d6efd); color: #fff; }
+    .upd-count { opacity: .75; font-size: .75rem; margin-left: .15rem; }
+    .upd-search { max-width: 280px; }
+    .upd-table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted, inherit); }
+    .upd-version { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: var(--text-primary, inherit); }
+    .upd-name { max-width: 340px; }
+    .upd-label { display: inline-block; margin-left: .35rem; padding: 0 .4rem; border-radius: .25rem; font-size: .7rem;
+        border: 1px solid var(--border-color, var(--bs-border-color)); color: var(--text-secondary, inherit); vertical-align: middle; }
+    .upd-label--installed { border-color: var(--success-color, #198754); color: var(--success-ink, var(--success-color, #198754)); }
+    .upd-label--recommended { border-color: var(--primary-color, #0d6efd); color: var(--primary-color, #0d6efd); }
+    .upd-type { font-weight: 600; font-size: .85rem; }
+    .upd-type--prerelease, .upd-type--development { color: var(--warning-color, #b58100); }
+    .upd-row--installed td { background: var(--surface-hover, rgba(25,135,84,.06)); }
+    .upd-reason { max-width: 260px; white-space: normal; }
+    .table-responsive.upd-table-wrap { overflow-x: auto; overflow-y: visible; }
+    .upd-table td { vertical-align: top; }
+    .upd-notes td { background: var(--surface, transparent); }
+    .upd-notes__meta { overflow-wrap: anywhere; color: var(--text-secondary, inherit); }
+    .upd-notes-box { max-height: 260px; overflow-y: auto; border: 1px solid var(--border-color, var(--bs-border-color));
+        border-radius: .5rem; padding: .5rem .75rem; }
+    .upd-channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem; }
+    .upd-channel { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .75rem; border-radius: .5rem;
+        border: 1px solid var(--border-color, var(--bs-border-color)); cursor: pointer; color: var(--text-primary, inherit); }
+    .upd-channel--on { border-color: var(--primary-color, #0d6efd); }
+    .upd-channel .small { color: var(--text-secondary, inherit); }
+    .upd-change { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+    .upd-change__arrow { font-size: 1.4rem; color: var(--text-muted, inherit); }
+    .upd-cmd { white-space: pre-wrap; word-break: break-all; background: var(--background-alt, #111); color: var(--text-primary, inherit);
+        border: 1px solid var(--border-color, var(--bs-border-color)); border-radius: .4rem; padding: .5rem .65rem; font-size: .8rem; }
+    #reviewChecks td { font-size: .82rem; vertical-align: top; }
+    /* Phones: the version table becomes stacked cards, no sideways scrolling. */
+    @media (max-width: 640px) {
+        .upd-search { max-width: none; width: 100%; }
+        .upd-table thead { display: none; }
+        .upd-table, .upd-table tbody, .upd-table tr, .upd-table td { display: block; width: 100%; }
+        .upd-table tr.upd-row { border-bottom: 1px solid var(--border-color, var(--bs-border-color)); padding: .4rem 0; }
+        .upd-table tr[hidden] { display: none; }
+        .upd-table td, main .upd-table > tbody > tr > td { border: 0; padding: .15rem .25rem; height: auto;
+            min-width: 0; text-align: left !important; }
+        .upd-table td[data-label]::before { content: attr(data-label); display: block; font-size: .68rem;
+            text-transform: uppercase; color: var(--text-muted, inherit); }
+        .upd-name, .upd-reason { max-width: none; }
+        .upd-date-kind { display: none; }
+        .upd-table-wrap { overflow-x: visible; }
+    }
 </style>
 {% endblock %}
 
@@ -200,165 +277,262 @@
     </div>
     {% endif %}
 
-    <!-- Installed / recommended release / main -->
-    <div class="row mb-4">
-        <div class="col-lg-4 mb-3 mb-lg-0">
-            <div class="card update-card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Installed</h5>
+    <!-- Summary: what runs, what exists, what the channel recommends -->
+    <div class="card mb-4 upd-summary" id="updSummary">
+        <div class="card-body">
+            <div class="upd-tiles">
+                <div class="upd-tile">
+                    <div class="upd-tile__label">Installed</div>
+                    <div class="upd-tile__value">v{{ version }}</div>
+                    <div class="upd-tile__meta">{{ installed_summary.type_label }}</div>
+                    <div class="upd-tile__meta git-status" title="{{ channels.installed.sha|default:git_status.commit }}">
+                        <span id="installedSha">{{ channels.installed.sha|default:git_status.commit|slice:":12" }}</span> on {{ git_status.branch|default:"?" }}
+                        {% if git_status.clean %}<span class="upd-tone upd-tone--success">clean</span>{% elif git_status.clean is None %}<span class="upd-tone upd-tone--muted">status unknown</span>{% else %}<span class="upd-tone upd-tone--warning">modified</span>{% endif %}
+                    </div>
                 </div>
-                <div class="card-body">
-                    <h2 class="mb-0"><span class="badge bg-primary version-badge">v{{ version }}</span></h2>
-                    <p class="text-muted mt-2 mb-1">
-                        Commit: <span class="git-status" id="installedSha">{{ channels.installed.sha|default:git_status.commit }}</span>
-                    </p>
-                    <p class="text-muted mb-0">
-                        Branch: <span class="git-status">{{ git_status.branch }}</span>
-                        {% if git_status.clean %}
-                        <span class="badge bg-success ms-2"><i class="fas fa-check"></i> Clean</span>
-                        {% else %}
-                        <span class="badge bg-warning text-dark ms-2"><i class="fas fa-exclamation-triangle"></i> Modified</span>
-                        {% endif %}
-                    </p>
-                    {% if channels.relation_to_stable == 'ahead' %}
-                    <p class="small mt-2 mb-0"><span class="badge bg-info text-dark">Newer than the latest release</span>
-                        This build came from <code>main</code> (a preview build).</p>
-                    {% endif %}
+                <div class="upd-tile">
+                    <div class="upd-tile__label">Channel</div>
+                    <div class="upd-tile__value">{{ channel_label }}</div>
+                    <div class="upd-tile__meta"><a href="#updChannel">Change channel</a></div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-4 mb-3 mb-lg-0">
-            <div class="card update-card h-100 {% if channels.relation_to_stable == 'behind' %}warning{% endif %}">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-tag"></i> Recommended release <small class="text-muted">(Stable)</small></h5>
-                </div>
-                <div class="card-body">
+                <div class="upd-tile">
+                    <div class="upd-tile__label">Latest Stable</div>
                     {% if channels.stable %}
-                    <h2 class="mb-0"><span class="badge {% if channels.relation_to_stable == 'behind' %}bg-warning text-dark{% else %}bg-success{% endif %} version-badge">{{ channels.stable.tag }}</span></h2>
-                    <p class="text-muted mt-2 mb-1">Commit: <span class="git-status">{{ channels.stable.sha|default:"unknown" }}</span></p>
-                    <p class="text-muted mb-1 small">Published {{ channels.stable.published_at|default:"" }} &middot;
-                        {% if channels.stable.has_signature %}signed tag{% else %}<strong>no tag signature</strong>{% endif %}
-                        (the signature is verified on this server when you apply)</p>
-                    {% if channels.stable.url %}<a href="{{ channels.stable.url }}" target="_blank" rel="noopener" class="small">Release notes on GitHub</a>{% endif %}
+                    <div class="upd-tile__value">{{ channels.stable.tag }}</div>
+                    <div class="upd-tile__meta">released {{ channels.stable.published_at|slice:":10" }}</div>
+                    {% elif versions_discovered %}
+                    <div class="upd-tile__value upd-muted">None published</div>
                     {% else %}
-                    <p class="mb-0 text-muted">{% if channels.error %}Unknown: the release list could not be read.{% else %}No published release found.{% endif %}</p>
+                    <div class="upd-tile__value upd-muted">Unknown</div>
+                    <div class="upd-tile__meta">GitHub not reached yet</div>
+                    {% endif %}
+                </div>
+                <div class="upd-tile">
+                    <div class="upd-tile__label">Latest Prerelease</div>
+                    {% if channels.prerelease %}
+                    <div class="upd-tile__value">{{ channels.prerelease.tag }}</div>
+                    <div class="upd-tile__meta">released {{ channels.prerelease.published_at|slice:":10" }}</div>
+                    {% elif versions_discovered %}
+                    <div class="upd-tile__value upd-muted">None published</div>
+                    {% else %}
+                    <div class="upd-tile__value upd-muted">Unknown</div>
+                    {% endif %}
+                </div>
+                <div class="upd-tile">
+                    <div class="upd-tile__label">Latest Development</div>
+                    {% if latest_dev %}
+                    <div class="upd-tile__value">{% if latest_dev.version %}v{{ latest_dev.version }}{% else %}main{% endif %}</div>
+                    <div class="upd-tile__meta git-status">main @ {{ latest_dev.sha|slice:":12" }}</div>
+                    {% if latest_dev.ahead_of_stable is not None %}<div class="upd-tile__meta">{{ latest_dev.ahead_of_stable }} commit{{ latest_dev.ahead_of_stable|pluralize }} since {{ latest_dev.since_tag|default:"the latest stable release" }}</div>{% endif %}
+                    {% else %}
+                    <div class="upd-tile__value upd-muted">Unknown</div>
                     {% endif %}
                 </div>
             </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card update-card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-code-branch"></i> Newer on main <small class="text-muted">(not a release)</small></h5>
-                </div>
-                <div class="card-body">
-                    {% if channels.preview %}
-                    <p class="mb-1">
-                        {% if channels.preview.ahead_of_stable %}
-                        <strong>{{ channels.preview.ahead_of_stable }}</strong> unreleased commit{{ channels.preview.ahead_of_stable|pluralize }} after {{ channels.stable.tag|default:"the latest release" }}.
-                        {% elif channels.preview.ahead_of_stable == 0 %}
-                        main has nothing that is not in {{ channels.stable.tag }}.
-                        {% endif %}
-                    </p>
-                    <p class="text-muted mb-1">Head: <span class="git-status">{{ channels.preview.sha }}</span>{% if channels.preview.version %} (v{{ channels.preview.version }}){% endif %}</p>
-                    {% if channels.preview.sha == channels.installed.sha %}<p class="small mb-1"><span class="badge bg-success">Installed</span> this instance runs main's head.</p>{% endif %}
-                    {% if channels.preview.commits %}
-                    <details class="small">
-                        <summary>Unreleased commits</summary>
-                        <ul class="mb-0 mt-1 ps-3">
-                            {% for c in channels.preview.commits %}
-                            <li><span class="git-status">{{ c.sha|slice:":8" }}</span> {{ c.message }}</li>
-                            {% endfor %}
-                        </ul>
-                    </details>
+
+            <div class="upd-status upd-status--{{ status_tone }}" id="updStatus" role="status">
+                <div class="upd-status__text">
+                    <strong>{{ status_line }}</strong>
+                    {% if installed_summary.ahead_of_stable %}
+                    <div class="small mt-1">You are running a development build newer than the latest published stable release.</div>
                     {% endif %}
-                    <p class="small text-muted mt-2 mb-0">Not published as a release. Installed only when this instance follows the Preview channel; Apply pins the exact commit shown.</p>
-                    {% else %}
-                    <p class="mb-0 text-muted">{% if channels.error %}Unknown: main could not be read.{% else %}No data.{% endif %}</p>
+                    <div class="small upd-muted mt-1">
+                        Last checked: {{ last_checked }}{% if channels.from_cache %} (cached){% endif %}{% if channels.stale %} &middot; <span class="upd-tone upd-tone--warning">stale: the latest check failed</span>{% endif %}
+                    </div>
+                </div>
+                <div class="upd-status__actions">
+                    <form method="POST" action="{% url 'core:check_updates_now' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fas fa-sync"></i> Check now</button>
+                    </form>
+                    {% if update_info.target and not upgrade_state.needs_recovery and upgrade_state.state != 'running' %}
+                    <button type="button" class="btn btn-sm btn-success" data-action="reviewVersion" data-args='["$this"]'
+                            data-kind="{{ update_info.target.kind }}" data-ref="{{ update_info.target.ref }}" data-sha="{{ update_info.target.sha }}" data-recommended="1">
+                        <i class="fas fa-download"></i> Update now: {{ update_info.target.ref }}{% if update_info.target.kind == 'preview' %} (not a release){% endif %}
+                    </button>
                     {% endif %}
                 </div>
+            </div>
+            <div id="newerBuild" class="upd-status upd-status--stale mt-2" style="display:none;" role="status">
+                <div class="upd-status__text">
+                    <i class="fas fa-code-branch"></i>
+                    <strong>A newer build is on offer:</strong> <span data-newer-desc></span>.
+                    This page still shows the earlier one; Apply installs only what you reviewed.
+                </div>
+                <div class="upd-status__actions"><button type="button" class="btn btn-sm btn-warning" data-reload>
+                    <i class="fas fa-rotate"></i> Review this build</button></div>
             </div>
         </div>
     </div>
 
-    <!-- Channel + what Apply installs -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-cog"></i> Release channel and Apply</h5>
-                </div>
-                <div class="card-body">
-                    {% if channels.error %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i> {{ channels.error }}
-                        {% if channels.stale %}Showing the last successful check ({{ channels.checked_at }}).{% endif %}
-                    </div>
+    <!-- Available Versions: everything discovered, whatever the channel -->
+    <div class="card mb-4" id="updVersions">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
+            <h5 class="mb-0"><i class="fas fa-layer-group"></i> Available Versions</h5>
+            <span class="small upd-muted fw-normal">Every published release and the head of main, whatever your channel. Your channel only decides what is recommended.</span>
+        </div>
+        <div class="card-body">
+            {% if not versions_discovered %}
+            <div class="upd-status upd-status--error mb-0">
+                <div class="upd-status__text">
+                    {% if check_error %}
+                    <strong>The version list could not be read from GitHub:</strong> {{ check_error }}
+                    <div class="small mt-1">Nothing is listed rather than an incomplete list. Use <em>Check now</em> to try again (set <code>GITHUB_TOKEN</code> for a higher API limit).</div>
+                    {% else %}
+                    <strong>GitHub has not been checked yet.</strong> Use <em>Check now</em>.
                     {% endif %}
-                    <form method="POST" action="{% url 'core:set_update_channel' %}" class="mb-3">
-                        {% csrf_token %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="channel" id="chStable" value="stable" {% if channels.channel != 'preview' %}checked{% endif %}>
-                            <label class="form-check-label" for="chStable"><strong>Stable</strong> &mdash; the latest published release, installed only if its tag carries a valid release signature.</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="channel" id="chPreview" value="preview" {% if channels.channel == 'preview' %}checked{% endif %}>
-                            <label class="form-check-label" for="chPreview"><strong>Preview</strong> &mdash; the newest commit on main. Unreleased and unsigned; pinned to the exact commit shown.</label>
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-outline-secondary mt-2">Save channel</button>
-                        <span class="small text-muted ms-2">This instance follows <strong>{{ channels.channel|default:"stable"|capfirst }}</strong>. There is no LTS channel.</span>
-                    </form>
-
-                    <div class="mb-3">
-                        {% if update_info.target %}
-                        <p class="mb-1"><strong>Apply would install:</strong>
-                            {% if update_info.target.kind == 'release' %}release{% else %}preview build (not a release){% endif %}
-                            <span class="git-status">{{ update_info.target.ref }}</span>
-                            {% if update_info.target.version %}(v{{ update_info.target.version }}){% endif %}
-                            at commit <span class="git-status" id="targetSha">{{ update_info.target.sha }}</span>
-                        </p>
-                        <p class="small text-muted mb-0">Exactly this commit is fetched and checked{% if update_info.target.kind == 'release' %}, the tag signature is verified,{% endif %} preflight checks run and a verified backup is taken before anything changes. If the {% if update_info.target.kind == 'release' %}tag{% else %}branch{% endif %} moves before you click, Apply refuses and asks you to review again.</p>
-                        {% else %}
-                        <p class="mb-0"><span class="badge bg-success"><i class="fas fa-check"></i> Nothing newer on this channel</span>
-                            <small class="text-muted ms-2">Last checked: {{ update_info.checked_at|default:"Never" }}</small></p>
-                        {% endif %}
-                    </div>
-
-                    <form method="POST" action="{% url 'core:check_updates_now' %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-sync"></i> Check for Updates Now
-                        </button>
-                    </form>
-                    <button type="button" class="btn btn-outline-primary" data-action="runPreflight" id="preflightBtn">
-                        <i class="fas fa-clipboard-check"></i> Run preflight checks
-                    </button>
-                    {% if update_info.target and not upgrade_state.needs_recovery and upgrade_state.state != 'running' %}
-                    <button type="button" class="btn btn-success" data-action="showUpdateModal">
-                        <i class="fas fa-download"></i> Apply {{ update_info.target.ref }}
-                    </button>
-                    {% endif %}
-                    <div id="preflightResult" class="mt-3" style="display:none;"></div>
-                    <div id="newerBuild" class="alert alert-warning mt-3 mb-0" style="display:none;" role="status">
-                        <i class="fas fa-code-branch"></i>
-                        <strong>A newer build is on offer:</strong>
-                        <span data-newer-desc></span>.
-                        This page still shows the earlier one; Apply installs only what you reviewed.
-                        <div class="mt-2"><button type="button" class="btn btn-sm btn-warning" data-reload>
-                            <i class="fas fa-rotate"></i> Review this build</button></div>
-                    </div>
-
-                    <div class="alert alert-info mt-3 mb-0">
-                        <i class="fas fa-info-circle"></i>
-                        Updates are checked every hour. Pre-upgrade backups (database, uploaded files and the keys needed to read them) are kept in <code>{{ backup_dir }}</code>, owner-only.
-                        Every upgrade cleans up old backups itself; see <a href="#preUpgradeBackups">Pre-upgrade backups</a> below.
-                        {% if not git_status.clean %}
-                        <br><i class="fas fa-exclamation-triangle text-warning"></i>
-                        <strong>Warning:</strong> tracked files were modified locally. Apply checks out the reviewed revision exactly, which replaces them.
-                        {% endif %}
-                    </div>
                 </div>
             </div>
+            {% else %}
+            <div class="upd-toolbar">
+                <div class="upd-tabs" role="tablist" aria-label="Filter versions by type">
+                    <button type="button" class="upd-tab active" role="tab" aria-selected="true" data-action="filterVersions" data-arg="all">All <span class="upd-count">{{ versions|length }}</span></button>
+                    <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="stable">Stable <span class="upd-count">{{ discovery.stable_count|default:0 }}</span></button>
+                    <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="prerelease">Prerelease <span class="upd-count">{{ discovery.prerelease_count|default:0 }}</span></button>
+                    <button type="button" class="upd-tab" role="tab" aria-selected="false" data-action="filterVersions" data-arg="development">Development <span class="upd-count">{% if latest_dev %}1{% else %}0{% endif %}</span></button>
+                </div>
+                <input type="search" class="form-control form-control-sm upd-search" id="versionSearch" placeholder="Search version, name or commit" aria-label="Search versions" data-on-input="searchVersions">
+            </div>
+            <div class="table-responsive upd-table-wrap">
+                <table class="table table-sm align-middle mb-0 upd-table" id="versionsTable">
+                    <thead><tr><th>Version</th><th>Type</th><th>Released</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                    <tbody>
+                    {% for v in versions %}
+                    <tr class="upd-row{% if v.relation == 'installed' %} upd-row--installed{% endif %}" data-type="{{ v.type }}" data-row="{{ forloop.counter0 }}"
+                        data-search="{{ v.ref|lower }} {{ v.version|lower }} {{ v.name|lower }} {{ v.sha }}">
+                        <td data-label="Version">
+                            <span class="upd-version">{% if v.type == 'development' %}{% if v.version %}v{{ v.version }}{% else %}main{% endif %}{% else %}{{ v.tag }}{% endif %}</span>
+                            {% for l in v.labels %}<span class="upd-label{% if l == 'Installed' %} upd-label--installed{% elif l == 'Recommended' %} upd-label--recommended{% endif %}">{{ l }}</span>{% endfor %}
+                            <div class="small upd-muted text-truncate upd-name">{% if v.type == 'development' %}main @ <span class="git-status">{{ v.sha|slice:":12" }}</span> &middot; {% endif %}{{ v.name }}</div>
+                        </td>
+                        <td data-label="Type">
+                            <span class="upd-type upd-type--{{ v.type }}">{{ v.type_label }}</span>
+                            {% if v.type == 'prerelease' %}<div class="small upd-muted">may be unfinished</div>{% elif v.type == 'development' %}<div class="small upd-muted">unofficial, may be unstable</div>{% endif %}
+                        </td>
+                        <td data-label="{{ v.date_kind }}">
+                            {% if v.date %}<span class="text-nowrap" title="{{ v.date }}">{{ v.date|slice:":10" }}</span>{% else %}<span class="upd-muted">unknown</span>{% endif %}
+                            <div class="small upd-muted upd-date-kind">{{ v.date_kind|lower }}</div>
+                        </td>
+                        <td data-label="Status">
+                            <span class="upd-tone upd-tone--{{ v.status_tone }}">{{ v.status }}</span>
+                            {% if v.type == 'development' %}<div class="small upd-muted">unsigned, pinned by commit</div>
+                            {% else %}<div class="small upd-muted" title="{{ v.signature_detail }}">signature: {% if v.signature == 'verified' %}verified{% elif v.signature == 'pending' %}checked at install{% elif v.signature == 'invalid' %}not trusted{% elif v.signature == 'unsigned' %}unsigned{% else %}unknown{% endif %}</div>{% endif %}
+                            {% if v.reason_short %}<div class="small upd-tone upd-tone--danger upd-reason">{{ v.reason_short }}</div>{% endif %}
+                            {% if not v.in_channel and v.installable %}<div class="small upd-muted">outside your channel</div>{% endif %}
+                        </td>
+                        <td data-label="Actions" class="text-end text-nowrap">
+                            {% if v.installable and v.action %}
+                            <button type="button" class="btn btn-sm {% if v.recommended %}btn-success{% elif v.action == 'install_older' %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}"
+                                    data-action="reviewVersion" data-args='["$this"]' data-kind="{{ v.kind }}" data-ref="{{ v.ref }}" data-sha="{{ v.sha }}">
+                                {% if v.action == 'install_older' %}Install older&hellip;{% else %}Install&hellip;{% endif %}
+                            </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-link" data-action="toggleNotes" data-args='["$this"]' aria-expanded="false">Details</button>
+                        </td>
+                    </tr>
+                    <tr class="upd-notes" data-notes-for="{{ forloop.counter0 }}" hidden>
+                        <td colspan="5">
+                            <div class="upd-notes__meta small">
+                                {% if v.sha %}Commit <a class="git-status" href="{{ v.commit_url }}" target="_blank" rel="noopener">{{ v.sha }}</a>{% else %}Commit unknown{% endif %}
+                                {% if v.url %} &middot; <a href="{{ v.url }}" target="_blank" rel="noopener">Release on GitHub</a>{% endif %}
+                                {% if v.signature_detail %} &middot; Signature: {{ v.signature_detail }}{% endif %}
+                                {% if v.compat %} &middot; Compatibility: {{ v.compat.detail }}{% endif %}
+                                {% if v.reason and v.reason != 'installed' %}<div class="upd-tone upd-tone--danger mt-1">Not installable: {{ v.reason }}</div>{% endif %}
+                            </div>
+                            {% if v.type == 'development' %}
+                            <p class="small mb-1 mt-2">Not a release: the newest commit on <code>main</code>{% if v.ahead_of_stable is not None %}, {{ v.ahead_of_stable }} commit{{ v.ahead_of_stable|pluralize }} after {{ v.since_tag|default:"the latest stable release" }}{% endif %}. Installing it pins this exact commit; there is no signature.</p>
+                            {% if v.commits %}<ul class="small mb-0 ps-3">{% for c in v.commits %}<li><span class="git-status">{{ c.sha|slice:":8" }}</span> {{ c.message }}{% if c.date %} <span class="upd-muted">({{ c.date|slice:":10" }})</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+                            {% elif v.notes %}
+                            <div class="changelog-body mt-2" data-changelog="{{ v.notes }}"></div>
+                            {% if v.notes_truncated %}<p class="small upd-muted mb-0">Shortened; the full notes are on GitHub.</p>{% endif %}
+                            {% else %}
+                            <p class="small upd-muted mt-2 mb-0">No release notes were published with this release.</p>
+                            {% endif %}
+                            {% if v.assets %}<div class="small mt-2">Assets: {% for a in v.assets %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="small upd-muted mt-2 mb-0" id="versionsEmpty" hidden>No versions match.</p>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="versionsMore" data-action="loadMoreVersions" hidden>Load more</button>
+                <span class="small upd-muted" id="versionsShown"></span>
+            </div>
+            <p class="small upd-muted mt-2 mb-0">
+                {{ discovery.release_count|default:0 }} published release{{ discovery.release_count|default:0|pluralize }} read from GitHub ({{ discovery.pages|default:0 }} page{{ discovery.pages|default:0|pluralize }}): {{ discovery.stable_count|default:0 }} stable, {{ discovery.prerelease_count|default:0 }} prerelease{% if discovery.drafts %}; {{ discovery.drafts }} draft{{ discovery.drafts|pluralize }} not shown{% endif %}{% if discovery.ignored_count %}; {{ discovery.ignored_count }} with a non-version tag not shown{% endif %}.
+                Sorted by release or commit date, newest first. Releases and pre-releases install only if their tag is signed by a trusted release key; an older version installs only if the database has no migration it lacks.
+                {% if discovery.tags_error %}<br><span class="upd-tone upd-tone--warning">{{ discovery.tags_error }}</span>{% endif %}
+            </p>
+            {% endif %}
+            <div id="preflightResult" class="mt-3" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Update Channel: recommendations and automatic updates only -->
+    <div class="card mb-4" id="updChannel">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-route"></i> Update Channel</h5></div>
+        <div class="card-body">
+            <p class="small mb-3">The channel decides which version is <strong>recommended</strong>: the update badge, <em>Update now</em>, and what the nightly automatic update installs. Saving it never installs anything and never hides a version. Installing a version from another channel under Available Versions does not change it.</p>
+            <form method="POST" action="{% url 'core:set_update_channel' %}">
+                {% csrf_token %}
+                <div class="upd-channels">
+                    <label class="upd-channel{% if channels.channel == 'stable' or not channels.channel %} upd-channel--on{% endif %}">
+                        <input class="form-check-input" type="radio" name="channel" value="stable" {% if channels.channel != 'preview' and channels.channel != 'prerelease' %}checked{% endif %}>
+                        <span><strong>Stable</strong><br><span class="small">Published releases, installed only if the tag carries a valid release signature.</span></span>
+                    </label>
+                    <label class="upd-channel{% if channels.channel == 'prerelease' %} upd-channel--on{% endif %}">
+                        <input class="form-check-input" type="radio" name="channel" value="prerelease" {% if channels.channel == 'prerelease' %}checked{% endif %}>
+                        <span><strong>Prerelease</strong><br><span class="small">Stable plus published pre-releases (alpha, beta, RC) signed by the same release key.</span></span>
+                    </label>
+                    <label class="upd-channel{% if channels.channel == 'preview' %} upd-channel--on{% endif %}">
+                        <input class="form-check-input" type="radio" name="channel" value="preview" {% if channels.channel == 'preview' %}checked{% endif %}>
+                        <span><strong>Preview</strong><br><span class="small">The newest commit on main: unreleased and unsigned, not a release; pinned to the exact commit shown.</span></span>
+                    </label>
+                </div>
+                <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save channel</button>
+                    <span class="small upd-muted">Following <strong>{{ channel_label }}</strong>. A channel never recommends an older version. There is no LTS channel.</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Rollback: restore points (not "install an older version") -->
+    <div class="card mb-4" id="updRollback">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-clock-rotate-left"></i> Rollback</h5></div>
+        <div class="card-body">
+            <p class="small mb-2">A rollback puts the database, uploaded files and code back exactly as they were when a pre-upgrade backup was taken. No migration runs backwards, and <strong>everything changed since that backup is lost</strong>. This is different from installing an older version, which keeps your data and is only possible when the database has no migration that version lacks.</p>
+            {% if eligible_restore_points %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-2 upd-table">
+                    <thead><tr><th>Restore point</th><th>Version</th><th>Taken</th><th>Size</th><th class="text-end">Action</th></tr></thead>
+                    <tbody>
+                    {% for r in eligible_restore_points %}
+                    <tr>
+                        <td data-label="Restore point"><span class="git-status small">{{ r.name }}</span>{% if r.reason_taken %}<div class="small upd-muted">{{ r.reason_taken }}</div>{% endif %}</td>
+                        <td data-label="Version">{% if r.version %}v{{ r.version }}{% else %}&mdash;{% endif %} <span class="git-status small">{{ r.sha|slice:":12" }}</span></td>
+                        <td data-label="Taken">{{ r.created_dt|date:"Y-m-d H:i" }}</td>
+                        <td data-label="Size">{{ r.size_human }}</td>
+                        <td data-label="Action" class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-action="showRollback" data-args='["$this"]'
+                                    data-name="{{ r.name }}" data-version="{{ r.version }}" data-taken="{{ r.created_dt|date:'Y-m-d H:i' }}"
+                                    data-command="{{ r.command }}" data-keys="{% if r.needs_keys %}1{% endif %}">Rollback&hellip;</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="small upd-muted mb-2">No restore point can be used right now: rollback is offered only for a verified backup whose code revision is in this checkout, taken from this database engine, and kept by retention through the next upgrade.</p>
+            {% endif %}
+            {% with others=restore_points|length %}{% if others and others != eligible_restore_points|length %}
+            <details class="small"><summary>Backups that cannot be used for rollback</summary>
+                <ul class="mb-0 mt-1 ps-3">{% for r in restore_points %}{% if not r.eligible %}<li><span class="git-status">{{ r.name }}</span>: {{ r.why_not }}</li>{% endif %}{% endfor %}</ul>
+            </details>
+            {% endif %}{% endwith %}
         </div>
     </div>
 
@@ -447,84 +621,6 @@
                         <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fas fa-broom"></i> Clean up now</button>
                     </form>
                     {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Debug Information -->
-    {% if debug_info %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-bug"></i> Update Check Debug Info
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-danger">
-                        <strong>Error:</strong> {{ debug_info.error }}
-                    </div>
-                    <p><strong>Current Version:</strong> {{ debug_info.current_version }}</p>
-                    <p><strong>GitHub API URL:</strong> <code>{{ debug_info.github_api_url }}</code></p>
-                    <p><strong>Checked at:</strong> {{ update_info.checked_at }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Update Check Details (for transparency) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-info-circle"></i> Update Check Details
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-sm">
-                        <tr>
-                            <th width="200">Current Version:</th>
-                            <td>{{ update_info.current_version }}</td>
-                        </tr>
-                        <tr>
-                            <th>Channel:</th>
-                            <td>{{ channels.channel|default:"stable"|capfirst }}</td>
-                        </tr>
-                        <tr>
-                            <th>Latest stable release:</th>
-                            <td>{{ channels.stable.tag|default:"Unknown" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Update Available:</th>
-                            <td>
-                                {% if update_info.update_available %}
-                                <span class="badge bg-warning">Yes</span>
-                                {% else %}
-                                <span class="badge bg-success">No</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Last Checked:</th>
-                            <td>{{ update_info.checked_at|default:"Never" }}</td>
-                        </tr>
-                        {% if update_info.error %}
-                        <tr>
-                            <th>Error:</th>
-                            <td class="text-danger">{{ update_info.error }}</td>
-                        </tr>
-                        {% endif %}
-                    </table>
-                    <p class="text-muted mb-0">
-                        <small>
-                            <i class="fas fa-lightbulb"></i>
-                            Update checks read the published releases and the head of main from GitHub (cached for 10 minutes; set GITHUB_TOKEN for a higher API limit). If GitHub cannot be reached the last good answer is shown and marked as such.
-                        </small>
-                    </p>
                 </div>
             </div>
         </div>
@@ -645,56 +741,8 @@
                         <i class="fas fa-list-ul me-2"></i>What's in v{{ version }}
                     </h5>
                 </div>
-                <div class="card-body">
-                    <div class="changelog-body" data-changelog="{{ current_changelog|escape }}"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Newer Versions Available -->
-    {% if newer_changelogs %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-warning">
-                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--warning-yellow); color: #000;">
-                    <h5 class="mb-0">
-                        <i class="fas fa-arrow-up me-2"></i>What's New in Available Updates
-                        <span class="badge bg-dark ms-2">{{ newer_changelogs|length }} version{{ newer_changelogs|length|pluralize }}</span>
-                    </h5>
-                    <button class="btn btn-sm btn-outline-dark" data-action="toggleAllVersions" data-args='["$this"]'>
-                        <i class="fas fa-expand-alt me-1"></i>Expand All
-                    </button>
-                </div>
-                <div class="card-body p-0">
-                    {% for ver, changelog in newer_changelogs.items %}
-                    <details class="version-entry border-bottom" {% if forloop.first %}open{% endif %}>
-                        <summary class="px-3 py-2 d-flex align-items-center gap-2 bg-light">
-                            <i class="fas fa-chevron-right toggle-icon text-muted"></i>
-                            <span class="badge bg-primary">v{{ ver }}</span>
-                            <span class="text-muted small ms-1">
-                                {% if "New Features" in changelog %}
-                                    <span class="badge bg-success me-1"><i class="fas fa-plus me-1"></i>New</span>
-                                {% endif %}
-                                {% if "Bug Fix" in changelog %}
-                                    <span class="badge bg-danger me-1"><i class="fas fa-bug me-1"></i>Fix</span>
-                                {% endif %}
-                                {% if "Improvement" in changelog %}
-                                    <span class="badge bg-info text-dark me-1"><i class="fas fa-arrow-up me-1"></i>Improved</span>
-                                {% endif %}
-                            </span>
-                        </summary>
-                        <div class="px-3 py-2 changelog-body" data-changelog="{{ changelog|escape }}"></div>
-                    </details>
-                    {% endfor %}
-                </div>
-                <div class="card-footer text-end">
-                    {% if update_info.release_url %}
-                    <a href="{{ update_info.release_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-external-link-alt me-1"></i>View on GitHub
-                    </a>
-                    {% endif %}
+                <div class="card-body" id="installedChangelog">
+                    <div class="changelog-body" data-changelog="{{ current_changelog }}"></div>
                 </div>
             </div>
         </div>
@@ -832,53 +880,75 @@
     </div>
 </div>
 
-<!-- Update Confirmation Modal -->
-<div class="modal fade" id="updateConfirmModal" tabindex="-1" aria-labelledby="updateConfirmModalLabel" aria-hidden="true" data-bs-backdrop="false" style="z-index: 99999 !important; pointer-events: auto !important;">
-    <div class="modal-dialog modal-dialog-centered" style="z-index: 100000 !important; pointer-events: auto !important;">
-        <div class="modal-content" style="z-index: 100001 !important; pointer-events: auto !important;">
+<!-- Review & install one version. A plain Bootstrap modal with the default
+     backdrop; moved under <body> before it opens (see openModal) so no
+     ancestor's stacking context can put it behind the page. -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="updateConfirmModalLabel">
-                    <i class="fas fa-exclamation-triangle text-warning"></i> Confirm System Update
-                </h5>
+                <h5 class="modal-title" id="reviewModalLabel"><i class="fas fa-clipboard-check"></i> Review before installing</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>
-                    <strong>You are about to update Client St0r from v{{ version }} to
-                    {% if update_info.target.kind == 'release' %}release{% else %}the preview build{% endif %}
-                    {{ update_info.target.ref }}{% if update_info.target.version %} (v{{ update_info.target.version }}){% endif %}</strong><br>
-                    <span class="small">Commit <span class="git-status">{{ update_info.target.sha }}</span></span>
-                </p>
-                <p>The update process will:</p>
-                <ul>
-                    <li>Check that {{ update_info.target.ref }} still points at that commit, fetch it{% if update_info.target.kind == 'release' %} and verify the release signature{% endif %}</li>
-                    <li>Run the preflight checks (disk, database, keys, dependencies)</li>
-                    <li>Back up the database, uploaded files and keys, and verify the backup restores</li>
-                    <li>Run the update script from that revision: code, dependencies, migrations, static files</li>
-                    <li>Reload the application</li>
-                </ul>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Warning:</strong> The application will be unavailable during the update process. This can take up to 5 minutes depending on the size of the update and your system resources.
-                    {% if not git_status.clean %}
-                    <br><br>
-                    <strong>Your working directory has uncommitted changes that may be overwritten!</strong>
-                    {% endif %}
+                <div id="reviewLoading" class="upd-muted"><i class="fas fa-spinner fa-spin"></i> Fetching the revision, verifying it and running the preflight checks (the dependency check can take a minute)&hellip;</div>
+                <div id="reviewBody" hidden>
+                    <div class="upd-change">
+                        <div><div class="upd-tile__label">From (installed)</div><div class="upd-version" id="reviewFrom"></div></div>
+                        <div class="upd-change__arrow" aria-hidden="true">&rarr;</div>
+                        <div><div class="upd-tile__label">To</div><div class="upd-version" id="reviewTo"></div></div>
+                    </div>
+                    <div id="reviewKind" class="upd-status mt-2"></div>
+                    <h6 class="mt-3">What changes</h6>
+                    <div id="reviewNotes" class="changelog-body upd-notes-box"></div>
+                    <h6 class="mt-3">Checks</h6>
+                    <table class="table table-sm mb-2" id="reviewChecks"></table>
+                    <p class="small upd-muted mb-2">When you install, all of this runs again on the server, then a backup of the database, uploaded files and keys is taken and verified by restoring it into a scratch database. No verified backup, no change.</p>
+                    <div id="reviewConfirms"></div>
+                    <div id="reviewError" class="upd-status upd-status--error mt-2" hidden></div>
                 </div>
-                <p class="mb-0"><strong>Are you sure you want to proceed?</strong></p>
             </div>
-            <div class="modal-footer" style="pointer-events: auto !important; z-index: 100002 !important;">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="pointer-events: auto !important; z-index: 100003 !important; cursor: pointer !important;">Cancel</button>
-                <button type="button" class="btn btn-success" data-action="startUpdate" style="pointer-events: auto !important; z-index: 100003 !important; cursor: pointer !important;">
-                    <i class="fas fa-download"></i> Yes, Apply Update
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="reviewInstall" data-action="startUpdate" disabled>
+                    <i class="fas fa-download"></i> <span>Install</span>
                 </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Rollback: explicit confirmation, then the exact command to run -->
+<div class="modal fade" id="rollbackModal" tabindex="-1" aria-labelledby="rollbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rollbackModalLabel"><i class="fas fa-clock-rotate-left"></i> Roll back to a restore point</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">From <strong>v{{ version }}</strong> back to <strong id="rbVersion"></strong>, as it was at <strong id="rbTaken"></strong>.</p>
+                <ul class="small">
+                    <li>The database and uploaded files are replaced by the backup. <strong>Everything created or changed since then is lost.</strong> The current ones are kept beside it (<code>*.before-restore-*</code>).</li>
+                    <li>The code goes back to the revision the backup recorded, with its dependencies.</li>
+                    <li id="rbKeys" hidden>This backup's <code>APP_MASTER_KEY</code> differs from this instance's: its keys are restored too.</li>
+                    <li>The web service and the scheduler must be stopped while it runs, so it is run on the server, not from this page.</li>
+                </ul>
+                <label class="form-label small mb-1" for="rbConfirm">Type <strong id="rbExpect"></strong> to confirm</label>
+                <input type="text" class="form-control form-control-sm" id="rbConfirm" autocomplete="off" data-on-input="checkRollbackConfirm">
+                <div id="rbSteps" class="mt-3" hidden>
+                    <p class="small mb-1">On the server, as the user that runs Client St0r, from the install directory:</p>
+                    <pre class="upd-cmd mb-1" id="rbCommand"></pre>
+                    <p class="small upd-muted mb-0">1. stop the web service and the scheduler; 2. run the command above (it verifies the backup in full first and refuses one that does not verify); 3. start them again. Step by step: <code>docs/UPGRADE_AND_RECOVERY.md</code>.</p>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+        </div>
+    </div>
+</div>
+
 <!-- Update Progress Modal -->
-<div class="modal fade" id="updateProgressModal" tabindex="-1" aria-labelledby="updateProgressModalLabel" aria-hidden="true" data-bs-backdrop="false" data-bs-keyboard="false">
+<div class="modal fade" id="updateProgressModal" tabindex="-1" aria-labelledby="updateProgressModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -886,7 +956,7 @@
                     <i class="fas fa-sync fa-spin"></i> Updating System
                 </h5>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" id="updateProgress">
                 <div class="mb-3">
                     <div class="progress" style="height: 30px;">
                         <div id="updateProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">
@@ -896,13 +966,13 @@
                 </div>
                 <div id="updateSteps">
                     <div class="step-item" data-step="verify">
-                        <i class="fas fa-circle text-muted"></i> <span>Verify Revision</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Check repository, download and verify</span>
                     </div>
                     <div class="step-item" data-step="preflight">
-                        <i class="fas fa-circle text-muted"></i> <span>Preflight Checks</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Preflight checks</span>
                     </div>
                     <div class="step-item" data-step="backup">
-                        <i class="fas fa-circle text-muted"></i> <span>Verified Backup</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Verified backup</span>
                         <div id="backupDetail" class="small text-muted ms-4" style="display: none;" aria-live="polite">
                             <div id="backupPhase"></div>
                             <div id="backupTiming"></div>
@@ -910,19 +980,22 @@
                         </div>
                     </div>
                     <div class="step-item" data-step="git_pull">
-                        <i class="fas fa-circle text-muted"></i> <span>Git Pull</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Apply the new code</span>
                     </div>
                     <div class="step-item" data-step="install">
-                        <i class="fas fa-circle text-muted"></i> <span>Install Dependencies</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Install dependencies</span>
                     </div>
                     <div class="step-item" data-step="migrate">
-                        <i class="fas fa-circle text-muted"></i> <span>Run Migrations</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Database migrations</span>
                     </div>
                     <div class="step-item" data-step="static">
-                        <i class="fas fa-circle text-muted"></i> <span>Collect Static Files</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Static files</span>
                     </div>
                     <div class="step-item" data-step="restart">
-                        <i class="fas fa-circle text-muted"></i> <span>Restart Service</span>
+                        <i class="fas fa-circle text-muted"></i> <span>Restart</span>
+                    </div>
+                    <div class="step-item" data-step="health">
+                        <i class="fas fa-circle text-muted"></i> <span>Health check</span>
                     </div>
                 </div>
                 <div id="updateComplete" style="display: none;" class="alert alert-success mt-3 text-dark bg-success bg-opacity-10 border-success">
@@ -938,7 +1011,8 @@
                 </div>
                 <div id="updateError" style="display: none;" class="alert alert-danger mt-3">
                     <i class="fas fa-exclamation-circle"></i> <strong>Update failed:</strong> <span id="updateErrorMessage"></span>
-                    <div class="small mt-2">The log of this run is kept under <em>Recent Updates</em> below. Recovery steps: <code>docs/UPGRADE_AND_RECOVERY.md</code> (or <code>manage.py upgrade_status</code> on the server).</div>
+                    <div class="small mt-2" id="updateErrorHelp">If it stopped before the new code was applied, nothing changed. Otherwise <code>manage.py upgrade_status</code> on the server says what happened and how to resume (<code>upgrade_apply --resume</code>) or restore the verified backup (<code>upgrade_restore</code>); see <code>docs/UPGRADE_AND_RECOVERY.md</code>. The log of this run is under <em>Recent Update History</em>.</div>
+                    <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" data-reload>Reload the page</button></div>
                 </div>
                 <details class="mt-2 small"><summary>Live log</summary>
                     <pre id="updateLog" class="mb-0" style="max-height: 240px; overflow-y: auto; white-space: pre-wrap;"></pre>
@@ -999,80 +1073,270 @@
 {{ update_info.target|json_script:"reviewed-target" }}
 <script nonce="{{ csp_nonce }}">
 const REVIEWED_TARGET = JSON.parse(document.getElementById('reviewed-target').textContent) || {};
+const UPD_CSRF = '{{ csrf_token }}';
+const UPD_CHANNEL_LABEL = '{{ channel_label|escapejs }}';
+const PAGE_SIZE = 20;
 
-function runPreflight() {
-    const btn = document.getElementById('preflightBtn');
-    const box = document.getElementById('preflightResult');
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    btn.disabled = true;
-    box.style.display = 'block';
-    box.innerHTML = '<div class="text-muted"><i class="fas fa-spinner fa-spin"></i> Running preflight checks (the dependency check can take a minute)...</div>';
-    fetch('{% url "core:upgrade_preflight_api" %}', {method: 'POST', headers: {'X-CSRFToken': csrftoken}})
-        .then(r => r.json())
-        .then(data => {
-            const table = document.createElement('table');
-            table.className = 'table table-sm mb-0';
-            (data.checks || []).forEach(function (c) {
-                const tr = table.insertRow();
-                const badge = {ok: 'bg-success', warn: 'bg-warning text-dark', fail: 'bg-danger'}[c.status] || 'bg-secondary';
-                const s = tr.insertCell(); s.innerHTML = '<span class="badge ' + badge + '"></span>';
-                s.firstChild.textContent = c.status.toUpperCase();
-                tr.insertCell().textContent = c.name;
-                const d = tr.insertCell(); d.textContent = c.detail + (c.hint && c.status !== 'ok' ? ' -- ' + c.hint : '');
-            });
-            box.innerHTML = '';
-            const head = document.createElement('div');
-            head.className = 'mb-2 fw-bold';
-            head.textContent = data.ok ? 'Preflight passed.' : 'Preflight failed: Apply would stop before changing anything.';
-            box.appendChild(head);
-            box.appendChild(table);
-        })
-        .catch(e => { box.textContent = 'Preflight request failed: ' + e.message; })
-        .finally(() => { btn.disabled = false; });
+// ── Modals ──────────────────────────────────────────────────────────────────
+// Apply once did nothing when clicked (v3.17.694): see openModal's notes.
+// Every modal is moved directly under <body> before it opens, so it is never
+// inside a positioned / transformed ancestor of the redesigned layout, and
+// it uses Bootstrap's own backdrop instead of inline z-index overrides. If
+// Bootstrap's script did not load, the modal is shown without it rather
+// than the click silently doing nothing.
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    if (el.parentElement !== document.body) document.body.appendChild(el);
+    if (window.bootstrap && bootstrap.Modal) {
+        const m = bootstrap.Modal.getOrCreateInstance(el);
+        m.show();
+        return m;
+    }
+    el.style.display = 'block';
+    el.classList.add('show');
+    el.removeAttribute('aria-hidden');
+    el.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function (b) {
+        b.addEventListener('click', function () { closeModal(id); }, {once: true});
+    });
+    return null;
 }
 
-function showUpdateModal() {
-    var modal = new bootstrap.Modal(document.getElementById('updateConfirmModal'));
-    modal.show();
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        const m = bootstrap.Modal.getInstance(el);
+        if (m) { m.hide(); return; }
+    }
+    el.style.display = 'none';
+    el.classList.remove('show');
+    el.setAttribute('aria-hidden', 'true');
+}
+
+function postJSON(url, body) {
+    return fetch(url, {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': UPD_CSRF},
+        body: JSON.stringify(body || {})
+    }).then(function (r) {
+        return r.json().catch(function () { return {status: 'error', message: 'HTTP ' + r.status}; })
+            .then(function (data) { data._http = r.status; return data; });
+    });
+}
+
+// ── Available Versions: filter, search, paging, details ─────────────────────
+let versionFilter = 'all';
+let versionLimit = PAGE_SIZE;
+
+function renderVersions() {
+    const q = (document.getElementById('versionSearch') || {}).value || '';
+    const needle = q.trim().toLowerCase();
+    const rows = document.querySelectorAll('#versionsTable tr.upd-row');
+    let matched = 0, shown = 0;
+    rows.forEach(function (tr) {
+        const ok = (versionFilter === 'all' || tr.dataset.type === versionFilter)
+            && (!needle || tr.dataset.search.indexOf(needle) !== -1);
+        const visible = ok && matched < versionLimit;
+        if (ok) matched += 1;
+        if (visible) shown += 1;
+        tr.hidden = !visible;
+        const notes = document.querySelector('tr[data-notes-for="' + tr.dataset.row + '"]');
+        if (notes && !visible) notes.hidden = true;
+        if (notes && visible && tr.dataset.open === '1') notes.hidden = false;
+    });
+    const more = document.getElementById('versionsMore');
+    if (more) more.hidden = matched <= versionLimit;
+    const info = document.getElementById('versionsShown');
+    if (info) info.textContent = matched ? ('Showing ' + shown + ' of ' + matched) : '';
+    const empty = document.getElementById('versionsEmpty');
+    if (empty) empty.hidden = matched !== 0;
+}
+
+function filterVersions(type) {
+    versionFilter = type;
+    versionLimit = PAGE_SIZE;
+    document.querySelectorAll('.upd-tab').forEach(function (b) {
+        const on = b.getAttribute('data-arg') === type;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    renderVersions();
+}
+
+function searchVersions() { versionLimit = PAGE_SIZE; renderVersions(); }
+function loadMoreVersions() { versionLimit += PAGE_SIZE; renderVersions(); }
+
+function toggleNotes(btn) {
+    const tr = btn.closest('tr');
+    const notes = document.querySelector('tr[data-notes-for="' + tr.dataset.row + '"]');
+    if (!notes) return;
+    const open = notes.hidden;
+    notes.hidden = !open;
+    tr.dataset.open = open ? '1' : '';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.textContent = open ? 'Hide' : 'Details';
+    if (open) renderChangelogs(notes);
+}
+
+// ── Review, then install ────────────────────────────────────────────────────
+let pendingInstall = null;
+
+function relationText(d) {
+    const to = d.target || {};
+    const typeWord = {stable: 'stable release', prerelease: 'pre-release', development: 'development build'}[to.type] || 'build';
+    const parts = [];
+    if (d.relation === 'older') {
+        parts.push(['warning', 'Older version: this installs ' + typeWord + ' ' + to.ref
+            + ', older than what is installed. It keeps your data; it is offered only because the database has no migration that version lacks.']);
+    } else if (d.relation === 'same_version') {
+        parts.push(['info', 'Another build of the same version number (' + typeWord + ').']);
+    } else {
+        parts.push(['info', 'Upgrade to ' + typeWord + ' ' + to.ref + '.']);
+    }
+    if (!d.in_channel) {
+        parts.push(['warning', 'Outside your ' + UPD_CHANNEL_LABEL + ' channel. Your channel setting stays '
+            + UPD_CHANNEL_LABEL + '; change it under Update Channel if you want this kind of build recommended.']);
+    }
+    if (to.type === 'prerelease') parts.push(['warning', 'Pre-release: published for testing; it may be unfinished.']);
+    if (to.type === 'development') parts.push(['warning', 'Development build: unofficial and may be unstable. Not a release and not signed; the exact commit ' + String(to.sha).slice(0, 12) + ' is pinned.']);
+    return parts;
+}
+
+function reviewVersion(btn) {
+    const target = {kind: btn.dataset.kind, ref: btn.dataset.ref, sha: btn.dataset.sha};
+    const recommended = btn.dataset.recommended === '1';
+    pendingInstall = null;
+    document.getElementById('reviewLoading').hidden = false;
+    document.getElementById('reviewBody').hidden = true;
+    const install = document.getElementById('reviewInstall');
+    install.disabled = true;
+    install.querySelector('span').textContent = 'Install ' + target.ref;
+    openModal('reviewModal');
+    postJSON('{% url "core:upgrade_review_api" %}', target).then(function (d) {
+        document.getElementById('reviewLoading').hidden = true;
+        document.getElementById('reviewBody').hidden = false;
+        const err = document.getElementById('reviewError');
+        err.hidden = true;
+        if (!d.target) {
+            err.hidden = false;
+            err.textContent = d.message || ('The review failed (HTTP ' + d._http + ').');
+            document.getElementById('reviewChecks').innerHTML = '';
+            return;
+        }
+        const t = d.target;
+        document.getElementById('reviewFrom').textContent = 'v' + d.from.version + ' @ ' + String(d.from.sha || '').slice(0, 12);
+        document.getElementById('reviewTo').textContent = (t.type === 'development' ? 'main' : t.ref)
+            + (t.version ? ' (v' + t.version + ')' : '') + ' @ ' + String(t.sha).slice(0, 12);
+        const kind = document.getElementById('reviewKind');
+        kind.innerHTML = '';
+        relationText(d).forEach(function (p) {
+            const div = document.createElement('div');
+            div.className = 'upd-tone upd-tone--' + p[0];
+            div.textContent = p[1];
+            kind.appendChild(div);
+        });
+        const notes = document.getElementById('reviewNotes');
+        notes.innerHTML = '';
+        if (d.notes) {
+            notes.innerHTML = safeMarkdown(d.notes);
+        } else if (d.commits && d.commits.length) {
+            const ul = document.createElement('ul');
+            d.commits.forEach(function (c) {
+                const li = document.createElement('li');
+                li.textContent = String(c.sha).slice(0, 8) + ' ' + c.message;
+                ul.appendChild(li);
+            });
+            notes.appendChild(ul);
+        } else {
+            notes.textContent = 'No release notes were published with this version.';
+        }
+        const table = document.getElementById('reviewChecks');
+        table.innerHTML = '';
+        (d.checks || []).forEach(function (c) {
+            const tr = table.insertRow();
+            const s = tr.insertCell();
+            const b = document.createElement('span');
+            b.className = 'upd-tone upd-tone--' + ({ok: 'success', warn: 'warning', fail: 'danger'}[c.status] || 'muted');
+            b.textContent = String(c.status).toUpperCase();
+            s.appendChild(b);
+            tr.insertCell().textContent = c.name;
+            tr.insertCell().textContent = c.detail + (c.hint && c.status !== 'ok' ? ' -- ' + c.hint : '');
+        });
+        const confirms = document.getElementById('reviewConfirms');
+        confirms.innerHTML = '';
+        if (!d.ok) {
+            err.hidden = false;
+            err.textContent = 'This version cannot be installed: a check above failed. Nothing was changed.';
+            return;
+        }
+        const boxes = [['confirmMain', 'I have reviewed this and want to install ' + t.ref + '.']];
+        if (!d.in_channel) boxes.push(['confirmChannel', 'Install it outside my ' + UPD_CHANNEL_LABEL + ' channel (the channel setting is not changed).']);
+        if (d.relation === 'older') boxes.push(['confirmOlder', 'Install an older version than the one running now.']);
+        boxes.forEach(function (bx) {
+            const wrap = document.createElement('div');
+            wrap.className = 'form-check';
+            const input = document.createElement('input');
+            input.type = 'checkbox'; input.className = 'form-check-input'; input.id = bx[0];
+            input.addEventListener('change', function () {
+                install.disabled = Array.from(confirms.querySelectorAll('input')).some(function (i) { return !i.checked; });
+            });
+            const label = document.createElement('label');
+            label.className = 'form-check-label'; label.htmlFor = bx[0]; label.textContent = bx[1];
+            wrap.appendChild(input); wrap.appendChild(label);
+            confirms.appendChild(wrap);
+        });
+        pendingInstall = {kind: t.kind, ref: t.ref, sha: t.sha, recommended: recommended,
+                          confirm_out_of_channel: !d.in_channel, confirm_downgrade: d.relation === 'older'};
+    }).catch(function (e) {
+        document.getElementById('reviewLoading').hidden = true;
+        document.getElementById('reviewBody').hidden = false;
+        const err = document.getElementById('reviewError');
+        err.hidden = false;
+        err.textContent = 'The review request failed: ' + e.message;
+    });
 }
 
 function startUpdate() {
-    // Hide confirmation modal
-    var confirmModal = bootstrap.Modal.getInstance(document.getElementById('updateConfirmModal'));
-    confirmModal.hide();
-
-    // Show progress modal
-    var progressModal = new bootstrap.Modal(document.getElementById('updateProgressModal'));
-    progressModal.show();
-
-    // Get CSRF token
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    // Start the update
-    fetch('{% url "core:apply_update" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken
-        },
-        // The exact revision this page showed; the server refuses anything else.
-        body: JSON.stringify(REVIEWED_TARGET)
-    })
-    .then(response => response.json())
-    .then(data => {
+    if (!pendingInstall) return;
+    const body = pendingInstall;
+    pendingInstall = null;
+    document.getElementById('reviewInstall').disabled = true;
+    closeModal('reviewModal');
+    openModal('updateProgressModal');
+    // The exact revision that was reviewed; the server checks it against
+    // what GitHub offers now and refuses anything else.
+    postJSON('{% url "core:apply_update" %}', body).then(function (data) {
         if (data.status === 'started') {
-            // Start polling for progress
             pollProgress();
         } else if (data.reason === 'target_changed') {
             showMoved(data.target);
         } else {
-            showError(data.message || 'Failed to start update');
+            showError(data.message || 'Failed to start update', true);
         }
-    })
-    .catch(error => {
-        console.error('Error starting update:', error);
-        showError('Failed to start update: ' + error.message);
+    }).catch(function (error) {
+        showError('Failed to start update: ' + error.message, true);
     });
+}
+
+// ── Rollback ────────────────────────────────────────────────────────────────
+function showRollback(btn) {
+    const expect = btn.dataset.version ? 'v' + btn.dataset.version : btn.dataset.name;
+    document.getElementById('rbVersion').textContent = expect;
+    document.getElementById('rbTaken').textContent = btn.dataset.taken;
+    document.getElementById('rbExpect').textContent = expect;
+    document.getElementById('rbKeys').hidden = btn.dataset.keys !== '1';
+    document.getElementById('rbCommand').textContent = btn.dataset.command;
+    const input = document.getElementById('rbConfirm');
+    input.value = '';
+    input.dataset.expect = expect;
+    document.getElementById('rbSteps').hidden = true;
+    openModal('rollbackModal');
+}
+
+function checkRollbackConfirm() {
+    const input = document.getElementById('rbConfirm');
+    document.getElementById('rbSteps').hidden = input.value.trim() !== input.dataset.expect;
 }
 
 function finishUnverified(message) {
@@ -1343,6 +1607,7 @@ function waitForServerThenReload() {
 
     function probe() {
         attempt += 1;
+        markStep('health', 'fas fa-spinner fa-spin');
         const cd = document.getElementById('serverWaitCountdown');
 
         // 4-second per-fetch abort (was 3) — gives the upstream a hair
@@ -1460,6 +1725,7 @@ function waitForServerThenReload() {
             // settle delay so any final worker still in graceful shutdown
             // finishes before the reload's static-file fan-out hits.
             clearInterval(tickInterval);
+            markStep('health', 'fas fa-check-circle');
             const barEl = document.getElementById('serverWaitBar');
             if (barEl) {
                 barEl.classList.remove('progress-bar-animated', 'bg-info');
@@ -1477,12 +1743,22 @@ function waitForServerThenReload() {
     setTimeout(probe, 800);
 }
 
-function showError(message) {
+function showError(message, beforeStart) {
     document.getElementById('updateError').style.display = 'block';
     document.getElementById('updateErrorMessage').textContent = message;
+    if (beforeStart) {
+        // Refused before the pipeline started: nothing on disk changed.
+        document.getElementById('updateErrorHelp').textContent =
+            'Nothing was started and nothing changed. Reload the page to see what is on offer now.';
+    }
     document.querySelector('#updateProgressModalLabel i').className = 'fas fa-exclamation-circle text-danger';
     document.getElementById('updateProgressBar').classList.remove('progress-bar-animated');
     document.getElementById('updateProgressBar').classList.add('bg-danger');
+}
+
+function markStep(key, cls) {
+    const el = document.querySelector('.step-item[data-step="' + key + '"] i');
+    if (el) el.className = cls;
 }
 
 function describeTarget(t) {
@@ -1605,38 +1881,33 @@ function applyOsUpdates(securityOnly) {
     });
 }
 
-function toggleAllVersions(btn) {
-    const details = btn.closest('.card').querySelectorAll('details.version-entry');
-    const anyOpen = Array.from(details).some(d => !d.open);
-    details.forEach(d => d.open = anyOpen);
-    btn.innerHTML = anyOpen
-        ? '<i class="fas fa-compress-alt me-1"></i>Collapse All'
-        : '<i class="fas fa-expand-alt me-1"></i>Expand All';
+// Release notes come from GitHub: escape everything first, then add a
+// little formatting. Never innerHTML untrusted text as it is.
+function escapeHtml(t) {
+    return String(t).replace(/[&<>"']/g, function (c) {
+        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+    });
 }
 
-// Render changelog markdown in all .changelog-body elements
-(function() {
-    function simpleMarkdown(md) {
-        return md
-            // ### headings
-            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-            // **bold**
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            // `code`
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            // — em dash bullet detail
-            .replace(/— /g, '— ')
-            // unordered list items
-            .replace(/^\s*[-*] (.+)$/gm, '<li>$1</li>')
-            // wrap consecutive <li> in <ul>
-            .replace(/(<li>.*<\/li>\n?)+/gs, m => '<ul>' + m + '</ul>')
-            // blank lines → paragraph breaks (simple)
-            .replace(/\n{2,}/g, '\n');
-    }
-    document.querySelectorAll('.changelog-body[data-changelog]').forEach(function(el) {
-        el.innerHTML = simpleMarkdown(el.dataset.changelog);
+function safeMarkdown(md) {
+    return escapeHtml(md)
+        .replace(/^#{2,4} (.+)$/gm, '<h3>$1</h3>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^\s*[-*] (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, function (m) { return '<ul>' + m + '</ul>'; })
+        .replace(/\n{2,}/g, '\n');
+}
+
+function renderChangelogs(root) {
+    (root || document).querySelectorAll('.changelog-body[data-changelog]').forEach(function (el) {
+        el.innerHTML = safeMarkdown(el.dataset.changelog);
         delete el.dataset.changelog;
     });
-})();
+}
+
+// The installed version's notes render now; a release's when it is opened.
+renderChangelogs(document.getElementById('installedChangelog'));
+renderVersions();
 </script>
 {% endblock %}

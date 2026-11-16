@@ -135,10 +135,16 @@ class _Reporter:
 
 
 def run(target: Target | None, *, user=None, progress=None, emit=None, resume=False,
-        deps_check=True, allow_preview=False, env_extra=None) -> dict:
+        deps_check=True, allow_preview=False, allow_prerelease=False, allow_downgrade=False,
+        env_extra=None) -> dict:
     """Run the pipeline. Returns {success, refused, error, output, backup}.
     Never raises for an ordinary failure: the result and the journal say
-    what happened."""
+    what happened.
+
+    allow_preview / allow_prerelease: the admin explicitly chose a build
+    outside the configured channel (the channel setting is not changed).
+    allow_downgrade: the admin explicitly chose an older version; it is
+    installed only if the database has no migration that version lacks."""
     say = _Reporter(emit, progress)
     result = {'success': False, 'refused': False, 'error': None, 'output': say.lines,
               'backup': None, 'target': target.as_dict() if target else None}
@@ -146,7 +152,8 @@ def run(target: Target | None, *, user=None, progress=None, emit=None, resume=Fa
         with _exclusive():
             try:
                 _run(target, say, result, user=user, resume=resume, deps_check=deps_check,
-                     allow_preview=allow_preview, env_extra=env_extra or {})
+                     allow_preview=allow_preview, allow_prerelease=allow_prerelease,
+                     allow_downgrade=allow_downgrade, env_extra=env_extra or {})
             finally:
                 # Every run that started, whatever its outcome, leaves the
                 # backup directory within the retention rules (the journal's
@@ -175,7 +182,8 @@ def run(target: Target | None, *, user=None, progress=None, emit=None, resume=Fa
     return result
 
 
-def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_extra):
+def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_extra,
+         allow_prerelease=False, allow_downgrade=False):
     if not is_git_install():
         raise ApplyRefused('This install is not a git checkout (Docker?). Upgrade a Docker install '
                            'by pulling the new image; see docs/UPGRADE_AND_RECOVERY.md.')
@@ -200,10 +208,19 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     # Resuming finishes the revision someone already chose to install, even if
     # the channel setting has changed since.
     if target.kind == 'preview' and not allow_preview and not resume:
+        from .channels import CHANNEL_LABELS, current_channel
+        ch = current_channel()
+        if ch != 'preview':
+            raise ApplyRefused(f'This instance follows the {CHANNEL_LABELS.get(ch, ch)} channel. '
+                               'Select the development build under Available Versions and '
+                               'confirm it, or switch to Preview, to install unreleased commits '
+                               'from main.')
+    if target.kind == 'prerelease' and not (allow_prerelease or allow_preview) and not resume:
         from .channels import current_channel
-        if current_channel() != 'preview':
-            raise ApplyRefused('This instance follows the Stable channel. Switch to Preview in '
-                               'Settings -> Updates to install unreleased commits from main.')
+        if current_channel() not in ('prerelease', 'preview'):
+            raise ApplyRefused('This instance follows the Stable channel. Select the pre-release '
+                               'under Available Versions and confirm it, or switch to the '
+                               'Prerelease channel, to install it.')
 
     from config.version import VERSION as installed_version
     installed_sha = (prev or {}).get('prev_sha') if resume else head_sha()
@@ -231,9 +248,10 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
             say(f'origin still has {target.ref} at {target.sha[:12]}')
             fetch(target)
             say(f'Fetched {target.sha[:12]}; the commit matches the reviewed revision')
-        if target.kind == 'release':
+        if target.kind in ('release', 'prerelease'):
             msg = verify_release_tag(target)
-            say(f'Release tag signature verified: {msg}')
+            say(f"{'Release' if target.kind == 'release' else 'Pre-release'} tag signature "
+                f'verified: {msg}')
         else:
             say('Preview build: unsigned commit on main, pinned by sha (not a release)')
         target_version = version_at(target.sha)
@@ -242,13 +260,25 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         raise ApplyRefused(str(e))
     from packaging import version as pv
     try:
-        if pv.parse(target_version) < pv.parse(installed_ver or '0'):
+        older = pv.parse(target_version) < pv.parse(installed_ver or '0')
+    except pv.InvalidVersion:
+        older = False
+    if older and not resume:
+        if not allow_downgrade:
             journal.finish('aborted', error='downgrade')
             raise ApplyRefused(f'{target.ref} is v{target_version}, older than the installed '
                                f'v{installed_ver}. Downgrades are not supported (migrations only go '
                                'forward); restore a backup instead.')
-    except pv.InvalidVersion:
-        pass
+        # Explicitly chosen: only when the database has nothing that version
+        # lacks (no reverse migration is ever run), and only with an update
+        # script that installs the pinned sha.
+        from .catalog import downgrade_compatibility
+        state, detail, _ = downgrade_compatibility(target.sha)
+        if state != 'safe':
+            journal.finish('aborted', error=f'downgrade not compatible: {detail}')
+            raise ApplyRefused(f'{target.ref} (v{target_version}) cannot be installed over '
+                               f'v{installed_ver}: {detail}')
+        say(f'Installing an older version (v{installed_ver} -> v{target_version}): {detail}')
     journal.stage('revision_verified', target_version=target_version)
     say.done('Verify Revision')
 

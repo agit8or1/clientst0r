@@ -2,10 +2,15 @@
 
 A target is (kind, ref, sha):
 
-    release  ref is a release tag (vX.Y.Z); the tag must carry a valid SSH
-             signature from a key in the trusted allowed_signers file, the
-             signed tag object must be named after the ref, and the commit
-             it points at must be the reviewed sha.
+    release     ref is a release tag (vX.Y.Z); the tag must carry a valid SSH
+                signature from a key in the trusted allowed_signers file, the
+                signed tag object must be named after the ref, and the commit
+                it points at must be the reviewed sha.
+    prerelease  ref is a tag GitHub publishes as a pre-release (vX.Y.Z, or
+                vX.Y.Z-rc.1 and the like). Exactly the same signature policy
+                as a release: same trusted signers file, same checks. A
+                pre-release whose tag is not signed by a trusted key is never
+                installed.
     preview  ref is `main`; there is no signature (main commits are not
              signed releases), so what is pinned is the sha: origin's main
              must still point at the reviewed sha, and the fetched commit
@@ -30,6 +35,10 @@ from pathlib import Path
 from django.conf import settings
 
 TAG_RE = re.compile(r'^v(\d{1,4})\.(\d{1,4})\.(\d{1,6})$')
+# A release tag, optionally with a pre-release suffix (v3.18.0-rc.1, -beta2).
+RELEASE_TAG_RE = re.compile(r'^v(\d{1,4})\.(\d{1,4})\.(\d{1,6})'
+                            r'(?:-([0-9A-Za-z]{1,20}(?:[.-][0-9A-Za-z]{1,20}){0,3}))?$')
+SIGNED_KINDS = ('release', 'prerelease')
 SHA_RE = re.compile(r'^[0-9a-f]{40}$')
 SYSTEM_SIGNERS = '/etc/clientst0r/allowed_signers'
 REPO_SIGNERS = 'deploy/root-helper/allowed_signers'
@@ -42,18 +51,20 @@ class RevisionError(Exception):
 
 @dataclass
 class Target:
-    kind: str          # 'release' | 'preview'
-    ref: str           # 'v3.17.660' | 'main'
+    kind: str          # 'release' | 'prerelease' | 'preview'
+    ref: str           # 'v3.17.660' | 'v3.18.0-rc.1' | 'main'
     sha: str           # full commit sha that was reviewed
     version: str = ''
 
     def validate(self):
-        if self.kind not in ('release', 'preview'):
+        if self.kind not in ('release', 'prerelease', 'preview'):
             raise RevisionError(f'unknown target kind {self.kind!r}')
         if not SHA_RE.match(self.sha or ''):
             raise RevisionError('the target must be a full 40-character commit sha')
         if self.kind == 'release' and not TAG_RE.match(self.ref or ''):
             raise RevisionError(f'not a release tag: {self.ref!r}')
+        if self.kind == 'prerelease' and not RELEASE_TAG_RE.match(self.ref or ''):
+            raise RevisionError(f'not a pre-release tag: {self.ref!r}')
         if self.kind == 'preview' and self.ref != PREVIEW_REF:
             raise RevisionError(f'preview targets track {PREVIEW_REF!r}, not {self.ref!r}')
         return self
@@ -102,7 +113,7 @@ def ls_remote(*refs):
 
 def remote_commit(target: Target) -> str:
     """The commit origin's ref points at right now."""
-    if target.kind == 'release':
+    if target.kind in SIGNED_KINDS:
         refs = ls_remote(f'refs/tags/{target.ref}', f'refs/tags/{target.ref}^{{}}')
         return refs.get(f'refs/tags/{target.ref}^{{}}') or refs.get(f'refs/tags/{target.ref}', '')
     refs = ls_remote(f'refs/heads/{PREVIEW_REF}')
@@ -121,7 +132,7 @@ def check_remote_unchanged(target: Target):
 
 
 def fetch(target: Target):
-    if target.kind == 'release':
+    if target.kind in SIGNED_KINDS:
         git('fetch', '--no-tags', '--force', 'origin',
             f'+refs/tags/{target.ref}:refs/tags/{target.ref}', timeout=600, check=True)
         fetched = git('rev-parse', f'refs/tags/{target.ref}^{{commit}}', check=True).stdout.strip()
@@ -151,28 +162,84 @@ def signers_file():
     return path
 
 
+class _Signers:
+    """The trusted signers file for one or more checks; a temporary copy (the
+    committed file read from git) is removed afterwards."""
+    def __enter__(self):
+        self.path = signers_file()
+        return self.path
+
+    def __exit__(self, *exc):
+        p = self.path
+        if p and p.startswith(tempfile.gettempdir()) and 'clientst0r-signers-' in p:
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
+def check_tag_signature(ref, signers) -> tuple[bool, str]:
+    """(ok, message) for the local tag `ref`: signed by a key in `signers`
+    and the signed tag object is named after the ref. Nothing is fetched."""
+    if not signers:
+        return False, 'no trusted release signers file'
+    r = git('-c', 'gpg.format=ssh', '-c', f'gpg.ssh.allowedSignersFile={signers}',
+            'verify-tag', ref, timeout=60)
+    if r.returncode != 0:
+        return False, ((r.stderr or '').strip().splitlines()[-1:] or ['no signature'])[0]
+    obj = git('cat-file', 'tag', ref).stdout
+    if f'\ntag {ref}\n' not in '\n' + obj:
+        return False, f'the signed tag object behind {ref} is named differently'
+    return True, (r.stderr or '').strip().splitlines()[0] if r.stderr else 'signature ok'
+
+
 def verify_release_tag(target: Target) -> str:
     """Raise unless the tag is signed by a trusted key, named after itself
-    and points at the reviewed commit. Returns the verify-tag message."""
-    signers = signers_file()
-    if not signers:
-        raise RevisionError('no trusted release signers file; cannot verify a release')
-    try:
-        r = git('-c', 'gpg.format=ssh', '-c', f'gpg.ssh.allowedSignersFile={signers}',
-                'verify-tag', target.ref, timeout=60)
-    finally:
-        if signers.startswith(tempfile.gettempdir()) and 'clientst0r-signers-' in signers:
-            os.unlink(signers)
-    if r.returncode != 0:
+    and points at the reviewed commit. Returns the verify-tag message.
+    Releases and pre-releases are held to exactly the same policy."""
+    with _Signers() as signers:
+        if not signers:
+            raise RevisionError('no trusted release signers file; cannot verify a release')
+        ok, msg = check_tag_signature(target.ref, signers)
+    if not ok:
+        if 'named differently' in msg:
+            raise RevisionError(msg)
         raise RevisionError(f'{target.ref} is not signed by a trusted release key; refusing to '
-                            f'install it ({(r.stderr or "").strip().splitlines()[-1:] or ["no signature"]})')
-    obj = git('cat-file', 'tag', target.ref, check=True).stdout
-    if f'\ntag {target.ref}\n' not in '\n' + obj:
-        raise RevisionError(f'the signed tag object behind {target.ref} is named differently')
+                            f'install it ({msg})')
     commit = git('rev-parse', f'{target.ref}^{{commit}}', check=True).stdout.strip()
     if commit != target.sha:
         raise RevisionError(f'{target.ref} points at {commit[:12]}, not the reviewed {target.sha[:12]}')
-    return (r.stderr or '').strip().splitlines()[0] if r.stderr else 'signature ok'
+    return msg
+
+
+def local_tag_signatures(tags: dict) -> dict:
+    """{tag: (ok, message)} for tags that exist locally *as the same tag
+    object origin has* ({tag: remote tag-object sha}). Tags missing locally,
+    or differing from origin, are left out: they are verified at install."""
+    out = {}
+    if not tags:
+        return out
+    with _Signers() as signers:
+        for tag, obj in tags.items():
+            r = git('rev-parse', '--verify', '-q', f'refs/tags/{tag}', timeout=10)
+            if r.returncode != 0 or r.stdout.strip() != obj:
+                continue
+            out[tag] = check_tag_signature(tag, signers)
+    return out
+
+
+def commit_available(sha) -> bool:
+    return bool(SHA_RE.match(sha or '')) and \
+        git('cat-file', '-e', f'{sha}^{{commit}}', timeout=10).returncode == 0
+
+
+def migration_files_at(sha) -> list[str] | None:
+    """Every migration module path in revision `sha`, or None if unreadable."""
+    r = git('ls-tree', '-r', '--name-only', sha, timeout=60)
+    if r.returncode != 0:
+        return None
+    return [p for p in r.stdout.splitlines()
+            if '/migrations/' in p and p.endswith('.py') and not p.endswith('/__init__.py')]
 
 
 def show_file(sha, path) -> str:

@@ -367,54 +367,58 @@ def consult_requests(request):
     })
 
 
+def _update_status_line(state, rows, installed):
+    """One honest sentence about updates. Never "up to date" from a failed or
+    incomplete check, and never as if no other releases existed."""
+    if state.get('error') and not state.get('stale'):
+        return 'error', f"Could not check for updates: {state['error']}"
+    target = state.get('target')
+    channel_label = {'stable': 'Stable', 'prerelease': 'Prerelease', 'preview': 'Preview'}.get(
+        state.get('channel'), 'Stable')
+    if target:
+        what = {'release': 'release', 'prerelease': 'pre-release', 'preview': 'development build'}.get(
+            target.get('kind'), 'build')
+        line = (f"Update available on your {channel_label} channel: {what} {target.get('ref')}"
+                + (f" (v{target['version']})" if target.get('version') else ''))
+        tone = 'update'
+    else:
+        line = 'No newer updates on your selected channel.'
+        if installed.get('ahead_of_stable'):
+            line += (' The installed build is ahead of the latest stable release; switching to '
+                     'Stable would mean installing an older version.')
+        tone = 'ok'
+    if state.get('error') and state.get('stale'):
+        return 'stale', (f"{line} (from the last successful check; the latest check failed: "
+                         f"{state['error']})")
+    return tone, line
+
+
 @login_required
 @user_passes_test(is_superuser)
 def system_updates(request):
-    """
-    System updates page - check for and apply updates.
-    Staff-only access.
-    """
+    """Settings -> Updates: what is installed, every version discovered on
+    GitHub (stable, pre-release, development), the channel policy, restore
+    points and pre-upgrade backups. Superusers only."""
     updater = UpdateService()
 
     # core.upgrade.channels caches the GitHub answer itself (and keeps the
     # last good one for when GitHub is unreachable).
     update_info = updater.check_for_updates()
+    state = update_info.get('channels') or {}
 
-    # Get git status
     git_status = updater.get_git_status()
-
-    # Check if passwordless sudo is configured (for web-based updates)
     sudo_configured = updater._check_passwordless_sudo()
 
-    # Get recent update logs
     recent_updates = AuditLog.objects.filter(
         action__in=['system_update', 'system_update_failed', 'update_check']
     ).order_by('-timestamp')[:10]
 
-    # Get changelog for current version
     current_version = get_version()
     current_changelog = updater.get_changelog_for_version(current_version)
 
-    # Get changelogs for newer versions (if update available)
-    newer_changelogs = {}
-    if update_info.get('update_available') and update_info.get('latest_version'):
-        newer_changelogs = updater.get_changelog_between_versions(
-            current_version,
-            update_info['latest_version']
-        )
-
-    # Add debug info if there's an error
-    debug_info = None
-    if update_info.get('error'):
-        debug_info = {
-            'error': update_info.get('error'),
-            'github_api_url': f'https://api.github.com/repos/{updater.repo_owner}/{updater.repo_name}/releases',
-            'current_version': get_version(),
-        }
-
+    from core.upgrade import catalog as upgrade_catalog
     from core.upgrade import journal as upgrade_journal, retention as upgrade_retention
     upgrade_state = upgrade_journal.assess()
-    # Sizes come from a stat of each snapshot's few files; nothing is re-hashed.
     try:
         backups = upgrade_retention.summary()
     except Exception:
@@ -423,23 +427,53 @@ def system_updates(request):
                    'env_keep': upgrade_retention.env_keep(), 'would_remove': 0}
     recent_backups = backups['backups']
 
-    # Get last OS package scan
+    # Every discovered version, whatever the channel. None when GitHub has
+    # never been reached: the page then says so instead of showing empty
+    # categories.
+    discovered = state.get('releases') is not None or bool(state.get('preview'))
+    try:
+        rows = upgrade_catalog.build(state, upgrade_state=upgrade_state) if state else []
+    except Exception:
+        logger.exception('could not build the version list')
+        rows = []
+    installed = upgrade_catalog.installed_summary(state, rows) if state else {
+        'type': 'unknown', 'type_label': 'Unknown', 'ahead_of_stable': False}
+    status_tone, status_line = _update_status_line(update_info.get('channels') or update_info, rows,
+                                                   installed)
+    try:
+        restore_points = upgrade_catalog.restore_points(backups if backups.get('policy') else None)
+    except Exception:
+        logger.exception('could not list restore points')
+        restore_points = []
+    latest_dev = next((r for r in rows if r['type'] == 'development'), None)
+
     from core.models import SystemPackageScan
     last_package_scan = SystemPackageScan.objects.order_by('-scan_date').first()
 
+    from core.upgrade.channels import CHANNEL_LABELS
     return render(request, 'core/system_updates.html', {
-        'version': get_version(),
+        'version': current_version,
         'update_info': update_info,
         'git_status': git_status,
         'sudo_configured': sudo_configured,
         'recent_updates': recent_updates,
         'current_changelog': current_changelog,
-        'newer_changelogs': newer_changelogs,
-        'debug_info': debug_info,
         'last_package_scan': last_package_scan,
         'root_helper_needed': root_helper.needs_bootstrap(),
         'root_helper_command': root_helper.bootstrap_command(),
-        'channels': update_info.get('channels') or {},
+        'channels': state,
+        'channel_label': CHANNEL_LABELS.get(state.get('channel') or 'stable', 'Stable'),
+        'last_checked': (state.get('checked_at') or (update_info or {}).get('checked_at') or 'never'),
+        'check_error': state.get('error') or (update_info or {}).get('error') or '',
+        'versions': rows,
+        'versions_discovered': discovered,
+        'discovery': state.get('discovery') or {},
+        'installed_summary': installed,
+        'latest_dev': latest_dev,
+        'status_line': status_line,
+        'status_tone': status_tone,
+        'restore_points': restore_points,
+        'eligible_restore_points': [r for r in restore_points if r['eligible']],
         'upgrade_state': upgrade_state,
         'recent_backups': recent_backups,
         'backups': backups,
@@ -453,7 +487,9 @@ def system_updates(request):
 @user_passes_test(is_superuser)
 @require_http_methods(["POST"])
 def set_update_channel(request):
-    """Switch between the Stable and Preview release channels."""
+    """Choose the release channel: which version is recommended, what the
+    badge and the nightly timer act on. Saving it never installs anything and
+    never hides a version."""
     from core.models import SystemSetting
     from core.upgrade import channels
     channel = request.POST.get('channel', '')
@@ -467,9 +503,13 @@ def set_update_channel(request):
             user=request.user, username=request.user.username, action='update',
             object_type='system_setting', object_repr='Release channel',
             description=f'Release channel set to {channel}')
-    messages.success(request, 'Following the Preview channel: Apply offers the newest commit on main '
-                     '(unreleased, unsigned).' if channel == 'preview' else
-                     'Following the Stable channel: Apply offers signed published releases only.')
+    messages.success(request, {
+        'stable': 'Following the Stable channel: signed published releases are recommended.',
+        'prerelease': 'Following the Prerelease channel: signed published releases and '
+                      'signed pre-releases are recommended.',
+        'preview': 'Following the Preview channel: the newest commit on main (unreleased, '
+                   'unsigned) is recommended.',
+    }[channel] + ' Nothing was installed; every version stays listed under Available Versions.')
     return redirect('core:system_updates')
 
 
@@ -579,6 +619,98 @@ def upgrade_preflight_api(request):
                          'target': t})
 
 
+def _reviewed_target(request):
+    """The (kind, ref, sha) the page sent, validated, or (None, error)."""
+    import json as _json
+    from core.upgrade.revision import RevisionError, Target
+    try:
+        body = _json.loads(request.body or b'{}')
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        return Target(str(body.get('kind', '')), str(body.get('ref', '')),
+                      str(body.get('sha', ''))).validate(), body, None
+    except RevisionError as e:
+        return None, body, str(e)
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+@ratelimit(key='user', rate='40/h', method='POST', block=True)
+def upgrade_review_api(request):
+    """Review one version before installing it: what it changes (from -> to,
+    upgrade / older version / outside the channel), its notes, and every check
+    Apply will run first: the revision is fetched and pinned, a release or
+    pre-release tag's signature is verified, an older version is checked
+    against the database's migrations, and the preflight checks run. Nothing
+    is installed and the channel is not changed."""
+    from core.upgrade import catalog as upgrade_catalog
+    from core.upgrade import journal as upgrade_journal, preflight
+    from core.upgrade.revision import RevisionError, fetch, head_sha, verify_release_tag, version_at
+    target, body, err = _reviewed_target(request)
+    if target is None:
+        return JsonResponse({'ok': False, 'message': f'No version was selected ({err}).'}, status=400)
+    info = UpdateService().check_for_updates()
+    state = info.get('channels') or {}
+    assessment = upgrade_journal.assess()
+    rows = upgrade_catalog.build(state, upgrade_state=assessment, check_compat=False)
+    row = upgrade_catalog.find(rows, target.kind, target.ref, target.sha)
+    if row is None:
+        return JsonResponse({'ok': False, 'message':
+                             f'{target.ref} @ {target.sha[:12]} is not among the versions discovered '
+                             'on GitHub (it may have moved). Reload the page.'}, status=404)
+    inst = state.get('installed') or {}
+    out = {
+        'target': {'kind': row['kind'], 'ref': row['ref'], 'sha': row['sha'], 'version': row['version'],
+                   'type': row['type'], 'type_label': row['type_label']},
+        'from': {'version': inst.get('version') or get_version(), 'sha': inst.get('sha') or ''},
+        'relation': row['relation'], 'in_channel': row['in_channel'], 'recommended': row['recommended'],
+        'channel': state.get('channel') or 'stable', 'notes': row['notes'], 'url': row['url'],
+        'commits': row['commits'], 'signature': row['signature'], 'name': row['name'],
+        'date': row['date'], 'date_kind': row['date_kind'], 'checks': [], 'ok': False,
+    }
+    checks = out['checks']
+
+    def add(name, status, detail, hint=''):
+        checks.append({'name': name, 'status': status, 'detail': detail, 'hint': hint})
+
+    if not row['installable']:
+        add('eligibility', 'fail', row['reason'])
+        return JsonResponse(out)
+    try:
+        fetch(target)
+        add('revision', 'ok', f'fetched {target.ref}; the commit is {target.sha[:12]} as reviewed')
+    except RevisionError as e:
+        add('revision', 'fail', str(e))
+        return JsonResponse(out)
+    except Exception as e:
+        add('revision', 'fail', f'could not fetch it: {e}')
+        return JsonResponse(out)
+    if target.kind in ('release', 'prerelease'):
+        try:
+            add('signature', 'ok', 'tag signed by a trusted release key: ' + verify_release_tag(target))
+        except RevisionError as e:
+            add('signature', 'fail', str(e))
+    else:
+        add('signature', 'warn', 'development build: not a release and not signed; pinned to this '
+                                 'exact commit')
+    try:
+        out['target']['version'] = version_at(target.sha) or row['version']
+    except RevisionError:
+        pass
+    if row['relation'] == 'older':
+        state_, detail, _ = upgrade_catalog.downgrade_compatibility(target.sha)
+        add('compatibility', 'ok' if state_ == 'safe' else 'fail', detail,
+            '' if state_ == 'safe' else 'Use a restore point (Rollback) instead.')
+    for c in preflight.run(target, installed_sha=head_sha()):
+        checks.append(c.as_dict())
+    out['ok'] = not any(c['status'] == 'fail' for c in checks)
+    return JsonResponse(out)
+
+
 @login_required
 @user_passes_test(is_superuser)
 @require_http_methods(["POST"])
@@ -659,7 +791,8 @@ def check_updates_now(request):
             f"{t['ref']} @ {t['sha'][:12]}"
         )
     else:
-        messages.info(request, "Nothing newer on this channel")
+        messages.info(request, 'No newer updates on your selected channel. Every discovered version '
+                      'is listed under Available Versions.')
 
     return redirect('core:system_updates')
 
@@ -676,50 +809,93 @@ def apply_update(request):
         from core.update_progress import UpdateProgress
         from core.upgrade import apply as upgrade_apply
         from core.upgrade import journal as upgrade_journal
-        from core.upgrade.revision import RevisionError, Target
-        import json as _json
         import threading
 
         # The page shows a specific revision; Apply must install exactly that
-        # one. The browser sends back what it showed, and it has to match what
-        # this server resolves now -- otherwise the admin reviewed something
+        # one. The browser sends back what it showed, and it has to be what
+        # this server discovers now -- otherwise the admin reviewed something
         # else, and nothing is started.
-        try:
-            body = _json.loads(request.body or b'{}')
-        except ValueError:
-            body = {}
-        try:
-            reviewed = Target(str(body.get('kind', '')), str(body.get('ref', '')),
-                              str(body.get('sha', ''))).validate()
-        except RevisionError as e:
+        reviewed, body, err = _reviewed_target(request)
+        if reviewed is None:
             return JsonResponse({'status': 'error', 'message':
-                                 f'No reviewed revision was sent ({e}). Reload the page.'}, status=400)
+                                 f'No reviewed revision was sent ({err}). Reload the page.'}, status=400)
         updater = UpdateService()
         # Ask GitHub now rather than trusting any stored answer: the page may
-        # be minutes old, and what is installed must be what the channel
-        # offers at this moment. If GitHub cannot be asked, refuse rather
-        # than install from a stale answer.
+        # be minutes old. If GitHub cannot be asked, refuse rather than
+        # install from a stale answer.
         info = updater.check_for_updates(force_refresh=True)
         if info.get('error'):
             return JsonResponse({'status': 'error', 'message':
                                  'Could not confirm with GitHub what this channel offers right now '
                                  f"({info['error']}), so nothing was started. Try again in a few "
                                  'minutes.'}, status=503)
+        assessment = upgrade_journal.assess()
+        if assessment['state'] == 'running' or assessment['needs_recovery']:
+            return JsonResponse({'status': 'error', 'message': assessment['message']}, status=409)
         current = (info.get('target') or {})
-        if (current.get('kind'), current.get('ref'), current.get('sha')) != \
+        flags = {}
+        selection = 'recommended'
+        if (current.get('kind'), current.get('ref'), current.get('sha')) == \
                 (reviewed.kind, reviewed.ref, reviewed.sha):
-            # Not a failure: a newer build was published while the page was
-            # open. Say what is on offer now so the page can show it for review.
+            reviewed.version = current.get('version') or ''
+        elif body.get('recommended'):
+            # "Update now" on the channel's recommendation, which has moved
+            # on since the page loaded: show the new one for review.
             return JsonResponse({'status': 'error', 'reason': 'target_changed',
                                  'target': current or None, 'message':
                                  'What this channel offers has changed since the page was loaded '
                                  f"(now: {current.get('ref') or 'nothing'} "
                                  f"{(current.get('sha') or '')[:12]}). Reload the page and review it "
                                  'again.'}, status=409)
-        assessment = upgrade_journal.assess()
-        if assessment['state'] == 'running' or assessment['needs_recovery']:
-            return JsonResponse({'status': 'error', 'message': assessment['message']}, status=409)
-        reviewed.version = current.get('version') or ''
+        else:
+            # A version the admin picked from Available Versions, inside or
+            # outside the channel: it must be one discovery offers now and
+            # eligible; out-of-channel and older ones need their own
+            # confirmation. The configured channel is not changed.
+            from core.upgrade import catalog as upgrade_catalog
+            state = info.get('channels') or {}
+            rows = upgrade_catalog.build(state, upgrade_state=assessment, check_compat=False)
+            row = upgrade_catalog.find(rows, reviewed.kind, reviewed.ref, reviewed.sha)
+            if row is None:
+                dev = next((r for r in rows if r['type'] == 'development'), None)
+                if current:
+                    # What was reviewed is gone (re-tagged, or main moved):
+                    # show what the channel recommends now, for review.
+                    return JsonResponse({'status': 'error', 'reason': 'target_changed',
+                                         'target': current, 'message':
+                                         f'{reviewed.ref} @ {reviewed.sha[:12]} is no longer offered '
+                                         f"(now recommended: {current.get('ref')} "
+                                         f"{(current.get('sha') or '')[:12]}). Review it again."},
+                                        status=409)
+                if reviewed.kind == 'preview' and dev:
+                    return JsonResponse({'status': 'error', 'reason': 'target_changed',
+                                         'target': {'kind': 'preview', 'ref': 'main', 'sha': dev['sha'],
+                                                    'version': dev['version']},
+                                         'message': 'main has moved since the page was loaded (now '
+                                                    f"{dev['sha'][:12]}). Review the new build."},
+                                        status=409)
+                return JsonResponse({'status': 'error', 'reason': 'not_offered', 'message':
+                                     f'{reviewed.ref} @ {reviewed.sha[:12]} is not among the versions '
+                                     'GitHub offers now, so nothing was started. Reload the page.'},
+                                    status=409)
+            if not row['installable']:
+                return JsonResponse({'status': 'error', 'reason': 'not_installable',
+                                     'message': f"{row['ref']} cannot be installed: {row['reason']}"},
+                                    status=409)
+            if not row['in_channel'] and not body.get('confirm_out_of_channel'):
+                return JsonResponse({'status': 'error', 'reason': 'confirm_required', 'message':
+                                     f"{row['ref']} is outside the {info.get('channel')} channel; "
+                                     'confirm installing it.'}, status=400)
+            if row['relation'] == 'older' and not body.get('confirm_downgrade'):
+                return JsonResponse({'status': 'error', 'reason': 'confirm_required', 'message':
+                                     f"{row['ref']} is older than the installed version; confirm "
+                                     'installing an older version.'}, status=400)
+            reviewed.version = row['version']
+            flags = {'allow_preview': reviewed.kind == 'preview' and not row['in_channel'],
+                     'allow_prerelease': reviewed.kind == 'prerelease' and not row['in_channel'],
+                     'allow_downgrade': row['relation'] == 'older'}
+            selection = 'older version' if row['relation'] == 'older' else (
+                'outside the channel' if not row['in_channel'] else 'selected')
 
         # Initialize progress tracker
         progress = UpdateProgress()
@@ -728,7 +904,7 @@ def apply_update(request):
         def run_update():
             try:
                 updater.perform_update(user=request.user, progress_tracker=progress,
-                                       target=reviewed)
+                                       target=reviewed, **flags)
             except Exception as e:
                 logger.error(f"Update failed: {e}")
                 progress.finish(success=False, error=str(e))
@@ -741,10 +917,11 @@ def apply_update(request):
         try:
             AuditLog.objects.create(
                 action='system_update',
-                description=(f'Update to {reviewed.ref} @ {reviewed.sha[:12]} triggered by '
-                             f'{request.user.username}'),
+                description=(f'Update to {reviewed.ref} @ {reviewed.sha[:12]} ({selection}) '
+                             f'triggered by {request.user.username}'),
                 user=request.user,
-                username=request.user.username
+                username=request.user.username,
+                extra_data={'target': reviewed.as_dict(), 'selection': selection, **flags},
             )
         except Exception:
             pass

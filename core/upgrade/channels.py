@@ -1,14 +1,31 @@
-"""Release channels: what Stable and Preview point at, and what Apply would
-install.
+"""Release channels: which version is *recommended*, and what the nightly
+timer and "Update now" install. A channel never hides anything: every
+published release and the head of main are discovered and listed whatever
+the channel (core.upgrade.discovery), and an admin can install any eligible
+one by hand after verification and confirmation. Visibility, recommendation
+and eligibility are kept separate:
 
-    Stable   the newest *published* GitHub release (not a draft, not a
-             pre-release) whose tag is a version tag. Apply installs it only
-             after verifying the tag's SSH signature locally
-             (core.upgrade.revision). Version tags exist for every build;
-             only the ones published as releases are recommended.
-    Preview  the head of `main`: commits that are not part of any release.
-             Opt-in (Settings -> Updates -> channel). Unsigned; pinned to the
-             exact commit shown on the page.
+    visibility    discovery: every published stable release, every published
+                  pre-release, and main
+    recommended   the channel policy below (badge, "update available",
+                  "Update now", `upgrade_apply --auto`)
+    eligible      core.upgrade.catalog: signature, compatibility, recovery
+                  state; checked again by Apply on the server
+
+    Stable      the newest *published* GitHub release (not a draft, not a
+                pre-release) whose tag is a version tag. Apply installs it
+                only after verifying the tag's SSH signature locally
+                (core.upgrade.revision). Version tags exist for every build;
+                only the ones published as releases are recommended.
+    Prerelease  Stable plus published pre-releases whose tag is signed by
+                the same trusted release key (same verification as Stable).
+    Preview     the head of `main`: commits that are not part of any release.
+                Opt-in (Settings -> Updates -> channel). Unsigned; pinned to
+                the exact commit shown on the page.
+
+A channel only ever recommends something newer than what is installed: an
+install that is ahead of its channel (a development build on Stable) is
+never offered a downgrade as an update.
 
 There is no LTS channel: no release line currently has a support window or
 a backport policy (see docs/UPGRADE_AND_RECOVERY.md, "Release channels").
@@ -43,6 +60,8 @@ from django.conf import settings
 from django.utils import timezone
 from packaging import version as pversion
 
+from . import discovery
+from .discovery import GitHubError, repo, _headers   # noqa: F401 (re-exported)
 from .revision import TAG_RE, SHA_RE
 
 STATE_FILE = 'channel_state.json'
@@ -50,27 +69,17 @@ STATE_FORMAT = 1
 CACHE_TTL = 600          # a good answer is reused for this long
 CACHE_TTL_ERROR = 120    # a failed check is not retried for this long
 LAST_GOOD_TTL = 24 * 3600
-CHANNELS = ('stable', 'preview')
+CHANNELS = ('stable', 'prerelease', 'preview')
+# The release types each channel *recommends* (never what it shows).
+CHANNEL_TYPES = {
+    'stable': ('stable',),
+    'prerelease': ('stable', 'prerelease'),
+    'preview': ('development',),
+}
+CHANNEL_LABELS = {'stable': 'Stable', 'prerelease': 'Prerelease', 'preview': 'Preview'}
 API = 'https://api.github.com/repos'
 RAW = 'https://raw.githubusercontent.com'
 MAX_COMMITS_SHOWN = 15
-
-
-def repo():
-    return (getattr(settings, 'GITHUB_REPO_OWNER', 'agit8or1'),
-            getattr(settings, 'GITHUB_REPO_NAME', 'clientst0r'))
-
-
-def _headers():
-    h = {'Accept': 'application/vnd.github+json'}
-    token = os.getenv('GITHUB_TOKEN') or getattr(settings, 'GITHUB_TOKEN', None)
-    if token:
-        h['Authorization'] = f'Bearer {token}'
-    return h
-
-
-class GitHubError(Exception):
-    pass
 
 
 def _get(url, timeout=20, raw=False):
@@ -179,72 +188,100 @@ def _stable_release(owner, name):
     }
 
 
-def _main_head(owner, name):
-    c = _get(f'{API}/{owner}/{name}/commits/main')
-    if not c:
-        return None
-    sha = c.get('sha', '')
-    version = ''
-    try:
-        text = _get(f'{RAW}/{owner}/{name}/{sha}/config/version.py', raw=True) or ''
-        m = re.search(r"^VERSION\s*=\s*['\"]([^'\"]+)['\"]", text, re.M)
-        version = m.group(1) if m else ''
-    except GitHubError:
-        pass
-    commit = c.get('commit') or {}
-    return {'sha': sha, 'version': version,
-            'date': (commit.get('committer') or {}).get('date'),
-            'message': (commit.get('message') or '').splitlines()[0][:200]}
-
-
-def _compare(owner, name, base, head):
-    data = _get(f'{API}/{owner}/{name}/compare/{base}...{head}')
-    if not data:
-        return None
-    commits = data.get('commits') or []
-    return {
-        'ahead_by': data.get('ahead_by'),
-        'behind_by': data.get('behind_by'),
-        'commits': [{'sha': c.get('sha', ''),
-                     'message': ((c.get('commit') or {}).get('message') or '').splitlines()[0][:160],
-                     'date': ((c.get('commit') or {}).get('committer') or {}).get('date')}
-                    for c in reversed(commits[-MAX_COMMITS_SHOWN:])],
-    }
-
-
 def _fetch_remote_state():
-    owner, name = repo()
-    stable = _stable_release(owner, name)
-    preview = _main_head(owner, name)
-    if preview and stable and stable.get('tag'):
-        cmp = _compare(owner, name, stable['tag'], preview['sha'])
-        if cmp:
-            preview['ahead_of_stable'] = cmp['ahead_by']
-            preview['commits'] = cmp['commits']
-    return {'stable': stable, 'preview': preview}
+    """Discovery (every release, by type, and main) plus the legacy keys:
+    `stable` (the newest stable release, as before) and `prerelease`."""
+    found = discovery.discover()
+    releases = found['releases']
+
+    def newest(kind):
+        best = None
+        for e in releases:
+            if e['type'] != kind:
+                continue
+            v = _parse(e['version'])
+            if v is not None and (best is None or v > best[0]):
+                best = (v, e)
+        return best[1] if best else None
+
+    def legacy(e, security=None):
+        if not e:
+            return None
+        return {'tag': e['tag'], 'version': e['version'], 'sha': e.get('sha') or '',
+                'name': e.get('name') or e['tag'], 'published_at': e.get('published_at'),
+                'url': e.get('url'), 'notes': e.get('notes') or '',
+                'has_signature': e.get('github_signature'),
+                'signature': e.get('signature'),
+                'security_version': security or ''}
+
+    sec = None
+    for e in releases:
+        if e['type'] == 'stable' and e.get('security'):
+            v = _parse(e['version'])
+            if v is not None and (sec is None or v > sec[0]):
+                sec = (v, e['version'])
+    return {'stable': legacy(newest('stable'), sec[1] if sec else ''),
+            'prerelease': legacy(newest('prerelease')),
+            'preview': found['preview'],
+            'releases': releases,
+            'discovery': found['meta']}
+
+
+def _candidates(remote, channel):
+    """Targets the channel may *recommend*, as (version, target) pairs."""
+    out = []
+    if channel == 'preview':
+        preview = remote.get('preview')
+        if preview and preview.get('sha'):
+            out.append((_parse(preview.get('version')) if preview.get('version') else None,
+                        {'kind': 'preview', 'ref': 'main', 'sha': preview['sha'],
+                         'version': preview.get('version') or ''}))
+        return out
+    releases = remote.get('releases')
+    if releases is None:     # an answer stored before discovery (v3.17.694 and older)
+        stable = remote.get('stable')
+        releases = [{'type': 'stable', 'kind': 'release', 'tag': stable['tag'],
+                     'version': stable['version'], 'sha': stable.get('sha'),
+                     'signature': discovery.SIG_PENDING}] if stable else []
+    allowed = CHANNEL_TYPES.get(channel, ('stable',))
+    for e in releases:
+        if e.get('type') not in allowed or not e.get('sha'):
+            continue
+        if e.get('type') == 'prerelease' and e.get('signature') not in discovery.INSTALLABLE_SIGNATURES:
+            continue   # an untrusted pre-release is shown, never recommended
+        if e.get('type') == 'stable' and e.get('signature') in (discovery.SIG_INVALID,
+                                                                 discovery.SIG_UNSIGNED):
+            continue
+        v = _parse(e.get('version'))
+        if v is not None:
+            out.append((v, {'kind': e['kind'], 'ref': e['tag'], 'sha': e['sha'],
+                            'version': e['version']}))
+    return out
 
 
 def _decide(remote, inst, channel):
-    """What Apply would install for this channel, given the installed build."""
+    """What the channel recommends (and Apply / --auto would install), given
+    the installed build: only ever something newer. Never a downgrade."""
     iv = _parse(inst['version'])
-    stable, preview = remote.get('stable'), remote.get('preview')
+    stable = remote.get('stable')
     target, relation = None, 'unknown'
     if stable and iv:
         sv = _parse(stable['version'])
         if sv:
             relation = 'behind' if iv < sv else ('current' if iv == sv else 'ahead')
-    if channel == 'stable' and stable and stable.get('sha') and iv:
-        sv = _parse(stable['version'])
-        if sv and sv > iv:
-            target = {'kind': 'release', 'ref': stable['tag'], 'sha': stable['sha'],
-                      'version': stable['version']}
-    elif channel == 'preview' and preview and preview.get('sha'):
-        pv = _parse(preview.get('version')) if preview.get('version') else None
-        newer_or_same = (pv is None or iv is None or pv >= iv)
-        if preview['sha'] != inst.get('sha') and newer_or_same:
-            target = {'kind': 'preview', 'ref': 'main', 'sha': preview['sha'],
-                      'version': preview.get('version') or ''}
-    return target, relation
+    if channel == 'preview':
+        for pv, t in _candidates(remote, channel):
+            newer_or_same = (pv is None or iv is None or pv >= iv)
+            if t['sha'] != inst.get('sha') and newer_or_same:
+                target = t
+        return target, relation
+    if not iv:
+        return None, relation
+    best = None
+    for v, t in _candidates(remote, channel):
+        if v > iv and (best is None or v > best[0]):
+            best = (v, t)
+    return (best[1] if best else None), relation
 
 
 def state_path():
@@ -302,6 +339,7 @@ def resolve(*, force_refresh=False):
     now = time.time()
     state = _read_state()
     remote, error, stale, from_cache = None, None, False, False
+    fetched = False
     if not force_refresh:
         if state.get('remote') and _fresh(state.get('fetched_at'), CACHE_TTL, now) \
                 and not _fresh(state.get('error_at'), CACHE_TTL_ERROR, now):
@@ -315,7 +353,7 @@ def resolve(*, force_refresh=False):
             remote['checked_at'] = timezone.now().isoformat()
             _write_state({'remote': remote, 'fetched_at': now,
                           'last_good': remote, 'last_good_at': now})
-            _record_stable(remote.get('stable'))
+            fetched = True
         except GitHubError as e:
             error = str(e)
             _write_state({'error': error, 'error_at': now,
@@ -327,11 +365,18 @@ def resolve(*, force_refresh=False):
         else:
             remote = {'stable': None, 'preview': None, 'checked_at': timezone.now().isoformat()}
     target, relation = _decide(remote, inst, channel)
+    if fetched:
+        _record_stable(remote.get('stable'), recommended=target, channel=channel)
     return {
         'installed': inst,
         'channel': channel,
         'stable': remote.get('stable'),
+        'prerelease': remote.get('prerelease'),
         'preview': remote.get('preview'),
+        # Every discovered release (None: never discovered, i.e. GitHub was
+        # not reached and there is no earlier answer to show).
+        'releases': remote.get('releases'),
+        'discovery': remote.get('discovery'),
         'target': target,
         'update_available': target is not None,
         'relation_to_stable': relation,
@@ -342,13 +387,22 @@ def resolve(*, force_refresh=False):
     }
 
 
-def _record_stable(stable):
-    """Persist the recommended release for the navbar badge (every process)."""
+def _record_stable(stable, *, recommended=None, channel='stable'):
+    """Persist what the channel recommends for the navbar badge (every
+    process). The badge follows the channel: on Stable the newest stable
+    release, on Prerelease / Preview the channel's own recommendation. Only
+    something newer than what is installed is ever recorded as "available"
+    (the badge compares versions), so an install ahead of Stable shows none.
+    The security marker always comes from the published stable releases."""
+    if recommended is not None or channel != 'stable':
+        version = (recommended or {}).get('version') or ''
+    else:
+        version = (stable or {}).get('version') or ''
     try:
         from core.models import SystemSetting
         SystemSetting.get_settings()
         SystemSetting.objects.filter(pk=1).update(
-            latest_release_version=str((stable or {}).get('version') or '')[:32],
+            latest_release_version=str(version)[:32],
             latest_security_release_version=str((stable or {}).get('security_version') or '')[:32],
             latest_release_checked_at=timezone.now())
     except Exception:

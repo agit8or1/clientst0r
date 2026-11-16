@@ -440,6 +440,7 @@ class ChannelTests(_TmpMixin, TestCase):
         inst = {'version': installed_version, 'sha': installed_sha, 'branch': 'main',
                 'clean': True, 'is_git': True}
         with mock.patch.object(channels, 'installed', return_value=inst), \
+                mock.patch('core.upgrade.discovery.remote_tags', return_value={}), \
                 mock.patch.object(channels.requests, 'get', side_effect=get or _github()):
             return channels.resolve(force_refresh=True)
 
@@ -506,6 +507,7 @@ class _Process:
         inst = {'version': '3.17.630', 'sha': '9' * 40, 'branch': 'main', 'clean': True,
                 'is_git': True}
         with mock.patch('core.upgrade.channels.cache', self.cache, create=True), \
+                mock.patch('core.upgrade.discovery.remote_tags', return_value={}), \
                 mock.patch.object(channels, 'installed', return_value=inst), \
                 mock.patch.object(channels.requests, 'get', side_effect=get or _github()):
             return fn(*a, **k)
@@ -979,6 +981,7 @@ class UpdatesViewTests(_TmpMixin, TestCase):
     def test_updates_page_shows_installed_stable_and_unreleased_main(self):
         inst = {'version': '3.17.558', 'sha': '9' * 40, 'branch': 'main', 'clean': True, 'is_git': True}
         with mock.patch.object(channels, 'installed', return_value=inst), \
+                mock.patch('core.upgrade.discovery.remote_tags', return_value={}), \
                 mock.patch.object(channels.requests, 'get', side_effect=_github()):
             html = self.client.get(reverse('core:system_updates')).content.decode()
         self.assertIn('v3.17.640', html)
@@ -998,7 +1001,8 @@ class UpdatesViewTests(_TmpMixin, TestCase):
 
         def down(*a, **k):
             raise requests.Timeout('slow')
-        with mock.patch.object(channels.requests, 'get', side_effect=down):
+        with mock.patch.object(channels.requests, 'get', side_effect=down), \
+                mock.patch('core.upgrade.discovery.remote_tags', return_value={}):
             r = self.client.get(reverse('core:system_updates'))
         self.assertEqual(r.status_code, 200)
         self.assertIn('timeout', r.content.decode())
