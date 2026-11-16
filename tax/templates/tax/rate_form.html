@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit tax rate{% else %}New tax rate{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if item %}Edit tax rate{% else %}New tax rate{% endif %}</h1>
+<p class="text-muted">Scope: {{ scope_label }}</p>
+<form method="post" class="card"><div class="card-body row g-3">{% csrf_token %}
+  <div class="col-md-6"><label class="form-label" for="name">Name</label><input id="name" name="name" class="form-control" required value="{{ v.name }}"></div>
+  <div class="col-md-3"><label class="form-label" for="rate">Combined rate (fraction)</label><input id="rate" name="rate" class="form-control" required placeholder="0.0875" value="{{ v.rate }}"></div>
+  <div class="col-md-3"><label class="form-label" for="country">Country</label><input id="country" name="country" maxlength="2" class="form-control" value="{{ v.country|default:'US' }}"></div>
+  <div class="col-md-3"><label class="form-label" for="state">State</label><input id="state" name="state" class="form-control" value="{{ v.state }}"></div>
+  <div class="col-md-3"><label class="form-label" for="county">County</label><input id="county" name="county" class="form-control" value="{{ v.county }}"></div>
+  <div class="col-md-3"><label class="form-label" for="city">City</label><input id="city" name="city" class="form-control" value="{{ v.city }}"></div>
+  <div class="col-md-3"><label class="form-label" for="zip_pattern">Zip / prefix*</label><input id="zip_pattern" name="zip_pattern" class="form-control" value="{{ v.zip_pattern }}"></div>
+  <div class="col-md-3"><label class="form-label" for="effective_from">Effective from</label><input id="effective_from" name="effective_from" type="date" class="form-control" value="{{ item.effective_from|date:'Y-m-d' }}"></div>
+  <div class="col-md-3"><label class="form-label" for="effective_to">Effective to</label><input id="effective_to" name="effective_to" type="date" class="form-control" value="{{ item.effective_to|date:'Y-m-d' }}"></div>
+  <div class="col-md-3"><label class="form-label" for="labor_taxable">Labor here</label><select id="labor_taxable" name="labor_taxable" class="form-select">
+    <option value="">Settings default</option><option value="yes"{% if item.labor_taxable is True %} selected{% endif %}>Taxable</option><option value="no"{% if item.labor_taxable is False %} selected{% endif %}>Not taxable</option></select></div>
+  <div class="col-md-3 form-check mt-4 ms-2"><input class="form-check-input" type="checkbox" id="is_active" name="is_active"{% if not item or item.is_active %} checked{% endif %}><label class="form-check-label" for="is_active">Active</label></div>
+  <div class="col-12"><label class="form-label" for="applies_to">Taxes these categories (none selected: all taxable categories)</label>
+    <select id="applies_to" name="applies_to" multiple class="form-select">{% for c in categories %}<option value="{{ c.pk }}"{% if item and c in item.applies_to.all %} selected{% endif %}>{{ c.name }} ({{ c.code }})</option>{% endfor %}</select></div>
+</div><div class="card-footer"><button class="btn btn-primary">Save</button> <a class="btn btn-outline-secondary" href="{% url 'tax:settings' %}">Cancel</a></div></form>
+{% endblock %}

@@ -151,6 +151,7 @@ INSTALLED_APPS = [
     'office.apps.OfficeConfig',
     'contracts.apps.ContractsConfig',
     'pulse.apps.PulseConfig',
+    'tax.apps.TaxConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).
