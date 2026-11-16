@@ -901,7 +901,16 @@ class SystemSetting(models.Model):
     azure_ad_client_id = models.CharField(max_length=255, blank=True, help_text='Application (client) ID from Azure portal')
     azure_ad_client_secret = EncryptedTextField(blank=True, legacy='auto', help_text='Client secret (encrypted)')
     azure_ad_redirect_uri = models.CharField(max_length=500, blank=True, help_text='Redirect URI configured in Azure (e.g., https://yourapp.com/auth/callback)')
-    azure_ad_auto_create_users = models.BooleanField(default=True, help_text='Automatically create users on first Azure AD login')
+    azure_ad_auto_create_users = models.BooleanField(
+        default=False,
+        help_text='Create an account on first Microsoft sign-in for an identity no account is '
+                  'linked to. Such accounts get no client access and no staff rights. Never '
+                  'used when the e-mail address belongs to an existing account.')
+    azure_ad_allowed_tenant_ids = models.TextField(
+        blank=True, default='',
+        help_text='Extra Microsoft Entra tenant IDs (GUIDs, one per line or comma-separated) '
+                  'whose users may sign in. Empty: only the configured tenant. Required when '
+                  'the tenant is "common" or "organizations".')
     azure_ad_sync_groups = models.BooleanField(default=False, help_text='Sync Azure AD groups to roles')
 
     # Snyk Security Scanning Settings

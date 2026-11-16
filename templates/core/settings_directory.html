@@ -244,12 +244,13 @@
                             <ul class="small">
                                 <li>Enter the <strong>Tenant ID</strong>, <strong>Client ID</strong>, and <strong>Client Secret</strong> you copied</li>
                                 <li>Redirect URI should be: <code>{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/</code></li>
-                                <li>Enable <strong>Auto-create users</strong> to automatically create accounts for new Azure AD users</li>
+                                <li>Existing accounts are never matched by e-mail address: each user links Microsoft sign-in once from <strong>My Profile</strong> (after confirming their password), or an administrator confirms the link from the user's page</li>
+                                <li><strong>Auto-create users</strong> (off by default) creates accounts with no client access and no staff rights</li>
                                 <li>Click <strong>Save Changes</strong> below</li>
                             </ul>
 
                             <div class="alert alert-warning mt-2 mb-0">
-                                <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Users authenticating via Azure AD will bypass 2FA requirements (Azure SSO is already secure). A "Sign in with Microsoft" button will appear on the login page once configured.
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> A Microsoft sign-in counts as 2FA only when Microsoft confirms MFA (or the server sets AZURE_SSO_TRUSTED_AS_2FA); otherwise the user's ClientSt0r authenticator code is asked for. A "Sign in with Microsoft" button will appear on the login page once configured.
                             </div>
                         </div>
 
@@ -258,7 +259,14 @@
                             <input type="text" class="form-control" id="azure_ad_tenant_id" name="azure_ad_tenant_id"
                                    value="{{ settings.azure_ad_tenant_id }}"
                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-                            <div class="form-text">Azure AD Tenant ID (GUID format)</div>
+                            <div class="form-text">Azure AD Tenant ID (GUID format). Only this tenant's users can sign in unless more tenants are listed below.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="azure_ad_allowed_tenant_ids" class="form-label">Additional allowed tenant IDs</label>
+                            <textarea class="form-control" id="azure_ad_allowed_tenant_ids" name="azure_ad_allowed_tenant_ids" rows="2"
+                                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">{{ settings.azure_ad_allowed_tenant_ids }}</textarea>
+                            <div class="form-text">One tenant ID per line. Leave empty for a single-tenant setup. Required for a multi-tenant app (Tenant ID <code>common</code> or <code>organizations</code>): without it no tenant is accepted.</div>
                         </div>
 
                         <div class="mb-3">
@@ -290,6 +298,7 @@
                             <label class="form-check-label" for="azure_ad_auto_create_users">
                                 Automatically create users on first Azure AD login
                             </label>
+                            <div class="form-text">For Microsoft accounts no account here is linked to. New accounts get no client access and no staff rights until an administrator grants them. An e-mail address that belongs to an existing account is never auto-created or auto-linked.</div>
                         </div>
 
                         <div class="form-check form-switch mb-3">

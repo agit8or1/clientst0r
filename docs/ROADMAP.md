@@ -1769,6 +1769,13 @@ are built on top of them.
   operator sets `AZURE_SSO_TRUSTED_AS_2FA`; otherwise the user enters their
   authenticator code. Audit clean-up keeps at least 30 days, and new installs
   no longer write `REQUIRE_2FA=False`.
+- **Microsoft sign-in matched on identity, not e-mail** *(shipped v3.17.688)* —
+  a Microsoft sign-in finds an account only by the verified tenant and object
+  ID it is linked to. Existing accounts are linked by their owner after
+  re-authenticating, or by an administrator confirming a recorded request;
+  only the configured (or allow-listed) tenants are accepted; the flow uses
+  PKCE and a nonce; auto-create is off by default and creates accounts with no
+  access.
 - **Scheduled UniFi asset sync places and types devices correctly**
   *(shipped v3.17.664)* — the scheduled `sync_network_assets` run and the manual
   Import to Assets page share one implementation

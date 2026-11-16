@@ -717,11 +717,29 @@ class UserProfile(BaseModel):
     # When the background LDAP group sync (accounts.ldap_group_sync) last
     # re-checked this LDAP user's mapped groups; it works oldest-first.
     ldap_groups_checked_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Microsoft Entra ID identity this account is linked to (v3.17.688).
+    # A Microsoft sign-in is matched on (tenant id, object id) only — never on
+    # an e-mail address. Both are GUIDs from a verified ID token.
     azure_ad_oid = models.CharField(
         max_length=255,
         blank=True,
         default='',
-        help_text='Azure AD Object ID (OID)'
+        db_index=True,
+        help_text='Microsoft Entra object ID (oid) this account is linked to'
+    )
+    azure_ad_tid = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Microsoft Entra tenant ID (tid) this account is linked to. '
+                  'Empty on links made before v3.17.688; captured on the next sign-in.'
+    )
+    azure_ad_linked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the Microsoft identity was explicitly linked (by the user after '
+                  're-authenticating, or by an administrator). Empty for links made '
+                  'automatically before v3.17.688.'
     )
 
     class Meta:
@@ -2486,3 +2504,35 @@ class OwnershipTransfer(models.Model):
     class Meta:
         db_table = 'ownership_transfers'
         ordering = ['-created_at']
+
+
+class AzureADLinkRequest(models.Model):
+    """A Microsoft sign-in that named the e-mail address of an existing
+    account which is not linked to that Microsoft identity (v3.17.688).
+
+    The sign-in is refused. An administrator may confirm the link from the
+    user's page after checking with the person; nothing is linked otherwise.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='azure_link_requests')
+    tenant_id = models.CharField(max_length=64)
+    object_id = models.CharField(max_length=64)
+    claimed_email = models.CharField(max_length=320, blank=True, default='')
+    claimed_name = models.CharField(max_length=255, blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+
+    class Meta:
+        db_table = 'azure_ad_link_requests'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user} <- {self.tenant_id}/{self.object_id} ({self.status})'
