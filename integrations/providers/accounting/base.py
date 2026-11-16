@@ -29,6 +29,27 @@ class AccountingAuthError(AccountingProviderError):
     pass
 
 
+class AccountingAmbiguousError(AccountingProviderError):
+    """A write whose outcome is unknown: it may or may not have been applied
+    (timeout, dropped connection). Never treat this as "did not happen"."""
+    pass
+
+
+class AccountingPreflightError(AccountingProviderError):
+    """Refused before anything was sent to the provider (missing mapping or
+    configuration). Safe to treat as "definitely not applied"."""
+    pass
+
+
+PUSH_KEY_LABEL = 'ClientSt0r push key'
+
+
+def push_key_note(key: str) -> str:
+    """The marker written into the provider invoice so a later reconciliation
+    can find it by key."""
+    return f'{PUSH_KEY_LABEL}: {key}'
+
+
 class BaseAccountingProvider:
     """
     Subclasses MUST set:
@@ -146,7 +167,7 @@ class BaseAccountingProvider:
                 response = send()
             except requests.RequestException as exc:
                 if is_write:
-                    raise AccountingProviderError(
+                    raise AccountingAmbiguousError(
                         f'{self.provider_name} {method} failed and cannot be '
                         f'safely retried (it may or may not have been '
                         f'applied): {exc}')
@@ -205,6 +226,29 @@ class BaseAccountingProvider:
         invoice.accounting_external_id and pushed_to_accounting_at and
         clears last_push_error. On failure, sets last_push_error."""
         raise NotImplementedError
+
+    def find_invoice_by_key(self, invoice, key: str) -> Dict[str, Any]:
+        """Search the provider for a live (not voided/deleted) invoice carrying
+        push key `key`.
+
+        Returns {'status': 'found'|'absent'|'error', 'external_id': str,
+        'data': dict, 'error': str}. 'error' means absence could NOT be
+        confirmed; the caller must not create in that case.
+        """
+        return {'status': 'error', 'external_id': '', 'data': {},
+                'error': f'{self.provider_name} cannot search invoices by key'}
+
+    def adopt_invoice(self, invoice, external_id: str, data: Dict[str, Any] | None = None) -> None:
+        """Record an invoice found provider-side as this invoice's copy."""
+        from django.utils import timezone
+        invoice.accounting_provider = self.provider_type
+        invoice.accounting_external_id = str(external_id)
+        invoice.pushed_to_accounting_at = timezone.now()
+        invoice.last_push_error = ''
+        invoice.save(update_fields=[
+            'accounting_provider', 'accounting_external_id',
+            'pushed_to_accounting_at', 'last_push_error', 'updated_at',
+        ])
 
     def record_payment(self, payment) -> Dict[str, Any]:
         """Optional. Record a Payment row against the provider's invoice

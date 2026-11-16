@@ -13,7 +13,8 @@ blobs) is stored as::
   context ``field_secrets_v1`` — the same construction as the v2 layer in
   ``vault.encryption_v2``, with its own purpose so a leak of one derived key
   says nothing about the others.
-- The AAD is ``"<app_label>.<Model>.<field>"``. A ciphertext copied into a
+- The AAD is ``"<app_label>.<Model>.<field>"`` (plus ``"#<pk>"`` for a
+  ``SealedTextField(bind_row=True)``). A ciphertext copied into a
   different column fails authentication instead of decrypting into the wrong
   place. (Rows are not bound individually: several of these rows are created
   before they have a primary key and some are re-parented between
@@ -252,12 +253,28 @@ def _ensure_secret_widget(field):
 # ---------------------------------------------------------------------------
 
 class _AADMixin:
-    def __init__(self, *args, aad=None, legacy='plain', **kwargs):
+    def __init__(self, *args, aad=None, legacy='plain', bind_row=False, **kwargs):
         # `aad` pins the binding string; pass it explicitly before renaming a
         # model or field, or existing values will stop decrypting.
+        # `bind_row` (SealedTextField only): the model seals with
+        # `row_aad(pk)` = "<aad>#<pk>", so a ciphertext copied to another row
+        # of the same column fails authentication too. Only for rows whose
+        # primary key exists before the value is sealed (e.g. a UUID default)
+        # and that are never re-parented.
         self._aad_override = aad
         self.legacy = legacy
+        self.bind_row = bind_row
         super().__init__(*args, **kwargs)
+
+    def row_aad(self, pk) -> str:
+        if not self.bind_row:
+            return self.aad
+        # Normalise through the pk field so a raw-SQL value (a UUID stored as
+        # 32 hex chars on SQLite / MySQL) binds the same as the model's pk.
+        model = getattr(self, 'model', None)
+        if model is not None:
+            pk = model._meta.pk.to_python(pk)
+        return f'{self.aad}#{pk}'
 
     def contribute_to_class(self, cls, name, *args, **kwargs):
         super().contribute_to_class(cls, name, *args, **kwargs)
@@ -269,6 +286,8 @@ class _AADMixin:
             kwargs['aad'] = self._aad_override
         if self.legacy != 'plain':
             kwargs['legacy'] = self.legacy
+        if self.bind_row:
+            kwargs['bind_row'] = True
         return name, path, args, kwargs
 
     def seal(self, plaintext):

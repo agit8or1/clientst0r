@@ -48,7 +48,7 @@ def grant_and_keep_seed_checksums(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0050_dashboard_global_layout'),
+        ('accounts', '0057_app_connection_permissions'),
     ]
 
     operations = [

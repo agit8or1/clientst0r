@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit tax category{% else %}New tax category{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if item %}Edit tax category{% else %}New tax category{% endif %}</h1>
+<p class="text-muted">Scope: {{ scope_label }}</p>
+<form method="post" class="card"><div class="card-body row g-3">{% csrf_token %}
+  <div class="col-md-3"><label class="form-label" for="code">Code</label><input id="code" name="code" class="form-control" required value="{{ v.code }}"></div>
+  <div class="col-md-5"><label class="form-label" for="name">Name</label><input id="name" name="name" class="form-control" required value="{{ v.name }}"></div>
+  <div class="col-md-4"><label class="form-label" for="kind">Kind</label><select id="kind" name="kind" class="form-select">{% for v, l in kinds %}<option value="{{ v }}"{% if item.kind == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="col-md-3 form-check ms-2"><input class="form-check-input" type="checkbox" id="taxable" name="taxable"{% if not item or item.taxable %} checked{% endif %}><label class="form-check-label" for="taxable">Taxable</label></div>
+  <div class="col-md-3 form-check ms-2"><input class="form-check-input" type="checkbox" id="is_default" name="is_default"{% if item.is_default %} checked{% endif %}><label class="form-check-label" for="is_default">Default for lines without a category</label></div>
+  <div class="col-md-3"><label class="form-label" for="avalara_tax_code">Avalara tax code</label><input id="avalara_tax_code" name="avalara_tax_code" class="form-control" placeholder="e.g. SC040100" value="{{ item.avalara_tax_code|default:'' }}"></div>
+  <div class="col-md-3"><label class="form-label" for="taxjar_product_tax_code">TaxJar product tax code</label><input id="taxjar_product_tax_code" name="taxjar_product_tax_code" class="form-control" placeholder="e.g. 19000" value="{{ item.taxjar_product_tax_code|default:'' }}"></div>
+  <div class="col-md-3"><label class="form-label" for="qbo_tax_code_id">QuickBooks Online TaxCode Id</label><input id="qbo_tax_code_id" name="qbo_tax_code_id" class="form-control" value="{{ item.qbo_tax_code_id|default:'' }}"></div>
+  <div class="col-md-3"><label class="form-label" for="xero_tax_type">Xero TaxType</label><input id="xero_tax_type" name="xero_tax_type" class="form-control" placeholder="e.g. OUTPUT" value="{{ item.xero_tax_type|default:'' }}"></div>
+</div><div class="card-footer"><button class="btn btn-primary">Save</button> <a class="btn btn-outline-secondary" href="{% url 'tax:settings' %}">Cancel</a></div></form>
+{% endblock %}

@@ -133,6 +133,7 @@ Re-push anyway?">
                 {% endif %}
             </div>
         </div>
+        {% load tax_tags %}{% tax_panel item 'invoice' %}
         <div class="card">
             <div class="card-header"><strong>Record Payment</strong></div>
             <div class="card-body">

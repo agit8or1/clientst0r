@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Single sign-on (OIDC){% endblock %}
+{% block content %}
+<div class="card mb-4">
+  <div class="card-header"><h5 class="mb-0"><i class="fas fa-right-to-bracket"></i> Single sign-on (OIDC)</h5></div>
+  <div class="card-body">
+    <p class="text-muted">Sign in through an OpenID Connect identity provider (for example Keycloak). Accounts are found by the provider's subject id only, never by e-mail. Local, Microsoft and LDAP sign-in stay available; a local superuser can always sign in at the normal login page. See <code>docs/OIDC_SSO.md</code> for setup.</p>
+    {% if providers %}
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Name</th><th>Issuer</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% for p in providers %}
+        <tr><td>{{ p.name }}</td><td><code>{{ p.issuer }}</code></td>
+          <td>{% if p.enabled %}<span class="badge bg-success">Enabled</span>{% else %}<span class="badge bg-secondary">Disabled</span>{% endif %}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'oidc_sso:provider_detail' p.pk %}">Configure</a></td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% endif %}
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-md-5"><label class="form-label" for="name">Name (shown on the button)</label><input class="form-control" id="name" name="name" maxlength="100" required placeholder="Agit8or Identity"></div>
+      <div class="col-md-4"><label class="form-label" for="slug">Short name (in URLs)</label><input class="form-control" id="slug" name="slug" maxlength="50" placeholder="agit8or"></div>
+      <div class="col-md-3"><button class="btn btn-primary w-100">Add provider</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

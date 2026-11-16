@@ -1480,6 +1480,22 @@ class AccountingConnection(ConnectionOwnership, BaseModel):
     # (when our line items don't have an explicit tax rate already mapped).
     default_tax_rate = models.DecimalField(max_digits=5, decimal_places=4, default=0)
 
+    # QuickBooks Online: the Item every invoice line is booked against when the
+    # line's GL code has no AccountingItemMapping (and for lines with no GL code
+    # at all). QBO's SalesItemLineDetail.ItemRef takes an Item id; the income
+    # account comes from that Item. Blank = a line whose GL code has no mapping
+    # is refused rather than sent with a guessed reference.
+    default_item_id = models.CharField(
+        max_length=120, blank=True,
+        help_text='QuickBooks Online: Item id used for invoice lines without '
+                  'a GL-code mapping.')
+    # Xero: the bank account (its Code) a payment pushed from here is deposited
+    # into. Required for record_payment; there is no safe default.
+    payment_account_code = models.CharField(
+        max_length=40, blank=True,
+        help_text='Xero: code of the bank account payments are recorded '
+                  'against. Payments are not pushed until this is set.')
+
     sync_enabled = models.BooleanField(default=False,
         help_text='Allow live invoice push (off by default — sandbox first)')
     is_active = models.BooleanField(default=True)
@@ -1537,6 +1553,8 @@ class AccountingAuditLog(BaseModel):
         ('pull_customers', 'Pull Customers'),
         ('pull_payments', 'Pull Payments'),
         ('pull_invoices', 'Pull Invoice State'),
+        ('reconcile_invoice', 'Reconcile Invoice Push'),
+        ('push_refused', 'Push Refused'),
     ]
 
     organization = models.ForeignKey(
@@ -1642,6 +1660,115 @@ class AccountingCustomerLink(BaseModel):
 
     def __str__(self):
         return f'{self.client_org_id} -> {self.provider_customer_id}'
+
+
+class AccountingItemMapping(BaseModel):
+    """Which provider Item a local GL account code is booked against.
+
+    InvoiceLineItem.gl_account_code is our chart-of-accounts code. Xero takes
+    that directly (LineItem.AccountCode). QuickBooks Online does not: a sales
+    line references an Item (SalesItemLineDetail.ItemRef) and the Item carries
+    the income account. Sending the account code as an ItemRef — what the
+    adapter did before — references an Item that does not exist, or worse, an
+    unrelated Item whose id happens to equal the code.
+    """
+    connection = models.ForeignKey(
+        AccountingConnection, on_delete=models.CASCADE,
+        related_name='item_mappings',
+    )
+    gl_account_code = models.CharField(
+        max_length=40, help_text='Local GL account code on invoice lines.')
+    provider_item_id = models.CharField(
+        max_length=120, help_text='Item id in the accounting system.')
+    display_name = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'accounting_item_mappings'
+        ordering = ['gl_account_code']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['connection', 'gl_account_code'],
+                name='uniq_accounting_item_mapping'),
+        ]
+
+    def __str__(self):
+        return f'{self.gl_account_code} -> item {self.provider_item_id}'
+
+
+class InvoicePushAttempt(models.Model):
+    """One logical push of an invoice to an accounting provider.
+
+    Written (and committed) *before* the provider is called, so a push whose
+    outcome we never learned — a timeout, a 5xx, a crashed worker — leaves a
+    durable record that something may exist provider-side. A later push for
+    the same invoice must reconcile against the provider before it may create
+    anything.
+
+    States:
+      pending   — claimed; a request is (or was about to be) in flight
+      succeeded — provider id known (created or adopted)
+      failed    — the provider definitely did not create an invoice
+      unknown   — the request may or may not have landed; reconcile first
+
+    `open_slot` holds the invoice id while the attempt is pending or unknown
+    and is NULL otherwise. It is unique, so the database itself allows at most
+    one open attempt per invoice on every backend (a nullable unique column
+    works on MariaDB, which ignores conditional unique constraints).
+    """
+    STATE_PENDING = 'pending'
+    STATE_SUCCEEDED = 'succeeded'
+    STATE_FAILED = 'failed'
+    STATE_UNKNOWN = 'unknown'
+    STATES = [
+        (STATE_PENDING, 'Pending'),
+        (STATE_SUCCEEDED, 'Succeeded'),
+        (STATE_FAILED, 'Failed'),
+        (STATE_UNKNOWN, 'Unknown — reconcile before retrying'),
+    ]
+
+    invoice = models.ForeignKey(
+        'psa.Invoice', on_delete=models.CASCADE,
+        related_name='push_attempts',
+    )
+    connection = models.ForeignKey(
+        AccountingConnection, on_delete=models.CASCADE,
+        related_name='push_attempts',
+    )
+    idempotency_key = models.CharField(
+        max_length=64, db_index=True,
+        help_text='Stable per invoice + connection; written into the provider '
+                  'invoice (QBO PrivateNote / Xero Reference) so it can be '
+                  'found again.')
+    request_id = models.CharField(
+        max_length=64, unique=True,
+        help_text='Per logical push; sent as QBO requestid / Xero '
+                  'Idempotency-Key. Reused when retrying an unknown attempt.')
+    state = models.CharField(max_length=20, choices=STATES,
+                             default=STATE_PENDING, db_index=True)
+    open_slot = models.CharField(max_length=32, null=True, blank=True,
+                                 unique=True, editable=False)
+    forced = models.BooleanField(default=False)
+    tries = models.PositiveIntegerField(default=1)
+    resolution = models.CharField(
+        max_length=40, blank=True,
+        help_text='created | adopted | confirmed_absent | ...')
+    external_id = models.CharField(max_length=120, blank=True)
+    error = models.TextField(blank=True)
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+')
+    requested_at = models.DateTimeField(default=timezone.now)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'accounting_invoice_push_attempts'
+        ordering = ['-requested_at']
+        indexes = [
+            models.Index(fields=['invoice', 'connection', 'state']),
+        ]
+
+    def __str__(self):
+        return f'invoice#{self.invoice_id} -> conn#{self.connection_id} [{self.state}]'
 
 
 # ---------------------------------------------------------------------------

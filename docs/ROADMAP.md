@@ -1769,6 +1769,13 @@ are built on top of them.
   operator sets `AZURE_SSO_TRUSTED_AS_2FA`; otherwise the user enters their
   authenticator code. Audit clean-up keeps at least 30 days, and new installs
   no longer write `REQUIRE_2FA=False`.
+- **Microsoft sign-in matched on identity, not e-mail** *(shipped v3.17.688)* —
+  a Microsoft sign-in finds an account only by the verified tenant and object
+  ID it is linked to. Existing accounts are linked by their owner after
+  re-authenticating, or by an administrator confirming a recorded request;
+  only the configured (or allow-listed) tenants are accepted; the flow uses
+  PKCE and a nonce; auto-create is off by default and creates accounts with no
+  access.
 - **Scheduled UniFi asset sync places and types devices correctly**
   *(shipped v3.17.664)* — the scheduled `sync_network_assets` run and the manual
   Import to Assets page share one implementation
@@ -2839,6 +2846,9 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **71.8 Retry queue and error review** *(planned)*.
 - **71.9 Other providers** *(planned)* — after QuickBooks Online and Xero, additional accounting providers
   as demand and real-provider testing allow.
+- **71.10 Billing-event integrity** *(in progress — dev/invoice-push-safety)* — stable internal billing-event
+  IDs, idempotency keys, durable sync queue, reconciliation and duplicate detection; ambiguous submissions
+  are reconciled before any retry; posted invoices changed only via provider amendment, void or credit memo.
 
 **Sizing:** **L** — safety fixes first, then provider capabilities one at a time.
 
@@ -2849,8 +2859,8 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **72.3 Portal billing** *(in progress — dev/payments)* — invoices, balances and online payment for
   customers.
 - **72.4 Payment webhooks, refunds and idempotency** *(planned)*.
-- **72.5 Tax providers** *(planned)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
-- **72.6 Quote tax default** *(planned)* — warn instead of defaulting to zero.
+- **72.5 Tax providers** *(in progress — dev/tax)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
+- **72.6 Quote tax default** *(in progress — dev/tax)* — warn instead of defaulting to zero.
 
 **Sizing:** **L** — provider code needs sandbox testing before release.
 
@@ -2882,16 +2892,103 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — framework, then providers, then Rem0te contract changes.
 
-## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [planned]
+## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [in progress]
 
-- **75.1 Profitability analytics** *(planned)* — margin by client, contract, plan and service line from
+- **75.1 Profitability analytics** *(in progress — dev/profitability)* — margin by client, contract, plan and service line from
   rate snapshots.
 - **75.2 Customer commercial portal** *(planned)* — plans, invoices, device health and backup status.
-- **75.3 Commercial onboarding wizard** *(planned)* — price book, rates, accounting and payment setup.
-- **75.4 Executive dashboard** *(planned)* — recurring revenue, margin, renewals and receivables.
+- **75.3 Commercial onboarding wizard** *(in progress — dev/onboarding-wizard)* — price book, rates, accounting and payment setup.
+- **75.4 Executive dashboard** *(in progress — dev/exec-dashboard)* — recurring revenue, margin, renewals and receivables.
 - **75.5 Commercial permissions** *(planned)* — roles for rates, cost visibility and payments.
+- **75.6 Executive dashboard drill-down** *(in progress — dev/exec-dashboard)* — drill from every metric to the
+  underlying records, with date, customer, service-line and location filters; estimates labelled as not
+  accounting-certified.
 
 **Sizing:** **L** — depends on Phases 68–74.
+
+## Phase 76 — Profitability and pricing advisor **(L · OPTIONAL AI)** [planned]
+
+- **76.1 Per-customer financial monitoring** *(planned)* — MRR, ARR, labor, vendor, licensing, hardware and
+  delivery costs, gross profit and margin, contract utilization, unbilled work and revenue leakage.
+- **76.2 Detection** *(planned)* — loss-making customers, declining margins, underpriced contracts, support
+  consumption above contract, services delivered without a charge, unused allowances, renewals to review and
+  distributor cost increases not passed through.
+- **76.3 Recommendations** *(planned)* — price increase amounts, renegotiation, after-hours rate, per-device
+  price, bundle review and upsell or tier fit. Each shows its supporting calculations, data and assumptions.
+- **76.4 Approval required** *(planned)* — the advisor never changes pricing or contracts automatically.
+- **76.5 Optional AI narrative (OPTIONAL AI)** *(planned)* — uses the existing multi-LLM architecture and AI
+  permission controls, gated by `psa_ai_enabled`. Explains verified figures separately from estimates and
+  never invents or assumes missing costs.
+
+Depends on Phases 68, 69 and 75 (profitability).
+
+**Sizing:** **L** — deterministic calculations and detection first, then recommendations, then the optional AI narrative.
+
+## Phase 77 — Customer command center portal **(XL · portal)** [planned]
+
+- **77.1 Unified customer dashboard** *(planned)* — sections for IT health, backup and recovery, services and
+  contracts (plan, allowances, renewals), licensing, service desk, financial (invoices, payments, quotes,
+  receipts and provider-hosted payment methods), maintenance and communications.
+- **77.2 Customer self-service requests** *(planned)* — new and removed users, licenses, hardware, upgrades,
+  services, quote and purchase approvals, contract review, tickets, and invoice download and payment. Anything
+  affecting pricing, contracts, security or infrastructure requires MSP approval.
+- **77.3 Multi-location views** *(planned)* — tenant and location-level permissions.
+
+Depends on Phases 72, 73 and 74.
+
+**Sizing:** **XL** — the largest portal surface; split into release-sized slices by section.
+
+## Phase 78 — Customer health score **(M)** [planned]
+
+- **78.1 Health dimensions** *(planned)* — technical, security, backup, service delivery, commercial and
+  satisfaction. Satisfaction reuses the client pulse checks from Phase 66.
+- **78.2 Signals** *(planned)* — ticket trends, SLA, endpoint health, security alerts, backup health, contract
+  profitability, utilization, outstanding invoices and renewal status.
+- **78.3 Configurable weights** *(planned)*.
+- **78.4 Explanations** *(planned)* — each change is explained with the contributing records.
+- **78.5 Unknown is not healthy** *(planned)* — unknown or stale data is shown as unknown, never as healthy.
+
+**Sizing:** **M** — scoring model and explanations first, then dashboard and portal display.
+
+## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
+
+A reusable, self-hosted standard for Agit8or applications to discover, pair, authenticate and exchange
+events with each other, starting with Clientst0r and Rem0te. It runs alongside the existing
+`ticket-rmm-v1` link, which keeps working unchanged.
+
+- **79.1 Protocol and SDKs** *(in progress — dev/agit8or-connect)* — versioned protocol and OpenAPI spec;
+  Python and TypeScript SDKs checked against shared test vectors.
+- **79.2 Pairing and credentials** *(in progress — dev/agit8or-connect)* — single-use, short-lived pairing
+  codes with administrator approval on the receiving side; a key pair per connection; short-lived access
+  tokens; no long-lived shared API keys.
+- **79.3 Permissions and customer grants** *(in progress — dev/agit8or-connect)* — human-readable scopes in
+  risk tiers; explicit per-customer grants; per-grant revocation and an emergency disconnect.
+- **79.4 Signed events and webhooks** *(in progress — dev/agit8or-connect)* — signed, replay-protected
+  delivery with retries and a failed-delivery queue.
+- **79.5 Connection wizard and credential dashboard** *(in progress — dev/agit8or-connect)* — off by default
+  until enabled by an administrator.
+- **79.6 Rem0te side** *(planned)* — implemented in the Rem0te repository against the shared contract.
+- **79.7 Device sync, alert tickets, ticket-to-device and approved remote actions over Connect** *(planned)*.
+
+**Sizing:** **XL** — protocol and Clientst0r side first, then the Rem0te side, then integration features.
+
+## Phase 80 — Agit8or Identity: single sign-on for people **(L · security)** [in progress]
+
+Single sign-on across Agit8or applications through a shared, self-hosted Keycloak, using standard OpenID
+Connect. Each application keeps making its own authorization decisions; signing in to one application never
+grants access to another. Kept separate from Agit8or Connect (separate keys, audiences, revocation and audit).
+
+- **80.1 Architecture and migration plan** *(in progress)* — design documents; nothing is deployed without
+  approval.
+- **80.2 Web "sign out everywhere"** *(shipped v3.17.689)* — per-user session cut-off; sign out other
+  sessions or everywhere; automatic on password and 2FA changes and on deactivation; administrator sign-out.
+- **80.3 OpenID Connect sign-in client** *(in progress — dev/oidc-client)* — works with any certified
+  provider; off by default; local, Microsoft and LDAP sign-in unchanged.
+- **80.4 Keycloak deployment** *(planned)* — requires approval.
+- **80.5 Single sign-on between Clientst0r and Rem0te** *(planned)*.
+- **80.6 Customer portal users** *(planned)*.
+
+**Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
 
 ## Sizing
 
@@ -2976,4 +3073,9 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 | 72 — Payment processing and sales tax | L | in progress (dev/payments) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
-| 75 — Profitability, customer commercial portal and executive dashboard | L | planned | Phases 68–74 |
+| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (dev/profitability, dev/onboarding-wizard, dev/exec-dashboard) | Phases 68–74 |
+| 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
+| 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
+| 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
+| 79 — Agit8or Connect | XL | in progress (dev/agit8or-connect) | Rem0te contract ticket-rmm-v1 |
+| 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; dev/oidc-client) | Keycloak shared with Rem0te |

@@ -10,6 +10,7 @@ from two_factor.urls import urlpatterns as tf_urls
 
 from accounts.otp_views import BackupTokensView
 from accounts.views import StaffLoginView
+from oidc_sso.views import SSOLogoutView
 
 from core.views import privacy_policy as core_privacy_policy
 from core.views import beta_onboarding as core_beta_onboarding
@@ -48,8 +49,9 @@ urlpatterns = [
     path('account/login/', StaffLoginView.as_view(), name='staff_login'),
     path('', include(tf_urls)),
 
-    # Legacy logout alias (for compatibility)
-    path('logout/', LogoutView.as_view(next_page='/'), name='logout'),
+    # Sign-out. After a single sign-on session it continues to the identity
+    # provider's end_session_endpoint (oidc_sso.views.SSOLogoutView).
+    path('logout/', SSOLogoutView.as_view(next_page='/'), name='logout'),
 
     # Home - redirect to dashboard
     path('', RedirectView.as_view(url='/core/dashboard/', permanent=False), name='home'),
@@ -57,6 +59,8 @@ urlpatterns = [
     # Apps
     path('core/', include('core.urls')),
     path('accounts/', include('accounts.urls')),
+    # Generic OIDC single sign-on (sign-in, linking, step-up, back-channel logout, settings).
+    path('accounts/sso/oidc/', include('oidc_sso.urls')),
     path('assets/', include('assets.urls')),
     path('vault/', include('vault.urls')),
     path('docs/', include('docs.urls')),
@@ -69,6 +73,7 @@ urlpatterns = [
     # Public, account-less contract signing pages (opaque tokens; see contracts/public_views.py).
     path('sign/', include('contracts.public_urls')),
     path('integrations/', include('integrations.urls')),
+    path('tax/', include('tax.urls')),
     path('audit/', include('audit.urls')),
     path('compliance/', include('compliance.urls')),
     path('monitoring/', include('monitoring.urls')),
@@ -93,6 +98,8 @@ urlpatterns = [
     path('crm/', include('crm.urls')),
     # Pulse checks: staff pages; the customer pages are under /portal/feedback/.
     path('pulse/', include('pulse.urls')),
+    # Payment processing: staff pages + provider webhooks; customer pages are /portal/billing/.
+    path('payments/', include('payments.urls')),
     path('security/', include('security_alerts.urls')),
 
     # Phase 8 — Field Ops + Timeclock + privacy
@@ -111,6 +118,11 @@ urlpatterns = [
     path('settings/security/rmm-permissions/', include('rmm_permissions.urls')),
     # Ticket ↔ paired RMM integration (ticket-rmm-v1): signed requests only.
     path('api/integration/v1/', include('psa_ai.integration_api')),
+    # Agit8or Connect (app-to-app): discovery, pairing, token, events and the
+    # Connected Applications admin pages. Every route 404s unless
+    # AGIT8OR_CONNECT_ENABLED is on.
+    path('', include('connect.urls_api')),
+    path('settings/integrations/connected-apps/', include('connect.urls_ui')),
 
     # API
     path('api/', include('api.urls')),

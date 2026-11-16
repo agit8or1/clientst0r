@@ -3723,6 +3723,14 @@ def _distributor_form(request, pk):
         item.sync_enabled = sync_enabled
 
         # Only update credentials if provided. Empty strings keep existing.
+        item.default_item_id = (request.POST.get('default_item_id') or '').strip()[:120]
+        item.payment_account_code = (request.POST.get('payment_account_code') or '').strip()[:40]
+        mapping_lines, mapping_errors = _parse_item_mappings(
+            request.POST.get('item_mappings') or '')
+        if mapping_errors:
+            messages.error(request, 'Item mappings not saved: ' + '; '.join(mapping_errors))
+            return redirect(request.path)
+
         creds = item.get_credentials() or {}
         if client_id:
             creds['client_id'] = client_id
@@ -3971,6 +3979,39 @@ def accounting_edit(request, pk):
     return _accounting_form(request, pk=pk)
 
 
+def _parse_item_mappings(text):
+    """'GL code = provider item id' per line -> ([(code, item_id)], errors)."""
+    rows, errors, seen = [], [], set()
+    for n, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith('#'):
+            continue
+        if '=' not in line:
+            errors.append(f'line {n}: expected "GL code = item id"')
+            continue
+        code, item_id = (p.strip() for p in line.split('=', 1))
+        if not code or not item_id or len(code) > 40 or len(item_id) > 120:
+            errors.append(f'line {n}: GL code and item id are both required')
+            continue
+        if code in seen:
+            errors.append(f'line {n}: GL code {code} listed twice')
+            continue
+        seen.add(code)
+        rows.append((code, item_id))
+    return rows, errors
+
+
+def _save_item_mappings(connection, rows):
+    from .models import AccountingItemMapping
+    wanted = dict(rows)
+    AccountingItemMapping.objects.filter(connection=connection).exclude(
+        gl_account_code__in=list(wanted)).delete()
+    for code, item_id in wanted.items():
+        AccountingItemMapping.objects.update_or_create(
+            connection=connection, gl_account_code=code,
+            defaults={'provider_item_id': item_id})
+
+
 def _accounting_form(request, pk):
     from core.models import Organization
     from .providers.accounting import PROVIDER_REGISTRY
@@ -4024,6 +4065,7 @@ def _accounting_form(request, pk):
             creds['client_secret'] = client_secret
         item.set_credentials(creds)
         item.save()
+        _save_item_mappings(item, mapping_lines)
 
         from audit.models import AuditLog
         AuditLog.log(
@@ -4037,8 +4079,14 @@ def _accounting_form(request, pk):
         messages.success(request, f'Saved "{item.name}". Click Connect to start the OAuth flow.')
         return redirect('integrations:accounting_list')
 
+    mappings_text = ''
+    if item is not None:
+        mappings_text = '\n'.join(
+            f'{m.gl_account_code} = {m.provider_item_id}'
+            for m in item.item_mappings.all())
     return render(request, 'integrations/accounting_form.html', {
         'item': item,
+        'item_mappings_text': mappings_text,
         'organizations': Organization.objects.filter(is_active=True).order_by('name'),
         'provider_types': AccountingConnection.PROVIDER_TYPES,
     })

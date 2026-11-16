@@ -15,3 +15,6 @@ class AccountsConfig(AppConfig):
         # Authorization memo invalidation + role audit trail on every change.
         from . import signals
         signals.connect_related()
+        # Sign out everywhere: login stamps + epoch moves on deactivation / 2FA removal.
+        from . import session_epoch
+        session_epoch.connect()

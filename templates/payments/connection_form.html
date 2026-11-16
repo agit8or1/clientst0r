@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{% if connection %}{{ connection.name }}{% else %}New payment connection{% endif %}{% endblock %}
+{% block content %}
+<p><a href="{% url 'payments:index' %}">&larr; Payments</a></p>
+<h2 class="h4">{% if connection %}{{ connection.name }}{% else %}New payment connection{% endif %}</h2>
+{% if connection.last_error %}<div class="alert alert-warning">{{ connection.last_error }}</div>{% endif %}
+<form method="post" class="card card-body mb-3">{% csrf_token %}
+    {% for field in form %}
+    <div class="mb-2">
+        {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="form-check">{{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+        {% else %}
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}
+            {% if field.name == 'secret_key' and has.secret %}<span class="badge text-bg-success">stored</span>{% endif %}
+            {% if field.name == 'webhook_secret' and has.webhook %}<span class="badge text-bg-success">stored</span>{% endif %}</label>
+        {{ field }}
+        {% endif %}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    {% endfor %}
+    <div><button class="btn btn-primary">Save</button></div>
+</form>
+{% if connection %}
+<div class="card card-body mb-3">
+    <p class="mb-1"><strong>Webhook endpoint</strong> — add this URL in the provider's dashboard and paste its signing secret above:</p>
+    <code class="user-select-all">{{ webhook_url }}</code>
+    {% if connection.provider_type == 'stripe' %}<p class="small text-body-secondary mt-2 mb-0">Events: checkout.session.completed, checkout.session.async_payment_succeeded / failed, checkout.session.expired, payment_intent.succeeded / processing / payment_failed / canceled, charge.refunded, refund.updated, charge.dispute.created / updated / closed, payment_method.detached.</p>
+    {% else %}<p class="small text-body-secondary mt-2 mb-0">GoCardless sends every event type to the endpoint; payments, mandates, refunds and billing requests are processed.</p>{% endif %}
+    <form method="post" action="{% url 'payments:connection_verify' connection.pk %}" class="mt-2">{% csrf_token %}
+        <button class="btn btn-sm btn-outline-secondary">Check credentials with the provider</button></form>
+</div>
+{% if events %}
+<h3 class="h6">Recent webhook events</h3>
+<div class="table-responsive"><table class="table table-sm">
+    <thead><tr><th>Received</th><th>Event</th><th>Type</th><th>Result</th></tr></thead>
+    <tbody>{% for e in events %}<tr><td>{{ e.received_at|date:"Y-m-d H:i:s" }}</td><td><code>{{ e.event_id }}</code></td><td>{{ e.event_type }}</td>
+        <td>{% if e.error %}<span class="text-danger">{{ e.error|truncatechars:120 }}</span>{% elif e.processed_at %}Processed{% else %}Pending{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Payment {{ attempt.pk }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'payments:index' %}">&larr; Payments</a></p>
+<h2 class="h4">{{ attempt.get_provider_display }} payment — invoice {{ attempt.invoice.invoice_number }}</h2>
+<dl class="row small">
+    <dt class="col-sm-3">Customer</dt><dd class="col-sm-9">{{ attempt.client_org.name }}</dd>
+    <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ attempt.get_status_display }}{% if attempt.provider_status %} ({{ attempt.provider_status }}){% endif %}</dd>
+    <dt class="col-sm-3">Kind</dt><dd class="col-sm-9">{{ attempt.get_kind_display }}{% if attempt.kind == 'autopay' %} — due {{ attempt.autopay_cycle }}, attempt {{ attempt.attempt_number }}{% if attempt.next_retry_at %}, retry after {{ attempt.next_retry_at|date:"Y-m-d H:i" }}{% endif %}{% endif %}</dd>
+    <dt class="col-sm-3">Amount</dt><dd class="col-sm-9">{{ attempt.amount|floatformat:2 }} {{ attempt.currency }}{% if attempt.amount_received is not None %} (received {{ attempt.amount_received|floatformat:2 }}){% endif %}</dd>
+    <dt class="col-sm-3">Processing fee</dt><dd class="col-sm-9">{{ attempt.fee_amount|floatformat:2|default:"—" }}{% if attempt.net_amount is not None %} · net {{ attempt.net_amount|floatformat:2 }}{% endif %}</dd>
+    <dt class="col-sm-3">Method</dt><dd class="col-sm-9">{{ attempt.payment_method.display|default:"—" }}</dd>
+    <dt class="col-sm-3">Provider reference</dt><dd class="col-sm-9"><code>{{ attempt.provider_object_id|default:attempt.provider_session_id|default:"—" }}</code></dd>
+    <dt class="col-sm-3">Accounting</dt><dd class="col-sm-9">{{ attempt.get_accounting_post_status_display }}</dd>
+    {% if attempt.failure_message %}<dt class="col-sm-3">Failure</dt><dd class="col-sm-9 text-danger">{{ attempt.failure_code }} {{ attempt.failure_message }}</dd>{% endif %}
+</dl>
+
+{% if refunds %}<h3 class="h6">Refunds</h3>
+<table class="table table-sm"><tbody>{% for r in refunds %}
+<tr><td>{{ r.created_at|date:"Y-m-d H:i" }}</td><td>{{ r.amount|floatformat:2 }} {{ r.currency }}</td><td>{{ r.get_status_display }}</td><td>{{ r.reason }}</td><td>{{ r.requested_by.username|default:"provider" }}</td></tr>
+{% endfor %}</tbody></table>{% endif %}
+
+{% if disputes %}<h3 class="h6">Disputes</h3>
+<table class="table table-sm"><tbody>{% for d in disputes %}
+<tr><td>{{ d.opened_at|date:"Y-m-d" }}</td><td>{{ d.amount|floatformat:2 }} {{ d.currency }}</td><td>{{ d.get_status_display }} ({{ d.provider_status }})</td><td>{{ d.reason }}</td><td>{% if d.evidence_due_by %}evidence due {{ d.evidence_due_by|date:"Y-m-d" }}{% endif %}</td></tr>
+{% endfor %}</tbody></table>{% endif %}
+
+{% if can_refund %}
+<form method="post" action="{% url 'payments:attempt_refund' attempt.pk %}" class="card card-body">{% csrf_token %}
+    <h3 class="h6">Refund</h3>
+    <p class="small text-body-secondary">Up to {{ attempt.refundable_amount|floatformat:2 }} {{ attempt.currency }}. The refund is recorded against the invoice and queued for accounting.</p>
+    {{ refund_form.as_p }}
+    <div><button class="btn btn-danger">Refund</button></div>
+</form>
+{% endif %}
+{% endblock %}
