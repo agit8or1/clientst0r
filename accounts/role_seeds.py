@@ -216,10 +216,10 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=4, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=5, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
-                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN),
+                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=3),
         RoleDef('service_manager', 'Service Manager', 'internal',
                 'Service operations: queues, assignment, escalation, change / problem / release and service '
                 'reports for authorized clients. No billing administration, secrets or security settings.',
