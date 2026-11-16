@@ -16,8 +16,8 @@
         <div>
             <h2 class="mb-0"><i class="fas fa-layer-group me-2"></i>Margin Analytics by Service Line</h2>
             <small class="text-muted">
-                Revenue attributed at active contract hourly rate (or $150/hr fallback).
-                Cost from per-tech TechCostRate at the period midpoint.
+                Revenue: billable hours at each entry's bill rate (its rate snapshot, else the covering contract's hourly rate).
+                Cost: all hours at the technician's cost rate on the day of the work. Hours without a rate are counted, never priced at a default.
             </small>
         </div>
         <a href="?start={{ start_date|date:'Y-m-d' }}&end={{ end_date|date:'Y-m-d' }}&dimension={{ dimension }}&format=csv"
@@ -25,6 +25,8 @@
             <i class="fas fa-file-csv me-1"></i>Export CSV
         </a>
     </div>
+
+    {% include 'reports/_profitability_notice.html' %}
 
     {# ---------- Filter bar ---------- #}
     <form method="get" class="card mb-3" id="filter-form">
@@ -63,25 +65,25 @@
         <div class="col-md-3 mb-2">
             <div class="card border-success h-100"><div class="card-body">
                 <h6 class="text-muted mb-1">Total Revenue</h6>
-                <h3 class="mb-0">${{ total_revenue|floatformat:2 }}</h3>
+                <h3 class="mb-0">${{ total_revenue|floatformat:2 }}</h3>{% if summary.unknown_bill_entries %}<small class="text-warning">known part only · {{ summary.unknown_bill_hours|floatformat:2 }} h without a bill rate</small>{% endif %}
             </div></div>
         </div>
         <div class="col-md-3 mb-2">
             <div class="card border-warning h-100"><div class="card-body">
                 <h6 class="text-muted mb-1">Total Cost</h6>
-                <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>
+                <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>{% if summary.unknown_cost_entries %}<small class="text-warning">known part only · {{ summary.unknown_cost_hours|floatformat:2 }} h without a cost rate</small>{% endif %}
             </div></div>
         </div>
         <div class="col-md-3 mb-2">
             <div class="card border-primary h-100"><div class="card-body">
                 <h6 class="text-muted mb-1">Total Margin</h6>
-                <h3 class="mb-0">${{ total_margin|floatformat:2 }}</h3>
+                <h3 class="mb-0">{% if total_margin is None %}<span class="text-muted fs-6">Unknown — {% if summary.unknown_cost_hours %}{{ summary.unknown_cost_hours|floatformat:2 }} hours without a cost rate{% else %}{{ summary.unknown_bill_hours|floatformat:2 }} hours without a bill rate{% endif %}</span>{% else %}${{ total_margin|floatformat:2 }}{% endif %}</h3>
             </div></div>
         </div>
         <div class="col-md-3 mb-2">
             <div class="card border-info h-100"><div class="card-body">
                 <h6 class="text-muted mb-1">Blended Margin %</h6>
-                <h3 class="mb-0">{{ blended_margin_pct|floatformat:1 }}%</h3>
+                <h3 class="mb-0">{% if blended_margin_pct is None %}<span class="badge bg-warning text-dark">Incomplete</span>{% else %}{{ blended_margin_pct|floatformat:1 }}%{% endif %}</h3>
             </div></div>
         </div>
     </div>
@@ -105,7 +107,7 @@
                     <canvas id="margin-chart"></canvas>
                 </div>
             {% else %}
-                <p class="text-muted small mb-0 text-center py-4">No billable time entries in the selected window.</p>
+                <p class="text-muted small mb-0 text-center py-4">No time entries in the selected window.</p>
             {% endif %}
         </div>
     </div>
@@ -134,14 +136,18 @@
                     <td class="text-end">${{ r.revenue|floatformat:2 }}</td>
                     <td class="text-end text-muted">${{ r.cost|floatformat:2 }}</td>
                     <td class="text-end">
-                        {% if r.margin < 0 %}
+                        {% if r.margin is None %}
+                            {% include "reports/_margin_cell.html" %}
+                        {% elif r.margin < 0 %}
                             <span class="text-danger fw-bold">${{ r.margin|floatformat:2 }}</span>
                         {% else %}
                             <span class="text-success">${{ r.margin|floatformat:2 }}</span>
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        {% if r.margin_pct < 0 %}
+                        {% if r.margin_pct is None %}
+                            <span class="badge bg-secondary">{% if r.margin is None %}Incomplete{% else %}—{% endif %}</span>
+                        {% elif r.margin_pct < 0 %}
                             <span class="badge bg-danger">{{ r.margin_pct|floatformat:1 }}%</span>
                         {% elif r.margin_pct < 25 %}
                             <span class="badge bg-warning text-dark">{{ r.margin_pct|floatformat:1 }}%</span>
@@ -161,8 +167,8 @@
                     <td class="text-end"></td>
                     <td class="text-end">${{ total_revenue|floatformat:2 }}</td>
                     <td class="text-end">${{ total_cost|floatformat:2 }}</td>
-                    <td class="text-end">${{ total_margin|floatformat:2 }}</td>
-                    <td class="text-end">{{ blended_margin_pct|floatformat:1 }}%</td>
+                    <td class="text-end">{% if total_margin is None %}<span class="text-muted">Unknown</span>{% else %}${{ total_margin|floatformat:2 }}{% endif %}</td>
+                    <td class="text-end">{% if blended_margin_pct is None %}<span class="badge bg-warning text-dark">Incomplete</span>{% else %}{{ blended_margin_pct|floatformat:1 }}%{% endif %}</td>
                 </tr>
             </tfoot>
         </table>

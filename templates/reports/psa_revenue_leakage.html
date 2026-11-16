@@ -26,6 +26,15 @@
         </a>
     </div>
 
+    {% if not data.totals.is_complete %}
+    <div class="alert alert-warning py-2 mb-3 small" role="note">
+        <span class="badge bg-warning text-dark me-1" data-incomplete-badge>Incomplete</span>
+        Amounts are the known part only.
+        {% if data.totals.stale_entries_without_rate %}{{ data.totals.stale_hours_without_rate|floatformat:2 }} hours of stale time have no bill rate (no rate snapshot and no contract hourly rate) and are counted, not priced.{% endif %}
+        {% if data.totals.expired_blocks_without_rate %}{{ data.totals.expired_blocks_without_rate }} expired block{{ data.totals.expired_blocks_without_rate|pluralize }} without an hourly rate {{ data.totals.expired_blocks_without_rate|pluralize:"is,are" }} not valued.{% endif %}
+    </div>
+    {% endif %}
+
     {# ---------- Filter bar ---------- #}
     <form method="get" class="card mb-3">
         <div class="card-body py-3">
@@ -117,6 +126,7 @@
                             {% else %}
                                 <span class="badge bg-secondary">${{ r.amount_at_risk|floatformat:2 }}</span>
                             {% endif %}
+                            {% if r.entries_without_rate %}<br><small class="text-warning">+ {{ r.hours_without_rate|floatformat:2 }} h without a bill rate</small>{% endif %}
                         </td>
                         <td class="text-end">
                             <a href="{% url 'psa:invoice_list' %}?client={{ r.client_id }}"
@@ -165,7 +175,9 @@
                         <td>{{ r.contract_name }}</td>
                         <td class="text-end">{{ r.unused_hours|floatformat:2 }}</td>
                         <td class="text-end">
-                            {% if r.unused_value >= 1000 %}
+                            {% if r.unused_value is None %}
+                                <span class="text-muted small">Unknown — no hourly rate</span>
+                            {% elif r.unused_value >= 1000 %}
                                 <span class="badge bg-danger">${{ r.unused_value|floatformat:2 }}</span>
                             {% elif r.unused_value >= 250 %}
                                 <span class="badge bg-warning text-dark">${{ r.unused_value|floatformat:2 }}</span>

@@ -1,0 +1,2 @@
+{# Margin value for one row `r`: a number when fully known, otherwise
+   "Unknown — N hours without a cost rate". #}{% if r.margin is None %}<span class="text-muted small" data-margin-unknown>Unknown — {% if r.unknown_cost_hours %}{{ r.unknown_cost_hours|floatformat:2 }} hours without a cost rate{% elif r.unknown_bill_hours %}{{ r.unknown_bill_hours|floatformat:2 }} hours without a bill rate{% else %}incomplete{% endif %}</span>{% else %}${{ r.margin|floatformat:2 }}{% endif %}
