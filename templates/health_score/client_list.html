@@ -7,13 +7,13 @@
 </div>
 <p class="text-body-secondary small">Each score covers only the dimensions that have trustworthy data. Unknown or stale data is shown as such and is never counted as healthy.</p>
 <form method="get" class="d-flex flex-wrap gap-2 mb-3">
-    <select name="filter" class="form-select form-select-sm w-auto" onchange="this.form.submit()" aria-label="Filter">
+    <select name="filter" class="form-select form-select-sm w-auto" data-autosubmit aria-label="Filter">
         <option value="">All clients</option>
         <option value="unknown" {% if filter == 'unknown' %}selected{% endif %}>Incomplete or unknown data</option>
         <option value="stale" {% if filter == 'stale' %}selected{% endif %}>Has stale data</option>
         <option value="at_risk" {% if filter == 'at_risk' %}selected{% endif %}>Needs attention or at risk</option>
     </select>
-    <select name="sort" class="form-select form-select-sm w-auto" onchange="this.form.submit()" aria-label="Sort">
+    <select name="sort" class="form-select form-select-sm w-auto" data-autosubmit aria-label="Sort">
         <option value="overall" {% if sort == 'overall' %}selected{% endif %}>Sort: worst overall first</option>
         <option value="name" {% if sort == 'name' %}selected{% endif %}>Sort: name</option>
         {% for key, label in dimensions %}<option value="{{ key }}" {% if sort == key %}selected{% endif %}>Sort: {{ label }}</option>{% endfor %}

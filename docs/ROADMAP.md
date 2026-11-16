@@ -2881,13 +2881,15 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 ## Phase 74 — Backup monitoring and endpoint health **(L · monitoring)** [in progress]
 
-- **74.1 Backup monitoring framework** *(in progress — dev/backup-monitoring)* — jobs, last success,
-  alerts, device and client views.
-- **74.2 Standalone backup providers** *(planned)* — Proxmox Backup Server, restic, borg and kopia first;
-  commercial products as they can be tested.
+- **74.1 Backup monitoring framework** *(shipped v3.17.695)* — jobs, runs, repositories with capacity,
+  restore tests, alert policies and alerts (with tickets), customer and device views, MSP-wide connections
+  with per-customer mapping. Stale data is shown as stale, never healthy. See `docs/BACKUP_MONITORING.md`.
+- **74.2 Standalone backup providers** *(partial — Proxmox Backup Server polling and signed push reports
+  for restic, Borg and Kopia shipped v3.17.695; commercial products planned)* — commercial products as they
+  can be tested.
 - **74.3 Rem0te backup and endpoint health** *(planned)* — needs additions to the Rem0te contract.
 - **74.4 Security product adapters** *(planned)* — replace the Defender stub; further vendors.
-- **74.5 Device workspace panels** *(planned)* — backup, security and events.
+- **74.5 Device workspace panels** *(partial — backup panel shipped v3.17.695; security and events planned)*.
 - **74.6 Compliance backup evidence** *(planned)* — replace the hard-coded zero.
 
 **Sizing:** **L** — framework, then providers, then Rem0te contract changes.
@@ -2938,15 +2940,18 @@ Depends on Phases 72, 73 and 74.
 
 **Sizing:** **XL** — the largest portal surface; split into release-sized slices by section.
 
-## Phase 78 — Customer health score **(M)** [planned]
+## Phase 78 — Customer health score **(M)** [in progress]
 
-- **78.1 Health dimensions** *(planned)* — technical, security, backup, service delivery, commercial and
+- **78.1 Health dimensions** *(shipped v3.17.695)* — technical, security, backup, service delivery, commercial and
   satisfaction. Satisfaction reuses the client pulse checks from Phase 66.
-- **78.2 Signals** *(planned)* — ticket trends, SLA, endpoint health, security alerts, backup health, contract
-  profitability, utilization, outstanding invoices and renewal status.
-- **78.3 Configurable weights** *(planned)*.
-- **78.4 Explanations** *(planned)* — each change is explained with the contributing records.
-- **78.5 Unknown is not healthy** *(planned)* — unknown or stale data is shown as unknown, never as healthy.
+- **78.2 Signals** *(partial — RMM devices, security alerts and incidents, backup jobs, alerts and restore
+  tests, SLA, ticket volume, reopen rate, overdue invoices, renewals, payment failures, profitability and
+  pulse checks shipped v3.17.695; utilization planned)*.
+- **78.3 Configurable weights** *(shipped v3.17.695)* — per-signal weights and status thresholds.
+- **78.4 Explanations** *(shipped v3.17.695)* — each change is explained with the contributing records.
+- **78.5 Unknown is not healthy** *(shipped v3.17.695)* — unknown or stale data is shown as unknown, never as healthy.
+
+- **78.6 Customer portal display** *(planned)* — staff-only today.
 
 **Sizing:** **M** — scoring model and explanations first, then dashboard and portal display.
 
@@ -3072,10 +3077,10 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
 | 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
-| 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
+| 74 — Backup monitoring and endpoint health | L | in progress (74.1 shipped v3.17.695) | Phase 63 RMM; Rem0te contract; Phase 9 |
 | 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; dev/onboarding-wizard) | Phases 68–74 |
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
-| 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
+| 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
