@@ -363,6 +363,9 @@ PERMISSIONS: List[Permission] = [
     _p('resourcing_manage_holidays', 'resourcing', 'settings', E, False,
        "Manage holidays (an organization's own business-hours calendar)"),
 
+    _p('manage_licensing', 'procurement', 'edit', E, False,
+       'Create, edit and delete software license subscriptions and assignments; run license syncs',
+       staff_only=True),
     # --- pricing --------------------------------------------------------------------
     _p('pricing_manage_price_books', 'pricing', 'edit', X, False,
        'Create and edit price books, items, tiers, customer price overrides and scheduled price changes',

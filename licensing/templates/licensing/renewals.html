@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}License renewals{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <h1 class="h3 mb-1"><i class="fas fa-calendar-days"></i> License renewals</h1>
+    {% include "licensing/_nav.html" %}
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto"><select name="days" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="30" {% if days == 30 %}selected{% endif %}>Next 30 days</option>
+            <option value="60" {% if days == 60 %}selected{% endif %}>Next 60 days</option>
+            <option value="90" {% if days == 90 %}selected{% endif %}>Next 90 days</option>
+            <option value="180" {% if days == 180 %}selected{% endif %}>Next 180 days</option>
+            <option value="365" {% if days == 365 %}selected{% endif %}>Next year</option>
+        </select></div>
+        <div class="col-auto"><select name="customer" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All customers</option>
+            {% for o in orgs %}<option value="{{ o.pk }}" {% if org and org.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+        </select></div>
+    </form>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Renews</th><th>In</th><th>Customer</th><th>Product</th><th>Licenses</th><th>Auto-renew</th></tr></thead>
+        <tbody>
+        {% for s in subs %}
+        <tr><td>{{ s.renewal_date }}</td><td>{{ s.days_to_renewal }} d</td>
+            <td><a href="{% url 'licensing:customer' org_id=s.organization_id %}">{{ s.organization.name }}</a></td>
+            <td><a href="{% url 'licensing:subscription_detail' pk=s.pk %}">{{ s.product }}</a></td>
+            <td>{{ s.quantity_purchased }}</td><td>{{ s.auto_renew|yesno:"yes,no" }}</td></tr>
+        {% empty %}<tr><td colspan="6" class="text-muted">No renewals in this window.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

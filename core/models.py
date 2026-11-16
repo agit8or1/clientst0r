@@ -1258,6 +1258,8 @@ class ScheduledTask(models.Model):
         ('sync_network_assets', 'Network Device Asset Sync'),
         ('update_geoip_db', 'GeoIP Country Database Refresh'),
         ('check_wans', 'WAN Connection Checks'),
+        ('sync_licenses', 'Software License Sync (Microsoft 365 / Pax8)'),
+        ('licensing_alerts', 'Software License Renewal and Utilization Alerts'),
         # v3.17.648: recovers missed rem0te callbacks for ticket analysis jobs
         # and expires stale ones (OPTIONAL AI; nothing to do when unused).
         ('poll_analysis_jobs', 'Ticket AI Analysis Job Recovery (optional AI)'),
@@ -1784,6 +1786,20 @@ class ScheduledTask(models.Model):
             'task_type': 'check_wans',
             'description': 'Ping monitored WAN connections that are due and alert on down / recovery',
             'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'sync_licenses',
+            'description': 'Pull Microsoft 365 and Pax8 license subscriptions into the licensing app '
+                           '(does nothing without active connections)',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'licensing_alerts',
+            'description': 'Email org owners about license renewals within 30/60/90 days and unused or '
+                           'over-allocated licenses (each condition is sent once)',
+            'interval_minutes': 1440,
             'enabled': True,
         },
         {

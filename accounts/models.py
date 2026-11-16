@@ -452,6 +452,8 @@ def derive_legacy_flags(ns, role):
         # Edit in Microsoft 365: new, customer users only when explicitly
         # granted (MSP staff follow their edit permission on the file).
         'office_edit_in_m365': False,
+        # Software licensing (staff only): managing follows settings admin.
+        'manage_licensing': g('org_manage_settings'),
         # Single sign-on settings: new, never derived from a simple role.
         'manage_sso_settings': False,
         # Payment processing: new, never derived from an older permission.
@@ -1240,6 +1242,8 @@ class RoleTemplate(BaseModel):
     manage_tax_settings = models.BooleanField(default=False,
         help_text='Configure sales tax and apply audited manual tax overrides.')
     reports_export = models.BooleanField(default=False, help_text='Export reports and report files.')
+    manage_licensing = models.BooleanField(default=False,
+        help_text='Create / edit / delete software license subscriptions and assignments, and run license syncs.')
     vehicles_view = models.BooleanField(default=False, help_text='View fleet vehicles.')
     vehicles_manage = models.BooleanField(default=False, help_text='Create / edit / delete fleet records.')
     scheduling_manage_wallboard = models.BooleanField(default=False,

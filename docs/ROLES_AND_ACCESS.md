@@ -288,6 +288,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `procurement_approve_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
 | `procurement_create_po` | ✔ |  |  |  |  |  |  |  |  |  |
 | `procurement_send_po` | ✔ |  |  |  |  |  |  |  |  |  |
+| `manage_licensing` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | **Reports & dashboards** | | | | | | | | | | |
 | `reports_view_dashboards` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `reports_view_financial` | ✔ |  |  |  |  |  |  |  | ✔ |  |
@@ -639,6 +640,7 @@ Purchase requisitions and purchase orders.
 | `procurement_approve_pr` | Approve | elevated | no | enforced | Approve / reject purchase requisitions |
 | `procurement_create_po` | Create | elevated | no | enforced | Create / edit purchase orders |
 | `procurement_send_po` | Send / publish | elevated | no | enforced | Email purchase orders to vendors |
+| `manage_licensing` | Edit | elevated | staff only | enforced | Create, edit and delete software license subscriptions and assignments; run license syncs |
 
 ### Reports & dashboards
 

@@ -617,6 +617,13 @@ SECTIONS = (
         Tab(_('Contract Settings'), 'contracts:settings', 'fa-sliders',
             gate=_all(_contracts, _view_check(_check_contract_settings))),
     )),
+    # licensing/_nav.html is this section's local nav. MSP staff only
+    # (/licensing/ is a STAFF_ONLY_PREFIX).
+    Section('mod_licensing', 'modules', _('Licensing'), gate=_msp_staff, render_tabs=False,
+            also=('licensing:customer', 'licensing:subscription_detail', 'licensing:subscription_create',
+                  'licensing:subscription_edit', 'licensing:renewals', 'licensing:mappings'), tabs=(
+        Tab(_('Licensing'), 'licensing:overview', 'fa-key'),
+    )),
     Section('psa_quotes', 'psa', _('Quotes'), gate=_psa, tabs=(
         Tab(_('Quotes'), 'psa:quote_list', 'fa-file-invoice-dollar'),
     )),
@@ -1278,6 +1285,8 @@ PRIMARY = (
         Entry(_('Procurement'), section='psa_procurement', icon='fa-cart-shopping',
               keywords='requisitions purchase orders back-orders'),
         Entry(_('Vendors'), section='psa_vendors', icon='fa-truck', keywords='suppliers'),
+        Entry(_('Licensing'), section='mod_licensing', icon='fa-key',
+              keywords='software licenses subscriptions seats microsoft 365 pax8 renewals'),
         Entry(_('Pulse Checks'), section='mod_pulse', icon='fa-heart-pulse',
               keywords='feedback survey nps satisfaction client health'),
         Entry(_('Client Health'), section='mod_health', icon='fa-heart-circle-check',
