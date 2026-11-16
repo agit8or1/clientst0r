@@ -24,6 +24,10 @@ GRANTS = {
 }
 
 
+# seed_key -> definition version that carries these grants.
+VERSIONS = {'org_owner': 5}
+
+
 def _checksum(values, rmm_tier=''):
     # Frozen copy of accounts.role_seeds.checksum.
     body = ';'.join(f'{k}={int(bool(v))}' for k, v in sorted(values.items()))
@@ -42,6 +46,10 @@ def grant(apps, schema_editor):
         for key in GRANTS.get(rt.seed_key, ()):
             setattr(rt, key, True)
         rt.seed_checksum = _checksum({n: getattr(rt, n) for n in names}, rt.rmm_tier)
+        # Same as the built-in definitions: Owner moves to version 5 (after
+        # 0055 tax, 0056 pricing, 0058 profitability), the others to 2.
+        if rt.seed_key in GRANTS:
+            rt.seed_version = max(rt.seed_version, VERSIONS.get(rt.seed_key, 2))
         rt.save()
 
 

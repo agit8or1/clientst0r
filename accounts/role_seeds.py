@@ -217,28 +217,28 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=4, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=6, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
-                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN),
+                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=3),
         RoleDef('service_manager', 'Service Manager', 'internal',
                 'Service operations: queues, assignment, escalation, change / problem / release and service '
                 'reports for authorized clients. No billing administration, secrets or security settings.',
-                _SERVICE_MANAGER),
+                _SERVICE_MANAGER, version=2),
         RoleDef('tech_l1', l1_name, 'internal',
                 'Level 1 Technician: assigned tickets and authorized client records, approved documentation '
                 'and basic asset information. No stored passwords, remote shell, scripts, exports, '
                 'integrations, user administration or destructive operations.',
-                l1, adopt=(l1_name,), rmm_tier='l1', spec_name='Level 1 Technician'),
+                l1, adopt=(l1_name,), rmm_tier='l1', spec_name='Level 1 Technician', version=2),
         RoleDef('tech_l2', l2_name, 'internal',
                 'Level 2 Technician: Level 1 plus troubleshooting and asset-management actions. Remote '
                 'access and credentials stay separate permissions.',
-                l2, adopt=(l2_name,), rmm_tier='l2', spec_name='Level 2 Technician'),
+                l2, adopt=(l2_name,), rmm_tier='l2', spec_name='Level 2 Technician', version=2),
         RoleDef('tech_l3', l3_name, 'internal',
                 'Level 3 Technician: advanced technical work for authorized clients. Scripts, remote shell, '
                 'credentials and destructive actions stay explicit permissions; no organization '
                 'administration.',
-                l3, adopt=(l3_name,), rmm_tier='l3', spec_name='Level 3 Technician'),
+                l3, adopt=(l3_name,), rmm_tier='l3', spec_name='Level 3 Technician', version=2),
         RoleDef('sales_rep', 'Sales Representative', 'internal',
                 'Leads, opportunities, quotes and contract drafts. No technical credentials, remote access, '
                 'internal technical notes or security administration; sending contracts, approving '
@@ -252,7 +252,7 @@ def definitions() -> List[RoleDef]:
                 _BILLING, version=4),
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
-                'secret reveal, file downloads and exports stay separate.', _AUDITOR),
+                'secret reveal, file downloads and exports stay separate.', _AUDITOR, version=2),
         RoleDef('customer_admin', 'Customer Administrator', 'customer',
                 "Manages the customer's portal users and contacts with approved customer roles; sees the "
                 "organization's tickets and customer-visible documents and assets. Not a contract signer "

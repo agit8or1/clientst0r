@@ -6,6 +6,10 @@ from django.db import transaction
 SEVERITY_PRIORITY = {'critical': 'P2', 'warning': 'P3'}
 
 
+class TicketSetupError(Exception):
+    """The PSA has no queue / status / priority / type to file a ticket under."""
+
+
 def create_ticket_for_alert(alert, user=None):
     from psa.models import Queue, Ticket, TicketPriority, TicketStatus, TicketType
     with transaction.atomic():
@@ -16,14 +20,19 @@ def create_ticket_for_alert(alert, user=None):
             return locked.ticket, False
         priority = (TicketPriority.objects.filter(code=SEVERITY_PRIORITY.get(alert.severity, 'P3')).first()
                     or TicketPriority.objects.first())
+        queue = Queue.objects.filter(is_active=True).first()
+        status = TicketStatus.objects.filter(slug='new').first() or TicketStatus.objects.first()
+        ticket_type = TicketType.objects.first()
+        if not (priority and queue and status and ticket_type):
+            raise TicketSetupError('The service desk has no queue, status, priority or ticket type configured.')
         ticket = Ticket.objects.create(
             organization=alert.organization,
             subject=f'[Backup] {alert.title[:200]}',
             description=f'{alert.detail}\n\nConnection: {alert.connection.name} '
                         f'({alert.connection.get_provider_display()})',
-            queue=Queue.objects.filter(is_active=True).first(), priority=priority,
-            status=TicketStatus.objects.filter(slug='new').first() or TicketStatus.objects.first(),
-            ticket_type=TicketType.objects.first(), source='monitoring', created_by=user)
+            queue=queue, priority=priority,
+            status=status,
+            ticket_type=ticket_type, source='monitoring', created_by=user)
         locked.ticket = ticket
         locked.save(update_fields=['ticket'])
     alert.ticket = ticket

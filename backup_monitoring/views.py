@@ -51,7 +51,7 @@ def dashboard(request):
     elif current is not None:
         orgs = orgs.filter(pk=current.pk)
     summaries = [customer_summary(o) for o in customers_with_data(orgs)]
-    if has_global_reach(request.user) and not wanted.isdigit() and current is None:
+    if has_global_reach(request.user) and not wanted.isdigit() and (wanted == 'all' or current is None):
         unmapped = customer_summary(None)
         if unmapped['jobs_total'] or unmapped['repos'] or unmapped['open_alerts']:
             summaries.append(unmapped)
@@ -129,7 +129,12 @@ def alert_decide(request, pk):
         if alert.organization_id is None:
             messages.error(request, 'Map this to a customer first: a ticket needs a customer.')
             return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
-        ticket, created = create_ticket_for_alert(alert, request.user)
+        from .tickets import TicketSetupError
+        try:
+            ticket, created = create_ticket_for_alert(alert, request.user)
+        except TicketSetupError as exc:
+            messages.error(request, str(exc))
+            return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
         messages.success(request, f"{'Created' if created else 'Already linked to'} ticket {ticket.ticket_number}.")
     return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
 
