@@ -51,9 +51,11 @@ class ReportPageFlagTests(TestCase):
         cls.l1_role = _role('AuthzL1', reports_view_dashboards=True, tickets_view=True,
                             reports_view_financial=False, billing_view_aging=False,
                             billing_view_invoices=False, audit_view=False)
+        # Finance roles hold view_profitability alongside reports_view_financial
+        # (accounts 0051 grants it to every role that had the financial flag).
         cls.fin_role = _role('AuthzFinance', reports_view_dashboards=True,
-                             reports_view_financial=True, billing_view_aging=True,
-                             billing_view_invoices=True)
+                             reports_view_financial=True, view_profitability=True,
+                             billing_view_aging=True, billing_view_invoices=True)
         cls.l1 = _staff('authz_l1', cls.l1_role)
         cls.finance = _staff('authz_fin', cls.fin_role)
         cls.legacy = _staff('authz_legacy')  # MSP staff, no global role
