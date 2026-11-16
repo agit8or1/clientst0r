@@ -332,6 +332,9 @@ PERMISSIONS: List[Permission] = [
     _p('reports_view_dashboards', 'reports', 'view', S, True, 'View dashboards'),
     _p('reports_view_financial', 'reports', 'view', X, False,
        'Profitability, effective rate, revenue leakage, margin analytics'),
+    _p('view_profitability', 'reports', 'view', X, False,
+       'Labour cost and margin: profitability reports, margin analytics, effective rate / realization, '
+       'contract and project margin (MSP staff only)', staff_only=True),
     _p('reports_view_sla', 'reports', 'view', E, False, 'SLA trend report', staff_only=True),
     _p('reports_view_capacity', 'reports', 'view', E, False, 'Capacity / utilization report', staff_only=True),
     _p('reports_manage_dashboards', 'reports', 'edit', E, False, 'Create / edit / delete dashboards and widgets'),

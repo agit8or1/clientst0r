@@ -1681,45 +1681,33 @@ class Project(models.Model):
         """Labour cost of the time logged against this project.
 
         Each entry is costed at the rate that applied to that technician on the
-        day the work happened — `TechCostRate` is effective-dated for exactly
-        this reason, so a raise in June does not retroactively make March's
-        work more expensive.
+        day the work happened (`reports.costing`: the entry's rate snapshot,
+        else the effective-dated `TechCostRate`), so a raise in June does not
+        retroactively make March's work more expensive.
 
-        `used_default_for` counts entries costed at the system default because
-        the technician has no configured rate. The number is still produced —
-        a default is better than refusing to cost anything — but the caller is
-        told, so a margin built on guesses is not presented as measured.
+        Entries with no rate — no technician recorded, or a technician with no
+        cost rate on that day — are NOT costed at a default. They are counted
+        in `unknown_cost_entries` / `unknown_cost_hours` (and, for backwards
+        compatibility, `used_default_for`), and `cost` is the known part only.
         """
         from decimal import Decimal
 
-        from resourcing.models import TechCostRate
+        from reports.costing import LaborTally, RateBook, entry_hours
 
         entries = (TicketTimeEntry.objects
                    .filter(ticket__project=self)
-                   .select_related('user'))
-
-        total = Decimal('0.00')
-        used_default_for = 0
-        rate_cache = {}
+                   .select_related('user', 'ticket'))
+        book = RateBook()
+        tally = LaborTally()
         for entry in entries:
-            if entry.user_id is None:
-                # Nobody to cost it against. Skipping is the honest choice:
-                # charging it at a default would attribute cost to a person
-                # who is not recorded.
-                continue
-            day = timezone.localtime(entry.started_at or entry.created_at).date()
-            key = (entry.user_id, day)
-            if key not in rate_cache:
-                rate_cache[key] = TechCostRate.rate_for(entry.user, day)
-                if not TechCostRate.objects.filter(
-                        user_id=entry.user_id, effective_from__lte=day).exists():
-                    used_default_for += 1
-            hours = Decimal(entry.duration_minutes or 0) / Decimal(60)
-            total += (hours * Decimal(str(rate_cache[key])))
+            tally.add_cost(entry_hours(entry), book.entry_cost_rate(entry))
 
         return {
-            'cost': total.quantize(Decimal('0.01')),
-            'used_default_for': used_default_for,
+            'cost': tally.cost.quantize(Decimal('0.01')),
+            'unknown_cost_entries': tally.unknown_cost_entries,
+            'unknown_cost_hours': float(round(tally.unknown_cost_hours, 2)),
+            'is_complete': tally.cost_complete,
+            'used_default_for': tally.unknown_cost_entries,
         }
 
     def actual_cost(self):
@@ -1740,7 +1728,9 @@ class Project(models.Model):
 
         margin = None
         margin_percent = None
-        if revenue is not None:
+        # No margin from a partial cost: hours without a cost rate would make
+        # the margin look better than it is.
+        if revenue is not None and breakdown['is_complete']:
             margin = (Decimal(str(revenue)) - cost).quantize(Decimal('0.01'))
             if revenue:
                 margin_percent = float(
@@ -1752,6 +1742,9 @@ class Project(models.Model):
             'margin': margin,
             'margin_percent': margin_percent,
             'used_default_cost_for': breakdown['used_default_for'],
+            'unknown_cost_entries': breakdown['unknown_cost_entries'],
+            'unknown_cost_hours': breakdown['unknown_cost_hours'],
+            'is_complete': breakdown['is_complete'] and revenue is not None,
             'billable_hours': self.actual_hours(billable_only=True),
             'total_hours': self.actual_hours(),
         }
@@ -2900,13 +2893,21 @@ class Contract(models.Model):
 
     def profitability_snapshot(self):
         """
-        Coarse profitability dict for the active period. Revenue = invoiced
-        amount tied to this client (period-aware). Cost = hours_used × an
-        assumed loaded rate (TODO Phase 3: per-tech cost rate). Margin in %.
+        Operational profitability estimate for the contract window.
+
+        Revenue = bundled subtotal + allowance hours × hourly_rate + overage
+        hours × overage_rate (approximated from the contract's terms, not
+        from invoices). Cost = each qualifying time entry × the technician's
+        cost rate on the day of the work (`reports.costing`: entry snapshot,
+        else effective-dated TechCostRate, else unknown — never an assumed
+        share of the bill rate).
+
+        When any hour has no cost rate, `cost` is the known part only,
+        `is_complete` is False and `margin` / `margin_pct` are None.
         """
         from decimal import Decimal
-        # Revenue: bundled subtotal + (hours_used × hourly_rate) +
-        #         (overage_minutes × overage_rate). Approximate.
+        from reports.costing import LaborTally, RateBook, entry_hours, margin_fields
+
         bundled = self.bundled_subtotal()
         hours_used = Decimal(str(self.hours_used or 0))
         billed_hours = min(hours_used, self.total_hours or hours_used)
@@ -2916,20 +2917,23 @@ class Contract(models.Model):
             + billed_hours * (self.hourly_rate or Decimal('0'))
             + overage_hours * ((self.overage_rate or self.hourly_rate) or Decimal('0'))
         )
-        # Cost: placeholder — Phase 3 wires per-tech loaded rates. For now
-        # assume 60% of hourly_rate as cost-of-delivery.
-        assumed_cost_rate = (self.hourly_rate or Decimal('0')) * Decimal('0.60')
-        cost = hours_used * assumed_cost_rate
-        margin = revenue - cost
-        margin_pct = float((margin / revenue) * 100) if revenue else 0.0
-        return {
+
+        book = RateBook()
+        tally = LaborTally()
+        for entry in self.qualifying_time_entries().select_related('user', 'ticket'):
+            tally.add_cost(entry_hours(entry), book.entry_cost_rate(entry))
+        cost_fields = tally.cost_fields()
+        out = {
             'revenue': float(revenue),
-            'cost': float(cost),
-            'margin': float(margin),
-            'margin_pct': round(margin_pct, 1),
+            'cost': cost_fields['cost'],
             'hours_used': float(hours_used),
             'overage_hours': float(overage_hours),
+            'unknown_cost_hours': cost_fields['unknown_cost_hours'],
+            'unknown_cost_entries': cost_fields['unknown_cost_entries'],
         }
+        out.update(margin_fields(out['revenue'], out['cost'],
+                                 cost_complete=tally.cost_complete))
+        return out
 
 
 class ContractMeter(models.Model):
