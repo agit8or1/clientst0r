@@ -989,7 +989,6 @@ class UpdatesViewTests(_TmpMixin, TestCase):
         self.assertIn('not a release', html)
         self.assertIn('19', html)                    # commits on main since the release
         self.assertIn('feat: newest', html)
-        self.assertIn('no LTS', html.replace('There is no LTS', 'no LTS'))
         # The page can say when a newer build appears while it is open, and
         # offer it for review instead of a dead end.
         self.assertIn('id="newerBuild"', html)

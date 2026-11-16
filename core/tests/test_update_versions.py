@@ -417,7 +417,9 @@ class ChannelPolicyTests(_Base):
         tone, line = _update_status_line(state, rows, summary)
         self.assertEqual(tone, 'ok')
         self.assertIn('No newer updates on your selected channel', line)
-        self.assertIn('ahead of the latest stable release', line)
+        # The ahead-of-stable sentence is shown once, by the page, from this flag.
+        self.assertTrue(summary['ahead_of_stable'])
+        self.assertNotIn('Update available', line)
 
     def test_behind_on_stable_recommends_the_newest_stable_only(self):
         self.installed_version, self.installed_sha = '3.17.680', commit_of('v3.17.680')
@@ -546,7 +548,7 @@ class UpdatesPageTests(_Base):
         self.assertIn('data-type="development"', html)
         self.assertIn(MAIN_SHA[:12], html)
         self.assertIn('unofficial, may be unstable', html)
-        self.assertIn('Latest Prerelease', html)
+        self.assertIn('Latest prerelease', html)
         self.assertIn('No newer updates on your selected channel', html)
         self.assertIn('You are running a development build newer than the latest published stable release', html)
         self.assertNotIn('onclick=', html.split('id="updSummary"', 1)[1])
@@ -557,7 +559,25 @@ class UpdatesPageTests(_Base):
         for tag in ('v3.17.687', 'v3.17.686', 'v3.17.680'):
             self.assertIn(f'data-search="{tag}', html)
         self.assertIn('data-type="stable"', html)
-        self.assertIn('Latest Stable', html)
+        self.assertIn('Latest stable', html)
+
+    def test_the_list_is_collapsed_to_what_is_newer(self):
+        import re
+        html = self.page()
+        rows = re.findall(r'<tr class="upd-row[^>]*>', html)
+        self.assertTrue(rows)
+        # Every row is in the page (Show all reveals them) but starts hidden;
+        # only newer rows (and the installed one beside them) are marked to
+        # show by default.
+        self.assertTrue(all(' hidden' in r for r in rows))
+        relevant = [r for r in rows if 'data-relevant="1"' in r]
+        self.assertTrue(all('data-search="v3.17.6' not in r for r in relevant))
+        self.assertIn(f'Show all versions ({len(rows)})', html)
+        # The channel is a small select in the status strip; saving installs nothing.
+        strip = html.split('id="updSummary"', 1)[1].split('id="updVersions"', 1)[0]
+        self.assertIn('name="channel"', strip)
+        # Backups and rollback start collapsed.
+        self.assertRegex(html, r'<details class="upd-more" id="preUpgradeBackups">')
 
     def test_page_without_github_says_so_instead_of_showing_empty_categories(self):
         import requests

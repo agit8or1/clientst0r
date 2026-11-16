@@ -367,6 +367,14 @@ def consult_requests(request):
     })
 
 
+def _parse_iso(value):
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(value)) if value else None
+    except ValueError:
+        return None
+
+
 def _update_status_line(state, rows, installed):
     """One honest sentence about updates. Never "up to date" from a failed or
     incomplete check, and never as if no other releases existed."""
@@ -378,18 +386,17 @@ def _update_status_line(state, rows, installed):
     if target:
         what = {'release': 'release', 'prerelease': 'pre-release', 'preview': 'development build'}.get(
             target.get('kind'), 'build')
-        line = (f"Update available on your {channel_label} channel: {what} {target.get('ref')}"
-                + (f" (v{target['version']})" if target.get('version') else ''))
+        ref = target.get('ref') or ''
+        ver = target.get('version')
+        line = (f"Update available on your {channel_label} channel: {what} {ref}"
+                + (f" (v{ver})" if ver and ref != f'v{ver}' else ''))
         tone = 'update'
     else:
         line = 'No newer updates on your selected channel.'
-        if installed.get('ahead_of_stable'):
-            line += (' The installed build is ahead of the latest stable release; switching to '
-                     'Stable would mean installing an older version.')
         tone = 'ok'
     if state.get('error') and state.get('stale'):
-        return 'stale', (f"{line} (from the last successful check; the latest check failed: "
-                         f"{state['error']})")
+        return 'stale', f"{line} The latest check failed: {state['error']}"
+
     return tone, line
 
 
@@ -464,6 +471,8 @@ def system_updates(request):
         'channels': state,
         'channel_label': CHANNEL_LABELS.get(state.get('channel') or 'stable', 'Stable'),
         'last_checked': (state.get('checked_at') or (update_info or {}).get('checked_at') or 'never'),
+        'last_checked_dt': _parse_iso(state.get('checked_at') or (update_info or {}).get('checked_at')),
+        'newer_count': sum(1 for r in rows if r.get('relation') == 'newer'),
         'check_error': state.get('error') or (update_info or {}).get('error') or '',
         'versions': rows,
         'versions_discovered': discovered,

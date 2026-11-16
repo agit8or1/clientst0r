@@ -227,5 +227,5 @@ class ProgressViewTests(TestCase):
         self.assertIn('id="backupDetail"', html)
         self.assertIn('function updateBackupDetail', html)
         self.assertIn('elapsed', html)
-        step = html.split('data-step="backup"', 1)[1].split('data-step="git_pull"', 1)[0]
+        step = html.split('id="updateProgressModal"', 1)[1].split('id="updateLog"', 1)[0]
         self.assertNotIn('onclick', step)
