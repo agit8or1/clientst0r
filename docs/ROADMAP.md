@@ -2908,17 +2908,18 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — depends on Phases 68–74.
 
-## Phase 76 — Profitability and pricing advisor **(L · OPTIONAL AI)** [planned]
+## Phase 76 — Profitability and pricing advisor **(L · OPTIONAL AI)** [shipped — v3.17.696]
 
-- **76.1 Per-customer financial monitoring** *(planned)* — MRR, ARR, labor, vendor, licensing, hardware and
+- **76.1 Per-customer financial monitoring** *(shipped v3.17.696 — licensing cost once the licensing module ships; hardware and other vendor costs reported as not tracked)* — MRR, ARR, labor, vendor, licensing, hardware and
   delivery costs, gross profit and margin, contract utilization, unbilled work and revenue leakage.
-- **76.2 Detection** *(planned)* — loss-making customers, declining margins, underpriced contracts, support
+- **76.2 Detection** *(shipped v3.17.696)* — loss-making customers, declining margins, underpriced contracts, support
   consumption above contract, services delivered without a charge, unused allowances, renewals to review and
   distributor cost increases not passed through.
-- **76.3 Recommendations** *(planned)* — price increase amounts, renegotiation, after-hours rate, per-device
+- **76.3 Recommendations** *(shipped v3.17.696)* — price increase amounts, renegotiation, after-hours rate, per-device
   price, bundle review and upsell or tier fit. Each shows its supporting calculations, data and assumptions.
-- **76.4 Approval required** *(planned)* — the advisor never changes pricing or contracts automatically.
-- **76.5 Optional AI narrative (OPTIONAL AI)** *(planned)* — uses the existing multi-LLM architecture and AI
+- **76.4 Approval required** *(shipped v3.17.696)* — the advisor never changes pricing or contracts
+  automatically; accepting creates a draft contract amendment or draft quote that goes through the usual approval flow.
+- **76.5 Optional AI narrative (OPTIONAL AI)** *(shipped v3.17.696)* — uses the existing multi-LLM architecture and AI
   permission controls, gated by `psa_ai_enabled`. Explains verified figures separately from estimates and
   never invents or assumes missing costs.
 
@@ -3079,7 +3080,7 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (74.1 shipped v3.17.695) | Phase 63 RMM; Rem0te contract; Phase 9 |
 | 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; dev/onboarding-wizard) | Phases 68–74 |
-| 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
+| 76 — Profitability and pricing advisor (OPTIONAL AI) | L | shipped v3.17.696 | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |

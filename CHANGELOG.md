@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.696] - 2026-11-16
+
+### Added
+- **Pricing Advisor** (Reports → Pricing Advisor, plus a panel on the client workspace). A nightly task
+  computes per-customer revenue, labour cost, licensing cost, gross profit, margin and contract
+  utilization, then flags: loss-making customers, declining margins, underpriced contracts, support
+  above contract, unused allowances, unbilled work, services delivered without a charge, renewals to
+  review, cost increases not passed through and plan/tier fit. Each recommendation shows its
+  calculation, the records it used and anything missing; figures with missing costs are marked
+  incomplete, never filled with zero.
+- Accepting a recommendation never changes an active contract or price: it creates a **draft** contract
+  amendment or **draft** quote that goes through the normal approval flow, and is audit-logged.
+  Dismissing needs a reason.
+- **OPTIONAL AI** "Explain in plain English" narrative, gated by `psa_ai_enabled`; its figures are
+  checked against the computed ones.
+- Role permission `act_on_pricing_recommendations`. Viewing needs the profitability permission.
+  Uncustomized Owner and Billing / Finance roles get it; customized roles are unchanged.
+
+### Notes
+- Licensing costs are counted once the licensing module ships; until then the advisor states that
+  vendor/licensing cost is not tracked. Labour cost needs technician cost rates.
+
 ## [3.17.695] - 2026-11-16
 
 ### Added
