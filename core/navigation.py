@@ -644,7 +644,7 @@ SECTIONS = (
     Section('mod_health', 'modules', _('Client Health'), gate=_msp_staff,
             also=('health_score:detail', 'health_score:recompute'), tabs=(
         Tab(_('Client Health'), 'health_score:list', 'fa-heart-circle-check'),
-        Tab(_('Weights'), 'health_score:settings', 'fa-sliders'),
+        Tab(_('Weights'), 'health_score:settings', 'fa-sliders', gate=_perm('manage_health_score_settings')),
     )),
 
     # ---- Knowledge & Vault ---------------------------------------------------
