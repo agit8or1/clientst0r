@@ -40,7 +40,7 @@ def grant_to_settings_admins(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0050_dashboard_global_layout'),
+        ('accounts', '0059_roletemplate_backup_monitoring'),
     ]
 
     operations = [

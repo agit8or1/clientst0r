@@ -235,6 +235,9 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `monitoring_edit` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
 | `monitoring_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | `monitoring_trigger` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
+| **Backup monitoring** | | | | | | | | | | |
+| `view_backup_status` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `manage_backup_integrations` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | **Security alerts** | | | | | | | | | | |
 | `security_alerts_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
 | `security_alerts_manage_connections` | ✔ | ✔ |  |  |  |  |  |  |  |  |
@@ -291,6 +294,7 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | `view_profitability` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `reports_view_sla` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
 | `reports_view_capacity` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
+| `manage_health_score_settings` | ✔ | ✔ |  |  |  |  |  |  |  |  |
 | `reports_manage_dashboards` | ✔ | ✔ | ✔ |  |  |  |  | ✔ |  |  |
 | `reports_manage_scheduled` | ✔ |  |  |  |  |  |  |  | ✔ |  |
 | `reports_export` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  | ✔ | ✔ |  |
@@ -536,6 +540,15 @@ Website / WAN monitors, expirations, racks, IPAM.
 | `monitoring_delete` | Delete | elevated | no | enforced | Delete monitors |
 | `monitoring_trigger` | Execute scripts / actions | standard | no | enforced | Manually trigger checks |
 
+### Backup monitoring
+
+Customer backup jobs, repositories, alerts and restore tests.
+
+| Key | Action | Sensitivity | Customer | Status | Description |
+|---|---|---|---|---|---|
+| `view_backup_status` | View / list | standard | staff only | enforced | View backup monitoring: jobs, runs, repositories, alerts and restore tests |
+| `manage_backup_integrations` | Manage settings | sensitive | staff only | enforced | Create / edit / delete backup connections (provider credentials, ingest secrets) and alert policies; record restore tests and acknowledge backup alerts |
+
 ### Security alerts
 
 EDR / AV / firewall alert ingestion and rules.
@@ -637,6 +650,7 @@ Dashboards, financial / SLA / capacity reports, schedules.
 | `view_profitability` | View / list | sensitive | staff only | enforced | Labour cost and margin: profitability reports, margin analytics, effective rate / realization, contract and project margin (MSP staff only) |
 | `reports_view_sla` | View / list | elevated | staff only | enforced | SLA trend report |
 | `reports_view_capacity` | View / list | elevated | staff only | enforced | Capacity / utilization report |
+| `manage_health_score_settings` | Manage settings | elevated | staff only | enforced | Customer health score: change the dimension / signal weights and thresholds |
 | `reports_manage_dashboards` | Edit | elevated | no | enforced | Create / edit / delete dashboards and widgets |
 | `reports_manage_scheduled` | Export / bulk export | sensitive | no | enforced | Configure scheduled reports |
 | `reports_export` | Export / bulk export | sensitive | staff only | pending | Export reports (CSV / PDF), saved-query results and generated report files |
@@ -764,6 +778,7 @@ What a customer user may do in the portal beyond the basics.
 | `pricing` | pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions) |
 | `crm` | crm_* (MSP staff only section) |
 | `security_alerts` | security_alerts_* (MSP staff only section) |
+| `backup_monitoring` | view_backup_status / manage_backup_integrations per customer (MSP staff only section) |
 | `compliance` | membership role per customer |
 | `field_ops` | MSP staff + tickets_* |
 | `statuspage` | membership admin role |

@@ -1247,6 +1247,7 @@ class ScheduledTask(models.Model):
         ('sync_distributors', 'Distributor Health Probe'),
         ('run_scheduled_reports', 'Scheduled Reports'),
         ('poll_security_alerts', 'Security Alert Polling'),
+        ('poll_backup_monitoring', 'Backup Monitoring Poll + Alerts'),
         ('check_incident_sla_breaches', 'Security Incident SLA Breach Check'),
         ('recompute_exposure_scores', 'Security Exposure Score Recompute'),
         ('assets_warranty_alerts', 'Asset Warranty Expiry Emails'),
@@ -1702,6 +1703,12 @@ class ScheduledTask(models.Model):
         {
             'task_type': 'run_scheduled_reports',
             'description': 'Generate and email scheduled reports that are due',
+            'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
+            'task_type': 'poll_backup_monitoring',
+            'description': 'Poll backup provider connections and evaluate backup alert rules',
             'interval_minutes': 15,
             'enabled': True,
         },

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Backup Connections{% endblock %}
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-database me-2"></i>Backup Monitoring</h2>
+{% include "backup_monitoring/_nav.html" with bm_tab="connections" %}
+<div class="mb-2 text-end"><a class="btn btn-sm btn-primary" href="{% url 'backup_monitoring:connection_create' %}">New connection</a></div>
+<div class="card"><div class="card-body p-0"><table class="table table-sm mb-0 small align-middle"><thead class="table-light"><tr><th>Name</th><th>Provider</th><th>Owner</th><th>Customer</th><th>Last contact</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td><strong>{{ r.c.name }}</strong>{% if not r.c.active %} <span class="badge bg-secondary">Off</span>{% endif %}</td>
+<td>{{ r.c.get_provider_display }}</td><td>{{ r.c.organization.name|default:'MSP-wide' }}</td><td>{{ r.c.customer.name|default:"&mdash;" }}</td><td>{{ r.age }}</td>
+<td>{% if r.freshness == 'fresh' %}<span class="badge bg-success">Current</span>{% elif r.freshness == 'never' %}<span class="badge bg-secondary">No data yet</span>{% elif r.freshness == 'inactive' %}<span class="badge bg-secondary">Off</span>{% else %}<span class="badge bg-warning text-dark" title="{{ r.c.last_poll_error }}">Stale</span>{% endif %}</td>
+<td class="text-nowrap"><a class="btn btn-sm btn-outline-secondary" href="{% url 'backup_monitoring:connection_edit' r.c.pk %}">Edit</a>
+ <form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_test' r.c.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-info">Test</button></form>
+ {% if not r.c.is_push %}<form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_poll' r.c.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Poll now</button></form>{% endif %}
+ <form method="post" class="d-inline" action="{% url 'backup_monitoring:connection_delete' r.c.pk %}" onsubmit="return confirm('Delete this connection and all its history?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">No connections.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

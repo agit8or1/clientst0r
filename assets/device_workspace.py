@@ -354,6 +354,17 @@ def related_docs(asset) -> list:
     return list(Document.objects.filter(pk__in=ids, organization_id=asset.organization_id).order_by('title')[:30])
 
 
+def backup_panel(asset, user) -> Optional[list]:
+    """Backup state of the monitored systems linked to this asset (source and
+    data age shown; stale evidence is never presented as healthy). None when
+    nothing is linked or the user lacks view_backup_status for the customer."""
+    try:
+        from backup_monitoring.summary import asset_backup_panel
+        return asset_backup_panel(asset, user)
+    except Exception:
+        return None
+
+
 def related_runbooks(asset) -> list:
     from django.db.models import Q
     from processes.models import Process

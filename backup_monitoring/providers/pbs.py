@@ -1,0 +1,166 @@
+"""Proxmox Backup Server, over its REST API (/api2/json).
+
+Auth is an API token: ``Authorization: PBSAPIToken=user@realm!tokenname:secret``
+(stored sealed as credentials["api_token"]). The token needs Datastore.Audit
+(and Sys.Audit for the task list) on the datastores to be monitored.
+
+Mapping:
+  * repository  <- GET /status/datastore-usage (total / used / avail, `error`)
+  * job + system<- GET /admin/datastore/{store}/groups (one group = one
+                   backup job and one protected system, e.g. vm/100)
+  * retention   <- GET /config/prune (best effort; needs Datastore.Audit)
+  * run         <- GET /nodes/localhost/tasks?typefilter=backup (one task =
+                   one run; OK / WARNINGS: n / any other status = failed),
+                   sized from the matching snapshot in
+                   GET /admin/datastore/{store}/snapshots
+"""
+from datetime import datetime, timezone
+from typing import List, Optional
+
+import requests
+
+from .base import BaseBackupProvider, JobInfo, ProviderError, RepositoryInfo, RunInfo
+
+TIMEOUT = 20
+
+
+def _ts(value) -> Optional[datetime]:
+    try:
+        return datetime.fromtimestamp(int(value), tz=timezone.utc)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def _retention_text(prune: dict) -> str:
+    parts = [f'{k[5:]} {prune[k]}' for k in ('keep-last', 'keep-hourly', 'keep-daily', 'keep-weekly',
+                                              'keep-monthly', 'keep-yearly') if prune.get(k) is not None]
+    return 'keep ' + ', '.join(parts) if parts else ''
+
+
+class ProxmoxBackupServerProvider(BaseBackupProvider):
+    kind = 'pbs'
+    label = 'Proxmox Backup Server'
+
+    def _headers(self):
+        token = (self.connection.get_credentials() or {}).get('api_token', '')
+        if not token:
+            raise ProviderError('No API token configured.')
+        return {'Authorization': f'PBSAPIToken={token}', 'Accept': 'application/json'}
+
+    def _get(self, path, params=None):
+        base = (self.connection.base_url or '').rstrip('/')
+        if not base:
+            raise ProviderError('No base URL configured.')
+        try:
+            resp = requests.get(f'{base}/api2/json{path}', headers=self._headers(), params=params,
+                                timeout=TIMEOUT, verify=self.connection.verify_tls)
+        except requests.RequestException as exc:
+            raise ProviderError(f'Cannot reach {base}: {exc.__class__.__name__}') from exc
+        if resp.status_code in (401, 403):
+            raise ProviderError(f'PBS refused the API token (HTTP {resp.status_code}).')
+        if resp.status_code != 200:
+            raise ProviderError(f'PBS returned HTTP {resp.status_code} for {path}.')
+        try:
+            return resp.json().get('data')
+        except ValueError as exc:
+            raise ProviderError('PBS returned a response that is not JSON.') from exc
+
+    def test_connection(self):
+        try:
+            data = self._get('/version') or {}
+        except ProviderError as exc:
+            return {'ok': False, 'message': str(exc)}
+        return {'ok': True, 'message': f"Connected to Proxmox Backup Server {data.get('version', '')}".strip()}
+
+    def _stores(self) -> List[dict]:
+        return self._get('/status/datastore-usage') or []
+
+    def list_repositories(self) -> List[RepositoryInfo]:
+        out = []
+        for s in self._stores():
+            error = s.get('error')
+            out.append(RepositoryInfo(
+                external_id=s['store'], name=s['store'],
+                total_bytes=s.get('total'), used_bytes=s.get('used'),
+                available=not error, message=str(error)[:500] if error else ''))
+        return out
+
+    def _prune_by_store(self) -> dict:
+        try:
+            jobs = self._get('/config/prune') or []
+        except ProviderError:
+            return {}
+        return {j.get('store'): _retention_text(j) for j in jobs if j.get('store')}
+
+    def list_jobs(self) -> List[JobInfo]:
+        retention = self._prune_by_store()
+        out = []
+        for s in self._stores():
+            if s.get('error'):
+                continue
+            store = s['store']
+            for g in self._get(f'/admin/datastore/{store}/groups') or []:
+                gid = f"{g['backup-type']}/{g['backup-id']}"
+                comment = (g.get('comment') or '').strip()
+                out.append(JobInfo(
+                    external_id=f'{store}:{gid}', name=f'{store}: {gid}' + (f' ({comment})' if comment else ''),
+                    system_external_id=gid, system_name=comment or gid,
+                    schedule='Set by the backup client (Proxmox VE / proxmox-backup-client)',
+                    retention=retention.get(store, '')))
+        return out
+
+    def _snapshot_sizes(self) -> dict:
+        sizes = {}
+        for s in self._stores():
+            if s.get('error'):
+                continue
+            store = s['store']
+            try:
+                snaps = self._get(f'/admin/datastore/{store}/snapshots') or []
+            except ProviderError:
+                continue
+            for sn in snaps:
+                key = f"{store}:{sn['backup-type']}/{sn['backup-id']}"
+                sizes.setdefault(key, []).append((sn.get('backup-time') or 0, sn.get('size'),
+                                                  (sn.get('verification') or {}).get('state', '')))
+        return sizes
+
+    def list_runs(self, since: Optional[datetime] = None) -> List[RunInfo]:
+        params = {'typefilter': 'backup', 'limit': 500}
+        if since is not None:
+            params['since'] = int(since.timestamp())
+        tasks = self._get('/nodes/localhost/tasks', params) or []
+        sizes = self._snapshot_sizes()
+        out = []
+        for t in tasks:
+            if t.get('worker_type') != 'backup' or ':' not in (t.get('worker_id') or ''):
+                continue
+            started = _ts(t.get('starttime'))
+            if started is None:
+                continue
+            finished = _ts(t.get('endtime'))
+            raw = (t.get('status') or '').strip()
+            message = ''
+            if finished is None:
+                status = 'running'
+            elif raw == 'OK':
+                status = 'success'
+            elif raw.upper().startswith('WARNINGS'):
+                status, message = 'warning', raw
+            else:
+                status, message = 'failed', raw
+            size = None
+            if status in ('success', 'warning'):
+                # The snapshot is stamped when the backup starts.
+                for bt, sz, verification in sizes.get(t['worker_id'], []):
+                    if abs(bt - int(t['starttime'])) <= 120:
+                        size = sz
+                        if verification == 'failed':
+                            status, message = 'warning', 'Snapshot verification failed.'
+                        break
+            gid = t['worker_id'].split(':', 1)[1]
+            out.append(RunInfo(
+                external_id=t['upid'], job_external_id=t['worker_id'], started_at=started,
+                finished_at=finished, status=status, bytes_processed=size, message=message[:2000],
+                system_external_id=gid, system_name=gid))
+        return out

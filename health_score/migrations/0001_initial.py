@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('core', '0105_alter_scheduledtask_task_type'),
+        ('core', '0108_scheduledtask_backup_health'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

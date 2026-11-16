@@ -83,6 +83,7 @@ MODULES = {
     'files': ('Files & attachments', 'Uploaded files, photos and attachments.'),
     'vault': ('Passwords & secrets', 'The password vault and the browser extension.'),
     'monitoring': ('Monitoring & alerts', 'Website / WAN monitors, expirations, racks, IPAM.'),
+    'backup': ('Backup monitoring', 'Customer backup jobs, repositories, alerts and restore tests.'),
     'security': ('Security alerts', 'EDR / AV / firewall alert ingestion and rules.'),
     'integrations': ('Integrations & RMM', 'PSA / RMM / M365 and other connections and syncs.'),
     'sales': ('Sales, quotes & CRM', 'Leads, pipeline, campaigns, forecast and quotes.'),
@@ -244,6 +245,13 @@ PERMISSIONS: List[Permission] = [
        'Acknowledge / dismiss / resolve alerts, convert to tickets', staff_only=True),
     _p('security_alerts_create_rules', 'security', 'settings', E, False,
        'Create / edit / delete auto-ticket rules and suppression windows', staff_only=True),
+
+    # --- backup monitoring ------------------------------------------------------
+    _p('view_backup_status', 'backup', 'view', S, False,
+       'View backup monitoring: jobs, runs, repositories, alerts and restore tests', staff_only=True),
+    _p('manage_backup_integrations', 'backup', 'settings', X, False,
+       'Create / edit / delete backup connections (provider credentials, ingest secrets) and alert policies; '
+       'record restore tests and acknowledge backup alerts', staff_only=True),
 
     # --- integrations -----------------------------------------------------------
     _p('integrations_view', 'integrations', 'view', S, False, 'View integrations'),
@@ -563,6 +571,7 @@ MODULE_COVERAGE = {
     'pricing': 'pricing_* (MSP staff); cost fields need pricing_view_internal_cost_rates (pricing.permissions)',
     'crm': 'crm_* (MSP staff only section)',
     'security_alerts': 'security_alerts_* (MSP staff only section)',
+    'backup_monitoring': 'view_backup_status / manage_backup_integrations per customer (MSP staff only section)',
     'compliance': 'membership role per customer',
     'field_ops': 'MSP staff + tickets_*',
     'statuspage': 'membership admin role',

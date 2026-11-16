@@ -142,6 +142,7 @@ INSTALLED_APPS = [
     'resourcing.apps.ResourcingConfig',
     'crm.apps.CrmConfig',
     'security_alerts.apps.SecurityAlertsConfig',
+    'backup_monitoring.apps.BackupMonitoringConfig',
     'compliance.apps.ComplianceConfig',
     'field_ops.apps.FieldOpsConfig',
     'statuspage.apps.StatusPageConfig',
