@@ -18,15 +18,18 @@ import json
 import logging
 import time
 from typing import Any, Dict, Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import requests
 
 from .base import (
+    AccountingAmbiguousError,
     AccountingAuthError,
+    AccountingPreflightError,
     AccountingProviderError,
     BaseAccountingProvider,
     log_accounting_call,
+    push_key_note,
 )
 
 
@@ -366,30 +369,54 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
         return {'success': True, 'linked': linked, 'already_linked': already,
                 'unmatched': unmatched, 'error': None}
 
-    def push_invoice(self, invoice) -> Dict[str, Any]:
-        from django.utils import timezone
-        try:
-            customer_id = self._ensure_customer(invoice.client_org)
-        except Exception as exc:
-            invoice.last_push_error = str(exc)[:500]
-            invoice.save(update_fields=['last_push_error', 'updated_at'])
-            log_accounting_call(
-                connection=self.connection, action='push_invoice',
-                resource_type='invoice', resource_id=invoice.pk,
-                success=False, error_message=str(exc),
-                request_summary=f'invoice={invoice.invoice_number}',
-            )
-            return {'success': False, 'error': str(exc)}
+    def _item_ref_resolver(self):
+        """Map a line's GL code to a QBO Item id.
 
-        # Phase 27 v6 (v3.17.278): include AccountRef when the line has
-        # gl_account_code set, so revenue lands in the right QBO account.
+        QBO's SalesItemLineDetail.ItemRef is an *Item* id; the income account
+        is a property of the Item, so there is no AccountRef on a sales line.
+        Before this, the line's GL account code was sent as the ItemRef, which
+        names an Item that does not exist (QBO rejects the invoice) or, worse,
+        an unrelated Item whose id happens to equal the code.
+
+        Resolution: AccountingItemMapping for the code, else the connection's
+        default_item_id. A coded line with neither is refused — guessing where
+        revenue lands is not something to do silently. An uncoded line with no
+        default keeps the old behaviour (no ItemRef; QBO applies its own
+        default) so invoices that pushed fine before still do.
+        """
+        from integrations.models import AccountingItemMapping
+        mapping = dict(AccountingItemMapping.objects.filter(
+            connection=self.connection).values_list(
+                'gl_account_code', 'provider_item_id'))
+        default = (getattr(self.connection, 'default_item_id', '') or '').strip()
+
+        def resolve(li):
+            code = (getattr(li, 'gl_account_code', '') or '').strip()
+            if code:
+                item_id = mapping.get(code) or default
+                if not item_id:
+                    raise AccountingPreflightError(
+                        f'Line "{li.description[:60]}" has GL code {code}, which '
+                        f'has no QuickBooks item mapping on connection '
+                        f'"{self.connection.name}", and the connection has no '
+                        f'default item. Map the GL code to a QuickBooks Item '
+                        f'(or set a default item) on the connection, then push '
+                        f'again.')
+                return item_id
+            return default or None
+        return resolve
+
+    def _build_invoice_body(self, invoice, customer_id, idempotency_key=None):
+        resolve = self._item_ref_resolver()
+
         def _line(li):
             detail = {
                 'Qty': float(li.quantity),
                 'UnitPrice': float(li.unit_price),
             }
-            if getattr(li, 'gl_account_code', '') and li.gl_account_code:
-                detail['ItemRef'] = {'value': li.gl_account_code}
+            item_id = resolve(li)
+            if item_id:
+                detail['ItemRef'] = {'value': str(item_id)}
             return {
                 'DetailType': 'SalesItemLineDetail',
                 'Amount': float(li.line_total),
@@ -403,25 +430,83 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
             'DueDate': invoice.due_date.isoformat() if invoice.due_date else None,
             'CustomerMemo': {'value': (invoice.notes or invoice.title or '')[:1000]},
         }
-        # Strip None values QBO doesn't accept
-        body = {k: v for k, v in body.items() if v is not None}
+        if idempotency_key:
+            # DocNumber (max 21) carries our invoice number; PrivateNote (not
+            # shown to the customer) carries the push key reconciliation
+            # searches for.
+            if invoice.invoice_number:
+                body['DocNumber'] = invoice.invoice_number[:21]
+            body['PrivateNote'] = push_key_note(idempotency_key)[:4000]
+        return {k: v for k, v in body.items() if v is not None}
 
-        resp = self._api('POST', '/invoice', json=body)
-        if resp.status_code not in (200, 201):
-            err = f'HTTP {resp.status_code}: {resp.text[:500]}'
-            invoice.last_push_error = err
+    def push_invoice(self, invoice, *, idempotency_key=None, request_id=None) -> Dict[str, Any]:
+        """Create the invoice in QBO.
+
+        Returns {'success': bool, 'invoice_id', 'error', 'ambiguous': bool,
+        'preflight': bool}. `ambiguous` means the invoice may exist in QBO even
+        though we have no id (timeout / 5xx) — the caller must reconcile before
+        any retry. Callers go through integrations.services.invoice_push, which
+        supplies the keys and records the attempt.
+        """
+        from django.utils import timezone
+
+        def _fail(err, *, http_status=None, ambiguous=False, preflight=False,
+                  response_summary='', action='push_invoice'):
+            invoice.last_push_error = str(err)[:500]
             invoice.save(update_fields=['last_push_error', 'updated_at'])
             log_accounting_call(
-                connection=self.connection, action='push_invoice',
+                connection=self.connection, action=action,
                 resource_type='invoice', resource_id=invoice.pk,
-                success=False, http_status=resp.status_code,
-                error_message=err,
-                request_summary=f'invoice={invoice.invoice_number} lines={len(body.get("Line", []))}',
-                response_summary=resp.text[:500],
+                success=False, http_status=http_status, error_message=str(err),
+                request_summary=f'invoice={invoice.invoice_number} key={idempotency_key or "-"}',
+                response_summary=response_summary,
             )
-            return {'success': False, 'error': err}
+            return {'success': False, 'error': str(err), 'ambiguous': ambiguous,
+                    'preflight': preflight}
 
-        data = resp.json().get('Invoice') or {}
+        # Item mapping first: a refusal must happen before anything (even a
+        # customer) is written provider-side.
+        try:
+            resolve = self._item_ref_resolver()
+            for li in invoice.line_items.all():
+                resolve(li)
+        except AccountingPreflightError as exc:
+            return _fail(exc, preflight=True, action='push_refused')
+
+        try:
+            customer_id = self._ensure_customer(invoice.client_org)
+        except Exception as exc:
+            # No invoice has been sent yet, so this is a definite failure.
+            return _fail(exc)
+
+        try:
+            body = self._build_invoice_body(invoice, customer_id, idempotency_key)
+        except AccountingPreflightError as exc:
+            return _fail(exc, preflight=True, action='push_refused')
+
+        path = '/invoice'
+        if request_id:
+            # QBO request-id idempotency: a replay with the same requestid
+            # returns the original response instead of creating again.
+            path = f'/invoice?requestid={quote(str(request_id))}'
+        try:
+            resp = self._api('POST', path, json=body)
+        except AccountingAmbiguousError as exc:
+            return _fail(exc, ambiguous=True)
+        if resp.status_code not in (200, 201):
+            err = f'HTTP {resp.status_code}: {resp.text[:500]}'
+            return _fail(err, http_status=resp.status_code,
+                         ambiguous=resp.status_code >= 500,
+                         response_summary=resp.text[:500])
+
+        try:
+            data = resp.json().get('Invoice') or {}
+        except Exception as exc:
+            return _fail(f'unreadable QBO response: {exc}',
+                         http_status=resp.status_code, ambiguous=True)
+        if not data.get('Id'):
+            return _fail('QBO returned no invoice Id',
+                         http_status=resp.status_code, ambiguous=True)
         invoice.accounting_provider = self.provider_type
         invoice.accounting_external_id = str(data.get('Id') or '')
         invoice.pushed_to_accounting_at = timezone.now()
@@ -444,10 +529,75 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
             resource_type='invoice', resource_id=invoice.pk,
             external_id=invoice.accounting_external_id,
             success=True, http_status=resp.status_code,
-            request_summary=f'invoice={invoice.invoice_number} lines={len(body.get("Line", []))}',
+            request_summary=f'invoice={invoice.invoice_number} lines={len(body.get("Line", []))} key={idempotency_key or "-"}',
             response_summary=f'qbo_id={invoice.accounting_external_id}',
         )
         return {'success': True, 'invoice_id': invoice.accounting_external_id}
+
+    def find_invoice_by_key(self, invoice, key: str) -> Dict[str, Any]:
+        """Look for a live QBO invoice carrying our push key.
+
+        PrivateNote is not queryable, so candidates are narrowed by DocNumber
+        (we set it to our invoice number) and, when the customer is linked, by
+        customer + transaction date (in case the company's numbering overrode
+        DocNumber). A candidate matches only when its PrivateNote holds the
+        key. Voided invoices are ignored. Any failed query means absence is
+        unconfirmed -> 'error'.
+        """
+        from urllib.parse import quote as _q
+        queries = []
+        if invoice.invoice_number:
+            doc = invoice.invoice_number[:21].replace("'", "\\'")
+            queries.append(f"select * from Invoice where DocNumber = '{doc}'")
+        link = self._link_for(invoice.client_org)
+        if link is not None and invoice.invoice_date:
+            cid = str(link.provider_customer_id).replace("'", "\\'")
+            queries.append(
+                f"select * from Invoice where CustomerRef = '{cid}' "
+                f"and TxnDate = '{invoice.invoice_date.isoformat()}'")
+        if not queries:
+            return {'status': 'error', 'external_id': '', 'data': {},
+                    'error': 'nothing to search QBO by'}
+
+        found = None
+        for q in queries:
+            try:
+                resp = self._api('GET', f'/query?query={_q(q)}')
+            except AccountingProviderError as exc:
+                return self._reconcile_logged(invoice, key, 'error', error=str(exc))
+            if resp.status_code != 200:
+                return self._reconcile_logged(
+                    invoice, key, 'error', http_status=resp.status_code,
+                    error=f'HTTP {resp.status_code}: {resp.text[:200]}')
+            rows = (resp.json().get('QueryResponse') or {}).get('Invoice') or []
+            for row in rows:
+                note = str(row.get('PrivateNote') or '')
+                if key not in note:
+                    continue
+                if note.upper().startswith('VOIDED'):
+                    continue
+                found = row
+                break
+            if found:
+                break
+        if found:
+            return self._reconcile_logged(invoice, key, 'found',
+                                          external_id=str(found.get('Id') or ''),
+                                          data=found)
+        return self._reconcile_logged(invoice, key, 'absent')
+
+    def _reconcile_logged(self, invoice, key, status, *, external_id='', data=None,
+                          error='', http_status=None):
+        log_accounting_call(
+            connection=self.connection, action='reconcile_invoice',
+            resource_type='invoice', resource_id=invoice.pk,
+            external_id=external_id, success=status != 'error',
+            http_status=http_status, error_message=error,
+            request_summary=f'invoice={invoice.invoice_number} key={key}',
+            response_summary=f'status={status}',
+        )
+        return {'status': status, 'external_id': external_id,
+                'data': data or {}, 'error': error}
 
     def record_payment(self, payment) -> Dict[str, Any]:
         invoice = payment.invoice
@@ -470,7 +620,17 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
                 }],
             }],
         }
-        resp = self._api('POST', '/payment', json=body)
+        try:
+            resp = self._api('POST', '/payment', json=body)
+        except AccountingProviderError as exc:
+            log_accounting_call(
+                connection=self.connection, action='record_payment',
+                resource_type='payment', resource_id=payment.pk,
+                success=False, error_message=str(exc),
+                request_summary=f'payment={payment.pk} amount={payment.amount} invoice={invoice.invoice_number}',
+            )
+            return {'success': False, 'error': str(exc),
+                    'ambiguous': isinstance(exc, AccountingAmbiguousError)}
         if resp.status_code not in (200, 201):
             err = f'HTTP {resp.status_code}: {resp.text[:200]}'
             log_accounting_call(

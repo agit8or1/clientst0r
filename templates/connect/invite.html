@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Invitation code{% endblock %}
+{% block content %}
+<h1 class="h3"><i class="fas fa-qrcode"></i> Let another application connect</h1>
+{% if code %}
+<div class="row"><div class="col-md-6">
+<div class="card mb-3"><div class="card-body text-center">
+  <p class="mb-1">Pairing code — shown only now, valid until {{ invitation.expires_at|date:"H:i" }}, single use</p>
+  <p class="display-6 font-monospace" data-connect-code>{{ code }}</p>
+  <p class="mb-1">This Clientst0r's address</p><p><code>{{ discovery_url }}</code></p>
+  <p class="small text-muted">Installation <code>{{ identity.installation_id }}</code></p>
+</div></div></div>
+<div class="col-md-6"><div class="card mb-3"><div class="card-body text-center"><div style="max-width:16rem;margin:auto" aria-label="QR code with the address and pairing code">{{ qr|safe }}</div>
+<p class="small text-muted mt-2">The other application's pairing screen can read this instead of typing.</p></div></div></div></div>
+<p>When the other application submits the code, its request appears under <a href="{% url 'connect:index' %}">Waiting for approval here</a>. Nothing is connected until you approve.</p>
+{% else %}<p>Create a code from <a href="{% url 'connect:index' %}">Connected Applications</a>.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+{% for p in providers %}
+<form method="post" action="{% url 'oidc_sso:stepup' p.slug %}" class="d-inline">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-user-check"></i> Confirm with {{ p.name }}</button>
+</form>
+{% endfor %}

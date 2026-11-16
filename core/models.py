@@ -901,7 +901,16 @@ class SystemSetting(models.Model):
     azure_ad_client_id = models.CharField(max_length=255, blank=True, help_text='Application (client) ID from Azure portal')
     azure_ad_client_secret = EncryptedTextField(blank=True, legacy='auto', help_text='Client secret (encrypted)')
     azure_ad_redirect_uri = models.CharField(max_length=500, blank=True, help_text='Redirect URI configured in Azure (e.g., https://yourapp.com/auth/callback)')
-    azure_ad_auto_create_users = models.BooleanField(default=True, help_text='Automatically create users on first Azure AD login')
+    azure_ad_auto_create_users = models.BooleanField(
+        default=False,
+        help_text='Create an account on first Microsoft sign-in for an identity no account is '
+                  'linked to. Such accounts get no client access and no staff rights. Never '
+                  'used when the e-mail address belongs to an existing account.')
+    azure_ad_allowed_tenant_ids = models.TextField(
+        blank=True, default='',
+        help_text='Extra Microsoft Entra tenant IDs (GUIDs, one per line or comma-separated) '
+                  'whose users may sign in. Empty: only the configured tenant. Required when '
+                  'the tenant is "common" or "organizations".')
     azure_ad_sync_groups = models.BooleanField(default=False, help_text='Sync Azure AD groups to roles')
 
     # Snyk Security Scanning Settings
@@ -1273,6 +1282,12 @@ class ScheduledTask(models.Model):
         ('m365_edit_sessions', 'Microsoft 365 Edit Sessions'),
         # Pulse checks: monthly / quarterly service-feedback sends.
         ('pulse_send_due', 'Pulse Check Scheduled Sends'),
+        # Payments: charge due invoices against authorized default methods.
+        ('run_autopay', 'Invoice Autopay (payment providers)'),
+        # Agit8or Connect: signed event delivery queue and key rotation.
+        # Both do nothing unless AGIT8OR_CONNECT_ENABLED and a connection exists.
+        ('connect_deliver_events', 'Connected Applications: Event Delivery'),
+        ('connect_rotate_keys', 'Connected Applications: Key Rotation'),
         # Customer health score: nightly snapshot per client.
         ('compute_health_scores', 'Customer Health Score Snapshots'),
     ]
@@ -1831,6 +1846,32 @@ class ScheduledTask(models.Model):
             'task_type': 'pulse_send_due',
             'description': 'Send repeated (monthly / quarterly) pulse checks that are due this period '
                            '(only while pulse checks are turned on)',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless a payment connection has autopay turned on;
+            # one attempt per invoice per due date and attempt number.
+            'task_type': 'run_autopay',
+            'description': 'Charge invoices that are due for customers who authorized autopay '
+                           '(retries failed charges on the connection\'s schedule; e-mails on final failure)',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Agit8or Connect is on and events are queued.
+            'task_type': 'connect_deliver_events',
+            'description': 'Deliver queued signed events to connected applications, retrying with '
+                           'exponential backoff; give up into the failed list after 12 attempts',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Agit8or Connect is on and a key is due.
+            'task_type': 'connect_rotate_keys',
+            'description': 'Rotate connected-application keys that are due (new key validated by the other '
+                           'application before use; the old key stays active if it is refused) and retire '
+                           'keys whose overlap ended',
             'interval_minutes': 60,
             'enabled': True,
         },

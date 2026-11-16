@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.690] - 2026-11-16
+
+### Added
+- **Payment processing (Stripe, GoCardless).** New `payments` app: customers pay invoices online from the portal (card / ACH through Stripe Checkout, Direct Debit through GoCardless), save a payment method and turn on autopay. Staff see payments, refunds and disputes, and can refund (new `process_refunds` permission). Payment connections are install-wide (new `manage_payment_providers` permission). Both new permissions are off for every role.
+  - Provider APIs are called directly (no new dependencies); every create sends an idempotency key. Webhook signatures are verified; duplicate or out-of-order events produce exactly one payment record per settlement, and refunds and lost disputes one negative record each.
+  - No card numbers, CVVs or bank account numbers are stored. Nothing is created in Stripe as an invoice, subscription or price, so invoices are never billed twice.
+  - Autopay runs hourly as a scheduled task, with retries.
+  - Staff open it from Billing → Payments.
+  - Settled payments are marked for accounting; posting them to QuickBooks Online / Xero is not wired yet.
+  - Tested against mocked provider responses only: check with Stripe test-mode and GoCardless sandbox keys before taking real payments. See `docs/PAYMENTS.md`.
+- **Sales tax (Avalara AvaTax, TaxJar, manual rates).** New `tax` app with an MSP-wide tax mode, manual rates by jurisdiction with effective dates, tax categories, labor taxability, and per-customer exemption certificates. New `manage_tax_settings` permission (Owner and Billing / Finance built-in roles).
+  - A provider failure is an error, never a zero amount: emailing or marking a quote or invoice sent is refused while tax can't be determined. The old silent zero-tax default for new quotes and invoices is gone.
+  - Manual overrides need the permission and are audit-logged. Voiding an invoice voids the provider transaction.
+  - With no tax settings, the existing flat-rate behaviour is kept; a 0% rate shows "Tax not configured".
+  - Tested against mocked provider responses only. See `docs/TAX.md`.
+- **OpenID Connect sign-in (single sign-on).** New `oidc_sso` app, off by default: staff can sign in through a standards-based identity provider (Keycloak walkthrough in `docs/OIDC_SSO.md`). PKCE, nonce, state, signed ID token checks against the provider's keys, issuer and organization pinning, `private_key_jwt` or client-secret client auth, back-channel logout, and sign-out continuing to the provider. Provider step-up counts for Technician Access and Superuser Approval when the provider confirms MFA. New `manage_sso_settings` permission (off for every role). Local, Microsoft and LDAP sign-in are unchanged, and local superuser login always stays available. Not yet verified against a live Keycloak.
+
+### Security
+- **Accounting invoice push can no longer create duplicates.** Every push (manual and recurring auto-push) records an attempt first, allows one in flight per invoice, treats timeouts and 5xx as "unknown" rather than "failed", and searches QuickBooks Online / Xero for the invoice before creating it again. Creates send the provider's idempotency key, reused on retry. Re-pushing with `force` needs the new `psa.force_repush_invoice` permission and still checks the provider first.
+- **Recurring billing:** a second invoice for the same contract period is blocked on every database (the earlier constraint was skipped on MariaDB/MySQL). The upgrade stops and lists duplicates if any already exist; run `manage.py find_duplicate_contract_invoices` first to check. Nothing is deleted.
+- **QuickBooks Online lines** now reference the mapped Item (new GL-code → Item mapping and default Item on the accounting connection); a line with a GL code and no mapping is refused before anything is sent.
+- **Xero payments** need the new *payment account code* setting; the old placeholder bank account fallback is removed.
+- **Firewall:** payment provider webhooks (`POST /payments/webhooks/stripe/<id>/` and `/gocardless/<id>/`) skip the GeoIP country check and the IP allowlist, so providers' servers abroad can deliver them; their signatures are verified. An IP blocklist entry still applies.
+
+### Upgrade notes
+- Migrations: `accounts.0053`–`0055` (SSO, payment and tax permissions), `core.0106` (autopay task), `psa.0086` (contract-period key), `integrations.0043` (push attempts, item mapping), `oidc_sso.0001`, `payments.0001`, `tax.0001`.
+- If `psa.0086` stops on duplicate contract invoices, resolve them (void or merge) and run the upgrade again.
+- Xero users: set the payment account code on the accounting connection before recording payments.
+
+## [3.17.689] - 2026-11-16
+
+### Security
+- **Sign out everywhere (web).** My Profile → Web sessions now has *Sign out of all other sessions* (keeps this browser) and *Sign out everywhere* (includes this browser, and by default also signs out the mobile app). Each user has a session cut-off time; any web session signed in before it ends on its next request.
+- Administrators can sign a user out everywhere from the user's page (superuser, confirmed with their password and authenticator code unless confirmed in the last few minutes). Customer portal users get *Sign out of all other sessions* on their portal account page; it only ever acts on the signed-in user and refuses staff accounts.
+- Other sessions now end automatically when a password is changed or reset (staff and portal), when a 2FA device is removed or re-keyed, and all sessions end when an account, a customer membership or a customer organization is deactivated. Reactivating does not restore old sessions.
+- A session whose account has been deactivated now ends on its next request for every sign-in method (the LDAP backend did not check this itself).
+- Fixed: saving a user profile loaded earlier in a request (on any User save, and in the 2FA "disable" view) could write back a stale value; the session cut-off is now only written when named explicitly.
+- Every sign-out is audit-logged (actor, target user, scope, reason, mobile sessions revoked); no session keys are logged.
+
+### Upgrade notes
+- Upgrading signs nobody out: existing sessions are dated from when they started (or first seen), so later sign-outs still end them.
+- Revoked rows in the session table are not deleted (avoids a full scan on SQLite); they stop working and expire or are removed by `clearsessions`.
+- Migration `accounts.0052` (session cut-off time). Includes the merge of v3.17.688.
+
+## [3.17.688] - 2026-11-16
+
+### Security
+- Microsoft (Azure AD / Entra ID) sign-in matched an existing account by e-mail address: the address Microsoft Graph reported for the person signing in (`mail`, or else the UPN) selected the local account with that address, and its object ID was then overwritten with the signer's. Anyone who could sign in to Microsoft with that address in an accepted tenant (any tenant, when the app was registered as multi-tenant) signed in as that account, superusers included. Only installs with Azure SSO enabled were exposed. A sign-in now finds an account only by the tenant ID and object ID stored on it, taken from the verified ID token.
+- The ID token is now verified here: RS256 signature against Microsoft's published keys, audience = the client ID, expiry, the nonce of this sign-in, and an issuer of an accepted tenant. Microsoft Graph is no longer used to identify the user.
+- Only the configured tenant is accepted. More tenants can be listed in the new *Additional allowed tenant IDs* setting; with a multi-tenant authority (`common` / `organizations`) only listed tenants are accepted, and none when the list is empty.
+- The sign-in uses MSAL's auth code flow with PKCE (S256), a nonce and the state, kept in the server session until the callback.
+- An existing account is linked to Microsoft sign-in only by its owner — signed in, after re-entering the password and authenticator code (My Profile → Microsoft sign-in) — or by a superuser approving a recorded link request on the user's page with their own password and code (never for their own account). A Microsoft sign-in that names an unlinked account's e-mail address is refused, tells the person to link the account or ask an administrator, records the request and logs `azure_sso_email_match_refused`. A sign-in from another tenant than the linked one is refused (`azure_sso_tenant_mismatch`).
+- Superuser and staff accounts are never created or linked automatically. A superuser can use Microsoft sign-in once it is linked explicitly.
+- Auto-create is off by default, and the upgrade switches it off. When it is on, the account it creates has no organization membership, no staff or superuser rights and no password. The old "assign the first organization as viewer" step, which imported a model that doesn't exist there and used a role that doesn't exist, is removed (it never ran).
+
+### Upgrade notes
+- Accounts that signed in with Microsoft before keep working: their stored object ID still matches, and the tenant ID is recorded on the next sign-in and checked from then on.
+- Superusers whose Microsoft link was made automatically before this release must link once more (My Profile, or another superuser approving the request).
+- Accounts with no stored object ID must be linked once, by either method.
+- If you relied on auto-create, turn it back on in Settings → Directory services.
+- The old matching trusted e-mail addresses: review the tenant and object ID shown on administrators' user pages, and Microsoft sign-ins in the audit log, and unlink anything you don't recognise.
+- Migrations `accounts.0051` (tenant ID, link time and link requests) and `core.0105` (tenant allowlist; auto-create off).
+
 ## [3.17.687] - 2026-11-15
 
 ### Added

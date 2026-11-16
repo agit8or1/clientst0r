@@ -107,6 +107,7 @@
                 {% endif %}
             </div>
         </div>
+        {% load tax_tags %}{% tax_panel item 'quote' %}
         {% if item.converted_ticket %}
         <div class="card mb-3">
             <div class="card-body small">

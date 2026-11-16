@@ -179,6 +179,7 @@ class ProtectedChange(models.Model):
         ('superuser_policy', 'Superuser-grant approval policy'),
         ('global_role', 'Global role with an RMM tier'),
         ('rmm_tier', 'Role template RMM tier'),
+        ('app_connection', 'Connected application: elevated permission'),
     ]
     PENDING, APPLIED, REJECTED, CANCELLED, EXPIRED = 'pending', 'applied', 'rejected', 'cancelled', 'expired'
     STATUSES = [(s, s.title()) for s in (PENDING, APPLIED, REJECTED, CANCELLED, EXPIRED)]

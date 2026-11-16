@@ -85,6 +85,8 @@ class ReportsPermissionTests(TestCase):
             name='AccountingTech',
             reports_view_dashboards=True,
             reports_view_financial=True,
+            # Margin pages need view_profitability as well (accounts 0051).
+            view_profitability=True,
         )
         Membership.objects.create(
             user=self.tech, organization=org,

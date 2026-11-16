@@ -1,0 +1,403 @@
+openapi: 3.1.0
+info:
+  title: Agit8or Connect
+  version: "1"
+  summary: Self-hosted application-to-application trust (agit8or-connect/1)
+  description: |
+    Wire surface of agit8or-connect/1 as served by Clientst0r under `/connect/v1`.
+    Normative text: PROTOCOL.md. Every operation answers 404 while the installation has
+    Agit8or Connect switched off. Unknown fields in any object MUST be ignored (PROTOCOL.md §3).
+servers:
+  - url: https://{host}
+    variables:
+      host: {default: psa.example.com}
+tags:
+  - name: discovery
+  - name: pairing
+  - name: auth
+  - name: resources
+  - name: events
+paths:
+  /.well-known/agit8or-connect:
+    get:
+      tags: [discovery]
+      operationId: discovery
+      summary: Discovery document
+      security: []
+      responses:
+        '200':
+          description: Discovery document
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Discovery'}
+        '404': {$ref: '#/components/responses/Disabled'}
+  /connect/v1/health:
+    get:
+      tags: [discovery]
+      operationId: health
+      security: [{}, {dpop: []}]
+      responses:
+        '200':
+          description: Liveness. With a DPoP token, also the connection state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, protocol, installation_id, time]
+                properties:
+                  status: {type: string, enum: [ok, stopped]}
+                  protocol: {type: string, const: agit8or-connect/1}
+                  installation_id: {type: string, format: uuid}
+                  time: {type: integer}
+                  connection:
+                    type: object
+                    properties:
+                      id: {type: string, format: uuid}
+                      state: {type: string}
+  /connect/v1/pairing/requests:
+    post:
+      tags: [pairing]
+      operationId: submitPairingRequest
+      summary: Submit a pairing request (initiator → responder)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request:
+                  type: string
+                  description: Compact JWS, typ agit8or-pairing-request+jwt, header jwk = signing key
+      responses:
+        '202':
+          description: Accepted, awaiting the responder administrator
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request_id, ack]
+                properties:
+                  request_id: {type: string, format: uuid}
+                  ack: {type: string, description: 'Compact JWS, typ agit8or-pairing-ack+jwt'}
+                  status: {type: string, const: pending_approval}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /connect/v1/pairing/requests/{request_id}/status:
+    post:
+      tags: [pairing]
+      operationId: pairingStatus
+      security: []
+      parameters:
+        - {name: request_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proof]
+              properties:
+                proof: {type: string, description: 'Compact JWS typ agit8or-pairing-poll+jwt signed by the initiator connection key'}
+      responses:
+        '200':
+          description: Current status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string, enum: [pending, approved, rejected, expired]}
+                  result: {type: string, description: 'Compact JWS typ agit8or-pairing-result+jwt when approved or rejected'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /connect/v1/token:
+    post:
+      tags: [auth]
+      operationId: token
+      summary: OAuth 2.1 client credentials with private_key_jwt and DPoP
+      security: []
+      parameters:
+        - {name: DPoP, in: header, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type, client_id, client_assertion_type, client_assertion]
+              properties:
+                grant_type: {type: string, const: client_credentials}
+                client_id: {type: string, format: uuid}
+                client_assertion_type: {type: string, const: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'}
+                client_assertion: {type: string}
+                scope: {type: string}
+      responses:
+        '200':
+          description: Access token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, scope]
+                properties:
+                  access_token: {type: string}
+                  token_type: {type: string, const: DPoP}
+                  expires_in: {type: integer, maximum: 300}
+                  scope: {type: string}
+        '400': {$ref: '#/components/responses/OAuthError'}
+        '401': {$ref: '#/components/responses/OAuthError'}
+        '429': {$ref: '#/components/responses/OAuthError'}
+  /connect/v1/connections/{connection_id}/jwks:
+    get:
+      tags: [auth]
+      operationId: jwks
+      summary: Endorsed key set of one connection (publisher's connection id)
+      security: []
+      parameters:
+        - {name: connection_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Endorsed JWKS
+          content:
+            application/jwk-set+json:
+              schema:
+                type: object
+                required: [keys, endorsement]
+                properties:
+                  keys: {type: array, items: {$ref: '#/components/schemas/OkpJwk'}}
+                  endorsement: {type: string, description: 'JWS typ agit8or-jwks+jwt {iss, sub, keys_sha256, iat, exp}'}
+        '404': {$ref: '#/components/responses/Error'}
+  /connect/v1/capabilities:
+    get:
+      tags: [resources]
+      operationId: capabilities
+      security: [{dpop: ['connection:read']}]
+      responses:
+        '200':
+          description: What this connection may do
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection_id: {type: string, format: uuid}
+                  scopes: {type: array, items: {type: string}}
+                  event_types: {type: array, items: {type: string}}
+                  tenants:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tenant: {type: string}
+                        scopes: {type: array, items: {type: string}}
+                  catalog: {type: array, items: {$ref: '#/components/schemas/Scope'}}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+  /connect/v1/test:
+    post:
+      tags: [resources]
+      operationId: test
+      security: [{dpop: []}]
+      parameters:
+        - $ref: '#/components/parameters/Tenant'
+      responses:
+        '200':
+          description: Authenticated round trip
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: {type: boolean}
+                  connection_id: {type: string}
+                  scopes: {type: array, items: {type: string}}
+                  protocol: {type: string}
+                  time: {type: integer}
+                  tenant: {type: string, description: 'granted or an error code'}
+        '401': {$ref: '#/components/responses/Error'}
+  /connect/v1/customers:
+    get:
+      tags: [resources]
+      operationId: listCustomers
+      security: [{dpop: ['customers:read']}]
+      responses:
+        '200':
+          description: Customers granted to this connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenants:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tenant: {type: string}
+                        name: {type: string}
+                        scopes: {type: array, items: {type: string}}
+  /connect/v1/customers/current:
+    get:
+      tags: [resources]
+      operationId: currentCustomer
+      summary: Tenant-scoped sample resource
+      security: [{dpop: ['customers:read']}]
+      parameters:
+        - $ref: '#/components/parameters/TenantRequired'
+      responses:
+        '200':
+          description: The customer the Agit8or-Tenant header resolves to through this connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant: {type: string}
+                  name: {type: string}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+  /connect/v1/events:
+    post:
+      tags: [events]
+      operationId: receiveEvent
+      security: [{eventSignature: []}]
+      parameters:
+        - {name: Agit8or-Connection, in: header, required: true, schema: {type: string, format: uuid}}
+        - {name: Agit8or-Event-Id, in: header, required: true, schema: {type: string, format: uuid}}
+        - {name: Agit8or-Timestamp, in: header, required: true, schema: {type: string, pattern: '^[0-9]{1,11}$'}}
+        - {name: Agit8or-Key-Id, in: header, required: true, schema: {type: string}}
+        - {name: Agit8or-Signature, in: header, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EventEnvelope'}
+      responses:
+        '200':
+          description: Accepted (or already accepted / loop ignored)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [accepted, duplicate, ignored_loop]}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    dpop:
+      type: http
+      scheme: DPoP
+      description: 'Authorization: DPoP <at+jwt> plus a DPoP proof header (RFC 9449, EdDSA, ath bound).'
+    eventSignature:
+      type: apiKey
+      in: header
+      name: Agit8or-Signature
+      description: Ed25519 over the event signing string (PROTOCOL.md §9). Not a shared key.
+  parameters:
+    Tenant:
+      name: Agit8or-Tenant
+      in: header
+      required: false
+      description: Tenant id in the caller's namespace
+      schema: {type: string, maxLength: 128}
+    TenantRequired:
+      name: Agit8or-Tenant
+      in: header
+      required: true
+      schema: {type: string, maxLength: 128}
+  responses:
+    Disabled:
+      description: Agit8or Connect is switched off on this installation
+    Error:
+      description: Protocol error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    OAuthError:
+      description: OAuth error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: {type: string}
+              error_description: {type: string}
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            correlation_id: {type: string}
+    OkpJwk:
+      type: object
+      required: [kty, crv, x]
+      properties:
+        kty: {type: string, const: OKP}
+        crv: {type: string, const: Ed25519}
+        x: {type: string}
+        kid: {type: string}
+        use: {type: string}
+        alg: {type: string, const: EdDSA}
+    Scope:
+      type: object
+      required: [name, risk]
+      properties:
+        name: {type: string}
+        risk: {type: string, enum: [read, write, high_risk, admin]}
+        description: {type: string}
+        available: {type: boolean}
+        events: {type: array, items: {type: string}}
+    Discovery:
+      type: object
+      required: [protocol, versions, app, endpoints]
+      properties:
+        protocol: {type: string, const: agit8or-connect}
+        versions: {type: array, items: {type: string}}
+        app:
+          type: object
+          required: [type, installation_id]
+          properties:
+            type: {type: string}
+            version: {type: string}
+            display_name: {type: string}
+            installation_id: {type: string, format: uuid}
+        endpoints:
+          type: object
+          required: [pairing, pairing_status, token, jwks]
+          additionalProperties: {type: string, format: uri}
+        capabilities: {type: array, items: {$ref: '#/components/schemas/Scope'}}
+        events: {type: array, items: {type: string}}
+        tenant_model: {type: object}
+        security: {type: object}
+    EventEnvelope:
+      type: object
+      required: [id, type, tenant, data, sender]
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, pattern: '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,4}$'}
+        version: {type: integer}
+        tenant: {type: string}
+        data: {type: object}
+        sender: {type: string}
+        origin: {type: string}
+        correlation_id: {type: string}
+        causation_id: {type: string}
+        hops: {type: integer, minimum: 0}
+        idempotency_key: {type: string}
+        occurred_at: {type: integer}

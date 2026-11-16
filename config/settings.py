@@ -150,7 +150,12 @@ INSTALLED_APPS = [
     'hardware.apps.HardwareConfig',
     'office.apps.OfficeConfig',
     'contracts.apps.ContractsConfig',
+    'pricing.apps.PricingConfig',
     'pulse.apps.PulseConfig',
+    'oidc_sso.apps.OidcSsoConfig',
+    'payments.apps.PaymentsConfig',
+    'tax.apps.TaxConfig',
+    'connect.apps.ConnectConfig',  # Agit8or Connect (app-to-app); off unless AGIT8OR_CONNECT_ENABLED
     'health_score.apps.HealthScoreConfig',
 ]
 
@@ -175,6 +180,7 @@ MIDDLEWARE = [
     'core.portal_surface.PortalHostMiddleware',  # optional dedicated portal host name
     'core.csrf_middleware.MultiDomainCsrfViewMiddleware',  # Custom CSRF for multi-domain support
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'accounts.middleware.SessionEpochMiddleware',  # sign out everywhere (session epoch)
     'core.firewall_middleware.FirewallMiddleware',  # IP and GeoIP firewall (after auth for request.user)
     'django_otp.middleware.OTPMiddleware',
     'core.portal_surface.PortalUserGuardMiddleware',  # customer users stay on the portal surface
@@ -303,6 +309,9 @@ AUTHENTICATION_BACKENDS = [
     # apply to LDAP attempts too. Needs python-ldap + django-auth-ldap
     # (requirements-optional.txt); without them it is a no-op.
     'accounts.ldap_backend.ClientSt0rLDAPBackend',
+    # Generic OIDC single sign-on (oidc_sso). Never accepts credentials:
+    # it only names the backend of sessions the OIDC callback signed in.
+    'oidc_sso.backends.OIDCBackend',
 ]
 
 # Internationalization
@@ -705,14 +714,34 @@ REST_FRAMEWORK = {
 }
 
 # Encryption settings
-APP_MASTER_KEY = os.getenv('APP_MASTER_KEY', '')
+def _env_or_file(name, default=''):
+    """NAME from the environment, else the contents of the file named by
+    NAME_FILE (Docker / systemd secrets), else `default`."""
+    value = os.getenv(name, '')
+    if value:
+        return value
+    path = os.getenv(f'{name}_FILE', '')
+    if path:
+        with open(path, encoding='utf-8') as fh:
+            return fh.read().strip()
+    return default
+
+
+APP_MASTER_KEY = _env_or_file('APP_MASTER_KEY')
 if not APP_MASTER_KEY and not DEBUG and not AI_GATEWAY_ROLE:
     raise ValueError("APP_MASTER_KEY must be set in production")
 # Key rotation: previous master key(s), comma-separated. Decryption tries
 # APP_MASTER_KEY first, then these; new ciphertext always uses APP_MASTER_KEY.
 # Set this to the old key while `manage.py rotate_encryption_key` re-encrypts,
 # then remove it.
-APP_MASTER_KEY_PREVIOUS = os.getenv('APP_MASTER_KEY_PREVIOUS', '')
+APP_MASTER_KEY_PREVIOUS = _env_or_file('APP_MASTER_KEY_PREVIOUS')
+
+# Agit8or Connect (connect/, docs/agit8or-connect/): app-to-app connections.
+# Off by default: while off every Connect URL (API, discovery, admin pages)
+# answers 404. AGIT8OR_CONNECT_PUBLIC_URL is the https base other apps reach
+# this installation at; token audiences and DPoP URLs are checked against it.
+AGIT8OR_CONNECT_ENABLED = os.getenv('AGIT8OR_CONNECT_ENABLED', 'False').lower() == 'true'
+AGIT8OR_CONNECT_PUBLIC_URL = os.getenv('AGIT8OR_CONNECT_PUBLIC_URL', '').rstrip('/')
 
 # AI gateway (psa_ai/services/gateway_keys.py): 'in_process' (default, not
 # isolated) or 'worker' (only the restricted worker opens provider keys).

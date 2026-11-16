@@ -5,7 +5,8 @@ Protected settings: technician access above the L1 baseline (assignments,
 preset capabilities, group membership), RMM business mappings (a ticket-rmm-v1
 pairing of any RMM provider), the approver list, the recovery contact, AI
 provider destinations, security limits (theft-detection thresholds and
-containment), and the e-mail address of superusers, approvers and MSP
+containment), high-risk / admin permissions of a connected application
+(Agit8or Connect, connect/approvals.py), and the e-mail address of superusers, approvers and MSP
 technicians.
 
 Narrowing — revoking, lowering, tightening — applies at once and is

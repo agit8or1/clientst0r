@@ -1438,7 +1438,7 @@ class InvoiceAutomationAutoPushTests(TestCase):
 
         def fake_get_provider(conn):
             mp = mock.MagicMock()
-            def push_inv(invoice):
+            def push_inv(invoice, **kwargs):
                 captured_invoices.append(invoice.invoice_number)
                 return {'success': True, 'invoice_id': 'QBO-FAKE'}
             mp.push_invoice.side_effect = push_inv

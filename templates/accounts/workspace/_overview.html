@@ -190,6 +190,9 @@ support difficulty, contract documents, pulse trend) is shown as before.
     </section>
     {% endif %}
 
+    {# -- sales tax exemptions (manage_tax_settings only) ------------------ #}
+    {% load tax_tags %}{% client_tax_panel organization %}
+
     {# -- active projects ------------------------------------------------- #}
     {% if ws.projects %}
     <section class="card cw-panel" id="cw-projects">

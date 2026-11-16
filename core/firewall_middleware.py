@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.utils.deprecation import MiddlewareMixin
 import ipaddress
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +62,20 @@ class FirewallMiddleware(MiddlewareMixin):
         # an admin whose address changed can still log in and fix an allowlist.
         # v3.17.598: they used to skip the country check as well, which left the
         # login and 2FA pages reachable from every blocked country.
-        if settings.ip_firewall_enabled and not self.is_auth_path(request):
+        # Payment provider webhooks (Stripe, GoCardless) come from the
+        # providers' own servers, wherever they are, and are authenticated by
+        # their signature in the view. They skip the country check and the IP
+        # allowlist; an explicit IP blocklist entry still applies.
+        webhook = self.is_payment_webhook(request)
+
+        if settings.ip_firewall_enabled and not self.is_auth_path(request) and not (
+                webhook and settings.ip_firewall_mode != 'blocklist'):
             ip_blocked, ip_reason = self.check_ip_firewall(client_ip, settings)
             if ip_blocked:
                 return self.block_request(request, client_ip, '', '', ip_reason, settings)
 
         # Check GeoIP firewall
-        if geoip_enabled:
+        if geoip_enabled and not webhook:
             country_blocked, country_reason, country_code, country_name = self.check_geoip_firewall(
                 client_ip, settings, mode=geoip_mode, rule_surface=geoip_surface
             )
@@ -102,6 +110,12 @@ class FirewallMiddleware(MiddlewareMixin):
         '/auth/logout/',
         '/two_factor/',
     )
+
+    # Exact webhook endpoints only (payments/urls.py), POST only.
+    PAYMENT_WEBHOOK_RE = re.compile(r'^/payments/webhooks/(?:stripe|gocardless)/\d+/$')
+
+    def is_payment_webhook(self, request):
+        return request.method == 'POST' and bool(self.PAYMENT_WEBHOOK_RE.match(request.path))
 
     def is_auth_path(self, request):
         """Login, logout, SSO callbacks and 2FA."""

@@ -1769,6 +1769,13 @@ are built on top of them.
   operator sets `AZURE_SSO_TRUSTED_AS_2FA`; otherwise the user enters their
   authenticator code. Audit clean-up keeps at least 30 days, and new installs
   no longer write `REQUIRE_2FA=False`.
+- **Microsoft sign-in matched on identity, not e-mail** *(shipped v3.17.688)* —
+  a Microsoft sign-in finds an account only by the verified tenant and object
+  ID it is linked to. Existing accounts are linked by their owner after
+  re-authenticating, or by an administrator confirming a recorded request;
+  only the configured (or allow-listed) tenants are accepted; the flow uses
+  PKCE and a nonce; auto-create is off by default and creates accounts with no
+  access.
 - **Scheduled UniFi asset sync places and types devices correctly**
   *(shipped v3.17.664)* — the scheduled `sync_network_assets` run and the manual
   Import to Assets page share one implementation
@@ -2828,10 +2835,10 @@ request catalog (`ServiceCatalogItem`).
 
 Builds on Phase 44, which covers customer sync, invoice create and payment pull for QuickBooks Online and Xero.
 
-- **71.1 Invoice push safety** *(in progress — dev/invoice-push-safety)* — no duplicate invoice after a
+- **71.1 Invoice push safety** *(shipped v3.17.690)* — no duplicate invoice after a
   timeout, idempotency keys, row lock on push.
-- **71.2 QuickBooks Online mapping fixes** *(planned)* — correct item and account references.
-- **71.3 Xero payment account setting** *(planned)* — replace the bank account placeholder.
+- **71.2 QuickBooks Online mapping fixes** *(shipped v3.17.690 — GL code to Item mapping)* — correct item and account references.
+- **71.3 Xero payment account setting** *(shipped v3.17.690)* — replace the bank account placeholder.
 - **71.4 Invoice update, credit memos, refunds and voids** *(planned)*.
 - **71.5 Tax-code mapping** *(planned)*.
 - **71.6 Payment posting to the provider** *(planned)*.
@@ -2839,7 +2846,7 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **71.8 Retry queue and error review** *(planned)*.
 - **71.9 Other providers** *(planned)* — after QuickBooks Online and Xero, additional accounting providers
   as demand and real-provider testing allow.
-- **71.10 Billing-event integrity** *(in progress — dev/invoice-push-safety)* — stable internal billing-event
+- **71.10 Billing-event integrity** *(partial — one invoice per contract period shipped v3.17.690)* — stable internal billing-event
   IDs, idempotency keys, durable sync queue, reconciliation and duplicate detection; ambiguous submissions
   are reconciled before any retry; posted invoices changed only via provider amendment, void or credit memo.
 
@@ -2847,13 +2854,13 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 ## Phase 72 — Payment processing and sales tax **(L · payments)** [in progress]
 
-- **72.1 Stripe** *(in progress — dev/payments)* — currently a stub.
-- **72.2 GoCardless** *(in progress — dev/payments)* — currently a stub.
-- **72.3 Portal billing** *(in progress — dev/payments)* — invoices, balances and online payment for
+- **72.1 Stripe** *(shipped v3.17.690 — needs verification with test-mode keys)*.
+- **72.2 GoCardless** *(shipped v3.17.690 — needs verification with sandbox keys)*.
+- **72.3 Portal billing** *(shipped v3.17.690)* — invoices, balances and online payment for
   customers.
-- **72.4 Payment webhooks, refunds and idempotency** *(planned)*.
-- **72.5 Tax providers** *(in progress — dev/tax)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
-- **72.6 Quote tax default** *(in progress — dev/tax)* — warn instead of defaulting to zero.
+- **72.4 Payment webhooks, refunds and idempotency** *(shipped v3.17.690; posting payments to accounting planned under 71.6)*.
+- **72.5 Tax providers** *(shipped v3.17.690 — needs verification with sandbox credentials)* — real Avalara and TaxJar calls, and no silent zero tax on failure.
+- **72.6 Quote tax default** *(shipped v3.17.690)* — warn instead of defaulting to zero.
 
 **Sizing:** **L** — provider code needs sandbox testing before release.
 
@@ -2943,6 +2950,46 @@ Depends on Phases 72, 73 and 74.
 
 **Sizing:** **M** — scoring model and explanations first, then dashboard and portal display.
 
+## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
+
+A reusable, self-hosted standard for Agit8or applications to discover, pair, authenticate and exchange
+events with each other, starting with Clientst0r and Rem0te. It runs alongside the existing
+`ticket-rmm-v1` link, which keeps working unchanged.
+
+- **79.1 Protocol and SDKs** *(in progress — dev/agit8or-connect)* — versioned protocol and OpenAPI spec;
+  Python and TypeScript SDKs checked against shared test vectors.
+- **79.2 Pairing and credentials** *(in progress — dev/agit8or-connect)* — single-use, short-lived pairing
+  codes with administrator approval on the receiving side; a key pair per connection; short-lived access
+  tokens; no long-lived shared API keys.
+- **79.3 Permissions and customer grants** *(in progress — dev/agit8or-connect)* — human-readable scopes in
+  risk tiers; explicit per-customer grants; per-grant revocation and an emergency disconnect.
+- **79.4 Signed events and webhooks** *(in progress — dev/agit8or-connect)* — signed, replay-protected
+  delivery with retries and a failed-delivery queue.
+- **79.5 Connection wizard and credential dashboard** *(in progress — dev/agit8or-connect)* — off by default
+  until enabled by an administrator.
+- **79.6 Rem0te side** *(planned)* — implemented in the Rem0te repository against the shared contract.
+- **79.7 Device sync, alert tickets, ticket-to-device and approved remote actions over Connect** *(planned)*.
+
+**Sizing:** **XL** — protocol and Clientst0r side first, then the Rem0te side, then integration features.
+
+## Phase 80 — Agit8or Identity: single sign-on for people **(L · security)** [in progress]
+
+Single sign-on across Agit8or applications through a shared, self-hosted Keycloak, using standard OpenID
+Connect. Each application keeps making its own authorization decisions; signing in to one application never
+grants access to another. Kept separate from Agit8or Connect (separate keys, audiences, revocation and audit).
+
+- **80.1 Architecture and migration plan** *(in progress)* — design documents; nothing is deployed without
+  approval.
+- **80.2 Web "sign out everywhere"** *(shipped v3.17.689)* — per-user session cut-off; sign out other
+  sessions or everywhere; automatic on password and 2FA changes and on deactivation; administrator sign-out.
+- **80.3 OpenID Connect sign-in client** *(shipped v3.17.690 — not yet verified against a live Keycloak)* — works with any certified
+  provider; off by default; local, Microsoft and LDAP sign-in unchanged.
+- **80.4 Keycloak deployment** *(planned)* — requires approval.
+- **80.5 Single sign-on between Clientst0r and Rem0te** *(planned)*.
+- **80.6 Customer portal users** *(planned)*.
+
+**Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -3022,11 +3069,13 @@ Depends on Phases 72, 73 and 74.
 | 68 — Commercial price book and service plans | L | in progress (dev/price-book) | Phase 15 contracts; quotes and invoices |
 | 69 — Labor rate cards and cost rates | M | in progress (dev/price-book) | Phase 2 cost rates; Phase 68 |
 | 70 — Contracts, recurring billing and quote conversion | M | planned | Phases 65, 68, 69 |
-| 71 — Accounting sync completion | L | in progress (dev/invoice-push-safety) | extends Phase 44 |
-| 72 — Payment processing and sales tax | L | in progress (dev/payments) | Phase 71; customer portal |
+| 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
+| 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (dev/licensing) | Phase 4 and 13 procurement; Phase 68 |
 | 74 — Backup monitoring and endpoint health | L | in progress (dev/backup-monitoring) | Phase 63 RMM; Rem0te contract; Phase 9 |
 | 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (dev/profitability, dev/onboarding-wizard, dev/exec-dashboard) | Phases 68–74 |
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | planned | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
 | 78 — Customer health score | M | planned | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
+| 79 — Agit8or Connect | XL | in progress (dev/agit8or-connect) | Rem0te contract ticket-rmm-v1 |
+| 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |

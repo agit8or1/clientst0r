@@ -1,0 +1,77 @@
+<section class="card mb-3" id="tax-panel">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h6 mb-0"><i class="fas fa-percent" aria-hidden="true"></i> Sales tax <span class="small text-muted">· {{ mode_label }}</span></h2>
+    {% if can_edit %}
+    <form method="post" action="{% url 'tax:preview' doc_type document.pk %}" class="d-inline">{% csrf_token %}
+      <button class="btn btn-sm btn-outline-primary"><i class="fas fa-calculator" aria-hidden="true"></i> Preview tax</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if panel_error %}<div class="alert alert-warning small mb-2">Tax details could not be loaded ({{ panel_error }}).</div>{% endif %}
+    {% if not_configured %}
+      <div class="alert alert-secondary small mb-2" data-tax-status="not-configured"><strong>Tax not configured.</strong>
+        {% if mode == 'none' %}Sales tax is turned off in Tax settings, so this document carries no tax.{% else %}The flat tax rate on this document is 0%, so no tax is charged.{% endif %}</div>
+    {% endif %}
+    {% if exemption %}<div class="alert alert-info small mb-2">Customer exempt: {{ exemption.get_reason_display }}, certificate {{ exemption.certificate_number }}{% if exemption.valid_to %} (valid to {{ exemption.valid_to|date:"Y-m-d" }}){% endif %}.</div>{% endif %}
+    {% if calc %}
+      {% if calc.status == 'error' %}
+        <div class="alert alert-danger small mb-2" data-tax-status="error"><strong>Tax could not be calculated.</strong> {{ calc.error }}
+          <div class="mt-1">This {{ doc_type }} cannot be sent until tax is calculated{% if can_override %} or you enter a manual override below{% else %}, or a user with the <code>manage_tax_settings</code> permission enters a manual override{% endif %}.</div></div>
+      {% endif %}
+      {% if stale %}<div class="alert alert-warning small mb-2">The lines or address changed since tax was last calculated. Sending recalculates it; use Preview tax to see the new amount now.</div>{% endif %}
+      <dl class="row small mb-2">
+        <dt class="col-5">Status</dt><dd class="col-7">{{ calc.get_status_display }}{% if calc.committed %} · recorded with provider{% if calc.provider_transaction_code %} ({{ calc.provider_transaction_code }}){% endif %}{% endif %}{% if calc.voided_at %} · voided{% endif %}</dd>
+        <dt class="col-5">Calculated by</dt><dd class="col-7">{{ calc.get_provider_display }} · {{ calc.get_purpose_display }} · <span data-utc="{{ calc.created_at|date:'c' }}">{{ calc.created_at|date:"Y-m-d H:i" }}</span></dd>
+        <dt class="col-5">Tax</dt><dd class="col-7">{% if calc.total_tax is None %}—{% else %}{{ calc.total_tax }}{% endif %}</dd>
+        {% if calc.reason %}<dt class="col-5">Note</dt><dd class="col-7">{{ calc.reason }}</dd>{% endif %}
+        {% if calc.void_error %}<dt class="col-5">Void</dt><dd class="col-7 text-danger">{{ calc.void_error }}</dd>{% endif %}
+      </dl>
+      {% if calc.jurisdiction_breakdown %}
+      <table class="table table-sm small mb-2"><thead><tr><th>Jurisdiction</th><th>Type</th><th class="text-end">Rate</th><th class="text-end">Tax</th></tr></thead><tbody>
+        {% for j in calc.jurisdiction_breakdown %}<tr><td>{{ j.name }}</td><td>{{ j.type }}</td><td class="text-end">{{ j.rate }}</td><td class="text-end">{{ j.tax }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% endif %}
+      {% if breakdown %}
+      <details class="small mb-2"><summary>Per-line tax</summary>
+        <table class="table table-sm mb-0"><thead><tr><th>Line</th><th>Category</th><th class="text-end">Taxable</th><th class="text-end">Tax</th><th>Note</th></tr></thead><tbody>
+        {% for ln in breakdown %}<tr><td>{{ ln.description|truncatechars:50 }}</td><td>{{ ln.category|default:"—" }}</td><td class="text-end">{{ ln.taxable_amount|default:"—" }}</td><td class="text-end">{{ ln.tax|default:"—" }}</td><td>{{ ln.reason|default:"" }}</td></tr>{% endfor %}
+        </tbody></table></details>
+      {% endif %}
+    {% elif not not_configured %}
+      <p class="small text-muted mb-2">Tax has not been calculated for this {{ doc_type }} yet{% if can_edit %}: use Preview tax{% endif %}. It is calculated again when the {{ doc_type }} is sent.</p>
+    {% endif %}
+
+    {% if can_edit and is_draft and categories and line_cats %}
+    <details class="small mb-2"><summary>Line tax categories</summary>
+      <form method="post" action="{% url 'tax:line_categories' doc_type document.pk %}">{% csrf_token %}
+        {% for li, cat in line_cats %}
+        <div class="row g-2 align-items-center mb-1"><div class="col-7">{{ li.description|truncatechars:60 }}</div>
+          <div class="col-5"><select name="cat_{{ li.pk }}" class="form-select form-select-sm" aria-label="Tax category for {{ li.description }}">
+            <option value="">Default</option>
+            {% for c in categories %}<option value="{{ c.pk }}"{% if cat and cat.pk == c.pk %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+          </select></div></div>
+        {% endfor %}
+        <button class="btn btn-sm btn-outline-secondary mt-1">Save categories</button>
+      </form></details>
+    {% endif %}
+
+    {% if can_override and is_draft %}
+    <details class="small"{% if calc.status == 'error' %} open{% endif %}><summary>Manual tax override</summary>
+      <form method="post" action="{% url 'tax:override' doc_type document.pk %}" class="mt-2">{% csrf_token %}
+        <div class="row g-2"><div class="col-4"><label class="form-label" for="tax-ov-amount">Tax amount</label>
+          <input id="tax-ov-amount" name="amount" type="number" step="0.01" class="form-control form-control-sm" required></div>
+          <div class="col-8"><label class="form-label" for="tax-ov-reason">Reason (audited)</label>
+          <input id="tax-ov-reason" name="reason" class="form-control form-control-sm" required maxlength="500"></div></div>
+        <button class="btn btn-sm btn-warning mt-2">Apply override</button>
+        <div class="form-text">Applies to the current lines only; any change to the lines needs a new calculation.</div>
+      </form></details>
+    {% endif %}
+
+    {% if history|length > 1 %}
+    <details class="small mt-2"><summary>Calculation history</summary><ul class="mb-0">
+      {% for h in history %}<li><span data-utc="{{ h.created_at|date:'c' }}">{{ h.created_at|date:"Y-m-d H:i" }}</span> · {{ h.get_provider_display }} · {{ h.get_purpose_display }} · {{ h.get_status_display }} · {% if h.total_tax is None %}—{% else %}{{ h.total_tax }}{% endif %}{% if h.created_by %} · {{ h.created_by }}{% endif %}</li>{% endfor %}
+    </ul></details>
+    {% endif %}
+  </div>
+</section>
