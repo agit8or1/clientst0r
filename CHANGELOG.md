@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.695] - 2026-11-16
+
+### Added
+- **Customer backup monitoring** (Asset Management → Backups). Proxmox Backup Server is polled over its API;
+  restic, Borg and Kopia hosts push signed JSON reports. Shows jobs, runs, missed and failed backups,
+  repository capacity and restore tests, with alert policies, alerts that can become tickets, and a
+  backup panel in the Device Workspace. Connections can belong to one customer or be MSP-wide with
+  systems mapped to customers. Stale data is shown as stale, never as healthy. Commercial backup
+  products are not implemented yet. See `docs/BACKUP_MONITORING.md`.
+- **Customer health score** (Business → Client Health). Six dimensions (technical, security, backup,
+  service delivery, commercial, satisfaction) built from existing records, with configurable weights and
+  thresholds, a nightly snapshot task, trends and an explanation of every signal. Unknown or stale data
+  carries no weight and the score always says how many dimensions it is based on. MSP staff only.
+- Role permissions `view_backup_status`, `manage_backup_integrations` and `manage_health_score_settings`.
+  Uncustomized built-in roles get them per their definitions (Owner and Organization Administrator get
+  all three; Service Manager, technicians and Auditor get backup view); customized roles are unchanged.
+
+### Notes
+- Push reports come from customer backup hosts. Installs using the GeoIP country allowlist or the IP
+  allowlist must allow those hosts' addresses, or the reports are refused.
+
 ## [3.17.694] - 2026-11-16
 
 ### Fixed
