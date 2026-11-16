@@ -29,5 +29,9 @@
   <td>{% if p.asset.hardware %}<a href="{% url 'hardware:device_detail' p.asset.hardware.pk %}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</td>
   <td>{{ p.get_face_display }}</td><td>{{ p.is_full_depth|yesno:"Full,Half" }}</td><td>{{ p.asset.hardware.hardware_model|default:"—" }}</td></tr>
 {% empty %}<tr><td colspan="5" class="text-muted">Nothing mounted yet. Set a rack position when adding or editing a device.</td></tr>{% endfor %}</tbody></table>
-<script nonce="{{ csp_nonce }}">document.getElementById('hw-rack-jump').addEventListener('change', e => { location.href = e.target.value; });</script>
+<script nonce="{{ csp_nonce }}">document.getElementById('hw-rack-jump').addEventListener('change', e => {
+  // Only this site's own rack URLs (path-absolute, not //host) are followed.
+  const v = e.target.value;
+  if (/^\/(?![\/\\])/.test(v)) location.assign(new URL(v, location.origin).pathname);
+});</script>
 </div>{% endblock %}

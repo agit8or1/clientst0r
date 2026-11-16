@@ -2052,15 +2052,15 @@ def apply_snyk_remediation(request):
             'message': 'Package and version are required'
         })
 
-    # Validate package name (prevent command injection)
-    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', package):
+    # Validate package name (prevent command / option injection: no leading '-')
+    if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_.\-]*$', package):
         return JsonResponse({
             'success': False,
             'message': 'Invalid package name'
         })
 
     # Validate version (prevent command injection)
-    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', version):
+    if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_.\-]*$', version):
         return JsonResponse({
             'success': False,
             'message': 'Invalid version format'
@@ -2172,8 +2172,8 @@ def fix_all_snyk_vulnerabilities(request):
             })
             continue
 
-        # Validate package name (prevent command injection)
-        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', package):
+        # Validate package name (prevent command / option injection: no leading '-')
+        if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_.\-]*$', package):
             results.append({
                 'success': False,
                 'package': package,
@@ -2182,7 +2182,7 @@ def fix_all_snyk_vulnerabilities(request):
             continue
 
         # Validate version (prevent command injection)
-        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', version):
+        if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_.\-]*$', version):
             results.append({
                 'success': False,
                 'package': package,

@@ -25,6 +25,11 @@
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  // A colour reaches a style attribute only as a hex literal; anything else
+  // (the VLAN and cable colour fields are free text) draws nothing.
+  const cssColor = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? String(c) : 'transparent';
+  // Ids and other numbers are escaped too: they come from the page's JSON.
+  const num = n => esc(n);
   const csrf = () => (document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || '';
   const url = (name, id) => D.urls[name].replace('/0/', '/' + id + '/');
 
@@ -160,7 +165,7 @@
 
   function renderLegend() {
     const L = $('#hw-legend');
-    const sw = (color, text, label, outline) => `<span><span class="sw" style="background:${outline ? 'transparent' : color};${outline ? 'border:1px dashed ' + color : ''}">${esc(text || '')}</span>${esc(label)}</span>`;
+    const sw = (color, text, label, outline) => `<span><span class="sw" style="background:${outline ? 'transparent' : cssColor(color)};${outline ? 'border:1px dashed ' + cssColor(color) : ''}">${esc(text || '')}</span>${esc(label)}</span>`;
     let html = '';
     const m = state.overlay;
     if (m === 'vlan') {
@@ -178,12 +183,12 @@
       html = sw('#0ca678', '✎', 'Has description or technician label') + sw('#adb5bd', '', 'Undocumented', true);
     }
     const cabled = state.ports.filter(p => p.cable).length, total = state.ports.length;
-    L.innerHTML = html + `<span class="ms-auto text-muted">${cabled}/${total} ports with a documented cable</span>`;
+    L.innerHTML = html + `<span class="ms-auto text-muted">${num(cabled)}/${num(total)} ports with a documented cable</span>`;
   }
 
   // ------------------------------------------------------------------ table
   function vlanChips(p) {
-    const chip = (v, suffix) => `<span class="hw-vchip" style="background:${v.color}">${v.vid}${suffix || ''}</span>`;
+    const chip = (v, suffix) => `<span class="hw-vchip" style="background:${cssColor(v.color)}">${num(v.vid)}${esc(suffix || '')}</span>`;
     let s = p.mode ? `<span class="small text-muted">${esc(p.mode)}</span> ` : '';
     if (p.untagged_vlan) s += chip(p.untagged_vlan, p.mode === 'trunk' ? 'n' : '');
     p.tagged_vlans.forEach(v => { s += chip(v, 't'); });
@@ -198,9 +203,9 @@
       p.untagged_vlan && p.untagged_vlan.vid, ...p.tagged_vlans.map(v => v.vid), ...p.peers.map(x => x.device + ' ' + x.name),
       p.cable && p.cable.label].join(' ').toLowerCase().includes(f)));
     $('#hw-port-table tbody').innerHTML = rows.map(p => `
-      <tr data-id="${p.id}" id="port-${p.id}" class="${state.sel.has(p.id) ? 'selected' : ''}">
+      <tr data-id="${num(p.id)}" id="port-${num(p.id)}" class="${state.sel.has(p.id) ? 'selected' : ''}">
         <td><input type="checkbox" class="hw-row-check" ${state.sel.has(p.id) ? 'checked' : ''} aria-label="Select ${esc(p.name)}"></td>
-        <td><a href="#port-${p.id}" class="hw-open fw-semibold">${esc(p.name)}</a>${p.label && p.label !== p.name ? ' <span class="text-muted small">#' + esc(p.label) + '</span>' : ''}
+        <td><a href="#port-${num(p.id)}" class="hw-open fw-semibold">${esc(p.name)}</a>${p.label && p.label !== p.name ? ' <span class="text-muted small">#' + esc(p.label) + '</span>' : ''}
           ${p.module_bay ? '<span class="badge bg-light text-dark">' + esc(p.module_bay) + '</span>' : ''}${p.is_custom ? ' <span class="badge bg-info text-dark">custom</span>' : ''}
           ${!p.key && !p.is_custom ? '' : ''}${p.combo_group ? ' <span class="badge bg-warning text-dark" title="Combo: only one of this group can be used">combo</span>' : ''}
           ${!p.populated ? ' <span class="badge bg-secondary">not fitted</span>' : ''}</td>
@@ -208,8 +213,8 @@
         <td class="small">${esc(p.description)}${p.tech_label ? '<div><span class="badge text-bg-light border">' + esc(p.tech_label) + '</span></div>' : ''}</td>
         <td>${p.vlan_capable ? vlanChips(p) : '<span class="text-muted small">n/a</span>'}</td>
         <td class="small">${p.poe_mode ? esc(p.poe_mode.toUpperCase()) + (p.poe_setting ? ' · ' + esc(p.poe_setting) : '') : ''}</td>
-        <td class="small">${p.peers.map(x => `<a href="/hardware/devices/${x.device_id}/#port-${x.id}">${esc(x.device)} / ${esc(x.label || x.name)}</a>`).join('<br>')}</td>
-        <td class="small">${p.cable ? `<a href="/hardware/cables/${p.cable.id}/">${esc(p.cable.label)}</a>${p.cable.color ? ` <span class="sw" style="display:inline-block;width:.9em;height:.9em;border-radius:2px;background:${esc(p.cable.color)}"></span>` : ''}` : ''}</td>
+        <td class="small">${p.peers.map(x => `<a href="/hardware/devices/${num(x.device_id)}/#port-${num(x.id)}">${esc(x.device)} / ${esc(x.label || x.name)}</a>`).join('<br>')}</td>
+        <td class="small">${p.cable ? `<a href="/hardware/cables/${num(p.cable.id)}/">${esc(p.cable.label)}</a>${p.cable.color ? ` <span class="sw" style="display:inline-block;width:.9em;height:.9em;border-radius:2px;background:${cssColor(p.cable.color)}"></span>` : ''}` : ''}</td>
       </tr>`).join('') || '<tr><td colspan="8" class="text-muted">No ports match.</td></tr>';
     $('#hw-port-table').dataset.visible = rows.map(p => p.id).join(',');
   }
@@ -245,12 +250,12 @@
   // ------------------------------------------------------------------ editor
   const offPort = new bootstrap.Offcanvas('#hwPort');
   function fillVlanSelects() {
-    const opts = '<option value="">— none —</option>' + state.vlans.map(v => `<option value="${v.id}">${v.vid} — ${esc(v.name)}${v.group ? ' (' + esc(v.group) + ')' : ''}</option>`).join('');
+    const opts = '<option value="">— none —</option>' + state.vlans.map(v => `<option value="${num(v.id)}">${num(v.vid)} — ${esc(v.name)}${v.group ? ' (' + esc(v.group) + ')' : ''}</option>`).join('');
     $$('.hw-vlan-select').forEach(s => { s.innerHTML = (s.dataset.keep ? '<option value="__keep">(unchanged)</option>' : '') + opts; });
-    $$('.hw-vlan-multi').forEach(s => { s.innerHTML = state.vlans.map(v => `<option value="${v.id}">${v.vid} — ${esc(v.name)}</option>`).join(''); });
-    $('#pf-lag').innerHTML = '<option value="">— none —</option>' + D.lags.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+    $$('.hw-vlan-multi').forEach(s => { s.innerHTML = state.vlans.map(v => `<option value="${num(v.id)}">${num(v.vid)} — ${esc(v.name)}</option>`).join(''); });
+    $('#pf-lag').innerHTML = '<option value="">— none —</option>' + D.lags.map(l => `<option value="${num(l.id)}">${esc(l.name)}</option>`).join('');
     const pp = $('#pp-panel');
-    if (pp) pp.innerHTML = (D.panels || []).map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.model)})</option>`).join('') || '<option value="">No patch panels at this client</option>';
+    if (pp) pp.innerHTML = (D.panels || []).map(d => `<option value="${num(d.id)}">${esc(d.name)} (${esc(d.model)})</option>`).join('') || '<option value="">No patch panels at this client</option>';
   }
 
   function openPort(id) {
@@ -300,8 +305,8 @@
       $('#pf-conn').innerHTML = p.populated ? '<span class="text-muted">No cable documented on this port.</span>' : '<span class="text-muted">Not fitted.</span>';
       return;
     }
-    $('#pf-conn').innerHTML = `Cable <a href="/hardware/cables/${c.id}/">${esc(c.label)}</a> (${esc(c.type_label || 'type not set')}${c.status !== 'connected' ? ', ' + esc(c.status) : ''}) to ` +
-      p.peers.map(x => `<a href="/hardware/devices/${x.device_id}/#port-${x.id}">${esc(x.device)} / ${esc(x.label || x.name)}</a>`).join(', ');
+    $('#pf-conn').innerHTML = `Cable <a href="/hardware/cables/${num(c.id)}/">${esc(c.label)}</a> (${esc(c.type_label || 'type not set')}${c.status !== 'connected' ? ', ' + esc(c.status) : ''}) to ` +
+      p.peers.map(x => `<a href="/hardware/devices/${num(x.device_id)}/#port-${num(x.id)}">${esc(x.device)} / ${esc(x.label || x.name)}</a>`).join(', ');
     $('#pc-label').value = c.label.startsWith('#') ? '' : c.label;
     $('#pc-type').value = c.type || '';
     $('#pc-color').value = /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#1f77b4';
@@ -327,10 +332,10 @@
   function traceHtml(t) {
     const label = {complete: ['success', 'Complete path'], incomplete: ['warning text-dark', 'Incomplete documentation'],
       loop: ['danger', 'Loop detected'], split: ['info text-dark', 'Breakout / split'], ambiguous: ['secondary', 'Ambiguous']}[t.status] || ['secondary', t.status];
-    let h = `<div class="mb-1"><span class="badge bg-${label[0]}">${label[1]}</span></div><div class="hw-trace">`;
+    let h = `<div class="mb-1"><span class="badge bg-${esc(label[0])}">${esc(label[1])}</span></div><div class="hw-trace">`;
     t.steps.forEach((s, i) => {
       if (i) h += '<span class="arrow">→</span>';
-      if (s.kind === 'port') h += `<div class="step port ${s['class'] === 'front_port' || s['class'] === 'rear_port' ? 'passive' : ''}"><a href="/hardware/devices/${s.device_id}/#port-${s.id}">${esc(s.device)}</a><div class="small">${esc(s.label || s.name)}${s['class'] === 'rear_port' ? ' (rear)' : s['class'] === 'front_port' ? ' (front)' : ''}${s.position ? ' pos ' + s.position : ''}</div></div>`;
+      if (s.kind === 'port') h += `<div class="step port ${s['class'] === 'front_port' || s['class'] === 'rear_port' ? 'passive' : ''}"><a href="/hardware/devices/${num(s.device_id)}/#port-${num(s.id)}">${esc(s.device)}</a><div class="small">${esc(s.label || s.name)}${s['class'] === 'rear_port' ? ' (rear)' : s['class'] === 'front_port' ? ' (front)' : ''}${s.position ? ' pos ' + esc(s.position) : ''}</div></div>`;
       else if (s.kind === 'cable') h += `<div class="step cable"><i class="fas fa-ethernet"></i> ${esc(s.label)}<div class="small text-muted">${esc(s.type || '')} ${esc(s.length || '')}</div></div>`;
       else h += `<div class="step internal">${esc(s.note)}</div>`;
     });
@@ -405,7 +410,7 @@
   function cxSearch() {
     const p = byId.get(state.active);
     api(D.urls.search + '?free=1&exclude=' + p.id + '&q=' + encodeURIComponent($('#cx-q').value.trim())).then(j => {
-      $('#cx-results').innerHTML = j.results.map(r => `<button type="button" class="list-group-item list-group-item-action py-1" data-id="${r.id}" data-text="${esc(r.device + ' / ' + (r.label || r.name))}">
+      $('#cx-results').innerHTML = j.results.map(r => `<button type="button" class="list-group-item list-group-item-action py-1" data-id="${num(r.id)}" data-text="${esc(r.device + ' / ' + (r.label || r.name))}">
         <strong>${esc(r.device)}</strong> / ${esc(r.name)}${r.label && r.label !== r.name ? ' <span class="text-muted">(' + esc(r.label) + ')</span>' : ''}
         <span class="small text-muted ms-2">${esc(r['class'])}${r.description ? ' · ' + esc(r.description) : ''}</span></button>`).join('') ||
         '<div class="list-group-item text-muted">No free ports match.</div>';
@@ -515,7 +520,11 @@
     far = +b.dataset.id;
     $$('#cx-results .active').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    $('#cx-chosen').innerHTML = 'Far end: <strong>' + b.dataset.text + '</strong>';
+    // dataset.text is the decoded attribute value, i.e. the raw device and
+    // port names: it must go in as text, never as HTML.
+    const chosen = $('#cx-chosen'), strong = document.createElement('strong');
+    strong.textContent = b.dataset.text || '';
+    chosen.replaceChildren('Far end: ', strong);
     $('#cx-save').disabled = false;
   });
   $('#cx-save').addEventListener('click', doConnect);

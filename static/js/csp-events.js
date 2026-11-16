@@ -170,7 +170,9 @@
         }
         if (el.hasAttribute('data-navigate')) {
             var to = el.value || '';
-            if (to.charAt(0) === '/' && to.charAt(1) !== '/') window.location.assign(to);
+            // Path-absolute only: not //host, and not /\host, which browsers treat
+            // as //host.
+            if (/^\/(?![\/\\])/.test(to)) window.location.assign(to);
         }
         if (el.hasAttribute('data-on-change')) {
             callNamed(el, 'data-on-change', ev);

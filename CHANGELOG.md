@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.693] - 2026-11-16
+
+### Security
+- Hardware device page, Connect dialog: the chosen far end was written into the page as HTML from `data-text`, which the browser hands back decoded, so a device or port named `<img src=x onerror=…>` ran script for whoever connected a cable to it. It is now inserted as text. The rest of the page's markup escapes every value it interpolates, ids included, and VLAN and cable colours (free-text fields) reach a `style` attribute only as a hex colour; anything else draws nothing. Same for the device layout editor (CodeQL `js/xss-through-dom`).
+- Assets → port configuration form: port descriptions, VLAN names and descriptions from the saved configuration (or pasted JSON) were put into `value="…"` unescaped, so a stored value could break out of the attribute. They are escaped now.
+- Reports → saved query form: field and column names and saved filter values are escaped before they go into the filter and column markup (the filter value used to escape only `"`).
+- `data-navigate` selects and the rack switcher follow only path-absolute URLs: `/\host` (which browsers treat as `//host`) is refused as `//host` already was.
+- Regular expressions that could take quadratic time on crafted input (CodeQL `py/polynomial-redos`): secure-message link scrubbing in stored e-mail copies (`psa.ticket_secure.scrub_secret_links`, rewritten as a linear scan with the same result — checked against the old pattern on 200,000 random strings), the Graph outbound address check (an address with an empty domain label such as `a@b..c`, which Graph refuses anyway, is now refused here), service-request subject clean-up, contract PDF tag stripping and runbook tag stripping in AI troubleshooting.
+- Root helper one-time setup: the sudo password is removed from the setup output before it is logged or shown on the page (CodeQL `py/clear-text-logging-sensitive-data`). Payments logs the attempt id, not the provider's checkout session id, when a stale checkout cannot be expired.
+- Document import parses the `.docx` XML with `defusedxml` (no DTDs or entity expansion), like the file previews and Office formats already did. `defusedxml` is now listed in `requirements.txt`; it was already installed as a dependency of another package and imported by `office/formats.py`.
+- Snyk remediation (superuser): a package name or version must start with a letter or digit, so nothing reaches `pip` as an option.
+
+### Code scanning
+- The remaining high-severity and Semgrep error-level alerts were reviewed one by one; false positives, test-only code and administrator-configured values were dismissed with the reason recorded on each alert (for example the media and upgrade-backup path checks, the administrator's ticket-subject regex, and the SVG export regexes, which only ever see this app's own renderer output).
+
 ## [3.17.692] - 2026-11-16
 
 ### Added
