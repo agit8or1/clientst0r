@@ -522,6 +522,10 @@ SECTIONS = (
             'accounts:organization_create', 'accounts:organization_delete',
             'accounts:organization_service_info', 'accounts:ownership_transfer',
             'accounts:member_add', 'accounts:member_edit', 'accounts:member_remove')),
+    )),
+
+    # One item in the Clients group (not a new menu): the onboarding wizard.
+    Section('clients_onboarding', 'clients', _('Onboard Customer'), tabs=(
         Tab(_('Onboard Customer'), 'onboarding:start', 'fa-user-plus',
             gate=_all(_msp_staff, _perm_any_org('manage_customer_onboarding')),
             also=('onboarding:session', 'onboarding:step'),
@@ -1212,6 +1216,8 @@ PRIMARY = (
         # The selected client's workspace (accounts:organization_detail).
         Entry(_('Client Workspace'), url_name='accounts:organization_detail', icon='fa-id-card',
               current_org=True, gate=_has_org, keywords='current client overview workspace'),
+        Entry(_('Onboard Customer'), section='clients_onboarding', icon='fa-user-plus',
+              keywords='onboarding new customer wizard lifecycle change renewal offboarding'),
         Entry(_('Customer Operations'), url_name='core:customer_ops_current', icon='fa-binoculars',
               keywords='sla uptime renewals invoices aging'),
     )),
