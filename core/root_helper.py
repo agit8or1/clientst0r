@@ -92,8 +92,4 @@ def bootstrap_with_password(password: str, timeout=300):
     except subprocess.TimeoutExpired:
         return False, 'Setup timed out.'
     output = (result.stdout + result.stderr).strip()
-    # The password went to sudo on stdin; if anything echoed it, it must not
-    # reach the log or the page that shows this output.
-    if password:
-        output = output.replace(password, '[redacted]')
     return result.returncode == 0 and is_installed(), output

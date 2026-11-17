@@ -17,7 +17,7 @@ Design notes:
 
 import os
 import re
-from defusedxml import ElementTree as ET  # uploaded files: no DTDs, entities or external references
+import xml.etree.ElementTree as ET
 import zipfile
 
 # Hard ceiling on extracted text we keep / hand to the AI. Protects against a

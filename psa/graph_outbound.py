@@ -37,9 +37,7 @@ logger = logging.getLogger('psa.graph_outbound')
 
 # Conservative RFC 5322-ish address check — enough to reject obvious garbage
 # before we hand recipients to Graph.
-# Dots split the domain into labels, so there is one way to match a string
-# (the old [^@\s]+\.[^@\s]+ was quadratic on 'a@b.b.b.b…').
-_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$')
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 # Statuses that mean "do not retry".
 _PERMANENT_CATEGORIES = ('auth', 'validation', 'permanent', 'uncertain')

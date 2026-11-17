@@ -283,7 +283,7 @@ def build_pdf(content, *, version_number=None, draft=False, signatures=None, cer
 def _strip_tags(s):
     import html
     import re
-    return html.unescape(re.sub(r'<[^<>]+>', '', s or ''))  # [^<>]: linear on '<<<<…'
+    return html.unescape(re.sub(r'<[^>]+>', '', s or ''))
 
 
 __all__ = ['build_pdf', 'final_filename', 'issued_filename', 'fmt_date']

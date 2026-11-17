@@ -319,7 +319,7 @@ def _keywords(text, limit=8) -> List[str]:
 RUNBOOK_KEYWORDS = 12
 RUNBOOK_CANDIDATES = 100
 RUNBOOK_MIN_SCORE = 2
-_TAG = re.compile(r'<[^<>]+>')  # [^<>] keeps it linear on '<<<<…'
+_TAG = re.compile(r'<[^>]+>')
 
 
 def _match_score(words, title, labels, body):

@@ -258,14 +258,6 @@ document.addEventListener('DOMContentLoaded', function() {
     renderVLANs();
 });
 
-// Port and VLAN fields are free text from the saved configuration (or pasted
-// JSON): escape them before they go into the row markup.
-function escAttr(v) {
-    return String(v == null ? '' : v).replace(/[&<>"'`]/g, function (c) {
-        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;'}[c];
-    });
-}
-
 function renderPorts() {
     const container = document.getElementById('ports-container');
     container.innerHTML = '';
@@ -274,21 +266,21 @@ function renderPorts() {
         const row = document.createElement('div');
         row.className = 'port-row';
         row.innerHTML = `
-            <input type="text" class="form-control form-control-sm" value="${escAttr(port.port_number || index + 1)}"
-                   data-on-change="updatePort" data-args='[${Number(index)}, "port_number", "$value"]'>
-            <input type="text" class="form-control form-control-sm" value="${escAttr(port.description || '')}"
-                   data-on-change="updatePort" data-args='[${Number(index)}, "description", "$value"]' placeholder="Port description">
-            <select class="form-select form-select-sm" data-on-change="updatePort" data-args='[${Number(index)}, "type", "$value"]'>
+            <input type="text" class="form-control form-control-sm" value="${port.port_number || index + 1}"
+                   data-on-change="updatePort" data-args='[${index}, "port_number", "$value"]'>
+            <input type="text" class="form-control form-control-sm" value="${port.description || ''}"
+                   data-on-change="updatePort" data-args='[${index}, "description", "$value"]' placeholder="Port description">
+            <select class="form-select form-select-sm" data-on-change="updatePort" data-args='[${index}, "type", "$value"]'>
                 <option value="access" ${port.type === 'access' ? 'selected' : ''}>Access</option>
                 <option value="trunk" ${port.type === 'trunk' ? 'selected' : ''}>Trunk</option>
             </select>
-            <input type="text" class="form-control form-control-sm" value="${escAttr(port.vlan || '')}"
-                   data-on-change="updatePort" data-args='[${Number(index)}, "vlan", "$value"]' placeholder="VLAN ID">
-            <select class="form-select form-select-sm" data-on-change="updatePort" data-args='[${Number(index)}, "status", "$value"]'>
+            <input type="text" class="form-control form-control-sm" value="${port.vlan || ''}"
+                   data-on-change="updatePort" data-args='[${index}, "vlan", "$value"]' placeholder="VLAN ID">
+            <select class="form-select form-select-sm" data-on-change="updatePort" data-args='[${index}, "status", "$value"]'>
                 <option value="active" ${port.status === 'active' ? 'selected' : ''}>Active</option>
                 <option value="inactive" ${port.status === 'inactive' ? 'selected' : ''}>Inactive</option>
             </select>
-            <button type="button" class="btn btn-sm btn-outline-danger" data-action="removePort" data-args='[${Number(index)}]'>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-action="removePort" data-args='[${index}]'>
                 <i class="fas fa-trash"></i>
             </button>
         `;
@@ -306,13 +298,13 @@ function renderVLANs() {
         const row = document.createElement('div');
         row.className = 'vlan-row';
         row.innerHTML = `
-            <input type="number" class="form-control form-control-sm" value="${escAttr(vlan.vlan_id || '')}"
-                   data-on-change="updateVLAN" data-args='[${Number(index)}, "vlan_id", "$value"]' placeholder="10">
-            <input type="text" class="form-control form-control-sm" value="${escAttr(vlan.name || '')}"
-                   data-on-change="updateVLAN" data-args='[${Number(index)}, "name", "$value"]' placeholder="Management">
-            <input type="text" class="form-control form-control-sm" value="${escAttr(vlan.description || '')}"
-                   data-on-change="updateVLAN" data-args='[${Number(index)}, "description", "$value"]' placeholder="Description">
-            <button type="button" class="btn btn-sm btn-outline-danger" data-action="removeVLAN" data-args='[${Number(index)}]'>
+            <input type="number" class="form-control form-control-sm" value="${vlan.vlan_id || ''}"
+                   data-on-change="updateVLAN" data-args='[${index}, "vlan_id", "$value"]' placeholder="10">
+            <input type="text" class="form-control form-control-sm" value="${vlan.name || ''}"
+                   data-on-change="updateVLAN" data-args='[${index}, "name", "$value"]' placeholder="Management">
+            <input type="text" class="form-control form-control-sm" value="${vlan.description || ''}"
+                   data-on-change="updateVLAN" data-args='[${index}, "description", "$value"]' placeholder="Description">
+            <button type="button" class="btn btn-sm btn-outline-danger" data-action="removeVLAN" data-args='[${index}]'>
                 <i class="fas fa-trash"></i>
             </button>
         `;
