@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `DEBUG` off, which creates the log directory at import time, and a CI runner cannot create anything
   under `/var/log`. The log directory is now `ITDOCS_LOG_DIR` (default `/var/log/itdocs`, so deployments are
   unchanged), and the e2e settings point it at the run's scratch directory.
+- **A crashed cross-peer check now shows its error.** Check details were cut to their first 800 characters,
+  which for a traceback is the call stack without the exception; long details now keep the end.
 
 ## [3.17.701] - 2026-11-16
 
