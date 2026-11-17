@@ -7,7 +7,7 @@ an error message is still removed.
 """
 from __future__ import annotations
 
-import csv
+from core import csv_safe
 import io
 from collections import Counter, defaultdict
 
@@ -100,7 +100,7 @@ def build_report(plan):
 
 def records_csv(report):
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=RECORD_COLUMNS)
+    writer = csv_safe.DictWriter(buf, fieldnames=RECORD_COLUMNS)
     writer.writeheader()
     for row in report['records']:
         writer.writerow(row)
@@ -109,7 +109,7 @@ def records_csv(report):
 
 def summary_csv(report):
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=SUMMARY_COLUMNS)
+    writer = csv_safe.DictWriter(buf, fieldnames=SUMMARY_COLUMNS)
     writer.writeheader()
     for row in report['summary']:
         writer.writerow({k: row.get(k, '') for k in SUMMARY_COLUMNS})

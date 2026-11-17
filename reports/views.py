@@ -1,6 +1,7 @@
 """
 Views for Reports and Analytics
 """
+from core import csv_safe
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -955,7 +956,7 @@ def _psa_report_csv(report_type, data):
     import csv as _csv
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{report_type}.csv"'
-    writer = _csv.writer(response)
+    writer = csv_safe.writer(response)
 
     if 'rows' in data and isinstance(data['rows'], list):
         rows = data['rows']
@@ -1050,7 +1051,7 @@ def _csv_response(filename, header, rows, totals_row=None, label=None):
     an optional totals row."""
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    writer = _csv.writer(response)
+    writer = csv_safe.writer(response)
     if label:
         writer.writerow([f'# {label}'])
     writer.writerow(header)
@@ -1322,7 +1323,7 @@ def psa_revenue_leakage(request):
             f'attachment; filename="revenue-leakage-'
             f'{start_date.isoformat()}-{end_date.isoformat()}.csv"'
         )
-        writer = _csv.writer(response)
+        writer = csv_safe.writer(response)
         writer.writerow([
             'Section', 'Client', 'Detail', 'Quantity', 'Amount',
         ])
@@ -1849,7 +1850,7 @@ def psa_client_health(request):
     if (request.GET.get('format') or '').lower() == 'csv':
         resp = HttpResponse(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="client_health.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Client', 'Score', 'Category',
                     'SLA', 'Velocity', 'Aging', 'Engagement', 'NPS',
                     'Tickets 30d', 'Over 60d ($)'])
@@ -2624,7 +2625,7 @@ def saved_query_run(request, pk):
         resp['Content-Disposition'] = (
             f'attachment; filename="{sq.name[:40].replace(" ", "_")}.csv"'
         )
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(columns)
         for r in rows:
             w.writerow([str(c) for c in r])
@@ -2738,7 +2739,7 @@ def agreement_reconciliation_detail(request, pk):
         resp['Content-Disposition'] = (
             f'attachment; filename="agreement-detail-{contract.pk}.csv"'
         )
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Started', 'User', 'Ticket', 'Notes', 'Duration (min)',
                     'Cumulative (min)', 'Covered', 'Overage', 'Classification'])
         for r in rows:
@@ -2867,7 +2868,7 @@ def accounting_reconciliation(request):
         resp['Content-Disposition'] = (
             'attachment; filename="accounting-reconciliation.csv"'
         )
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Section', 'Invoice', 'Client', 'Status', 'Total',
                     'Paid', 'Balance', 'External ID', 'Provider', 'Error'])
         for inv in pushed_unpaid:
@@ -2997,7 +2998,7 @@ def ar_aging_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="ar-aging.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Client', 'Provider', 'Invoices', '0-30', '31-60',
                     '61-90', '90+', 'Total', 'Oldest days'])
         for r in rows:
@@ -3352,7 +3353,7 @@ def billing_reconciliation_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="billing-reconciliation.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Client', 'Invoices', 'Invoiced', 'Paid', 'Outstanding',
                     'Collection %'])
         for r in rows:
@@ -3441,7 +3442,7 @@ def mrr_forecast_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="mrr-forecast.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Month', 'Projected MRR'])
         for f in forecast:
             w.writerow([f['month'], f['projected_mrr']])
@@ -3652,7 +3653,7 @@ def ticket_aging_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="ticket-aging.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Bucket'] + [b[0] for b in buckets])
         for code in sorted(by_priority):
             w.writerow([code] + [by_priority[code][b[0]] for b in buckets])
@@ -3728,7 +3729,7 @@ def procurement_summary(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="procurement-summary.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Vendor', 'PO count', 'Total spend'])
         for v in by_vendor:
             w.writerow([v['vendor_name'], v['po_count'],
@@ -3863,7 +3864,7 @@ def vendor_cost_history(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="vendor-cost-history.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Vendor', 'SKU', 'Description', 'PO count', 'Total qty',
                     'Min price', 'Max price', 'Avg price', 'Last price', 'Last seen'])
         for r in rows:
@@ -3941,7 +3942,7 @@ def asset_lifecycle_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="asset-lifecycle.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Asset', 'Type', 'Org', 'Total', 'Age', 'Warranty', 'Firmware',
                     'Purchase date', 'Warranty expiry'])
         for r in rows:
@@ -4042,7 +4043,7 @@ def procurement_forecasting(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="procurement-forecasting.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Vendor'] + [f'Hist {k}' for k in history_keys]
                    + ['3-mo avg', f'Forecast next 3-mo ({", ".join(forecast_keys)})'])
         for r in rows:
@@ -4161,7 +4162,7 @@ def hardware_margin_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="hardware-margin.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Quote', 'Title', 'Client', 'Vendor',
                     'Cost', 'Revenue', 'Margin', 'Margin %', 'POs'])
         for r in rows:
@@ -4269,7 +4270,7 @@ def sla_forecast_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="sla-forecast.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Ticket', 'Subject', 'Client', 'Priority', 'Status',
                     'Assigned to', 'Created', 'Due', '% elapsed', 'Risk'])
         for r in rows:
@@ -4400,7 +4401,7 @@ def quote_conversion_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="quote-conversion.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Creator', 'Quotes', 'Accepted', 'Converted',
                     'Accept %', 'Conv %', 'Quoted total', 'Invoiced total'])
         for r in rows:
@@ -4532,7 +4533,7 @@ def kpi_dashboard(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="kpi-dashboard.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Metric', 'Value'])
         for k, v in widgets.items():
             w.writerow([k, v])
@@ -4693,7 +4694,7 @@ def operational_metrics_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="operational-metrics.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Metric', 'Value'])
         w.writerow(['Window days', days])
         w.writerow(['Mean time to first response (h)', mttr_response_hours])
@@ -4804,7 +4805,7 @@ def workflow_performance_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="workflow-performance.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Rule', 'Trigger', 'Organization', 'Fires',
                     'Last fired', 'Has error', 'Error message'])
         for r in rows:
@@ -4948,7 +4949,7 @@ def trends_report(request):
         from django.http import HttpResponse as _HR
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="trends-capacity.csv"'
-        w = _csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['# Trends'])
         w.writerow(['Month', 'Opened', 'Resolved', 'MRR added'])
         for r in trend_rows:

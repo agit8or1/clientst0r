@@ -2,6 +2,7 @@
 Report Generators for different report types
 """
 
+from core import csv_safe
 from datetime import timedelta
 from django.db.models import Count, Q, Avg, Sum
 from django.utils import timezone
@@ -784,7 +785,7 @@ def generate_report(template, output_format='pdf', organization=None, parameters
 
     if fmt == 'csv':
         buf = io.StringIO()
-        writer = csv.writer(buf)
+        writer = csv_safe.writer(buf)
         # Flatten one level of dict → key/value rows for the simple cases;
         # nested dicts/lists are written as JSON strings.
         if isinstance(data, dict):

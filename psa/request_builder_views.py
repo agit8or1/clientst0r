@@ -10,6 +10,7 @@ that customer. Publishing an item under change governance needs
 """
 from __future__ import annotations
 
+from core import csv_safe
 import json
 import re
 
@@ -645,12 +646,10 @@ def request_type_report(request):
         import csv
         resp = HttpResponse(content_type='text/csv')
         resp['Content-Disposition'] = f'attachment; filename="request-types-{start}-{end}.csv"'
-        w = csv.writer(resp)
+        w = csv_safe.writer(resp)
         w.writerow(['Request type', 'Requests', 'Open', 'Closed'])
         for r in rows:
             name = r['catalog_item_name'] or '(deleted request type)'
-            if name[:1] in ('=', '+', '-', '@'):
-                name = "'" + name
             w.writerow([name, r['total'], r['open'], r['closed']])
         return resp
     from core.models import Organization

@@ -5,6 +5,7 @@ Phase 1: list + detail + minimal create — enough to exercise the feature
 flag gating, RBAC integration, audit logging, and tenant scoping. Phase 2
 will flesh out merge/split, macros, canned replies, etc.
 """
+from core import csv_safe
 import logging
 
 from django.contrib import messages
@@ -10255,7 +10256,7 @@ def timesheet_payroll_export(request):
     resp['Content-Disposition'] = (
         f'attachment; filename="payroll-{start.isoformat()}-to-{end.isoformat()}.csv"'
     )
-    w = _csv.writer(resp)
+    w = csv_safe.writer(resp)
     w.writerow([
         'Username', 'Email', 'Period start', 'Period end',
         'Total minutes', 'Billable minutes', 'Approved at', 'Approved by',

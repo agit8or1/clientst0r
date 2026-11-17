@@ -7,7 +7,7 @@ rows carry no password, OTP seed or notes - only whether an OTP is set.
 """
 from __future__ import annotations
 
-import csv
+from core import csv_safe
 import io
 
 from django.utils import timezone
@@ -97,7 +97,7 @@ def export_inventory(user, org):
 
 def inventory_csv(export):
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction='ignore')
+    writer = csv_safe.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction='ignore')
     writer.writeheader()
     for section in export['sections']:
         for row in export['data'][section]:

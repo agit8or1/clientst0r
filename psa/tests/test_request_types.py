@@ -305,6 +305,16 @@ class TicketSideTests(_Base):
         r = c.get('/psa/request-types/report/', {'organization': self.other.pk})
         self.assertEqual(r.context['total'], 0)
 
+    def test_csv_escapes_formula_cells(self):
+        """A request type named like a formula is written as text (csv_safe)."""
+        from psa.models import ServiceRequestSubmission
+        self.submit()
+        ServiceRequestSubmission.objects.update(catalog_item_name='=HYPERLINK("http://x","y")')
+        r = _login(self.admin).get('/psa/request-types/report/', {'format': 'csv'})
+        body = r.content.decode()
+        self.assertIn('"\'=HYPERLINK(""http://x"",""y"")",1,1,0', body)
+        self.assertNotIn('\n=HYPERLINK', body)
+
     def test_staff_answer_edit_is_validated_and_audited(self):
         t = self.submit()
         c = _login(self.admin)

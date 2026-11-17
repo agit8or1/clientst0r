@@ -1,5 +1,4 @@
 """Licensing pages (MSP staff only; see licensing.access)."""
-import csv
 from datetime import timedelta
 
 from django.contrib import messages
@@ -9,6 +8,8 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+
+from core import csv_safe
 
 from . import access
 from .alerts import collect_alerts
@@ -205,12 +206,6 @@ def _cost_orgs(user, subs):
     return {k for k, v in cache.items() if v}
 
 
-def _safe(value):
-    """Neutralise spreadsheet formulas in exported text."""
-    value = '' if value is None else str(value)
-    return "'" + value if value[:1] in ('=', '+', '-', '@', '\t', '\r') else value
-
-
 @login_required
 def export_csv(request):
     org = None
@@ -220,7 +215,7 @@ def export_csv(request):
     cost_orgs = _cost_orgs(request.user, subs)
     resp = HttpResponse(content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename="licenses.csv"'
-    w = csv.writer(resp)
+    w = csv_safe.writer(resp)
     header = ['Customer', 'Vendor', 'Product', 'SKU', 'Source', 'Status', 'Purchased', 'Assigned',
               'Unused', 'Over-allocated', 'Utilization %', 'Unit price', 'Currency', 'Billing',
               'Renewal date', 'Auto-renew']
@@ -238,7 +233,7 @@ def export_csv(request):
         if include_cost:
             cost = s.cost_for(s.organization_id in cost_orgs)
             row.insert(11, '' if cost is None else cost)
-        w.writerow([_safe(c) if isinstance(c, str) else c for c in row])
+        w.writerow(row)
     return resp
 
 

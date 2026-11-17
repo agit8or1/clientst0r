@@ -1,6 +1,7 @@
 """
 Audit views - View audit logs
 """
+from core import csv_safe
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
@@ -102,7 +103,7 @@ def export_audit_logs(logs, format_type):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="audit_logs_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
 
-        writer = csv.writer(response)
+        writer = csv_safe.writer(response)
         writer.writerow(['Timestamp', 'User', 'Action', 'Object Type', 'Object ID', 'Object', 'IP Address', 'Success', 'Details'])
 
         for log in logs[:5000]:  # Limit export to 5000 rows
