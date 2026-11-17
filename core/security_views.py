@@ -497,7 +497,7 @@ def remediate_python_package(request):
     except _subprocess.TimeoutExpired:
         return JsonResponse({'error': 'pip install timed out'}, status=504)
     except Exception as exc:
-        return JsonResponse({'error': str(exc)}, status=500)
+        return JsonResponse({'error': public_error(exc, 'pip install failed')}, status=500)
 
     success = result.returncode == 0
 
