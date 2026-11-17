@@ -1,0 +1,12 @@
+# Keeps the commit-SHA pins in .github/workflows current. Every action is
+# pinned to a full SHA with the release in a comment (v3.17.695); Dependabot
+# updates both together.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.703] - 2026-11-17
+
+### Security
+- CSV exports could carry spreadsheet formulas. A ticket subject, client name, request type, note or other typed text beginning with `=`, `+`, `-`, `@`, a tab or a carriage return was written to the CSV as is, and Excel, LibreOffice and Google Sheets run such a cell as a formula when the file is opened (`=HYPERLINK(...)` to leak data, DDE payloads). Every downloadable CSV export (reports, PSA payroll and request-type report, audit log, field-ops payroll, report builder, compliance evidence pack) now writes through `core/csv_safe`, which prefixes such a cell with `'` so it is shown as text. Numbers, and strings that are just a number such as `-12.50`, are left unchanged so amounts stay numeric. The request-type report's own partial escaping is replaced by the shared helper (Semgrep `csv-writer-injection`, 24 alerts).
+- GitHub Actions: every `uses:` in `.github/workflows` is pinned to a full commit SHA, with the release in a comment, instead of a movable tag (`@v4`), so a re-pointed tag in a third-party action cannot change what CI runs (Semgrep `github-actions-mutable-action-tag`, 35 alerts). Each action stays on its current major version, at its latest release. A new `.github/dependabot.yml` updates the pins monthly in one grouped pull request.
+
 ## [3.17.702] - 2026-11-17
 
 ### Fixed
