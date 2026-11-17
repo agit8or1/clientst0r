@@ -116,6 +116,8 @@ jobs:
           mysql -h127.0.0.1 -uroot -prehearsal-root -e \
             "GRANT ALL PRIVILEGES ON \`clientst0r\`.* TO 'clientst0r'@'%';
              GRANT ALL PRIVILEGES ON \`clientst0r_verify\`.* TO 'clientst0r'@'%'; FLUSH PRIVILEGES;"
+      - name: Log directory (install.sh creates it on a real host; every release's settings write there)
+        run: sudo install -d -m 755 -o "$(id -un)" -g "$(id -gn)" /var/log/itdocs
       - name: Rehearse
         env:
           REHEARSAL_WORK: ${{ runner.temp }}/rehearsal
@@ -272,6 +274,12 @@ jobs:
         run: |
           git worktree add "$RUNNER_TEMP/old" "$FROM_STABLE"
           cp .env "$RUNNER_TEMP/old/.env"
+          # Images before the Dockerfile created /var/log/itdocs can't start with
+          # DEBUG off (settings create it at import, as a non-root user).
+          printf '%s\n' 'services:' \
+            '  app: {tmpfs: ["/var/log/itdocs:uid=1000,gid=1000"]}' \
+            '  scheduler: {tmpfs: ["/var/log/itdocs:uid=1000,gid=1000"]}' \
+            > "$RUNNER_TEMP/old/docker-compose.override.yml"
           (cd "$RUNNER_TEMP/old" && docker compose up -d --build)
           bash scripts/upgrade_rehearsal/ci_docker_wait.sh
       - name: Seed and check on ${{ env.FROM_STABLE }}

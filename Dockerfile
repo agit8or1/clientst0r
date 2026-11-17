@@ -56,8 +56,8 @@ COPY --from=builder /opt/venv /opt/venv
 # Non-root runtime user. uid 1000 is the common host-default — matches
 # typical bind-mount ownership without extra chown gymnastics.
 RUN useradd -m -u 1000 clientst0r \
-    && mkdir -p /app /app/logs /app/media /app/static_collected /app/backups /var/lib/itdocs/uploads \
-    && chown -R clientst0r:clientst0r /app /var/lib/itdocs
+    && mkdir -p /app /app/logs /app/media /app/static_collected /app/backups /var/lib/itdocs/uploads /var/log/itdocs \
+    && chown -R clientst0r:clientst0r /app /var/lib/itdocs /var/log/itdocs
 
 # The AI gateway worker's own user (Phase 57.3, OPTIONAL AI; the
 # `ai-gateway` compose profile). Primary group `clientst0r`, so it can read

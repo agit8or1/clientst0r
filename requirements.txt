@@ -40,6 +40,7 @@ markdown>=3.8.1,<4.0  # Updated to 3.8.1+ to fix uncaught-exception DoS
 bleach>=6.4.0,<7  # 6.4.0+ fixes formaction URI-scheme sanitization bypass + Unicode>U+00A0 URI-scheme bypass (was 6.1.*)
 tinycss2>=1.2,<2  # required by bleach.css_sanitizer for #127 progress-bar widths
 pytz==2024.1
+python-dateutil>=2.9,<3  # relativedelta in psa billing, contracts and advisor/facts.py (imported at module load)
 psutil==5.9.*
 packaging==24.1  # Version comparison for auto-updates
 
