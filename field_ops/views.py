@@ -4,6 +4,7 @@ field_ops web views — Phase 8.3 Timeclock dashboard + payroll export
 """
 from __future__ import annotations
 
+from core import csv_safe
 import csv
 from datetime import date, datetime, timedelta
 
@@ -132,7 +133,7 @@ def timeclock_payroll_export(request):
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="payroll_export.csv"'
-    writer = csv.writer(response)
+    writer = csv_safe.writer(response)
     writer.writerow(['tech', 'week_start', 'hours', 'overtime_hours', 'org'])
     for (tech, ws, org_name), minutes in sorted(buckets.items()):
         hours = round(minutes / 60.0, 2)

@@ -7,6 +7,7 @@ history, asset inventory, ticket/SLA history. The remaining four (vuln
 scan, SSL/domain expiration, backup, uptime) follow in subsequent
 releases.
 """
+from core import csv_safe
 import csv as _csv
 import io
 import json
@@ -381,7 +382,7 @@ def _zip_response(pack):
             csv_buf = io.StringIO()
             rows = section['rows']
             if rows:
-                writer = _csv.DictWriter(csv_buf, fieldnames=list(rows[0].keys()))
+                writer = csv_safe.DictWriter(csv_buf, fieldnames=list(rows[0].keys()))
                 writer.writeheader()
                 writer.writerows(rows)
             zf.writestr(f'{key}.csv', csv_buf.getvalue())
