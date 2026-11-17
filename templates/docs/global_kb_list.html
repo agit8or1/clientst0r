@@ -62,10 +62,23 @@
 {% if documents %}
 <div class="card">
     <div class="card-body">
+        {% if can_set_portal %}
+        <form method="post" action="{% url 'docs:global_kb_portal_bulk' %}" id="kbPortalForm">
+            {% csrf_token %}
+            <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+                <span class="small text-muted">Selected articles:</span>
+                <button type="submit" name="action" value="show" class="btn btn-sm btn-outline-success"
+                        data-confirm="Show the selected articles in every customer portal?"><i class="fas fa-globe"></i> Show in all portals</button>
+                <button type="submit" name="action" value="hide" class="btn btn-sm btn-outline-secondary"
+                        data-confirm="Make the selected articles staff only?"><i class="fas fa-lock"></i> Make staff only</button>
+            </div>
+        {% endif %}
         <table id="kbTable" class="table table-striped table-hover">
             <thead>
                 <tr>
+                    {% if can_set_portal %}<th data-orderable="false" width="30"></th>{% endif %}
                     <th>Title</th>
+                    <th>Portal</th>
                     <th>Category</th>
                     <th>Tags</th>
                     <th>Last Updated</th>
@@ -76,7 +89,9 @@
             <tbody>
                 {% for doc in documents %}
                 <tr>
+                    {% if can_set_portal %}<td><input type="checkbox" name="ids" value="{{ doc.pk }}" form="kbPortalForm" class="form-check-input" aria-label="Select {{ doc.title }}"></td>{% endif %}
                     <td><a href="{% url 'docs:global_kb_detail' doc.slug %}"><strong>{{ doc.title }}</strong></a></td>
+                    <td>{% if doc.is_client_visible %}<span class="badge bg-success">All customers</span>{% else %}<span class="badge bg-secondary">Staff only</span>{% endif %}</td>
                     <td>
                         {% if doc.category %}
                         <span class="badge bg-info">{{ doc.category.name }}</span>
@@ -104,6 +119,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% if can_set_portal %}</form>{% endif %}
     </div>
 </div>
 {% else %}
@@ -120,7 +136,7 @@
 <script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     $('#kbTable').DataTable({
-        order: [[3, 'desc']],
+        order: [[{% if can_set_portal %}5{% else %}4{% endif %}, 'desc']],
         pageLength: 25,
         language: {
             search: "_INPUT_",

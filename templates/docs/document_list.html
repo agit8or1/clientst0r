@@ -217,6 +217,7 @@
                             <td class="ui-wrap">
                                 <a class="ui-primary-cell" href="{% url 'docs:document_detail' doc.slug %}{% if in_global_view and doc.organization_id %}?org={{ doc.organization_id }}{% endif %}">{{ doc.title }}</a>
                                 {% if doc.is_template %}<span class="ui-badge ui-badge--neutral ms-2">Template</span>{% endif %}
+                                {% if doc.is_client_visible and not doc.is_global %}<span class="badge bg-success ms-2">This customer's portal</span>{% endif %}
                             </td>
                             <td>
                                 {% if doc.content_type == 'file' %}

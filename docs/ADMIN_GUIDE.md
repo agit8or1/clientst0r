@@ -38,6 +38,7 @@ is in its default state until an administrator changes it. Feature guides:
 | Optional modules overview | Settings → Modules → Optional Modules (`/core/settings/modules/`) | Shows each module's current state | su |
 | File upload and delete | Settings → Users & Access → Roles → `files_upload`, `files_delete` | Custom roles with `files_view` get both on upgrade; built-in Editor has no delete, Read-Only neither | Administrators who manage roles |
 | Invoice editing and payments | Settings → Users & Access → Roles → `billing_send_invoices`, `billing_record_payments` | Owner and Admin roles | Administrators who manage roles |
+| Knowledge base in customer portals | Global KB (`/docs/kb/`): the Portal column and the bulk actions Show in all portals / Make staff only | New global articles default to shown in every customer portal; existing live global articles were switched on once by migration. Customer-scoped documents default to staff only and show only in their own customer's portal when ticked (the document form's "Show in this customer's portal"). | Staff with `kb_edit_articles` and publish rights |
 
 ## Safety rules that no setting changes
 

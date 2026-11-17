@@ -955,7 +955,46 @@ def global_kb_list(request):
         'selected_category': category_id,
         'selected_tag': tag_id,
         'query': query,
+        'can_set_portal': can_publish(request.user, Document(is_global=True)),
     })
+
+
+@login_required
+@require_http_methods(['POST'])
+@require_kb_perm('kb_edit_articles')
+def global_kb_portal_bulk(request):
+    """Show selected global KB articles in every customer portal, or make
+    them staff only. Portal visibility is a publishing decision, so the user
+    needs publish rights on the global KB as well."""
+    if not can_publish(request.user, Document(is_global=True)):
+        raise PermissionDenied("You can't change portal visibility.")
+    action = request.POST.get('action')
+    if action not in ('show', 'hide'):
+        messages.error(request, 'Choose an action.')
+        return redirect('docs:global_kb_list')
+    ids = [i for i in request.POST.getlist('ids') if i.isdigit()]
+    if not ids:
+        messages.warning(request, 'Select at least one article.')
+        return redirect('docs:global_kb_list')
+    visible = action == 'show'
+    docs = list(Document.objects.filter(pk__in=ids, is_global=True, is_template=False))
+    changed = Document.objects.filter(pk__in=[d.pk for d in docs]).exclude(
+        is_client_visible=visible).update(is_client_visible=visible)
+    from audit.models import AuditLog
+    from core.client_ip import get_client_ip
+    AuditLog.log(
+        user=request.user, action='update', organization=None,
+        object_type='docs.Document', object_id=None,
+        object_repr=f'{len(docs)} global KB article(s)',
+        description=('Showed global KB articles in all customer portals' if visible
+                     else 'Made global KB articles staff only')[:1000],
+        ip_address=get_client_ip(request), path=request.path[:500],
+        extra_data={'portal_visible': visible, 'article_ids': [d.pk for d in docs],
+                    'changed': changed},
+    )
+    messages.success(request, f"{changed} article(s) now "
+                              f"{'shown in every customer portal' if visible else 'staff only'}.")
+    return redirect('docs:global_kb_list')
 
 
 @login_required
@@ -1018,6 +1057,9 @@ def global_kb_create(request):
         if pre_cat:
             initial_data['category'] = pre_cat
 
+    # Global KB articles are shown in every customer portal unless unticked.
+    # (Org-scoped documents keep the model default: staff only.)
+    initial_data.setdefault('is_client_visible', True)
     may_publish = can_publish(request.user, Document(organization=org, is_global=True))
     form_kwargs = dict(organization=org, include_global_categories=True,
                        can_publish=may_publish, global_article=True)

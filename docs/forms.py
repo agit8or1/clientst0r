@@ -60,6 +60,15 @@ class DocumentForm(forms.ModelForm):
         global_article = kwargs.pop('global_article', False)
         super().__init__(*args, **kwargs)
 
+        if 'is_client_visible' in self.fields:
+            if global_article or getattr(self.instance, 'is_global', False):
+                self.fields['is_client_visible'].label = 'Show in every customer portal'
+            else:
+                self.fields['is_client_visible'].label = "Show in this customer's portal"
+            self.fields['is_client_visible'].help_text = (
+                'Off = staff only. Keep technician-only notes inside an external article in a '
+                '"kb-internal" block (Markdown: :::internal … :::).')
+
         if not self.can_publish:
             self.fields.pop('is_published', None)
             self.fields.pop('requires_approval', None)

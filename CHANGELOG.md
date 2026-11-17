@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.706] - 2026-11-17
+
+### Changed
+- Knowledge base: global articles are shown in every customer portal by default; articles assigned to one customer show only in that customer's portal, and only when "Show in this customer's portal" is ticked (customer documents stay staff only otherwise). The portal box reads "Show in every customer portal" on global articles and "Show in this customer's portal" on customer ones; "Off = staff only".
+- Global KB list: each article shows a Portal badge (All customers / Staff only), and people who may publish can select articles and use "Show in all portals" or "Make staff only". Each change is written to the audit log. Customer document lists show a "This customer's portal" badge.
+
+### Upgrade notes
+- The upgrade makes every existing global, non-template, non-archived KB article visible in all customer portals (migration docs 0021). Mark any you want internal as staff only from the global KB list. Customer-scoped documents are unchanged.
+
+### Fixed
+- The v3.17.701 release notes, shown on the Updates page, no longer use the word the Updates page test forbids (`core.tests.test_update_versions`).
+
 ## [3.17.705] - 2026-11-17
 
 ### Security
@@ -50,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Settings → Updates has two kinds of build: Official release and Preview / testing.** Official release is
   published, signed releases; Preview / testing is the latest build from main, pinned to its exact commit.
-  The channel select has those two options and the version list has two tabs. The separate Prerelease
+  The channel select has those two options and the version list has two tabs. The separate pre-release
   channel is removed: an install set to it now follows Preview / testing (data migration). Published
   GitHub pre-releases are listed as testing builds and still need a signed tag to install. All install
   checks are unchanged. CLI: `upgrade_apply --allow-prerelease` remains as a hidden compatibility flag.

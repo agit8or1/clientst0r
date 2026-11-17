@@ -52,6 +52,7 @@ urlpatterns = [
     path('templates/<int:pk>/delete/', views.template_delete, name='template_delete'),
     path('kb/', views.global_kb_list, name='global_kb_list'),
     path('kb/create/', views.global_kb_create, name='global_kb_create'),
+    path('kb/portal-visibility/', views.global_kb_portal_bulk, name='global_kb_portal_bulk'),
     path('kb/<slug:slug>/', views.global_kb_detail, name='global_kb_detail'),
     path('kb/<slug:slug>/edit/', views.global_kb_edit, name='global_kb_edit'),
     path('kb/<slug:slug>/delete/', views.global_kb_delete, name='global_kb_delete'),
