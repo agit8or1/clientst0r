@@ -1,6 +1,7 @@
 """
 Assets views
 """
+from core.error_responses import public_error
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -891,9 +892,8 @@ def asset_ai_doc(request, pk):
     try:
         return _asset_ai_doc_inner(request, pk)
     except Exception as exc:  # noqa: BLE001 — last-resort JSON catcher
-        _ai_log.exception('asset_ai_doc unhandled: %s', exc)
         return JsonResponse(
-            {'success': False, 'error': f'AI generation failed: {exc}'},
+            {'success': False, 'error': public_error(exc, 'AI generation failed', log=_ai_log)},
             status=500,
         )
 

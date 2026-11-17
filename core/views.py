@@ -1,6 +1,7 @@
 """
 Core views - Documentation and About pages
 """
+from core.error_responses import public_error
 import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -943,10 +944,9 @@ def apply_update(request):
         })
 
     except Exception as e:
-        logger.exception("apply_update failed")
         return JsonResponse({
             'status': 'error',
-            'message': str(e)
+            'message': public_error(e, 'apply_update failed', log=logger)
         }, status=500)
 
 
@@ -1000,14 +1000,14 @@ def version_diagnostic(request):
                     diagnostics['file_content'] = line.strip()
                     break
     except Exception as e:
-        diagnostics['file_content'] = f"Error reading file: {e}"
+        diagnostics['file_content'] = public_error(e, 'Error reading file', log=logger)
 
     # 2. Python import (current process)
     try:
         from config.version import VERSION
         diagnostics['python_import'] = f"VERSION = '{VERSION}'"
     except Exception as e:
-        diagnostics['python_import'] = f"Error importing: {e}"
+        diagnostics['python_import'] = public_error(e, 'Error importing', log=logger)
 
     # 3. Force reload and check again
     try:
@@ -1016,14 +1016,14 @@ def version_diagnostic(request):
         importlib.reload(config.version)
         diagnostics['python_reload'] = f"VERSION = '{config.version.VERSION}'"
     except Exception as e:
-        diagnostics['python_reload'] = f"Error reloading: {e}"
+        diagnostics['python_reload'] = public_error(e, 'Error reloading', log=logger)
 
     # 4. UpdateService reports
     try:
         updater = UpdateService()
         diagnostics['update_service'] = f"VERSION = '{updater.current_version}'"
     except Exception as e:
-        diagnostics['update_service'] = f"Error: {e}"
+        diagnostics['update_service'] = public_error(e, 'Error', log=logger)
 
     # 5. Git info
     try:
@@ -1031,7 +1031,7 @@ def version_diagnostic(request):
                                capture_output=True, text=True, cwd=settings.BASE_DIR)
         diagnostics['git_commit'] = result.stdout.strip()
     except Exception as e:
-        diagnostics['git_commit'] = f"Error: {e}"
+        diagnostics['git_commit'] = public_error(e, 'Error', log=logger)
 
     # 6. Check for .pyc files
     try:
@@ -1043,7 +1043,7 @@ def version_diagnostic(request):
         else:
             diagnostics['pyc_file'] = "Not found"
     except Exception as e:
-        diagnostics['pyc_file'] = f"Error: {e}"
+        diagnostics['pyc_file'] = public_error(e, 'Error', log=logger)
 
     return JsonResponse(diagnostics, json_dumps_params={'indent': 2})
 
@@ -1141,10 +1141,9 @@ def force_restart_services(request):
             }, status=500)
 
     except Exception as e:
-        logger.error(f"Force restart failed: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'Force restart failed', log=logger)
         }, status=500)
 
 
@@ -1311,7 +1310,7 @@ def report_bug(request):
         )
         return JsonResponse({
             'success': False,
-            'message': f'An unexpected error occurred: {str(e)}'
+            'message': public_error(e, 'An unexpected error occurred', log=logger)
         }, status=500)
 
 

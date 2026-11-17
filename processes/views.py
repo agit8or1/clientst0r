@@ -1,6 +1,7 @@
 """
 Process views - CRUD operations for processes
 """
+from core.error_responses import public_error
 import logging
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -215,10 +216,9 @@ def process_generate_diagram(request, slug):
         })
 
     except Exception as e:
-        logger.error(f"Error generating diagram for workflow {slug}: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, f'Error generating diagram for workflow {slug}', log=logger)
         }, status=500)
 
 
@@ -1072,8 +1072,7 @@ def stage_complete(request, pk):
                     request=request
                 )
             except Exception as e:
-                logger.error(f"Failed to update PSA ticket: {e}")
-                psa_note_error = str(e)
+                psa_note_error = public_error(e, 'Failed to update PSA ticket', log=logger)
                 # Don't fail the execution if PSA update fails
 
     response = {

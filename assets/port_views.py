@@ -1,6 +1,7 @@
 """
 Port configuration views for network equipment
 """
+from core.error_responses import public_error
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -81,4 +82,4 @@ def asset_port_config_save(request, pk):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({'error': public_error(e, 'Could not save the port configuration')}, status=500)

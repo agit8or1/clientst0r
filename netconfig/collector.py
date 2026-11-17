@@ -6,6 +6,7 @@ Kept apart from the adapters (which know vendor commands) and from the views
 collection all take exactly the same path.
 """
 from __future__ import annotations
+from core.error_responses import public_error
 
 import logging
 
@@ -39,7 +40,7 @@ def collect_target(target, *, user=None, timeout=30):
     try:
         secret = target.credential.get_password()
     except Exception as exc:
-        message = f'Could not read the vault credential: {exc}'
+        message = public_error(exc, 'Could not read the vault credential', log=logger)
         _record_failure(target, message)
         return {'ok': False, 'created': False, 'changed': False,
                 'message': message, 'backup': None}
@@ -57,8 +58,7 @@ def collect_target(target, *, user=None, timeout=30):
         return {'ok': False, 'created': False, 'changed': False,
                 'message': str(exc), 'backup': None}
     except Exception as exc:  # noqa: BLE001 - a device can fail in any way
-        message = f'Unexpected failure: {exc}'
-        logger.exception('Config collection failed for target %s', target.pk)
+        message = public_error(exc, f'Unexpected failure collecting target {target.pk}', log=logger)
         _record_failure(target, message)
         return {'ok': False, 'created': False, 'changed': False,
                 'message': message, 'backup': None}

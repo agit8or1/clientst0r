@@ -6,6 +6,7 @@ flag gating, RBAC integration, audit logging, and tenant scoping. Phase 2
 will flesh out merge/split, macros, canned replies, etc.
 """
 from core import csv_safe
+from core.error_responses import public_error
 import logging
 
 from django.contrib import messages
@@ -4035,7 +4036,7 @@ def email_graph_readiness(request, pk):
             result['inbound_message'] = err
     except Exception as e:  # noqa: BLE001
         result['token_ok'] = False
-        result['inbound_message'] = f'Token/connection error: {e}'[:300]
+        result['inbound_message'] = public_error(e, 'Token/connection error')
     return JsonResponse(result)
 
 
@@ -4082,9 +4083,10 @@ def email_graph_test_send(request, pk):
     try:
         resp = provider.send_mail(config.graph_mailbox, message, save_to_sent_items=True)
     except Exception as e:  # noqa: BLE001
-        config.graph_send_last_error = str(e)[:300]
+        msg = public_error(e, 'Send failed')
+        config.graph_send_last_error = msg[:300]
         config.save(update_fields=['graph_send_last_error'])
-        return JsonResponse({'success': False, 'error': f'Send failed: {e}'[:300]}, status=502)
+        return JsonResponse({'success': False, 'error': msg}, status=502)
 
     if resp.status_code in (200, 202):
         config.graph_send_verified_at = timezone.now()

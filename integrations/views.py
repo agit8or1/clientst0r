@@ -1,6 +1,7 @@
 """
 Integrations views
 """
+from core.error_responses import public_error
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -477,7 +478,7 @@ def integration_test(request, pk):
                         tickets = provider.list_tickets(page_size=1)
                         diagnostic_info['tickets_available'] = len(tickets) > 0
                 except Exception as e:
-                    diagnostic_info['fetch_warning'] = f'Could not fetch sample data: {str(e)}'
+                    diagnostic_info['fetch_warning'] = public_error(e, 'Could not fetch sample data')
 
                 return JsonResponse({
                     'success': True,
@@ -509,7 +510,7 @@ def integration_test(request, pk):
 
             return JsonResponse({
                 'success': False,
-                'message': f'Connection error: {error_msg}',
+                'message': public_error(e, 'Connection error'),
                 'suggestions': suggestions
             }, status=500)
 
@@ -552,7 +553,7 @@ def integration_sync(request, pk):
             })
 
         except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+            return JsonResponse({'success': False, 'message': public_error(e, 'Sync failed')}, status=500)
 
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
@@ -3806,7 +3807,7 @@ def distributor_test(request, pk):
     try:
         ok = provider.test_connection()
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)[:300]})
+        return JsonResponse({'ok': False, 'error': public_error(e, 'Connection test failed')})
     return JsonResponse({'ok': bool(ok)})
 
 
@@ -3829,7 +3830,7 @@ def distributor_pricing(request, pk):
         try:
             return JsonResponse(provider.get_pricing(sku, qty=qty))
         except Exception as e:
-            return JsonResponse({'error': str(e)[:300]})
+            return JsonResponse({'error': public_error(e, 'Price lookup failed')})
     return render(request, 'integrations/distributor_pricing.html', {'item': item})
 
 
@@ -4279,7 +4280,7 @@ def accounting_test(request, pk):
     try:
         ok = provider.test_connection()
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)[:300]})
+        return JsonResponse({'ok': False, 'error': public_error(e, 'Connection test failed')})
     return JsonResponse({'ok': bool(ok)})
 
 

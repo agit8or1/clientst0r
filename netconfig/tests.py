@@ -444,9 +444,13 @@ class CollectorTests(TestCase):
         from netconfig.collector import collect_target
         with patch('netconfig.collector.collect_over_ssh',
                    side_effect=RuntimeError('kaboom')):
-            result = collect_target(self.target)
+            with self.assertLogs('netconfig', level='ERROR') as logs:
+                result = collect_target(self.target)
         self.assertFalse(result['ok'])
-        self.assertIn('kaboom', result['message'])
+        # v3.17.693: the exception goes to the log, the message carries a reference.
+        self.assertNotIn('kaboom', result['message'])
+        self.assertIn('reference', result['message'])
+        self.assertIn('kaboom', '\n'.join(logs.output))
 
     def test_a_successful_collection_stores_a_snapshot(self):
         from unittest.mock import patch

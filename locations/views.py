@@ -1,6 +1,7 @@
 """
 Views for locations app - Multi-location management with AI floor plan generation
 """
+from core.error_responses import public_error
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -625,10 +626,9 @@ def refresh_geocoding(request, location_id):
             }, status=400)
 
     except Exception as e:
-        logger.error(f"Geocoding refresh failed: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'Geocoding refresh failed', log=logger)
         }, status=500)
 
 
@@ -675,10 +675,9 @@ def refresh_property_data(request, location_id):
             }, status=400)
 
     except Exception as e:
-        logger.error(f"Property data refresh failed: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'Property data refresh failed', log=logger)
         }, status=500)
 
 
@@ -868,10 +867,9 @@ def refresh_satellite_image(request, location_id):
             }, status=400)
 
     except Exception as e:
-        logger.error(f"Satellite image refresh failed: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'Satellite image refresh failed', log=logger)
         }, status=500)
 
 

@@ -1,6 +1,7 @@
 """
 Security-related views - Package scanning, vulnerability monitoring
 """
+from core.error_responses import public_error
 import io
 import json
 import logging
@@ -233,11 +234,10 @@ def update_packages(request):
         })
 
     except Exception as e:
-        import traceback
         return JsonResponse({
             'success': False,
-            'error': str(e),
-            'output': traceback.format_exc(),
+            'error': public_error(e, 'The package update could not be run'),
+            'output': '',
         }, status=500)
 
 

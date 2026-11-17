@@ -652,7 +652,9 @@ class StageCompletePSANoteTests(TestCase):
         self.execution.refresh_from_db()
         self.assertTrue(self.completion.is_completed)
         self.assertEqual(self.execution.status, 'completed')
-        self.assertIn('boom', r.json()['psa_note_error'])
+        # v3.17.693: the tech is told the note failed; the detail is in the log.
+        self.assertIn('Failed to update PSA ticket', r.json()['psa_note_error'])
+        self.assertNotIn('boom', r.json()['psa_note_error'])
 
     def test_execution_without_a_psa_ticket_reports_nothing(self):
         self.execution.psa_ticket = None
