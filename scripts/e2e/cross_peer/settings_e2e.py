@@ -25,6 +25,9 @@ os.environ['SECRET_KEY'] = 'cross-peer-e2e-key-not-used-anywhere-else'
 os.environ['API_KEY_SECRET'] = 'cross-peer-e2e-api-key-secret-not-used-elsewhere'
 os.environ['APP_MASTER_KEY'] = 'Y3Jvc3MtcGVlci1lMmUtb25seS1rZXktMzJieXRlcyE='  # 32 bytes
 os.environ.pop('APP_MASTER_KEY_PREVIOUS', None)
+# config.settings creates its log directory when DEBUG is off; keep it in the
+# scratch directory (a CI runner cannot create /var/log/itdocs).
+os.environ['ITDOCS_LOG_DIR'] = str(Path(os.environ['E2E_DIR']) / 'logs')
 
 from config.settings import *  # noqa: F401,F403,E402
 
