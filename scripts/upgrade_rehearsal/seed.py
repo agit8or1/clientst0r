@@ -103,8 +103,14 @@ for key in ('a', 'b'):
     org = orgs[key]
     doc_kwargs = dict(organization=org, title=f'Rehearsal runbook {key.upper()}',
                       slug=f'rehearsal-runbook-{key}', body='<p>Upgrade rehearsal</p>')
-    if 'created_by' in {f.name for f in Document._meta.get_fields()}:
+    doc_fields = {f.name for f in Document._meta.get_fields()}
+    if 'created_by' in doc_fields:
         doc_kwargs['created_by'] = admin
+    if 'is_client_visible' in doc_fields:
+        # Shared with the customer: since v3.17.669 customer users only get
+        # client-visible documentation (and its files), and the HTTP smoke
+        # checks that the org A customer user can fetch its own file.
+        doc_kwargs['is_client_visible'] = True
     doc = Document.objects.create(**doc_kwargs)
     state['documents'].append({'org': key, 'id': doc.id, 'title': doc.title})
     for fname, data, ctype in ((f'runbook-{key}.txt', f'rehearsal file {key} '.encode() * 50, 'text/plain'),

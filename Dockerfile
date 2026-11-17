@@ -8,7 +8,12 @@
 # Run:    docker compose up -d   (see docker-compose.yml)
 
 # ─── Stage 1 — builder ────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+# Debian 12 (bookworm), pinned: python:3.12-slim moved to Debian 13, whose
+# MariaDB 11.8 client tools refuse a server without TLS, and the bundled db
+# service (mariadb:10.11) has none -- so the verified pre-migrate backup
+# (mysqldump) failed and the entrypoint refused to migrate. Moving on means
+# giving the db service TLS, not turning TLS off in the client.
+FROM python:3.12-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -32,7 +37,7 @@ RUN pip install --upgrade pip \
 
 
 # ─── Stage 2 — runtime ────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -56,8 +61,8 @@ COPY --from=builder /opt/venv /opt/venv
 # Non-root runtime user. uid 1000 is the common host-default — matches
 # typical bind-mount ownership without extra chown gymnastics.
 RUN useradd -m -u 1000 clientst0r \
-    && mkdir -p /app /app/logs /app/media /app/static_collected /app/backups /var/lib/itdocs/uploads \
-    && chown -R clientst0r:clientst0r /app /var/lib/itdocs
+    && mkdir -p /app /app/logs /app/media /app/static_collected /app/backups /var/lib/itdocs/uploads /var/log/itdocs \
+    && chown -R clientst0r:clientst0r /app /var/lib/itdocs /var/log/itdocs
 
 # The AI gateway worker's own user (Phase 57.3, OPTIONAL AI; the
 # `ai-gateway` compose profile). Primary group `clientst0r`, so it can read
@@ -84,7 +89,7 @@ USER clientst0r
 EXPOSE 8000
 
 # Healthcheck hits the dedicated /health/ endpoint added in v3.17.490.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15m --retries=3 \
     CMD curl -fsS http://localhost:8000/health/ || exit 1
 
 # Entrypoint waits for DB + runs migrations + collectstatic, then

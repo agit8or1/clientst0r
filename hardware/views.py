@@ -30,6 +30,10 @@ from .models import (
 from .payloads import device_ports_json, device_summary, port_json, port_queryset, vlan_color, vlan_json
 
 
+# A ValueError here is int()/Decimal() on a request field; its text is Python's.
+_BAD_NUMBER = 'A number in the request is not valid.'
+
+
 def _err(e, status=400):
     if isinstance(e, ValidationError):
         if hasattr(e, 'message_dict'):
@@ -736,7 +740,7 @@ def api_ports_bulk(request, org):
         S.bulk_update_ports(ports, fields, user=request.user, tagged_add=add, tagged_remove=remove,
                             label_pattern=(data.get('label_pattern') or '').strip(), label_start=start)
     except (ValidationError, ValueError) as e:
-        return _err(e if isinstance(e, ValidationError) else ValidationError(str(e)))
+        return _err(e if isinstance(e, ValidationError) else ValidationError(_BAD_NUMBER))
     return JsonResponse({'ok': True, 'updated': len(ports)})
 
 
@@ -849,5 +853,5 @@ def api_patch_assign(request, org):
     except Http404:
         return JsonResponse({'error': 'Port or panel not found for this client.'}, status=404)
     except (ValidationError, ValueError) as e:
-        return _err(e if isinstance(e, ValidationError) else ValidationError(str(e)))
+        return _err(e if isinstance(e, ValidationError) else ValidationError(_BAD_NUMBER))
     return JsonResponse({'ok': True, 'cables': len(made)})

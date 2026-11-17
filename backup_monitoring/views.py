@@ -7,6 +7,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.permission_utils import require_perm_any_org, user_has_org_perm, user_has_perm_any_org
@@ -37,6 +38,16 @@ def _ctx(request, **extra):
 # --------------------------------------------------------------------------
 # Dashboard / customer / job
 # --------------------------------------------------------------------------
+
+
+def _back(request, fallback='backup_monitoring:alert_list'):
+    """The POSTed `next` if it is a page on this site, else `fallback`."""
+    target = request.POST.get('next') or ''
+    if target and '\\' not in target and url_has_allowed_host_and_scheme(
+            target, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return target
+    return fallback
+
 
 @login_required
 @require_perm_any_org(VIEW)
@@ -128,15 +139,15 @@ def alert_decide(request, pk):
         from .tickets import create_ticket_for_alert
         if alert.organization_id is None:
             messages.error(request, 'Map this to a customer first: a ticket needs a customer.')
-            return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
+            return redirect(_back(request))
         from .tickets import TicketSetupError
         try:
             ticket, created = create_ticket_for_alert(alert, request.user)
         except TicketSetupError as exc:
             messages.error(request, str(exc))
-            return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
+            return redirect(_back(request))
         messages.success(request, f"{'Created' if created else 'Already linked to'} ticket {ticket.ticket_number}.")
-    return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
+    return redirect(_back(request))
 
 
 # --------------------------------------------------------------------------

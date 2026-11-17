@@ -1526,9 +1526,10 @@ def receipt_create(request, vehicle_id):
 
             image = form.cleaned_data.get('receipt_image')
             if image:
-                # Use hash already computed by OCR endpoint if present, else compute now
-                img_hash = request.POST.get('ocr_image_hash') or _receipt_image_hash(image)
-                receipt.image_hash = img_hash
+                # Hash the uploaded bytes here: a hash the browser sends back
+                # (ocr_image_hash) is not validated by the form and could name
+                # a different image.
+                receipt.image_hash = _receipt_image_hash(image)
                 receipt.save(update_fields=['image_hash'])
                 _save_receipt_image(image, receipt, request)
 
