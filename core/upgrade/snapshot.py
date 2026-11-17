@@ -426,9 +426,26 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
             _private_file(snap / 'env.file')
         gw = getattr(settings, 'AI_GATEWAY_KEY_DIR', '') or ''
         if gw and Path(gw).is_dir():
+            # In worker mode the private key belongs to the gateway's own OS
+            # user (0600) and the web app, which runs this backup, cannot read
+            # it by design. Take what this process can read and record the rest
+            # instead of failing the whole backup on it.
+            skipped = []
             with tarfile.open(snap / 'gateway_keys.tar', 'w') as tar:
-                tar.add(gw, arcname='gateway_keys')
+                tar.add(gw, arcname='gateway_keys', recursive=False)
+                for p in sorted(Path(gw).rglob('*')):
+                    if p.is_symlink():
+                        continue
+                    arc = 'gateway_keys/' + p.relative_to(gw).as_posix()
+                    if p.is_dir() or os.access(p, os.R_OK):
+                        tar.add(str(p), arcname=arc, recursive=False)
+                    else:
+                        skipped.append(arc)
             _private_file(snap / 'gateway_keys.tar')
+            if skipped:
+                manifest['gateway_keys_unreadable'] = skipped
+                _out(out, f'  not readable by this user (owned by the AI gateway), not included: '
+                          f'{", ".join(skipped)}')
         manifest['keys'] = {
             'present': [k for k in REQUIRED_KEYS + OPTIONAL_KEYS if _setting_or_env(k)],
             'fingerprints': {k: key_fingerprint(k, _setting_or_env(k)) for k in REQUIRED_KEYS},
