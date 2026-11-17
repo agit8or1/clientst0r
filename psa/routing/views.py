@@ -12,10 +12,12 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditLog
+from core.safe_redirect import safe_post_next
 from psa.feature_flags import require_psa_enabled
 
 from . import engine, review, service
@@ -188,8 +190,7 @@ def quick_mode(request):
     _audit(request, 'update', 'ticket_routing.RoutingSettings', msp.pk, 'Ticket routing settings',
            f'Ticket routing MSP default mode: {previous} → {mode}')
     messages.success(request, f'Ticket routing default set to {msp.get_mode_display()}.')
-    nxt = request.POST.get('next') or ''
-    return redirect(nxt if nxt.startswith('/') and not nxt.startswith('//') else 'ticket_routing:overview')
+    return redirect(safe_post_next(request, 'ticket_routing:overview'))
 
 
 @login_required
@@ -756,7 +757,5 @@ def decide(request, pk):
            f'Routing suggestion for {d.ticket.ticket_number}: {d.get_status_display()}. {msg}',
            org=d.ticket.organization)
     messages.info(request, msg)
-    nxt = request.POST.get('next') or ''
-    if nxt.startswith('/') and not nxt.startswith('//'):
-        return redirect(nxt)
-    return redirect('psa:ticket_detail', ticket_number=d.ticket.ticket_number)
+    return redirect(safe_post_next(request, reverse('psa:ticket_detail',
+                                                    kwargs={'ticket_number': d.ticket.ticket_number})))

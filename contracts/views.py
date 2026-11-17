@@ -154,8 +154,9 @@ def _owner_choices():
 def notifications_read(request):
     ids = [int(x) for x in request.POST.getlist('id') if x.isdigit()] or None
     notify.mark_read(request.user, ids)
-    return redirect(request.POST.get('next') if (request.POST.get('next') or '').startswith('/contracts/')
-                    else 'contracts:dashboard')
+    from core.safe_redirect import safe_post_next
+    nxt = safe_post_next(request, 'contracts:dashboard')
+    return redirect(nxt if nxt.startswith('/contracts/') else 'contracts:dashboard')
 
 
 # --- create --------------------------------------------------------------------
