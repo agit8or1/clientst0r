@@ -1381,7 +1381,9 @@ def answers_text(rows, *, include_sensitive=True):
 
 
 _SUBJECT_JUNK = re.compile(r'(\(\s*\)|\[\s*\])')
-_SUBJECT_SEP = re.compile(r'\s*([—–:|,-])\s*(?=[—–:|,-]|$)')
+# Runs of whitespace are collapsed to one character before this is applied, so
+# '\s?' matches what '\s*' did without its quadratic backtracking.
+_SUBJECT_SEP = re.compile(r'\s?([—–:|,-])\s?(?=[—–:|,-]|$)')
 
 
 def render_subject(pattern, values, *, item_name='', requester='', organization=''):

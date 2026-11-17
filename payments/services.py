@@ -264,7 +264,7 @@ def _cancel_stale_checkouts(invoice):
             try:
                 provider_for(old.connection).expire_checkout_session(old.provider_session_id)
             except Exception:  # noqa: BLE001 — already expired / completed: the webhook decides
-                logger.info('payments: could not expire checkout %s', old.provider_session_id)
+                logger.info('payments: could not expire checkout for attempt %s', old.pk)
         old.status = 'canceled'
         old.save(update_fields=['status', 'updated_at'])
 
