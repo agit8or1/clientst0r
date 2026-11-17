@@ -8,9 +8,9 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.http import url_has_allowed_host_and_scheme
 from django_ratelimit.decorators import ratelimit
 from audit.models import AuditLog
-from core.safe_redirect import safe_next
 from .azure_auth import (
     MESSAGES, AzureIdentityError, AzureOAuthClient, azure_mfa_asserted, load_azure_config,
     resolve_sso_user, verify_id_token,
@@ -197,9 +197,12 @@ def azure_callback(request):
 
     # Redirect to dashboard or next URL (with security validation to prevent open redirect)
     next_url = request.GET.get('next', '/core/dashboard/')
-    safe_url = safe_next(request, next_url, '')
-    if safe_url:
-        return redirect(safe_url)
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure()
+    ):
+        return redirect(next_url)
     if next_url and next_url != '/core/dashboard/':
         logger.warning(f"Blocked potentially malicious redirect to: {next_url}")
     return redirect('/core/dashboard/')
@@ -301,7 +304,10 @@ SSO_VERIFY_MAX_FAILURES = 5
 
 def _safe_next(request, default='/core/dashboard/'):
     next_url = request.POST.get('next') or request.GET.get('next') or default
-    return safe_next(request, next_url, default)
+    if url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()},
+                                       require_https=request.is_secure()):
+        return next_url
+    return default
 
 
 @ratelimit(key='user_or_ip', rate='10/15m', method='POST', block=False)

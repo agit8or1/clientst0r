@@ -57,10 +57,12 @@ def switch_organization(request, org_id):
 
     # An explicit same-site ?next= (e.g. the Integrations page's organization
     # picker) wins over the stay-on-page setting.
-    from core.safe_redirect import safe_next
-    next_url = safe_next(request, request.GET.get('next', ''), '')
-    if next_url.startswith('/') and not next_url.startswith('//'):
-        return redirect(next_url)
+    next_url = request.GET.get('next', '')
+    if next_url:
+        from django.utils.http import url_has_allowed_host_and_scheme
+        if (next_url.startswith('/') and not next_url.startswith('//')
+                and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()})):
+            return redirect(next_url)
 
     # Check if user wants to stay on current page
     from core.models import SystemSetting
@@ -68,19 +70,22 @@ def switch_organization(request, org_id):
 
     if settings.stay_on_page_after_org_switch:
         # Get the referring page (where the user came from)
-        from core.safe_redirect import safe_referer
-        from urllib.parse import urlparse
-        referer = safe_referer(request, '')
+        referer = request.META.get('HTTP_REFERER', '')
         if referer:
-            try:
-                # Only the path, and only if it is itself a same-site URL: a
-                # referer of https://this-host//evil.example/ has the path
-                # //evil.example/.
-                path = safe_next(request, urlparse(referer).path, '')
-                if path.startswith('/') and not path.startswith('//'):
-                    return redirect(path)
-            except Exception:
-                pass
+            from django.utils.http import url_has_allowed_host_and_scheme
+            from urllib.parse import urlparse
+            if url_has_allowed_host_and_scheme(
+                url=referer,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
+                try:
+                    path = urlparse(referer).path
+                    # Only redirect to same-origin relative paths
+                    if path.startswith('/') and not path.startswith('//'):
+                        return redirect(path)
+                except Exception:
+                    pass
 
     return redirect('core:dashboard')
 
@@ -114,10 +119,12 @@ def switch_to_global_view(request):
 
     # An explicit same-site ?next= (e.g. the Integrations page's organization
     # picker) wins over the stay-on-page setting.
-    from core.safe_redirect import safe_next
-    next_url = safe_next(request, request.GET.get('next', ''), '')
-    if next_url.startswith('/') and not next_url.startswith('//'):
-        return redirect(next_url)
+    next_url = request.GET.get('next', '')
+    if next_url:
+        from django.utils.http import url_has_allowed_host_and_scheme
+        if (next_url.startswith('/') and not next_url.startswith('//')
+                and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()})):
+            return redirect(next_url)
 
     # Check if user wants to stay on current page
     from core.models import SystemSetting
@@ -125,18 +132,17 @@ def switch_to_global_view(request):
 
     if settings.stay_on_page_after_org_switch:
         # Get the referring page (where the user came from)
-        from core.safe_redirect import safe_referer
-        referer = safe_referer(request, '')
+        referer = request.META.get('HTTP_REFERER', '')
         if referer:
             # Extract the path from the referer URL
             from django.urls import resolve
             from urllib.parse import urlparse
             try:
-                path = safe_next(request, urlparse(referer).path, '')
-                if path.startswith('/') and not path.startswith('//'):
-                    # Try to resolve the URL to make sure it's valid
-                    resolve(path)
-                    return redirect(path)
+                parsed = urlparse(referer)
+                path = parsed.path
+                # Try to resolve the URL to make sure it's valid
+                resolve(path)
+                return redirect(path)
             except Exception:
                 # If we can't resolve, fall back to global dashboard
                 pass

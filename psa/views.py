@@ -21,7 +21,6 @@ from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditLog
 from core.decorators import require_admin, require_write
-from core.safe_redirect import safe_post_next, safe_referer
 from core.middleware import get_request_organization
 from core.tenancy import get_scoped_object_or_404, scope_to_request
 from vault.models import Password
@@ -3336,7 +3335,7 @@ def kb_move_articles(request):
 
     if not article_ids:
         messages.error(request, 'Select at least one article to move.')
-        return redirect(safe_referer(request, reverse('psa:kb_browse')))
+        return redirect(request.META.get('HTTP_REFERER') or reverse('psa:kb_browse'))
 
     target_raw = (request.POST.get('target_category_id') or '').strip()
     target_id = None
@@ -3352,7 +3351,7 @@ def kb_move_articles(request):
             ).first()
             if not target_cat:
                 messages.error(request, 'Invalid target category.')
-                return redirect(safe_referer(request, reverse('psa:kb_browse')))
+                return redirect(request.META.get('HTTP_REFERER') or reverse('psa:kb_browse'))
 
     # Single-query update across all selected global KB articles.
     qs = Document.objects.filter(pk__in=article_ids, is_global=True)
@@ -3384,7 +3383,8 @@ def kb_move_articles(request):
         messages.warning(request, 'No matching KB articles to move.')
 
     # Preserve the user's current category filter on redirect.
-    return redirect(safe_post_next(request, reverse('psa:kb_browse')))
+    next_url = request.POST.get('next') or reverse('psa:kb_browse')
+    return redirect(next_url)
 
 
 @login_required

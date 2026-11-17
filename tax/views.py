@@ -440,14 +440,8 @@ def _document(request, doc_type, pk):
     return doc
 
 
-_DETAIL_VIEWS = {'quote': 'psa:quote_detail', 'invoice': 'psa:invoice_detail'}
-
-
 def _detail(doc_type, doc):
-    # A fixed view name per document type: the URL's doc_type never becomes
-    # part of the redirect target (redirect() falls back to treating an
-    # unresolvable name as a URL).
-    return redirect(_DETAIL_VIEWS[doc_type], pk=doc.pk)
+    return redirect(f'psa:{doc_type}_detail', pk=doc.pk)
 
 
 @login_required

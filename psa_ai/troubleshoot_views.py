@@ -83,9 +83,8 @@ def _start(request, *, ticket=None, device=None):
         if _wants_json(request):
             return JsonResponse({'ok': False, 'error': e.message}, status=e.status)
         messages.error(request, f'AI Troubleshoot: {e.message}')
-        from core.safe_redirect import safe_post_next
-        back = safe_post_next(request, '')
-        if back:
+        back = request.POST.get('next') or ''
+        if back.startswith('/') and not back.startswith('//'):
             return redirect(back)
         if ticket is not None:
             return redirect(reverse('psa:ticket_detail', args=[ticket.ticket_number]))

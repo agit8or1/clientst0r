@@ -17,13 +17,13 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django_ratelimit.decorators import ratelimit
 
 from accounts.sso_mfa import OIDC_SESSION_FLAG, OIDC_SESSION_MFA
-from core.safe_redirect import safe_next
 
 from . import audit, claims as claimlib, client, keys, mapping, sessions
 from .http import OPError
@@ -51,7 +51,10 @@ def enabled_provider(slug):
 
 
 def _safe_next(request, value, default=DEFAULT_NEXT):
-    return safe_next(request, value, default)
+    if value and url_has_allowed_host_and_scheme(url=value, allowed_hosts={request.get_host()},
+                                                 require_https=request.is_secure()):
+        return value
+    return default
 
 
 def _no_referrer(response):

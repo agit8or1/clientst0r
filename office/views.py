@@ -328,8 +328,7 @@ def new_attachment(request, fmt):
         raise Http404('Not found')
     except storage.StorageError as e:
         messages.error(request, f'Could not create the file: {e.message}')
-        from core.safe_redirect import safe_post_next
-        return redirect(safe_post_next(request, 'docs:document_list'))
+        return redirect(request.POST.get('next') or 'docs:document_list')
     messages.success(request, f'Created {target.filename}.')
     return redirect(reverse('office:target_detail', args=[target.code, target.pk]))
 

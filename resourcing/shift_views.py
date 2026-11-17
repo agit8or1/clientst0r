@@ -21,7 +21,6 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditLog
-from core.safe_redirect import safe_post_next
 
 from . import shifts
 from .models import ShiftAssignment, ShiftTemplate, WorkingHours
@@ -164,7 +163,8 @@ def assign(request):
     if not can_manage_shifts(request.user):
         raise Http404()
     from psa.visibility import msp_technicians
-    back = safe_post_next(request, None)
+    back = request.POST.get('next') or ''
+    back = back if back.startswith('/') and not back.startswith('//') else None
     tpl = ShiftTemplate.objects.filter(pk=request.POST.get('template') or 0, is_active=True).first()
     user = team = None
     if (request.POST.get('user') or '').isdigit():
@@ -213,4 +213,5 @@ def assignment_delete(request, pk):
     _audit(request, 'delete', a, f'Shift assignment removed: {a}')
     a.delete()
     messages.success(request, 'Shift assignment removed.')
-    return redirect(safe_post_next(request, 'resourcing:shift_schedule'))
+    back = request.POST.get('next') or ''
+    return redirect(back if back.startswith('/') and not back.startswith('//') else 'resourcing:shift_schedule')
