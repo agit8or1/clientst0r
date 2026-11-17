@@ -93,8 +93,11 @@ jobs:
           python -m venv /tmp/semgrep
           /tmp/semgrep/bin/pip install --quiet semgrep==1.184.0
 
+      # Only pushes and pull requests have a baseline to diff against. A manual
+      # (workflow_dispatch) run is the full scan below, uploaded to code
+      # scanning, and must not fail on findings that already exist on main.
       - name: Semgrep — new ERROR findings block
-        if: github.event_name != 'schedule'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         env:
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
