@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.708] - 2026-11-17
+
+### Fixed
+- **Updating to v3.17.706 or later stopped at "migrating"** with `InconsistentMigrationHistory: Migration audit.0002_redact_refused_object_names is applied before its dependency docs.0021_global_kb_portal_visible`. `audit.0002` depended on the *latest* docs and auth migrations, so a new docs migration made the already-applied audit migration look out of order. The dependencies are now pinned to `docs.0020` and `auth.0012`, and a test fails if any migration depends on `__latest__` again. An install whose update stopped there can apply this release (or run `manage.py upgrade_apply` to it); the pre-upgrade backup does not need to be restored, because `docs.0021` never ran.
+- **Global KB editor opened empty and would not save.** Editing a global KB article (and a document template) loaded an empty editor: the Quill 2 call that fills it was given a bare string. Saving then stopped at "Please enter document content". The editor now loads the article.
+- **Save button out of sight.** The document and global KB editors keep Cancel / Save in a bar pinned to the bottom of the window, and the button says **Save changes** (or **Create**) instead of "Edit Document".
+
+### Added
+- **Make an article global from its editor.** Staff who may edit **and** publish global KB articles get a **Global KB article (every customer)** box on the document create and edit forms. Ticking it moves the article into the global KB — it no longer belongs to the customer, so removing that customer leaves it in place; customer-specific category and tags are dropped, and the slug is renamed if another global article already uses it (old links to the customer article stop working) — and opens it there.
+
 ## [3.17.707] - 2026-11-17
 
 ### Security

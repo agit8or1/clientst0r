@@ -58,7 +58,16 @@ class DocumentForm(forms.ModelForm):
         # KB articles pass global_article=True (staff only).
         owner_org = kwargs.pop('owner_organization', None)
         global_article = kwargs.pop('global_article', False)
+        # Offer "Global KB article" on customer documents to users who may
+        # edit global KB articles (kb_edit_articles).
+        can_make_global = kwargs.pop('can_make_global', False)
         super().__init__(*args, **kwargs)
+
+        if can_make_global and not global_article and not getattr(self.instance, 'is_global', False):
+            self.fields['make_global'] = forms.BooleanField(
+                required=False, label='Global KB article (every customer)',
+                help_text='Moves this article to the global knowledge base, shared with all customers.',
+                widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
 
         if 'is_client_visible' in self.fields:
             if global_article or getattr(self.instance, 'is_global', False):

@@ -151,8 +151,9 @@
 
         // Use clipboard.convert to preserve formatting properly
         if (bodyTextarea.value) {
-            const delta = quillEditor.clipboard.convert(bodyTextarea.value);
-            quillEditor.setContents(delta, 'silent');
+            // Quill 2: convert() takes {html}; a bare string loaded an empty editor
+            // (and the empty-content check then blocked Save).
+            quillEditor.clipboard.dangerouslyPasteHTML(bodyTextarea.value, 'silent');
         }
     }
 

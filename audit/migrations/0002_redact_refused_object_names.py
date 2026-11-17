@@ -100,8 +100,8 @@ class Migration(migrations.Migration):
         ('assets', '0029_serial_events'),
         ('vault', '0016_password_encrypted_notes'),
         ('monitoring', '0015_vlangroup_alter_rackdevice_unique_together_and_more'),
-        ('docs', '__latest__'),
-        ('auth', '__latest__'),
+        ('docs', '0020_agreement_reminder_opt_out'),
+        ('auth', '0012_alter_user_first_name_max_length'),
     ]
 
     operations = [

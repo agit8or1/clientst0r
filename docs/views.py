@@ -415,7 +415,7 @@ def document_create(request):
 
     if request.method == 'POST':
         form = DocumentForm(request.POST, request.FILES, organization=org,
-                            can_publish=may_publish)
+                            can_publish=may_publish, can_make_global=_can_make_global(request.user))
         if form.is_valid():
             document = form.save(commit=False)
             document.organization = org
@@ -442,14 +442,20 @@ def document_create(request):
                     document.title = os.path.splitext(document.file.name)[0]
                     document.slug = slugify(document.title)
 
+            made_global = _apply_make_global(form, document)
             document.save()
             form.save_m2m()
+            if made_global:
+                _finish_make_global(document)
             messages.success(request, f"Document '{document.title}' created successfully.")
             if note:
                 messages.info(request, note)
+            if made_global:
+                return redirect('docs:global_kb_detail', slug=document.slug)
             return redirect('docs:document_detail', slug=document.slug)
     else:
         form = DocumentForm(organization=org, initial=initial_data,
+                            can_make_global=_can_make_global(request.user),
                             can_publish=may_publish)
 
     # Get available templates for dropdown
@@ -510,7 +516,8 @@ def document_edit(request, slug):
     if request.method == 'POST':
         form = DocumentForm(request.POST, request.FILES, instance=document, organization=org,
                             owner_organization=document.organization,
-                            can_publish=may_publish)
+                            can_publish=may_publish,
+                            can_make_global=_can_make_global(request.user))
         if form.is_valid():
             document = form.save(commit=False)
             document.last_modified_by = request.user
@@ -524,16 +531,23 @@ def document_edit(request, slug):
                 document.file_size = document.file.size
                 document.file_type = _uploaded_file_type(request, 'file', document.file.name)
 
+            made_global = _apply_make_global(form, document)
             document.save()
             form.save_m2m()
+            if made_global:
+                _finish_make_global(document)
             messages.success(request, f"Document '{document.title}' updated successfully.")
             if note:
                 messages.info(request, note)
+            if made_global:
+                messages.info(request, 'It is now a global KB article, shared with every customer.')
+                return redirect('docs:global_kb_detail', slug=document.slug)
             return redirect('docs:document_detail', slug=document.slug)
     else:
         form = DocumentForm(instance=document, organization=org,
                             owner_organization=document.organization,
-                            can_publish=may_publish)
+                            can_publish=may_publish,
+                            can_make_global=_can_make_global(request.user))
 
     return render(request, 'docs/document_form.html', {
         'form': form,
@@ -892,6 +906,47 @@ def require_staff_user(view_func):
             return redirect('core:dashboard')
         return view_func(request, *args, **kwargs)
     return wrapper
+
+
+def _can_make_global(user):
+    """Moving an article into the global KB publishes it to every customer,
+    so it needs both global KB edit and publish rights."""
+    from psa.views import _check_kb_perm
+    return (_check_kb_perm(user, 'kb_edit_articles')
+            and _check_kb_perm(user, 'kb_publish_articles'))
+
+
+def _apply_make_global(form, document):
+    """Tick "Global KB article" -> the document joins the global KB, owned by
+    the same placeholder organization global_kb_create uses (so removing the
+    original customer does not delete it). Customer-specific categories and
+    tags are dropped by the caller after save_m2m (_finish_make_global). The
+    slug must be unique among global articles (global_kb_detail looks them up
+    by slug) and within the placeholder organization."""
+    if 'make_global' not in form.fields or not form.cleaned_data.get('make_global'):
+        return False
+    from django.db.models import Q
+    from django.utils.text import slugify
+    from core.models import Organization
+    home = Organization.objects.order_by('pk').first() or document.organization
+    max_len = Document._meta.get_field('slug').max_length
+    base = (document.slug or slugify(document.title) or 'article')[:max_len - 6]
+    slug, n = base, 2
+    clash = Document.objects.exclude(pk=document.pk)
+    while clash.filter(Q(is_global=True) | Q(organization=home), slug=slug).exists():
+        slug, n = f'{base}-{n}', n + 1
+    document.slug = slug
+    document.is_global = True
+    document.organization = home
+    if document.category_id and document.category.organization_id is not None:
+        document.category = None
+    return True
+
+
+def _finish_make_global(document):
+    """After save_m2m: customer tags do not follow the article into the
+    global KB."""
+    document.tags.clear()
 
 
 def require_kb_perm(perm_name):

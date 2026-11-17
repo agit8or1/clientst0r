@@ -459,3 +459,30 @@ class RedactRefusedObjectNamesMigrationTests(TestCase):
         ok.refresh_from_db(); refused.refresh_from_db()
         self.assertEqual(ok.object_repr, 'b-secret-srv')
         self.assertEqual(refused.object_repr, '')
+
+
+# ---------------------------------------------------------------------------
+# Migration dependencies must be pinned (v3.17.708)
+# ---------------------------------------------------------------------------
+class MigrationDependencyPinningTests(TestCase):
+    """A ('app', '__latest__') dependency moves when that app gains a migration:
+    installs that already applied the dependent migration then fail `migrate`
+    with InconsistentMigrationHistory (v3.17.706 on audit.0002 -> docs.0021)."""
+
+    def test_no_migration_depends_on_latest(self):
+        import ast
+        from pathlib import Path
+        from django.conf import settings
+        base = Path(settings.BASE_DIR)
+        offenders = []
+        for path in base.rglob('migrations/*.py'):
+            rel = path.relative_to(base).parts
+            if rel[0] in ('venv', 'node_modules', 'static', 'staticfiles') or rel[0].startswith('.'):
+                continue
+            src = path.read_text(encoding='utf-8', errors='replace')
+            if '__latest__' not in src:
+                continue
+            for node in ast.walk(ast.parse(src)):
+                if isinstance(node, ast.Constant) and node.value == '__latest__':
+                    offenders.append(f'{path.relative_to(base)}:{node.lineno}')
+        self.assertEqual(offenders, [], 'pin these dependencies to a named migration')
