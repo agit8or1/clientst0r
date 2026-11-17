@@ -213,7 +213,8 @@ def alert_decide(request, pk):
             messages.error(request, f'Failed to create ticket: {exc}')
     else:
         messages.error(request, f'Unknown decision: {decision}')
-    return redirect(request.POST.get('next') or 'security_alerts:alert_list')
+    from core.safe_redirect import safe_post_next
+    return redirect(safe_post_next(request, 'security_alerts:alert_list'))
 
 
 @login_required

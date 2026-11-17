@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.705] - 2026-11-17
+
+### Security
+- Redirects to a URL taken from the request now go through one helper, `core.safe_redirect` (`safe_next`, `safe_post_next`, `safe_referer`). A target is used only when Django's `url_has_allowed_host_and_scheme` accepts it for the request's own host (on HTTPS, only https or relative), and never when it contains a backslash, a control character or surrounding whitespace; anything else gets the page's usual destination. Code-scanning alert batch (CodeQL `py/url-redirection`, Semgrep `open-redirect`).
+- Several "return to where you were" redirects trusted the posted `next` field or the Referer with no check, or only with `startswith('/') and not startswith('//')`, which `/\evil.example` passes and browsers follow off-site: request types (move, builder actions), ticket routing (default mode, accept / reject suggestion), KB bulk move, troubleshooting sessions, shift schedule, security alert decisions, the Office "new file" error path, RMM device review, relationship delete, archived document restore and contract notifications. They now use the helper. These were POST forms behind CSRF protection, so an attacker could not submit them cross-site; the fix closes the gap rather than an exploited path.
+- Switch organization / switch to global view with *stay on page* redirected to the path of any Referer, including another site's; only a same-site Referer is used now, and only if its path is itself same-site (`https://host//evil.example/` has the path `//evil.example/`).
+- OAuth / Azure sign-in, OIDC sign-in and step-up, and the favourites star used correct checks already; they now call the same helper. Tax document redirects pick the detail view from a fixed map instead of formatting the URL's document type into a view name.
+- The relationship map redirect after creating a relationship URL-encodes its query string.
+- Code-scanning triage: alerts on `redirect(request.path)` (and the same with a query or fragment appended, and `/account/login/?next=<path>`) were dismissed as false positives, with the reason on each alert: `request.path` is the path Django routed to that view, every such route starts with a literal segment and there is no catch-all route, so it cannot name another host. The role landing redirect (`core/dashboard_views.py`) was dismissed too: it must equal one of the user's own sidebar destinations.
+
 ## [3.17.704] - 2026-11-17
 
 ### Security

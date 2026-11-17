@@ -158,7 +158,9 @@ def relationship_create(request):
             messages.success(request, "Relationship created successfully.")
             if source_type == 'asset':
                 return redirect('assets:asset_detail', pk=source_id)
-            return redirect(f"{reverse('assets:relationship_map')}?type={source_type}&id={source_id}")
+            from urllib.parse import urlencode
+            return redirect(reverse('assets:relationship_map') + '?'
+                            + urlencode({'type': source_type, 'id': source_id}))
 
         except Exception as e:
             messages.error(request, f"Error creating relationship: {str(e)}")
@@ -215,7 +217,8 @@ def relationship_delete(request, pk):
     if request.method == 'POST':
         relationship.delete()
         messages.success(request, "Relationship deleted successfully.")
-        return redirect(request.META.get('HTTP_REFERER', 'assets:relationship_map'))
+        from core.safe_redirect import safe_referer
+        return redirect(safe_referer(request, 'assets:relationship_map'))
 
     return render(request, 'assets/relationship_confirm_delete.html', {
         'relationship': relationship,

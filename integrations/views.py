@@ -1191,9 +1191,8 @@ def rmm_device_decide(request, pk):
     # platform connection's devices are decided in global view only.
     get_connection_or_404(request, RMMConnection, device.connection_id, 'write')
     action = request.POST.get('action', '')
-    back = request.POST.get('next') or reverse('integrations:rmm_review', args=[device.connection_id])
-    if not back.startswith('/') or back.startswith('//'):
-        back = reverse('integrations:rmm_review', args=[device.connection_id])
+    from core.safe_redirect import safe_post_next
+    back = safe_post_next(request, reverse('integrations:rmm_review', args=[device.connection_id]))
     try:
         if action in ('assign_customer', 'map_customer'):
             target = get_object_or_404(Organization, pk=request.POST.get('organization'), is_active=True)

@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditLog
+from core.safe_redirect import safe_post_next
 
 from . import request_forms, request_starters
 from .feature_flags import require_psa_enabled
@@ -127,7 +128,7 @@ def request_type_move(request, pk):
                 if s.sort_order != (n + 1) * 10:
                     ServiceCatalogItem.objects.filter(pk=s.pk).update(sort_order=(n + 1) * 10)
         _audit(request, item, 'update', f'Moved request type "{item.name}" {direction}')
-    return redirect(request.POST.get('next') or reverse('psa:request_type_list'))
+    return redirect(safe_post_next(request, reverse('psa:request_type_list')))
 
 
 @login_required
@@ -175,7 +176,7 @@ def request_type_action(request, pk):
         return redirect('psa:request_type_builder', pk=copy.pk)
     else:
         messages.error(request, 'Unknown action.')
-    return redirect(request.POST.get('next') or reverse('psa:request_type_builder', args=[item.pk]))
+    return redirect(safe_post_next(request, reverse('psa:request_type_builder', args=[item.pk])))
 
 
 @login_required
