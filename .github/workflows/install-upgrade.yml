@@ -275,9 +275,10 @@ jobs:
           git worktree add "$RUNNER_TEMP/old" "$FROM_STABLE"
           cp .env "$RUNNER_TEMP/old/.env"
           # Images before the Dockerfile created /var/log/itdocs can't start with
-          # DEBUG off (settings create it at import, as a non-root user).
+          # DEBUG off (settings create it at import, as a non-root user), and
+          # their 60s health start period is shorter than a fresh migrate.
           printf '%s\n' 'services:' \
-            '  app: {tmpfs: ["/var/log/itdocs:uid=1000,gid=1000"]}' \
+            '  app: {tmpfs: ["/var/log/itdocs:uid=1000,gid=1000"], healthcheck: {start_period: 15m}}' \
             '  scheduler: {tmpfs: ["/var/log/itdocs:uid=1000,gid=1000"]}' \
             > "$RUNNER_TEMP/old/docker-compose.override.yml"
           (cd "$RUNNER_TEMP/old" && docker compose up -d --build)

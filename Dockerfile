@@ -84,7 +84,7 @@ USER clientst0r
 EXPOSE 8000
 
 # Healthcheck hits the dedicated /health/ endpoint added in v3.17.490.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15m --retries=3 \
     CMD curl -fsS http://localhost:8000/health/ || exit 1
 
 # Entrypoint waits for DB + runs migrations + collectstatic, then

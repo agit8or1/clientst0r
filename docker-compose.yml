@@ -121,7 +121,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      # The entrypoint takes a verified backup and runs every migration before
+      # gunicorn starts; a fresh database takes several minutes. Failed probes
+      # in this window don't count, and the first good one marks it healthy.
+      start_period: 15m
 
   # ────────────────────────────────────────────────────────────────────
   # Scheduler — runs every periodic job (recurring tickets and invoices,
