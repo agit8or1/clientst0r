@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -265,7 +266,7 @@ def settings_view(request):
                                                         'before': {k: str(v) for k, v in before.items()},
                                                         'after': {k: str(v) for k, v in row.thresholds().items()}})
             messages.success(request, 'Thresholds saved. They apply from the next advisor run.')
-            return redirect(request.path + (f'?client={client.pk}' if client else ''))
+            return redirect(reverse('advisor:settings') + (f'?client={client.pk}' if client else ''))
     fields = [{'name': n, 'label': AdvisorSettings._meta.get_field(n).verbose_name.capitalize(),
                'help': AdvisorSettings._meta.get_field(n).help_text, 'value': getattr(row, n)}
               for n in AdvisorSettings.THRESHOLD_FIELDS]

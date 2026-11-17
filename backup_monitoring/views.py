@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.permission_utils import require_perm_any_org, user_has_org_perm, user_has_perm_any_org
+from core.safe_redirect import safe_post_next
 
 from . import ingest as ingest_mod
 from .access import MANAGE, VIEW, allowed_orgs, can_act_on, has_global_reach, visible
@@ -128,15 +129,15 @@ def alert_decide(request, pk):
         from .tickets import create_ticket_for_alert
         if alert.organization_id is None:
             messages.error(request, 'Map this to a customer first: a ticket needs a customer.')
-            return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
+            return redirect(safe_post_next(request, 'backup_monitoring:alert_list'))
         from .tickets import TicketSetupError
         try:
             ticket, created = create_ticket_for_alert(alert, request.user)
         except TicketSetupError as exc:
             messages.error(request, str(exc))
-            return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
+            return redirect(safe_post_next(request, 'backup_monitoring:alert_list'))
         messages.success(request, f"{'Created' if created else 'Already linked to'} ticket {ticket.ticket_number}.")
-    return redirect(request.POST.get('next') or 'backup_monitoring:alert_list')
+    return redirect(safe_post_next(request, 'backup_monitoring:alert_list'))
 
 
 # --------------------------------------------------------------------------

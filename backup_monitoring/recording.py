@@ -126,7 +126,10 @@ def poll_connection(connection, now=None):
         return {'ok': False, 'message': str(exc), 'runs': 0}
     except Exception as exc:  # a provider bug must not stop the other connections
         logger.exception('backup poll failed for connection %s', connection.pk)
-        connection.last_poll_status, connection.last_poll_error = 'error', f'{exc.__class__.__name__}: {exc}'[:1000]
+        # The exception text stays in the server log: it can carry URLs, hostnames
+        # or library internals, and this message is shown in the UI and API.
+        connection.last_poll_status, connection.last_poll_error = (
+            'error', f'Unexpected error while polling ({exc.__class__.__name__}). See the server log.')
         connection.save(update_fields=['last_poll_attempt_at', 'last_poll_status', 'last_poll_error'])
         return {'ok': False, 'message': connection.last_poll_error, 'runs': 0}
 

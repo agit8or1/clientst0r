@@ -273,7 +273,7 @@ def sync_all(organization=None, *, with_assignments=True):
         try:
             results.append(sync_m365_connection(conn, with_assignments=with_assignments))
         except Exception as exc:  # one broken connection never stops the rest
-            logger.exception('m365 license sync failed for %s', conn)
+            logger.exception('m365 license sync failed for connection %s', conn.pk)
             r = SyncResult('m365', conn.name)
             r.errors.append(str(exc)[:500])
             results.append(r)
@@ -283,7 +283,7 @@ def sync_all(organization=None, *, with_assignments=True):
             try:
                 results.append(sync_pax8_connection(conn))
             except Exception as exc:
-                logger.exception('pax8 license sync failed for %s', conn)
+                logger.exception('pax8 license sync failed for connection %s', conn.pk)
                 r = SyncResult('pax8', conn.name)
                 r.errors.append(str(exc)[:500])
                 results.append(r)
