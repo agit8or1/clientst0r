@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.702] - 2026-11-17
+
+### Fixed
+- **The cross-peer e2e job has failed on every run since 2026-11-11**, before any check ran, with
+  `PermissionError: [Errno 13] Permission denied: '/var/log/itdocs'`. Its settings import `config.settings`
+  with `DEBUG` off, which creates the log directory at import time, and a CI runner cannot create anything
+  under `/var/log`. The log directory is now `ITDOCS_LOG_DIR` (default `/var/log/itdocs`, so deployments are
+  unchanged), and the e2e settings point it at the run's scratch directory.
+
 ## [3.17.701] - 2026-11-16
 
 ### Changed

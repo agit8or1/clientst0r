@@ -780,6 +780,10 @@ if not API_KEY_SECRET:
 EMERGENCY_RESTART_SECRET = os.getenv('EMERGENCY_RESTART_SECRET', '')
 
 # Logging
+# Where the file log handlers write. Deployments leave it unset (/var/log/itdocs);
+# the cross-peer e2e run points it at its own scratch directory.
+LOG_DIR = Path(os.getenv('ITDOCS_LOG_DIR', '/var/log/itdocs'))
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -796,12 +800,12 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': '/var/log/itdocs/django.log',
+            'filename': str(LOG_DIR / 'django.log'),
             'formatter': 'verbose',
         },
         'vault_file': {
             'class': 'logging.FileHandler',
-            'filename': '/var/log/itdocs/vault.log',
+            'filename': str(LOG_DIR / 'vault.log'),
             'formatter': 'verbose',
         },
     },
@@ -835,8 +839,7 @@ LOGGING = {
 
 # Create log directory if it doesn't exist
 if not DEBUG:
-    log_dir = Path('/var/log/itdocs')
-    log_dir.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Office documents (office/, docs/OFFICE_DOCUMENTS.md). Hard ceiling for one
 # Office file; each editor instance can lower it. OFFICE_SCAN_HOOK names a
