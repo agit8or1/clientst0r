@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.704] - 2026-11-17
+
+### Security
+- Error responses no longer carry exception text or tracebacks (CodeQL `py/stack-trace-exposure`, 68 alerts). About sixty JSON and DRF responses returned `str(e)` from a broad `except Exception`, and three returned `traceback.format_exc()` (the OS package update in Settings → Security, and the demo-data import's catch-all). Exception text can hold file paths, SQL, library internals and, from `requests`, the full URL of the failed call: the Google Maps key check in Settings → AI sent the key as a query parameter, so a network failure echoed the key back to the browser. These responses now say `"<what failed>. See the server log (reference 1a2b3c4d)."`; the exception and its traceback are logged at ERROR under the same reference (logger `clientst0r.errors`, or the view's own logger). To debug one, search the log for the reference.
+- Shared helper: `core/error_responses.public_error(exc, summary, log=None)`. `summary` is a fixed phrase, never built from the exception.
+- Where it applies: mobile API (asset create/update, vault encrypt, OCR status), asset port configuration and AI documentation, `AIDocumentationGenerator` results (AI generate/enhance/validate/review), Settings (LLM test, Snyk install/upgrade/scan/cleanup, KB import/delete, data export, encryption-key setup, demo import, API key validators for Anthropic, Google Maps, Twilio, Vonage), the Snyk CLI version check, update apply/restart/bug report and the version diagnostics, document upload/diagram save/AI views, hardware port edits (non-validation errors), PSA and distributor/accounting connection tests and sync, location refreshes, website monitor check, workflow diagram generation and PSA note errors, the Microsoft 365 mailbox probe and Graph send test, network config collection (vault-read and unexpected failures), security vendor connection test, wallboard widget failures and receipt OCR.
+- Kept, by decision: our own validation and refusal messages (`ValidationError`, `ContractError`, `CollectionError`, `RevisionError`/GitHub errors on the superuser Updates page, the managed Office diagnostics page, the Rem0te contract errors). Those 20 alerts were dismissed on GitHub with the reason on each.
+
+## [3.17.703] - 2026-11-17
+
+### Security
+- CSV exports could carry spreadsheet formulas. A ticket subject, client name, request type, note or other typed text beginning with `=`, `+`, `-`, `@`, a tab or a carriage return was written to the CSV as is, and Excel, LibreOffice and Google Sheets run such a cell as a formula when the file is opened (`=HYPERLINK(...)` to leak data, DDE payloads). Every downloadable CSV export (reports, PSA payroll and request-type report, audit log, field-ops payroll, report builder, compliance evidence pack) now writes through `core/csv_safe`, which prefixes such a cell with `'` so it is shown as text. Numbers, and strings that are just a number such as `-12.50`, are left unchanged so amounts stay numeric. The request-type report's own partial escaping is replaced by the shared helper (Semgrep `csv-writer-injection`, 24 alerts).
+- GitHub Actions: every `uses:` in `.github/workflows` is pinned to a full commit SHA, with the release in a comment, instead of a movable tag (`@v4`), so a re-pointed tag in a third-party action cannot change what CI runs (Semgrep `github-actions-mutable-action-tag`, 35 alerts). Each action stays on its current major version, at its latest release. A new `.github/dependabot.yml` updates the pins monthly in one grouped pull request.
+
 ## [3.17.702] - 2026-11-17
 
 ### Fixed
