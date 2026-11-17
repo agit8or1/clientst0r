@@ -170,7 +170,15 @@
         }
         if (el.hasAttribute('data-navigate')) {
             var to = el.value || '';
-            if (to.charAt(0) === '/' && to.charAt(1) !== '/') window.location.assign(to);
+            // Path-absolute only: not //host, and not /\host, which browsers treat
+            // as //host. Only the parsed path (and query) of a same-origin URL
+            // is followed.
+            if (/^\/(?![\/\\])/.test(to)) {
+                var dest = new URL(to, window.location.origin);
+                if (dest.origin === window.location.origin) {
+                    window.location.assign(dest.pathname + dest.search);
+                }
+            }
         }
         if (el.hasAttribute('data-on-change')) {
             callNamed(el, 'data-on-change', ev);
