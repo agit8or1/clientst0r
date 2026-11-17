@@ -44,10 +44,16 @@ ROOT = HERE.parents[2]
 RESULTS = []
 
 
+def _clip(detail):
+    # Keep the end of a long detail: a traceback's error is its last line.
+    d = str(detail)
+    return d if len(d) <= 2000 else d[:300] + '\n  …\n' + d[-1700:]
+
+
 def check(cond, name, detail=''):
-    RESULTS.append({'ok': bool(cond), 'name': name, 'detail': '' if cond else str(detail)[:800],
+    RESULTS.append({'ok': bool(cond), 'name': name, 'detail': '' if cond else _clip(detail),
                     'scenario': CURRENT['s']})
-    print(f'  {"PASS" if cond else "FAIL"}  {name}' + ('' if cond else f'\n        {str(detail)[:800]}'), flush=True)
+    print(f'  {"PASS" if cond else "FAIL"}  {name}' + ('' if cond else f'\n        {_clip(detail)}'), flush=True)
     return bool(cond)
 
 

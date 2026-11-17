@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.702] - 2026-11-17
+
+### Fixed
+- **The cross-peer e2e job has failed on every run since 2026-11-11**, before any check ran, with
+  `PermissionError: [Errno 13] Permission denied: '/var/log/itdocs'`. Its settings import `config.settings`
+  with `DEBUG` off, which creates the log directory at import time, and a CI runner cannot create anything
+  under `/var/log`. The log directory is now `ITDOCS_LOG_DIR` (default `/var/log/itdocs`, so deployments are
+  unchanged), and the e2e settings point it at the run's scratch directory.
+- **A crashed cross-peer check now shows its error.** Check details were cut to their first 800 characters,
+  which for a traceback is the call stack without the exception; long details now keep the end.
+- **`python-dateutil` is now a declared requirement.** `advisor`, `psa` and `contracts` import it, but only
+  another package's dependency installed it. A clean install from `requirements.txt` (CI's cross-peer run and
+  native install) failed loading the URL configuration with `ModuleNotFoundError: No module named 'dateutil'`.
+
 ## [3.17.701] - 2026-11-16
 
 ### Changed
