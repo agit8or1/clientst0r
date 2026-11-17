@@ -6,6 +6,7 @@ configured (Settings → AI), via `docs.services.llm_providers`. This module
 used to hardcode Anthropic, which meant an install running a local model
 still sent every receipt image off-network.
 """
+from core.error_responses import public_error
 import logging
 
 logger = logging.getLogger('vehicles')
@@ -37,8 +38,7 @@ def extract_receipt_data(image_file):
         image_file.seek(0)
         image_bytes = image_file.read()
     except Exception as e:
-        logger.error(f'[receipt_ocr] Failed to read image: {e}')
-        return {'success': False, 'error': f'Could not read image file: {e}'}
+        return {'success': False, 'error': public_error(e, 'Could not read image file', log=logger)}
 
     content_type = getattr(image_file, 'content_type', 'image/jpeg')
     if content_type not in ('image/jpeg', 'image/png', 'image/gif', 'image/webp'):
@@ -59,8 +59,7 @@ def extract_receipt_data(image_file):
     try:
         result = provider.extract_receipt_fields(image_bytes, content_type)
     except Exception as exc:
-        logger.error(f'[receipt_ocr] provider error: {exc}')
-        return {'success': False, 'error': f'AI extraction failed: {exc}'}
+        return {'success': False, 'error': public_error(exc, 'AI extraction failed', log=logger)}
 
     if not result.get('success'):
         return result

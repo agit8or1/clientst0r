@@ -8,6 +8,7 @@ Required Graph API permissions (application, not delegated):
   Mail.Read  — only if using PSA inbound mailbox sync (issue #142); lets the
               app read messages in the helpdesk mailbox it is configured to poll.
 """
+from core.error_responses import public_error
 import logging
 from urllib.parse import quote
 
@@ -552,7 +553,7 @@ class M365Provider:
                 msg = msg or f'Mailbox "{mailbox}" not found on this tenant.'
             return {'success': False, 'error': f'HTTP {code}: {msg}'.strip()}
         except Exception as e:
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': public_error(e, 'Mailbox probe failed')}
 
     def list_unread_message_ids(self, mailbox: str, folder: str = 'inbox', limit: int = 50) -> list:
         """Return message ids for UNREAD messages in the mailbox folder.

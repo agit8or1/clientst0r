@@ -2,6 +2,7 @@
 Admin Settings Views
 Superuser-only views for managing system configuration.
 """
+from core.error_responses import public_error
 from core.ai_models import (
     CLAUDE_MODEL_IDS, CURRENT_CLAUDE_MODELS, PREVIOUS_CLAUDE_MODELS, is_valid_claude_model,
 )
@@ -1428,10 +1429,9 @@ def test_llm_connection(request):
             'error': 'Invalid JSON in request body'
         }, status=400)
     except Exception as e:
-        logger.exception(f"LLM connection test failed: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'LLM connection test failed', log=logger)
         }, status=500)
 
 
@@ -1626,7 +1626,7 @@ def upgrade_snyk_cli(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': str(e)
+            'message': public_error(e, 'The operation failed', log=logger)
         })
 
 
@@ -1710,7 +1710,7 @@ npm install -g snyk
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': str(e)
+            'message': public_error(e, 'The operation failed', log=logger)
         })
 
 
@@ -1767,12 +1767,12 @@ def test_snyk_connection(request):
     except requests.exceptions.RequestException as e:
         return JsonResponse({
             'success': False,
-            'message': f'Connection error: {str(e)}'
+            'message': public_error(e, 'Could not reach the Snyk API', log=logger)
         })
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': f'Unexpected error: {str(e)}'
+            'message': public_error(e, 'Unexpected error', log=logger)
         })
 
 
@@ -2111,7 +2111,7 @@ def apply_snyk_remediation(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': str(e)
+            'message': public_error(e, 'The operation failed', log=logger)
         })
 
 
@@ -2226,7 +2226,7 @@ def fix_all_snyk_vulnerabilities(request):
             results.append({
                 'success': False,
                 'package': package,
-                'message': str(e)
+                'message': public_error(e, f'Upgrade of {package} failed', log=logger)
             })
 
     # Count successes
@@ -2289,7 +2289,7 @@ def cancel_snyk_scan(request, scan_id):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': str(e)
+            'message': public_error(e, 'The operation failed', log=logger)
         })
 
 
@@ -2335,7 +2335,7 @@ def restart_application(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': str(e)
+            'message': public_error(e, 'The operation failed', log=logger)
         })
 
 
@@ -2394,7 +2394,7 @@ def cleanup_old_snyk_scans(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': f'Cleanup failed: {str(e)}'
+            'message': public_error(e, 'Cleanup failed', log=logger)
         })
 
 
@@ -2482,7 +2482,7 @@ def import_kb_articles(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': f'Import failed: {str(e)}'
+            'message': public_error(e, 'Import failed', log=logger)
         })
 
 
@@ -2507,7 +2507,7 @@ def delete_global_kb_articles(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': f'Delete failed: {str(e)}'
+            'message': public_error(e, 'Delete failed', log=logger)
         })
 
 
@@ -2652,7 +2652,7 @@ def export_data(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': f'Export failed: {str(e)}'
+            'message': public_error(e, 'Export failed', log=logger)
         })
 
 
@@ -2898,7 +2898,7 @@ def import_demo_data(request):
                 logger.error(f"Generated invalid key: {e}")
                 return JsonResponse({
                     'success': False,
-                    'message': f'✗ Failed to generate valid encryption key: {str(e)}'
+                    'message': public_error(e, '✗ Failed to generate valid encryption key', log=logger)
                 })
 
             logger.info(f"Generated new APP_MASTER_KEY: {new_key[:10]}... ({len(new_key)} chars)")
@@ -2966,7 +2966,7 @@ def import_demo_data(request):
                 logger.error(f"Failed to write APP_MASTER_KEY to .env: {e}")
                 return JsonResponse({
                     'success': False,
-                    'message': f'✗ Failed to auto-generate APP_MASTER_KEY: {str(e)}\n\nPlease check file permissions on .env file.'
+                    'message': public_error(e, '✗ Failed to auto-generate APP_MASTER_KEY', log=logger) + '\n\nPlease check file permissions on .env file.'
                 })
 
         # Validate that encryption actually works before proceeding
@@ -2985,8 +2985,7 @@ def import_demo_data(request):
             logger.error(traceback.format_exc())
             return JsonResponse({
                 'success': False,
-                'message': f'✗ Encryption validation failed: {str(e)}\n\nThe APP_MASTER_KEY may be invalid. Please check server logs.',
-                'error': str(e)
+                'message': public_error(e, '✗ Encryption validation failed', log=logger) + '\n\nThe APP_MASTER_KEY may be invalid.',
             })
 
         # Get or create Acme Corporation organization
@@ -3058,8 +3057,7 @@ def import_demo_data(request):
 
             return JsonResponse({
                 'success': False,
-                'message': f'Demo data import failed: {str(e)}. Check logs for details.',
-                'error': str(e)
+                'message': public_error(e, 'Demo data import failed', log=logger),
             })
 
     except Exception as e:
@@ -3070,9 +3068,7 @@ def import_demo_data(request):
 
         return JsonResponse({
             'success': False,
-            'message': f'Critical error during demo data import: {str(e)}. Check server logs for details.',
-            'error': str(e),
-            'traceback': traceback.format_exc()
+            'message': public_error(e, 'Critical error during demo data import', log=logger),
         })
 
 
@@ -3157,7 +3153,7 @@ def validate_anthropic_key(request):
         logger.error(f"Error validating Anthropic key: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'Validation error: {str(e)}',
+            'message': public_error(e, 'Validation error', log=logger),
             'details': {}
         }, status=500)
 
@@ -3187,7 +3183,7 @@ def validate_google_maps_key(request):
         logger.error(f"Error validating Google Maps key: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'Validation error: {str(e)}',
+            'message': public_error(e, 'Validation error', log=logger),
             'details': {}
         }, status=500)
 
@@ -3218,7 +3214,7 @@ def validate_twilio_credentials(request):
         logger.error(f"Error validating Twilio credentials: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'Validation error: {str(e)}',
+            'message': public_error(e, 'Validation error', log=logger),
             'details': {}
         }, status=500)
 
@@ -3249,7 +3245,7 @@ def validate_vonage_credentials(request):
         logger.error(f"Error validating Vonage credentials: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'Validation error: {str(e)}',
+            'message': public_error(e, 'Validation error', log=logger),
             'details': {}
         }, status=500)
 

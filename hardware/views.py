@@ -1,6 +1,7 @@
 """Client inventory views (pages + session JSON API)."""
 from __future__ import annotations
 
+from core.error_responses import public_error
 import json
 from decimal import Decimal, InvalidOperation
 
@@ -36,7 +37,7 @@ def _err(e, status=400):
         else:
             msgs = e.messages
         return JsonResponse({'error': ' '.join(msgs)}, status=status)
-    return JsonResponse({'error': str(e)}, status=status)
+    return JsonResponse({'error': public_error(e, 'The change could not be saved')}, status=status)
 
 
 def _body(request):

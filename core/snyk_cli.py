@@ -12,6 +12,7 @@ version through the same alert path the automated security scan uses.
 Nothing here installs anything. Upgrading stays a manual superuser action
 (`upgrade_snyk_cli`), and it installs exactly the version stored here.
 """
+from core.error_responses import public_error
 import glob
 import logging
 import os
@@ -178,8 +179,7 @@ def check_versions(settings=None, save=True):
         if err:
             errors.append(err)
     except Exception as e:  # pragma: no cover - defensive
-        logger.exception('[snyk_cli] version check failed')
-        errors.append(str(e))
+        errors.append(public_error(e, 'Snyk CLI version check failed', log=logger))
 
     result['update_available'] = is_newer(result['latest_version'], result['installed_version'])
     result['error'] = '; '.join(errors)[:2000]

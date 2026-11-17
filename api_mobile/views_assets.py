@@ -2,6 +2,7 @@
 Mobile API assets endpoints (v3.17.348; create endpoint added v3.17.454).
 """
 from __future__ import annotations
+from core.error_responses import public_error
 
 from django.db.models import Q
 from rest_framework import status as drf_status
@@ -284,7 +285,7 @@ def asset_detail_view(request, pk: int):
                               for f in asset._meta.fields)
                        else update_fields)
         except Exception as exc:
-            return Response({'detail': f'Could not update asset: {exc}'},
+            return Response({'detail': public_error(exc, 'Could not update asset')},
                             status=drf_status.HTTP_400_BAD_REQUEST)
         payload = _serialize_asset(asset, detail=True)
         payload['vault_entries'] = _vault_entries_for_asset(asset, request.user)
@@ -427,7 +428,7 @@ def _create_asset(request):
         asset = Asset.objects.create(**fields)
     except Exception as exc:
         return Response(
-            {'detail': f'Could not create asset: {exc}'},
+            {'detail': public_error(exc, 'Could not create asset')},
             status=drf_status.HTTP_400_BAD_REQUEST,
         )
 
