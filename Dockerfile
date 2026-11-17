@@ -8,7 +8,12 @@
 # Run:    docker compose up -d   (see docker-compose.yml)
 
 # ─── Stage 1 — builder ────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+# Debian 12 (bookworm), pinned: python:3.12-slim moved to Debian 13, whose
+# MariaDB 11.8 client tools refuse a server without TLS, and the bundled db
+# service (mariadb:10.11) has none -- so the verified pre-migrate backup
+# (mysqldump) failed and the entrypoint refused to migrate. Moving on means
+# giving the db service TLS, not turning TLS off in the client.
+FROM python:3.12-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -32,7 +37,7 @@ RUN pip install --upgrade pip \
 
 
 # ─── Stage 2 — runtime ────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
