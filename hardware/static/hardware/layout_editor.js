@@ -17,7 +17,7 @@
 
   function cur() { return faces[face]; }
   function faceOptions() {
-    $('#ed-face').innerHTML = Object.keys(faces).map(f => `<option value="${f}" ${f === face ? 'selected' : ''}>${f}</option>`).join('');
+    $('#ed-face').innerHTML = Object.keys(faces).map(f => `<option value="${esc(f)}" ${f === face ? 'selected' : ''}>${esc(f)}</option>`).join('');
     $('#ed-fw').value = cur().width; $('#ed-fh').value = cur().height;
     $('#ed-facc').value = D.generic ? 'generic' : (cur().accuracy || D.accuracy || 'approximate');
     $('#ed-facc').disabled = D.generic;
@@ -49,7 +49,7 @@
   function unplaced() {
     const placed = placedKeys();
     const list = D.components.filter(c => !placed.has(c.key));
-    $('#ed-unplaced').innerHTML = list.length ? list.map(c => `<div class="d-flex justify-content-between border-bottom py-1"><span>${esc(c.name)} <span class="text-muted">${esc(c.class_label)}</span></span><button class="btn btn-sm btn-link p-0" data-add="${c.key}">place</button></div>`).join('')
+    $('#ed-unplaced').innerHTML = list.length ? list.map(c => `<div class="d-flex justify-content-between border-bottom py-1"><span>${esc(c.name)} <span class="text-muted">${esc(c.class_label)}</span></span><button class="btn btn-sm btn-link p-0" data-add="${esc(c.key)}">place</button></div>`).join('')
       : '<span class="text-muted">Everything is placed.</span>';
   }
   function props() {
@@ -58,13 +58,13 @@
     const items = [...sel].map(i => F.elements[i]);
     const one = items.length === 1 ? items[0] : null;
     const c = one && comps.get(one.key);
-    box.innerHTML = `<strong>${one ? esc(c ? c.name : one.key) : items.length + ' elements'}</strong>` + (one ? `
-      <div class="row g-1 mt-1">${['x', 'y', 'w', 'h'].map(k => `<div class="col-6"><label>${k}<input class="form-control form-control-sm" data-p="${k}" value="${one[k]}"></label></div>`).join('')}
-      <div class="col-6"><label>Rotation<select class="form-select form-select-sm" data-p="rot">${[0, 90, 180, 270].map(r => `<option ${(one.rot || 0) == r ? 'selected' : ''}>${r}</option>`).join('')}</select></label></div>
+    box.innerHTML = `<strong>${one ? esc(c ? c.name : one.key) : esc(items.length) + ' elements'}</strong>` + (one ? `
+      <div class="row g-1 mt-1">${['x', 'y', 'w', 'h'].map(k => `<div class="col-6"><label>${esc(k)}<input class="form-control form-control-sm" data-p="${k}" value="${esc(one[k])}"></label></div>`).join('')}
+      <div class="col-6"><label>Rotation<select class="form-select form-select-sm" data-p="rot">${[0, 90, 180, 270].map(r => `<option ${(one.rot || 0) == r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label></div>
       <div class="col-6"><label>Printed number<input class="form-control form-control-sm" data-p="label" value="${esc(one.label || '')}"></label></div>
-      <div class="col-12"><label>Label position<select class="form-select form-select-sm" data-p="label_pos">${['above', 'below', 'inside', 'none'].map(v => `<option ${one.label_pos === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+      <div class="col-12"><label>Label position<select class="form-select form-select-sm" data-p="label_pos">${['above', 'below', 'inside', 'none'].map(v => `<option ${one.label_pos === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label></div>
       ${one.kind !== 'bay' ? `<div class="col-12"><label>Connector drawing<input class="form-control form-control-sm" data-p="connector" value="${esc(one.connector || '')}"></label></div>` : ''}</div>` : '') +
-      `<div class="d-flex gap-1 mt-2 flex-wrap"><select class="form-select form-select-sm" id="ed-move-face" style="width:auto">${Object.keys(faces).filter(f => f !== face).map(f => `<option>${f}</option>`).join('')}</select>
+      `<div class="d-flex gap-1 mt-2 flex-wrap"><select class="form-select form-select-sm" id="ed-move-face" style="width:auto">${Object.keys(faces).filter(f => f !== face).map(f => `<option>${esc(f)}</option>`).join('')}</select>
        <button class="btn btn-sm btn-outline-secondary" id="ed-move">Move to face</button>
        <button class="btn btn-sm btn-outline-danger" id="ed-remove">Unplace</button></div>`;
     box.querySelectorAll('[data-p]').forEach(inp => inp.addEventListener('change', () => {

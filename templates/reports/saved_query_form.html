@@ -119,17 +119,24 @@
         targetSel.appendChild(opt);
     });
 
+    // Field and column names, and saved filter values, go into markup escaped.
+    function escHtml(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+
     function renderFilterRow(filter) {
         var fields = config[targetSel.value].fields;
         var div = document.createElement('div');
         div.className = 'row g-2 mb-2 align-items-center sq-filter-row';
         var fieldOptions = fields.map(function(f) {
-            return '<option value="' + f.name + '"' + (filter && filter.field === f.name ? ' selected' : '') + '>' + f.name + '</option>';
+            return '<option value="' + escHtml(f.name) + '"' + (filter && filter.field === f.name ? ' selected' : '') + '>' + escHtml(f.name) + '</option>';
         }).join('');
         div.innerHTML =
             '<div class="col-md-4"><select name="filter_field" class="form-select form-select-sm sq-field">' + fieldOptions + '</select></div>' +
             '<div class="col-md-3"><select name="filter_op" class="form-select form-select-sm sq-op"></select></div>' +
-            '<div class="col-md-4"><input name="filter_value" class="form-control form-control-sm" placeholder="value" value="' + (filter ? String(filter.value).replace(/"/g, '&quot;') : '') + '"></div>' +
+            '<div class="col-md-4"><input name="filter_value" class="form-control form-control-sm" placeholder="value" value="' + (filter ? escHtml(filter.value) : '') + '"></div>' +
             '<div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger sq-remove"><i class="fas fa-times"></i></button></div>';
         filtersBox.appendChild(div);
         var fieldSel = div.querySelector('.sq-field');
@@ -167,8 +174,8 @@
             var div = document.createElement('div');
             div.className = 'form-check form-check-inline';
             div.innerHTML =
-                '<input type="checkbox" class="form-check-input" name="column" value="' + col + '" id="col-' + col + '"' + (checked ? ' checked' : '') + '>' +
-                '<label class="form-check-label" for="col-' + col + '">' + col + '</label>';
+                '<input type="checkbox" class="form-check-input" name="column" value="' + escHtml(col) + '" id="col-' + escHtml(col) + '"' + (checked ? ' checked' : '') + '>' +
+                '<label class="form-check-label" for="col-' + escHtml(col) + '">' + escHtml(col) + '</label>';
             columnsBox.appendChild(div);
         });
     }

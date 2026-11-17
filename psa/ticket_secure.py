@@ -98,14 +98,56 @@ def secure_status(note):
             'read_once': note.read_once, 'note_id': note.pk}
 
 
-_LINK_RE = re.compile(r'https?://[^\s]*/core/secret/[A-Za-z0-9_-]+/?|/core/secret/[A-Za-z0-9_-]+/?')
 SCRUBBED = '[secure message link — sent to the recipient only]'
+_SECRET_PATH_RE = re.compile(r'/core/secret/[A-Za-z0-9_-]+/?')
+_SCHEME_RE = re.compile(r'https?://')
+_NON_SPACE_RE = re.compile(r'\S+')
+
+
+def _scrub_run(match):
+    """One whitespace-free run: each secret path goes, and a full URL goes from
+    its scheme to the last secret path in the run.
+
+    The same result as the old single pattern
+    ``https?://[^\\s]*/core/secret/…|/core/secret/…``, whose ``[^\\s]*`` after
+    the scheme made it quadratic on text like ``http://http://http://…``. Every
+    search here starts where the previous one stopped, so this is linear.
+    """
+    run = match.group(0)
+    if '/core/secret/' not in run:
+        return run
+    out, pos = [], 0
+    while True:
+        link = _SECRET_PATH_RE.search(run, pos)
+        if link is None:
+            break
+        scheme = _SCHEME_RE.search(run, pos, link.start())
+        if scheme is not None:
+            # As the old [^\\s]* did: through the right-most secret path.
+            end, i = link.end(), len(run)
+            while True:
+                i = run.rfind('/core/secret/', link.start(), i)
+                if i <= link.start():
+                    break
+                later = _SECRET_PATH_RE.match(run, i)
+                if later is not None:
+                    end = later.end()
+                    break
+            out.append(run[pos:scheme.start()])
+            out.append(SCRUBBED)
+            pos = end
+            break
+        out.append(run[pos:link.start()])
+        out.append(SCRUBBED)
+        pos = link.end()
+    out.append(run[pos:])
+    return ''.join(out)
 
 
 def scrub_secret_links(text):
     """Remove secure-message links from a stored copy of an e-mail, so the
     ticket's e-mail log can't be used to open (and use up) the message."""
-    return _LINK_RE.sub(SCRUBBED, text or '')
+    return _NON_SPACE_RE.sub(_scrub_run, text or '')
 
 
 def scrub_stored_copies(*objs):
