@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged), and the e2e settings point it at the run's scratch directory.
 - **A crashed cross-peer check now shows its error.** Check details were cut to their first 800 characters,
   which for a traceback is the call stack without the exception; long details now keep the end.
+- **`python-dateutil` is now a declared requirement.** `advisor`, `psa` and `contracts` import it, but only
+  another package's dependency installed it. A clean install from `requirements.txt` (CI's cross-peer run and
+  native install) failed loading the URL configuration with `ModuleNotFoundError: No module named 'dateutil'`.
 
 ## [3.17.701] - 2026-11-16
 
