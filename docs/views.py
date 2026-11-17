@@ -2404,16 +2404,8 @@ def document_unarchive(request, pk):
         document.save(update_fields=['is_archived', 'last_modified_by', 'updated_at'])
         _audit_document(request, document, f'Restored "{document.title}" from the archive')
         messages.success(request, f'"{document.title}" restored from the archive.')
-    if _safe_next(request):
-        return redirect(request.POST['next'])
-    return redirect('docs:document_archived_list')
-
-
-def _safe_next(request):
-    from django.utils.http import url_has_allowed_host_and_scheme
-    nxt = request.POST.get('next')
-    return bool(nxt) and url_has_allowed_host_and_scheme(
-        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+    from core.safe_redirect import safe_post_next
+    return redirect(safe_post_next(request, 'docs:document_archived_list'))
 
 
 # ---------------------------------------------------------------------------
