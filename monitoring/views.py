@@ -1,6 +1,7 @@
 """
 Monitoring views - Website monitoring, Racks, IPAM
 """
+from core.error_responses import public_error
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -234,8 +235,8 @@ def website_monitor_check(request, pk):
         messages.success(request, f'Website "{monitor.url}" checked successfully.')
     except Exception as e:
         if is_ajax:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
-        messages.error(request, f'Error checking website: {str(e)}')
+            return JsonResponse({'success': False, 'error': public_error(e, 'Error checking website')}, status=500)
+        messages.error(request, public_error(e, 'Error checking website'))
 
     return redirect('monitoring:website_monitor_detail', pk=monitor.pk)
 

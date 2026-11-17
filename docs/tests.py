@@ -840,7 +840,10 @@ class DocumentImportViewTests(TestCase):
                        content_type='application/json')
         self.assertEqual(r.status_code, 500)
         self.assertEqual(r['Content-Type'], 'application/json')
-        self.assertIn('provider exploded', r.json()['error'])
+        # v3.17.693: a reason and a log reference, never the exception text.
+        self.assertIn('AI review failed', r.json()['error'])
+        self.assertIn('reference', r.json()['error'])
+        self.assertNotIn('provider exploded', r.json()['error'])
 
 
 class LooksLikeHtmlTests(TestCase):

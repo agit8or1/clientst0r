@@ -3,6 +3,7 @@ AI-powered documentation generation service with multi-LLM provider support.
 Supports Anthropic Claude, Moonshot AI (Kimi), MiniMax, and OpenAI.
 """
 
+from core.error_responses import public_error
 from django.conf import settings
 import json
 from .llm_providers import get_llm_provider
@@ -114,7 +115,7 @@ class AIDocumentationGenerator:
         except Exception as e:
             return {
                 'success': False,
-                'error': str(e)
+                'error': public_error(e, 'AI documentation request failed'),
             }
 
     def enhance_documentation(self, title, content, enhancement_type='grammar', output_format='markdown', custom_prompt=''):
@@ -246,7 +247,7 @@ Return the enhanced documentation in this JSON format:
         except Exception as e:
             return {
                 'success': False,
-                'error': str(e)
+                'error': public_error(e, 'AI documentation request failed'),
             }
 
     def generate_asset_documentation(self, asset_data, template_type='server_blueprint', user_notes=''):
@@ -404,7 +405,7 @@ Return ONLY the HTML content starting with a <div> tag."""
         except Exception as e:
             return {
                 'success': False,
-                'error': str(e)
+                'error': public_error(e, 'AI documentation request failed'),
             }
 
     # Sentinel that separates the reformatted document from the gap analysis in
@@ -529,7 +530,7 @@ Reformat it and then list the gaps, following the output contract exactly."""
         except Exception as e:
             return {
                 'success': False,
-                'error': str(e),
+                'error': public_error(e, 'AI documentation request failed'),
             }
 
     def validate_documentation(self, content):
@@ -587,7 +588,7 @@ Return your analysis in JSON format:
         except Exception as e:
             return {
                 'success': False,
-                'error': str(e)
+                'error': public_error(e, 'AI documentation request failed'),
             }
 
     def _build_system_prompt(self, template_type, output_format='markdown'):

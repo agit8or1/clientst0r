@@ -20,6 +20,7 @@ endpoint returns plaintext, and it does so once per request — the
 mobile client is documented to hold it in memory only.
 """
 from __future__ import annotations
+from core.error_responses import public_error
 
 import logging
 
@@ -134,7 +135,7 @@ def vault_list_view(request):
             entry.set_password(secret)
             entry.save()
         except Exception as exc:
-            return Response({'detail': f'Failed to encrypt: {exc}'},
+            return Response({'detail': public_error(exc, 'Failed to encrypt')},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         _audit_vault_mutation(request, entry, action='create',
                               description=f"Vault entry '{entry.title}' created via mobile")
@@ -279,7 +280,7 @@ def vault_detail_view(request, pk: int):
             password.set_password(secret)
             rotated = True
         except Exception as exc:
-            return Response({'detail': f'Failed to encrypt: {exc}'},
+            return Response({'detail': public_error(exc, 'Failed to encrypt')},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if not fields_changed and not rotated:

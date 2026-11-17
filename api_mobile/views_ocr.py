@@ -18,6 +18,7 @@ To plug in a different provider (AWS Textract, Tesseract, etc.), keep
 the same response shape and add another branch in `_run_ocr()`.
 """
 from __future__ import annotations
+from core.error_responses import public_error
 
 import logging
 import os
@@ -155,7 +156,8 @@ def ocr_status_view(request):
             from google.cloud import vision  # noqa: F401  type: ignore
             sdk_ok = True
         except Exception as exc:
-            sdk_error = f'{type(exc).__name__}: {exc}'
+            # Only the exception class: its message can carry install paths.
+            sdk_error = public_error(exc, f'Could not load the Cloud Vision SDK ({type(exc).__name__})')
     return Response({
         'configured': True,
         'provider': provider,

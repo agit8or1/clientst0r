@@ -3,6 +3,7 @@ API Key validation service for various integrations.
 Tests API keys to ensure they work before saving in settings.
 """
 
+from core.error_responses import public_error
 import requests
 import anthropic
 from typing import Dict, Tuple
@@ -57,9 +58,9 @@ class APIKeyValidator:
             # Rate limit means the key is valid but quota exceeded
             return True, "API key is valid (rate limit reached, but key works)", {}
         except anthropic.APIError as e:
-            return False, f"Anthropic API error: {str(e)}", {}
+            return False, public_error(e, 'Anthropic API error'), {}
         except Exception as e:
-            return False, f"Validation error: {str(e)}", {}
+            return False, public_error(e, 'Validation error'), {}
 
     @staticmethod
     def validate_google_maps(api_key: str) -> Tuple[bool, str, Dict]:
@@ -105,9 +106,9 @@ class APIKeyValidator:
         except requests.exceptions.Timeout:
             return False, "Request timed out", {}
         except requests.exceptions.RequestException as e:
-            return False, f"Network error: {str(e)}", {}
+            return False, public_error(e, 'Network error'), {}
         except Exception as e:
-            return False, f"Validation error: {str(e)}", {}
+            return False, public_error(e, 'Validation error'), {}
 
     @staticmethod
     def validate_twilio(account_sid: str, auth_token: str) -> Tuple[bool, str, Dict]:
@@ -148,9 +149,9 @@ class APIKeyValidator:
         except requests.exceptions.Timeout:
             return False, "Request timed out", {}
         except requests.exceptions.RequestException as e:
-            return False, f"Network error: {str(e)}", {}
+            return False, public_error(e, 'Network error'), {}
         except Exception as e:
-            return False, f"Validation error: {str(e)}", {}
+            return False, public_error(e, 'Validation error'), {}
 
     @staticmethod
     def validate_vonage(api_key: str, api_secret: str) -> Tuple[bool, str, Dict]:
@@ -193,6 +194,6 @@ class APIKeyValidator:
         except requests.exceptions.Timeout:
             return False, "Request timed out", {}
         except requests.exceptions.RequestException as e:
-            return False, f"Network error: {str(e)}", {}
+            return False, public_error(e, 'Network error'), {}
         except Exception as e:
-            return False, f"Validation error: {str(e)}", {}
+            return False, public_error(e, 'Validation error'), {}

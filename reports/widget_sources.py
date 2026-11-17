@@ -10,6 +10,7 @@ For 'chart_line', 'chart_bar': {'labels': [str], 'series': [{'name', 'data': [nu
 For 'chart_pie': {'labels': [str], 'data': [num]}
 For 'table', 'list': {'columns': [str], 'rows': [[any]]}
 """
+from core.error_responses import public_error
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -1026,5 +1027,5 @@ def get_widget_data(data_source: str, params: dict, viewer: dict = None) -> dict
         return fn(params)
     except Exception as exc:
         import logging
-        logging.getLogger('reports.widgets').exception('widget %s failed', data_source)
-        return {'error': str(exc)[:200]}
+        return {'error': public_error(exc, f'Widget {data_source} failed',
+                                      log=logging.getLogger('reports.widgets'))}

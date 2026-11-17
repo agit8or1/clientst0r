@@ -1,6 +1,7 @@
 """
 Phase 9 — Triage UI + webhook receiver for security alerts.
 """
+from core.error_responses import public_error
 import hashlib
 import hmac
 import json
@@ -316,7 +317,7 @@ def connection_test(request, pk):
     try:
         result = adapter.test_connection(conn)
     except Exception as exc:
-        result = {'ok': False, 'message': str(exc)[:200]}
+        result = {'ok': False, 'message': public_error(exc, 'Connection test failed')}
     return JsonResponse(result)
 
 

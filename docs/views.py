@@ -1,6 +1,7 @@
 """
 Docs views
 """
+from core.error_responses import public_error
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -630,7 +631,7 @@ def document_upload(request):
             uploaded_count += 1
 
         except Exception as e:
-            failed.append(f"{file.name}: {str(e)}")
+            failed.append(f"{file.name}: " + public_error(e, 'upload failed', log=logger))
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -875,8 +876,8 @@ def ai_review_import(request):
         })
 
     except Exception as e:
-        logging.getLogger('docs').exception('AI review of imported document failed')
-        return JsonResponse({'success': False, 'error': f'AI review failed: {e}'}, status=500)
+        return JsonResponse({'success': False, 'error': public_error(
+            e, 'AI review failed', log=logging.getLogger('docs'))}, status=500)
 
 
 # ============================================================================
@@ -1502,8 +1503,7 @@ def diagram_save(request, pk):
         })
 
     except Exception as e:
-        logger.error(f'Error saving diagram {pk}: {e}')
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({'error': public_error(e, f'Error saving diagram {pk}', log=logger)}, status=500)
 
 
 @login_required
@@ -1877,7 +1877,7 @@ def ai_generate(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'The request failed')
         }, status=500)
 
 
@@ -1927,7 +1927,7 @@ def ai_enhance(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'The request failed')
         }, status=500)
 
 
@@ -1967,7 +1967,7 @@ def ai_validate(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'The request failed')
         }, status=500)
 
 
@@ -2004,7 +2004,7 @@ def api_get_template(request, template_id):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': public_error(e, 'The request failed')
         }, status=500)
 
 
