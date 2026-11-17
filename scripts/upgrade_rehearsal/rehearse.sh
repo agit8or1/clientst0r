@@ -283,6 +283,11 @@ pinned_release_upgrade() {
     expect_refusal wrong-sha --ref "$REL_TAG" --sha "$HEAD_SHA"
     expect_refusal unsigned-tag --ref v3.99.1 --sha "$REL_SHA"
     expect_refusal untrusted-key --ref v3.99.2 --sha "$REL_SHA"
+    # An install upgraded from before v3.17.640 follows Preview / testing
+    # (core 0083 kept existing installs on main); this refusal is about an
+    # instance on Official release, so put it there first.
+    manage shell -c "from core.models import SystemSetting as S; s = S.get_settings(); \
+s.update_channel = 'stable'; s.save(update_fields=['update_channel'])" > /dev/null
     expect_refusal preview-on-stable --kind preview --ref main --sha "$REL_SHA"
     expect_refusal main-moved --kind preview --ref main --sha "$HEAD_SHA" --allow-preview
     CLIENTST0R_UPDATE_SANDBOX=1 PYTHONUNBUFFERED=1 manage upgrade_apply --ref "$REL_TAG" --sha "$REL_SHA" \

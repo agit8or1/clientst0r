@@ -173,7 +173,7 @@ jobs:
       - name: Migrations clean
         run: |
           venv/bin/python manage.py migrate --check
-          ! venv/bin/python manage.py showmigrations --plan | grep -q '^\[ \]'
+          ! venv/bin/python manage.py showmigrations --plan | grep -q '^\[ \]' || exit 1
       - name: Seed, verify, smoke
         run: |
           export REHEARSAL_STATE="$RUNNER_TEMP/state.json"
@@ -197,15 +197,17 @@ jobs:
           # The worker can read the code and its private key, not .env.
           sudo -u clientst0r-ai test -r manage.py
           sudo -u clientst0r-ai test -r /etc/clientst0r/ai-gateway/private.key
-          ! sudo -u clientst0r-ai test -r .env
+          ! sudo -u clientst0r-ai test -r .env || exit 1
           # The web app's user can read the public key, not the private key.
           test -r /etc/clientst0r/ai-gateway/public.key
-          ! test -r /etc/clientst0r/ai-gateway/private.key
+          ! test -r /etc/clientst0r/ai-gateway/private.key || exit 1
           test "$(sudo stat -c '%U %a' /etc/clientst0r/ai-gateway.env)" = 'root 600'
-          ! sudo grep -q '^APP_MASTER_KEY' /etc/clientst0r/ai-gateway.env
+          ! sudo grep -q '^APP_MASTER_KEY' /etc/clientst0r/ai-gateway.env || exit 1
           pid="$(systemctl show -p MainPID --value clientst0r-ai-gateway.service)"
-          ! sudo tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^APP_MASTER_KEY='
-          ! sudo tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^SECRET_KEY='
+          sudo cat "/proc/$pid/environ" | tr '\0' '\n' > "$RUNNER_TEMP/aigw.environ"
+          ! grep -q '^APP_MASTER_KEY=' "$RUNNER_TEMP/aigw.environ" || exit 1
+          ! grep -q '^SECRET_KEY=' "$RUNNER_TEMP/aigw.environ" || exit 1
+          test -s "$RUNNER_TEMP/aigw.environ"   # the read itself worked
           # It reaches the database and does a pass over waiting runs.
           sudo systemd-run --wait --pipe --quiet -p User=clientst0r-ai -p Group=clientst0r-ai \
             -p EnvironmentFile=/etc/clientst0r/ai-gateway.env -p WorkingDirectory="$PWD" \
@@ -227,7 +229,7 @@ jobs:
         run: |
           printf '1\nn\n' | bash install.sh | tee "$RUNNER_TEMP/upgrade.log"
           grep -Eq 'Nothing newer|Upgrade complete|Not applied' "$RUNNER_TEMP/upgrade.log"
-          ! grep -q 'makemigrations' "$RUNNER_TEMP/upgrade.log"
+          ! grep -q 'makemigrations' "$RUNNER_TEMP/upgrade.log" || exit 1
       - name: Logs
         if: always()
         run: |
@@ -304,7 +306,7 @@ jobs:
       - name: Backup is owner-only inside the backups volume
         run: |
           docker compose exec -T app sh -c 'd=$(ls -d /app/backups/upgrades/snapshot-* | tail -1); stat -c "%a %n" "$d" "$d"/*' | tee "$RUNNER_TEMP/perms.txt"
-          ! grep -vE '^(700|600) ' "$RUNNER_TEMP/perms.txt"
+          ! grep -vE '^(700|600) ' "$RUNNER_TEMP/perms.txt" || exit 1
       - name: Logs
         if: always()
         run: docker compose logs --no-color --tail=300 app db || true
