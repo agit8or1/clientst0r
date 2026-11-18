@@ -68,6 +68,39 @@ class EmergencyRestartWebhookTests(TestCase):
         codes = [c.post(self.URL, HTTP_X_EMERGENCY_SECRET='nope').status_code for _ in range(11)]
         self.assertEqual(codes[-1], 429)
 
+    # v3.17.717: signed form ------------------------------------------------
+    def _signed(self, ts=None, secret='right-secret'):
+        import hashlib
+        import hmac
+        import time
+        ts = int(time.time()) if ts is None else ts
+        sig = hmac.new(secret.encode(), f'{ts}.{self.URL}'.encode(), hashlib.sha256).hexdigest()
+        return {'HTTP_X_EMERGENCY_TIMESTAMP': str(ts), 'HTTP_X_EMERGENCY_SIGNATURE': sig}
+
+    @override_settings(EMERGENCY_RESTART_SECRET='right-secret')
+    @patch('subprocess.run')
+    def test_signed_call_runs_once(self, run):
+        run.return_value = MagicMock(returncode=0, stdout='', stderr='')
+        headers = self._signed()
+        self.assertEqual(Client().post(self.URL, **headers).status_code, 200)
+        self.assertEqual(Client().post(self.URL, **headers).status_code, 409)  # replay
+        self.assertEqual(run.call_count, 1)
+
+    @override_settings(EMERGENCY_RESTART_SECRET='right-secret')
+    @patch('subprocess.run')
+    def test_signed_call_refused_when_stale_or_wrong(self, run):
+        import time
+        self.assertEqual(Client().post(self.URL, **self._signed(int(time.time()) - 3600)).status_code, 403)
+        self.assertEqual(Client().post(self.URL, **self._signed(secret='wrong')).status_code, 403)
+        run.assert_not_called()
+
+    @override_settings(EMERGENCY_RESTART_SECRET='right-secret', EMERGENCY_RESTART_REQUIRE_SIGNED=True)
+    @patch('subprocess.run')
+    def test_plain_secret_refused_when_signed_required(self, run):
+        run.return_value = MagicMock(returncode=0, stdout='', stderr='')
+        self.assertEqual(Client().post(self.URL, HTTP_X_EMERGENCY_SECRET='right-secret').status_code, 403)
+        self.assertEqual(Client().post(self.URL, **self._signed()).status_code, 200)
+
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class SecureNoteLinkPasswordTests(TestCase):

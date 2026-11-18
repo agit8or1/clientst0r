@@ -89,7 +89,20 @@ def impact(proposed, viewer_ip_text):
         'high_impact': bool(newly_refused) or viewer_cut or webhook_restrictive or (
             proposed.api_mode != current.api_mode
             and proposed.api_mode in (ApiAccessSettings.MODE_ALLOWLIST, ApiAccessSettings.MODE_COMBINED)),
+        # Choices for the rollback window offered with a high-impact change (81.6).
+        'rollback_choices': _rollback_choices(),
+        'rollback_default': _rollback_default(),
     }
+
+
+def _rollback_choices():
+    from .rollback import WINDOW_CHOICES
+    return WINDOW_CHOICES
+
+
+def _rollback_default():
+    from .rollback import DEFAULT_MINUTES
+    return DEFAULT_MINUTES
 
 
 def explain_client_address(request):

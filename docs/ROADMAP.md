@@ -3049,18 +3049,20 @@ never replaces them. Ships before any new vendor API or webhook endpoint from Ph
 - **81.5 Webhook protection** *(partial — separate webhook mode and per-receiver source rules shipped
   v3.17.713; webhook rate and body-size limits shipped v3.17.714; signed timestamps, replay protection and
   body limits on the security vendor, SIEM, distributor and ticket-partner receivers, signatures required by
-  default for new vendor and SIEM receivers, and distributor signatures enforced shipped v3.17.716; a
-  per-partner switch to require the share-bound signature, a signed emergency-restart call, per-connection
-  payment event de-duplication and a GoCardless freshness check planned)* — per-receiver source rules (including vendor ranges that change,
+  default for new vendor and SIEM receivers, and distributor signatures enforced shipped v3.17.716; the
+  share-bound partner signature required once a partner has used it, and a signed, single-use
+  emergency-restart call shipped v3.17.717; per-connection payment event de-duplication and a GoCardless
+  freshness check planned)* — per-receiver source rules (including vendor ranges that change,
   without silently widening access), signature verification, timestamp window and replay protection, body
   size and rate limits, and a dedicated credential per receiver; source address is never the only check.
-- **81.6 Lockout prevention and recovery** *(partial — impact preview, confirmation and the
-  `api_access_recover` command shipped v3.17.713; automatic rollback window planned)* — validation, the administrator's own address and
+- **81.6 Lockout prevention and recovery** *(shipped — impact preview, confirmation and the
+  `api_access_recover` command v3.17.713; automatic rollback window v3.17.717)* — validation, the administrator's own address and
   whether the current session and integrations would still pass, confirmation for high-impact changes, an
   automatic rollback window for global changes, and a recovery command that needs server access. No
   unauthenticated bypass endpoint.
 - **81.7 Decision log and dashboards** *(partial — folded refusal log and refused-request dashboard shipped
-  v3.17.713; notifications and the shared event feed planned)* — every decision with time, address, matched rule, key or
+  v3.17.713; repeat-source e-mail and system warnings, and retention pruning shipped v3.17.717; the shared
+  event feed arrives with Phase 82)* — every decision with time, address, matched rule, key or
   integration, endpoint, customer, reason and policy version, with rate-limited denial logging; dashboards
   for blocked requests, repeat sources, policy violations, unusual key use and integrations broken by a rule;
   notifications for repeated violations; events feed the shared event layer (Phase 82).
@@ -3335,7 +3337,7 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
-| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; key lifecycle and address limits v3.17.714; 81.2 trusted proxies and 81.5 webhook protection v3.17.716; 81.4–81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
+| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; key lifecycle and address limits v3.17.714; 81.2 trusted proxies and 81.5 webhook protection v3.17.716; 81.6 rollback window and 81.7 notifications v3.17.717; 81.4, 81.5, 81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
 | 82 — Shared operational event and alert foundation | L | planned | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
 | 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
 | 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |

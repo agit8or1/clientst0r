@@ -9761,6 +9761,15 @@ def ticket_partner_webhook(request, share_pk):
     # "<ts>.<path>.<body>": fresh, and bound to this share's URL. Older
     # partners sign the body only; replays of those are still refused for a day.
     sig_v2 = request.META.get('HTTP_X_CST0R_SIGNATURE_V2') or ''
+    v2_required = share.partner_org.partner_signs_v2_since is not None
+    if v2_required and not (ts is not None and sig_v2):
+        AuditLog.log(
+            user=None, action='access_denied', organization=share.ticket.organization,
+            object_type='psa.TicketShare', object_id=share.pk, object_repr=str(share),
+            description='Partner webhook rejected (share-bound signature required)',
+            ip_address=_client_ip(request), path=request.path,
+        )
+        return HttpResponseForbidden('Share-bound signature required')
     if ts is not None and sig_v2:
         material = _wg.signed_material(ts, raw_body, request.path)
         sig_header = sig_v2
@@ -9783,6 +9792,9 @@ def ticket_partner_webhook(request, share_pk):
         )
         return HttpResponseForbidden('Invalid signature')
 
+    if ts is not None and not v2_required:
+        type(share.partner_org).objects.filter(pk=share.partner_org_id, partner_signs_v2_since__isnull=True) \
+            .update(partner_signs_v2_since=timezone.now())
     receiver = f'ticket_partner:{share.pk}'
     if not _wg.claim(receiver, material, ts is not None):
         return _wg.duplicate_response()

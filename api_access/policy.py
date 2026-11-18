@@ -205,7 +205,16 @@ def current_policy():
     One indexed single-row read per covered request; the rules themselves are
     cached per process. If the database cannot be read, the last loaded
     policy is used; with none loaded yet, DatabaseError is raised."""
-    row = S.objects.filter(pk=1).values(*SETTINGS_FIELDS).first()
+    row = S.objects.filter(pk=1).values(*SETTINGS_FIELDS, 'revert_at').first()
+    if row and row['revert_at'] is not None and row['revert_at'] <= timezone.now():
+        # A rollback window has ended without the change being kept: undo it
+        # before deciding this request (v3.17.717, roadmap 81.6).
+        from . import rollback
+        try:
+            rollback.revert_if_due()
+        except Exception:  # never let the undo break request handling
+            logger.exception('API access rollback could not be applied')
+        row = S.objects.filter(pk=1).values(*SETTINGS_FIELDS, 'revert_at').first()
     cached = _cache['policy']
     version = row['policy_version'] if row else 0
     if cached is not None and cached.version == version:

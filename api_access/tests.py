@@ -799,3 +799,158 @@ class TrustedProxyPageTests(TestCase):
         c.force_login(staff)
         c.post('/settings/security/api-access/proxies/add/', {'network': '192.0.2.10'})
         self.assertFalse(TrustedProxy.objects.exists())
+
+
+@override_settings(TRUSTED_PROXY_CIDRS=['127.0.0.1/32'])
+class RollbackTests(TestCase):
+    """Rollback window (v3.17.717, roadmap 81.6)."""
+
+    def setUp(self):
+        P.reset_cache()
+        cache.clear()
+        self.admin = User.objects.create_superuser('rb-admin', 'a@example.test', 'pw')
+        self.keep_rule = R.objects.create(name='office', network='198.51.100.0/24', action=R.ACTION_ALLOW)
+        self.mw = ApiAccessMiddleware(lambda request: HttpResponse('ok'))
+        self.rf = RequestFactory()
+
+    def tearDown(self):
+        P.reset_cache()
+
+    def lockout(self):
+        """A risky change: allowlist mode, the office rule disabled, a new deny rule."""
+        S.objects.filter(pk=1).update(api_mode=S.MODE_ALLOWLIST, api_rate_per_address=5)
+        R.objects.filter(pk=self.keep_rule.pk).update(is_active=False)
+        R.objects.create(name='new deny', network='203.0.113.0/24', action=R.ACTION_DENY)
+        S.bump()
+        P.reset_cache()
+
+    def test_ended_window_undoes_everything_on_the_next_request(self):
+        from api_access import rollback
+        S.get()
+        rollback.arm(self.admin, 10)
+        self.lockout()
+        self.assertEqual(self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='198.51.100.9')).status_code, 403)
+        S.objects.filter(pk=1).update(revert_at=timezone.now() - timedelta(seconds=1))
+        r = self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='198.51.100.9'))
+        self.assertEqual(r.status_code, 200)
+        s = S.get()
+        self.assertEqual((s.api_mode, s.api_rate_per_address, s.revert_at), (S.MODE_UNRESTRICTED, 0, None))
+        self.assertTrue(R.objects.get(pk=self.keep_rule.pk).is_active)
+        self.assertFalse(R.objects.filter(name='new deny').exists())
+        self.assertTrue(AuditLog.objects.filter(description__contains='changes undone').exists())
+
+    def test_keep_closes_the_window(self):
+        from api_access import rollback
+        S.get()
+        rollback.arm(self.admin, 10)
+        self.lockout()
+        rollback.keep(self.admin)
+        S.objects.filter(pk=1).update(revert_at=None)
+        self.assertFalse(rollback.revert_if_due(now=timezone.now() + timedelta(hours=1)))
+        self.assertEqual(S.get().api_mode, S.MODE_ALLOWLIST)
+
+    def test_second_arm_keeps_the_first_snapshot(self):
+        from api_access import rollback
+        S.get()
+        rollback.arm(self.admin, 10)
+        self.lockout()
+        rollback.arm(self.admin, 30)
+        rollback.revert_if_due(force=True)
+        self.assertEqual(S.get().api_mode, S.MODE_UNRESTRICTED)
+        self.assertTrue(R.objects.get(pk=self.keep_rule.pk).is_active)
+
+    def test_deleted_rule_comes_back(self):
+        from api_access import rollback
+        S.get()
+        rollback.arm(self.admin, 10)
+        R.objects.filter(pk=self.keep_rule.pk).delete()
+        rollback.revert_if_due(force=True)
+        self.assertEqual(R.objects.get(pk=self.keep_rule.pk).network, '198.51.100.0/24')
+
+    def test_tick_command_reverts_and_prunes(self):
+        from api_access import rollback
+        from api_access.models import WebhookDelivery
+        S.get()
+        rollback.arm(self.admin, 10)
+        self.lockout()
+        S.objects.filter(pk=1).update(revert_at=timezone.now() - timedelta(seconds=1))
+        WebhookDelivery.objects.create(receiver='x', digest='d', expires_at=timezone.now() - timedelta(minutes=1))
+        old = ApiAccessDecision.objects.create(source_ip='192.0.2.1', surface='api', reason='deny_rule')
+        ApiAccessDecision.objects.filter(pk=old.pk).update(last_seen_at=timezone.now() - timedelta(days=90))
+        call_command('api_access_tick', stdout=io.StringIO())
+        self.assertEqual(S.get().api_mode, S.MODE_UNRESTRICTED)
+        self.assertFalse(WebhookDelivery.objects.exists())
+        self.assertFalse(ApiAccessDecision.objects.filter(pk=old.pk).exists())
+
+
+@override_settings(MIDDLEWARE=API_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class RollbackPageTests(TestCase):
+    def setUp(self):
+        P.reset_cache()
+        self.admin = User.objects.create_superuser('rbp-admin', 'a@example.test', 'pw')
+        self.c = Client(REMOTE_ADDR='198.51.100.5')
+        self.c.force_login(self.admin)
+
+    def tearDown(self):
+        P.reset_cache()
+
+    def test_confirmed_high_impact_change_arms_the_window(self):
+        r = self.c.post('/settings/security/api-access/mode/', {
+            'api_mode': S.MODE_ALLOWLIST, 'webhook_mode': S.MODE_UNRESTRICTED})
+        self.assertContains(r, 'Undo automatically after')
+        self.c.post('/settings/security/api-access/mode/', {
+            'api_mode': S.MODE_ALLOWLIST, 'webhook_mode': S.MODE_UNRESTRICTED,
+            'confirm': '1', 'rollback_minutes': '10'})
+        s = S.get()
+        self.assertEqual(s.api_mode, S.MODE_ALLOWLIST)
+        self.assertIsNotNone(s.revert_at)
+        self.assertEqual(s.revert_snapshot['settings']['api_mode'], S.MODE_UNRESTRICTED)
+        page = self.c.get('/settings/security/api-access/')
+        self.assertContains(page, 'Rollback window open')
+        self.c.post('/settings/security/api-access/rollback/undo/')
+        s = S.get()
+        self.assertEqual((s.api_mode, s.revert_at), (S.MODE_UNRESTRICTED, None))
+
+    def test_trial_window_and_keep(self):
+        self.c.post('/settings/security/api-access/rollback/start/', {'rollback_minutes': '5'})
+        self.assertIsNotNone(S.get().revert_at)
+        self.c.post('/settings/security/api-access/rollback/keep/')
+        self.assertIsNone(S.get().revert_at)
+
+    def test_no_window_without_asking(self):
+        self.c.post('/settings/security/api-access/mode/', {
+            'api_mode': S.MODE_ALLOWLIST, 'webhook_mode': S.MODE_UNRESTRICTED,
+            'confirm': '1', 'rollback_minutes': '0'})
+        self.assertIsNone(S.get().revert_at)
+
+
+class RepeatSourceAlertTests(TestCase):
+    """Notifications for repeated refusals (v3.17.717, roadmap 81.7)."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_email_once_per_source_per_day(self):
+        from api_access import alerts
+        from core.models import SystemWarningNotification
+        with mock.patch('api_access.alerts.threading.Thread') as thread:
+            alerts.notify_repeat_source('203.0.113.7', 100)
+            alerts.notify_repeat_source('203.0.113.7', 100)
+            alerts.notify_repeat_source('203.0.113.8', 100)
+        self.assertEqual(thread.call_count, 2)
+        self.assertTrue(SystemWarningNotification.objects.filter(warning_id=alerts.warning_id('203.0.113.7')).exists())
+
+    def test_recorder_notifies_at_one_hundred(self):
+        from api_access.enforce import _maybe_note_repeat_source
+        with mock.patch('api_access.alerts.notify_repeat_source') as notify:
+            for _ in range(150):
+                _maybe_note_repeat_source('203.0.113.9')
+        notify.assert_called_once_with('203.0.113.9', 100)
+
+    def test_system_warning_lists_repeat_sources(self):
+        from core.system_warnings import collect_system_warnings
+        ApiAccessDecision.objects.create(source_ip='203.0.113.10', surface='api', reason='deny_rule', count=1500)
+        ApiAccessDecision.objects.create(source_ip='203.0.113.11', surface='api', reason='deny_rule', count=20)
+        found = [w for w in collect_system_warnings(min_severity='info') if w['category'] == 'api_access']
+        self.assertEqual([w['title'] for w in found], ['API access: 203.0.113.10 refused 1500 times in 24 hours'])
+        self.assertEqual(found[0]['severity'], 'high')

@@ -71,6 +71,7 @@ COMMAND_TASKS = {
     'm365_edit_sessions': ('m365_edit_sessions', []),
     'pulse_send_due': ('pulse_send_due', []),
     'run_advisor': ('run_advisor', []),
+    'api_access_tick': ('api_access_tick', []),
     'run_autopay': ('run_autopay', []),
     'connect_deliver_events': ('connect_deliver_events', []),
     'connect_rotate_keys': ('connect_rotate_keys', []),

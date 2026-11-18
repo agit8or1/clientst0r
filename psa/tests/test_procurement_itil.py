@@ -1617,6 +1617,22 @@ class TicketShareTests(TestCase):
                           HTTP_X_CST0R_SIGNATURE_V2=self._sign(f'{old}.{path}.'.encode() + raw))
         self.assertEqual(r.status_code, 401)
 
+    def test_after_a_v2_post_the_body_only_signature_is_refused(self):
+        import json as _json
+        import time
+        share = self._share()
+        path = f'/psa/partners/webhook/{share.pk}/'
+        raw = _json.dumps({'event': 'comment', 'payload': {'body': 'first v2'}}).encode()
+        ts = int(time.time())
+        r = Client().post(path, data=raw, content_type='application/json', HTTP_X_CST0R_TIMESTAMP=str(ts),
+                          HTTP_X_CST0R_SIGNATURE_V2=self._sign(f'{ts}.{path}.'.encode() + raw))
+        self.assertEqual(r.status_code, 200)
+        self.partner.refresh_from_db()
+        self.assertIsNotNone(self.partner.partner_signs_v2_since)
+        old = _json.dumps({'event': 'comment', 'payload': {'body': 'legacy'}}).encode()
+        r = Client().post(path, data=old, content_type='application/json', HTTP_X_CST0R_SIGNATURE=self._sign(old))
+        self.assertEqual(r.status_code, 403)
+
     def test_outbound_post_carries_both_signatures(self):
         from unittest import mock
         from psa.views import _phase7_post_to_partner

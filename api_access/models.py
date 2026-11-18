@@ -65,6 +65,13 @@ class ApiAccessSettings(models.Model):
     # Largest request body accepted, in KB; 0 = the server's general limit.
     api_max_body_kb = models.PositiveIntegerField(default=0)
     webhook_max_body_kb = models.PositiveIntegerField(default=0)
+    # Rollback window (v3.17.717, roadmap 81.6): while revert_at is set, every
+    # API access change made since revert_snapshot was taken is undone at that
+    # time unless an administrator keeps it.
+    revert_at = models.DateTimeField(null=True, blank=True)
+    revert_snapshot = models.JSONField(default=dict, blank=True)
+    revert_armed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                        on_delete=models.SET_NULL, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='+')

@@ -1282,9 +1282,15 @@ def emergency_restart_webhook(request):
     Lets an operator force-heal a stuck server remotely.
 
     Disabled (404) unless EMERGENCY_RESTART_SECRET is set in the environment.
-    Usage: POST /emergency-restart/ with header `X-Emergency-Secret: <secret>`
-    (or form field `secret`). Never in the query string, which ends up in
-    access logs.
+
+    Signed form (v3.17.717, preferred): headers `X-Emergency-Timestamp: <unix
+    seconds>` and `X-Emergency-Signature: <hex HMAC-SHA256(secret,
+    "<timestamp>.<path>")>`. The secret never travels, the call is valid for
+    five minutes and once only. Set EMERGENCY_RESTART_REQUIRE_SIGNED=true to
+    refuse the plain form.
+
+    Plain form: header `X-Emergency-Secret: <secret>` (or form field
+    `secret`). Never in the query string, which ends up in access logs.
     """
     from django.http import Http404
     from django.utils.crypto import constant_time_compare
@@ -1297,10 +1303,26 @@ def emergency_restart_webhook(request):
     if getattr(request, 'limited', False):
         return JsonResponse({'error': 'Too many attempts'}, status=429)
 
-    provided_secret = (request.headers.get('X-Emergency-Secret')
-                       or request.POST.get('secret') or '')
-    if not provided_secret or not constant_time_compare(provided_secret, expected_secret):
-        return JsonResponse({'error': 'Invalid secret'}, status=403)
+    signature = request.headers.get('X-Emergency-Signature') or ''
+    if signature or getattr(settings, 'EMERGENCY_RESTART_REQUIRE_SIGNED', False):
+        import hashlib
+        import hmac as _hmac
+        from api_access import webhook_guard as _wg
+        try:
+            ts = _wg.parse_timestamp(request.headers.get('X-Emergency-Timestamp'))
+        except _wg.Refused:
+            ts = None
+        material = f'{ts}.{request.path}'.encode()
+        expected = _hmac.new(expected_secret.encode(), material, hashlib.sha256).hexdigest()
+        if ts is None or not signature or not _hmac.compare_digest(expected, signature.strip().lower()):
+            return JsonResponse({'error': 'Invalid or expired signature'}, status=403)
+        if not _wg.claim('emergency_restart', material, True):
+            return JsonResponse({'error': 'This signed call was already used'}, status=409)
+    else:
+        provided_secret = (request.headers.get('X-Emergency-Secret')
+                           or request.POST.get('secret') or '')
+        if not provided_secret or not constant_time_compare(provided_secret, expected_secret):
+            return JsonResponse({'error': 'Invalid secret'}, status=403)
 
     # Run auto-heal command
     try:

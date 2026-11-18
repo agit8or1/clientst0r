@@ -102,6 +102,15 @@ class Organization(models.Model):
         help_text='Inbound webhook URL on the partner side that should '
                   'receive ticket-share notifications.',
     )
+    # v3.17.717 (roadmap 81.5): set the first time this partner sends a valid
+    # share-bound signature (X-CST0R-Signature-V2). From then on its posts must
+    # carry one, so the older body-only signature cannot be used to replay.
+    # Clear it here if the partner goes back to a version without it.
+    partner_signs_v2_since = models.DateTimeField(
+        null=True, blank=True,
+        help_text='When set, posts from this partner must carry the share-bound signature '
+                  '(X-CST0R-Signature-V2). Set automatically; clear it if the partner downgrades.',
+    )
     billing_markup_pct = models.DecimalField(
         max_digits=5, decimal_places=2, default=0,
         help_text='Optional markup % applied to time entries logged by techs '
@@ -1295,6 +1304,9 @@ class ScheduledTask(models.Model):
         ('compute_health_scores', 'Customer Health Score Snapshots'),
         # Pricing Advisor: nightly profitability facts and detectors (never changes prices).
         ('run_advisor', 'Pricing Advisor (profitability findings)'),
+        # API Access Control: undo changes whose rollback window ended, prune old
+        # refusals and expired webhook replay records (v3.17.717).
+        ('api_access_tick', 'API Access Control Maintenance'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1969,6 +1981,15 @@ class ScheduledTask(models.Model):
             'description': 'Expire contract links and acceptance deadlines, queue reminders, raise renewal and '
                            'expiration alerts, apply contract access-log retention',
             'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            # Every minute so a rollback window ends on time even when nothing
+            # calls the API (an API request also triggers it).
+            'task_type': 'api_access_tick',
+            'description': 'Undo API access changes whose rollback window ended unkept; delete refused-request '
+                           'records past retention and expired webhook replay records',
+            'interval_minutes': 1,
             'enabled': True,
         },
     ]

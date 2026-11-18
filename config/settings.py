@@ -781,6 +781,9 @@ if not API_KEY_SECRET:
 # Emergency restart webhook (POST /emergency-restart/). Disabled unless set.
 # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
 EMERGENCY_RESTART_SECRET = os.getenv('EMERGENCY_RESTART_SECRET', '')
+# v3.17.717: when true, only the signed form of the emergency restart call is
+# accepted (X-Emergency-Timestamp + X-Emergency-Signature); the plain secret is refused.
+EMERGENCY_RESTART_REQUIRE_SIGNED = os.getenv('EMERGENCY_RESTART_REQUIRE_SIGNED', 'false').lower() in ('1', 'true', 'yes')
 
 # Logging
 # Where the file log handlers write. Deployments leave it unset (/var/log/itdocs);

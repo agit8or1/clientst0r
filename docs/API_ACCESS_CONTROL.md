@@ -133,7 +133,12 @@ Saving a rule, enabling one, changing a mode or importing rules shows the impact
 - a warning when a webhook mode becomes restrictive (webhook senders' addresses are not recorded in advance —
   check each vendor's published ranges).
 
-High-impact changes need an explicit confirmation. Every change bumps the **policy version**, is applied on
+High-impact changes need an explicit confirmation, and offer an **automatic undo** (5 to 60 minutes, 10 by
+default): until you click **Keep changes** at the top of the page, every API access change made in that
+window — modes, limits and rules, including rules added or deleted — is undone when it ends, on the next API
+request or by the scheduler (every minute), whichever comes first. **Undo now** reverts at once, and **Start
+trial window** opens a window before a change. A second change inside the window keeps the original restore
+point. Trusted proxies are not included. High-impact changes Every change bumps the **policy version**, is applied on
 the next request in every worker, and is written to the audit log.
 
 **Test an address** evaluates any address against the saved policy for any endpoint group and API key, and
@@ -145,7 +150,10 @@ Each refusal records the time, source address, endpoint group and integration, m
 string), API key prefix and customer when known, reason, matched rule and policy version. Repeats from one
 source for the same reason within a minute share a row with a count, so a flood writes a handful of rows.
 Request bodies, headers and key secrets are never stored. A source refused 10, 100 and 1000 times in an hour
-is also reported in the server log.
+is also reported in the server log. At 100 in an hour, the administrators (superusers with an e-mail address)
+get one e-mail per address per day, and any source refused 100+ times in 24 hours appears in the system
+warnings and the daily digest. Records older than the retention setting (30 days by default) are deleted by
+the **API Access Control Maintenance** scheduled task.
 
 ## Import and export
 
@@ -166,6 +174,8 @@ venv/bin/python manage.py api_access_recover --disable-rule 12
 venv/bin/python manage.py api_access_recover --disable-all-rules
 venv/bin/python manage.py api_access_recover --disable-proxies          # proxies added in Settings
 ```
+
+If a rollback window is open, the change is also undone on its own when the window ends.
 
 Each change is audited and takes effect on the next request. Disabled rules stay listed and can be
 re-enabled from the settings page.
@@ -219,7 +229,22 @@ The security vendor, SIEM, distributor and ticket-partner receivers share these 
   webhook body limit on this page applies as well.
 
 Ticket partners on v3.17.716 and later also send `X-CST0R-Signature-V2`, an HMAC over
-`"<timestamp>.<request path>.<body>"`, which binds the post to one share.
+`"<timestamp>.<request path>.<body>"`, which binds the post to one share. Once a partner has sent one, posts
+from it without that signature are refused; clear *Partner signs v2 since* on the partner organization (admin)
+if the partner returns to an older version.
+
+### Emergency restart
+
+`POST /core/emergency-restart/` (enabled only when `EMERGENCY_RESTART_SECRET` is set). Prefer the signed form,
+which never sends the secret and works once, within five minutes:
+
+```bash
+ts=$(date +%s); path=/core/emergency-restart/
+sig=$(printf '%s.%s' "$ts" "$path" | openssl dgst -sha256 -hmac "$EMERGENCY_RESTART_SECRET" | cut -d' ' -f2)
+curl -X POST "https://your-host$path" -H "X-Emergency-Timestamp: $ts" -H "X-Emergency-Signature: $sig"
+```
+
+Set `EMERGENCY_RESTART_REQUIRE_SIGNED=true` to refuse the plain `X-Emergency-Secret` form.
 
 Example sender (shell):
 
@@ -232,6 +257,5 @@ curl -X POST "$URL" -H 'Content-Type: application/json' \
 
 ## Planned (Phase 81)
 
-Concurrency limits; a per-partner switch to require the share-bound signature; a signed emergency-restart
-call; per-connection payment event de-duplication; an automatic rollback window for global changes;
-notifications for repeated violations; optional mutual TLS. See `docs/ROADMAP.md`.
+Concurrency limits; per-connection payment event de-duplication and a GoCardless freshness check; the
+shared event feed (Phase 82); optional mutual TLS. See `docs/ROADMAP.md`.

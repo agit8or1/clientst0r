@@ -3,6 +3,16 @@
 {% block content %}
 {% include "api_access/_subnav.html" with active="rules" %}
 
+{% if settings_obj.revert_at %}
+<div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="status">
+  <div class="me-auto"><i class="fas fa-clock-rotate-left"></i>
+    <strong>Rollback window open.</strong> Every API access change made since the window started is undone at
+    <strong>{{ settings_obj.revert_at|date:"H:i" }}</strong> ({{ settings_obj.revert_at|timeuntil }}) unless you keep it{% if settings_obj.revert_armed_by %} — started by {{ settings_obj.revert_armed_by.username }}{% endif %}.</div>
+  <form method="post" action="{% url 'api_access:rollback_keep' %}">{% csrf_token %}<button class="btn btn-sm btn-success"><i class="fas fa-check"></i> Keep changes</button></form>
+  <form method="post" action="{% url 'api_access:rollback_undo' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger"><i class="fas fa-rotate-left"></i> Undo now</button></form>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-3">
   <div class="col-lg-8">
     <div class="card h-100">
@@ -20,6 +30,17 @@
           Once an allowlist applies, any address it does not list is refused. Customer, API key, integration and endpoint-group
           rules apply in every mode. Private addresses are not trusted automatically. Policy version {{ settings_obj.policy_version }}.
         </p>
+        {% if not settings_obj.revert_at %}
+        <form method="post" action="{% url 'api_access:rollback_start' %}" class="d-flex flex-wrap align-items-center gap-2 mt-2 small">
+          {% csrf_token %}
+          <span class="text-muted">Trying something risky? Start a trial window — changes are undone after</span>
+          <select class="form-select form-select-sm w-auto" name="rollback_minutes" aria-label="Trial window length">
+            {% for v, l in rollback_choices %}{% if v %}<option value="{{ v }}" {% if v == 10 %}selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}
+          </select>
+          <span class="text-muted">unless you keep them.</span>
+          <button class="btn btn-sm btn-outline-warning"><i class="fas fa-clock-rotate-left"></i> Start trial window</button>
+        </form>
+        {% endif %}
       </div>
     </div>
   </div>

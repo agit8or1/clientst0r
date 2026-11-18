@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from audit.models import AuditLog
 
 from . import policy as P
+from . import rollback
 from .forms import ImportForm, LimitsForm, ModeForm, RuleForm, TestAddressForm, TrustedProxyForm
 from .groups import ENDPOINT_GROUPS, INTEGRATIONS
 from .models import ApiAccessDecision, ApiAccessRule, ApiAccessSettings, TrustedProxy, normalize_network
@@ -50,8 +51,19 @@ def _changed(request):
     P.reset_cache()
 
 
+def _arm_from(request):
+    """Arm the rollback window when the confirmation form asked for one."""
+    minutes = rollback.parse_minutes(request.POST.get('rollback_minutes'))
+    if minutes:
+        when = rollback.arm(request.user, minutes)
+        messages.warning(request, f'This change is undone automatically at {timezone.localtime(when):%H:%M} '
+                                  'unless you keep it (top of the API Access Control page).')
+
+
 @_guarded
 def index(request):
+    if rollback.revert_if_due(user=None):
+        messages.warning(request, 'The rollback window ended without the changes being kept, so they were undone.')
     s = ApiAccessSettings.get()
     rules = ApiAccessRule.objects.select_related('organization', 'api_key', 'created_by', 'updated_by')
     q = (request.GET.get('q') or '').strip()
@@ -82,6 +94,7 @@ def index(request):
         'your_ip': client_ip_text(request), 'reasons': P.REASONS,
         'mode_help': ApiAccessSettings.MODE_HELP, 'mode_choices': ApiAccessSettings.MODES,
         'limits_form': LimitsForm(initial={f: getattr(s, f) for f in LimitsForm.base_fields}),
+        'rollback_choices': rollback.WINDOW_CHOICES,
     })
 
 
@@ -125,6 +138,7 @@ def mode_update(request):
             'new': new, 'preview': preview,
             'labels': {'api': modes[new['api_mode']], 'webhook': modes[new['webhook_mode']]}})
     old = {'api_mode': s.api_mode, 'webhook_mode': s.webhook_mode}
+    _arm_from(request)
     ApiAccessSettings.objects.filter(pk=1).update(**new)
     _changed(request)
     _audit(request, 'update', description='API access mode changed',
@@ -146,6 +160,7 @@ def _rule_form_page(request, rule):
             return render(request, 'api_access/rule_form.html', {
                 'form': form, 'rule': rule, 'creating': creating, 'preview': preview,
                 'history': _history(rule)})
+        _arm_from(request)
         with transaction.atomic():
             if creating:
                 candidate.created_by = request.user
@@ -498,6 +513,7 @@ def _apply_saved_import(request):
         messages.warning(request, 'This import would refuse current traffic. Tick the confirmation to apply it.')
         return render(request, 'api_access/import.html', {
             'form': ImportForm(), 'parsed': {'rules': rules, 'preview': preview}})
+    _arm_from(request)
     with transaction.atomic():
         for rule in rules:
             rule.created_by = rule.updated_by = request.user
@@ -507,4 +523,34 @@ def _apply_saved_import(request):
     _audit(request, 'import', description=f'API access rules imported ({len(rules)})',
            extra={'rule_ids': [r.pk for r in rules]})
     messages.success(request, f'Imported {len(rules)} rules.')
+    return redirect('api_access:index')
+
+
+@_guarded
+@require_POST
+def rollback_start(request):
+    minutes = rollback.parse_minutes(request.POST.get('rollback_minutes')) or rollback.DEFAULT_MINUTES
+    _arm_from_minutes(request, minutes)
+    return redirect('api_access:index')
+
+
+def _arm_from_minutes(request, minutes):
+    when = rollback.arm(request.user, minutes)
+    messages.info(request, f'Trial window started: changes made until {timezone.localtime(when):%H:%M} are undone '
+                           'then unless you keep them.')
+
+
+@_guarded
+@require_POST
+def rollback_keep(request):
+    if rollback.keep(request.user):
+        messages.success(request, 'Changes kept. The rollback window is closed.')
+    return redirect('api_access:index')
+
+
+@_guarded
+@require_POST
+def rollback_undo(request):
+    if rollback.revert_if_due(force=True, user=request.user):
+        messages.success(request, 'Changes undone: the rules and settings are back to how they were when the window started.')
     return redirect('api_access:index')

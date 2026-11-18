@@ -13,6 +13,13 @@
       </tbody></table></li>
     {% endif %}
   </ul>
+  <div class="row g-2 align-items-center mb-2">
+    <div class="col-auto"><label class="form-label small mb-0" for="rollback-minutes">Undo automatically after</label></div>
+    <div class="col-auto"><select class="form-select form-select-sm" name="rollback_minutes" id="rollback-minutes">
+      {% for v, l in preview.rollback_choices %}<option value="{{ v }}" {% if v == preview.rollback_default %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select></div>
+    <div class="col-12 small text-muted">unless you keep the change from the API Access Control page — a safety net if this cuts off something you rely on.</div>
+  </div>
   <div class="form-check">
     <input class="form-check-input" type="checkbox" name="confirm" value="1" id="confirm-impact" required>
     <label class="form-check-label" for="confirm-impact">I understand this can interrupt the integrations listed above.</label>

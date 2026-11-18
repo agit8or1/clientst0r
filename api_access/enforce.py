@@ -79,6 +79,9 @@ def _maybe_note_repeat_source(ip_text):
         return
     if n in (10, 100, 1000):
         logger.warning('API access: %s refused %s times in the last hour', ip_text, n)
+    if n == 100:
+        from .alerts import notify_repeat_source
+        notify_repeat_source(ip_text, n)
 
 
 _STATUS = {P.POLICY_UNAVAILABLE: 503, P.RATE_LIMITED: 429, P.TOO_LARGE: 413}

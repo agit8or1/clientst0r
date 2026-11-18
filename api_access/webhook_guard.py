@@ -52,7 +52,12 @@ def read_body(request, max_bytes):
 
 def timestamp(request, now=None):
     """The sender's timestamp (int) if it sent one; Refused if it is bad or stale."""
-    raw = (request.META.get(TIMESTAMP_HEADER) or '').strip()
+    return parse_timestamp(request.META.get(TIMESTAMP_HEADER), now)
+
+
+def parse_timestamp(raw, now=None):
+    """Unix seconds within TOLERANCE of now -> int; empty -> None; else Refused."""
+    raw = (raw or '').strip()
     if not raw:
         return None
     if not raw.isdigit() or len(raw) > 12:

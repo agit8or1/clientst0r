@@ -61,6 +61,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_root_helper())
     warnings.extend(_warnings_from_ssl_expiry())
     warnings.extend(_warnings_from_domain_expiry())
+    warnings.extend(_warnings_from_api_access())
 
     # Filter by min severity, then sort.
     filtered = [w for w in warnings if SEVERITY_RANK.get(w['severity'], 9) <= threshold]
@@ -334,3 +335,12 @@ def worst_severity(warnings):
         if best is None or rank < best[0]:
             best = (rank, w['severity'])
     return best[1] if best else None
+
+
+def _warnings_from_api_access():
+    """Sources refused repeatedly by API Access Control (v3.17.717)."""
+    try:
+        from api_access.alerts import system_warnings
+        return system_warnings()
+    except Exception:
+        return []

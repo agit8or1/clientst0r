@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.717] - 2026-11-18
+
+### Added
+- **Rollback window for API access changes** (roadmap 81.6). Confirming a high-impact change (a mode change, a rule or an import that would refuse current traffic) offers *Undo automatically after* 5 / 10 / 30 / 60 minutes (10 by default). Until you click **Keep changes**, every API access change made in the window — modes, limits and rules — is undone at that time, on the next API request or by the scheduler, whichever comes first. **Undo now** reverts at once; **Start trial window** opens one before any change. Trusted proxies are not part of it. Every arm, keep and undo is audited.
+- **Repeat-source notifications** (roadmap 81.7). A source refused 100 times within an hour sends one e-mail to the administrators (at most once per address per day), and sources refused 100+ times in 24 hours are listed in the system warnings and the daily digest, linking to their refused requests.
+- **Signed emergency restart.** `POST /core/emergency-restart/` accepts `X-Emergency-Timestamp` and `X-Emergency-Signature` (HMAC-SHA256 of `"<timestamp>.<path>"` with the secret): the secret is never sent, and each signed call works for five minutes and once only. `EMERGENCY_RESTART_REQUIRE_SIGNED=true` in `.env` refuses the plain-secret form.
+- New scheduled task **API Access Control Maintenance** (every minute): applies due rollbacks, deletes refused-request records past the retention setting (they were never deleted before) and expired webhook replay records.
+
+### Changed
+- **Ticket partners:** once a partner has sent a valid share-bound signature (`X-CST0R-Signature-V2`, v3.17.716+), its posts without one are refused. Clear *Partner signs v2 since* on the partner organization in the admin if the partner goes back to an older version.
+
 ## [3.17.716] - 2026-11-18
 
 ### Added
