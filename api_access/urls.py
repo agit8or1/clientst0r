@@ -7,6 +7,7 @@ app_name = 'api_access'
 urlpatterns = [
     path('', views.index, name='index'),
     path('mode/', views.mode_update, name='mode_update'),
+    path('limits/', views.limits_update, name='limits_update'),
     path('rules/new/', views.rule_create, name='rule_create'),
     path('rules/<int:pk>/edit/', views.rule_edit, name='rule_edit'),
     path('rules/<int:pk>/toggle/', views.rule_toggle, name='rule_toggle'),

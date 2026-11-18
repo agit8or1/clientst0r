@@ -1,0 +1,35 @@
+{# Expiry, rate limit and allowed sources — shared by create and edit. #}
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <label for="expiry" class="form-label">Expires</label>
+    <select class="form-select" id="expiry" name="expiry">
+      {% if api_key %}<option value="keep" {% if posted_expiry == 'keep' %}selected{% endif %}>{% if api_key.expires_at %}Keep: {{ api_key.expires_at|date:"Y-m-d H:i" }}{% else %}Keep: never{% endif %}</option>{% endif %}
+      {% for v, l in expiry_choices %}<option value="{{ v }}" {% if posted_expiry == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-6" id="expiry-date-wrap">
+    <label for="expiry_date" class="form-label">Expiry date</label>
+    <input type="date" class="form-control" id="expiry_date" name="expiry_date" value="{{ posted_expiry_date|default:'' }}">
+  </div>
+  <div class="col-md-6">
+    <label for="rate_limit_per_minute" class="form-label">Rate limit (requests per minute)</label>
+    <input type="number" min="1" max="10000" class="form-control" id="rate_limit_per_minute" name="rate_limit_per_minute" value="{{ rate|default:'' }}" placeholder="Standard limits">
+    <small class="form-text text-muted">Optional, on top of the standard API limits.</small>
+  </div>
+  <div class="col-12">
+    <label for="allowed_sources" class="form-label">Allowed sources</label>
+    <textarea class="form-control font-monospace" id="allowed_sources" name="allowed_sources" rows="4" placeholder="192.168.22.10&#10;10.0.0.0/24&#10;2001:db8:1234::/48">{{ sources_text|default:'' }}</textarea>
+    <small class="form-text text-muted">
+      Optional. One IPv4 / IPv6 address or CIDR range per line. When set, this key only works from these networks;
+      requests from anywhere else are refused and logged. Leave empty for no key-specific restriction.
+      {% if your_ip %}Your address as this server sees it: <code>{{ your_ip }}</code>.{% endif %}
+    </small>
+  </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var sel = document.getElementById('expiry'), wrap = document.getElementById('expiry-date-wrap');
+  function sync() { wrap.hidden = sel.value !== 'custom'; }
+  sel.addEventListener('change', sync); sync();
+})();
+</script>

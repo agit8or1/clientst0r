@@ -591,3 +591,74 @@ class ConnectRateLimitAddressTests(TestCase):
                          '203.0.113.8')
         self.assertEqual(client_ip(rf.get('/', REMOTE_ADDR='198.51.100.2', HTTP_X_FORWARDED_FOR='10.0.0.1')),
                          '198.51.100.2')
+
+
+@override_settings(TRUSTED_PROXY_CIDRS=['127.0.0.1/32'])
+class AddressLimitTests(TestCase):
+    """Per-address rate and body-size limits (v3.17.714)."""
+
+    def setUp(self):
+        P.reset_cache()
+        cache.clear()
+        S.get()
+        self.mw = ApiAccessMiddleware(lambda request: HttpResponse('ok'))
+        self.rf = RequestFactory()
+
+    def tearDown(self):
+        P.reset_cache()
+
+    def limits(self, **kw):
+        S.objects.filter(pk=1).update(**kw)
+        S.bump()
+
+    def test_off_by_default(self):
+        for _ in range(20):
+            self.assertEqual(self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='203.0.113.1')).status_code, 200)
+
+    def test_rate_per_address(self):
+        self.limits(api_rate_per_address=3)
+        codes = [self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='203.0.113.1')).status_code for _ in range(5)]
+        self.assertEqual(codes, [200, 200, 200, 429, 429])
+        r = self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='203.0.113.1'))
+        self.assertEqual(r['Retry-After'], '60')
+        self.assertEqual(self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='203.0.113.2')).status_code, 200)
+        # webhooks have their own limit (off here)
+        self.assertEqual(self.mw(self.rf.post('/security/siem/webhook/t/', REMOTE_ADDR='203.0.113.1')).status_code, 200)
+        self.assertEqual(ApiAccessDecision.objects.get().reason, P.RATE_LIMITED)
+
+    def test_body_size(self):
+        self.limits(webhook_max_body_kb=1)
+        small = self.rf.post('/security/siem/webhook/t/', data='x' * 500, content_type='text/plain',
+                             REMOTE_ADDR='203.0.113.1')
+        self.assertEqual(self.mw(small).status_code, 200)
+        big = self.rf.post('/security/siem/webhook/t/', data='x' * 5000, content_type='text/plain',
+                           REMOTE_ADDR='203.0.113.1')
+        self.assertEqual(self.mw(big).status_code, 413)
+        self.assertEqual(ApiAccessDecision.objects.get().reason, P.TOO_LARGE)
+        # the API surface has no size limit set
+        api = self.rf.post('/api/assets/', data='x' * 5000, content_type='text/plain', REMOTE_ADDR='203.0.113.1')
+        self.assertEqual(self.mw(api).status_code, 200)
+
+    def test_network_refusal_comes_before_limits(self):
+        R.objects.create(name='block', network='203.0.113.0/24', action=R.ACTION_DENY)
+        self.limits(api_mode=S.MODE_DENYLIST, api_rate_per_address=1)
+        self.assertEqual(self.mw(self.rf.get('/api/assets/', REMOTE_ADDR='203.0.113.1')).status_code, 403)
+
+
+@override_settings(MIDDLEWARE=API_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class LimitsPageTests(TestCase):
+    def test_limits_saved_and_audited(self):
+        admin = User.objects.create_superuser('al-admin', 'a@example.test', 'pw')
+        c = Client()
+        c.force_login(admin)
+        r = c.post('/settings/security/api-access/limits/', {
+            'api_rate_per_address': '600', 'webhook_rate_per_address': '120',
+            'api_max_body_kb': '0', 'webhook_max_body_kb': '256'})
+        self.assertEqual(r.status_code, 302)
+        s = S.get()
+        self.assertEqual((s.api_rate_per_address, s.webhook_rate_per_address, s.webhook_max_body_kb), (600, 120, 256))
+        self.assertTrue(AuditLog.objects.filter(description='API access limits changed').exists())
+        c.post('/settings/security/api-access/limits/', {
+            'api_rate_per_address': '-1', 'webhook_rate_per_address': '0',
+            'api_max_body_kb': '0', 'webhook_max_body_kb': '0'})
+        self.assertEqual(S.get().api_rate_per_address, 600)

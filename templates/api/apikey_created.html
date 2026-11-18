@@ -7,6 +7,7 @@
     <h1><i class="fas fa-check-circle text-success"></i> API Key Created Successfully</h1>
 </div>
 
+{% if rotated_from %}<div class="alert alert-info">This key replaces <code>{{ rotated_from.key_prefix }}…</code>{% if rotated_from.is_active and rotated_from.expires_at %}, which keeps working until {{ rotated_from.expires_at|date:"Y-m-d H:i" }}{% else %}, which has been stopped{% endif %}.</div>{% endif %}
 <div class="alert alert-danger">
     <i class="fas fa-exclamation-triangle"></i>
     <strong>IMPORTANT:</strong> This is the only time you will see the full API key. Copy it now and store it securely!

@@ -684,6 +684,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
+        'api.throttles.APIKeyRateThrottle',  # per-key limit, when the key sets one
     ],
     'DEFAULT_THROTTLE_RATES': {
         # Anonymous (per-IP) - strict limits

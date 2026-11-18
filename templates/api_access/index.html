@@ -37,6 +37,18 @@
   </div>
 </div>
 
+<div class="card mb-3">
+  <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-gauge-high"></i> Limits per source address</h6></div>
+  <div class="card-body">
+    <form method="post" action="{% url 'api_access:limits_update' %}" class="row g-2 align-items-end">
+      {% csrf_token %}
+      {% for field in limits_form %}<div class="col-6 col-lg"><label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}
+      <div class="col-12 col-lg-auto"><button class="btn btn-sm btn-primary w-100">Save limits</button></div>
+    </form>
+    <div class="form-text">0 turns a limit off. Rate limits count requests from one address per minute (answered with 429); size limits refuse larger request bodies (413). Both are logged with refused requests. Per-key limits are set on each API key. Counters are kept per application worker.</div>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header py-2 d-flex align-items-center">
     <h6 class="mb-0 me-auto"><i class="fas fa-list"></i> Rules <span class="text-muted small">({{ rules|length }})</span></h6>

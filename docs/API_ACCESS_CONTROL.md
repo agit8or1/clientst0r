@@ -166,8 +166,38 @@ re-enabled from the settings page.
 
 The settings pages themselves are web pages, so API rules never lock an administrator out of them.
 
+## API keys
+
+Each key (Settings → API keys, or the customer's API keys page) can carry:
+
+- **Expiry.** An expired key is refused with `401 API key expired` and is not marked as used. Keys made
+  before v3.17.714 never expire until you set a date.
+- **Allowed sources.** One address or CIDR range per line. These become API-key rules (allow, API surface)
+  and appear in the rules table here; clearing the list removes them. Narrowing the sources of a key that was
+  last used from an address outside the new list asks for confirmation first.
+- **Rate limit.** Requests per minute for the key, on top of the standard limits; over it, `429`.
+
+**Rotation.** The key's owner (or a superuser) can rotate a key: a new key is issued with the same name,
+owner, level, scope, expiry, rate limit and network rules, and the old key keeps working for the chosen grace
+period (immediately stopped, 1 hour, 24 hours, 3 days or 7 days) — never longer than its own expiry. The new
+secret is shown once. Only the owner rotates, because the new secret acts as the owner.
+
+Read-only versus write-capable keys are the key levels (Read-Only, Editor, Admin, Owner), enforced since
+v3.17.618.
+
+## Limits per source address
+
+On the API Access Control page, for the API and for webhooks separately:
+
+- **Requests per minute per address** — over the limit, `429` with `Retry-After: 60`.
+- **Largest request body (KB)** — a larger declared body is refused with `413` before the view reads it.
+
+`0` turns a limit off (the default). Network rules are checked first; limits apply to requests the rules
+allow. Refusals are logged with the other refused requests. Counters live in the application cache, so with
+the default per-process cache each worker counts on its own.
+
 ## Planned (Phase 81)
 
-API key expiry, rotation and per-key rate limits; webhook timestamp windows, replay protection and body
-limits on every receiver; trusted proxies managed in Settings; an automatic rollback window for global
-changes; notifications for repeated violations; optional mutual TLS. See `docs/ROADMAP.md`.
+Concurrency limits; webhook signatures, timestamp windows and replay protection on every receiver; trusted
+proxies managed in Settings; an automatic rollback window for global changes; notifications for repeated
+violations; optional mutual TLS. See `docs/ROADMAP.md`.

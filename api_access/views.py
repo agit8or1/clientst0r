@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from audit.models import AuditLog
 
 from . import policy as P
-from .forms import ImportForm, ModeForm, RuleForm, TestAddressForm
+from .forms import ImportForm, LimitsForm, ModeForm, RuleForm, TestAddressForm
 from .groups import ENDPOINT_GROUPS, INTEGRATIONS
 from .models import ApiAccessDecision, ApiAccessRule, ApiAccessSettings, normalize_network
 from .preview import build_policy_for_rule, explain_client_address, impact, row_for, rule_rows, settings_row
@@ -79,7 +79,28 @@ def index(request):
         'recent': ApiAccessDecision.objects.select_related('rule')[:8],
         'your_ip': client_ip_text(request), 'reasons': P.REASONS,
         'mode_help': ApiAccessSettings.MODE_HELP, 'mode_choices': ApiAccessSettings.MODES,
+        'limits_form': LimitsForm(initial={f: getattr(s, f) for f in LimitsForm.base_fields}),
     })
+
+
+@_guarded
+@require_POST
+def limits_update(request):
+    form = LimitsForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'Limits must be whole numbers (0 turns a limit off).')
+        return redirect('api_access:index')
+    s = ApiAccessSettings.get()
+    before = {f: getattr(s, f) for f in LimitsForm.base_fields}
+    after = dict(form.cleaned_data)
+    if before == after:
+        messages.info(request, 'Nothing changed.')
+        return redirect('api_access:index')
+    ApiAccessSettings.objects.filter(pk=1).update(**after)
+    _changed(request)
+    _audit(request, 'update', description='API access limits changed', extra={'before': before, 'after': after})
+    messages.success(request, 'Limits saved.')
+    return redirect('api_access:index')
 
 
 @_guarded

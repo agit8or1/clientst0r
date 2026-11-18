@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.714] - 2026-11-18
+
+### Added
+- **API key lifecycle** (roadmap 81.4). When creating or editing a key:
+  - **Expiry** — never, 30 / 90 / 180 days, 1 year or a date. Expired keys are refused at once; the key list shows the expiry and highlights keys that expire within 14 days.
+  - **Allowed sources** — addresses and CIDR ranges the key may be used from (IPv4 and IPv6). They are API-key rules in API Access Control, so they are enforced, logged and listed there too. Narrowing the sources of a key that was last used from somewhere else asks for confirmation.
+  - **Rate limit** — requests per minute for the key, on top of the standard API limits (answered with 429).
+- **Key rotation** — the key's owner can issue a replacement with the same name, level, scope, expiry, rate limit and network rules, and choose how long the old key keeps working (now, 1 hour to 7 days). The new secret is shown once; rotation is audited.
+- **Limits per source address** (API Access Control): requests per minute per address and the largest request body, separately for the API and for webhooks. Off by default; refusals (429 / 413) are logged with refused requests.
+
 ## [3.17.713] - 2026-11-18
 
 ### Added

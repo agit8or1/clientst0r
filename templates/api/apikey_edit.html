@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Edit API key {{ api_key.name }}{% endblock %}
+{% block content %}
+<div class="mb-3 d-flex align-items-center gap-2">
+  <h1 class="h3 mb-0 me-auto"><i class="fas fa-key"></i> {{ api_key.name }} <code class="fs-6">{{ api_key.key_prefix }}…</code></h1>
+  {% if api_key.user == request.user or request.user.is_superuser %}<a class="btn btn-outline-warning" href="{% url 'api:apikey_rotate' api_key.pk %}"><i class="fas fa-rotate"></i> Rotate key</a>{% endif %}
+</div>
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="name" name="name" maxlength="100" required value="{{ name }}">
+          </div>
+          {% include "api/_lifecycle_fields.html" %}
+          {% if cut_off %}
+          <div class="alert alert-warning">
+            <strong>This key was last used from <code>{{ api_key.last_used_ip }}</code>{% if api_key.last_used_at %} ({{ api_key.last_used_at|timesince }} ago){% endif %}, which is not in the new allowed sources.</strong>
+            Saving will refuse that integration's requests.
+            <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="confirm" value="1" id="confirm" required>
+              <label class="form-check-label" for="confirm">Save anyway</label></div>
+          </div>
+          {% endif %}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary">Save</button>
+            <a class="btn btn-secondary" href="{% url 'api:apikey_list' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header"><h6 class="mb-0">About this key</h6></div>
+      <div class="card-body small">
+        <dl class="mb-0">
+          <dt>Level</dt><dd>{{ api_key.get_role_display }} · {{ api_key.get_scope_display }}</dd>
+          <dt>Owner</dt><dd>{{ api_key.user.username }}</dd>
+          <dt>Last used</dt><dd>{% if api_key.last_used_at %}{{ api_key.last_used_at|timesince }} ago from <code>{{ api_key.last_used_ip }}</code>{% else %}Never{% endif %}</dd>
+          {% if api_key.rotated_from %}<dt>Replaces</dt><dd><code>{{ api_key.rotated_from.key_prefix }}…</code></dd>{% endif %}
+        </dl>
+        <p class="text-muted mt-2 mb-0">The key's secret cannot be shown or changed; rotate the key to get a new secret.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -74,6 +74,18 @@ class ModeForm(forms.Form):
             self.fields[name].widget.attrs['class'] = 'form-select'
 
 
+class LimitsForm(forms.Form):
+    api_rate_per_address = forms.IntegerField(min_value=0, max_value=100000, label='API requests per minute per address')
+    webhook_rate_per_address = forms.IntegerField(min_value=0, max_value=100000, label='Webhook requests per minute per address')
+    api_max_body_kb = forms.IntegerField(min_value=0, max_value=1024 * 1024, label='Largest API request (KB)')
+    webhook_max_body_kb = forms.IntegerField(min_value=0, max_value=1024 * 1024, label='Largest webhook request (KB)')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': 'form-control form-control-sm', 'min': 0})
+
+
 class TestAddressForm(forms.Form):
     ip = forms.CharField(label='Source address', max_length=64)
     group = forms.ChoiceField(label='Endpoint group',

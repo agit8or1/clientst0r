@@ -81,10 +81,53 @@ def _maybe_note_repeat_source(ip_text):
         logger.warning('API access: %s refused %s times in the last hour', ip_text, n)
 
 
+_STATUS = {P.POLICY_UNAVAILABLE: 503, P.RATE_LIMITED: 429, P.TOO_LARGE: 413}
+_MESSAGES = {
+    503: 'Access policy unavailable; try again shortly.',
+    429: 'Too many requests from this address; slow down.',
+    413: 'Request body too large.',
+}
+
+
 def refusal_response(decision):
-    status = 503 if decision.reason == P.POLICY_UNAVAILABLE else 403
-    return JsonResponse({'detail': PUBLIC_MESSAGE if status == 403
-                         else 'Access policy unavailable; try again shortly.'}, status=status)
+    status = _STATUS.get(decision.reason, 403)
+    resp = JsonResponse({'detail': _MESSAGES.get(status, PUBLIC_MESSAGE)}, status=status)
+    if status == 429:
+        resp['Retry-After'] = '60'
+    return resp
+
+
+def check_limits(request, route, ctx):
+    """Per-address rate and body-size limits for the surface, or None.
+
+    The size check reads the declared Content-Length (chunked bodies are still
+    capped by the server's general upload limits). Counters use the cache, so
+    with the default per-process cache each worker counts separately."""
+    policy = P._cache['policy']
+    if policy is None:
+        return None
+    rate, max_kb = policy.limits_for(route.surface)
+    if max_kb:
+        try:
+            length = int(request.META.get('CONTENT_LENGTH') or 0)
+        except ValueError:
+            length = 0
+        if length > max_kb * 1024:
+            return P.Decision(False, P.TOO_LARGE, detail=f'{length} bytes', policy_version=policy.version)
+    if rate and ctx.ip is not None:
+        import time
+        window = int(time.time() // 60)
+        key = f'apiacc:rate:{route.surface}:{ctx.ip}:{window}'
+        if cache.add(key, 1, 70):
+            count = 1
+        else:
+            try:
+                count = cache.incr(key)
+            except ValueError:
+                count = 1
+        if count > rate:
+            return P.Decision(False, P.RATE_LIMITED, detail=f'over {rate}/min', policy_version=policy.version)
+    return None
 
 
 class ApiAccessMiddleware:
@@ -101,6 +144,8 @@ class ApiAccessMiddleware:
         request.api_access_route = route
         ctx = context_for(request, route)
         decision = P.decide(ctx, P.STAGE_NETWORK)
+        if decision.allowed:
+            decision = check_limits(request, route, ctx) or decision
         if not decision.allowed:
             record_refusal(request, route, ctx, decision)
             return refusal_response(decision)

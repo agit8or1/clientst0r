@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Rotate API key {{ api_key.name }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3"><i class="fas fa-rotate"></i> Rotate {{ api_key.name }} <code class="fs-6">{{ api_key.key_prefix }}…</code></h1>
+<div class="card" style="max-width: 720px">
+  <div class="card-body">
+    <p>A new key is issued with the same name, level, organization scope, expiry, rate limit{% if sources %} and allowed sources ({{ sources|join:", " }}){% endif %}. The new secret is shown once.</p>
+    <form method="post">
+      {% csrf_token %}
+      <label class="form-label" for="grace">Keep the old key working for</label>
+      <select class="form-select mb-3" id="grace" name="grace">
+        {% for v, l in grace_choices %}<option value="{{ v }}" {% if v == '24' %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+      <p class="small text-muted">Give your integration time to switch to the new key. After the grace period the old key stops working; it stays listed until you delete it.</p>
+      <button class="btn btn-warning"><i class="fas fa-rotate"></i> Rotate now</button>
+      <a class="btn btn-secondary" href="{% url 'api:apikey_list' %}">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

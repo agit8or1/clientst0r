@@ -8,7 +8,7 @@ from .views import (
     AssetViewSet, ContactViewSet, DocumentViewSet,
     PasswordViewSet, TagViewSet, OrganizationViewSet
 )
-from .key_views import apikey_list, apikey_create, apikey_delete, apikey_toggle
+from .key_views import apikey_list, apikey_create, apikey_delete, apikey_toggle, apikey_edit, apikey_rotate
 
 # Create router and register viewsets
 router = DefaultRouter()
@@ -38,6 +38,8 @@ urlpatterns = [
     path('keys/create/', apikey_create, name='apikey_create'),
     path('keys/<int:pk>/delete/', apikey_delete, name='apikey_delete'),
     path('keys/<int:pk>/toggle/', apikey_toggle, name='apikey_toggle'),
+    path('keys/<int:pk>/edit/', apikey_edit, name='apikey_edit'),
+    path('keys/<int:pk>/rotate/', apikey_rotate, name='apikey_rotate'),
 
     # Browsable API root
     path('', include(router.urls)),

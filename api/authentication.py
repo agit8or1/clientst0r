@@ -33,6 +33,11 @@ class APIKeyAuthentication(authentication.BaseAuthentication):
         if not api_key:
             raise exceptions.AuthenticationFailed('Invalid API key')
 
+        # Expired keys stop at once; a rotated key keeps working until the
+        # grace period chosen at rotation ends (its expires_at).
+        if api_key.is_expired:
+            raise exceptions.AuthenticationFailed('API key expired')
+
         # A customer user's key stops working for a customer they no longer
         # belong to. MSP staff work across every customer.
         user = api_key.user

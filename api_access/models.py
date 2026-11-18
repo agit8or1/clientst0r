@@ -59,6 +59,12 @@ class ApiAccessSettings(models.Model):
     # and each logged decision records the version it was made under.
     policy_version = models.PositiveIntegerField(default=1)
     decision_retention_days = models.PositiveIntegerField(default=30)
+    # Per source address, per minute; 0 = off (v3.17.714, roadmap 81.4 / 81.5).
+    api_rate_per_address = models.PositiveIntegerField(default=0)
+    webhook_rate_per_address = models.PositiveIntegerField(default=0)
+    # Largest request body accepted, in KB; 0 = the server's general limit.
+    api_max_body_kb = models.PositiveIntegerField(default=0)
+    webhook_max_body_kb = models.PositiveIntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='+')
@@ -82,6 +88,11 @@ class ApiAccessSettings(models.Model):
 
     def mode_for(self, surface):
         return self.webhook_mode if surface == SURFACE_WEBHOOK else self.api_mode
+
+    def limits_for(self, surface):
+        if surface == SURFACE_WEBHOOK:
+            return self.webhook_rate_per_address, self.webhook_max_body_kb
+        return self.api_rate_per_address, self.api_max_body_kb
 
 
 class ApiAccessRule(models.Model):

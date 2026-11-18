@@ -48,6 +48,8 @@ ALLOWLIST_EMPTY = 'allowlist_empty'
 NO_ADDRESS = 'no_source_address'
 POLICY_ERROR = 'policy_error'
 POLICY_UNAVAILABLE = 'policy_unavailable'
+RATE_LIMITED = 'rate_limited'
+TOO_LARGE = 'body_too_large'
 REASONS = {
     DENY_RULE: 'Matched a deny rule',
     NOT_ALLOWLISTED: 'Not in the allowlist',
@@ -55,6 +57,8 @@ REASONS = {
     NO_ADDRESS: 'Source address could not be read',
     POLICY_ERROR: 'Policy could not be evaluated',
     POLICY_UNAVAILABLE: 'Policy could not be loaded',
+    RATE_LIMITED: 'Too many requests from this address',
+    TOO_LARGE: 'Request body too large',
 }
 
 _SCOPE_ORDER = (R.SCOPE_GLOBAL, R.SCOPE_CUSTOMER, R.SCOPE_INTEGRATION,
@@ -99,9 +103,15 @@ class Policy:
     api_mode: str
     webhook_mode: str
     rules: tuple
+    # (per-address requests per minute, max body KB) per surface; 0 = off
+    api_limits: tuple = (0, 0)
+    webhook_limits: tuple = (0, 0)
 
     def mode_for(self, surface):
         return self.webhook_mode if surface == SURFACE_WEBHOOK else self.api_mode
+
+    def limits_for(self, surface):
+        return self.webhook_limits if surface == SURFACE_WEBHOOK else self.api_limits
 
 
 @dataclass
@@ -172,12 +182,18 @@ def build_policy(settings_row, rule_rows):
             if row['action'] == R.ACTION_DENY:
                 rules.append(_compile({**row, 'network': '0.0.0.0/0'}))
                 rules.append(_compile({**row, 'network': '::/0'}))
+    row = settings_row or {}
     return Policy(
-        version=settings_row['policy_version'] if settings_row else 0,
-        api_mode=settings_row['api_mode'] if settings_row else S.MODE_UNRESTRICTED,
-        webhook_mode=settings_row['webhook_mode'] if settings_row else S.MODE_UNRESTRICTED,
-        rules=tuple(rules))
+        version=row.get('policy_version', 0),
+        api_mode=row.get('api_mode', S.MODE_UNRESTRICTED),
+        webhook_mode=row.get('webhook_mode', S.MODE_UNRESTRICTED),
+        rules=tuple(rules),
+        api_limits=(row.get('api_rate_per_address', 0) or 0, row.get('api_max_body_kb', 0) or 0),
+        webhook_limits=(row.get('webhook_rate_per_address', 0) or 0, row.get('webhook_max_body_kb', 0) or 0))
 
+
+SETTINGS_FIELDS = ('policy_version', 'api_mode', 'webhook_mode', 'api_rate_per_address',
+                   'webhook_rate_per_address', 'api_max_body_kb', 'webhook_max_body_kb')
 
 _RULE_FIELDS = ('id', 'name', 'action', 'surface', 'scope', 'organization_id', 'api_key_id',
                 'target', 'network', 'expires_at')
@@ -189,11 +205,10 @@ def current_policy():
     One indexed single-row read per covered request; the rules themselves are
     cached per process. If the database cannot be read, the last loaded
     policy is used; with none loaded yet, DatabaseError is raised."""
-    row = S.objects.filter(pk=1).values('policy_version', 'api_mode', 'webhook_mode').first()
+    row = S.objects.filter(pk=1).values(*SETTINGS_FIELDS).first()
     cached = _cache['policy']
     version = row['policy_version'] if row else 0
-    if cached is not None and cached.version == version and (
-            row is None or (cached.api_mode, cached.webhook_mode) == (row['api_mode'], row['webhook_mode'])):
+    if cached is not None and cached.version == version:
         return cached
     rules = list(R.objects.filter(is_active=True).values(*_RULE_FIELDS))
     policy = build_policy(row, rules)

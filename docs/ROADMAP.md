@@ -3040,12 +3040,14 @@ never replaces them. Ships before any new vendor API or webhook endpoint from Ph
   scope, key or integration, customer, status, owner, last change, expiry, recent matches), add / edit /
   enable / disable / delete, bulk import and export, search and filters, "test an address", effective-policy
   preview before saving, recent denials and rule history.
-- **81.4 API key network restrictions** *(partial — allowed sources per key shipped v3.17.713; expiry,
-  rotation, read-only / write split, rate, size and concurrency limits planned)* — allowed sources per key; key expiry, rotation and
+- **81.4 API key network restrictions** *(partial — allowed sources per key shipped v3.17.713; set on the key,
+  expiry, rotation with a grace period, per-key and per-address rate limits and request size limits shipped
+  v3.17.714; read-only / write split already enforced by key levels since v3.17.618; concurrency limits
+  planned)* — allowed sources per key; key expiry, rotation and
   revocation; read-only versus write-capable keys; per-key and per-address rate limits; request size and
   concurrency limits. Key secrets never appear in logs or pages.
 - **81.5 Webhook protection** *(partial — separate webhook mode and per-receiver source rules shipped
-  v3.17.713; signatures, timestamp window, replay protection, body and rate limits on every receiver planned)* — per-receiver source rules (including vendor ranges that change,
+  v3.17.713; webhook rate and body-size limits shipped v3.17.714; signatures, timestamp window, replay protection, body and rate limits on every receiver planned)* — per-receiver source rules (including vendor ranges that change,
   without silently widening access), signature verification, timestamp window and replay protection, body
   size and rate limits, and a dedicated credential per receiver; source address is never the only check.
 - **81.6 Lockout prevention and recovery** *(partial — impact preview, confirmation and the
@@ -3329,7 +3331,7 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
-| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; 81.2 and 81.4–81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
+| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; key lifecycle and address limits v3.17.714; 81.2 and 81.4–81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
 | 82 — Shared operational event and alert foundation | L | planned | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
 | 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
 | 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |

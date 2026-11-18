@@ -87,12 +87,38 @@ class APIKey(BaseModel):
     last_used_at = models.DateTimeField(null=True, blank=True)
     last_used_ip = models.GenericIPAddressField(null=True, blank=True)
 
+    # Lifecycle (v3.17.714, roadmap 81.4). No expiry and no own limit keep the
+    # behaviour of keys made before.
+    expires_at = models.DateTimeField(
+        null=True, blank=True, help_text="The key stops working at this time")
+    rate_limit_per_minute = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Requests per minute for this key; empty uses the standard API limits")
+    rotated_from = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='rotated_to',
+        help_text="The key this one replaced")
+    rotated_at = models.DateTimeField(null=True, blank=True,
+                                      help_text="When this key was replaced by a new one")
+
     class Meta:
         db_table = 'api_keys'
         ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.name} ({self.key_prefix}...)"
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return bool(self.expires_at and self.expires_at <= timezone.now())
+
+    @property
+    def expires_soon(self):
+        """Within 14 days of expiry (and not yet expired)."""
+        from datetime import timedelta
+        from django.utils import timezone
+        return bool(self.expires_at and not self.is_expired
+                    and self.expires_at <= timezone.now() + timedelta(days=14))
 
     @classmethod
     def create_key(cls, organization, user, name, role=Role.READONLY,

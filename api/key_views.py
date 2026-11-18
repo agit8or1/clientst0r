@@ -10,6 +10,8 @@ from core.middleware import get_request_organization
 from .models import APIKey, APIKeyScope
 from accounts.models import Role
 from accounts.permission_utils import has_perm_for_org, user_has_org_perm
+from django.core.exceptions import ValidationError
+from . import key_lifecycle
 
 _RANK = {Role.READONLY: 0, Role.EDITOR: 1, Role.ADMIN: 2, Role.OWNER: 3}
 
@@ -102,6 +104,16 @@ def apikey_create(request):
         if scope not in dict(APIKeyScope.choices).keys():
             scope = APIKeyScope.SINGLE
 
+        try:
+            expires_at = key_lifecycle.parse_expiry(request.POST.get('expiry'),
+                                                    request.POST.get('expiry_date'))
+            rate = key_lifecycle.parse_rate(request.POST.get('rate_limit_per_minute'))
+            sources = key_lifecycle.parse_sources(request.POST.get('allowed_sources'))
+        except ValidationError as exc:
+            for msg in exc.messages:
+                messages.error(request, msg)
+            return redirect('api:apikey_create')
+
         # Create API key
         api_key_obj, plaintext_key = APIKey.create_key(
             organization=org,
@@ -110,6 +122,11 @@ def apikey_create(request):
             role=role,
             scope=scope,
         )
+        api_key_obj.expires_at = expires_at
+        api_key_obj.rate_limit_per_minute = rate
+        api_key_obj.save(update_fields=['expires_at', 'rate_limit_per_minute'])
+        if sources:
+            key_lifecycle.set_sources(api_key_obj, sources, request.user)
 
         # Show the key once (can't be shown again)
         return render(request, 'api/apikey_created.html', {
@@ -121,6 +138,8 @@ def apikey_create(request):
     return render(request, 'api/apikey_create.html', {
         'roles': [(v, l) for v, l in Role.choices if _RANK.get(v, 0) <= _RANK.get(max_level, 0)],
         'scopes': APIKeyScope.choices,
+        'expiry_choices': key_lifecycle.EXPIRY_CHOICES,
+        'your_ip': _client_ip(request),
     })
 
 
@@ -169,3 +188,95 @@ def apikey_toggle(request, pk):
         'success': True,
         'is_active': api_key.is_active
     })
+
+
+def _client_ip(request):
+    from core.client_ip import get_client_ip
+    return get_client_ip(request) or ''
+
+
+def _key_for_change(request, pk):
+    """The key, if the user owns it or manages this customer's keys."""
+    org = get_request_organization(request)
+    api_key = get_object_or_404(APIKey, pk=pk, organization=org)
+    if api_key.user != request.user and not _can_manage_org_keys(request.user, org):
+        return None
+    return api_key
+
+
+@login_required
+def apikey_edit(request, pk):
+    """Name, expiry, rate limit and allowed sources. The secret never changes
+    here; rotate the key for a new one."""
+    api_key = _key_for_change(request, pk)
+    if api_key is None:
+        messages.error(request, 'You do not have permission to change this API key.')
+        return redirect('api:apikey_list')
+    sources = key_lifecycle.key_sources(api_key)
+    if request.method == 'POST':
+        try:
+            name = (request.POST.get('name') or '').strip()[:100]
+            if not name:
+                raise ValidationError('API key name is required.')
+            expires_at = key_lifecycle.parse_expiry(request.POST.get('expiry'),
+                                                    request.POST.get('expiry_date'), api_key.expires_at)
+            rate = key_lifecycle.parse_rate(request.POST.get('rate_limit_per_minute'))
+            new_sources = key_lifecycle.parse_sources(request.POST.get('allowed_sources'))
+        except ValidationError as exc:
+            for msg in exc.messages:
+                messages.error(request, msg)
+            return redirect('api:apikey_edit', pk=api_key.pk)
+        if (new_sources != sources and key_lifecycle.source_change_cuts_off(api_key, new_sources)
+                and request.POST.get('confirm') != '1'):
+            return render(request, 'api/apikey_edit.html', {
+                'api_key': api_key, 'sources_text': '\n'.join(new_sources), 'name': name,
+                'rate': rate or '', 'expiry_choices': key_lifecycle.EXPIRY_CHOICES,
+                'posted_expiry': request.POST.get('expiry', 'keep'),
+                'posted_expiry_date': request.POST.get('expiry_date', ''),
+                'cut_off': True, 'your_ip': _client_ip(request)})
+        changed = []
+        if name != api_key.name:
+            changed.append('name')
+        if expires_at != api_key.expires_at:
+            changed.append('expiry')
+        if rate != api_key.rate_limit_per_minute:
+            changed.append('rate limit')
+        api_key.name, api_key.expires_at, api_key.rate_limit_per_minute = name, expires_at, rate
+        api_key.save(update_fields=['name', 'expires_at', 'rate_limit_per_minute', 'updated_at'])
+        if changed:
+            from audit.models import AuditLog
+            AuditLog.log(user=request.user, action='update', organization=api_key.organization,
+                         object_type='APIKey', object_id=api_key.pk, object_repr=str(api_key)[:200],
+                         description=f'API key {api_key.key_prefix}… changed: {", ".join(changed)}',
+                         extra_data={'expires_at': expires_at.isoformat() if expires_at else None,
+                                     'rate_limit_per_minute': rate})
+        key_lifecycle.set_sources(api_key, new_sources, request.user)
+        messages.success(request, f'API key "{api_key.name}" saved.')
+        return redirect('api:apikey_list')
+    return render(request, 'api/apikey_edit.html', {
+        'api_key': api_key, 'sources_text': '\n'.join(sources), 'name': api_key.name,
+        'rate': api_key.rate_limit_per_minute or '', 'expiry_choices': key_lifecycle.EXPIRY_CHOICES,
+        'posted_expiry': 'keep', 'your_ip': _client_ip(request)})
+
+
+@login_required
+def apikey_rotate(request, pk):
+    """Issue a replacement key. Only the key's owner (or a superuser) may:
+    the new secret acts as the owner, so nobody else should receive it."""
+    api_key = _key_for_change(request, pk)
+    if api_key is None or (api_key.user != request.user and not request.user.is_superuser):
+        messages.error(request, 'Only the owner of this API key can rotate it.')
+        return redirect('api:apikey_list')
+    if not api_key.is_active or api_key.is_expired:
+        messages.error(request, 'This key is inactive or expired; create a new key instead.')
+        return redirect('api:apikey_list')
+    if request.method == 'POST':
+        grace = request.POST.get('grace', '24')
+        if grace not in dict(key_lifecycle.GRACE_CHOICES):
+            grace = '24'
+        new_key, plaintext = key_lifecycle.rotate(api_key, request.user, int(grace))
+        return render(request, 'api/apikey_created.html', {
+            'api_key': new_key, 'plaintext_key': plaintext, 'rotated_from': api_key})
+    return render(request, 'api/apikey_rotate.html', {
+        'api_key': api_key, 'grace_choices': key_lifecycle.GRACE_CHOICES,
+        'sources': key_lifecycle.key_sources(api_key)})

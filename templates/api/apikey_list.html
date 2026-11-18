@@ -28,6 +28,7 @@
                     <th>Role</th>
                     <th>Org Scope</th>
                     <th>Status</th>
+                    <th>Expires</th>
                     <th>Last Used</th>
                     <th>Created</th>
                     <th width="120">Actions</th>
@@ -76,6 +77,12 @@
                         </div>
                     </td>
                     <td>
+                        {% if key.is_expired %}<span class="badge bg-danger">Expired</span>
+                        {% elif key.expires_at %}<small{% if key.expires_soon %} class="text-warning fw-semibold"{% endif %}>{{ key.expires_at|date:"Y-m-d" }}</small>
+                        {% else %}<span class="text-muted">Never</span>{% endif %}
+                        {% if key.rotated_at %}<br><span class="badge bg-secondary">Rotated</span>{% endif %}
+                    </td>
+                    <td>
                         {% if key.last_used_at %}
                         <small>{{ key.last_used_at|timesince }} ago</small>
                         {% if key.last_used_ip %}<br><code>{{ key.last_used_ip }}</code>{% endif %}
@@ -86,6 +93,8 @@
                     <td><small>{{ key.created_at|date:"M d, Y" }}</small></td>
                     <td>
                         <div class="btn-group btn-group-sm">
+                            <a href="{% url 'api:apikey_edit' key.pk %}" class="btn btn-outline-secondary" title="Edit expiry, rate limit and allowed sources" aria-label="Edit {{ key.name }}"><i class="fas fa-pen"></i></a>
+                            {% if key.is_active and not key.is_expired %}{% if key.user == request.user or request.user.is_superuser %}<a href="{% url 'api:apikey_rotate' key.pk %}" class="btn btn-outline-warning" title="Rotate" aria-label="Rotate {{ key.name }}"><i class="fas fa-rotate"></i></a>{% endif %}{% endif %}
                             <a href="{% url 'api:apikey_delete' key.pk %}" class="btn btn-outline-danger" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </a>
