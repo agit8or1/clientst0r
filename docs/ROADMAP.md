@@ -3019,6 +3019,223 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 
 **Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
 
+## Phase 81 — API access control and network restrictions **(L · security)** [planned]
+
+One policy layer that decides, before any protected API or webhook operation runs, whether a request's
+source address is allowed. It adds to authentication, permissions, rate limits and customer isolation, and
+never replaces them. Ships before any new vendor API or webhook endpoint from Phases 84–86. Audit and design:
+`docs/plans/NOC_SOC_PROGRAM_AUDIT.md` §7.
+
+- **81.1 Policy engine** *(planned)* — IPv4 and IPv6 addresses and CIDR ranges; Unrestricted, Allowlist only,
+  Denylist and Combined modes; scopes for global, customer, integration, API key, service account and
+  endpoint group, with separate inbound-API and webhook policies; expiring temporary rules. An explicit deny
+  always wins; once an allowlist applies, anything it does not match is denied. Private addresses get no
+  implicit trust. Fails closed when a configured restrictive policy cannot be evaluated.
+- **81.2 Trusted proxies and client-address diagnostics** *(planned — extends the trusted-proxy resolution
+  shipped in `core/client_ip.py`)* — trusted proxy addresses managed in Settings, multi-hop chains, forwarding
+  headers accepted only from a trusted proxy, and a diagnostic page showing the detected address and how the
+  chain was read. Reverse-proxy setup documented for Nginx, HAProxy and Cloudflare. The Connect rate limiter
+  moves to the same resolver.
+- **81.3 Settings → Security → API Access Control** *(planned)* — rule table (address or range, allow or deny,
+  scope, key or integration, customer, status, owner, last change, expiry, recent matches), add / edit /
+  enable / disable / delete, bulk import and export, search and filters, "test an address", effective-policy
+  preview before saving, recent denials and rule history.
+- **81.4 API key network restrictions** *(planned)* — allowed sources per key; key expiry, rotation and
+  revocation; read-only versus write-capable keys; per-key and per-address rate limits; request size and
+  concurrency limits. Key secrets never appear in logs or pages.
+- **81.5 Webhook protection** *(planned)* — per-receiver source rules (including vendor ranges that change,
+  without silently widening access), signature verification, timestamp window and replay protection, body
+  size and rate limits, and a dedicated credential per receiver; source address is never the only check.
+- **81.6 Lockout prevention and recovery** *(planned)* — validation, the administrator's own address and
+  whether the current session and integrations would still pass, confirmation for high-impact changes, an
+  automatic rollback window for global changes, and a recovery command that needs server access. No
+  unauthenticated bypass endpoint.
+- **81.7 Decision log and dashboards** *(planned)* — every decision with time, address, matched rule, key or
+  integration, endpoint, customer, reason and policy version, with rate-limited denial logging; dashboards
+  for blocked requests, repeat sources, policy violations, unusual key use and integrations broken by a rule;
+  notifications for repeated violations; events feed the shared event layer (Phase 82).
+- **81.8 Optional mutual TLS** *(planned)* — for high-security integrations, terminated at the reverse proxy
+  with the verified client identity passed only from a trusted proxy.
+
+Existing installs start Unrestricted: current API clients keep working until an administrator tightens a
+policy.
+
+**Sizing:** **L** — policy engine and proxy resolution first, then keys and webhooks, then the settings UI and
+dashboards.
+
+## Phase 82 — Shared operational event and alert foundation **(L · monitoring)** [planned]
+
+One normalized layer over the alert sources that exist today — security alerts, RMM and Rem0te alerts,
+backup alerts and website / WAN monitors — instead of a new alert engine per feature. Each source keeps its
+own model; the shared layer is what the Operations Center, wallboards, correlation, notifications and reports
+read.
+
+- **82.1 Normalized event and alert envelope** *(planned)* — customer, source and connection, vendor event ID,
+  type, times, severity, confidence, rule, asset and endpoint, addresses, account, MITRE ATT&CK mapping, IOC
+  references, deduplication key, correlation group and a size-capped raw-event reference.
+- **82.2 One alert ↔ incident ↔ ticket link** *(planned)* — replaces the five per-source ticket links for new
+  work; alert, incident and ticket lifecycles stay separate, synchronized only on purpose.
+- **82.3 Bounded ingestion** *(planned)* — scheduler-driven queues with backpressure, retries, a dead-letter
+  table, idempotency, per-connection rate limits and payload caps; a failing source cannot slow the Service
+  Desk.
+- **82.4 Retention and storage quotas** *(planned)* — per-customer and per-source retention, raw-event
+  pruning and quotas, sized for the SQLite and PostgreSQL deployments.
+- **82.5 Ingestion health** *(planned)* — last successful ingestion, error counts and diagnostics per source;
+  monitoring of the monitoring.
+- **82.6 Permissions and feature switches** *(planned)* — new permission keys and seeded roles (Level 1–3
+  technician, Security Analyst, Security Administrator), all editable; module switches for ingestion,
+  correlation, automation and AI analysis.
+
+**Sizing:** **L** — envelope and links first, then queueing, retention and health.
+
+## Phase 83 — NOC/SOC wallboards and secure display pairing **(XL · monitoring)** [planned]
+
+Extends the wallboards shipped in the Reports module (12-column boards, rotation and permission-checked
+widget sources) into large-screen operations displays.
+
+- **83.1 Presentation mode** *(planned)* — dedicated dark display theme, viewport-fitted grid that scales from
+  1080p to 4K without page scrolling, adjustable density, stale-data indicators and labelled sample data
+  where real data is missing.
+- **83.2 Preset boards** *(planned)* — Service Desk, Technician, NOC, SOC, Executive (financial permissions
+  enforced), MSP Operations and a customer-scoped board. Early presets use data that exists today; security
+  and NOC widgets fill in as Phases 82 and 84 land.
+- **83.3 Widget catalog** *(planned)* — KPI, line, area, bar, stacked bar, donut, gauge, status, alert list,
+  ticket queue, timeline, leaderboards, availability, security feed, incident table, SLA, backup,
+  infrastructure health, geographic events (only where location data is reliable, never shown as a definite
+  attacker location) and saved-report widgets. No custom SQL or code.
+- **83.4 Board editor** *(planned)* — drag-and-drop placement and resizing, duplicate, thresholds, filters
+  (customer, team, technician, time range), preview, draft and published versions with history, cloning,
+  validated import / export, per-user and team defaults, rotation, refresh interval, transitions and optional
+  sound alerts.
+- **83.5 Efficient refresh** *(planned)* — one cached snapshot request per board per interval with
+  conditional responses, a bounded minimum interval and recovery after disconnects, instead of a query per
+  widget.
+- **83.6 Secure display pairing** *(planned — extends the token-based schedule board pattern)* — read-only
+  display identities paired by an administrator, with expiry, rotation, instant revocation, per-board and
+  per-customer scope, optional address restrictions (Phase 81) and an audit trail. A display holds no user
+  session and reaches no write or admin function; on expiry it blanks.
+- **83.7 Visual validation** *(planned)* — screenshot checks of every preset at 1920×1080, 2560×1440,
+  3840×2160, desktop and tablet widths.
+
+**Sizing:** **XL** — presentation mode and presets first, then the editor, then pairing.
+
+## Phase 84 — Security connector framework and vendor integrations **(XL · security)** [planned]
+
+Extends the security alerts module (vendor connections, SIEM webhook endpoints and the integration SDK) into
+a connector framework, then real vendor connectors in batches. A connector is listed as shipped only after
+authentication, ingestion, normalization and error handling have been run against a real instance or the
+vendor's test environment.
+
+- **84.1 Connector SDK** *(planned)* — polling with checkpoints, pagination, rate-limit handling, backoff,
+  retries, duplicate suppression, token-expiry warnings, credential rotation, health checks and diagnostics.
+- **84.2 Generic receivers** *(planned)* — signed webhook receiver with replay protection (Phase 81) and a
+  TLS syslog collector for CEF, LEEF and JSON, run as its own service and off by default.
+- **84.3 Connection administration** *(planned — extends Vendor Connections)* — vendor picker, credentials
+  (never shown again), test connection, customers, categories, severity mapping, polling frequency, routing,
+  test ingestion, retention and sync status.
+- **84.4 Batch A** *(planned)* — Wazuh, Microsoft Sentinel, OPNsense, pfSense.
+- **84.5 Batch B** *(planned)* — Microsoft Defender for Endpoint (replacing the reference stub), CrowdStrike
+  Falcon, SentinelOne.
+- **84.6 Batch C** *(planned)* — Splunk, Elastic Security, Graylog.
+- **84.7 Later batches** *(planned, in order of API availability)* — IBM QRadar; Sophos and Huntress;
+  Fortinet, Palo Alto Networks and SonicWall; Microsoft Entra ID, Okta, Duo and Google Workspace; AWS
+  Security Hub, GuardDuty and Azure security services; Microsoft Defender for Office 365, Proofpoint and
+  Mimecast; Tenable, Qualys and Greenbone / OpenVAS.
+- **84.8 ExploitHound and MailThreatZero** *(planned)* — optional native connectors for vulnerability,
+  exposure and email-threat findings, mapped to customers and assets where the APIs provide it.
+
+**Sizing:** **XL** — SDK and generic receivers first, then one batch at a time.
+
+## Phase 85 — Operations Center, alert triage and correlation **(L · security)** [planned]
+
+- **85.1 Operations Center** *(planned)* — one dark operations page under Security & Monitoring combining
+  Service Desk incidents, Rem0te and RMM alerts, monitors, backups, security alerts and investigations,
+  outages, maintenance and customer impact, with drill-down to the customer, asset, alert, incident or
+  ticket.
+- **85.2 Alert triage** *(planned — extends the security alert queue)* — Investigating, Contained, False
+  Positive and Suppressed statuses; analyst assignment, escalation, grouping, related alerts, notes,
+  evidence, closure reasons and history.
+- **85.3 Correlation rules** *(planned — replaces the fixed 60-minute grouping)* — configurable rules and
+  windows, source reliability weights, rule tests and simulation, explanations, versions, false-positive
+  controls and performance limits; never across customers.
+- **85.4 Incident timelines and ticket links** *(planned)* — incidents linked explicitly to tickets and
+  assets, with one timeline across sources.
+
+**Sizing:** **L** — triage and the Operations Center first, then correlation.
+
+## Phase 86 — SOAR Lite: approval-driven security automation **(L · security)** [planned]
+
+Extends incident playbooks and the support-workflow approval model. Read-only by default; nothing runs
+because an event or a model said so.
+
+- **86.1 Workflow builder** *(planned)* — triggers, enrichment, severity routing, tickets, incidents,
+  notifications and IOC lookups, with dry runs, versions, execution history, failure recovery, per-customer
+  policies and an emergency stop.
+- **86.2 Approval gates and action catalog** *(planned)* — isolation, process termination, service restarts,
+  account disabling, firewall and network blocks, quarantine, scripts and reboots each need their own
+  permission and an approval record, with scoped action tokens, timeouts and idempotency. Automated
+  remediation is off by default.
+- **86.3 Rem0te endpoint actions** *(planned — needs Rem0te contract additions)* — endpoint detail and
+  monitoring history, diagnostics and evidence collection, approved remediation with tracked results, and
+  remote sessions where authorized.
+
+**Sizing:** **L** — dry-run builder first, then approvals, then Rem0te actions as the contract allows.
+
+## Phase 87 — Alert routing, on-call and escalation **(M · monitoring)** [planned]
+
+Extends on-call shifts, alert policies and maintenance windows to every alert source.
+
+- **87.1 Notification routing** *(planned)* — email, SMS, mobile push, in-app and webhooks per severity,
+  customer and technician preference, with delivery history, retries and failed-delivery alerts.
+- **87.2 On-call rotations and escalation chains** *(planned)* — rotations, acknowledgement deadlines,
+  after-hours policies and escalation steps.
+- **87.3 Storm protection** *(planned)* — grouping, likely-root-cause summaries and suppression during wide
+  outages and maintenance.
+
+**Sizing:** **M**.
+
+## Phase 88 — Service dependency and impact mapping **(M · assets)** [planned]
+
+Extends asset relationships and the topology view.
+
+- **88.1 Dependency graph** *(planned)* — customers, sites, endpoints, servers, VMs, hosts, network, storage,
+  applications, services, internet links and backup, from assets, Rem0te inventory and discovery; inferred
+  links are marked unverified until confirmed.
+- **88.2 Impact analysis** *(planned)* — affected services and customers for an outage, root-cause
+  suggestions, related tickets, one ticket per underlying failure, and maintenance impact previews.
+
+**Sizing:** **M**.
+
+## Phase 89 — Security posture scorecards and customer service reviews **(L · reporting)** [planned]
+
+Extends the customer health score (Phase 78) and scheduled reports.
+
+- **89.1 Security posture scorecard** *(planned)* — MFA, endpoint protection, encryption, patching,
+  unsupported systems, backups, vulnerabilities, identity and firewall findings and monitoring coverage; each
+  item shows its source, check time, deductions and remediation, and missing data stays missing. Optional
+  framework mappings; a score is never presented as a certification.
+- **89.2 Customer review reports** *(planned)* — monthly service review, executive summary, service desk and
+  SLA, security posture and incidents, endpoint, patch and backup health, availability, productivity,
+  recurring problems and recommendations; MSP and customer branding, scheduling, email, PDF and CSV,
+  history, access control and data-freshness notes.
+
+**Sizing:** **L**.
+
+## Phase 90 — AI Operations Analyst **(L · OPTIONAL AI)** [planned]
+
+Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-customer AI policy.
+
+- **90.1 Alert and incident analysis** *(planned)* — summaries, repeated-alert detection, likely causes,
+  related events, investigation steps, remediation options, timelines and customer-friendly summaries, using
+  only the models an administrator enabled, with multi-model comparison where allowed.
+- **90.2 Clear provenance** *(planned)* — raw evidence, verified facts, correlation findings, AI
+  interpretation, recommendations and actions needing approval are labelled separately.
+- **90.3 Guardrails** *(planned)* — no autonomous or destructive actions, no secrets in prompts, no
+  cross-customer data, content from tickets, logs and events treated as data, redacted activity logs,
+  budgets, rate limits and timeouts.
+
+**Sizing:** **L**.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -3108,3 +3325,13 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
+| 81 — API access control and network restrictions | L | planned | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
+| 82 — Shared operational event and alert foundation | L | planned | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
+| 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
+| 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |
+| 85 — Operations Center, alert triage and correlation | L | planned | Phases 82, 84 |
+| 86 — SOAR Lite | L | planned | Phase 85; Rem0te contract additions |
+| 87 — Alert routing, on-call and escalation | M | planned | Phases 82, 85 |
+| 88 — Service dependency and impact mapping | M | planned | Phase 82; asset relationships |
+| 89 — Security posture scorecards and customer service reviews | L | planned | Phases 82, 84, 78 |
+| 90 — AI Operations Analyst (OPTIONAL AI) | L | planned | Phase 85; Phase 56 gateway |
