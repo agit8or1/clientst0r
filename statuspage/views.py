@@ -108,7 +108,13 @@ def portal_status(request):
     """
     page = StatusPage.for_portal_user(request.portal_membership.organization)
     if page is None:
-        raise Http404('No status page is published for your organization')
+        # No page published for this client yet: say so inside the portal
+        # rather than a bare 404 behind a menu link that every client sees.
+        response = render(request, 'statuspage/portal_empty.html', {
+            'organization': request.portal_membership.organization})
+        response['Cache-Control'] = 'no-store, private'
+        response['X-Robots-Tag'] = 'noindex, nofollow'
+        return response
     return _render_page(request, page)
 
 

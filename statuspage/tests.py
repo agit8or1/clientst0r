@@ -824,7 +824,10 @@ class PortalStatusPageTests(TestCase):
             user=outsider, organization=self.other_org, role=Role.OWNER, is_active=True)
         c = Client()
         c.force_login(outsider)
-        self.assertEqual(c.get('/portal/status/').status_code, 404)
+        resp = c.get('/portal/status/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No service status is published')
+        self.assertNotContains(resp, 'PortalCo status')
 
     def test_broadcast_portal_page_is_the_fallback(self):
         from accounts.models import Membership, Role
@@ -855,13 +858,20 @@ class PortalStatusPageTests(TestCase):
         self.page.visibility = StatusPage.VISIBILITY_PUBLIC
         self.page.save(update_fields=['visibility'])
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get('/portal/status/').status_code, 404)
+        resp = self.client.get('/portal/status/')
+        self.assertContains(resp, 'No service status is published')
+        self.assertNotContains(resp, 'PortalCo status')
 
-    def test_disabled_portal_page_404s(self):
+    def test_disabled_portal_page_shows_the_empty_state(self):
         self.page.is_enabled = False
         self.page.save(update_fields=['is_enabled'])
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get('/portal/status/').status_code, 404)
+        resp = self.client.get('/portal/status/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No service status is published')
+        self.assertContains(resp, 'My Tickets')  # inside the portal navigation
+        self.assertNotContains(resp, 'PortalCo status')
+        self.assertEqual(resp['Cache-Control'], 'no-store, private')
 
     def test_portal_page_is_not_cacheable_or_indexable(self):
         self.client.force_login(self.user)

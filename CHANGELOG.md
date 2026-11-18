@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.715] - 2026-11-18
+
+### Fixed
+- **Portal → Service Status no longer shows a blank "Not Found" page.** When no status page is published for the client (none set up, or it is disabled or public-only), the portal now shows a "No service status is published yet" page inside the portal, with a link to open a ticket. Another client's page is never shown in its place.
+
 ## [3.17.714] - 2026-11-18
 
 ### Added
