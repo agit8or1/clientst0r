@@ -163,16 +163,46 @@
                         {% if j.backup %}<tr><th>Verified pre-upgrade backup</th><td class="git-status">{{ j.backup }}</td></tr>{% endif %}
                     </table>
                     {% if upgrade_state.needs_recovery %}
-                    <p class="mb-2">Apply is disabled until this is resolved. On the server, as the user that runs Client St0r:</p>
-                    <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="text-white-50"># 1. see what the migration left behind</div>
-                        <div class="text-white mb-2">venv/bin/python manage.py migration_doctor</div>
-                        <div class="text-white-50"># 2a. finish the same reviewed revision once the cause is fixed</div>
-                        <div class="text-white mb-2">venv/bin/python manage.py upgrade_apply --resume</div>
-                        <div class="text-white-50"># 2b. or go back to exactly before the upgrade (stop the service first)</div>
-                        <div class="text-white">venv/bin/python manage.py upgrade_restore {{ j.backup|default:"PATH" }}</div>
+                    <p class="mb-2">Apply is disabled until this is resolved. Both options below keep the
+                        verified pre-upgrade backup and reload the app only after the migration succeeds.</p>
+                    <div class="d-flex flex-wrap gap-2 mb-3" id="repairActions">
+                        {% if repair_target %}
+                        <button type="button" class="btn btn-success" id="repairBtn"
+                                data-action="repairUpgrade" data-args='["repair", "$this"]'
+                                data-stuck="{{ j.target.sha }}" data-kind="{{ repair_target.kind }}"
+                                data-ref="{{ repair_target.ref }}" data-sha="{{ repair_target.sha }}">
+                            <i class="fas fa-wrench"></i> Repair: finish with
+                            {% if repair_target.version %}v{{ repair_target.version }}{% else %}{{ repair_target.ref }}{% endif %}
+                            ({{ repair_target.ref }} @ {{ repair_target.sha|slice:":7" }})
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-warning" id="resumeBtn"
+                                data-action="repairUpgrade" data-args='["resume", "$this"]'
+                                data-stuck="{{ j.target.sha }}">
+                            <i class="fas fa-redo"></i> Resume {{ j.target.ref }} @ {{ j.target.sha|slice:":7" }}
+                        </button>
                     </div>
-                    <p class="mt-2 mb-0 small text-muted">Step by step, including partially applied MySQL/MariaDB migrations: <code>docs/UPGRADE_AND_RECOVERY.md</code>.</p>
+                    <p class="small upd-muted mb-3">
+                        {% if repair_target %}<strong>Repair</strong> finishes this upgrade with the newer build
+                        instead, which must contain the revision it stopped on{% if repair_target.contains_checked %} (it does){% endif %}:
+                        use it when the stopped revision itself is broken. {% endif %}<strong>Resume</strong> runs the
+                        same revision again: use it when the cause was on this server (disk space, a
+                        dependency, a lock) and has been fixed.
+                    </p>
+                    <details>
+                        <summary class="small">Command line, migration diagnosis and restoring the backup</summary>
+                        <div class="bg-dark text-light p-3 rounded mt-2" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                            <div class="text-white-50"># 1. see what the migration left behind</div>
+                            <div class="text-white mb-2">venv/bin/python manage.py migration_doctor</div>
+                            <div class="text-white-50"># 2a. finish the same reviewed revision once the cause is fixed</div>
+                            <div class="text-white mb-2">venv/bin/python manage.py upgrade_apply --resume</div>
+                            {% if repair_target %}<div class="text-white-50"># 2b. finish it with the newer build</div>
+                            <div class="text-white mb-2">venv/bin/python manage.py upgrade_apply --resume --kind {{ repair_target.kind }} --ref {{ repair_target.ref }} --sha {{ repair_target.sha }}</div>{% endif %}
+                            <div class="text-white-50"># 3. or go back to exactly before the upgrade (stop the service first)</div>
+                            <div class="text-white">venv/bin/python manage.py upgrade_restore {{ j.backup|default:"PATH" }}</div>
+                        </div>
+                        <p class="mt-2 mb-0 small text-muted">Step by step, including partially applied MySQL/MariaDB migrations: <code>docs/UPGRADE_AND_RECOVERY.md</code>.</p>
+                    </details>
                     {% endif %}
                     {% endwith %}
                 </div>
@@ -788,6 +818,27 @@ function startUpdate() {
         }
     }).catch(function (error) {
         showError('Failed to start update: ' + error.message, true);
+    });
+}
+
+// ── Repair an unfinished upgrade ────────────────────────────────────────────
+function repairUpgrade(mode, btn) {
+    const what = mode === 'repair'
+        ? 'Finish the unfinished upgrade with ' + btn.dataset.ref + ' @ ' + btn.dataset.sha.slice(0, 12) + '?'
+        : 'Run the unfinished upgrade again on the same revision?';
+    if (!window.confirm(what + ' The verified pre-upgrade backup is kept.')) return;
+    document.querySelectorAll('#repairActions button').forEach(function (b) { b.disabled = true; });
+    openModal('updateProgressModal');
+    const body = {mode: mode, stuck_sha: btn.dataset.stuck};
+    if (mode === 'repair') { body.kind = btn.dataset.kind; body.ref = btn.dataset.ref; body.sha = btn.dataset.sha; }
+    postJSON('{% url "core:repair_update" %}', body).then(function (data) {
+        if (data.status === 'started') {
+            pollProgress();
+        } else {
+            showError(data.message || 'Could not start the repair', true);
+        }
+    }).catch(function (error) {
+        showError('Could not start the repair: ' + error.message, true);
     });
 }
 

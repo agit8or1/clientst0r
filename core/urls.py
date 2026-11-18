@@ -221,6 +221,7 @@ urlpatterns = [
     path('settings/updates/', views.system_updates, name='system_updates'),
     path('settings/updates/check/', views.check_updates_now, name='check_updates_now'),
     path('settings/updates/apply/', views.apply_update, name='apply_update'),
+    path('settings/updates/repair/', views.repair_update, name='repair_update'),
     path('settings/updates/channel/', views.set_update_channel, name='set_update_channel'),
     path('settings/updates/backups/settings/', views.upgrade_backup_settings, name='upgrade_backup_settings'),
     path('settings/updates/backups/cleanup/', views.upgrade_backups_prune, name='upgrade_backups_prune'),

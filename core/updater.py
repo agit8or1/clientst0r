@@ -215,7 +215,8 @@ class UpdateService:
         }
 
     def perform_update(self, user=None, progress_tracker=None, target=None, *,
-                       allow_preview=False, allow_prerelease=False, allow_downgrade=False):
+                       allow_preview=False, allow_prerelease=False, allow_downgrade=False,
+                       resume=False, retarget=None):
         """Install `target` (a core.upgrade.revision.Target) -- or, when None,
         what this instance's channel offers -- through the verified pipeline
         in core.upgrade.apply: pinned sha, signature check for releases,
@@ -240,7 +241,7 @@ class UpdateService:
                     f"then try again:\n\n{root_helper.bootstrap_command()}\n\n"
                     "Or update manually via command line (see instructions below)."
                 )
-            if target is None:
+            if target is None and not (resume or retarget):
                 info = self.check_for_updates(force_refresh=True)
                 t = info.get('target')
                 if not t:
@@ -259,7 +260,7 @@ class UpdateService:
 
         run = upgrade_apply.run(target, user=user, progress=progress_tracker,
                                 allow_preview=allow_preview, allow_prerelease=allow_prerelease,
-                                allow_downgrade=allow_downgrade)
+                                allow_downgrade=allow_downgrade, resume=resume, retarget=retarget)
         result.update(success=run['success'], output=run['output'], error=run['error'],
                       backup=run.get('backup'), refused=run.get('refused'))
         if run['success']:

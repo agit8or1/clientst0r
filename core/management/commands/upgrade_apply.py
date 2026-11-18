@@ -30,7 +30,10 @@ class Command(BaseCommand):
         parser.add_argument('--ref', help='release tag (vX.Y.Z) or main')
         parser.add_argument('--sha', help='the full commit sha you reviewed')
         parser.add_argument('--kind', choices=['release', 'prerelease', 'preview'], default=None)
-        parser.add_argument('--resume', action='store_true')
+        parser.add_argument('--resume', action='store_true',
+                            help='finish the unfinished upgrade; with --sha (and --ref/--kind), '
+                                 'finish it with that newer revision, which must contain the '
+                                 'one it stopped on')
         parser.add_argument('--auto', action='store_true')
         parser.add_argument('--yes', action='store_true')
         parser.add_argument('--allow-preview', action='store_true',
@@ -44,7 +47,16 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         out = self.stdout.write
         target = None
-        if opts['resume']:
+        retarget = None
+        if opts['resume'] and opts['sha']:
+            # Repair: finish the unfinished upgrade with a newer revision
+            # that contains the one it stopped on.
+            kind = opts['kind'] or ('preview' if opts['ref'] in (None, 'main') else 'release')
+            try:
+                retarget = Target(kind, opts['ref'] or 'main', opts['sha']).validate()
+            except RevisionError as e:
+                raise CommandError(str(e))
+        elif opts['resume']:
             pass
         elif opts['sha']:
             kind = opts['kind'] or ('preview' if opts['ref'] in (None, 'main') else 'release')
@@ -85,7 +97,7 @@ class Command(BaseCommand):
                 if not sys.stdin.isatty() or input('Install it? [y/N] ').strip().lower() != 'y':
                     out('Not applied.')
                     return
-        result = upgrade_apply.run(target, emit=out, resume=opts['resume'],
+        result = upgrade_apply.run(target, emit=out, resume=opts['resume'], retarget=retarget,
                                    deps_check=not opts['skip_deps_check'],
                                    allow_preview=opts['allow_preview'],
                                    allow_prerelease=opts['allow_prerelease'])

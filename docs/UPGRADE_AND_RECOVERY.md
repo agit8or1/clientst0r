@@ -366,6 +366,29 @@ shows a recovery panel with the same information.
 | after checkout, before migrating | untouched | `upgrade_apply --resume` to finish, or `upgrade_restore <backup>` to put the old code back. |
 | during or after migrating | changed | Run `migration_doctor` first. Then either `upgrade_apply --resume` once the cause is fixed, or `upgrade_restore <backup>` to go back. |
 
+### Repair from the browser
+
+The recovery panel has two buttons (superusers only):
+
+- **Repair: finish with vX** — finishes the unfinished upgrade with a newer
+  build instead of the revision it stopped on: what your channel offers now,
+  else the newest testing build. Use it when the stopped revision itself is
+  broken (v3.17.706's migration graph, for example). The newer build must
+  contain the stopped revision — git ancestry, checked after it is fetched and
+  before anything changes — so every migration the stopped run may have
+  applied is part of it. It reuses the verified pre-upgrade backup and keeps
+  the original "from" version, so a later restore still goes back to where
+  you started.
+- **Resume** — runs the same revision again, for causes on this server
+  (disk space, a dependency, a lock) that have since been fixed.
+
+Both show the same progress as Apply. The command-line equivalents:
+
+```bash
+venv/bin/python manage.py upgrade_apply --resume                       # same revision
+venv/bin/python manage.py upgrade_apply --resume --kind preview --ref main --sha <full sha>   # repair
+```
+
 `upgrade_apply --resume` continues the same reviewed revision with the same
 verified backup. It does not take a new one, because the database may already
 be partly migrated.

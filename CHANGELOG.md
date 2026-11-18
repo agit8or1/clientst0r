@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.709] - 2026-11-18
+
+### Added
+- **Repair an unfinished upgrade from Settings → Updates.** When an upgrade stops part-way (the "The last upgrade did not finish" panel), the panel now has buttons instead of only server commands:
+  - **Repair: finish with vX** finishes it with the newer build your channel offers (else the newest testing build). Use it when the revision it stopped on is itself broken, as v3.17.706 was. The newer build must contain that revision (checked with git before anything changes), the verified pre-upgrade backup is reused, and the original "from" version is kept for a later restore.
+  - **Resume** runs the same revision again, for a cause on the server that has been fixed.
+  - Command line: `manage.py upgrade_apply --resume --kind preview --ref main --sha <sha>` does the repair.
+- The commands (migration diagnosis, restore) are still on the panel, under a "Command line" fold.
+
 ## [3.17.708] - 2026-11-17
 
 ### Fixed

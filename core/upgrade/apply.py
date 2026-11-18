@@ -136,7 +136,7 @@ class _Reporter:
 
 def run(target: Target | None, *, user=None, progress=None, emit=None, resume=False,
         deps_check=True, allow_preview=False, allow_prerelease=False, allow_downgrade=False,
-        env_extra=None) -> dict:
+        env_extra=None, retarget: Target | None = None) -> dict:
     """Run the pipeline. Returns {success, refused, error, output, backup}.
     Never raises for an ordinary failure: the result and the journal say
     what happened.
@@ -144,14 +144,20 @@ def run(target: Target | None, *, user=None, progress=None, emit=None, resume=Fa
     allow_preview / allow_prerelease: the admin explicitly chose a build
     outside the configured channel (the channel setting is not changed).
     allow_downgrade: the admin explicitly chose an older version; it is
-    installed only if the database has no migration that version lacks."""
+    installed only if the database has no migration that version lacks.
+    retarget (with resume): finish the unfinished upgrade with this newer
+    revision instead of the one it stopped on -- the repair when the stuck
+    revision itself is broken. It must contain the stuck revision (git
+    ancestry), so every migration the stuck run may have applied is part of
+    it; the original pre-upgrade backup and "from" version are kept."""
     say = _Reporter(emit, progress)
     result = {'success': False, 'refused': False, 'error': None, 'output': say.lines,
               'backup': None, 'target': target.as_dict() if target else None}
     try:
         with _exclusive():
             try:
-                _run(target, say, result, user=user, resume=resume, deps_check=deps_check,
+                _run(target, say, result, user=user, resume=resume or retarget is not None,
+                     retarget=retarget, deps_check=deps_check,
                      allow_preview=allow_preview, allow_prerelease=allow_prerelease,
                      allow_downgrade=allow_downgrade, env_extra=env_extra or {})
             finally:
@@ -183,7 +189,7 @@ def run(target: Target | None, *, user=None, progress=None, emit=None, resume=Fa
 
 
 def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_extra,
-         allow_prerelease=False, allow_downgrade=False):
+         allow_prerelease=False, allow_downgrade=False, retarget=None):
     if not is_git_install():
         raise ApplyRefused('This install is not a git checkout (Docker?). Upgrade a Docker install '
                            'by pulling the new image; see docs/UPGRADE_AND_RECOVERY.md.')
@@ -196,8 +202,11 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         if not prev or not prev.get('target'):
             raise ApplyRefused('There is no unfinished upgrade to resume.')
         target = Target(**prev['target'])
-        say(f"Resuming the upgrade to {target.ref} @ {target.sha[:12]} "
-            f"(stopped at stage {prev.get('stage')}).")
+        if retarget is not None:
+            target = _check_retarget(prev, target, retarget, say)
+        else:
+            say(f"Resuming the upgrade to {target.ref} @ {target.sha[:12]} "
+                f"(stopped at stage {prev.get('stage')}).")
     else:
         if assessment['state'] == 'running' or assessment['needs_recovery']:
             raise ApplyRefused(assessment['message'])
@@ -207,7 +216,8 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     result['target'] = target.as_dict()
     # Resuming finishes the revision someone already chose to install, even if
     # the channel setting has changed since.
-    if target.kind == 'preview' and not allow_preview and not resume:
+    plain_resume = resume and retarget is None
+    if target.kind == 'preview' and not allow_preview and not plain_resume:
         from .channels import CHANNEL_LABELS, current_channel
         ch = current_channel()
         if ch != 'preview':
@@ -217,7 +227,7 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
                                'unreleased commits from main.')
     # A published GitHub pre-release is a testing build: same rule as main,
     # and its tag signature is still verified below like an official release.
-    if target.kind == 'prerelease' and not (allow_prerelease or allow_preview) and not resume:
+    if target.kind == 'prerelease' and not (allow_prerelease or allow_preview) and not plain_resume:
         from .channels import CHANNEL_LABELS, current_channel
         ch = current_channel()
         if ch != 'preview':
@@ -229,8 +239,12 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     installed_sha = (prev or {}).get('prev_sha') if resume else head_sha()
     installed_ver = (prev or {}).get('prev_version') if resume else installed_version
     if resume:
+        extra = {}
+        if retarget is not None:
+            extra = {'target': target.as_dict(),
+                     'retargeted_from': [*(prev.get('retargeted_from') or []), prev['target']]}
         journal.write({**prev, 'status': 'running', 'pid': os.getpid(), 'script_pid': None,
-                       'resumed': (prev.get('resumed') or 0) + 1})
+                       'resumed': (prev.get('resumed') or 0) + 1, **extra})
     else:
         journal.begin(target=target.as_dict(), prev_sha=installed_sha, prev_version=installed_ver,
                       user=getattr(user, 'username', None) or 'system')
@@ -245,7 +259,7 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
         if resume and have_it:
             # Resuming the same reviewed sha: origin may have moved on since,
             # which is fine -- what matters is the commit we already fetched.
-            say(f'Resuming with the already-fetched commit {target.sha[:12]}')
+            say(f'Using the already-fetched commit {target.sha[:12]}')
         else:
             check_remote_unchanged(target)
             say(f'origin still has {target.ref} at {target.sha[:12]}')
@@ -389,6 +403,28 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     if data.get('status') != 'complete':
         journal.stage('complete')
     result['success'] = True
+
+
+def _check_retarget(prev, stuck, new, say):
+    """Validate a repair target before the journal is touched: it is fetched
+    and pinned like any target, and must contain the stuck revision."""
+    from .revision import git
+    new.validate()
+    if new.sha == stuck.sha:
+        raise ApplyRefused('That is the revision the upgrade stopped on; use Resume instead.')
+    try:
+        check_remote_unchanged(new)
+        fetch(new)
+    except RevisionError as e:
+        raise ApplyRefused(str(e))
+    if git('merge-base', '--is-ancestor', stuck.sha, new.sha).returncode != 0:
+        raise ApplyRefused(f'{new.ref} @ {new.sha[:12]} does not contain the revision the upgrade '
+                           f'stopped on ({stuck.sha[:12]}), so it cannot finish that upgrade. '
+                           'Resume it, or restore the verified backup.')
+    say(f"Repairing the upgrade to {stuck.ref} @ {stuck.sha[:12]} (stopped at stage "
+        f"{prev.get('stage')}): finishing it with {new.ref} @ {new.sha[:12]}, which contains "
+        'that revision. The pre-upgrade backup is kept.')
+    return new
 
 
 def _took(snap):

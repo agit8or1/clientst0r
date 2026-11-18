@@ -2269,6 +2269,10 @@ Guide: `docs/UPGRADE_AND_RECOVERY.md`.
   `upgrade_restore`, and `migration_doctor`. The doctor tells a half-applied
   MySQL/MariaDB migration apart from one that ran but wasn't recorded (#128,
   #129). The recovery panel replaces Apply while recovery is needed.
+  Repair from the browser *(shipped v3.17.709)*: the panel's **Repair**
+  button finishes an unfinished upgrade with a newer build that contains the
+  stuck revision (`upgrade_apply --resume --sha`), and **Resume** re-runs the
+  same revision, both reusing the verified pre-upgrade backup.
 - **59.6 Install and upgrade rehearsals in CI** *(shipped v3.17.664)*:
   fresh native and Docker installs; a multi-release upgrade with
   representative data; a killed upgrade recovered by restore and by resume;

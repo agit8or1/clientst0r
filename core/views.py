@@ -428,6 +428,7 @@ def system_updates(request):
     from core.upgrade import catalog as upgrade_catalog
     from core.upgrade import journal as upgrade_journal, retention as upgrade_retention
     upgrade_state = upgrade_journal.assess()
+    repair_target = _repair_candidate(state, upgrade_state)
     try:
         backups = upgrade_retention.summary()
     except Exception:
@@ -489,6 +490,7 @@ def system_updates(request):
         'restore_points': restore_points,
         'eligible_restore_points': [r for r in restore_points if r['eligible']],
         'upgrade_state': upgrade_state,
+        'repair_target': repair_target,
         'recent_backups': recent_backups,
         'backups': backups,
         'cleanup_blocked': (upgrade_state['state'] in ('running', 'unreadable')
@@ -807,6 +809,124 @@ def check_updates_now(request):
                       'is listed under Available Versions.')
 
     return redirect('core:system_updates')
+
+
+def _repair_candidate(state, upgrade_state):
+    """A newer build that can finish an unfinished upgrade: what the channel
+    offers now, else the newest testing build. None when nothing needs
+    recovery or nothing newer than the stuck revision is offered. Whether it
+    contains the stuck revision is checked here when the commit is already
+    local, and always again when the repair runs (core.upgrade.apply)."""
+    if not state or not upgrade_state.get('needs_recovery'):
+        return None
+    stuck = ((upgrade_state.get('journal') or {}).get('target') or {})
+    if not stuck.get('sha'):
+        return None
+    cands = []
+    t = state.get('target')
+    if t and t.get('sha'):
+        cands.append({'kind': t['kind'], 'ref': t['ref'], 'sha': t['sha'],
+                      'version': t.get('version') or ''})
+    p = state.get('preview')
+    if p and p.get('sha'):
+        cands.append({'kind': 'preview', 'ref': 'main', 'sha': p['sha'],
+                      'version': p.get('version') or ''})
+    from core.upgrade.revision import git
+    for c in cands:
+        if c['sha'] == stuck['sha']:
+            continue
+        try:
+            if git('cat-file', '-e', f"{c['sha']}^{{commit}}", timeout=10).returncode == 0:
+                if git('merge-base', '--is-ancestor', stuck['sha'], c['sha'],
+                       timeout=10).returncode != 0:
+                    continue
+                c['contains_checked'] = True
+        except Exception:
+            logger.exception('could not check the repair candidate')
+        return c
+    return None
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+def repair_update(request):
+    """Finish an unfinished upgrade from the browser: "resume" re-runs the
+    revision it stopped on; "repair" finishes it with a newer build that
+    contains that revision (the fix when the stuck revision itself is
+    broken). Both reuse the verified pre-upgrade backup."""
+    import json as _json
+    import threading
+    from core.updater import UpdateService
+    from core.update_progress import UpdateProgress
+    from core.upgrade import apply as upgrade_apply
+    from core.upgrade import journal as upgrade_journal
+    try:
+        body = _json.loads(request.body or b'{}')
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    mode = body.get('mode')
+    if mode not in ('resume', 'repair'):
+        return JsonResponse({'status': 'error', 'message': 'Unknown repair action.'}, status=400)
+    assessment = upgrade_journal.assess()
+    if assessment['state'] == 'running':
+        return JsonResponse({'status': 'error', 'message': assessment['message']}, status=409)
+    if not assessment['needs_recovery']:
+        return JsonResponse({'status': 'error', 'message': 'There is no unfinished upgrade to repair.'},
+                            status=409)
+    stuck = (assessment.get('journal') or {}).get('target') or {}
+    if body.get('stuck_sha') != stuck.get('sha'):
+        return JsonResponse({'status': 'error', 'message': 'The unfinished upgrade has changed since '
+                             'the page was loaded. Reload the page.'}, status=409)
+    retarget = None
+    if mode == 'repair':
+        reviewed, _, err = _reviewed_target(request)
+        if reviewed is None:
+            return JsonResponse({'status': 'error', 'message':
+                                 f'No reviewed revision was sent ({err}). Reload the page.'}, status=400)
+        updater = UpdateService()
+        info = updater.check_for_updates(force_refresh=True)
+        if info.get('error'):
+            return JsonResponse({'status': 'error', 'message':
+                                 'Could not confirm with GitHub what is offered right now '
+                                 f"({info['error']}), so nothing was started."}, status=503)
+        cand = _repair_candidate(info.get('channels') or {}, assessment)
+        if not cand or (cand['kind'], cand['ref'], cand['sha']) != (reviewed.kind, reviewed.ref, reviewed.sha):
+            return JsonResponse({'status': 'error', 'message':
+                                 f'{reviewed.ref} @ {reviewed.sha[:12]} is no longer the build offered '
+                                 'for the repair. Reload the page.'}, status=409)
+        reviewed.version = cand.get('version') or ''
+        retarget = reviewed
+    else:
+        updater = UpdateService()
+
+    progress = UpdateProgress()
+    progress.start(total_steps=upgrade_apply.TOTAL_STEPS)
+    user = request.user
+
+    def run():
+        try:
+            updater.perform_update(user=user, progress_tracker=progress, resume=True,
+                                   retarget=retarget,
+                                   allow_preview=bool(retarget and retarget.kind == 'preview'),
+                                   allow_prerelease=bool(retarget and retarget.kind == 'prerelease'))
+        except Exception as e:
+            logger.error(f'Upgrade repair failed: {e}')
+            progress.finish(success=False, error=str(e))
+
+    threading.Thread(target=run, daemon=True).start()
+    try:
+        AuditLog.objects.create(
+            action='system_update', user=user, username=user.username,
+            description=(f"Unfinished upgrade to {stuck.get('ref')} @ {(stuck.get('sha') or '')[:12]}: "
+                         + (f'repair with {retarget.ref} @ {retarget.sha[:12]}' if retarget else 'resume')
+                         + f' triggered by {user.username}'),
+            extra_data={'mode': mode, 'stuck': stuck, 'target': retarget.as_dict() if retarget else None})
+    except Exception:
+        logger.exception('Failed to write the repair audit log')
+    return JsonResponse({'status': 'started'})
 
 
 @login_required
