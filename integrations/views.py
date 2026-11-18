@@ -3913,9 +3913,12 @@ def distributor_stock_check(request):
 def distributor_webhook(request, token):
     """
     Public webhook receiver. Path token + per-connection HMAC signature
-    are verified inside the provider's `handle_webhook`. Always returns
-    200 to avoid the upstream retrying — failures land in
-    DistributorWebhookEvent for review.
+    are verified inside the provider's `handle_webhook`.
+
+    v3.17.715 (roadmap 81.5): a missing or invalid signature is refused (401)
+    and not stored; the signature is checked over the whole body (up to
+    1 MB, 413 above); a repeated delivery is acknowledged but not stored
+    again. Accepted events land in DistributorWebhookEvent.
     """
     from .models import DistributorConnection, DistributorWebhookEvent
     from .providers.distributors import get_distributor_provider
@@ -3923,8 +3926,11 @@ def distributor_webhook(request, token):
     conn = DistributorConnection.lookup_by_webhook_token(token, is_active=True)
     if conn is None:
         return JsonResponse({'ok': False, 'error': 'unknown token'}, status=404)
-    raw_body = request.body or b''
-    raw_body = raw_body[:64 * 1024]  # cap
+    from api_access import webhook_guard as _wg
+    try:
+        raw_body = _wg.read_body(request, 1024 * 1024)
+    except _wg.Refused as exc:
+        return exc.response()
     headers = {k: v for k, v in request.headers.items()}
     headers_summary = {k: v[:200] for k, v in headers.items()
                        if k.lower() in ('content-type', 'x-ingram-signature',
@@ -3940,6 +3946,15 @@ def distributor_webhook(request, token):
             parsed = provider.handle_webhook(headers=headers, raw_body=raw_body)
         except Exception as e:
             error = str(e)[:500]
+
+    if not parsed.get('signature_valid'):
+        import logging
+        logging.getLogger(__name__).warning(
+            'Distributor webhook refused for connection %s: missing or invalid signature', conn.pk)
+        return JsonResponse({'ok': False, 'error': 'invalid signature'}, status=401)
+    receiver = f'distributor:{conn.pk}'
+    if not _wg.claim(receiver, raw_body, False):
+        return _wg.duplicate_response()
 
     DistributorWebhookEvent.objects.create(
         connection=conn,

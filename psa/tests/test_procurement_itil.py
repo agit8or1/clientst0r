@@ -1569,6 +1569,78 @@ class TicketShareTests(TestCase):
         )
         self.assertEqual(r.status_code, 403)
 
+    # v3.17.715 (roadmap 81.5) -------------------------------------------
+    def _share(self, ticket=None):
+        from psa.models import TicketShare
+        return TicketShare.objects.create(ticket=ticket or self.ticket, partner_org=self.partner, status='accepted')
+
+    def _sign(self, material):
+        import hashlib
+        import hmac
+        return hmac.new(self.partner.partner_secret.encode('utf-8'), material, hashlib.sha256).hexdigest()
+
+    def test_partner_comment_replay_is_not_posted_twice(self):
+        import json as _json
+        from psa.models import TicketComment
+        share = self._share()
+        raw = _json.dumps({'event': 'comment', 'payload': {'body': 'once only'}}).encode()
+        for _ in range(2):
+            r = Client().post(f'/psa/partners/webhook/{share.pk}/', data=raw,
+                              content_type='application/json', HTTP_X_CST0R_SIGNATURE=self._sign(raw))
+            self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json().get('duplicate'))
+        self.assertEqual(TicketComment.objects.filter(ticket=self.ticket, body='once only').count(), 1)
+
+    def test_v2_signature_is_bound_to_the_share_and_fresh(self):
+        import json as _json
+        import time
+        from psa.models import TicketComment
+        from psa.models import Ticket as _T
+        second = _T.objects.create(organization=self.org, subject='second', description='x',
+                                   priority=self.priority, status=self.status, ticket_type=self.ttype,
+                                   queue=Queue.objects.first())
+        share, other = self._share(), self._share(second)
+        raw = _json.dumps({'event': 'comment', 'payload': {'body': 'v2 comment'}}).encode()
+        ts = int(time.time())
+        path = f'/psa/partners/webhook/{share.pk}/'
+        sig = self._sign(f'{ts}.{path}.'.encode() + raw)
+        headers = {'HTTP_X_CST0R_TIMESTAMP': str(ts), 'HTTP_X_CST0R_SIGNATURE_V2': sig}
+        # the same signed post aimed at another share is refused
+        r = Client().post(f'/psa/partners/webhook/{other.pk}/', data=raw, content_type='application/json', **headers)
+        self.assertEqual(r.status_code, 403)
+        r = Client().post(path, data=raw, content_type='application/json', **headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(TicketComment.objects.filter(body='v2 comment').count(), 1)
+        # stale timestamp
+        old = ts - 3600
+        r = Client().post(path, data=raw, content_type='application/json', HTTP_X_CST0R_TIMESTAMP=str(old),
+                          HTTP_X_CST0R_SIGNATURE_V2=self._sign(f'{old}.{path}.'.encode() + raw))
+        self.assertEqual(r.status_code, 401)
+
+    def test_outbound_post_carries_both_signatures(self):
+        from unittest import mock
+        from psa.views import _phase7_post_to_partner
+        share = self._share()
+        self.partner.partner_endpoint_url = 'https://partner.example/psa/partners/webhook/77/'
+        self.partner.save(update_fields=['partner_endpoint_url'])
+        share.partner_org.refresh_from_db()
+        sent = {}
+
+        class _Resp:
+            status_code = 200
+
+        def fake_post(self_, url, data=None, **kw):
+            sent.update(url=url, data=data, headers=kw['headers'])
+            return _Resp()
+        with mock.patch('requests.Session.post', fake_post), \
+                mock.patch('core.safe_http.guard_session', lambda s, p: s):
+            _phase7_post_to_partner(share, {'event': 'ticket_shared'})
+        h = sent['headers']
+        self.assertEqual(h['X-CST0R-Signature'], self._sign(sent['data']))
+        ts = h['X-CST0R-Timestamp']
+        self.assertEqual(h['X-CST0R-Signature-V2'],
+                         self._sign(f'{ts}./psa/partners/webhook/77/.'.encode() + sent['data']))
+
 
 class IntegrationSDKTests(TestCase):
     """Integration SDK skeleton: registry + abstract base."""

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.716] - 2026-11-18
+
+### Added
+- **Trusted proxies in Settings** (roadmap 81.2) — Settings → Security → API Access Control → Client address. Add, disable or remove the reverse proxies allowed to report a visitor's address (`X-Forwarded-For`), on top of `TRUSTED_PROXY_CIDRS` in `.env`. Ranges wider than IPv4 /12 or IPv6 /29 are refused; a change that would alter how your own address is read needs confirmation; every change is audited. Other workers pick up a change within 10 seconds. `manage.py api_access_recover --disable-proxies` switches them all off from the server shell.
+- **Webhook protection** (roadmap 81.5), shared by the security vendor, SIEM, distributor and ticket-partner receivers:
+  - **Replay protection** — a repeated delivery of the same signed request is acknowledged (`{"duplicate": true}`) but not processed again; a delivery whose processing fails is released so the sender's retry is accepted.
+  - **Signed timestamps** — a sender may add `X-Cst0r-Timestamp` (Unix seconds) and sign `"<timestamp>." + body`; requests outside ±5 minutes are refused (401).
+  - **Body limits** checked before the body is read (413): 2 MB for vendor and SIEM, 1 MB for distributors, 128 KB for ticket partners.
+
+### Changed
+- **Security vendor connections** gain *Require a signed request*: on for new connections, off for existing ones so current senders keep working — turn it on once the sender signs.
+- **SIEM endpoints** created from now on require a signature by default; existing endpoints are unchanged. A JSON event with no id is no longer stored again (with a new auto-ticket) on every redelivery.
+- **Distributor webhooks** refuse a missing or invalid signature (401) instead of recording it, and check the signature over the whole body (bodies over 64 KB used to fail).
+- **Ticket partners**: outbound posts also carry `X-CST0R-Timestamp` and `X-CST0R-Signature-V2`, an HMAC over `"<timestamp>.<path>.<body>"`. A receiver on this version checks it when present, so a post cannot be replayed later or against another share. Partners on older versions keep working with the body-only signature, now with replay protection.
+
+### Fixed
+- A replayed vendor alert could overwrite the severity and title an analyst had set; a replayed partner comment was posted to the customer again.
+
 ## [3.17.715] - 2026-11-18
 
 ### Fixed

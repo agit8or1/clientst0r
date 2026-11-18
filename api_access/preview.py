@@ -121,6 +121,16 @@ def explain_client_address(request):
         'forwarded_used': bool(forwarded) and peer_trusted,
         'real_ip': real_ip,
         'trusted_proxies': [str(n) for n in networks],
+        'configured_proxies': [str(n) for n in C.configured_networks()],
         'trusted_source': 'TRUSTED_PROXY_CIDRS' if getattr(dj_settings, 'TRUSTED_PROXY_CIDRS', None) else 'default',
         'hops': hops,
     }
+
+
+def proxy_change_effect(request, networks):
+    """How the viewer's own request would be read with ``networks`` as the
+    trusted proxies, against how it is read now."""
+    from core import client_ip as C
+    before = C.get_client_ip(request)
+    after = C.get_client_ip(request, networks=networks)
+    return {'before': before or '(unreadable)', 'after': after or '(unreadable)', 'changes': before != after}

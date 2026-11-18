@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Confirm trusted proxy change — API Access Control{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="diag" %}
+<div class="card" style="max-width: 720px">
+  <div class="card-body">
+    <h5 class="card-title">{{ action|capfirst }} trusted proxy <code>{{ proxy.network }}</code>?</h5>
+    <p>This changes how your own address is read: <code>{{ effect.before }}</code> → <code>{{ effect.after }}</code>. API rules, the site firewall and sign-in protection will see the new address.</p>
+    <form method="post" action="{{ url }}">
+      {% csrf_token %}
+      <input type="hidden" name="confirm" value="1">
+      <button class="btn btn-warning">{{ action|capfirst }}</button>
+      <a class="btn btn-secondary" href="{% url 'api_access:diagnostics' %}">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -9604,6 +9604,14 @@ def _phase7_post_to_partner(share, payload: dict) -> dict:
         return {'ok': False, 'status': 0, 'error': 'partner has no endpoint URL'}
     body = _phase7_json.dumps(payload).encode('utf-8')
     sig = _phase7_sign(partner.partner_secret, body)
+    # v3.17.715: also sign "<ts>.<path>.<body>" so the receiver can refuse
+    # stale or replayed posts and posts aimed at another share. The body-only
+    # signature stays for partners on older versions.
+    from urllib.parse import urlsplit
+    from api_access.webhook_guard import signed_material
+    ts = int(timezone.now().timestamp())
+    sig_v2 = _phase7_sign(partner.partner_secret,
+                          signed_material(ts, body, urlsplit(url).path or '/'))
     import requests as _requests
     from core.safe_http import configured_service_policy, guard_session
     # The endpoint URL is user-supplied: send through the SSRF guard.
@@ -9615,6 +9623,8 @@ def _phase7_post_to_partner(share, payload: dict) -> dict:
             headers={
                 'Content-Type': 'application/json',
                 'X-CST0R-Signature': sig,
+                'X-CST0R-Timestamp': str(ts),
+                'X-CST0R-Signature-V2': sig_v2,
                 'X-CST0R-Share-Pk': str(share.pk),
                 'X-CST0R-Partner-Id': str(partner.pk),
                 'User-Agent': 'ClientSt0r-Outsourcing/1.0',
@@ -9741,11 +9751,25 @@ def ticket_partner_webhook(request, share_pk):
     if share is None:
         return JsonResponse({'ok': False, 'error': 'unknown share'}, status=404)
 
-    raw_body = request.body or b''
-    raw_body = raw_body[:128 * 1024]  # cap
-    sig_header = request.headers.get('X-CST0R-Signature') or request.META.get('HTTP_X_CST0R_SIGNATURE') or ''
+    from api_access import webhook_guard as _wg
+    try:
+        raw_body = _wg.read_body(request, 128 * 1024)
+        ts = _wg.timestamp(request)
+    except _wg.Refused as exc:
+        return exc.response()
+    # A partner on v3.17.715+ also sends X-CST0R-Signature-V2 over
+    # "<ts>.<path>.<body>": fresh, and bound to this share's URL. Older
+    # partners sign the body only; replays of those are still refused for a day.
+    sig_v2 = request.META.get('HTTP_X_CST0R_SIGNATURE_V2') or ''
+    if ts is not None and sig_v2:
+        material = _wg.signed_material(ts, raw_body, request.path)
+        sig_header = sig_v2
+    else:
+        ts = None
+        material = raw_body
+        sig_header = request.headers.get('X-CST0R-Signature') or request.META.get('HTTP_X_CST0R_SIGNATURE') or ''
     secret = share.partner_org.partner_secret or ''
-    expected = _phase7_sign(secret, raw_body)
+    expected = _phase7_sign(secret, material)
     # No secret means no way to authenticate the partner: an HMAC keyed with
     # the empty string is one anybody can compute. A recalled or declined share is closed.
     if (not secret or share.status in ('recalled', 'declined')
@@ -9758,6 +9782,22 @@ def ticket_partner_webhook(request, share_pk):
             ip_address=_client_ip(request), path=request.path,
         )
         return HttpResponseForbidden('Invalid signature')
+
+    receiver = f'ticket_partner:{share.pk}'
+    if not _wg.claim(receiver, material, ts is not None):
+        return _wg.duplicate_response()
+    try:
+        response = _ticket_partner_apply(request, share, raw_body)
+    except Exception:
+        _wg.release(receiver, material)
+        raise
+    if response.status_code >= 400:
+        _wg.release(receiver, material)
+    return response
+
+
+def _ticket_partner_apply(request, share, raw_body):
+    from .models import TicketComment, TicketStatus as _TS
 
     try:
         data = _phase7_json.loads(raw_body.decode('utf-8') or '{}')

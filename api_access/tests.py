@@ -662,3 +662,140 @@ class LimitsPageTests(TestCase):
             'api_rate_per_address': '-1', 'webhook_rate_per_address': '0',
             'api_max_body_kb': '0', 'webhook_max_body_kb': '0'})
         self.assertEqual(S.get().api_rate_per_address, 600)
+
+
+class TrustedProxyTests(TestCase):
+    """Trusted proxies managed in Settings (v3.17.715, roadmap 81.2)."""
+
+    def setUp(self):
+        from core import client_ip as C
+        self.C = C
+        C.reset_managed_cache()
+        P.reset_cache()
+        self.rf = RequestFactory()
+
+    def tearDown(self):
+        self.C.reset_managed_cache()
+        P.reset_cache()
+
+    def req(self, peer, xff=None):
+        extra = {'REMOTE_ADDR': peer}
+        if xff:
+            extra['HTTP_X_FORWARDED_FOR'] = xff
+        return self.rf.get('/api/assets/', **extra)
+
+    def test_too_wide_ranges_refused(self):
+        from api_access.models import normalize_proxy_network
+        for bad in ('0.0.0.0/0', '10.0.0.0/8', '::/0', '2001:db8::/16', 'proxy.example'):
+            with self.assertRaises(ValidationError):
+                normalize_proxy_network(bad)
+        self.assertEqual(normalize_proxy_network('104.16.0.0/12'), '104.16.0.0/12')
+        self.assertEqual(normalize_proxy_network('2a06:98c0::/29'), '2a06:98c0::/29')
+        self.assertEqual(normalize_proxy_network('192.0.2.10'), '192.0.2.10/32')
+
+    @override_settings(TRUSTED_PROXY_CIDRS=['127.0.0.1/32'])
+    def test_settings_proxy_is_trusted_on_top_of_env(self):
+        from api_access.models import TrustedProxy
+        self.assertEqual(self.C.get_client_ip(self.req('192.0.2.10', '198.51.100.7')), '192.0.2.10')
+        TrustedProxy.objects.create(network='192.0.2.10/32')
+        self.C.reset_managed_cache()
+        self.assertEqual(self.C.get_client_ip(self.req('192.0.2.10', '198.51.100.7')), '198.51.100.7')
+        # env proxies still work; a forged prefix is still ignored
+        self.assertEqual(self.C.get_client_ip(self.req('127.0.0.1', '6.6.6.6, 198.51.100.7, 192.0.2.10')), '198.51.100.7')
+        # disabled -> not trusted
+        TrustedProxy.objects.update(is_active=False)
+        self.C.reset_managed_cache()
+        self.assertEqual(self.C.get_client_ip(self.req('192.0.2.10', '198.51.100.7')), '192.0.2.10')
+
+    @override_settings(TRUSTED_PROXY_CIDRS=['127.0.0.1/32'])
+    def test_unreadable_table_trusts_no_extra_proxy(self):
+        from unittest import mock
+        with mock.patch('api_access.models.TrustedProxy.objects') as objs:
+            objs.filter.side_effect = RuntimeError('db down')
+            self.assertEqual(self.C.managed_networks(), [])
+        self.assertEqual(self.C.get_client_ip(self.req('192.0.2.10', '198.51.100.7')), '192.0.2.10')
+
+    @override_settings(TRUSTED_PROXY_CIDRS=['127.0.0.1/32'])
+    def test_cache_is_reused_until_reset(self):
+        from api_access.models import TrustedProxy
+        self.assertEqual(self.C.managed_networks(), [])
+        TrustedProxy.objects.create(network='192.0.2.10/32')
+        self.assertEqual(self.C.managed_networks(), [])  # cached
+        self.C.reset_managed_cache()
+        self.assertEqual([str(n) for n in self.C.managed_networks()], ['192.0.2.10/32'])
+
+    def test_recover_disables_settings_proxies(self):
+        from io import StringIO
+        from django.core.management import call_command
+        from api_access.models import TrustedProxy
+        TrustedProxy.objects.create(network='192.0.2.10/32')
+        call_command('api_access_recover', '--disable-proxies', stdout=StringIO())
+        self.assertFalse(TrustedProxy.objects.filter(is_active=True).exists())
+        self.assertTrue(AuditLog.objects.filter(description__contains='trusted proxies').exists())
+
+
+@override_settings(MIDDLEWARE=API_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, TRUSTED_PROXY_CIDRS=['127.0.0.1/32'])
+class TrustedProxyPageTests(TestCase):
+    def setUp(self):
+        from core import client_ip as C
+        self.C = C
+        C.reset_managed_cache()
+        self.admin = User.objects.create_superuser('tp-admin', 'a@example.test', 'pw')
+
+    def tearDown(self):
+        self.C.reset_managed_cache()
+
+    def client_from(self, peer, xff=None):
+        extra = {'REMOTE_ADDR': peer}
+        if xff:
+            extra['HTTP_X_FORWARDED_FOR'] = xff
+        c = Client(**extra)
+        c.force_login(self.admin)
+        return c
+
+    def test_add_without_effect_saves_and_audits(self):
+        from api_access.models import TrustedProxy
+        c = self.client_from('198.51.100.5')
+        r = c.post('/settings/security/api-access/proxies/add/', {'network': '192.0.2.10', 'description': 'HAProxy'})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(TrustedProxy.objects.filter(network='192.0.2.10/32').exists())
+        self.assertTrue(AuditLog.objects.filter(object_type='TrustedProxy', action='create').exists())
+        self.assertContains(c.get('/settings/security/api-access/diagnostics/'), '192.0.2.10/32')
+
+    def test_add_that_changes_own_address_needs_confirmation(self):
+        from api_access.models import TrustedProxy
+        c = self.client_from('192.0.2.10', '198.51.100.7')
+        r = c.post('/settings/security/api-access/proxies/add/', {'network': '192.0.2.10'})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'I understand')
+        self.assertFalse(TrustedProxy.objects.exists())
+        c.post('/settings/security/api-access/proxies/add/', {'network': '192.0.2.10', 'confirm': '1'})
+        self.assertTrue(TrustedProxy.objects.exists())
+
+    def test_wide_and_duplicate_refused(self):
+        from api_access.models import TrustedProxy
+        c = self.client_from('198.51.100.5')
+        r = c.post('/settings/security/api-access/proxies/add/', {'network': '10.0.0.0/8'})
+        self.assertContains(r, 'too wide')
+        TrustedProxy.objects.create(network='192.0.2.10/32')
+        r = c.post('/settings/security/api-access/proxies/add/', {'network': '192.0.2.10'})
+        self.assertContains(r, 'already listed')
+        self.assertEqual(TrustedProxy.objects.count(), 1)
+
+    def test_delete_that_changes_own_address_needs_confirmation(self):
+        from api_access.models import TrustedProxy
+        p = TrustedProxy.objects.create(network='192.0.2.10/32')
+        c = self.client_from('192.0.2.10', '198.51.100.7')
+        r = c.post(f'/settings/security/api-access/proxies/{p.pk}/delete/')
+        self.assertContains(r, 'changes how your own address is read')
+        self.assertTrue(TrustedProxy.objects.exists())
+        c.post(f'/settings/security/api-access/proxies/{p.pk}/delete/', {'confirm': '1'})
+        self.assertFalse(TrustedProxy.objects.exists())
+
+    def test_non_superuser_refused(self):
+        from api_access.models import TrustedProxy
+        staff = User.objects.create_user('tp-staff', password='pw', is_staff=True)
+        c = Client(REMOTE_ADDR='198.51.100.5')
+        c.force_login(staff)
+        c.post('/settings/security/api-access/proxies/add/', {'network': '192.0.2.10'})
+        self.assertFalse(TrustedProxy.objects.exists())

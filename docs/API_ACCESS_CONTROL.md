@@ -87,7 +87,12 @@ The address used for rules comes from `core/client_ip.py`:
 
 **API Access Control → Client address** shows how your own request was read.
 
-Set the trusted proxies in `.env` (comma-separated), then restart the app:
+Add trusted proxies on **API Access Control → Client address** (superusers). They are used on top of
+`TRUSTED_PROXY_CIDRS` from `.env`; ranges wider than IPv4 /12 or IPv6 /29 are refused, a change that would
+alter how your own address is read asks for confirmation, and every change is audited. Other application
+workers use a change within 10 seconds.
+
+Or set them in `.env` (comma-separated), then restart the app:
 
 ```
 TRUSTED_PROXY_CIDRS=127.0.0.1/32,::1/128
@@ -159,6 +164,7 @@ venv/bin/python manage.py api_access_recover --unrestrict              # both su
 venv/bin/python manage.py api_access_recover --unrestrict --surface webhook
 venv/bin/python manage.py api_access_recover --disable-rule 12
 venv/bin/python manage.py api_access_recover --disable-all-rules
+venv/bin/python manage.py api_access_recover --disable-proxies          # proxies added in Settings
 ```
 
 Each change is audited and takes effect on the next request. Disabled rules stay listed and can be
@@ -196,8 +202,36 @@ On the API Access Control page, for the API and for webhooks separately:
 allow. Refusals are logged with the other refused requests. Counters live in the application cache, so with
 the default per-process cache each worker counts on its own.
 
+## Webhook signatures, timestamps and replays
+
+The security vendor, SIEM, distributor and ticket-partner receivers share these checks
+(`api_access/webhook_guard.py`):
+
+- **Signature.** Vendor and SIEM receivers take `X-Cst0r-Signature: <hex>` (or `sha256=<hex>`), an
+  HMAC-SHA256 with the receiver's secret. New vendor connections and SIEM endpoints require it; existing ones
+  keep their setting. Distributors use their own signature header and always require it.
+- **Timestamp (optional).** Send `X-Cst0r-Timestamp: <unix seconds>` and sign `"<timestamp>." + body`
+  instead of the body. Requests more than 5 minutes from the server's clock are refused (401).
+- **Replays.** A delivery identical to one already accepted is answered `200 {"ok": true, "duplicate": true}`
+  and not processed again — for 11 minutes with a signed timestamp, 24 hours without. If processing fails,
+  the delivery is not remembered, so the sender's retry goes through.
+- **Body size.** Vendor and SIEM 2 MB, distributors 1 MB, ticket partners 128 KB (413 above). The global
+  webhook body limit on this page applies as well.
+
+Ticket partners on v3.17.716 and later also send `X-CST0R-Signature-V2`, an HMAC over
+`"<timestamp>.<request path>.<body>"`, which binds the post to one share.
+
+Example sender (shell):
+
+```bash
+ts=$(date +%s); body='{"id":"evt-1","title":"Test alert","severity":"low"}'
+sig=$(printf '%s.%s' "$ts" "$body" | openssl dgst -sha256 -hmac "$SECRET" | cut -d' ' -f2)
+curl -X POST "$URL" -H 'Content-Type: application/json' \
+     -H "X-Cst0r-Timestamp: $ts" -H "X-Cst0r-Signature: $sig" --data "$body"
+```
+
 ## Planned (Phase 81)
 
-Concurrency limits; webhook signatures, timestamp windows and replay protection on every receiver; trusted
-proxies managed in Settings; an automatic rollback window for global changes; notifications for repeated
-violations; optional mutual TLS. See `docs/ROADMAP.md`.
+Concurrency limits; a per-partner switch to require the share-bound signature; a signed emergency-restart
+call; per-connection payment event de-duplication; an automatic rollback window for global changes;
+notifications for repeated violations; optional mutual TLS. See `docs/ROADMAP.md`.

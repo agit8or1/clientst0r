@@ -10,8 +10,42 @@
       <dt class="col-sm-4">Connecting peer</dt><dd class="col-sm-8"><code>{{ info.peer }}</code> — {% if info.peer_trusted %}<span class="badge bg-info text-dark">trusted proxy</span>{% else %}<span class="badge bg-secondary">not a trusted proxy</span>{% endif %}</dd>
       <dt class="col-sm-4">X-Forwarded-For</dt><dd class="col-sm-8">{% if info.forwarded %}<code>{{ info.forwarded }}</code> — {% if info.forwarded_used %}read, because the peer is a trusted proxy{% else %}<strong>ignored</strong>: only a trusted proxy may supply it{% endif %}{% else %}<span class="text-muted">not sent</span>{% endif %}</dd>
       <dt class="col-sm-4">X-Real-IP</dt><dd class="col-sm-8">{% if info.real_ip %}<code>{{ info.real_ip }}</code> — <strong>never used</strong> (it is not a chain, so its sender cannot be checked){% else %}<span class="text-muted">not sent</span>{% endif %}</dd>
-      <dt class="col-sm-4">Trusted proxies</dt><dd class="col-sm-8">{% for n in info.trusted_proxies %}<code>{{ n }}</code>{% if not forloop.last %}, {% endif %}{% endfor %} <span class="text-muted small">(from {{ info.trusted_source }}; set <code>TRUSTED_PROXY_CIDRS</code> in <code>.env</code>)</span></dd>
+      <dt class="col-sm-4">Trusted proxies in use</dt><dd class="col-sm-8">{% for n in info.trusted_proxies %}<code>{{ n }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>
     </dl>
+  </div>
+</div>
+<div class="card mb-3">
+  <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-network-wired"></i> Trusted proxies</h6></div>
+  <div class="card-body">
+    <p class="small text-muted mb-2">A trusted proxy may tell this server the client's address (<code>X-Forwarded-For</code>). This changes how <strong>every</strong> request's address is read — API rules, the site firewall, sign-in lockouts and logs. List only proxies you run.</p>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle mb-3">
+      <thead><tr><th>Address or range</th><th>Description</th><th>Source</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for n in info.configured_proxies %}<tr><td><code>{{ n }}</code></td><td class="text-muted">—</td><td><span class="badge bg-secondary">.env</span></td><td><span class="badge bg-success">Active</span></td><td class="text-end small text-muted">Edit <code>TRUSTED_PROXY_CIDRS</code></td></tr>{% endfor %}
+        {% for p in proxies %}<tr>
+          <td><code>{{ p.network }}</code></td><td>{{ p.description|default:"—" }}</td>
+          <td><span class="badge bg-info text-dark">Settings</span><div class="small text-muted text-nowrap">{{ p.created_by.username|default:"—" }} · {{ p.created_at|date:"Y-m-d" }}</div></td>
+          <td>{% if p.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Disabled</span>{% endif %}</td>
+          <td class="text-end text-nowrap">
+            <form method="post" action="{% url 'api_access:proxy_toggle' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="{% if p.is_active %}Disable{% else %}Enable{% endif %}" aria-label="{% if p.is_active %}Disable{% else %}Enable{% endif %} {{ p.network }}"><i class="fas {% if p.is_active %}fa-pause{% else %}fa-play{% endif %}"></i></button></form>
+            <form method="post" action="{% url 'api_access:proxy_delete' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove {{ p.network }}"><i class="fas fa-trash"></i></button></form>
+          </td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <form method="post" action="{% url 'api_access:proxy_add' %}" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-md-4"><label class="form-label small" for="{{ proxy_form.network.id_for_label }}">{{ proxy_form.network.label }}</label>{{ proxy_form.network }}</div>
+      <div class="col-md-5"><label class="form-label small" for="{{ proxy_form.description.id_for_label }}">{{ proxy_form.description.label }}</label>{{ proxy_form.description }}</div>
+      <div class="col-md-3"><button class="btn btn-primary w-100"><i class="fas fa-plus"></i> Add proxy</button></div>
+      {% if proxy_form.errors %}<div class="col-12"><div class="alert alert-danger py-2 mb-0">{% for e in proxy_form.network.errors %}{{ e }} {% endfor %}{% for e in proxy_form.description.errors %}{{ e }} {% endfor %}</div></div>{% endif %}
+      {% if effect %}<div class="col-12"><div class="alert alert-warning mb-0">
+        <strong>This changes how your own address is read:</strong> <code>{{ effect.before }}</code> → <code>{{ effect.after }}</code>. Rules and sign-in protection will see the new address.
+        <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="confirm" value="1" id="proxy-confirm" required><label class="form-check-label" for="proxy-confirm">I understand — add it</label></div>
+      </div></div>{% endif %}
+    </form>
+    <div class="form-text">IPv4 ranges must be /12 or narrower, IPv6 /29 or narrower. Other application workers pick up a change within 10 seconds.</div>
   </div>
 </div>
 {% if info.hops %}
@@ -24,7 +58,7 @@
 {% endif %}
 <div class="alert alert-info small">
   Only addresses listed as trusted proxies may supply <code>X-Forwarded-For</code>, and the chain is read from the nearest hop backwards, so an address a client puts at the front of the header is ignored.
-  If the address above is your reverse proxy instead of your own, add the proxy to <code>TRUSTED_PROXY_CIDRS</code> — never a whole private range unless every host in it is a proxy you run.
+  If the address above is your reverse proxy instead of your own, add the proxy above (or to <code>TRUSTED_PROXY_CIDRS</code> in <code>.env</code>) — never a whole private range unless every host in it is a proxy you run.
   Setup for Nginx, HAProxy and Cloudflare: <code>docs/API_ACCESS_CONTROL.md</code>.
 </div>
 {% endblock %}

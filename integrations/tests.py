@@ -234,16 +234,35 @@ class DistributorWebhookEndpointTests(TestCase):
         self.assertEqual(event.event_type, 'order.delivered')
         self.assertTrue(event.processed)
 
-    def test_invalid_signature_recorded_but_processed_true(self):
-        # The webhook endpoint always records — signature_valid false flags it.
+    def test_invalid_or_missing_signature_refused_and_not_stored(self):
+        # v3.17.715: forged posts are refused, not recorded.
         url = f'/integrations/distributors/webhooks/{self.conn.issued_webhook_token}/'
-        resp = self.client.post(
-            url, data=b'{"eventType":"x"}', content_type='application/json',
-            HTTP_X_INGRAM_SIGNATURE='sha256=00',
-        )
-        self.assertEqual(resp.status_code, 200)
-        event = DistributorWebhookEvent.objects.get(connection=self.conn)
-        self.assertFalse(event.signature_valid)
+        for extra in ({'HTTP_X_INGRAM_SIGNATURE': 'sha256=00'}, {}):
+            resp = self.client.post(url, data=b'{"eventType":"x"}', content_type='application/json', **extra)
+            self.assertEqual(resp.status_code, 401)
+        self.assertEqual(DistributorWebhookEvent.objects.count(), 0)
+
+    def test_replay_is_acknowledged_but_not_stored_twice(self):
+        body = json.dumps({'eventType': 'order.shipped'}).encode()
+        sig = hmac.new(b'topsecret', body, hashlib.sha256).hexdigest()
+        url = f'/integrations/distributors/webhooks/{self.conn.issued_webhook_token}/'
+        for _ in range(2):
+            resp = self.client.post(url, data=body, content_type='application/json',
+                                    HTTP_X_INGRAM_SIGNATURE=f'sha256={sig}')
+            self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json().get('duplicate'))
+        self.assertEqual(DistributorWebhookEvent.objects.count(), 1)
+
+    def test_signature_covers_the_whole_body_and_size_is_capped(self):
+        url = f'/integrations/distributors/webhooks/{self.conn.issued_webhook_token}/'
+        big = json.dumps({'eventType': 'big', 'pad': 'x' * (100 * 1024)}).encode()
+        sig = hmac.new(b'topsecret', big, hashlib.sha256).hexdigest()
+        resp = self.client.post(url, data=big, content_type='application/json',
+                                HTTP_X_INGRAM_SIGNATURE=f'sha256={sig}')
+        self.assertEqual(resp.status_code, 200)  # >64 KB used to fail the check
+        huge = b'{"pad":"' + b'x' * (1024 * 1024) + b'"}'
+        resp = self.client.post(url, data=huge, content_type='application/json')
+        self.assertEqual(resp.status_code, 413)
 
 
 class ConnectionStatusHelperTests(TestCase):

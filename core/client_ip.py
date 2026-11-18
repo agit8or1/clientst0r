@@ -9,40 +9,79 @@ Only a process on this host can connect to that socket (in practice the
 local nginx), so such a peer is treated as a trusted local proxy.
 """
 import ipaddress
+import time
 
 from django.conf import settings
 
 _LOCAL_PEER = '127.0.0.1'  # what a unix-socket peer with no forwarding chain resolves to
 
+# Proxies added in Settings → Security → API Access Control → Client address
+# (api_access.TrustedProxy) are read at most every _MANAGED_TTL seconds per
+# worker; the worker that saves a change resets at once.
+_MANAGED_TTL = 10.0
+_managed = {'at': 0.0, 'networks': ()}
 
-def _trusted_networks():
+
+def _parse(values):
     networks = []
-    for value in getattr(settings, 'TRUSTED_PROXY_CIDRS', ['127.0.0.1/32', '::1/128']):
+    for value in values:
         try:
-            networks.append(ipaddress.ip_network(value, strict=False))
+            networks.append(ipaddress.ip_network(str(value).strip(), strict=False))
         except ValueError:
             continue
     return networks
+
+
+def configured_networks():
+    """TRUSTED_PROXY_CIDRS from .env (or the default)."""
+    return _parse(getattr(settings, 'TRUSTED_PROXY_CIDRS', ['127.0.0.1/32', '::1/128']))
+
+
+def managed_networks():
+    """Active proxies saved in Settings. If they cannot be read, none are used:
+    trusting fewer proxies never lets a client choose its own address."""
+    now = time.monotonic()
+    if now - _managed['at'] < _MANAGED_TTL:
+        return list(_managed['networks'])
+    try:
+        from api_access.models import TrustedProxy
+        values = list(TrustedProxy.objects.filter(is_active=True).values_list('network', flat=True))
+    except Exception:  # table missing before migrate, database unavailable
+        values = []
+    networks = tuple(_parse(values))
+    _managed.update(at=now, networks=networks)
+    return list(networks)
+
+
+def reset_managed_cache():
+    _managed.update(at=0.0, networks=())
+
+
+def _trusted_networks():
+    return configured_networks() + managed_networks()
 
 
 def _is_trusted(address, networks):
     return any(address in network for network in networks)
 
 
-def is_trusted_peer(request) -> bool:
+def is_trusted_peer(request, networks=None) -> bool:
     """True if the connecting peer is a proxy allowed to supply forwarding headers."""
     peer = request.META.get('REMOTE_ADDR', '')
     if not peer:
         return True  # unix socket: a local process
     try:
-        return _is_trusted(ipaddress.ip_address(peer), _trusted_networks())
+        return _is_trusted(ipaddress.ip_address(peer), _trusted_networks() if networks is None else networks)
     except ValueError:
         return False
 
 
-def get_client_ip(request):
+def get_client_ip(request, networks=None):
+    """The client address, or None when forwarding data is malformed.
+    ``networks`` overrides the trusted proxies (used to preview a change)."""
     peer = request.META.get('REMOTE_ADDR', '')
-    networks = _trusted_networks()
+    if networks is None:
+        networks = _trusted_networks()
     if peer:
         try:
             peer_ip = ipaddress.ip_address(peer)

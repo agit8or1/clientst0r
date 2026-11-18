@@ -159,7 +159,8 @@ class WebhookReceiverTests(TestCase):
     def setUp(self):
         _seed_psa()
         self.org = _make_org()
-        self.conn = _make_conn(self.org)
+        # Token-only behaviour (connections made before v3.17.715 keep it).
+        self.conn = _make_conn(self.org, require_signature=False)
 
     def test_invalid_token_returns_404(self):
         c = Client()
@@ -234,6 +235,7 @@ class SIEMWebhookReceiverTests(TestCase):
         self.endpoint = SIEMWebhookEndpoint.objects.create(
             organization=self.org, name='Splunk-feed',
             expected_format='cef', default_severity='medium',
+            require_hmac=False,  # signature optional (endpoints made before v3.17.715)
         )
 
     def test_unknown_token_returns_404(self):
@@ -875,3 +877,101 @@ class SecurityAlertsStaffOnlyTests(TestCase):
             name='No SOC', security_alerts_view=False)
         tech.profile.save()
         self.assertFalse(_user_orgs(tech).exists())
+
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WebhookProtectionTests(TestCase):
+    """v3.17.715 (roadmap 81.5): signatures by default, signed timestamps,
+    replay protection and body limits on the vendor and SIEM receivers."""
+
+    def setUp(self):
+        _seed_psa()
+        self.org = _make_org()
+        self.conn = _make_conn(self.org)
+        self.conn_token, self.conn_secret = self.conn.issue_webhook_credentials()
+        self.conn.save()
+        self.endpoint = SIEMWebhookEndpoint.objects.create(
+            organization=self.org, name='feed', expected_format='json', default_severity='medium')
+
+    def sign(self, secret, body, ts=None):
+        import hmac, hashlib
+        material = (f'{ts}.'.encode() + body) if ts is not None else body
+        return hmac.new(secret.encode(), material, hashlib.sha256).hexdigest()
+
+    def vendor(self, body, **headers):
+        return Client().post(f'/security/webhook/{self.conn_token}/', data=body,
+                             content_type='application/json', **headers)
+
+    def test_new_vendor_connection_requires_signature(self):
+        self.assertTrue(self.conn.require_signature)
+        body = b'{"id":"a1","title":"x"}'
+        self.assertEqual(self.vendor(body).status_code, 403)
+        r = self.vendor(body, HTTP_X_CST0R_SIGNATURE=self.sign(self.conn_secret, body))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(SecurityAlert.objects.filter(connection=self.conn).count(), 1)
+
+    def test_new_siem_endpoint_requires_signature(self):
+        self.assertTrue(self.endpoint.require_hmac)
+        r = Client().post(f'/security/siem/webhook/{self.endpoint.issued_token}/',
+                          data=b'{"title":"t"}', content_type='application/json')
+        self.assertEqual(r.status_code, 403)
+
+    def test_replay_is_acknowledged_without_overwriting(self):
+        body = b'{"id":"a2","title":"Ransomware","severity":"critical"}'
+        sig = self.sign(self.conn_secret, body)
+        self.assertEqual(self.vendor(body, HTTP_X_CST0R_SIGNATURE=sig).status_code, 200)
+        SecurityAlert.objects.filter(external_id='a2').update(severity='high')  # analyst triage
+        r = self.vendor(body, HTTP_X_CST0R_SIGNATURE=sig)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['duplicate'])
+        self.assertEqual(SecurityAlert.objects.get(external_id='a2').severity, 'high')
+
+    def test_signed_timestamp_window(self):
+        import time
+        body = b'{"id":"a3","title":"x"}'
+        now = int(time.time())
+        ok = self.vendor(body, HTTP_X_CST0R_TIMESTAMP=str(now),
+                         HTTP_X_CST0R_SIGNATURE=self.sign(self.conn_secret, body, now))
+        self.assertEqual(ok.status_code, 200)
+        old = now - 3600
+        stale = self.vendor(body, HTTP_X_CST0R_TIMESTAMP=str(old),
+                            HTTP_X_CST0R_SIGNATURE=self.sign(self.conn_secret, body, old))
+        self.assertEqual(stale.status_code, 401)
+        # a timestamp that the signature does not cover is refused
+        forged = self.vendor(b'{"id":"a4"}', HTTP_X_CST0R_TIMESTAMP=str(now),
+                             HTTP_X_CST0R_SIGNATURE=self.sign(self.conn_secret, b'{"id":"a4"}'))
+        self.assertEqual(forged.status_code, 403)
+
+    def test_siem_json_without_id_is_not_duplicated_on_redelivery(self):
+        body = b'{"title":"Disk full","severity":"high"}'
+        sig = self.sign(self.endpoint.hmac_secret, body)
+        url = f'/security/siem/webhook/{self.endpoint.issued_token}/'
+        for _ in range(3):
+            r = Client().post(url, data=body, content_type='application/json', HTTP_X_CST0R_SIGNATURE=sig)
+            self.assertEqual(r.status_code, 200)
+        self.assertEqual(SecurityAlert.objects.filter(siem_endpoint=self.endpoint).count(), 1)
+
+    def test_failed_processing_releases_the_claim(self):
+        from unittest import mock
+        body = b'{"id":"a5","title":"x"}'
+        sig = self.sign(self.conn_secret, body)
+        with mock.patch('security_alerts.views._vendor_ingest', side_effect=RuntimeError('db down')):
+            with self.assertRaises(RuntimeError):
+                self.vendor(body, HTTP_X_CST0R_SIGNATURE=sig)
+        r = self.vendor(body, HTTP_X_CST0R_SIGNATURE=sig)  # the sender's retry
+        self.assertFalse(r.json().get('duplicate', False))
+        self.assertTrue(SecurityAlert.objects.filter(external_id='a5').exists())
+
+    def test_body_limit(self):
+        from security_alerts.views import WEBHOOK_MAX_BYTES
+        big = b'{"id":"a6","pad":"' + b'x' * WEBHOOK_MAX_BYTES + b'"}'
+        self.assertEqual(self.vendor(big).status_code, 413)
+
+    def test_existing_connections_keep_token_only(self):
+        legacy = _make_conn(self.org, require_signature=False)
+        token, _ = legacy.issue_webhook_credentials()
+        legacy.save()
+        r = Client().post(f'/security/webhook/{token}/', data=b'{"id":"l1","title":"x"}',
+                          content_type='application/json')
+        self.assertEqual(r.status_code, 200)

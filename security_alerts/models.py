@@ -70,6 +70,12 @@ class SecurityVendorConnection(models.Model):
         help_text='HMAC-SHA256 of the inbound webhook URL token.')
     webhook_secret = EncryptedTextField(blank=True,
         help_text='HMAC shared secret for verifying inbound webhook payloads (encrypted).')
+    # v3.17.715 (roadmap 81.5): new connections require a signature; existing
+    # connections keep accepting unsigned posts until an administrator turns this on.
+    require_signature = models.BooleanField(
+        default=True,
+        help_text='Refuse webhook posts without a valid X-Cst0r-Signature. When off, the URL '
+                  'token alone is accepted (a signature, if sent, is still checked).')
 
     # Polling
     poll_interval_minutes = models.PositiveIntegerField(default=5)
@@ -318,7 +324,7 @@ class SIEMWebhookEndpoint(models.Model):
                   'header containing hex-encoded HMAC-SHA256(secret, body). '
                   'Encrypted at rest.')
     require_hmac = models.BooleanField(
-        default=False,
+        default=True,  # v3.17.715: on for new endpoints; existing endpoints unchanged
         help_text='When True, requests without a valid signature are rejected '
                   'with HTTP 403. When False, signature is verified IF '
                   'sent but optional.',

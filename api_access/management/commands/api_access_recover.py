@@ -8,12 +8,13 @@ the point: there is no HTTP bypass. Every change is written to the audit log.
     manage.py api_access_recover --unrestrict --surface webhook
     manage.py api_access_recover --disable-rule 12 --disable-rule 13
     manage.py api_access_recover --disable-all-rules
+    manage.py api_access_recover --disable-proxies       # trusted proxies added in Settings
 """
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from api_access import policy as P
-from api_access.models import ApiAccessRule, ApiAccessSettings
+from api_access.models import ApiAccessRule, ApiAccessSettings, TrustedProxy
 
 
 class Command(BaseCommand):
@@ -28,9 +29,12 @@ class Command(BaseCommand):
                             metavar='ID', help='Disable one rule (repeatable).')
         parser.add_argument('--disable-all-rules', action='store_true',
                             help='Disable every rule (they stay listed and can be re-enabled).')
+        parser.add_argument('--disable-proxies', action='store_true',
+                            help='Disable every trusted proxy added in Settings (.env proxies stay).')
 
     def handle(self, *args, **opts):
-        changing = opts['unrestrict'] or opts['disable_rule'] or opts['disable_all_rules']
+        changing = (opts['unrestrict'] or opts['disable_rule'] or opts['disable_all_rules']
+                    or opts['disable_proxies'])
         if not changing:
             opts['status'] = True
         changes = []
@@ -54,17 +58,23 @@ class Command(BaseCommand):
             if opts['disable_all_rules']:
                 n = ApiAccessRule.objects.filter(is_active=True).update(is_active=False)
                 changes.append(f'disabled all {n} active rules')
+            if opts['disable_proxies']:
+                n = TrustedProxy.objects.filter(is_active=True).update(is_active=False)
+                changes.append(f'disabled {n} trusted proxies added in Settings')
             if changes:
                 ApiAccessSettings.bump()
         if changes:
             P.reset_cache()
+            from core.client_ip import reset_managed_cache
+            reset_managed_cache()
             from audit.models import AuditLog
             AuditLog.log(user=None, action='update', object_type='ApiAccessSettings',
                          description='API access recovery from the server shell: ' + '; '.join(changes),
                          extra_data={'source': 'api_access_recover', 'changes': changes})
             for line in changes:
                 self.stdout.write(self.style.WARNING(line))
-            self.stdout.write('Other workers pick up the change on their next API request.')
+            self.stdout.write('Other workers pick up the change on their next API request '
+                              '(trusted proxies within 10 seconds).')
         if opts['status']:
             self._status()
 
@@ -73,6 +83,8 @@ class Command(BaseCommand):
         self.stdout.write(f'Policy version {s.policy_version}')
         self.stdout.write(f'  API mode:     {s.api_mode}')
         self.stdout.write(f'  Webhook mode: {s.webhook_mode}')
+        proxies = TrustedProxy.objects.filter(is_active=True)
+        self.stdout.write(f'Trusted proxies from Settings: {", ".join(p.network for p in proxies) or "none"}')
         rules = ApiAccessRule.objects.filter(is_active=True).order_by('pk')
         self.stdout.write(f'Active rules: {rules.count()}')
         for r in rules:

@@ -22,7 +22,7 @@ class SecurityVendorConnectionForm(forms.ModelForm):
         fields = [
             'name', 'provider', 'category', 'client_org',
             'base_url', 'credentials_encrypted',
-            'poll_interval_minutes', 'is_active', 'sync_enabled', 'notes',
+            'poll_interval_minutes', 'is_active', 'sync_enabled', 'require_signature', 'notes',
         ]
         widgets = {
             'name': forms.TextInput(attrs=_TEXT),
@@ -35,6 +35,7 @@ class SecurityVendorConnectionForm(forms.ModelForm):
             'poll_interval_minutes': forms.NumberInput(attrs={**_NUMBER, 'min': 1, 'max': 1440}),
             'is_active': forms.CheckboxInput(attrs=_CHECK),
             'sync_enabled': forms.CheckboxInput(attrs=_CHECK),
+            'require_signature': forms.CheckboxInput(attrs=_CHECK),
             'notes': forms.Textarea(attrs={**_TEXT, 'rows': 3,
                 'placeholder': 'Internal notes — e.g. who set this up, ticket links, vendor portal account.'}),
         }

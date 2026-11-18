@@ -123,6 +123,14 @@
                             </div>
                             <div class="form-text">Disable to receive only via webhook (no scheduled poll).</div>
                         </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label d-block">Webhook signature</label>
+                            <div class="form-check form-switch">
+                                {{ form.require_signature }}
+                                <label class="form-check-label" for="{{ form.require_signature.id_for_label }}">Require a signed request</label>
+                            </div>
+                            <div class="form-text">On ⇒ posts must carry <code>X-Cst0r-Signature</code> (HMAC-SHA256 with the webhook secret). Off ⇒ the URL token alone is accepted.</div>
+                        </div>
                     </div>
                 </div>
             </div>

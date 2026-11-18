@@ -224,3 +224,57 @@ class ApiAccessDecision(models.Model):
     class Meta:
         db_table = 'api_access_decisions'
         ordering = ['-created_at']
+
+
+# Narrowest prefix accepted for a trusted proxy range. Wide enough for CDN edge
+# ranges (the widest published ones are IPv4 /12 and IPv6 /29); anything wider
+# would let almost anyone supply X-Forwarded-For.
+PROXY_MIN_PREFIX = {4: 12, 6: 29}
+
+
+class TrustedProxy(models.Model):
+    """A reverse proxy allowed to supply X-Forwarded-For (roadmap 81.2).
+
+    Used on top of TRUSTED_PROXY_CIDRS from .env, which cannot be removed here.
+    Trusting a proxy changes how every request's address is read, site-wide."""
+    network = models.CharField(max_length=64, unique=True)
+    description = models.CharField(max_length=200, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'api_access_trusted_proxies'
+        ordering = ['network']
+
+    def __str__(self):
+        return self.network
+
+    def clean(self):
+        self.network = normalize_proxy_network(self.network)
+
+
+def normalize_proxy_network(value):
+    network = normalize_network(value)
+    net = ipaddress.ip_network(network)
+    if net.prefixlen < PROXY_MIN_PREFIX[net.version]:
+        raise ValidationError(f'{network} is too wide for a proxy: use /{PROXY_MIN_PREFIX[net.version]} '
+                              f'or narrower for IPv{net.version}.')
+    return network
+
+
+class WebhookDelivery(models.Model):
+    """One accepted webhook delivery, kept for its replay window (roadmap 81.5).
+
+    ``digest`` is a SHA-256 over the receiver key and the signed material, so a
+    second delivery of the same signed request inside the window is recognised
+    as a replay. Bodies are never stored here."""
+    receiver = models.CharField(max_length=80)
+    digest = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = 'api_access_webhook_deliveries'
+        constraints = [models.UniqueConstraint(fields=['receiver', 'digest'], name='uniq_webhook_delivery')]

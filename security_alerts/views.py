@@ -379,6 +379,10 @@ def rule_form(request, pk=None):
     })
 
 
+# Largest webhook body accepted (vendor and SIEM receivers).
+WEBHOOK_MAX_BYTES = 2 * 1024 * 1024
+
+
 # ---------------------------------------------------------------------------
 # Inbound webhook
 # ---------------------------------------------------------------------------
@@ -396,15 +400,30 @@ def webhook_receive(request, token):
     if not conn:
         raise Http404('Unknown webhook token')
 
-    body = request.body or b''
+    from api_access import webhook_guard as G
+    from .siem import verify_signature
+    try:
+        body = G.read_body(request, WEBHOOK_MAX_BYTES)
+        ts = G.timestamp(request)
+    except G.Refused as exc:
+        return exc.response()
+    material = G.signed_material(ts, body)
     sig_header = request.META.get('HTTP_X_CST0R_SIGNATURE') or ''
-    if sig_header:
-        expected = hmac.new(
-            conn.webhook_secret.encode('utf-8'),
-            body, hashlib.sha256,
-        ).hexdigest()
-        if not hmac.compare_digest(expected, sig_header):
-            return HttpResponseForbidden('Bad signature')
+    if sig_header or conn.require_signature or ts is not None:
+        # A timestamp is only meaningful when it is signed.
+        if not (conn.webhook_secret and verify_signature(conn.webhook_secret, material, sig_header)):
+            return HttpResponseForbidden('Invalid or missing signature')
+    receiver = f'security_vendor:{conn.pk}'
+    if not G.claim(receiver, material, ts is not None):
+        return G.duplicate_response()
+    try:
+        return _vendor_ingest(conn, request, body)
+    except Exception:
+        G.release(receiver, material)
+        raise
+
+
+def _vendor_ingest(conn, request, body):
 
     # Resolve adapter
     from integrations.sdk.registry import get as get_provider
@@ -564,15 +583,34 @@ def siem_webhook_receive(request, token):
     if not endpoint:
         raise Http404('Unknown SIEM webhook token')
 
-    body = request.body or b''
+    from api_access import webhook_guard as G
+    try:
+        body = G.read_body(request, WEBHOOK_MAX_BYTES)
+        ts = G.timestamp(request)
+    except G.Refused as exc:
+        return exc.response()
+    material = G.signed_material(ts, body)
     sig_header = request.META.get('HTTP_X_CST0R_SIGNATURE') or ''
-    if endpoint.require_hmac:
-        if not sig_header or not verify_signature(endpoint.hmac_secret, body, sig_header):
+    if endpoint.require_hmac or sig_header or ts is not None:
+        # Signature required, or present (never accept a bogus one), or a
+        # timestamp was sent (only meaningful when signed).
+        if not sig_header or not verify_signature(endpoint.hmac_secret, material, sig_header):
             return HttpResponseForbidden('Invalid or missing signature')
-    elif sig_header:
-        # Signature present — verify it. Don't accept bogus signatures.
-        if not verify_signature(endpoint.hmac_secret, body, sig_header):
-            return HttpResponseForbidden('Bad signature')
+    receiver = f'siem:{endpoint.pk}'
+    if not G.claim(receiver, material, ts is not None):
+        return G.duplicate_response()
+    try:
+        response = _siem_ingest(endpoint, body)
+    except Exception:
+        G.release(receiver, material)
+        raise
+    if response.status_code >= 400:
+        G.release(receiver, material)
+    return response
+
+
+def _siem_ingest(endpoint, body):
+    from .siem import ingest_payload, parse_inbound
 
     try:
         alerts = parse_inbound(body, endpoint.expected_format)

@@ -112,3 +112,17 @@ class TestAddressForm(forms.Form):
 class ImportForm(forms.Form):
     file = forms.FileField(label='Rules file (JSON, from Export)',
                            widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': '.json,application/json'}))
+
+
+class TrustedProxyForm(forms.Form):
+    network = forms.CharField(max_length=64, label='Proxy address or range',
+                              widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '192.0.2.10 or 2001:db8::/48'}))
+    description = forms.CharField(max_length=200, required=False, label='Description',
+                                  widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. HAProxy in front of the app'}))
+
+    def clean_network(self):
+        from .models import TrustedProxy, normalize_proxy_network
+        network = normalize_proxy_network(self.cleaned_data['network'])
+        if TrustedProxy.objects.filter(network=network).exists():
+            raise forms.ValidationError(f'{network} is already listed.')
+        return network

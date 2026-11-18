@@ -10,16 +10,18 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from audit.models import AuditLog
 
 from . import policy as P
-from .forms import ImportForm, LimitsForm, ModeForm, RuleForm, TestAddressForm
+from .forms import ImportForm, LimitsForm, ModeForm, RuleForm, TestAddressForm, TrustedProxyForm
 from .groups import ENDPOINT_GROUPS, INTEGRATIONS
-from .models import ApiAccessDecision, ApiAccessRule, ApiAccessSettings, normalize_network
-from .preview import build_policy_for_rule, explain_client_address, impact, row_for, rule_rows, settings_row
+from .models import ApiAccessDecision, ApiAccessRule, ApiAccessSettings, TrustedProxy, normalize_network
+from .preview import (build_policy_for_rule, explain_client_address, impact, proxy_change_effect, row_for,
+                      rule_rows, settings_row)
 from .enforce import client_ip_text
 
 
@@ -278,8 +280,89 @@ def decisions(request):
 
 
 @_guarded
-def diagnostics(request):
-    return render(request, 'api_access/diagnostics.html', {'info': explain_client_address(request)})
+def diagnostics(request, form=None, effect=None):
+    return render(request, 'api_access/diagnostics.html', {
+        'info': explain_client_address(request),
+        'proxies': TrustedProxy.objects.select_related('created_by'),
+        'proxy_form': form or TrustedProxyForm(),
+        'effect': effect,
+    })
+
+
+def _proxy_networks_with(change):
+    """Trusted proxies after ``change`` (a callable editing a set of active managed networks)."""
+    import ipaddress
+    from core import client_ip as C
+    managed = set(TrustedProxy.objects.filter(is_active=True).values_list('network', flat=True))
+    change(managed)
+    return C.configured_networks() + [ipaddress.ip_network(n) for n in sorted(managed)]
+
+
+def _proxies_changed(request):
+    from core import client_ip as C
+    C.reset_managed_cache()
+    _changed(request)
+
+
+def _proxy_audit(request, proxy, action, description):
+    AuditLog.log(user=request.user, action=action, object_type='TrustedProxy', object_id=proxy.pk,
+                 object_repr=proxy.network, description=description,
+                 ip_address=client_ip_text(request) or None, path=request.path,
+                 extra_data={'network': proxy.network, 'description': proxy.description,
+                             'is_active': proxy.is_active})
+
+
+@_guarded
+@require_POST
+def proxy_add(request):
+    form = TrustedProxyForm(request.POST)
+    if not form.is_valid():
+        return diagnostics(request, form=form)
+    network = form.cleaned_data['network']
+    effect = proxy_change_effect(request, _proxy_networks_with(lambda s: s.add(network)))
+    if effect['changes'] and request.POST.get('confirm') != '1':
+        return diagnostics(request, form=form, effect=effect)
+    proxy = TrustedProxy.objects.create(network=network, description=form.cleaned_data['description'],
+                                        created_by=request.user)
+    _proxies_changed(request)
+    _proxy_audit(request, proxy, 'create', f'Trusted proxy {network} added')
+    messages.success(request, f'{network} is now a trusted proxy. Other application workers use it within 10 seconds.')
+    return redirect('api_access:diagnostics')
+
+
+@_guarded
+@require_POST
+def proxy_toggle(request, pk):
+    proxy = get_object_or_404(TrustedProxy, pk=pk)
+    enable = not proxy.is_active
+    effect = proxy_change_effect(request, _proxy_networks_with(
+        (lambda s: s.add(proxy.network)) if enable else (lambda s: s.discard(proxy.network))))
+    if effect['changes'] and request.POST.get('confirm') != '1':
+        return render(request, 'api_access/confirm_proxy.html', {
+            'proxy': proxy, 'effect': effect, 'action': 'enable' if enable else 'disable',
+            'url': reverse('api_access:proxy_toggle', args=[proxy.pk])})
+    proxy.is_active = enable
+    proxy.save(update_fields=['is_active'])
+    _proxies_changed(request)
+    _proxy_audit(request, proxy, 'update', f'Trusted proxy {proxy.network} {"enabled" if enable else "disabled"}')
+    messages.success(request, f'{proxy.network} {"enabled" if enable else "disabled"}.')
+    return redirect('api_access:diagnostics')
+
+
+@_guarded
+@require_POST
+def proxy_delete(request, pk):
+    proxy = get_object_or_404(TrustedProxy, pk=pk)
+    effect = proxy_change_effect(request, _proxy_networks_with(lambda s: s.discard(proxy.network)))
+    if effect['changes'] and request.POST.get('confirm') != '1':
+        return render(request, 'api_access/confirm_proxy.html', {
+            'proxy': proxy, 'effect': effect, 'action': 'delete',
+            'url': reverse('api_access:proxy_delete', args=[proxy.pk])})
+    _proxy_audit(request, proxy, 'delete', f'Trusted proxy {proxy.network} removed')
+    proxy.delete()
+    _proxies_changed(request)
+    messages.success(request, 'Trusted proxy removed.')
+    return redirect('api_access:diagnostics')
 
 
 EXPORT_FIELDS = ('name', 'network', 'action', 'surface', 'scope', 'target', 'description',

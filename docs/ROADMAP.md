@@ -3031,8 +3031,8 @@ never replaces them. Ships before any new vendor API or webhook endpoint from Ph
   endpoint group, with separate inbound-API and webhook policies; expiring temporary rules. An explicit deny
   always wins; once an allowlist applies, anything it does not match is denied. Private addresses get no
   implicit trust. Fails closed when a configured restrictive policy cannot be evaluated.
-- **81.2 Trusted proxies and client-address diagnostics** *(partial — diagnostic page, documented proxy setup and
-  the Connect rate-limiter fix shipped v3.17.713; trusted proxies managed in Settings planned)* — trusted proxy addresses managed in Settings, multi-hop chains, forwarding
+- **81.2 Trusted proxies and client-address diagnostics** *(shipped — diagnostic page, documented proxy setup and
+  the Connect rate-limiter fix v3.17.713; trusted proxies managed in Settings v3.17.716)* — trusted proxy addresses managed in Settings, multi-hop chains, forwarding
   headers accepted only from a trusted proxy, and a diagnostic page showing the detected address and how the
   chain was read. Reverse-proxy setup documented for Nginx, HAProxy and Cloudflare. The Connect rate limiter
   moves to the same resolver.
@@ -3047,7 +3047,11 @@ never replaces them. Ships before any new vendor API or webhook endpoint from Ph
   revocation; read-only versus write-capable keys; per-key and per-address rate limits; request size and
   concurrency limits. Key secrets never appear in logs or pages.
 - **81.5 Webhook protection** *(partial — separate webhook mode and per-receiver source rules shipped
-  v3.17.713; webhook rate and body-size limits shipped v3.17.714; signatures, timestamp window, replay protection, body and rate limits on every receiver planned)* — per-receiver source rules (including vendor ranges that change,
+  v3.17.713; webhook rate and body-size limits shipped v3.17.714; signed timestamps, replay protection and
+  body limits on the security vendor, SIEM, distributor and ticket-partner receivers, signatures required by
+  default for new vendor and SIEM receivers, and distributor signatures enforced shipped v3.17.716; a
+  per-partner switch to require the share-bound signature, a signed emergency-restart call, per-connection
+  payment event de-duplication and a GoCardless freshness check planned)* — per-receiver source rules (including vendor ranges that change,
   without silently widening access), signature verification, timestamp window and replay protection, body
   size and rate limits, and a dedicated credential per receiver; source address is never the only check.
 - **81.6 Lockout prevention and recovery** *(partial — impact preview, confirmation and the
@@ -3331,7 +3335,7 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
-| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; key lifecycle and address limits v3.17.714; 81.2 and 81.4–81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
+| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; key lifecycle and address limits v3.17.714; 81.2 trusted proxies and 81.5 webhook protection v3.17.716; 81.4–81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
 | 82 — Shared operational event and alert foundation | L | planned | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
 | 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
 | 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |
