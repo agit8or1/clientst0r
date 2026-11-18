@@ -118,6 +118,11 @@ jobs:
           /tmp/semgrep/bin/semgrep --config p/owasp-top-ten --config p/python --metrics=off \
             --sarif --output semgrep.sarif . || true
           test -s semgrep.sarif
+          # Code scanning ignores SARIF `suppressions`, so drop the findings
+          # reviewed in place with `# nosemgrep: <rule-id> -- <reason>`.
+          jq '.runs |= map(.results |= map(select((.suppressions // []) | length == 0)))' \
+            semgrep.sarif > semgrep.filtered.sarif
+          mv semgrep.filtered.sarif semgrep.sarif
 
       - name: Upload SARIF
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
