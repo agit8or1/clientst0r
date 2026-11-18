@@ -91,8 +91,9 @@ class PSAManager:
             provider = get_provider(connection)
             posted = provider.add_ticket_note(ticket.external_id, note, internal=internal)
         except Exception as e:
-            self.logger.error(f"Failed to add note to {provider_type} ticket {label}: {e}")
-            return PSANoteResult(PSANoteResult.FAILED, f"{provider_type} error: {e}")
+            self.logger.error(f"Failed to add note to {provider_type} ticket {label}: {e}", exc_info=True)
+            return PSANoteResult(PSANoteResult.FAILED,
+                                 f"{provider_type} error ({e.__class__.__name__}). See the server log.")
 
         if posted:
             return PSANoteResult(PSANoteResult.OK, f"note posted to {provider_type} ticket {label}")

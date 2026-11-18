@@ -363,7 +363,7 @@ def resolve(*, force_refresh=False):
                           'last_good': remote, 'last_good_at': now})
             fetched = True
         except GitHubError as e:
-            error = str(e)
+            error = e.public_message
             _write_state({'error': error, 'error_at': now,
                           'last_good': state.get('last_good'),
                           'last_good_at': state.get('last_good_at')})

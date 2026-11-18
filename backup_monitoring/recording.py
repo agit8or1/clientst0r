@@ -121,9 +121,9 @@ def poll_connection(connection, now=None):
         jobs = provider.list_jobs()
         runs = provider.list_runs(since)
     except ProviderError as exc:
-        connection.last_poll_status, connection.last_poll_error = 'error', str(exc)[:1000]
+        connection.last_poll_status, connection.last_poll_error = 'error', exc.public_message
         connection.save(update_fields=['last_poll_attempt_at', 'last_poll_status', 'last_poll_error'])
-        return {'ok': False, 'message': str(exc), 'runs': 0}
+        return {'ok': False, 'message': exc.public_message, 'runs': 0}
     except Exception as exc:  # a provider bug must not stop the other connections
         logger.exception('backup poll failed for connection %s', connection.pk)
         # The exception text stays in the server log: it can carry URLs, hostnames

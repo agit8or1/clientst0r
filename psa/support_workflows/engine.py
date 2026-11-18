@@ -215,14 +215,15 @@ def _item(key, label, value, observed_at, now, freshness, source):
             'age_minutes': age, 'fresh': (age is not None and age <= freshness)}
 
 
-_PCT = re.compile(r'(\d{1,3}(?:\.\d+)?)\s*%')
-_SIZE = re.compile(r'(\d+(?:\.\d+)?)\s*(TB|GB|MB)\b', re.I)
+# Bounded quantifiers: alert titles come from outside (ReDoS, CodeQL #678).
+_PCT = re.compile(r'(\d{1,3}(?:\.\d{1,4})?) {0,3}%')
+_SIZE = re.compile(r'(\d{1,9}(?:\.\d{1,4})?) {0,3}(TB|GB|MB)\b', re.I)
 
 
 def _metrics_from_text(text, category):
     """Numbers an alert title carries (e.g. 'C: 4% free (3.2 GB)')."""
     out = {}
-    t = text or ''
+    t = (text or '')[:2000]
     pct = _PCT.search(t)
     if pct:
         value = float(pct.group(1))

@@ -646,8 +646,9 @@ def _reviewed_target(request):
     try:
         return Target(str(body.get('kind', '')), str(body.get('ref', '')),
                       str(body.get('sha', ''))).validate(), body, None
-    except RevisionError as e:
-        return None, body, str(e)
+    except RevisionError:
+        # Input validation: say what is wrong without echoing exception text.
+        return None, body, 'the kind, ref or sha sent is not a valid revision'
 
 
 @login_required

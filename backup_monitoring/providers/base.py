@@ -11,7 +11,14 @@ from typing import List, Optional
 
 
 class ProviderError(Exception):
-    """A provider call failed (network, auth, unexpected response)."""
+    """A provider call failed (network, auth, unexpected response).
+
+    Messages are written by the providers themselves (never exception text),
+    so they are safe to show; callers read ``public_message``."""
+
+    def __init__(self, message='The backup provider call failed.'):
+        super().__init__(message)
+        self.public_message = str(message)[:1000]
 
 
 @dataclass

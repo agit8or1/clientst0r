@@ -7,6 +7,10 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    # A new action release waits a week before Dependabot proposes it, so a
+    # compromised or broken release is usually caught upstream first.
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]

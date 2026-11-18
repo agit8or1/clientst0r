@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.712] - 2026-11-18
+
+### Security
+- **No exception text in responses** (code scanning, stack-trace exposure): Settings → Updates (Apply / Repair with a bad revision, a GitHub error), the Snyk CLI "check now" result, a failed PSA ticket note after a workflow, and backup-monitoring poll errors (shown in the app and the mobile API) now give a fixed message — the exception class at most — and the details go to the server log. GitHub and backup-provider errors keep their own, already-safe wording.
+- **Alert-text parsing in support workflows** uses bounded patterns on at most 2000 characters, so a crafted alert title cannot make it run slowly (polynomial ReDoS).
+- Code-scanning cleanup: the accounting-integration settings form redirects only to a same-site page; Dependabot waits 7 days before proposing a new Actions release; reviewed false positives (Connect's base-URL helper, the nginx WebSocket-only Upgrade header, a test that HS256 tokens are refused) are annotated in place. A full Semgrep scan closed 60 alerts already fixed by earlier releases.
+
 ## [3.17.711] - 2026-11-18
 
 ### Added

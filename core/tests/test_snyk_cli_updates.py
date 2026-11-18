@@ -113,7 +113,9 @@ class CheckVersionsTests(TestCase):
             result = snyk_cli.check_versions()
         self.assertIsNone(result['latest_version'])
         s.refresh_from_db()
-        self.assertIn('offline', s.snyk_cli_check_error)
+        # v3.17.712: the exception class, never its text.
+        self.assertIn('ConnectionError', s.snyk_cli_check_error)
+        self.assertNotIn('offline', s.snyk_cli_check_error)
         self.assertEqual(s.snyk_cli_latest_version, '1.1294.0')
 
 
@@ -219,15 +221,17 @@ class ScheduledTaskTests(TestCase):
                 _registry(exc=TimeoutError('slow')), \
                 mock.patch('core.superuser_alerts.email_superusers') as em:
             out = self._run()
-        self.assertIn('slow', out)
+        self.assertIn('TimeoutError', out)
+        self.assertNotIn('slow', out)
         em.assert_not_called()
-        self.assertIn('slow', SystemSetting.get_settings().snyk_cli_check_error)
+        self.assertIn('TimeoutError', SystemSetting.get_settings().snyk_cli_check_error)
 
     def test_unexpected_exception_never_raises(self):
         _enable_snyk()
         with mock.patch.object(snyk_cli, 'find_command', side_effect=RuntimeError('boom')):
             out = self._run()
-        self.assertIn('failed: boom', out)
+        self.assertIn('failed (RuntimeError)', out)
+        self.assertNotIn('boom', out)
 
     def test_update_found_alerts(self):
         _enable_snyk()

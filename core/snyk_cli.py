@@ -93,7 +93,8 @@ def installed_version(snyk_path):
             timeout=COMMAND_TIMEOUT, env=command_env(snyk_path),
         )
     except Exception as e:
-        return None, f'snyk --version failed: {e}'
+        logger.warning('snyk --version failed', exc_info=True)
+        return None, f'snyk --version could not run ({e.__class__.__name__}). See the server log.'
     if result.returncode != 0:
         return None, f'snyk --version exit code {result.returncode}: {(result.stderr or "").strip()[:300]}'
     match = re.search(r'(\d+\.\d+\.\d+)', result.stdout or '')
@@ -109,7 +110,8 @@ def _latest_from_npm(npm_path):
             timeout=COMMAND_TIMEOUT, env=command_env(npm_path),
         )
     except Exception as e:
-        return None, f'npm view failed: {e}'
+        logger.warning('npm view snyk failed', exc_info=True)
+        return None, f'npm view could not run ({e.__class__.__name__}). See the server log.'
     if result.returncode != 0:
         return None, f'npm view exit code {result.returncode}: {(result.stderr or "").strip()[:300]}'
     version = (result.stdout or '').strip()
@@ -126,7 +128,8 @@ def _latest_from_registry():
         resp.raise_for_status()
         version = resp.json().get('version')
     except Exception as e:
-        return None, f'npm registry lookup failed: {e}'
+        logger.warning('npm registry lookup failed', exc_info=True)
+        return None, f'npm registry lookup failed ({e.__class__.__name__}). See the server log.'
     if not is_valid_version(version):
         return None, f'npm registry returned an unexpected version: {str(version)[:50]!r}'
     return version, None
@@ -264,4 +267,4 @@ def run_scheduled_check():
         return f'up to date ({result["installed_version"]})'
     except Exception as e:
         logger.exception('[snyk_cli] scheduled check failed')
-        return f'failed: {e}'
+        return f'failed ({e.__class__.__name__}). See the server log.'

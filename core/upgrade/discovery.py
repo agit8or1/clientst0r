@@ -73,7 +73,12 @@ INSTALLABLE_SIGNATURES = (SIG_VERIFIED, SIG_PENDING)
 
 
 class GitHubError(Exception):
-    pass
+    """A GitHub call failed. Messages are written here (never raw exception
+    text), so they are shown as they are; callers read ``public_message``."""
+
+    def __init__(self, message='The GitHub request failed.'):
+        super().__init__(message)
+        self.public_message = str(message)[:500]
 
 
 def repo():
@@ -183,7 +188,7 @@ def get_json(url, cache, used, *, normalize=None, timeout=20):
     except requests.ConnectionError:
         raise GitHubError('Cannot connect to GitHub. Check internet access / firewall.')
     except requests.RequestException as e:
-        raise GitHubError(f'GitHub request failed: {e}')
+        raise GitHubError(f'GitHub request failed ({e.__class__.__name__}).')
     if r.status_code == 304 and entry and 'data' in entry:
         return entry['data'], entry.get('next')
     headers = r.headers or {}
@@ -212,7 +217,7 @@ def get_raw(url, timeout=20):
     try:
         r = requests.get(url, headers=None, timeout=timeout)
     except requests.RequestException as e:
-        raise GitHubError(f'GitHub request failed: {e}')
+        raise GitHubError(f'GitHub request failed ({e.__class__.__name__}).')
     if r.status_code == 404:
         return None
     if r.status_code >= 400:

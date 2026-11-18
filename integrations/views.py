@@ -3729,7 +3729,8 @@ def _distributor_form(request, pk):
             request.POST.get('item_mappings') or '')
         if mapping_errors:
             messages.error(request, 'Item mappings not saved: ' + '; '.join(mapping_errors))
-            return redirect(request.path)
+            from core.safe_redirect import safe_next
+            return redirect(safe_next(request, request.path, '/'))
 
         creds = item.get_credentials() or {}
         if client_id:
