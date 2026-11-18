@@ -160,6 +160,7 @@ INSTALLED_APPS = [
     'payments.apps.PaymentsConfig',
     'tax.apps.TaxConfig',
     'connect.apps.ConnectConfig',  # Agit8or Connect (app-to-app); off unless AGIT8OR_CONNECT_ENABLED
+    'api_access.apps.ApiAccessConfig',  # API and webhook network rules (Phase 81)
     'health_score.apps.HealthScoreConfig',
     'onboarding.apps.OnboardingConfig',
 ]
@@ -182,6 +183,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'api_access.enforce.ApiAccessMiddleware',  # API / webhook network rules; web pages untouched
     'core.portal_surface.PortalHostMiddleware',  # optional dedicated portal host name
     'core.csrf_middleware.MultiDomainCsrfViewMiddleware',  # Custom CSRF for multi-domain support
     'django.contrib.auth.middleware.AuthenticationMiddleware',

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Confirm API access mode{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="rules" %}
+<div class="card">
+  <div class="card-header py-2"><h6 class="mb-0">Confirm the new global mode</h6></div>
+  <div class="card-body">
+    <form method="post" action="{% url 'api_access:mode_update' %}">
+      {% csrf_token %}
+      <input type="hidden" name="api_mode" value="{{ new.api_mode }}">
+      <input type="hidden" name="webhook_mode" value="{{ new.webhook_mode }}">
+      <dl class="row">
+        <dt class="col-sm-3">Inbound API</dt><dd class="col-sm-9">{{ labels.api }}</dd>
+        <dt class="col-sm-3">Inbound webhooks</dt><dd class="col-sm-9">{{ labels.webhook }}</dd>
+      </dl>
+      {% include "api_access/_impact.html" %}
+      <button class="btn btn-danger">Apply mode</button>
+      <a class="btn btn-outline-secondary" href="{% url 'api_access:index' %}">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

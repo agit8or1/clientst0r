@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.713] - 2026-11-18
+
+### Added
+- **API Access Control** (Settings → Security → API Access Control, roadmap Phase 81). Network rules for the inbound API and inbound webhooks, checked before any protected operation runs:
+  - IPv4 / IPv6 addresses and CIDR ranges, allow or deny, for the API, webhooks or both; scoped globally or to a customer, an API key, an integration (Rem0te, Agit8or Connect, security vendors, SIEM endpoints, distributors, Stripe, GoCardless, ticket partners) or an endpoint group; optional expiry; enable / disable.
+  - A global mode per surface — Unrestricted, Allowlist only, Denylist or Combined. An explicit deny always wins; once an allowlist applies, anything it does not list is refused; private addresses get no special trust; an unreadable address or a policy that cannot be evaluated is refused whenever a restriction applies.
+  - API keys can be limited to their own networks (checked at authentication; a refused key is not marked as used).
+  - Before saving: your own address, every API key used in the last 90 days that the change would cut off, and a confirmation for high-impact changes. Test any address against the policy, see how your request's client address was read through the trusted proxies, export and import rules (validated as a whole), and review refused requests (folded so a flood writes a handful of rows; no bodies, headers or secrets). Every change is audited and versioned.
+  - Lockout recovery from the server shell only: `manage.py api_access_recover`. See `docs/API_ACCESS_CONTROL.md`.
+  - Existing installs start Unrestricted with no rules, so current API clients and webhooks are unaffected until rules are added.
+
+### Changed
+- Settings → Security: Scan Configuration is now opened from Vulnerability Scans (Settings button), making room for API Access Control.
+
+### Fixed
+- Agit8or Connect rate limits now use the trusted-proxy client address; behind the local nginx every client shared one bucket.
+
 ## [3.17.712] - 2026-11-18
 
 ### Security

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}API Access Control{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="rules" %}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-sliders"></i> Global mode</h6></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'api_access:mode_update' %}" class="row g-2 align-items-end">
+          {% csrf_token %}
+          <div class="col-md-5"><label class="form-label" for="{{ mode_form.api_mode.id_for_label }}">{{ mode_form.api_mode.label }}</label>{{ mode_form.api_mode }}</div>
+          <div class="col-md-5"><label class="form-label" for="{{ mode_form.webhook_mode.id_for_label }}">{{ mode_form.webhook_mode.label }}</label>{{ mode_form.webhook_mode }}</div>
+          <div class="col-md-2"><button class="btn btn-primary w-100">Save</button></div>
+        </form>
+        <dl class="row small mt-3 mb-2">{% for key, text in mode_help %}<dt class="col-sm-3">{% for k, l in mode_choices %}{% if k == key %}{{ l }}{% endif %}{% endfor %}</dt><dd class="col-sm-9 mb-1 text-muted">{{ text }}</dd>{% endfor %}</dl>
+        <p class="small text-muted mb-0">
+          Rules add to authentication, permissions and rate limits; they never grant access. An explicit deny always wins.
+          Once an allowlist applies, any address it does not list is refused. Customer, API key, integration and endpoint-group
+          rules apply in every mode. Private addresses are not trusted automatically. Policy version {{ settings_obj.policy_version }}.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-shield-halved"></i> Last 24 hours</h6></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between"><span>Refused requests</span><strong>{{ denied_24h }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Your address</span><code>{{ your_ip|default:"unknown" }}</code></div>
+        {% if top_sources %}<hr class="my-2"><div class="small text-muted mb-1">Most refused sources</div>
+          {% for s in top_sources %}<div class="d-flex justify-content-between small"><code>{{ s.source_ip|default:"(unreadable)" }}</code><span>{{ s.total }}</span></div>{% endfor %}{% endif %}
+        <a class="small" href="{% url 'api_access:decisions' %}">All refused requests →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header py-2 d-flex align-items-center">
+    <h6 class="mb-0 me-auto"><i class="fas fa-list"></i> Rules <span class="text-muted small">({{ rules|length }})</span></h6>
+    <a class="btn btn-sm btn-primary" href="{% url 'api_access:rule_create' %}"><i class="fas fa-plus"></i> Add rule</a>
+  </div>
+  <div class="card-body py-2 border-bottom">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-12 col-lg-4"><input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Search name or address" aria-label="Search rules"></div>
+      <div class="col-6 col-md-3 col-lg-2"><select class="form-select form-select-sm" name="action" aria-label="Action"><option value="">Allow and deny</option>{% for v, l in actions %}<option value="{{ v }}" {% if f_action == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-3 col-lg-2"><select class="form-select form-select-sm" name="scope" aria-label="Scope"><option value="">Any scope</option>{% for v, l in scopes %}<option value="{{ v }}" {% if f_scope == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-3 col-lg-2"><select class="form-select form-select-sm" name="status" aria-label="Status"><option value="">Any status</option>
+        <option value="active" {% if f_status == 'active' %}selected{% endif %}>Active</option>
+        <option value="disabled" {% if f_status == 'disabled' %}selected{% endif %}>Disabled</option>
+        <option value="expired" {% if f_status == 'expired' %}selected{% endif %}>Expired</option></select></div>
+      <div class="col-6 col-md-3 col-lg-2"><button class="btn btn-sm btn-outline-secondary w-100">Filter</button></div>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead><tr><th>Rule</th><th>Address or range</th><th>Action</th><th>Applies to</th><th>Scope</th><th>Status</th><th>Changed</th><th>Expires</th><th>Matches</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rules %}
+        <tr>
+          <td><a href="{% url 'api_access:rule_edit' r.pk %}">{{ r.name }}</a>{% if r.description %}<div class="small text-muted">{{ r.description }}</div>{% endif %}</td>
+          <td><code>{{ r.network }}</code></td>
+          <td>{% if r.action == 'deny' %}<span class="badge bg-danger">Deny</span>{% else %}<span class="badge bg-success">Allow</span>{% endif %}</td>
+          <td>{{ r.get_surface_display }}</td>
+          <td>{{ r.scope_label }}</td>
+          <td>{% if r.status == 'active' %}<span class="badge bg-primary">Active</span>{% elif r.status == 'expired' %}<span class="badge bg-warning text-dark">Expired</span>{% else %}<span class="badge bg-secondary">Disabled</span>{% endif %}</td>
+          <td class="small text-nowrap"><span title="{{ r.updated_at|date:'Y-m-d H:i' }}">{{ r.updated_at|date:"Y-m-d" }}</span><div class="text-muted">{% if r.updated_by %}{{ r.updated_by }}{% else %}{{ r.created_by|default:"—" }}{% endif %}</div></td>
+          <td class="small">{{ r.expires_at|date:"Y-m-d H:i"|default:"—" }}</td>
+          <td>{{ r.match_count }}{% if r.last_matched_at %}<div class="small text-muted">{{ r.last_matched_at|timesince }} ago</div>{% endif %}</td>
+          <td class="text-end text-nowrap">
+            <form method="post" action="{% url 'api_access:rule_toggle' r.pk %}" class="d-inline">{% csrf_token %}
+              <button class="btn btn-sm btn-outline-secondary" title="{% if r.is_active %}Disable{% else %}Enable{% endif %}" aria-label="{% if r.is_active %}Disable{% else %}Enable{% endif %} {{ r.name }}"><i class="fas {% if r.is_active %}fa-pause{% else %}fa-play{% endif %}"></i></button></form>
+            <form method="post" action="{% url 'api_access:rule_delete' r.pk %}" class="d-inline" data-confirm="Delete rule {{ r.name }}?">{% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger" aria-label="Delete {{ r.name }}"><i class="fas fa-trash"></i></button></form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="text-center text-muted py-4">No rules. API and webhook access is decided by authentication alone{% if settings_obj.api_mode != 'unrestricted' or settings_obj.webhook_mode != 'unrestricted' %} and the global mode above{% endif %}.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted">Match counts are updated about once a minute. Lockout recovery from the server shell: <code>manage.py api_access_recover --unrestrict</code> (see <code>docs/API_ACCESS_CONTROL.md</code>).</div>
+</div>
+{% endblock %}

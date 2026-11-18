@@ -1,0 +1,9 @@
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h4 class="mb-0 me-auto"><i class="fas fa-network-wired"></i> API Access Control</h4>
+  <a class="btn btn-sm {% if active == 'rules' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'api_access:index' %}"><i class="fas fa-list"></i> Rules</a>
+  <a class="btn btn-sm {% if active == 'test' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'api_access:test' %}"><i class="fas fa-vial"></i> Test an address</a>
+  <a class="btn btn-sm {% if active == 'refused' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'api_access:decisions' %}"><i class="fas fa-ban"></i> Refused requests</a>
+  <a class="btn btn-sm {% if active == 'diag' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'api_access:diagnostics' %}"><i class="fas fa-route"></i> Client address</a>
+  <a class="btn btn-sm {% if active == 'import' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'api_access:import' %}"><i class="fas fa-file-import"></i> Import</a>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'api_access:export' %}"><i class="fas fa-file-export"></i> Export</a>
+</div>

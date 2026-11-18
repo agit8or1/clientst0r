@@ -124,6 +124,7 @@ urlpatterns = [
 
     path('settings/security/technician-access/', include('tech_access.urls')),
     path('settings/security/rmm-permissions/', include('rmm_permissions.urls')),
+    path('settings/security/api-access/', include('api_access.urls')),
     # Ticket ↔ paired RMM integration (ticket-rmm-v1): signed requests only.
     path('api/integration/v1/', include('psa_ai.integration_api')),
     # Agit8or Connect (app-to-app): discovery, pairing, token, events and the

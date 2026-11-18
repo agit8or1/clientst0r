@@ -3019,38 +3019,42 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 
 **Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
 
-## Phase 81 — API access control and network restrictions **(L · security)** [planned]
+## Phase 81 — API access control and network restrictions **(L · security)** [in progress]
 
 One policy layer that decides, before any protected API or webhook operation runs, whether a request's
 source address is allowed. It adds to authentication, permissions, rate limits and customer isolation, and
 never replaces them. Ships before any new vendor API or webhook endpoint from Phases 84–86. Audit and design:
 `docs/plans/NOC_SOC_PROGRAM_AUDIT.md` §7.
 
-- **81.1 Policy engine** *(planned)* — IPv4 and IPv6 addresses and CIDR ranges; Unrestricted, Allowlist only,
+- **81.1 Policy engine** *(shipped v3.17.713 — service-account scope follows when service accounts exist; API keys are the credential scope today)* — IPv4 and IPv6 addresses and CIDR ranges; Unrestricted, Allowlist only,
   Denylist and Combined modes; scopes for global, customer, integration, API key, service account and
   endpoint group, with separate inbound-API and webhook policies; expiring temporary rules. An explicit deny
   always wins; once an allowlist applies, anything it does not match is denied. Private addresses get no
   implicit trust. Fails closed when a configured restrictive policy cannot be evaluated.
-- **81.2 Trusted proxies and client-address diagnostics** *(planned — extends the trusted-proxy resolution
-  shipped in `core/client_ip.py`)* — trusted proxy addresses managed in Settings, multi-hop chains, forwarding
+- **81.2 Trusted proxies and client-address diagnostics** *(partial — diagnostic page, documented proxy setup and
+  the Connect rate-limiter fix shipped v3.17.713; trusted proxies managed in Settings planned)* — trusted proxy addresses managed in Settings, multi-hop chains, forwarding
   headers accepted only from a trusted proxy, and a diagnostic page showing the detected address and how the
   chain was read. Reverse-proxy setup documented for Nginx, HAProxy and Cloudflare. The Connect rate limiter
   moves to the same resolver.
-- **81.3 Settings → Security → API Access Control** *(planned)* — rule table (address or range, allow or deny,
+- **81.3 Settings → Security → API Access Control** *(shipped v3.17.713)* — rule table (address or range, allow or deny,
   scope, key or integration, customer, status, owner, last change, expiry, recent matches), add / edit /
   enable / disable / delete, bulk import and export, search and filters, "test an address", effective-policy
   preview before saving, recent denials and rule history.
-- **81.4 API key network restrictions** *(planned)* — allowed sources per key; key expiry, rotation and
+- **81.4 API key network restrictions** *(partial — allowed sources per key shipped v3.17.713; expiry,
+  rotation, read-only / write split, rate, size and concurrency limits planned)* — allowed sources per key; key expiry, rotation and
   revocation; read-only versus write-capable keys; per-key and per-address rate limits; request size and
   concurrency limits. Key secrets never appear in logs or pages.
-- **81.5 Webhook protection** *(planned)* — per-receiver source rules (including vendor ranges that change,
+- **81.5 Webhook protection** *(partial — separate webhook mode and per-receiver source rules shipped
+  v3.17.713; signatures, timestamp window, replay protection, body and rate limits on every receiver planned)* — per-receiver source rules (including vendor ranges that change,
   without silently widening access), signature verification, timestamp window and replay protection, body
   size and rate limits, and a dedicated credential per receiver; source address is never the only check.
-- **81.6 Lockout prevention and recovery** *(planned)* — validation, the administrator's own address and
+- **81.6 Lockout prevention and recovery** *(partial — impact preview, confirmation and the
+  `api_access_recover` command shipped v3.17.713; automatic rollback window planned)* — validation, the administrator's own address and
   whether the current session and integrations would still pass, confirmation for high-impact changes, an
   automatic rollback window for global changes, and a recovery command that needs server access. No
   unauthenticated bypass endpoint.
-- **81.7 Decision log and dashboards** *(planned)* — every decision with time, address, matched rule, key or
+- **81.7 Decision log and dashboards** *(partial — folded refusal log and refused-request dashboard shipped
+  v3.17.713; notifications and the shared event feed planned)* — every decision with time, address, matched rule, key or
   integration, endpoint, customer, reason and policy version, with rate-limited denial logging; dashboards
   for blocked requests, repeat sources, policy violations, unusual key use and integrations broken by a rule;
   notifications for repeated violations; events feed the shared event layer (Phase 82).
@@ -3325,7 +3329,7 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
-| 81 — API access control and network restrictions | L | planned | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
+| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; 81.2 and 81.4–81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
 | 82 — Shared operational event and alert foundation | L | planned | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
 | 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
 | 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |

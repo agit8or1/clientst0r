@@ -54,6 +54,12 @@ class APIKeyAuthentication(authentication.BaseAuthentication):
         if not has_perm_for_org(user, api_key.organization_id, 'api_access'):
             raise exceptions.AuthenticationFailed('Invalid API key')
 
+        # Network rules for this key and its customer (Phase 81). Global,
+        # integration and endpoint-group rules already ran in the middleware.
+        from api_access.enforce import PUBLIC_MESSAGE, check_api_key
+        if not check_api_key(request, api_key).allowed:
+            raise exceptions.PermissionDenied(PUBLIC_MESSAGE)
+
         # Update last used
         api_key.last_used_at = timezone.now()
         api_key.last_used_ip = self.get_client_ip(request)

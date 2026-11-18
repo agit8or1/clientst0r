@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Refused requests — API Access Control{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="refused" %}
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card h-100"><div class="card-header py-2"><h6 class="mb-0">Repeat sources (7 days)</h6></div>
+    <ul class="list-group list-group-flush small">{% for r in repeat %}<li class="list-group-item d-flex justify-content-between"><a href="?ip={{ r.source_ip|urlencode }}"><code>{{ r.source_ip|default:"(unreadable)" }}</code></a><span>{{ r.total }}</span></li>{% empty %}<li class="list-group-item text-muted">None</li>{% endfor %}</ul></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-header py-2"><h6 class="mb-0">API keys refused by network (7 days)</h6></div>
+    <ul class="list-group list-group-flush small">{% for k in by_key %}<li class="list-group-item d-flex justify-content-between"><code>{{ k.api_key_prefix }}…</code><span>{{ k.total }}</span></li>{% empty %}<li class="list-group-item text-muted">None</li>{% endfor %}</ul></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-header py-2"><h6 class="mb-0">By endpoint group (7 days)</h6></div>
+    <ul class="list-group list-group-flush small">{% for g in by_group %}<li class="list-group-item d-flex justify-content-between"><span>{{ g.label }}</span><span>{{ g.total }}</span></li>{% empty %}<li class="list-group-item text-muted">None</li>{% endfor %}</ul>
+    <div class="card-footer small text-muted">Refusals on webhook and integration groups usually mean a sender's address changed or a rule is missing.</div></div></div>
+</div>
+<div class="card">
+  <div class="card-header py-2 d-flex flex-wrap gap-2 align-items-center">
+    <h6 class="mb-0 me-auto">Refused requests</h6>
+    <form method="get" class="d-flex gap-2">
+      <input class="form-control form-control-sm" name="ip" value="{{ ip }}" placeholder="Source address" aria-label="Source address">
+      <select class="form-select form-select-sm" name="reason" aria-label="Reason"><option value="">Any reason</option>{% for k, v in reasons.items %}<option value="{{ k }}" {% if reason == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+      <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>First seen</th><th>Last seen</th><th>Count</th><th>Source</th><th>Surface</th><th>Endpoint</th><th>Key</th><th>Customer</th><th>Reason</th><th>Rule</th><th>Policy</th></tr></thead>
+    <tbody>
+    {% for d in page %}
+      <tr><td class="text-nowrap small">{{ d.created_at|date:"Y-m-d H:i:s" }}</td><td>{{ d.last_seen_at|date:"H:i:s" }}</td><td>{{ d.count }}{% if d.count > 1 %}+{% endif %}</td>
+        <td><code>{{ d.source_ip|default:"(unreadable)" }}</code></td><td>{{ d.get_surface_display }}</td>
+        <td><span class="small">{{ d.method }} <code>{{ d.path|truncatechars:48 }}</code></span><div class="small text-muted">{{ d.group_label }}{% if d.integration %} · {{ d.integration_label }}{% endif %}</div></td>
+        <td>{% if d.api_key_prefix %}<code>{{ d.api_key_prefix }}…</code>{% else %}—{% endif %}</td>
+        <td>{{ d.organization|default:"—" }}</td>
+        <td>{{ d.reason_label }}{% if d.detail %} <span class="text-muted small">({{ d.detail }})</span>{% endif %}</td>
+        <td>{% if d.rule %}<a href="{% url 'api_access:rule_edit' d.rule.pk %}">{{ d.rule_name }}</a>{% else %}{{ d.rule_name|default:"—" }}{% endif %}</td>
+        <td>v{{ d.policy_version }}</td></tr>
+    {% empty %}<tr><td colspan="11" class="text-center text-muted py-4">No refused requests.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if page.has_other_pages %}<div class="card-footer d-flex gap-2">
+    {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?page={{ page.previous_page_number }}&ip={{ ip|urlencode }}&reason={{ reason }}">Newer</a>{% endif %}
+    <span class="small align-self-center">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?page={{ page.next_page_number }}&ip={{ ip|urlencode }}&reason={{ reason }}">Older</a>{% endif %}</div>{% endif %}
+  <div class="card-footer small text-muted">Repeats from one source for the same reason within a minute share a row; counts are approximate during floods. Request bodies, headers and key secrets are never stored.</div>
+</div>
+{% endblock %}

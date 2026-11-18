@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Test an address — API Access Control{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="test" %}
+<div class="card mb-3">
+  <div class="card-header py-2"><h6 class="mb-0">Test an address against the saved policy</h6></div>
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label" for="{{ form.ip.id_for_label }}">{{ form.ip.label }}</label>{{ form.ip }}{{ form.ip.errors }}</div>
+      <div class="col-md-4"><label class="form-label" for="{{ form.group.id_for_label }}">{{ form.group.label }}</label>{{ form.group }}</div>
+      <div class="col-md-3"><label class="form-label" for="{{ form.api_key.id_for_label }}">{{ form.api_key.label }}</label>{{ form.api_key }}</div>
+      <div class="col-md-2"><button class="btn btn-primary w-100">Test</button></div>
+    </form>
+    <div class="form-text">Your address as this server sees it: <code>{{ your_ip|default:"unknown" }}</code>. Choosing an API key also applies its customer's rules.</div>
+  </div>
+</div>
+{% if result %}
+<div class="card">
+  <div class="card-header py-2 d-flex align-items-center gap-2">
+    <h6 class="mb-0 me-auto"><code>{{ result.ip }}</code> → {{ result.group_label }}</h6>
+    {% if result.decision.allowed %}<span class="badge bg-success fs-6">Allowed</span>{% else %}<span class="badge bg-danger fs-6">Refused</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <p class="mb-2">Global mode for this surface: <strong>{{ result.mode }}</strong>.
+      {% if not result.decision.allowed %}Reason: <strong>{{ result.reason }}</strong>{% if result.decision.rule %} — rule <a href="{% url 'api_access:rule_edit' result.decision.rule.id %}">{{ result.decision.rule.name }}</a>{% endif %}{% if result.decision.detail %} ({{ result.decision.detail }} scope){% endif %}.{% endif %}
+      {% if result.decision.matched %}Allowed by: {% for r in result.decision.matched %}<a href="{% url 'api_access:rule_edit' r.id %}">{{ r.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
+      {% if result.decision.allowed and not result.decision.matched %}No restriction applies; authentication and permissions decide.{% endif %}</p>
+    {% if result.applicable %}
+    <table class="table table-sm mb-0"><thead><tr><th>Rule</th><th>Range</th><th>Action</th><th>Scope</th><th>Contains address</th></tr></thead><tbody>
+      {% for row in result.applicable %}<tr><td><a href="{% url 'api_access:rule_edit' row.rule.id %}">{{ row.rule.name }}</a></td><td><code>{{ row.rule.network }}</code></td><td>{{ row.rule.action }}</td><td>{{ row.rule.scope }}</td><td>{% if row.contains %}<span class="badge bg-info text-dark">Yes</span>{% else %}No{% endif %}{% if row.expired %} <span class="badge bg-warning text-dark">expired</span>{% endif %}{% if row.ignored %} <span class="badge bg-secondary">not used in this mode</span>{% endif %}</td></tr>{% endfor %}
+    </tbody></table>
+    <div class="form-text">Rules listed apply to this request's scope; global rules count only when the mode uses them, and expired rules are ignored.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -53,6 +53,7 @@ ALLOWED_UNLINKED = {
     'docs:agreement_list': 'reached from docs:agreement_manage',
     'docs:ai_assistant': 'reached from docs:document_list',
     'docs:category_list': 'reached from psa:kb_browse',
+    'docs:customer_group_list': 'reached from psa:kb_browse (Customer groups button) and the global KB editor',
     'docs:diagram_template_list': 'reached from docs:diagram_list',
     'docs:document_import': 'reached from docs:document_list',
     'docs:template_list': 'reached from docs:document_list',

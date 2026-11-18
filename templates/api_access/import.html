@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Import rules — API Access Control{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="import" %}
+{% if errors %}<div class="alert alert-danger"><strong>Nothing was imported.</strong><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{% if parsed %}
+<div class="card mb-3">
+  <div class="card-header py-2"><h6 class="mb-0">{{ parsed.rules|length }} rule{{ parsed.rules|length|pluralize }} validated — nothing saved yet</h6></div>
+  <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Name</th><th>Range</th><th>Action</th><th>Applies to</th><th>Scope</th><th>Active</th><th>Expires</th></tr></thead><tbody>
+    {% for r in parsed.rules %}<tr><td>{{ r.name }}</td><td><code>{{ r.network }}</code></td><td>{{ r.get_action_display }}</td><td>{{ r.get_surface_display }}</td><td>{{ r.scope_label }}</td><td>{{ r.is_active|yesno:"Yes,No" }}</td><td>{{ r.expires_at|date:"Y-m-d H:i"|default:"—" }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="card-body">
+    <form method="post">{% csrf_token %}<input type="hidden" name="apply_saved" value="1">
+      {% if parsed.preview.high_impact %}{% include "api_access/_impact.html" with preview=parsed.preview %}{% endif %}
+      <button class="btn btn-primary">Add these rules</button>
+      <a class="btn btn-outline-secondary" href="{% url 'api_access:index' %}">Cancel</a>
+    </form>
+    <div class="form-text">Imported rules are added; existing rules are not changed or removed.</div>
+  </div>
+</div>
+{% endif %}
+<div class="card">
+  <div class="card-header py-2"><h6 class="mb-0">Upload a rules file</h6></div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+      <div class="col-md-8"><label class="form-label" for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>{{ form.file }}{{ form.file.errors }}</div>
+      <div class="col-md-4"><button class="btn btn-outline-primary w-100">Validate</button></div>
+    </form>
+    <div class="form-text">The file is the JSON produced by Export (at most 1000 rules, 512 KB). Customer rules match by customer name and API key rules by key prefix; the whole file is refused if any rule is invalid.</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{% if creating %}Add API access rule{% else %}Edit {{ rule.name }}{% endif %}{% endblock %}
+{% block content %}
+{% include "api_access/_subnav.html" with active="rules" %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header py-2"><h6 class="mb-0">{% if creating %}Add rule{% else %}Edit rule{% endif %}</h6></div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label" for="{{ form.name.id_for_label }}">Rule name</label>{{ form.name }}{{ form.name.errors }}</div>
+            <div class="col-md-6"><label class="form-label" for="{{ form.network.id_for_label }}">{{ form.network.label }}</label>{{ form.network }}{{ form.network.errors }}
+              <div class="form-text">One address (IPv4 or IPv6) or a CIDR range. Host bits are dropped: 10.0.0.5/24 means 10.0.0.0/24.</div></div>
+            <div class="col-md-4"><label class="form-label" for="{{ form.action.id_for_label }}">Action</label>{{ form.action }}</div>
+            <div class="col-md-4"><label class="form-label" for="{{ form.surface.id_for_label }}">Applies to</label>{{ form.surface }}</div>
+            <div class="col-md-4"><label class="form-label" for="{{ form.scope.id_for_label }}">Scope</label>{{ form.scope }}</div>
+            <div class="col-md-6 scope-field" data-scope="customer"><label class="form-label" for="{{ form.organization.id_for_label }}">Customer</label>{{ form.organization }}{{ form.organization.errors }}
+              <div class="form-text">Applies to API keys that belong to this customer.</div></div>
+            <div class="col-md-6 scope-field" data-scope="api_key"><label class="form-label" for="{{ form.api_key.id_for_label }}">API key</label>{{ form.api_key }}{{ form.api_key.errors }}</div>
+            <div class="col-md-6 scope-field" data-scope="integration endpoint_group"><label class="form-label" for="{{ form.target.id_for_label }}">{{ form.target.label }}</label>{{ form.target }}{{ form.target.errors }}</div>
+            <div class="col-md-6"><label class="form-label" for="{{ form.expires_at.id_for_label }}">Expires (optional)</label>{{ form.expires_at }}{{ form.expires_at.errors }}
+              <div class="form-text">Temporary access: the rule stops applying at this time (server time zone).</div></div>
+            <div class="col-12"><label class="form-label" for="{{ form.description.id_for_label }}">Description</label>{{ form.description }}</div>
+            <div class="col-12 form-check ms-2">{{ form.is_active }} <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label></div>
+          </div>
+          {% if preview and preview.high_impact %}<div class="mt-3">{% include "api_access/_impact.html" %}</div>{% endif %}
+          <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-primary">{% if preview and preview.high_impact %}Save anyway{% else %}Save rule{% endif %}</button>
+            <a class="btn btn-outline-secondary" href="{% url 'api_access:index' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header py-2"><h6 class="mb-0">How rules combine</h6></div>
+      <div class="card-body small">
+        <ol class="ps-3 mb-0">
+          <li>A matching <strong>deny</strong> rule always refuses the request.</li>
+          <li>Each scope that has <strong>allow</strong> rules for the request is an allowlist: the address must be in one of them.</li>
+          <li>Global rules follow the global mode; scoped rules always apply.</li>
+          <li>Authentication and permissions are still checked afterwards.</li>
+        </ol>
+      </div>
+    </div>
+    {% if history %}
+    <div class="card">
+      <div class="card-header py-2"><h6 class="mb-0">Change history</h6></div>
+      <ul class="list-group list-group-flush small">
+        {% for h in history %}<li class="list-group-item"><div>{{ h.description }}</div><div class="text-muted">{{ h.timestamp|date:"Y-m-d H:i" }} · {{ h.username|default:h.user|default:"system" }}</div></li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var scope = document.getElementById('{{ form.scope.id_for_label }}');
+  function sync() {
+    document.querySelectorAll('.scope-field').forEach(function (el) {
+      el.hidden = el.dataset.scope.split(' ').indexOf(scope.value) === -1;
+    });
+  }
+  scope.addEventListener('change', sync); sync();
+})();
+</script>
+{% endblock %}

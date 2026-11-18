@@ -1,0 +1,20 @@
+{# Impact preview: what the proposed change would refuse. #}
+<div class="alert alert-warning">
+  <h6 class="alert-heading"><i class="fas fa-triangle-exclamation"></i> Review the impact before saving</h6>
+  <ul class="mb-2">
+    <li>Your address <code>{{ preview.viewer.ip|default:"(unknown)" }}</code> calling the REST API:
+      {% if preview.viewer.after %}<span class="badge bg-success">still allowed</span>{% else %}<span class="badge bg-danger">refused</span> {{ preview.viewer.reason }}{% endif %}
+      <span class="text-muted small">(web pages are not affected by these rules)</span></li>
+    {% if preview.webhook_restrictive %}<li>Webhook senders not on the allowlist will be refused. Check each vendor's published source ranges first.</li>{% endif %}
+    {% if preview.keys %}
+    <li>{{ preview.keys|length }} API key{{ preview.keys|length|pluralize }} used in the last 90 days would be refused from the address{{ preview.keys|length|pluralize:"es" }} they last used:
+      <table class="table table-sm mt-2 mb-0"><thead><tr><th>Key</th><th>Customer</th><th>Last address</th><th>Last used</th></tr></thead><tbody>
+      {% for k in preview.keys %}<tr><td>{{ k.name }} <code>{{ k.prefix }}…</code></td><td>{{ k.organization }}</td><td><code>{{ k.ip }}</code></td><td>{{ k.last_used_at|date:"Y-m-d H:i" }}</td></tr>{% endfor %}
+      </tbody></table></li>
+    {% endif %}
+  </ul>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="confirm" value="1" id="confirm-impact" required>
+    <label class="form-check-label" for="confirm-impact">I understand this can interrupt the integrations listed above.</label>
+  </div>
+</div>

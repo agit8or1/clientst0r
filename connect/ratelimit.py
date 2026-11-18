@@ -30,4 +30,9 @@ def hit(bucket: str, key: str = '') -> bool:
 
 
 def client_ip(request) -> str:
-    return request.META.get('REMOTE_ADDR', '') or 'unknown'
+    """The client address, read through the trusted-proxy resolver.
+
+    REMOTE_ADDR alone is empty behind the local nginx socket (and is the
+    proxy behind a TCP proxy), which put every client in one bucket."""
+    from core.client_ip import get_client_ip
+    return get_client_ip(request) or 'unknown'

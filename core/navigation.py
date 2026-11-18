@@ -832,8 +832,13 @@ SECTIONS = (
             keywords='geo geoip geo-blocking geoblock country allowlist blocklist ip rules block', also=('core:firewall_ip_rules', 'core:firewall_country_rules',
                                                      'core:firewall_logs')),
         Tab(_('Fail2ban'), 'core:fail2ban_status', 'fa-ban', gate=_superuser),
-        Tab(_('Vulnerability Scans'), 'core:snyk_scans', 'fa-bug', gate=_superuser, keywords='snyk'),
-        Tab(_('Scan Configuration'), 'core:settings_snyk', 'fa-cog', gate=_superuser, keywords='snyk'),
+        Tab(_('API Access Control'), 'api_access:index', 'fa-network-wired', gate=_superuser,
+            keywords='api ip allowlist denylist cidr ipv6 webhook network restriction trusted proxy x-forwarded-for',
+            also=('api_access:rule_create', 'api_access:rule_edit', 'api_access:test',
+                  'api_access:decisions', 'api_access:diagnostics', 'api_access:import')),
+        # Scan Configuration is reached from the Vulnerability Scans page.
+        Tab(_('Vulnerability Scans'), 'core:snyk_scans', 'fa-bug', gate=_superuser,
+            keywords='snyk scan configuration', also=('core:settings_snyk',)),
     )),
     Section('settings_integrations', 'settings', _('Integrations'), icon='fa-plug', render_tabs=False, tabs=(
         Tab(_('Integrations'), 'integrations:integration_list', 'fa-plug', gate=_superuser,
