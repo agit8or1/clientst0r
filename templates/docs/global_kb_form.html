@@ -121,7 +121,7 @@
     <div class="col-md-10 offset-md-1">
         <div class="card">
             <div class="card-header">
-                <h3 class="mb-0"><i class="fas fa-book"></i> {{ action }} Global KB Article</h3>
+                <h3 class="mb-0"><i class="fas fa-book"></i> {{ action }} KB Article</h3>
             </div>
             <div class="card-body">
                 <form method="post" id="document-form">
@@ -151,6 +151,17 @@
                             <small class="form-text text-muted">HTML editor preserves copy-paste formatting</small>
                         </div>
                     </div>
+
+                    {% if form.scope %}
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="kb-scope" class="form-label fw-semibold"><i class="fas fa-globe"></i> {{ form.scope.label }}</label>
+                            {{ form.scope }}
+                            {% if form.scope.errors %}<div class="invalid-feedback d-block">{{ form.scope.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">{{ form.scope.help_text }}</small>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <div class="row">
                         <div class="col-md-8 mb-3">

@@ -943,6 +943,43 @@ def _apply_make_global(form, document):
     return True
 
 
+def _kb_scope_orgs():
+    from core.models import Organization
+    return Organization.objects.filter(is_active=True).order_by('name')
+
+
+def _apply_kb_scope(form, document):
+    """Global KB editor: a customer picked under Scope moves the article out of
+    the global KB into that customer's documentation. Returns the customer, or
+    None when it stays global. The slug must be unique in that customer;
+    categories of another customer do not follow."""
+    choice = form.cleaned_data.get('scope') if 'scope' in form.fields else None
+    if not choice or choice == 'global':
+        document.is_global = True
+        return None
+    from core.models import Organization
+    org = Organization.objects.filter(pk=choice).first()
+    if org is None:
+        document.is_global = True
+        return None
+    max_len = Document._meta.get_field('slug').max_length
+    base = (document.slug or slugify(document.title) or 'article')[:max_len - 6]
+    slug, n = base, 2
+    while Document.objects.exclude(pk=document.pk).filter(organization=org, slug=slug).exists():
+        slug, n = f'{base}-{n}', n + 1
+    document.slug = slug
+    document.is_global = False
+    document.organization = org
+    if document.category_id and document.category.organization_id not in (None, org.pk):
+        document.category = None
+    return org
+
+
+def _finish_kb_scope(document, org):
+    """After save_m2m: drop tags that belong to another customer."""
+    document.tags.remove(*document.tags.exclude(organization=org))
+
+
 def _finish_make_global(document):
     """After save_m2m: customer tags do not follow the article into the
     global KB."""
@@ -1117,7 +1154,7 @@ def global_kb_create(request):
     initial_data.setdefault('is_client_visible', True)
     may_publish = can_publish(request.user, Document(organization=org, is_global=True))
     form_kwargs = dict(organization=org, include_global_categories=True,
-                       can_publish=may_publish, global_article=True)
+                       can_publish=may_publish, global_article=True, scope_orgs=_kb_scope_orgs())
     if request.method == 'POST':
         form = DocumentForm(request.POST, **form_kwargs)
         if form.is_valid():
@@ -1128,15 +1165,22 @@ def global_kb_create(request):
             document.created_by = request.user
             document.last_modified_by = request.user
             _link_source_template(request, org, document, any_org=True)
+            if not document.slug:
+                document.slug = slugify(document.title)
+            scoped = _apply_kb_scope(form, document)
             note = apply_publish_rules(
                 document, request.user,
                 requested_publish=form.cleaned_data.get('is_published'),
                 was_live=False)
             document.save()
             form.save_m2m()
-            messages.success(request, f"Global KB article '{document.title}' created successfully.")
             if note:
                 messages.info(request, note)
+            if scoped:
+                _finish_kb_scope(document, scoped)
+                messages.success(request, f"Article '{document.title}' created for {scoped.name} only.")
+                return redirect('docs:document_detail', slug=document.slug)
+            messages.success(request, f"Global KB article '{document.title}' created successfully.")
             return redirect('docs:global_kb_detail', slug=document.slug)
     else:
         form = DocumentForm(initial=initial_data, **form_kwargs)
@@ -1161,23 +1205,29 @@ def global_kb_edit(request, slug):
     document = get_object_or_404(Document, slug=slug, is_global=True)
     was_live = document.is_live
     form_kwargs = dict(organization=document.organization, include_global_categories=True,
-                       can_publish=can_publish(request.user, document), global_article=True)
+                       can_publish=can_publish(request.user, document), global_article=True,
+                       scope_orgs=_kb_scope_orgs())
 
     if request.method == 'POST':
         form = DocumentForm(request.POST, instance=document, **form_kwargs)
         if form.is_valid():
             document = form.save(commit=False)
-            document.is_global = True  # Ensure it stays global
             document.last_modified_by = request.user
+            scoped = _apply_kb_scope(form, document)  # stays global unless a customer was picked
             note = apply_publish_rules(
                 document, request.user,
                 requested_publish=form.cleaned_data.get('is_published'),
                 was_live=was_live)
             document.save()
             form.save_m2m()
-            messages.success(request, f"Global KB article '{document.title}' updated successfully.")
             if note:
                 messages.info(request, note)
+            if scoped:
+                _finish_kb_scope(document, scoped)
+                messages.success(request, f"'{document.title}' is now {scoped.name}'s only; it left the "
+                                          'global KB.')
+                return redirect('docs:document_detail', slug=document.slug)
+            messages.success(request, f"Global KB article '{document.title}' updated successfully.")
             return redirect('docs:global_kb_detail', slug=document.slug)
     else:
         form = DocumentForm(instance=document, **form_kwargs)

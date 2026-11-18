@@ -61,7 +61,18 @@ class DocumentForm(forms.ModelForm):
         # Offer "Global KB article" on customer documents to users who may
         # edit global KB articles (kb_edit_articles).
         can_make_global = kwargs.pop('can_make_global', False)
+        # Global KB editor: "Global -- every customer" or one customer.
+        scope_orgs = kwargs.pop('scope_orgs', None)
         super().__init__(*args, **kwargs)
+
+        if scope_orgs is not None:
+            self.fields['scope'] = forms.ChoiceField(
+                label='Scope', initial='global', required=False,
+                choices=[('global', 'Global — every customer')]
+                        + [(str(o.pk), f'Only {o.name}') for o in scope_orgs],
+                help_text='Global articles are shared with every customer. Pick a customer to '
+                          'make this article theirs only.',
+                widget=forms.Select(attrs={'class': 'form-select', 'id': 'kb-scope'}))
 
         if can_make_global and not global_article and not getattr(self.instance, 'is_global', False):
             self.fields['make_global'] = forms.BooleanField(

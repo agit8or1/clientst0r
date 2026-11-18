@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.710] - 2026-11-18
+
+### Added
+- **Scope on the Knowledge Base editor.** Creating or editing an article from Knowledge Base now has a **Scope** box: **Global — every customer** (the default) or **Only <customer>**. Picking a customer moves the article out of the global KB into that customer's documentation (its slug is renamed if that customer already uses it; another customer's category and tags are dropped). Before, the editor only said "Global KB Article" in its title and had no way to change it.
+
 ## [3.17.709] - 2026-11-18
 
 ### Added

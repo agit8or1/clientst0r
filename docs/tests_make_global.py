@@ -90,3 +90,67 @@ class MakeGlobalTests(_Base):
         self.assertIn('Save changes', html)
         self.assertIn('dangerouslyPasteHTML(bodyTextarea.value', html)
         self.assertNotIn('clipboard.convert(bodyTextarea.value)', html)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class KBScopeTests(_Base):
+    """v3.17.710: the Knowledge Base editor (global KB create / edit) has a
+    Scope: Global -- every customer, or one customer only."""
+
+    def _global(self, slug='kb-scope'):
+        return Document.objects.create(organization=self.other_org, title='Scoped', slug=slug,
+                                       body='<p>b</p>', content_type='html', is_published=True,
+                                       is_global=True, is_client_visible=True)
+
+    def _data(self, doc=None, **extra):
+        data = {'title': doc.title if doc else 'New KB', 'body': '<p>b</p>', 'content_type': 'html',
+                'is_published': 'on', 'review_interval_days': 90, 'kb_visibility_shown': '1',
+                'is_client_visible': 'on'}
+        data.update(extra)
+        return data
+
+    def test_editor_shows_scope_defaulting_to_global(self):
+        doc = self._global()
+        r = self.client_for(self.staff).get(f'/docs/kb/{doc.slug}/edit/')
+        self.assertEqual(r.status_code, 200)
+        form = r.context['form']
+        self.assertIn('scope', form.fields)
+        self.assertEqual(form['scope'].value(), 'global')
+        self.assertContains(r, 'Global — every customer')
+        self.assertContains(r, f'Only {self.org.name}')
+
+    def test_global_stays_global(self):
+        doc = self._global()
+        c = self.client_for(self.staff)
+        c.post(f'/docs/kb/{doc.slug}/edit/', self._data(doc, scope='global'))
+        doc.refresh_from_db()
+        self.assertTrue(doc.is_global)
+
+    def test_missing_scope_keeps_it_global(self):
+        doc = self._global()
+        self.client_for(self.staff).post(f'/docs/kb/{doc.slug}/edit/', self._data(doc))
+        doc.refresh_from_db()
+        self.assertTrue(doc.is_global)
+
+    def test_pick_a_customer_moves_it_out_of_the_global_kb(self):
+        doc = self._global()
+        Document.objects.create(organization=self.org, title='Clash', slug=doc.slug, body='<p>x</p>')
+        r = self.client_for(self.staff).post(f'/docs/kb/{doc.slug}/edit/',
+                                             self._data(doc, scope=str(self.org.pk)))
+        doc.refresh_from_db()
+        self.assertFalse(doc.is_global)
+        self.assertEqual(doc.organization_id, self.org.pk)
+        self.assertEqual(doc.slug, 'kb-scope-2')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(f'/docs/{doc.slug}/', r['Location'])
+
+    def test_create_for_one_customer(self):
+        r = self.client_for(self.staff).post('/docs/kb/create/', self._data(scope=str(self.org.pk)))
+        self.assertEqual(r.status_code, 302, getattr(r, 'context', None) and r.context['form'].errors)
+        doc = Document.objects.get(title='New KB')
+        self.assertFalse(doc.is_global)
+        self.assertEqual(doc.organization_id, self.org.pk)
+
+    def test_create_global_by_default(self):
+        self.client_for(self.staff).post('/docs/kb/create/', self._data(scope='global'))
+        self.assertTrue(Document.objects.get(title='New KB').is_global)
