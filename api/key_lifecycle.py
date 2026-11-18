@@ -67,6 +67,14 @@ def parse_rate(value):
     return int(value)
 
 
+def parse_cert(value):
+    from api_access.mtls import normalize_fingerprint
+    try:
+        return normalize_fingerprint(value)
+    except ValueError as exc:
+        raise ValidationError(str(exc))
+
+
 def key_sources(key):
     from api_access.models import ApiAccessRule as R
     return sorted(R.objects.filter(scope=R.SCOPE_API_KEY, api_key=key, action=R.ACTION_ALLOW,
@@ -123,8 +131,10 @@ def rotate(key, user, grace_hours):
                                                name=key.name, role=key.role, scope=key.scope)
         new_key.expires_at = key.expires_at
         new_key.rate_limit_per_minute = key.rate_limit_per_minute
+        new_key.client_cert_sha256 = key.client_cert_sha256
         new_key.rotated_from = key
-        new_key.save(update_fields=['expires_at', 'rate_limit_per_minute', 'rotated_from'])
+        new_key.save(update_fields=['expires_at', 'rate_limit_per_minute', 'client_cert_sha256',
+                                    'rotated_from'])
         rules = list(R.objects.filter(scope=R.SCOPE_API_KEY, api_key=key))
         for rule in rules:
             rule.pk = None

@@ -3019,7 +3019,7 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 
 **Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
 
-## Phase 81 — API access control and network restrictions **(L · security)** [in progress]
+## Phase 81 — API access control and network restrictions **(L · security)** [shipped — v3.17.718]
 
 One policy layer that decides, before any protected API or webhook operation runs, whether a request's
 source address is allowed. It adds to authentication, permissions, rate limits and customer isolation, and
@@ -3040,19 +3040,22 @@ never replaces them. Ships before any new vendor API or webhook endpoint from Ph
   scope, key or integration, customer, status, owner, last change, expiry, recent matches), add / edit /
   enable / disable / delete, bulk import and export, search and filters, "test an address", effective-policy
   preview before saving, recent denials and rule history.
-- **81.4 API key network restrictions** *(partial — allowed sources per key shipped v3.17.713; set on the key,
+- **81.4 API key network restrictions** *(shipped — allowed sources per key v3.17.713; set on the key,
   expiry, rotation with a grace period, per-key and per-address rate limits and request size limits shipped
-  v3.17.714; read-only / write split already enforced by key levels since v3.17.618; concurrency limits
-  planned)* — allowed sources per key; key expiry, rotation and
+  v3.17.714; read-only / write split already enforced by key levels since v3.17.618; client certificate pinning
+  v3.17.718. Concurrency limits deferred: the single-host server runs four single-request workers with no
+  shared cache, so it cannot exceed four requests in flight and a per-key count could not be enforced across
+  workers — revisit with a shared cache)* — allowed sources per key; key expiry, rotation and
   revocation; read-only versus write-capable keys; per-key and per-address rate limits; request size and
   concurrency limits. Key secrets never appear in logs or pages.
-- **81.5 Webhook protection** *(partial — separate webhook mode and per-receiver source rules shipped
+- **81.5 Webhook protection** *(shipped — separate webhook mode and per-receiver source rules shipped
   v3.17.713; webhook rate and body-size limits shipped v3.17.714; signed timestamps, replay protection and
   body limits on the security vendor, SIEM, distributor and ticket-partner receivers, signatures required by
   default for new vendor and SIEM receivers, and distributor signatures enforced shipped v3.17.716; the
   share-bound partner signature required once a partner has used it, and a signed, single-use
-  emergency-restart call shipped v3.17.717; per-connection payment event de-duplication and a GoCardless
-  freshness check planned)* — per-receiver source rules (including vendor ranges that change,
+  emergency-restart call shipped v3.17.717. Reviewed, no change needed: payment events stay de-duplicated
+  per provider (event ids are unique per provider, so two connections receiving one event must process it once),
+  and GoCardless batches need no freshness window because processed event ids are kept permanently)* — per-receiver source rules (including vendor ranges that change,
   without silently widening access), signature verification, timestamp window and replay protection, body
   size and rate limits, and a dedicated credential per receiver; source address is never the only check.
 - **81.6 Lockout prevention and recovery** *(shipped — impact preview, confirmation and the
@@ -3060,13 +3063,13 @@ never replaces them. Ships before any new vendor API or webhook endpoint from Ph
   whether the current session and integrations would still pass, confirmation for high-impact changes, an
   automatic rollback window for global changes, and a recovery command that needs server access. No
   unauthenticated bypass endpoint.
-- **81.7 Decision log and dashboards** *(partial — folded refusal log and refused-request dashboard shipped
-  v3.17.713; repeat-source e-mail and system warnings, and retention pruning shipped v3.17.717; the shared
-  event feed arrives with Phase 82)* — every decision with time, address, matched rule, key or
+- **81.7 Decision log and dashboards** *(shipped — folded refusal log and refused-request dashboard
+  v3.17.713; repeat-source e-mail and system warnings, and retention pruning v3.17.717; feeding the shared
+  event layer moves to Phase 82, which builds that layer)* — every decision with time, address, matched rule, key or
   integration, endpoint, customer, reason and policy version, with rate-limited denial logging; dashboards
   for blocked requests, repeat sources, policy violations, unusual key use and integrations broken by a rule;
   notifications for repeated violations; events feed the shared event layer (Phase 82).
-- **81.8 Optional mutual TLS** *(planned)* — for high-security integrations, terminated at the reverse proxy
+- **81.8 Optional mutual TLS** *(shipped v3.17.718)* — for high-security integrations, terminated at the reverse proxy
   with the verified client identity passed only from a trusted proxy.
 
 Existing installs start Unrestricted: current API clients keep working until an administrator tightens a
@@ -3337,7 +3340,7 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
-| 81 — API access control and network restrictions | L | in progress (81.1 and 81.3 shipped v3.17.713; key lifecycle and address limits v3.17.714; 81.2 trusted proxies and 81.5 webhook protection v3.17.716; 81.6 rollback window and 81.7 notifications v3.17.717; 81.4, 81.5, 81.7 partial) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
+| 81 — API access control and network restrictions | L | shipped v3.17.713–718 (concurrency limits deferred until a shared cache; event-layer feed with Phase 82) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
 | 82 — Shared operational event and alert foundation | L | planned | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
 | 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
 | 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |

@@ -17,6 +17,14 @@
     <small class="form-text text-muted">Optional, on top of the standard API limits.</small>
   </div>
   <div class="col-12">
+    <label for="client_cert_sha256" class="form-label">Required client certificate <span class="text-muted small">(optional, mutual TLS)</span></label>
+    <input type="text" class="form-control font-monospace" id="client_cert_sha256" name="client_cert_sha256" maxlength="110" value="{{ cert|default:'' }}" placeholder="SHA-256 fingerprint, e.g. 3F:A2:…">
+    <small class="form-text text-muted">
+      When set, this key only works with this client certificate, verified by your reverse proxy (see the API Access Control guide).
+      {% if your_cert %}Your connection presents <code>{{ your_cert }}</code>.{% endif %}
+    </small>
+  </div>
+  <div class="col-12">
     <label for="allowed_sources" class="form-label">Allowed sources</label>
     <textarea class="form-control font-monospace" id="allowed_sources" name="allowed_sources" rows="4" placeholder="192.168.22.10&#10;10.0.0.0/24&#10;2001:db8:1234::/48">{{ sources_text|default:'' }}</textarea>
     <small class="form-text text-muted">

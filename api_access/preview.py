@@ -135,6 +135,7 @@ def explain_client_address(request):
         'real_ip': real_ip,
         'trusted_proxies': [str(n) for n in networks],
         'configured_proxies': [str(n) for n in C.configured_networks()],
+        'client_cert': _client_cert(request),
         'trusted_source': 'TRUSTED_PROXY_CIDRS' if getattr(dj_settings, 'TRUSTED_PROXY_CIDRS', None) else 'default',
         'hops': hops,
     }
@@ -147,3 +148,9 @@ def proxy_change_effect(request, networks):
     before = C.get_client_ip(request)
     after = C.get_client_ip(request, networks=networks)
     return {'before': before or '(unreadable)', 'after': after or '(unreadable)', 'changes': before != after}
+
+
+def _client_cert(request):
+    from .mtls import client_certificate
+    fingerprint, note = client_certificate(request)
+    return {'fingerprint': fingerprint, 'note': note}

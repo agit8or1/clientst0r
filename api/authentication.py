@@ -38,6 +38,12 @@ class APIKeyAuthentication(authentication.BaseAuthentication):
         if api_key.is_expired:
             raise exceptions.AuthenticationFailed('API key expired')
 
+        # Mutual TLS: a key pinned to a client certificate needs that
+        # certificate, verified by a trusted reverse proxy (roadmap 81.8).
+        from api_access.mtls import key_certificate_ok
+        if not key_certificate_ok(request, api_key):
+            raise exceptions.AuthenticationFailed('Client certificate required for this API key')
+
         # A customer user's key stops working for a customer they no longer
         # belong to. MSP staff work across every customer.
         user = api_key.user

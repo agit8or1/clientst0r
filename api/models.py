@@ -99,6 +99,11 @@ class APIKey(BaseModel):
         help_text="The key this one replaced")
     rotated_at = models.DateTimeField(null=True, blank=True,
                                       help_text="When this key was replaced by a new one")
+    # Mutual TLS (v3.17.718, roadmap 81.8): when set, requests with this key
+    # must present this client certificate, verified by a trusted proxy.
+    client_cert_sha256 = models.CharField(
+        max_length=64, blank=True, default='',
+        help_text="SHA-256 fingerprint of the client certificate this key requires")
 
     class Meta:
         db_table = 'api_keys'

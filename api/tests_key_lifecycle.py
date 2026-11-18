@@ -193,3 +193,83 @@ class RotationTests(_Base):
         r = c.post(f'/api/keys/{self.key.pk}/rotate/', {'grace': '24'})
         self.assertEqual(r.status_code, 302)
         self.assertFalse(APIKey.objects.filter(rotated_from=self.key).exists())
+
+
+def _make_cert():
+    """A self-signed client certificate (PEM, SHA-256 fingerprint)."""
+    import datetime
+    import hashlib
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'siem-collector')])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(1).not_valid_before(now).not_valid_after(now + datetime.timedelta(days=1))
+            .sign(key, hashes.SHA256()))
+    pem = cert.public_bytes(serialization.Encoding.PEM).decode()
+    return pem, hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
+
+
+class MutualTLSTests(_Base):
+    """Keys pinned to a client certificate (v3.17.718, roadmap 81.8)."""
+
+    def setUp(self):
+        super().setUp()
+        from urllib.parse import quote
+        self.pem, self.fp = _make_cert()
+        self.escaped = quote(self.pem)
+        APIKey.objects.filter(pk=self.key.pk).update(client_cert_sha256=self.fp)
+
+    def call(self, peer='127.0.0.1', verify='SUCCESS', cert=None):
+        extra = {'HTTP_X_SSL_CLIENT_VERIFY': verify,
+                 'HTTP_X_SSL_CLIENT_CERT': self.escaped if cert is None else cert}
+        c = Client(HTTP_AUTHORIZATION=f'Bearer {self.plain}', REMOTE_ADDR=peer)
+        return c.get('/api/assets/', **extra)
+
+    def test_pinned_certificate_from_trusted_proxy_passes(self):
+        self.assertEqual(self.call().status_code, 200)
+
+    def test_refused_without_or_with_other_certificate(self):
+        other_pem, _ = _make_cert()
+        from urllib.parse import quote
+        self.assertEqual(self.api(remote='127.0.0.1').status_code, 401)          # none presented
+        self.assertEqual(self.call(cert=quote(other_pem)).status_code, 401)     # another certificate
+        self.assertEqual(self.call(verify='FAILED:unable to verify').status_code, 401)
+        self.key.refresh_from_db()
+        self.assertIsNone(self.key.last_used_at)
+
+    def test_headers_from_an_untrusted_peer_are_ignored(self):
+        # A client talking to the app directly cannot claim a certificate.
+        self.assertEqual(self.call(peer='198.51.100.1').status_code, 401)
+
+    def test_unpinned_keys_are_unaffected(self):
+        APIKey.objects.filter(pk=self.key.pk).update(client_cert_sha256='')
+        self.assertEqual(self.api().status_code, 200)
+
+    def test_fingerprint_formats(self):
+        from api_access.mtls import normalize_fingerprint
+        colon = ':'.join(self.fp[i:i + 2] for i in range(0, 64, 2)).upper()
+        self.assertEqual(normalize_fingerprint(colon), self.fp)
+        self.assertEqual(normalize_fingerprint('sha256:' + self.fp), self.fp)
+        self.assertEqual(normalize_fingerprint(''), '')
+        with self.assertRaises(ValueError):
+            normalize_fingerprint('abc')
+
+    def test_edit_form_sets_certificate_and_rotation_keeps_it(self):
+        c = self.web()
+        colon = ':'.join(self.fp[i:i + 2] for i in range(0, 64, 2))
+        APIKey.objects.filter(pk=self.key.pk).update(client_cert_sha256='')
+        c.post(f'/api/keys/{self.key.pk}/edit/', {'name': 'integration', 'expiry': 'keep',
+                                                   'allowed_sources': '', 'client_cert_sha256': colon})
+        self.key.refresh_from_db()
+        self.assertEqual(self.key.client_cert_sha256, self.fp)
+        new, _ = L.rotate(self.key, self.user, 0)
+        self.assertEqual(new.client_cert_sha256, self.fp)
+        r = c.post(f'/api/keys/{self.key.pk}/edit/', {'name': 'integration', 'expiry': 'keep',
+                                                       'allowed_sources': '', 'client_cert_sha256': 'nope'})
+        self.assertEqual(r.status_code, 302)
+        self.key.refresh_from_db()
+        self.assertEqual(self.key.client_cert_sha256, self.fp)  # unchanged on a bad value

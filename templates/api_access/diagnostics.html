@@ -10,6 +10,7 @@
       <dt class="col-sm-4">Connecting peer</dt><dd class="col-sm-8"><code>{{ info.peer }}</code> — {% if info.peer_trusted %}<span class="badge bg-info text-dark">trusted proxy</span>{% else %}<span class="badge bg-secondary">not a trusted proxy</span>{% endif %}</dd>
       <dt class="col-sm-4">X-Forwarded-For</dt><dd class="col-sm-8">{% if info.forwarded %}<code>{{ info.forwarded }}</code> — {% if info.forwarded_used %}read, because the peer is a trusted proxy{% else %}<strong>ignored</strong>: only a trusted proxy may supply it{% endif %}{% else %}<span class="text-muted">not sent</span>{% endif %}</dd>
       <dt class="col-sm-4">X-Real-IP</dt><dd class="col-sm-8">{% if info.real_ip %}<code>{{ info.real_ip }}</code> — <strong>never used</strong> (it is not a chain, so its sender cannot be checked){% else %}<span class="text-muted">not sent</span>{% endif %}</dd>
+      <dt class="col-sm-4">Client certificate</dt><dd class="col-sm-8">{% if info.client_cert.fingerprint %}<code class="text-break">{{ info.client_cert.fingerprint }}</code> — {{ info.client_cert.note }}{% else %}<span class="text-muted">{{ info.client_cert.note }}</span>{% endif %}</dd>
       <dt class="col-sm-4">Trusted proxies in use</dt><dd class="col-sm-8">{% for n in info.trusted_proxies %}<code>{{ n }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>
     </dl>
   </div>

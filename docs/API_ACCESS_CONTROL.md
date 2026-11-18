@@ -255,7 +255,35 @@ curl -X POST "$URL" -H 'Content-Type: application/json' \
      -H "X-Cst0r-Timestamp: $ts" -H "X-Cst0r-Signature: $sig" --data "$body"
 ```
 
-## Planned (Phase 81)
+## Mutual TLS (client certificates)
 
-Concurrency limits; per-connection payment event de-duplication and a GoCardless freshness check; the
-shared event feed (Phase 82); optional mutual TLS. See `docs/ROADMAP.md`.
+A key can require a client certificate. TLS ends at the reverse proxy, which verifies the certificate against
+your CA and passes it on; the app reads these headers only from a trusted proxy and compares the certificate's
+SHA-256 fingerprint with the one pinned on the key. A key with no pin is unaffected.
+
+Nginx (in the `server` block that serves the API):
+
+```nginx
+ssl_client_certificate /etc/nginx/client-ca.pem;   # the CA that issues your integration certificates
+ssl_verify_client optional;                        # web users keep signing in without a certificate
+proxy_set_header X-SSL-Client-Verify $ssl_client_verify;
+proxy_set_header X-SSL-Client-Cert   $ssl_client_escaped_cert;
+```
+
+`proxy_set_header` replaces any header of the same name a client sends. Fingerprint a certificate with:
+
+```bash
+openssl x509 -in client.pem -noout -fingerprint -sha256
+```
+
+Paste the result (colons are fine) into *Required client certificate* on the key. **Client address** on this
+page shows the certificate your own connection presents.
+
+## Not included
+
+- **Concurrency limits.** The server runs four single-request workers with a per-process cache, so it never
+  has more than four requests in flight and a per-key count could not be shared between workers. Per-key and
+  per-address rate limits cover abuse; revisit with a shared cache.
+- **Payment webhooks** keep their own verification (signed timestamps for Stripe) and de-duplicate by provider
+  event id permanently, so a replay is never processed twice.
+- Sending these events to the shared event layer comes with Phase 82.

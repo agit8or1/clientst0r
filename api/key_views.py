@@ -109,6 +109,7 @@ def apikey_create(request):
                                                     request.POST.get('expiry_date'))
             rate = key_lifecycle.parse_rate(request.POST.get('rate_limit_per_minute'))
             sources = key_lifecycle.parse_sources(request.POST.get('allowed_sources'))
+            cert = key_lifecycle.parse_cert(request.POST.get('client_cert_sha256'))
         except ValidationError as exc:
             for msg in exc.messages:
                 messages.error(request, msg)
@@ -124,7 +125,8 @@ def apikey_create(request):
         )
         api_key_obj.expires_at = expires_at
         api_key_obj.rate_limit_per_minute = rate
-        api_key_obj.save(update_fields=['expires_at', 'rate_limit_per_minute'])
+        api_key_obj.client_cert_sha256 = cert
+        api_key_obj.save(update_fields=['expires_at', 'rate_limit_per_minute', 'client_cert_sha256'])
         if sources:
             key_lifecycle.set_sources(api_key_obj, sources, request.user)
 
@@ -140,6 +142,7 @@ def apikey_create(request):
         'scopes': APIKeyScope.choices,
         'expiry_choices': key_lifecycle.EXPIRY_CHOICES,
         'your_ip': _client_ip(request),
+        'your_cert': _client_cert(request),
     })
 
 
@@ -195,6 +198,11 @@ def _client_ip(request):
     return get_client_ip(request) or ''
 
 
+def _client_cert(request):
+    from api_access.mtls import client_certificate
+    return client_certificate(request)[0] or ''
+
+
 def _key_for_change(request, pk):
     """The key, if the user owns it or manages this customer's keys."""
     org = get_request_organization(request)
@@ -222,6 +230,7 @@ def apikey_edit(request, pk):
                                                     request.POST.get('expiry_date'), api_key.expires_at)
             rate = key_lifecycle.parse_rate(request.POST.get('rate_limit_per_minute'))
             new_sources = key_lifecycle.parse_sources(request.POST.get('allowed_sources'))
+            cert = key_lifecycle.parse_cert(request.POST.get('client_cert_sha256'))
         except ValidationError as exc:
             for msg in exc.messages:
                 messages.error(request, msg)
@@ -232,8 +241,8 @@ def apikey_edit(request, pk):
                 'api_key': api_key, 'sources_text': '\n'.join(new_sources), 'name': name,
                 'rate': rate or '', 'expiry_choices': key_lifecycle.EXPIRY_CHOICES,
                 'posted_expiry': request.POST.get('expiry', 'keep'),
-                'posted_expiry_date': request.POST.get('expiry_date', ''),
-                'cut_off': True, 'your_ip': _client_ip(request)})
+                'posted_expiry_date': request.POST.get('expiry_date', ''), 'cert': cert,
+                'cut_off': True, 'your_ip': _client_ip(request), 'your_cert': _client_cert(request)})
         changed = []
         if name != api_key.name:
             changed.append('name')
@@ -241,22 +250,27 @@ def apikey_edit(request, pk):
             changed.append('expiry')
         if rate != api_key.rate_limit_per_minute:
             changed.append('rate limit')
+        if cert != api_key.client_cert_sha256:
+            changed.append('client certificate')
         api_key.name, api_key.expires_at, api_key.rate_limit_per_minute = name, expires_at, rate
-        api_key.save(update_fields=['name', 'expires_at', 'rate_limit_per_minute', 'updated_at'])
+        api_key.client_cert_sha256 = cert
+        api_key.save(update_fields=['name', 'expires_at', 'rate_limit_per_minute', 'client_cert_sha256',
+                                    'updated_at'])
         if changed:
             from audit.models import AuditLog
             AuditLog.log(user=request.user, action='update', organization=api_key.organization,
                          object_type='APIKey', object_id=api_key.pk, object_repr=str(api_key)[:200],
                          description=f'API key {api_key.key_prefix}… changed: {", ".join(changed)}',
                          extra_data={'expires_at': expires_at.isoformat() if expires_at else None,
-                                     'rate_limit_per_minute': rate})
+                                     'rate_limit_per_minute': rate, 'client_cert_sha256': cert})
         key_lifecycle.set_sources(api_key, new_sources, request.user)
         messages.success(request, f'API key "{api_key.name}" saved.')
         return redirect('api:apikey_list')
     return render(request, 'api/apikey_edit.html', {
         'api_key': api_key, 'sources_text': '\n'.join(sources), 'name': api_key.name,
         'rate': api_key.rate_limit_per_minute or '', 'expiry_choices': key_lifecycle.EXPIRY_CHOICES,
-        'posted_expiry': 'keep', 'your_ip': _client_ip(request)})
+        'posted_expiry': 'keep', 'your_ip': _client_ip(request), 'cert': api_key.client_cert_sha256,
+        'your_cert': _client_cert(request)})
 
 
 @login_required

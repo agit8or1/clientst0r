@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.718] - 2026-11-18
+
+### Added
+- **Mutual TLS for API keys** (roadmap 81.8). A key can require a client certificate: paste its SHA-256 fingerprint into *Required client certificate* when creating or editing the key. The reverse proxy verifies the certificate against your CA and passes `X-SSL-Client-Verify` and `X-SSL-Client-Cert`; the app reads them only from a trusted proxy, fingerprints the certificate and refuses the key without a match (401, key not marked used). Rotation keeps the pin. API Access Control → Client address shows the certificate your own connection presents. Setup for Nginx is in `docs/API_ACCESS_CONTROL.md`.
+
+### Changed
+- **Phase 81 (API access control) is complete.** Two items were reviewed and need no change (payment webhook de-duplication stays per provider; GoCardless needs no freshness window). Concurrency limits are deferred: this server cannot have more than four requests in flight, and a per-key count would need a shared cache. Feeding API access events to the shared event layer comes with Phase 82.
+
 ## [3.17.717] - 2026-11-18
 
 ### Added
