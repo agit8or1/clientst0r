@@ -576,8 +576,7 @@ class TokenValidationTests(_Base):
         self.assertReason(f'{header}.{body}.', 'bad_alg')
 
     def test_hs256_rejected(self):
-        # nosemgrep: python.jwt.security.jwt-hardcode.jwt-python-hardcoded-secret -- test: an HS256 token must be refused
-        token = jwt.encode(self.claims(), 'shared-secret-of-sufficient-length-123', algorithm='HS256',
+        token = jwt.encode(self.claims(), 'shared-secret-of-sufficient-length-123', algorithm='HS256',  # nosemgrep: python.jwt.security.jwt-hardcode.jwt-python-hardcoded-secret -- test: an HS256 token must be refused
                            headers={'kid': 'k1'})
         self.assertReason(token, 'bad_alg')
 

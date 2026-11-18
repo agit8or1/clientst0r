@@ -54,8 +54,7 @@ def public_base(request=None) -> str:
     if base:
         return base.rstrip('/')
     if request is not None:
-        # nosemgrep: python.flask.security.audit.directly-returned-format-string.directly-returned-format-string -- a URL for other code, not an HTTP response
-        return f'{request.scheme}://{request.get_host()}'
+        return f'{request.scheme}://{request.get_host()}'  # nosemgrep: python.flask.security.audit.directly-returned-format-string.directly-returned-format-string -- a URL for other code, not an HTTP response
     return ''
 
 
