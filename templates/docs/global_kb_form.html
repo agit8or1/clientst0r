@@ -161,6 +161,18 @@
                             <small class="form-text text-muted">{{ form.scope.help_text }}</small>
                         </div>
                     </div>
+                    <div class="row" id="kb-share-row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.share_orgs.id_for_label }}" class="form-label">{{ form.share_orgs.label }}</label>
+                            {{ form.share_orgs }}
+                            {% if form.share_orgs.errors %}<div class="invalid-feedback d-block">{{ form.share_orgs.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.share_groups.id_for_label }}" class="form-label">{{ form.share_groups.label }}</label>
+                            {{ form.share_groups }}
+                            <small class="form-text text-muted">Every member of a group gets the article, including customers added to it later. <a href="{% url 'docs:customer_group_list' %}">Manage customer groups</a></small>
+                        </div>
+                    </div>
                     {% endif %}
 
                     <div class="row">
@@ -396,6 +408,12 @@
             return false;
         }
     });
+
+    // Scope: the customer / group pickers only matter for "Selected".
+    const scopeSel = document.getElementById('kb-scope');
+    const shareRow = document.getElementById('kb-share-row');
+    function syncShare() { if (scopeSel && shareRow) shareRow.hidden = scopeSel.value !== 'selected'; }
+    if (scopeSel) { scopeSel.addEventListener('change', syncShare); syncShare(); }
 
     // Auto-generate slug from title
     const titleInput = document.getElementById('{{ form.title.id_for_label }}');

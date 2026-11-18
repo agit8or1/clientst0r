@@ -176,6 +176,7 @@ def document_list(request):
     export_query = ('?' + urlencode(export_params)) if export_params else ''
 
     return render(request, 'docs/document_list.html', {
+        'can_make_global': _can_make_global(request.user),
         'org_docs': documents,
         'org': org,
         'export_query': export_query,
@@ -917,14 +918,20 @@ def _can_make_global(user):
 
 
 def _apply_make_global(form, document):
-    """Tick "Global KB article" -> the document joins the global KB, owned by
-    the same placeholder organization global_kb_create uses (so removing the
-    original customer does not delete it). Customer-specific categories and
-    tags are dropped by the caller after save_m2m (_finish_make_global). The
-    slug must be unique among global articles (global_kb_detail looks them up
-    by slug) and within the placeholder organization."""
+    """Tick "Global KB article" -> the document joins the global KB (see
+    _make_doc_global)."""
     if 'make_global' not in form.fields or not form.cleaned_data.get('make_global'):
         return False
+    return _make_doc_global(document)
+
+
+def _make_doc_global(document):
+    """The document joins the global KB, owned by the same placeholder
+    organization global_kb_create uses (so removing the original customer does
+    not delete it), for every customer. Customer-specific categories are
+    dropped here and tags by _finish_make_global after saving. The slug must be
+    unique among global articles (global_kb_detail looks them up by slug) and
+    within the placeholder organization."""
     from django.db.models import Q
     from django.utils.text import slugify
     from core.models import Organization
@@ -938,6 +945,7 @@ def _apply_make_global(form, document):
     document.slug = slug
     document.is_global = True
     document.organization = home
+    document.audience = 'all'
     if document.category_id and document.category.organization_id is not None:
         document.category = None
     return True
@@ -954,8 +962,10 @@ def _apply_kb_scope(form, document):
     None when it stays global. The slug must be unique in that customer;
     categories of another customer do not follow."""
     choice = form.cleaned_data.get('scope') if 'scope' in form.fields else None
-    if not choice or choice == 'global':
+    if not choice or choice in ('global', 'selected'):
         document.is_global = True
+        if choice:
+            document.audience = 'selected' if choice == 'selected' else 'all'
         return None
     from core.models import Organization
     org = Organization.objects.filter(pk=choice).first()
@@ -973,6 +983,18 @@ def _apply_kb_scope(form, document):
     if document.category_id and document.category.organization_id not in (None, org.pk):
         document.category = None
     return org
+
+
+def _finish_kb_audience(form, document):
+    """After save: the Selected customers / groups of a global article."""
+    if 'scope' not in form.fields or not form.cleaned_data.get('scope'):
+        return
+    if document.audience == 'selected':
+        document.shared_with.set(form.cleaned_data.get('share_orgs') or [])
+        document.shared_with_groups.set(form.cleaned_data.get('share_groups') or [])
+    else:
+        document.shared_with.clear()
+        document.shared_with_groups.clear()
 
 
 def _finish_kb_scope(document, org):
@@ -1176,8 +1198,12 @@ def global_kb_create(request):
             form.save_m2m()
             if note:
                 messages.info(request, note)
+            if not scoped:
+                _finish_kb_audience(form, document)
             if scoped:
                 _finish_kb_scope(document, scoped)
+                document.shared_with.clear()
+                document.shared_with_groups.clear()
                 messages.success(request, f"Article '{document.title}' created for {scoped.name} only.")
                 return redirect('docs:document_detail', slug=document.slug)
             messages.success(request, f"Global KB article '{document.title}' created successfully.")
@@ -1222,8 +1248,12 @@ def global_kb_edit(request, slug):
             form.save_m2m()
             if note:
                 messages.info(request, note)
+            if not scoped:
+                _finish_kb_audience(form, document)
             if scoped:
                 _finish_kb_scope(document, scoped)
+                document.shared_with.clear()
+                document.shared_with_groups.clear()
                 messages.success(request, f"'{document.title}' is now {scoped.name}'s only; it left the "
                                           'global KB.')
                 return redirect('docs:document_detail', slug=document.slug)
@@ -2950,3 +2980,184 @@ def document_export_bulk(request, fmt):
     stem = _slugify(archive_title) or 'documentation'
     filename = f'{stem}-{fmt}.zip'
     return _export_response(payload, filename, 'application/zip')
+
+
+# ---------------------------------------------------------------------------
+# v3.17.711: KB audience in bulk, and customer groups
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_staff_user
+@require_http_methods(["POST"])
+def global_kb_bulk_audience(request):
+    """Selected KB articles -> every customer, exactly the picked customers and
+    groups, those added to who already has them, or moved out of the global KB
+    into one customer's documentation. Needs global KB edit + publish rights."""
+    from core.models import Organization
+    from core.safe_redirect import safe_post_next
+    from django.urls import reverse
+    from .models import CustomerGroup
+    back = safe_post_next(request, reverse('docs:global_kb_list'))
+    if not _can_make_global(request.user):
+        raise PermissionDenied("You need global KB edit and publish rights to change who sees articles.")
+    action = request.POST.get('audience_action')
+    if action not in ('all', 'selected', 'add', 'move'):
+        messages.error(request, 'Choose what to do with the selected articles.')
+        return redirect(back)
+    raw = request.POST.getlist('article_ids') or request.POST.getlist('ids')
+    ids = [int(i) for i in raw if str(i).isdigit()]
+    docs = list(Document.objects.filter(pk__in=ids, is_global=True, is_template=False))
+    if not docs:
+        messages.warning(request, 'Select at least one KB article.')
+        return redirect(back)
+    orgs = list(Organization.objects.filter(
+        pk__in=[i for i in request.POST.getlist('share_orgs') if str(i).isdigit()]))
+    groups = list(CustomerGroup.objects.filter(
+        pk__in=[i for i in request.POST.getlist('share_groups') if str(i).isdigit()]))
+
+    if action in ('selected', 'add') and not (orgs or groups):
+        messages.error(request, 'Pick at least one customer or customer group.')
+        return redirect(back)
+    target = None
+    if action == 'move':
+        target = Organization.objects.filter(pk=request.POST.get('move_org') or 0).first() \
+            if str(request.POST.get('move_org') or '').isdigit() else None
+        if target is None:
+            messages.error(request, 'Pick the customer to move the articles to.')
+            return redirect(back)
+
+    for doc in docs:
+        if action == 'all':
+            doc.audience = 'all'
+            doc.save(update_fields=['audience', 'updated_at'])
+            doc.shared_with.clear()
+            doc.shared_with_groups.clear()
+        elif action == 'selected':
+            doc.audience = 'selected'
+            doc.save(update_fields=['audience', 'updated_at'])
+            doc.shared_with.set(orgs)
+            doc.shared_with_groups.set(groups)
+        elif action == 'add':
+            # An article already for every customer already reaches them.
+            if doc.audience == 'selected':
+                doc.shared_with.add(*orgs)
+                doc.shared_with_groups.add(*groups)
+        else:  # move out of the global KB
+            max_len = Document._meta.get_field('slug').max_length
+            base = (doc.slug or slugify(doc.title) or 'article')[:max_len - 6]
+            slug, n = base, 2
+            while Document.objects.exclude(pk=doc.pk).filter(organization=target, slug=slug).exists():
+                slug, n = f'{base}-{n}', n + 1
+            doc.slug, doc.is_global, doc.organization, doc.audience = slug, False, target, 'all'
+            if doc.category_id and doc.category.organization_id not in (None, target.pk):
+                doc.category = None
+            doc.save()
+            doc.shared_with.clear()
+            doc.shared_with_groups.clear()
+            doc.tags.remove(*doc.tags.exclude(organization=target))
+
+    who = (', '.join([o.name for o in orgs] + [f'group {g.name}' for g in groups]))[:400]
+    text = {'all': 'now shared with every customer',
+            'selected': f'now shared only with {who}',
+            'add': f'also shared with {who} (articles already for every customer unchanged)',
+            'move': f'moved out of the global KB to {target.name if target else ""}'}[action]
+    from audit.models import AuditLog
+    from core.client_ip import get_client_ip
+    AuditLog.log(
+        user=request.user, action='update', organization=None,
+        object_type='docs.Document', object_id=None,
+        object_repr=f'{len(docs)} KB article(s)',
+        description=f'{len(docs)} KB article(s) {text}'[:1000],
+        ip_address=get_client_ip(request), path=request.path[:500],
+        extra_data={'action': action, 'article_ids': [d.pk for d in docs],
+                    'orgs': [o.pk for o in orgs], 'groups': [g.pk for g in groups],
+                    'move_to': target.pk if target else None},
+    )
+    messages.success(request, f'{len(docs)} article(s) {text}.')
+    return redirect(back)
+
+
+def _require_group_admin(request):
+    from psa.views import _check_kb_perm
+    if not _check_kb_perm(request.user, 'kb_edit_articles'):
+        raise PermissionDenied("You need KB edit rights to manage customer groups.")
+
+
+@login_required
+@require_staff_user
+def customer_group_list(request):
+    from .models import CustomerGroup
+    _require_group_admin(request)
+    groups = CustomerGroup.objects.prefetch_related('organizations').order_by('name')
+    from django.db.models import Count
+    groups = groups.annotate(article_count=Count('kb_articles', distinct=True))
+    return render(request, 'docs/customer_group_list.html', {'groups': groups})
+
+
+@login_required
+@require_staff_user
+def customer_group_edit(request, pk=None):
+    from core.models import Organization
+    from .models import CustomerGroup
+    from .forms import CustomerGroupForm
+    _require_group_admin(request)
+    group = get_object_or_404(CustomerGroup, pk=pk) if pk else None
+    if request.method == 'POST':
+        form = CustomerGroupForm(request.POST, instance=group)
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f"Customer group '{group.name}' saved.")
+            return redirect('docs:customer_group_list')
+    else:
+        form = CustomerGroupForm(instance=group)
+    form.fields['organizations'].queryset = Organization.objects.filter(is_active=True).order_by('name')
+    return render(request, 'docs/customer_group_form.html', {'form': form, 'group': group})
+
+
+@login_required
+@require_staff_user
+@require_http_methods(["POST"])
+def customer_group_delete(request, pk):
+    from .models import CustomerGroup
+    _require_group_admin(request)
+    group = get_object_or_404(CustomerGroup, pk=pk)
+    name = group.name
+    group.delete()
+    messages.success(request, f"Customer group '{name}' deleted. Articles shared through it no "
+                              "longer reach its customers unless shared with them another way.")
+    return redirect('docs:customer_group_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def document_bulk_make_global(request):
+    """Documentation list: move the selected customer documents into the
+    global KB, for every customer. Same rights as the editor's box."""
+    from core.safe_redirect import safe_post_next
+    from django.urls import reverse
+    back = safe_post_next(request, reverse('docs:document_list'))
+    if not _can_make_global(request.user):
+        raise PermissionDenied("You need global KB edit and publish rights to make articles global.")
+    ids = [int(i) for i in request.POST.getlist('ids') if str(i).isdigit()]
+    docs = [d for d in Document.objects.filter(pk__in=ids, is_global=False, is_template=False)
+            if can_edit(request.user, d)]
+    if not docs:
+        messages.warning(request, 'Select at least one document you can edit.')
+        return redirect(back)
+    for doc in docs:
+        _make_doc_global(doc)
+        doc.last_modified_by = request.user
+        doc.save()
+        _finish_make_global(doc)
+    from audit.models import AuditLog
+    from core.client_ip import get_client_ip
+    AuditLog.log(
+        user=request.user, action='update', organization=None,
+        object_type='docs.Document', object_id=None, object_repr=f'{len(docs)} document(s)',
+        description=f'Moved {len(docs)} document(s) into the global KB'[:1000],
+        ip_address=get_client_ip(request), path=request.path[:500],
+        extra_data={'article_ids': [d.pk for d in docs]},
+    )
+    messages.success(request, f'{len(docs)} document(s) moved into the global KB, shared with every '
+                              'customer. Find them under Knowledge Base.')
+    return redirect(back)

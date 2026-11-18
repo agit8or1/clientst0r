@@ -2,7 +2,7 @@
 Docs forms
 """
 from django import forms
-from .models import Document, DocumentCategory, Diagram
+from .models import CustomerGroup, Document, DocumentCategory, Diagram
 
 
 class DocumentForm(forms.ModelForm):
@@ -67,12 +67,25 @@ class DocumentForm(forms.ModelForm):
 
         if scope_orgs is not None:
             self.fields['scope'] = forms.ChoiceField(
-                label='Scope', initial='global', required=False,
-                choices=[('global', 'Global — every customer')]
+                label='Scope', required=False,
+                initial='selected' if getattr(self.instance, 'audience', 'all') == 'selected' else 'global',
+                choices=[('global', 'Global — every customer'),
+                         ('selected', 'Selected customers and groups')]
                         + [(str(o.pk), f'Only {o.name}') for o in scope_orgs],
-                help_text='Global articles are shared with every customer. Pick a customer to '
-                          'make this article theirs only.',
+                help_text='Global articles are shared with every customer. "Selected" shares one '
+                          'article with the customers and customer groups picked below. '
+                          '"Only …" makes it one customer\'s own documentation.',
                 widget=forms.Select(attrs={'class': 'form-select', 'id': 'kb-scope'}))
+            self.fields['share_orgs'] = forms.ModelMultipleChoiceField(
+                queryset=scope_orgs, required=False, label='Customers',
+                initial=(self.instance.shared_with.all() if self.instance.pk else None),
+                widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '6',
+                                                   'data-kb-share': '1'}))
+            self.fields['share_groups'] = forms.ModelMultipleChoiceField(
+                queryset=CustomerGroup.objects.all(), required=False, label='Customer groups',
+                initial=(self.instance.shared_with_groups.all() if self.instance.pk else None),
+                widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '6',
+                                                   'data-kb-share': '1'}))
 
         if can_make_global and not global_article and not getattr(self.instance, 'is_global', False):
             self.fields['make_global'] = forms.BooleanField(
@@ -133,6 +146,12 @@ class DocumentForm(forms.ModelForm):
             self.fields['tags'].queryset = Tag.objects.filter(tag_q).order_by('name')
             self.fields['category'].queryset = DocumentCategory.objects.filter(cat_q).order_by('order', 'name')
             self.fields['category'].required = False
+
+    def clean(self):
+        data = super().clean()
+        if data.get('scope') == 'selected' and not (data.get('share_orgs') or data.get('share_groups')):
+            self.add_error('share_orgs', 'Pick at least one customer or customer group.')
+        return data
 
     def clean_owner(self):
         # A document always has someone responsible: leaving the box empty
@@ -198,3 +217,15 @@ class DocumentCategoryForm(forms.ModelForm):
             # Only show categories from same organization for parent selection
             self.fields['parent'].queryset = DocumentCategory.objects.filter(organization=self.organization)
             self.fields['parent'].required = False
+
+
+class CustomerGroupForm(forms.ModelForm):
+    class Meta:
+        model = CustomerGroup
+        fields = ['name', 'description', 'organizations']
+        labels = {'organizations': 'Customers'}
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Microsoft 365 clients'}),
+            'description': forms.TextInput(attrs={'class': 'form-control'}),
+            'organizations': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '12'}),
+        }

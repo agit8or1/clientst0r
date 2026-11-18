@@ -45,6 +45,32 @@ class DocumentCategory(BaseModel):
         super().save(*args, **kwargs)
 
 
+class CustomerGroup(BaseModel):
+    """A named set of customers (e.g. "Microsoft 365 clients"), used to share
+    one global KB article with several customers at once (v3.17.711)."""
+    name = models.CharField(max_length=120, unique=True)
+    description = models.CharField(max_length=255, blank=True)
+    organizations = models.ManyToManyField(Organization, related_name='customer_groups', blank=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+def kb_audience_q(organization, prefix=''):
+    """Global KB articles this customer is in the audience of: shared with
+    every customer, or with this customer directly or through a group.
+    Callers add their own published / client-visible filters; use
+    .distinct() (the group join can repeat rows)."""
+    p = prefix
+    return models.Q(**{f'{p}is_global': True}) & (
+        models.Q(**{f'{p}audience': 'all'})
+        | models.Q(**{f'{p}shared_with': organization})
+        | models.Q(**{f'{p}shared_with_groups__organizations': organization}))
+
+
 class DocumentQuerySet(OrganizationQuerySet):
     """Document queries with one definition of "published"."""
 
@@ -92,6 +118,14 @@ class Document(BaseModel):
     is_template = models.BooleanField(default=False, help_text='Is this a reusable template?')
     is_archived = models.BooleanField(default=False)
     is_global = models.BooleanField(default=False, help_text='Global KB - visible to all organizations')
+    # v3.17.711: who a global KB article is for. 'all' = every customer;
+    # 'selected' = the customers in shared_with plus every member of
+    # shared_with_groups. Ignored for customer (non-global) documents.
+    AUDIENCE_CHOICES = [('all', 'Every customer'), ('selected', 'Selected customers and groups')]
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default='all')
+    shared_with = models.ManyToManyField(Organization, related_name='shared_kb_articles', blank=True)
+    shared_with_groups = models.ManyToManyField('docs.CustomerGroup', related_name='kb_articles',
+                                                blank=True)
     is_client_visible = models.BooleanField(
         default=False,
         help_text='Visible to clients in the customer portal /portal/kb/ — '

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.711] - 2026-11-18
+
+### Added
+- **Share one KB article with several customers.** A global KB article's audience is now **every customer** (as before), or **selected customers and customer groups**. The customer portal shows each article only to its audience. Set it in the Knowledge Base editor (Scope → "Selected customers and groups") or in bulk.
+- **Customer groups** (the **Customer groups** button on Knowledge Base, or **Manage customer groups** in the KB editor): named sets of customers, e.g. "Microsoft 365 clients". Share an article with a group and every customer in it sees the article, including customers added to the group later.
+- **Bulk on the Knowledge Base list.** Select articles, then: **Every customer (global)**, **Selected customers / groups…** (**Only these** replaces who gets them, **Add to their audience** adds to it), or **Remove from global → one customer…** (moves them into that customer's documentation). A new **Audience** column shows who gets each article, and **Staff only** marks those hidden from portals. Needs global KB edit and publish rights.
+- **Bulk Make global on the Documentation list.** Select customer documents and move them into the global KB for every customer, then narrow the audience under Knowledge Base.
+
+### Changed
+- The global KB's placeholder owner customer no longer sees articles restricted to other customers in its portal.
+
 ## [3.17.710] - 2026-11-18
 
 ### Added

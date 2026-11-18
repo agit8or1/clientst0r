@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Groups - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h2 class="mb-1"><i class="fas fa-layer-group me-1"></i> Customer Groups</h2>
+        <p class="text-muted small mb-0">Named sets of customers. Share a Knowledge Base article with a group and every
+            customer in it sees the article in their portal, including customers added to the group later.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'docs:customer_group_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New group</a>
+        <a href="{% url 'psa:kb_browse' %}" class="btn btn-outline-secondary"><i class="fas fa-book"></i> Knowledge Base</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr><th>Group</th><th>Customers</th><th>KB articles</th><th style="width: 140px;"></th></tr>
+            </thead>
+            <tbody>
+            {% for g in groups %}
+                <tr>
+                    <td><strong>{{ g.name }}</strong>{% if g.description %}<div class="small text-muted">{{ g.description }}</div>{% endif %}</td>
+                    <td>
+                        {% for o in g.organizations.all %}<span class="badge bg-light text-dark border me-1">{{ o.name }}</span>{% empty %}<span class="text-muted small">none yet</span>{% endfor %}
+                    </td>
+                    <td>{{ g.article_count }}</td>
+                    <td class="text-nowrap text-end">
+                        <a href="{% url 'docs:customer_group_edit' g.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                        <form method="post" action="{% url 'docs:customer_group_delete' g.pk %}" class="d-inline"
+                              data-confirm="Delete the group {{ g.name }}? Articles shared only through it stop reaching its customers.">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No customer groups yet. <a href="{% url 'docs:customer_group_create' %}">Create one →</a></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

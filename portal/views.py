@@ -167,14 +167,19 @@ def switch_customer(request):
 
 def portal_kb_queryset(organization):
     """KB articles a portal user of `organization` may read: client-visible,
-    published, not archived, not a pending draft; global or this customer's."""
+    published, not archived, not a pending draft; this customer's own, or
+    global ones whose audience includes it (every customer, or shared with it
+    directly or through a customer group -- v3.17.711)."""
     from django.db.models import Q
-    from docs.models import Document
-    return Document.objects.published().filter(
+    from docs.models import Document, kb_audience_q
+    ids = Document.objects.published().filter(
         is_client_visible=True, is_template=False,
     ).filter(
-        Q(is_global=True) | Q(organization=organization)
-    )
+        kb_audience_q(organization) | Q(organization=organization, is_global=False)
+    ).values('pk')
+    # The group join can repeat rows; select by id so callers can keep
+    # ordering / annotating / slicing without .distinct() surprises.
+    return Document.objects.filter(pk__in=ids)
 
 
 def _portal_feature_enabled(name) -> bool:

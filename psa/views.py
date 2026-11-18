@@ -3286,10 +3286,15 @@ def kb_browse(request):
     if q:
         qs = qs.filter(models.Q(title__icontains=q) | models.Q(body__icontains=q))
 
-    articles = qs.select_related('category', 'created_by').order_by('-updated_at')[:100]
+    articles = qs.select_related('category', 'created_by').prefetch_related(
+        'shared_with', 'shared_with_groups').order_by('-updated_at')[:100]
 
     # Permission flags — drive button visibility in the template.
     can_move_kb = _check_kb_perm(request.user, 'kb_move_articles')
+    # v3.17.711: who sees an article is a publishing decision.
+    can_share_kb = can_edit_kb and _check_kb_perm(request.user, 'kb_publish_articles')
+    from core.models import Organization
+    from docs.models import CustomerGroup
     can_manage_categories = _check_kb_perm(request.user, 'kb_manage_categories')
 
     # Pre-built flat category list for the "Move to →" dropdown.
@@ -3305,6 +3310,10 @@ def kb_browse(request):
         'all_categories_count': cats_qs.count(),
         'can_edit_kb': can_edit_kb,
         'can_move_kb': can_move_kb,
+        'can_share_kb': can_share_kb,
+        'can_bulk_kb': can_move_kb or can_share_kb,
+        'share_orgs': Organization.objects.filter(is_active=True).order_by('name') if can_share_kb else [],
+        'share_groups': CustomerGroup.objects.order_by('name') if can_share_kb else [],
         'can_manage_categories': can_manage_categories,
         'flat_categories': flat_cats,
     })

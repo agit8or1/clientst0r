@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{% if group %}Edit{% else %}New{% endif %} Customer Group - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header"><h3 class="mb-0"><i class="fas fa-layer-group"></i> {% if group %}Edit {{ group.name }}{% else %}New customer group{% endif %}</h3></div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.organizations.id_for_label }}" class="form-label">Customers</label>
+                        {{ form.organizations }}
+                        <small class="form-text text-muted">Hold Ctrl (Cmd on a Mac) to pick several.</small>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'docs:customer_group_list' %}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save group</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

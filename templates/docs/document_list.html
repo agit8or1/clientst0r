@@ -199,10 +199,24 @@
                 <h6 class="mb-0"><i class="fas fa-building"></i> Organization Documents</h6>
             </div>
             <div class="card-body">
+                {% if can_make_global and org_docs %}
+                <form method="post" action="{% url 'docs:document_bulk_make_global' %}" id="docBulkForm"
+                      class="d-flex flex-wrap align-items-center gap-2 small mb-2"
+                      data-confirm="Move the selected documents into the global KB, shared with every customer?">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-sm btn-outline-success" id="docBulkGlobal" disabled>
+                        <i class="fas fa-globe"></i> Make global (every customer)
+                    </button>
+                    <span class="text-muted"><span id="docBulkCount">0</span> selected · after moving, choose
+                        exactly which customers or groups see them under Knowledge Base.</span>
+                </form>
+                {% endif %}
                 <div class="ui-table-wrap">
                 <table id="orgDocsTable" class="table table-hover">
                     <thead>
                         <tr>
+                            {% if can_make_global %}<th data-orderable="false" style="width: 32px;"><input type="checkbox" id="docSelectAll" class="form-check-input" aria-label="Select all"></th>{% endif %}
                             <th>Title</th>
                             <th>Type</th>
                             <th>Category</th>
@@ -214,6 +228,7 @@
                     <tbody>
                         {% for doc in org_docs %}
                         <tr>
+                            {% if can_make_global %}<td>{% if not doc.is_template %}<input type="checkbox" name="ids" value="{{ doc.pk }}" form="docBulkForm" class="form-check-input doc-bulk-check" aria-label="Select {{ doc.title }}">{% endif %}</td>{% endif %}
                             <td class="ui-wrap">
                                 <a class="ui-primary-cell" href="{% url 'docs:document_detail' doc.slug %}{% if in_global_view and doc.organization_id %}?org={{ doc.organization_id }}{% endif %}">{{ doc.title }}</a>
                                 {% if doc.is_template %}<span class="ui-badge ui-badge--neutral ms-2">Template</span>{% endif %}
@@ -597,7 +612,7 @@ $(document).ready(function() {
             // set; this widget can only match text already rendered into a
             // cell, so keeping both offered two boxes with different reach.
             table = $('#orgDocsTable').DataTable({
-                order: [[4, 'desc']],
+                order: [[{% if can_make_global %}5{% else %}4{% endif %}, 'desc']],
                 pageLength: 25,
                 searching: false,
                 columnDefs: [{ targets: -1, orderable: false }],
@@ -623,4 +638,25 @@ $(document).ready(function() {
     }
 });
 </script>
+{% if can_make_global %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var all = document.getElementById('docSelectAll');
+    var btn = document.getElementById('docBulkGlobal');
+    var count = document.getElementById('docBulkCount');
+    function boxes() { return document.querySelectorAll('.doc-bulk-check'); }
+    function update() {
+        var n = 0;
+        boxes().forEach(function (b) { if (b.checked) n++; });
+        if (count) count.textContent = n;
+        if (btn) btn.disabled = n === 0;
+    }
+    document.addEventListener('change', function (e) {
+        if (e.target === all) boxes().forEach(function (b) { b.checked = all.checked; });
+        if (e.target === all || (e.target.classList && e.target.classList.contains('doc-bulk-check'))) update();
+    });
+    update();
+})();
+</script>
+{% endif %}
 {% endblock %}
