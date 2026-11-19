@@ -16,6 +16,9 @@
  *   node rem0te_fixtures.mjs unpause '<json>'    → {id} → lift it
  *   node rem0te_fixtures.mjs rebootRule '<json>' → {customerId} → a REBOOT_PENDING (1 h) monitor rule
  *   node rem0te_fixtures.mjs rebootSince '<json>'→ {endpointId, minutes} → backdate the pending restart
+ *   node rem0te_fixtures.mjs user '<json>'       → {sfx, tag, platformPermissions} → a user with no membership (s12's approver)
+ *   node rem0te_fixtures.mjs serviceRule '<json>' → {customerId, service} → a SERVICE_STOPPED monitor rule (s12)
+ *   node rem0te_fixtures.mjs actionJob '<json>'  → {id} → the action job (status, via, origin, requester, approvers)
  *   node rem0te_fixtures.mjs cleanup '<json>'    → remove what setup created
  */
 import { createRequire } from 'node:module';
@@ -130,11 +133,35 @@ async function rebootSince({ endpointId, minutes }) {
   return { updated: r.count };
 }
 
+async function user({ sfx, tag, platformPermissions = [] }) {
+  // Someone on the approval signer's roster only: no business membership, no technician mapping.
+  const u = await prisma.user.create({ data: { email: `cp-${tag}-${sfx}@test.invalid`, passwordHash: 'x', firstName: 'CP', lastName: tag, status: 'ACTIVE', platformPermissions } });
+  return { id: u.id };
+}
+
+async function serviceRule({ customerId, service }) {
+  // The Print Spooler monitor (Rem0te's own e2e-monitoring adds the same rule through its API).
+  await prisma.monitorRule.create({ data: { scopeKey: `b:${customerId}`, customerId, key: 'spooler-e2e', kind: 'SERVICE_STOPPED', name: `${service} (e2e)`, severity: 'WARNING', params: { service }, createdById: 'cross-peer-e2e' } });
+  return { ok: true };
+}
+
+async function actionJob({ id }) {
+  const j = await prisma.actionJob.findUnique({ where: { id }, include: { targets: true } });
+  if (!j) return null;
+  return { status: j.status, via: j.via, origin: j.origin, requestedById: j.requestedById, approvers: Array.isArray(j.approvers) ? j.approvers.map((a) => a.userId) : [],
+    targets: j.targets.map((t) => ({ endpointId: t.endpointId, status: t.status, outcome: t.outcome })) };
+}
+
 async function cleanup({ peerId, businesses = {}, users = {}, owners = {}, endpoints = {} }) {
   const biz = Object.values(businesses), us = [...Object.values(users), ...Object.values(owners)], eps = Object.values(endpoints).map((e) => e.id);
   const jobs = await prisma.integrationJob.findMany({ where: { customerId: { in: biz } }, select: { id: true } });
   await prisma.integrationReplayGuard.deleteMany({ where: { OR: [{ jobId: { in: jobs.map((j) => j.id) } }, { key: { startsWith: `${peerId}:` } }] } }).catch(() => {});
   await prisma.integrationJob.deleteMany({ where: { customerId: { in: biz } } });
+  const ajobs = await prisma.actionJob.findMany({ where: { customerId: { in: biz } }, select: { id: true } }).catch(() => []);
+  await prisma.actionTarget.deleteMany({ where: { jobId: { in: ajobs.map((j) => j.id) } } }).catch(() => {});
+  await prisma.actionJob.deleteMany({ where: { customerId: { in: biz } } }).catch(() => {});
+  await prisma.userMfaMethod.deleteMany({ where: { userId: { in: us } } }).catch(() => {});
+  await prisma.endpointInventory.deleteMany({ where: { endpointId: { in: eps } } }).catch(() => {});
   await prisma.integrationAlertEvent.deleteMany({ where: { peerId } }).catch(() => {});
   await prisma.integrationTechnicianMapping.deleteMany({ where: { peerId } });
   await prisma.integrationOrgMapping.deleteMany({ where: { peerId } });
@@ -153,7 +180,7 @@ async function cleanup({ peerId, businesses = {}, users = {}, owners = {}, endpo
   return { ok: true };
 }
 
-const handlers = { setup, caps, mapping, job, alert, deliveries, retryNow, pause, unpause, rebootRule, rebootSince, cleanup };
+const handlers = { setup, caps, mapping, job, alert, deliveries, retryNow, pause, unpause, rebootRule, rebootSince, user, serviceRule, actionJob, cleanup };
 try {
   if (!handlers[cmd]) throw new Error(`unknown command ${cmd}`);
   const out = await handlers[cmd](input);

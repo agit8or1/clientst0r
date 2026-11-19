@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    }
+  },
+  "required": [
+    "summary"
+  ],
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:proposed:timeline-summary-output",
+  "title": "ticket-rmm-v1 PROPOSED timeline-summary-output (revision 4 proposal, not agreed)"
+}

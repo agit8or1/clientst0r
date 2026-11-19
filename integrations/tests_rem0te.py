@@ -116,7 +116,7 @@ class FixtureVectorTests(SimpleTestCase):
     def test_pin_records_the_tested_rem0te(self):
         pin = pairing.pin()
         self.assertEqual(pin['contract'], 'ticket-rmm-v1')
-        self.assertEqual(pin['rem0te_sha'], '4b2b9f5cbe093b99563b9332ba3bdf9dded88720')
+        self.assertEqual(pin['rem0te_sha'], '5a43f02318192dda3f2033be20b1fa9dda3578b5')
         self.assertEqual(pin['contract_revision'], 2)
         self.assertEqual(pin['previous']['rem0te_sha'], '1bff01a4a3b52fd745e001352e0c417909199aeb')
 

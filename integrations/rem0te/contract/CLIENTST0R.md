@@ -13,6 +13,28 @@ shipped in **rem0te 0.30.0** (the commit tagged `v0.30.0`). This directory is th
 Read `contract_revision` from `/capabilities` and use nothing newer than you implement. Revisions only add
 fields. Revision 2 adds `contract_revision`, `organizations` and `alert.patch_summary`.
 
+## Revision 3: acknowledged 2026-11-11, not built
+
+ClientSt0r acknowledged P1–P10 (`INTEGRATION_COORDINATION.md` §5) as proposed; its notes and its requests R2–R16 are
+recorded in §9 and §9A there. rem0te has not built them, so build against revision 2 until `/capabilities` reports
+`contract_revision: 3`.
+
+## Proposed for revision 4: the device summary (rem0te 0.34, not agreed)
+
+rem0te no longer calls a model provider for the device page's AI summary; it asks your gateway instead, with a new
+inference task `device_timeline_v1` (P11) that it uses only after your own capabilities document lists it (P12).
+Shapes, what rem0te sends and three open questions are in `INTEGRATION_COORDINATION.md` §5A; JSON Schemas in
+`proposed/`. These are proposals: build them only once they are acknowledged there. Until then rem0te shows
+*Needs ClientSt0r support for device_timeline_v1* and sends nothing.
+
+## Proposed for revision 5: agent-silent alerts and tray support requests (rem0te 0.36.1, not agreed)
+
+`AGENT_SILENT` as an alert kind (P13), a signed `support_request.created` event (P14) and an authenticated read for
+a request and its attachments (P15). rem0te proposes to send them **only to a peer that declares
+`contract_revision` ≥ 5** in its capabilities document, never to an older one, because a strict validator would
+refuse them (your R2). Nothing is built on rem0te's side and nothing is sent. Shapes and three questions:
+`INTEGRATION_COORDINATION.md` §5B.
+
 ## Measured: ClientSt0r 3.17.659 does not interoperate
 
 `apps/api/scripts/interop-clientst0r.mjs` starts a real rem0te API on a scratch database and runs

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "ticket-rmm-v1"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "organization_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "model_profile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "task": {
+      "type": "string",
+      "const": "device_timeline_v1"
+    },
+    "output_schema": {
+      "type": "string",
+      "const": "timeline-summary.v1"
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4000
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "instructions_ref": {
+          "type": "string",
+          "const": "rem0te/device-timeline/v1"
+        },
+        "rem0te_endpoint_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+$"
+        },
+        "untrusted_segments": {
+          "minItems": 1,
+          "maxItems": 51,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^(device:facts|note:\\d{1,3}|session:\\d{1,3})$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "device_facts",
+                  "device_note",
+                  "support_session"
+                ]
+              },
+              "author_role": {
+                "type": "string",
+                "enum": [
+                  "staff",
+                  "rem0te"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "ref",
+              "kind",
+              "author_role",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "redactions": {
+          "type": "object",
+          "properties": {
+            "secret": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "token": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "email": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "ip_address": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "mac_address": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "rustdesk_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "user_path": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "secret",
+            "token",
+            "email",
+            "ip_address",
+            "mac_address",
+            "rustdesk_id",
+            "user_path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "instructions_ref",
+        "rem0te_endpoint_id",
+        "untrusted_segments",
+        "redactions"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "contract",
+    "request_id",
+    "organization_id",
+    "model_profile",
+    "task",
+    "output_schema",
+    "max_output_tokens",
+    "input"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:proposed:timeline-inference-request",
+  "title": "ticket-rmm-v1 PROPOSED timeline-inference-request (revision 4 proposal, not agreed)"
+}

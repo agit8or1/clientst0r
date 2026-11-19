@@ -134,11 +134,17 @@ def main():
     ap.add_argument('--node', default=os.environ.get('NODE', 'node'))
     ap.add_argument('--keep', action='store_true', help='keep the work directory and Rem0te fixtures')
     ap.add_argument('--only', default='', help='comma-separated scenario keys')
+    ap.add_argument('--signer-public-port', type=int, default=int(os.environ.get('SIGNER_PUBLIC_PORT', 0)),
+                    help='s12/s13: the test approval signer\'s public port (default Rem0te port + 1000)')
+    ap.add_argument('--signer-internal-port', type=int, default=int(os.environ.get('SIGNER_INTERNAL_PORT', 0)),
+                    help='s12/s13: its internal port (default Rem0te port + 1001)')
     ap.add_argument('--db-cache', default=os.environ.get('E2E_DB_CACHE', ''),
                     help='file holding a migrated, empty ClientSt0r database to start from')
     a = ap.parse_args()
-    for p in (a.cs_port, a.rem0te_port, a.llm_port):
-        if p in (8000, 8097, 8099, 3000, 3001, 443):
+    a.signer_public_port = a.signer_public_port or a.rem0te_port + 1000
+    a.signer_internal_port = a.signer_internal_port or a.rem0te_port + 1001
+    for p in (a.cs_port, a.rem0te_port, a.llm_port, a.signer_public_port, a.signer_internal_port):
+        if p in (8000, 8097, 8099, 3000, 3001, 443, 3201, 3202):
             sys.exit(f'refusing port {p}: it belongs to something else')
     src = Path(os.environ.get('REM0TE_SRC', ''))
     if not (src / 'apps' / 'api' / 'dist' / 'main.js').exists():
@@ -207,7 +213,13 @@ def settings_db():
     return settings.DATABASES['default']['NAME']
 
 
-class Harness:
+sys.path.insert(0, str(HERE))
+import remediation_chain  # noqa: E402  s12/s13: the remediation chain, approved only inside Rem0te
+
+remediation_chain.bind(check=check, section=section, wait_for=wait_for, http_json=http_json, Proc=Proc, here=HERE)
+
+
+class Harness(remediation_chain.RemediationChain):
     PEER_AUD = 'clientst0r:e2e'
     REM0TE_AUD = 'rem0te:e2e'
     REM0TE_KID = 'rem0te-e2e-1'
@@ -216,6 +228,8 @@ class Harness:
         self.a, self.src, self.db, self.work, self.logs = a, src, db, work, logs
         self.procs = {}
         self.fx = None
+        self.r_extra_env = {}   # s12: the test approval signer and the signed update repository
+        self.signer = None
         self.sfx = secrets.token_hex(3)
         self.rem0te_sha = self._git_sha()
         self.cs_url = f'http://127.0.0.1:{a.cs_port}'
@@ -267,6 +281,7 @@ class Harness:
             'VERSION_FILE': str(self.src / 'version.json'), 'MONITOR_SWEEP_SECONDS': '2',
             'MONITOR_OFFLINE_HOLD_SECONDS': '4', 'HBBS_PRESENCE_HOST': '127.0.0.2',
         })
+        env.update(self.r_extra_env)
         self.procs['rem0te'] = Proc('rem0te', [self.a.node, 'dist/main.js'], env,
                                     str(self.src / 'apps' / 'api'), self.logs).start()
         ok = wait_for(lambda: http_json('GET', f'{self.r_url}/api/v1/healthz')[0] == 200, 90, 1)
@@ -372,7 +387,7 @@ class Harness:
         os.chmod(self.peers_file, 0o600)
 
     def shutdown(self, keep=False):
-        for name in ('clientst0r', 'rem0te', 'llm'):
+        for name in ('clientst0r', 'rem0te', 'signer', 'llm'):
             if name in self.procs:
                 self.procs[name].stop()
         if self.fx and not keep:
@@ -458,7 +473,8 @@ class Harness:
         scenarios = [('s1', self.s1_pairing), ('s2', self.s2_analysis), ('s3', self.s3_private),
                      ('s4', self.s4_alert_ticket), ('s5', self.s5_restart_retry), ('s6', self.s6_same_pc_name),
                      ('s7', self.s7_revoked), ('s8', self.s8_unavailable), ('s9', self.s9_l1),
-                     ('s10', self.s10_failure_reasons), ('s11', self.s11_revision2)]
+                     ('s10', self.s10_failure_reasons), ('s11', self.s11_revision2),
+                     ('s12', self.s12_remediation_chain), ('s13', self.s13_direct_mode)]
         for key, fn in scenarios:
             if only and key not in only and key not in ('s1', 's2'):
                 continue
@@ -895,7 +911,6 @@ class Harness:
                   for RMMConn in [type(c)]}
         check(n == 2 and all(s in health.LABELS for s in states.values()),
               f'reconciliation ran for both connections: {states}', states)
-
 
 if __name__ == '__main__':
     main()

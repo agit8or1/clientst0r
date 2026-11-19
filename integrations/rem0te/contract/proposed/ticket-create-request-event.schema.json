@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "ticket-rmm-v1"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "type": {
+      "type": "string",
+      "const": "ticket.create_request"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "peer_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "organization_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "ticket": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 12000
+        },
+        "rem0te_endpoint_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9]+$"
+        },
+        "computer_name": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "source_ref": {
+          "type": "string",
+          "maxLength": 160,
+          "pattern": "^(event:[A-Za-z0-9_-]{8,64}:\\d{1,3}|alert:[A-Za-z0-9_-]{8,64}|support:[A-Za-z0-9_-]{8,64})$"
+        },
+        "requested_by_role": {
+          "type": "string",
+          "const": "staff"
+        }
+      },
+      "required": [
+        "subject",
+        "body",
+        "rem0te_endpoint_id",
+        "computer_name",
+        "source_ref",
+        "requested_by_role"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "contract",
+    "event_id",
+    "type",
+    "occurred_at",
+    "peer_id",
+    "organization_id",
+    "ticket"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:proposed:ticket-create-request-event",
+  "title": "ticket-rmm-v1 PROPOSED ticket-create-request-event (revision 4 proposal, not agreed)"
+}
