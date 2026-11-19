@@ -161,189 +161,192 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 
 ### Internal roles
 
-| Permission | Organization Owner | Organization Administrator | Service Manager | Level 1 Technician | Level 2 Technician | Level 3 Technician | Sales Representative | Sales Manager | Billing / Finance | Internal Read-Only / Auditor |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **Organization & users** | | | | | | | | | | |
-| `org_view_members` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `org_invite_members` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `org_manage_members` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `org_manage_privileged` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `roles_manage` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `org_manage_settings` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `org_owner` | ✔ |  |  |  |  |  |  |  |  |  |
-| **Tickets & queues** | | | | | | | | | | |
-| `tickets_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `tickets_create` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |
-| `tickets_edit` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
-| `tickets_assign` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `tickets_view_all` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
-| `tickets_close` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
-| `tickets_delete` | ✔ |  |  |  |  |  |  |  |  |  |
-| `tickets_view_internal` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `outsourcing_share_tickets` | ✔ |  | ✔ |  |  |  |  |  |  |  |
-| `routing_manage_rules` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `routing_test` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `routing_override` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| **Service management** | | | | | | | | | | |
-| `change_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `change_create` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
-| `change_approve_cab` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `change_implement` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `problem_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `problem_create` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
-| `problem_assign` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `problem_resolve` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `release_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `release_manage` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `release_freeze` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `catalog_propose_change` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| `catalog_approve_change` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| **Assets & inventory** | | | | | | | | | | |
-| `assets_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `assets_create` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `assets_edit` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| `assets_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `netconfig_view_configs` | ✔ |  |  |  |  |  |  |  |  |  |
-| **Documentation** | | | | | | | | | | |
-| `docs_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `docs_create` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| `docs_edit` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| `docs_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `docs_publish` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| **Knowledge base** | | | | | | | | | | |
-| `kb_view_articles` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `kb_edit_articles` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| `kb_move_articles` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `kb_manage_categories` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `kb_publish_articles` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| **Files & attachments** | | | | | | | | | | |
-| `files_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |
-| `files_upload` | ✔ | ✔ | ✔ |  | ✔ | ✔ | ✔ | ✔ |  |  |
-| `files_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Passwords & secrets** | | | | | | | | | | |
-| `vault_view` | ✔ |  |  | ✔ | ✔ | ✔ |  |  |  |  |
-| `vault_create` | ✔ |  |  |  |  |  |  |  |  |  |
-| `vault_edit` | ✔ |  |  |  |  |  |  |  |  |  |
-| `vault_delete` | ✔ |  |  |  |  |  |  |  |  |  |
-| `vault_export` | ✔ |  |  |  |  |  |  |  |  |  |
-| `vault_view_password` | ✔ |  |  |  |  |  |  |  |  |  |
-| `vault_approve_reveal` | ✔ |  |  |  |  |  |  |  |  |  |
-| `vault_manage_access_rules` | ✔ |  |  |  |  |  |  |  |  |  |
-| **Monitoring & alerts** | | | | | | | | | | |
-| `monitoring_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `monitoring_create` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `monitoring_edit` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |
-| `monitoring_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `monitoring_trigger` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| **Backup monitoring** | | | | | | | | | | |
-| `view_backup_status` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `manage_backup_integrations` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Security alerts** | | | | | | | | | | |
-| `security_alerts_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `security_alerts_manage_connections` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `security_alerts_acknowledge` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |
-| `security_alerts_create_rules` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Integrations & RMM** | | | | | | | | | | |
-| `integrations_view` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
-| `integrations_view_synced_psa` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `integrations_configure` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `integrations_sync` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Sales, quotes & CRM** | | | | | | | | | | |
-| `crm_view` | ✔ | ✔ |  |  |  |  | ✔ | ✔ |  | ✔ |
-| `crm_create_lead` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
-| `crm_manage_pipeline` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
-| `crm_manage_campaigns` | ✔ |  |  |  |  |  |  | ✔ |  |  |
-| `manage_customer_onboarding` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `crm_view_forecast` | ✔ |  |  |  |  |  |  | ✔ |  |  |
-| `crm_approve_commissions` | ✔ |  |  |  |  |  |  | ✔ |  |  |
-| `quotes_view` | ✔ | ✔ |  |  |  |  | ✔ | ✔ | ✔ | ✔ |
-| `quotes_edit` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
-| `quotes_send` | ✔ |  |  |  |  |  |  | ✔ |  |  |
-| `quotes_approve_discount` | ✔ |  |  |  |  |  |  | ✔ |  |  |
-| **Contracts & signing** | | | | | | | | | | |
-| `contracts_view` | ✔ | ✔ |  |  |  |  | ✔ | ✔ | ✔ | ✔ |
-| `contracts_view_pricing` | ✔ |  |  |  |  |  | ✔ | ✔ | ✔ |  |
-| `contracts_edit_draft` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
-| `contracts_manage_templates` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_submit_approval` | ✔ |  |  |  |  |  | ✔ | ✔ |  |  |
-| `contracts_approve` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_send` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_manage_links` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_countersign` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_void` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_download_signed` | ✔ |  |  |  |  |  |  | ✔ | ✔ |  |
-| `contracts_view_audit` | ✔ |  |  |  |  |  |  |  |  |  |
-| `contracts_settings` | ✔ |  |  |  |  |  |  |  |  |  |
-| **Billing & finance** | | | | | | | | | | |
-| `billing_view_invoices` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `billing_send_invoices` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `billing_record_payments` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `billing_view_aging` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `billing_approve_invoices` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `billing_issue_credit` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `billing_manage_charges` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `manage_tax_settings` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| **Procurement** | | | | | | | | | | |
-| `procurement_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  | ✔ | ✔ |
-| `procurement_create_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `procurement_approve_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `procurement_create_po` | ✔ |  |  |  |  |  |  |  |  |  |
-| `procurement_send_po` | ✔ |  |  |  |  |  |  |  |  |  |
-| `manage_licensing` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Reports & dashboards** | | | | | | | | | | |
-| `reports_view_dashboards` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `reports_view_financial` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `view_profitability` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `act_on_pricing_recommendations` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `reports_view_sla` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
-| `reports_view_capacity` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |
-| `manage_health_score_settings` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `reports_manage_dashboards` | ✔ | ✔ | ✔ |  |  |  |  | ✔ |  |  |
-| `reports_manage_scheduled` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `reports_export` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  | ✔ | ✔ |  |
-| **Resourcing** | | | | | | | | | | |
-| `resourcing_view_team` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `resourcing_manage_cost_rates` | ✔ |  |  |  |  |  |  |  |  |  |
-| `resourcing_approve_leave` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `resourcing_manage_holidays` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Pricing & rate cards** | | | | | | | | | | |
-| `pricing_manage_price_books` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `pricing_manage_service_plans` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `pricing_view_internal_cost_rates` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `pricing_manage_labor_rate_cards` | ✔ |  |  |  |  |  |  |  | ✔ |  |
-| `pricing_approve_discounts` | ✔ |  |  |  |  |  |  | ✔ | ✔ |  |
-| **API & automation** | | | | | | | | | | |
-| `api_access` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| `api_keys_manage` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Audit logs** | | | | | | | | | | |
-| `audit_view` | ✔ | ✔ |  |  |  |  |  |  |  | ✔ |
-| `audit_export` | ✔ |  |  |  |  |  |  |  |  |  |
-| **AI assistance (OPTIONAL AI)** | | | | | | | | | | |
-| `psa_ai_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
-| `psa_ai_request_triage` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
-| `psa_ai_send_low_risk` | ✔ |  | ✔ |  |  |  |  |  |  |  |
-| `psa_ai_send_high_risk` | ✔ |  |  |  |  |  |  |  |  |  |
-| `psa_ai_approve_reply` | ✔ |  | ✔ |  |  |  |  |  |  |  |
-| `psa_ai_apply_low_risk` | ✔ |  | ✔ |  |  |  |  |  |  |  |
-| `psa_ai_apply_high_risk` | ✔ |  |  |  |  |  |  |  |  |  |
-| `psa_ai_approve_action` | ✔ |  | ✔ |  |  |  |  |  |  |  |
-| `psa_ai_run_script` | ✔ |  |  |  |  |  |  |  |  |  |
-| `psa_ai_create_workflow` | ✔ |  |  |  |  |  |  |  |  |  |
-| `psa_ai_billing` | ✔ |  |  |  |  |  |  |  |  |  |
-| `psa_ai_admin` | ✔ | ✔ |  |  |  |  |  |  |  |  |
-| **Operations** | | | | | | | | | | |
-| `vehicles_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
-| `vehicles_manage` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `scheduling_manage_wallboard` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `psa_manage_workflow_rules` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `timesheets_approve` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |
-| `resourcing_view_payroll` | ✔ | ✔ |  |  |  |  |  |  | ✔ |  |
-| **Customer portal** | | | | | | | | | | |
-| `portal_tickets_view_org` | ✔ |  |  |  |  |  |  |  |  |  |
-| `portal_tickets_create` | ✔ |  |  |  |  |  |  |  |  |  |
-| `portal_tickets_reply` | ✔ |  |  |  |  |  |  |  |  |  |
-| `portal_approve_requests` | ✔ |  |  |  |  |  |  |  |  |  |
-| `portal_agreements_view_org` | ✔ |  |  |  |  |  |  |  |  |  |
+| Permission | Organization Owner | Organization Administrator | Service Manager | Level 1 Technician | Level 2 Technician | Level 3 Technician | Security Analyst | Security Administrator | Sales Representative | Sales Manager | Billing / Finance | Internal Read-Only / Auditor |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Organization & users** | | | | | | | | | | | | |
+| `org_view_members` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `org_invite_members` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `org_manage_members` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `org_manage_privileged` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `roles_manage` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `org_manage_settings` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `org_owner` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| **Tickets & queues** | | | | | | | | | | | | |
+| `tickets_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `tickets_create` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |
+| `tickets_edit` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
+| `tickets_assign` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |  |  |
+| `tickets_view_all` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  | ✔ |
+| `tickets_close` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  |  |
+| `tickets_delete` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `tickets_view_internal` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `outsourcing_share_tickets` | ✔ |  | ✔ |  |  |  |  |  |  |  |  |  |
+| `routing_manage_rules` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `routing_test` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `routing_override` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| **Service management** | | | | | | | | | | | | |
+| `change_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  | ✔ |
+| `change_create` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  |  |
+| `change_approve_cab` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `change_implement` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |  |  |
+| `problem_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  | ✔ |
+| `problem_create` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  |  |
+| `problem_assign` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |  |  |
+| `problem_resolve` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |  |  |
+| `release_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  | ✔ |
+| `release_manage` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `release_freeze` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `catalog_propose_change` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |  |  |
+| `catalog_approve_change` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| **Assets & inventory** | | | | | | | | | | | | |
+| `assets_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `assets_create` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |  |  |
+| `assets_edit` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |  |  |
+| `assets_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `netconfig_view_configs` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| **Documentation** | | | | | | | | | | | | |
+| `docs_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `docs_create` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |  |  |
+| `docs_edit` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |  |  |
+| `docs_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `docs_publish` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| **Knowledge base** | | | | | | | | | | | | |
+| `kb_view_articles` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `kb_edit_articles` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  |  |  |  |  |
+| `kb_move_articles` | ✔ | ✔ | ✔ |  |  | ✔ |  |  |  |  |  |  |
+| `kb_manage_categories` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `kb_publish_articles` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| **Files & attachments** | | | | | | | | | | | | |
+| `files_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |
+| `files_upload` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  |  | ✔ | ✔ |  |  |
+| `files_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Passwords & secrets** | | | | | | | | | | | | |
+| `vault_view` | ✔ |  |  | ✔ | ✔ | ✔ |  |  |  |  |  |  |
+| `vault_create` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `vault_edit` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `vault_delete` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `vault_export` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `vault_view_password` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `vault_approve_reveal` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `vault_manage_access_rules` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| **Monitoring & alerts** | | | | | | | | | | | | |
+| `monitoring_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `monitoring_create` | ✔ | ✔ | ✔ |  |  | ✔ |  | ✔ |  |  |  |  |
+| `monitoring_edit` | ✔ | ✔ | ✔ |  |  | ✔ |  | ✔ |  |  |  |  |
+| `monitoring_delete` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `monitoring_trigger` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  | ✔ |  |  |  |  |
+| **Backup monitoring** | | | | | | | | | | | | |
+| `view_backup_status` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `manage_backup_integrations` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Security alerts** | | | | | | | | | | | | |
+| `security_alerts_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `security_alerts_manage_connections` | ✔ | ✔ |  |  |  |  |  | ✔ |  |  |  |  |
+| `security_alerts_acknowledge` | ✔ | ✔ | ✔ |  | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
+| `security_alerts_create_rules` | ✔ | ✔ |  |  |  |  |  | ✔ |  |  |  |  |
+| `events_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  | ✔ |
+| `events_link` | ✔ | ✔ | ✔ |  | ✔ | ✔ | ✔ | ✔ |  |  |  |  |
+| `events_manage_ingestion` | ✔ | ✔ |  |  |  |  |  | ✔ |  |  |  |  |
+| **Integrations & RMM** | | | | | | | | | | | | |
+| `integrations_view` | ✔ | ✔ | ✔ |  |  |  | ✔ | ✔ |  |  |  | ✔ |
+| `integrations_view_synced_psa` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `integrations_configure` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `integrations_sync` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Sales, quotes & CRM** | | | | | | | | | | | | |
+| `crm_view` | ✔ | ✔ |  |  |  |  |  |  | ✔ | ✔ |  | ✔ |
+| `crm_create_lead` | ✔ |  |  |  |  |  |  |  | ✔ | ✔ |  |  |
+| `crm_manage_pipeline` | ✔ |  |  |  |  |  |  |  | ✔ | ✔ |  |  |
+| `crm_manage_campaigns` | ✔ |  |  |  |  |  |  |  |  | ✔ |  |  |
+| `manage_customer_onboarding` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `crm_view_forecast` | ✔ |  |  |  |  |  |  |  |  | ✔ |  |  |
+| `crm_approve_commissions` | ✔ |  |  |  |  |  |  |  |  | ✔ |  |  |
+| `quotes_view` | ✔ | ✔ |  |  |  |  |  |  | ✔ | ✔ | ✔ | ✔ |
+| `quotes_edit` | ✔ |  |  |  |  |  |  |  | ✔ | ✔ |  |  |
+| `quotes_send` | ✔ |  |  |  |  |  |  |  |  | ✔ |  |  |
+| `quotes_approve_discount` | ✔ |  |  |  |  |  |  |  |  | ✔ |  |  |
+| **Contracts & signing** | | | | | | | | | | | | |
+| `contracts_view` | ✔ | ✔ |  |  |  |  |  |  | ✔ | ✔ | ✔ | ✔ |
+| `contracts_view_pricing` | ✔ |  |  |  |  |  |  |  | ✔ | ✔ | ✔ |  |
+| `contracts_edit_draft` | ✔ |  |  |  |  |  |  |  | ✔ | ✔ |  |  |
+| `contracts_manage_templates` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_submit_approval` | ✔ |  |  |  |  |  |  |  | ✔ | ✔ |  |  |
+| `contracts_approve` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_send` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_manage_links` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_countersign` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_void` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_download_signed` | ✔ |  |  |  |  |  |  |  |  | ✔ | ✔ |  |
+| `contracts_view_audit` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `contracts_settings` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| **Billing & finance** | | | | | | | | | | | | |
+| `billing_view_invoices` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `billing_send_invoices` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `billing_record_payments` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `billing_view_aging` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `billing_approve_invoices` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `billing_issue_credit` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `billing_manage_charges` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `manage_tax_settings` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| **Procurement** | | | | | | | | | | | | |
+| `procurement_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  | ✔ | ✔ |
+| `procurement_create_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `procurement_approve_pr` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `procurement_create_po` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `procurement_send_po` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `manage_licensing` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Reports & dashboards** | | | | | | | | | | | | |
+| `reports_view_dashboards` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `reports_view_financial` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `view_profitability` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `act_on_pricing_recommendations` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `reports_view_sla` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  | ✔ |
+| `reports_view_capacity` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  | ✔ |
+| `manage_health_score_settings` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `reports_manage_dashboards` | ✔ | ✔ | ✔ |  |  |  |  |  |  | ✔ |  |  |
+| `reports_manage_scheduled` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `reports_export` | ✔ | ✔ | ✔ |  | ✔ | ✔ |  | ✔ |  | ✔ | ✔ |  |
+| **Resourcing** | | | | | | | | | | | | |
+| `resourcing_view_team` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `resourcing_manage_cost_rates` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `resourcing_approve_leave` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `resourcing_manage_holidays` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Pricing & rate cards** | | | | | | | | | | | | |
+| `pricing_manage_price_books` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_manage_service_plans` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_view_internal_cost_rates` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_manage_labor_rate_cards` | ✔ |  |  |  |  |  |  |  |  |  | ✔ |  |
+| `pricing_approve_discounts` | ✔ |  |  |  |  |  |  |  |  | ✔ | ✔ |  |
+| **API & automation** | | | | | | | | | | | | |
+| `api_access` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| `api_keys_manage` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Audit logs** | | | | | | | | | | | | |
+| `audit_view` | ✔ | ✔ |  |  |  |  |  | ✔ |  |  |  | ✔ |
+| `audit_export` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| **AI assistance (OPTIONAL AI)** | | | | | | | | | | | | |
+| `psa_ai_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  |  |
+| `psa_ai_request_triage` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  |  |
+| `psa_ai_send_low_risk` | ✔ |  | ✔ |  |  |  |  |  |  |  |  |  |
+| `psa_ai_send_high_risk` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `psa_ai_approve_reply` | ✔ |  | ✔ |  |  |  |  |  |  |  |  |  |
+| `psa_ai_apply_low_risk` | ✔ |  | ✔ |  |  |  |  |  |  |  |  |  |
+| `psa_ai_apply_high_risk` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `psa_ai_approve_action` | ✔ |  | ✔ |  |  |  |  |  |  |  |  |  |
+| `psa_ai_run_script` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `psa_ai_create_workflow` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `psa_ai_billing` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `psa_ai_admin` | ✔ | ✔ |  |  |  |  |  |  |  |  |  |  |
+| **Operations** | | | | | | | | | | | | |
+| `vehicles_view` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |  |  |  |  |  | ✔ |
+| `vehicles_manage` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `scheduling_manage_wallboard` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `psa_manage_workflow_rules` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `timesheets_approve` | ✔ | ✔ | ✔ |  |  |  |  |  |  |  |  |  |
+| `resourcing_view_payroll` | ✔ | ✔ |  |  |  |  |  |  |  |  | ✔ |  |
+| **Customer portal** | | | | | | | | | | | | |
+| `portal_tickets_view_org` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `portal_tickets_create` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `portal_tickets_reply` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `portal_approve_requests` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
+| `portal_agreements_view_org` | ✔ |  |  |  |  |  |  |  |  |  |  |  |
 
 ### Customer roles and add-ons
 
@@ -394,6 +397,8 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 | Level 1 Technician | RMM L1 — Help Desk | `tech_l1` | adopted existing template, RMM tier l1 |
 | Level 2 Technician | RMM L2 — Technician | `tech_l2` | adopted existing template, RMM tier l2 |
 | Level 3 Technician | RMM L3 — Senior Technician | `tech_l3` | adopted existing template, RMM tier l3 |
+| Security Analyst | Security Analyst | `security_analyst` | new template |
+| Security Administrator | Security Administrator | `security_admin` | new template |
 | Sales Representative | Sales Representative | `sales_rep` | new template |
 | Sales Manager | Sales Manager | `sales_manager` | new template |
 | Billing / Finance | Billing / Finance | `billing_finance` | new template |
@@ -562,6 +567,9 @@ EDR / AV / firewall alert ingestion and rules.
 | `security_alerts_manage_connections` | Manage settings | critical | staff only | enforced | Create / edit / delete EDR / AV / firewall connections |
 | `security_alerts_acknowledge` | Edit | elevated | staff only | enforced | Acknowledge / dismiss / resolve alerts, convert to tickets |
 | `security_alerts_create_rules` | Manage settings | elevated | staff only | enforced | Create / edit / delete auto-ticket rules and suppression windows |
+| `events_view` | View / list | standard | staff only | enforced | View the shared event list (every alert source) and ingestion health |
+| `events_link` | Edit | elevated | staff only | enforced | Link or unlink tickets and incidents on events |
+| `events_manage_ingestion` | Manage settings | critical | staff only | enforced | Change event ingestion, retention and quota; retry failed items |
 
 ### Integrations & RMM
 

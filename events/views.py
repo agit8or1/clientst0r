@@ -1,6 +1,6 @@
 """Shared event layer pages: the event list, one event with its links, and
 ingestion health. Staff only (the /security/ prefix) and scoped to the
-customers where the user holds security_alerts_view."""
+customers where the user holds events_view (accounts 0064)."""
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -16,9 +16,9 @@ from . import models as M
 from . import projection
 from .queue import QUEUE_CAP
 
-VIEW_PERM = 'security_alerts_view'
-ACT_PERM = 'security_alerts_acknowledge'
-ADMIN_PERM = 'security_alerts_manage_connections'
+VIEW_PERM = 'events_view'
+ACT_PERM = 'events_link'
+ADMIN_PERM = 'events_manage_ingestion'
 
 
 def scoped_events(user):
@@ -168,6 +168,8 @@ def ingestion_health(request):
             n = projection.retry_dead_letters()
             messages.success(request, f'{n} failed item(s) queued again.')
             _audit(request, None, f'Retried {n} failed event projections')
+        elif action == 'customer_retention':
+            return _customer_retention(request)
         elif action == 'settings':
             try:
                 values = {k: int(request.POST.get(k) or 0)
@@ -178,24 +180,67 @@ def ingestion_health(request):
             if values['retention_days'] and values['retention_days'] < 7:
                 messages.error(request, 'Keep closed events for at least 7 days (0 keeps them forever).')
                 return redirect('events:health')
+            per_source = {}
+            for key, _label in M.SOURCES:
+                raw = (request.POST.get(f'retention_{key}') or '').strip()
+                if raw == '':
+                    continue
+                if not raw.isdigit() or (0 < int(raw) < 7):
+                    messages.error(request, 'Per-source retention must be blank, 0 or at least 7 days.')
+                    return redirect('events:health')
+                per_source[key] = int(raw)
             settings.ingestion_enabled = request.POST.get('ingestion_enabled') == '1'
             for k, v in values.items():
                 setattr(settings, k, v)
+            settings.source_retention_days = per_source
             settings.save()
+            values['source_retention_days'] = per_source
             _audit(request, None, 'Changed event ingestion settings', extra={
                 'ingestion_enabled': settings.ingestion_enabled, **values})
             messages.success(request, 'Saved.')
         return redirect('events:health')
     health = {h.source: h for h in M.SourceHealth.objects.all()}
     queue = M.ProjectionQueueItem.objects
-    rows = [(key, label, health.get(key)) for key, label in M.SOURCES]
+    per_source = settings.source_retention_days or {}
+    rows = [(key, label, health.get(key), per_source.get(key, '')) for key, label in M.SOURCES]
     return render(request, 'events/ingestion_health.html', {
         'rows': rows, 'settings': settings, 'can_admin': can_admin,
+        'customer_retention': M.CustomerRetention.objects.select_related('organization')
+                                .order_by('organization__name'),
+        'customers': _retention_customers(request.user) if can_admin else [],
         'queued': queue.filter(dead=False).count(), 'dead': queue.filter(dead=True).order_by('-queued_at')[:50],
         'dead_count': queue.filter(dead=True).count(), 'event_count': M.OperationalEvent.objects.count(),
         'live_count': M.OperationalEvent.objects.filter(status__in=(M.STATUS_OPEN, M.STATUS_ACK)).count(),
         'queue_cap': QUEUE_CAP,
     })
+
+
+def _retention_customers(user):
+    from core.models import Organization
+    return Organization.objects.filter(is_active=True).order_by('name').values_list('pk', 'name')[:1000]
+
+
+def _customer_retention(request):
+    from core.models import Organization
+    org_id = request.POST.get('organization')
+    raw = (request.POST.get('days') or '').strip()
+    org = Organization.objects.filter(pk=org_id).first() if (org_id or '').isdigit() else None
+    if org is None:
+        messages.error(request, 'Choose a customer.')
+        return redirect('events:health')
+    if raw == '':
+        M.CustomerRetention.objects.filter(organization=org).delete()
+        _audit(request, None, f'Removed event retention override for {org.name}')
+        messages.success(request, f'{org.name} follows the source and default retention again.')
+        return redirect('events:health')
+    if not raw.isdigit() or 0 < int(raw) < 7:
+        messages.error(request, 'Retention must be 0 (keep) or at least 7 days.')
+        return redirect('events:health')
+    M.CustomerRetention.objects.update_or_create(organization=org, defaults={'retention_days': int(raw)})
+    _audit(request, None, f'Event retention for {org.name}: {raw} days', extra={'organization': org.pk,
+                                                                               'retention_days': int(raw)})
+    messages.success(request, f'Saved retention for {org.name}.')
+    return redirect('events:health')
 
 
 def _audit(request, event, description, extra=None):

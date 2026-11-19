@@ -230,7 +230,7 @@ class ViewTests(_Base):
         self.ew = self._event(None, 'msp')
         self.admin = User.objects.create_superuser('events-admin', 'a@example.test', 'pw')
         viewer = RoleTemplate.objects.create(name='events scoped', security_alerts_view=True,
-                                             security_alerts_acknowledge=True)
+                                             security_alerts_acknowledge=True, events_view=True, events_link=True)
         # A technician whose client scope is customer A only.
         self.tech = _make_msp_tech(User.objects.create_user('events-tech', password='pw'))
         self.tech.profile.global_role_template = viewer
@@ -260,7 +260,7 @@ class ViewTests(_Base):
 
     def test_scoped_tech_sees_only_their_customer(self):
         from accounts.permission_utils import orgs_with_perm
-        self.assertEqual(orgs_with_perm(self.tech, 'security_alerts_view'), {self.a.pk})
+        self.assertEqual(orgs_with_perm(self.tech, 'events_view'), {self.a.pk})
         c = self.client_for(self.tech)
         r = c.get('/security/events/')
         self.assertContains(r, 'event a')
@@ -304,3 +304,99 @@ class ViewTests(_Base):
         self.assertIn(r.status_code, (403, 302))
         if r.status_code == 302:
             self.assertNotIn('/security/events/ingestion/', r.url)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PermissionTests(TestCase):
+    """82.6: events_view / events_link / events_manage_ingestion (accounts 0064)."""
+
+    def _tech(self, name, **flags):
+        role = RoleTemplate.objects.create(name=f'role {name}', **flags)
+        user = _make_msp_tech(User.objects.create_user(name, password='pw'))
+        user.profile.global_role_template = role
+        user.profile.save()
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s.save()
+        return c
+
+    def test_security_alert_view_alone_no_longer_opens_events(self):
+        c = self._tech('ev-sec-only', security_alerts_view=True, events_view=False)
+        self.assertEqual(c.get('/security/events/').status_code, 403)
+        c = self._tech('ev-view', security_alerts_view=False, events_view=True)
+        self.assertEqual(c.get('/security/events/').status_code, 200)
+
+    def test_ingestion_settings_need_manage_ingestion(self):
+        c = self._tech('ev-viewer', events_view=True, security_alerts_manage_connections=True)
+        self.assertEqual(c.post('/security/events/ingestion/', {'action': 'retry'}).status_code, 403)
+        c = self._tech('ev-admin', events_view=True, events_manage_ingestion=True)
+        r = c.post('/security/events/ingestion/', {'action': 'settings', 'ingestion_enabled': '1',
+                                                   'retention_days': '90', 'raw_retention_days': '30',
+                                                   'max_events': '0', 'retention_backup': '14',
+                                                   'retention_monitor': ''})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(M.EventSettings.get().source_retention_days, {'backup': 14})
+
+    def test_registry_and_seeds(self):
+        from accounts import permission_registry as R
+        from accounts.role_seeds import definitions
+        for key in ('events_view', 'events_link', 'events_manage_ingestion'):
+            self.assertIn(key, R.STAFF_ONLY_KEYS)
+            self.assertFalse(RoleTemplate._meta.get_field(key).default)
+        defs = {d.key: d.flags for d in definitions()}
+        for key, flags in defs.items():
+            self.assertEqual(bool(flags.get('events_view')), bool(flags.get('security_alerts_view')), key)
+            self.assertEqual(bool(flags.get('events_link')), bool(flags.get('security_alerts_acknowledge')), key)
+        self.assertTrue(defs['security_admin']['events_manage_ingestion'])
+        self.assertFalse(defs['security_analyst'].get('events_manage_ingestion'))
+        self.assertFalse(defs['security_analyst'].get('vault_view_password'))
+        # Seeded by the migration in the test database.
+        analyst = RoleTemplate.objects.get(seed_key='security_analyst')
+        self.assertTrue(analyst.events_view and analyst.events_link and not analyst.events_manage_ingestion)
+        self.assertTrue(RoleTemplate.objects.get(seed_key='tech_l1').events_view)
+
+    def test_migration_grant_keeps_existing_access(self):
+        import importlib
+        from django.apps import apps as live_apps
+        mig = importlib.import_module('accounts.migrations.0064_roletemplate_events_permissions')
+        custom = RoleTemplate.objects.create(name='custom sec', security_alerts_view=True,
+                                             security_alerts_acknowledge=True)
+        plain = RoleTemplate.objects.create(name='custom plain', security_alerts_view=False)
+        mig.grant(live_apps, None)
+        custom.refresh_from_db()
+        plain.refresh_from_db()
+        self.assertTrue(custom.events_view and custom.events_link)
+        self.assertFalse(custom.events_manage_ingestion)
+        self.assertFalse(plain.events_view)
+
+    def test_simple_roles_follow_security_flags(self):
+        from types import SimpleNamespace
+        from accounts.models import derive_legacy_flags
+        ns = derive_legacy_flags(SimpleNamespace(security_alerts_view=True, security_alerts_acknowledge=False,
+                                                 security_alerts_manage_connections=False), Role.EDITOR)
+        self.assertEqual((ns.events_view, ns.events_link, ns.events_manage_ingestion), (True, False, False))
+
+
+class RetentionOverrideTests(_Base):
+    def _ev(self, i, org, source, days_old):
+        return M.OperationalEvent.objects.create(
+            organization=org, source=source, source_id=i, dedup_key=f'ro{i}', title='t', status='resolved',
+            last_seen_at=timezone.now() - timedelta(days=days_old))
+
+    def test_customer_then_source_then_default(self):
+        s = M.EventSettings.get()
+        s.retention_days, s.raw_retention_days, s.max_events = 100, 0, 0
+        s.source_retention_days = {M.SOURCE_BACKUP: 10}
+        s.save()
+        M.CustomerRetention.objects.create(organization=self.b, retention_days=0)  # keep forever
+        backup_old = self._ev(1, self.a, M.SOURCE_BACKUP, 20)      # source rule: 10 days -> gone
+        rmm_mid = self._ev(2, self.a, M.SOURCE_RMM, 50)            # default 100 -> kept
+        rmm_old = self._ev(3, self.a, M.SOURCE_RMM, 150)           # default -> gone
+        b_old = self._ev(4, self.b, M.SOURCE_BACKUP, 500)          # customer keeps
+        projection.prune(s)
+        left = set(M.OperationalEvent.objects.values_list('pk', flat=True))
+        self.assertEqual(left, {rmm_mid.pk, b_old.pk})
+        self.assertNotIn(backup_old.pk, left)
+        self.assertNotIn(rmm_old.pk, left)

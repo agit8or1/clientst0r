@@ -3093,11 +3093,11 @@ read.
 - **82.3 Bounded ingestion** *(partial — scheduler queue with time budget, backpressure cap, retries, dead letters and idempotent projection shipped v3.17.719; webhook payload caps since v3.17.716; per-connection rate limits come with the push connectors)* — scheduler-driven queues with backpressure, retries, a dead-letter
   table, idempotency, per-connection rate limits and payload caps; a failing source cannot slow the Service
   Desk.
-- **82.4 Retention and storage quotas** *(partial — install-wide event retention, raw-payload pruning and an event quota shipped v3.17.719; per-customer and per-source retention planned)* — per-customer and per-source retention, raw-event
+- **82.4 Retention and storage quotas** *(shipped — install-wide retention, raw-payload pruning and an event quota v3.17.719; per-source and per-customer retention v3.17.720)* — per-customer and per-source retention, raw-event
   pruning and quotas, sized for the SQLite and PostgreSQL deployments.
 - **82.5 Ingestion health** *(shipped v3.17.719)* — last successful ingestion, error counts and diagnostics per source;
   monitoring of the monitoring.
-- **82.6 Permissions and feature switches** *(partial — ingestion switch shipped v3.17.719; permission keys, seeded roles and the correlation / automation / AI switches planned)* — new permission keys and seeded roles (Level 1–3
+- **82.6 Permissions and feature switches** *(partial — ingestion switch v3.17.719; permission keys and the Security Analyst / Security Administrator roles v3.17.720 (Level 1–3 Technician roles extended); the correlation, automation and AI analysis switches arrive with those features in Phases 85, 86 and 90)* — new permission keys and seeded roles (Level 1–3
   technician, Security Analyst, Security Administrator), all editable; module switches for ingestion,
   correlation, automation and AI analysis.
 
@@ -3341,7 +3341,7 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
 | 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
 | 81 — API access control and network restrictions | L | shipped v3.17.713–718 (concurrency limits deferred until a shared cache; event-layer feed with Phase 82) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
-| 82 — Shared operational event and alert foundation | L | in progress (82.1, 82.2, 82.5 shipped v3.17.719; 82.3, 82.4, 82.6 partial) | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
+| 82 — Shared operational event and alert foundation | L | in progress (82.1, 82.2, 82.5 v3.17.719; 82.4 v3.17.720; 82.6 permissions v3.17.720; 82.3 partial) | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
 | 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
 | 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |
 | 85 — Operations Center, alert triage and correlation | L | planned | Phases 82, 84 |

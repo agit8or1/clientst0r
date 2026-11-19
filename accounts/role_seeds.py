@@ -211,7 +211,40 @@ _CUSTOMER_ADMIN = dict(_CUSTOMER_MANAGER, **_on(
     'org_invite_members', 'org_manage_members', 'files_upload', 'procurement_view'))
 
 
+# --- security operations (accounts 0064) ----------------------------------------
+
+_SECURITY_ANALYST = _on(
+    *VIEW_BASICS, 'security_alerts_view', 'security_alerts_acknowledge', 'events_view', 'events_link',
+    'tickets_view', 'tickets_create', 'tickets_edit', 'tickets_view_internal',
+    'assets_view', 'docs_view', 'files_view', 'monitoring_view', 'integrations_view', 'view_backup_status',
+)
+_SECURITY_ADMIN = dict(_SECURITY_ANALYST, **_on(
+    'security_alerts_manage_connections', 'security_alerts_create_rules', 'events_manage_ingestion',
+    'monitoring_create', 'monitoring_edit', 'monitoring_trigger', 'audit_view', 'reports_export',
+))
+
+# The event layer permissions follow the security alert ones in every
+# built-in role (view -> view, acknowledge -> link, connections -> ingestion).
+_EVENT_FLAGS = (('events_view', 'security_alerts_view'), ('events_link', 'security_alerts_acknowledge'),
+                ('events_manage_ingestion', 'security_alerts_manage_connections'))
+
+
+def _with_events(flags):
+    out = dict(flags)
+    for new, old in _EVENT_FLAGS:
+        if out.get(old):
+            out[new] = True
+    return out
+
+
 def definitions() -> List[RoleDef]:
+    defs = _definitions()
+    for d in defs:
+        d.flags = _with_events(d.flags)
+    return defs
+
+
+def _definitions() -> List[RoleDef]:
     l1_name, l1 = _tech('l1')
     l2_name, l2 = _tech('l2')
     l3_name, l3 = _tech('l3')
@@ -219,28 +252,36 @@ def definitions() -> List[RoleDef]:
         RoleDef('org_owner', 'Owner', 'internal',
                 'Organization owner: full business administration, users and administrators, billing, '
                 'security policy and ownership transfer. Not a platform superuser.',
-                _OWNER, version=9, adopt=('Owner',), spec_name='Organization Owner'),
+                _OWNER, version=10, adopt=('Owner',), spec_name='Organization Owner'),
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
-                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=5),
+                'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=6),
         RoleDef('service_manager', 'Service Manager', 'internal',
                 'Service operations: queues, assignment, escalation, change / problem / release and service '
                 'reports for authorized clients. No billing administration, secrets or security settings.',
-                _SERVICE_MANAGER, version=2),
+                _SERVICE_MANAGER, version=3),
         RoleDef('tech_l1', l1_name, 'internal',
                 'Level 1 Technician: assigned tickets and authorized client records, approved documentation '
                 'and basic asset information. No stored passwords, remote shell, scripts, exports, '
                 'integrations, user administration or destructive operations.',
-                l1, adopt=(l1_name,), rmm_tier='l1', spec_name='Level 1 Technician', version=2),
+                l1, adopt=(l1_name,), rmm_tier='l1', spec_name='Level 1 Technician', version=3),
         RoleDef('tech_l2', l2_name, 'internal',
                 'Level 2 Technician: Level 1 plus troubleshooting and asset-management actions. Remote '
                 'access and credentials stay separate permissions.',
-                l2, adopt=(l2_name,), rmm_tier='l2', spec_name='Level 2 Technician', version=2),
+                l2, adopt=(l2_name,), rmm_tier='l2', spec_name='Level 2 Technician', version=3),
         RoleDef('tech_l3', l3_name, 'internal',
                 'Level 3 Technician: advanced technical work for authorized clients. Scripts, remote shell, '
                 'credentials and destructive actions stay explicit permissions; no organization '
                 'administration.',
-                l3, adopt=(l3_name,), rmm_tier='l3', spec_name='Level 3 Technician', version=2),
+                l3, adopt=(l3_name,), rmm_tier='l3', spec_name='Level 3 Technician', version=3),
+        RoleDef('security_analyst', 'Security Analyst', 'internal',
+                'Triage of security alerts and the shared event list for authorized clients: acknowledge, '
+                'link tickets and incidents, open tickets. No vendor connections, rules, ingestion settings, '
+                'credentials or remote tools.', _SECURITY_ANALYST),
+        RoleDef('security_admin', 'Security Administrator', 'internal',
+                'Security Analyst plus vendor connections, SIEM endpoints, auto-ticket rules, event ingestion '
+                'and retention, and the audit log. No billing, user administration or stored secrets.',
+                _SECURITY_ADMIN),
         RoleDef('sales_rep', 'Sales Representative', 'internal',
                 'Leads, opportunities, quotes and contract drafts. No technical credentials, remote access, '
                 'internal technical notes or security administration; sending contracts, approving '
@@ -254,7 +295,7 @@ def definitions() -> List[RoleDef]:
                 _BILLING, version=5),
         RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
-                'secret reveal, file downloads and exports stay separate.', _AUDITOR, version=2),
+                'secret reveal, file downloads and exports stay separate.', _AUDITOR, version=3),
         RoleDef('customer_admin', 'Customer Administrator', 'customer',
                 "Manages the customer's portal users and contacts with approved customer roles; sees the "
                 "organization's tickets and customer-visible documents and assets. Not a contract signer "

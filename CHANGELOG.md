@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.720] - 2026-11-19
+
+### Added
+- **Event permissions** (roadmap 82.6): *View events* (`events_view`), *Link events to tickets and incidents* (`events_link`) and *Manage event ingestion* (`events_manage_ingestion`), all MSP-staff only and editable per role. Nobody loses access on upgrade: every role gets each new permission where it already had the matching security alert permission (view alerts → view events, acknowledge → link, manage connections → manage ingestion), including custom roles and simple Owner / Admin / Editor / Read-Only memberships.
+- **Security Analyst** and **Security Administrator** built-in roles. The analyst triages security alerts and events and works tickets; the administrator adds vendor connections, SIEM endpoints, auto-ticket rules, event ingestion and the audit log. Neither includes stored secrets, remote tools, billing or user administration. Level 1–3 Technician, Service Manager, Auditor, Owner and Organization Administrator pick up the event permissions (as seeded; customized built-ins are left alone and listed for review as usual).
+- **Retention per source and per customer** (roadmap 82.4): Events → Ingestion health takes a "keep closed events" value per source and per customer. A customer's value wins over the source's, which wins over the default; 0 keeps them; open events are never deleted.
+
+### Changed
+- The Events pages check the new permissions instead of the security alert ones.
+
 ## [3.17.719] - 2026-11-19
 
 ### Added

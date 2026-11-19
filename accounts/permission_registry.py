@@ -245,6 +245,12 @@ PERMISSIONS: List[Permission] = [
        'Acknowledge / dismiss / resolve alerts, convert to tickets', staff_only=True),
     _p('security_alerts_create_rules', 'security', 'settings', E, False,
        'Create / edit / delete auto-ticket rules and suppression windows', staff_only=True),
+    _p('events_view', 'security', 'view', S, False,
+       'View the shared event list (every alert source) and ingestion health', staff_only=True),
+    _p('events_link', 'security', 'edit', E, False,
+       'Link or unlink tickets and incidents on events', staff_only=True),
+    _p('events_manage_ingestion', 'security', 'settings', C, False,
+       'Change event ingestion, retention and quota; retry failed items', staff_only=True),
 
     # --- backup monitoring ------------------------------------------------------
     _p('view_backup_status', 'backup', 'view', S, False,

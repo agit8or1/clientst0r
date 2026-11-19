@@ -469,6 +469,10 @@ def derive_legacy_flags(ns, role):
         # Pricing Advisor (accounts 0051): whoever could already send
         # invoices and read financial reports may act on recommendations.
         'act_on_pricing_recommendations': g('reports_view_financial') and g('billing_send_invoices'),
+        # Shared event layer (accounts 0064): follows the security alert flags.
+        'events_view': g('security_alerts_view'),
+        'events_link': g('security_alerts_acknowledge'),
+        'events_manage_ingestion': g('security_alerts_manage_connections'),
     }
     for k, v in derived.items():
         if not hasattr(ns, k):
@@ -1160,6 +1164,14 @@ class RoleTemplate(BaseModel):
     security_alerts_create_rules = models.BooleanField(default=False,
         help_text='Create / edit / delete auto-ticket rules + suppression windows.')
 
+    # --- Shared event layer (Phase 82, v3.17.720) ---
+    events_view = models.BooleanField(default=False,
+        help_text='View the shared event list (every alert source) and ingestion health.')
+    events_link = models.BooleanField(default=False,
+        help_text='Link or unlink tickets and incidents on events.')
+    events_manage_ingestion = models.BooleanField(default=False,
+        help_text='Change event ingestion, retention and the storage quota; retry failed items.')
+
     # --- Backup monitoring ---
     view_backup_status = models.BooleanField(default=False,
         help_text='View backup monitoring: jobs, runs, repositories, alerts and restore tests.')
@@ -1497,6 +1509,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': True,
                 'security_alerts_acknowledge': True,
                 'security_alerts_create_rules': True,
+                'events_view': True,
+                'events_link': True,
+                'events_manage_ingestion': True,
                 # PSA Tickets (v3.17.477) — Owner: all True
                 'tickets_view': True,
                 'tickets_create': True,
@@ -1618,6 +1633,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': True,
                 'security_alerts_acknowledge': True,
                 'security_alerts_create_rules': True,
+                'events_view': True,
+                'events_link': True,
+                'events_manage_ingestion': True,
                 # PSA Tickets (v3.17.477) — Administrator: all True
                 'tickets_view': True,
                 'tickets_create': True,
@@ -1737,6 +1755,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': False,
                 'security_alerts_acknowledge': True,
                 'security_alerts_create_rules': False,
+                'events_view': True,
+                'events_link': True,
+                'events_manage_ingestion': False,
                 # PSA Tickets (v3.17.477) — Editor: file + work, can't reassign or hard-delete.
                 'tickets_view': True,
                 'tickets_create': True,
@@ -1852,6 +1873,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': False,
                 'security_alerts_acknowledge': True,
                 'security_alerts_create_rules': False,
+                'events_view': True,
+                'events_link': True,
+                'events_manage_ingestion': False,
                 # PSA Tickets (v3.17.477) — Help Desk: file + work, no assign / delete.
                 'tickets_view': True,
                 'tickets_create': True,
@@ -1969,6 +1993,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': True,
                 'security_alerts_acknowledge': True,
                 'security_alerts_create_rules': True,
+                'events_view': True,
+                'events_link': True,
+                'events_manage_ingestion': True,
                 # PSA Tickets (v3.17.477) — IT Manager: all True
                 'tickets_view': True,
                 'tickets_create': True,
@@ -2087,6 +2114,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': False,
                 'security_alerts_acknowledge': False,
                 'security_alerts_create_rules': False,
+                'events_view': True,
+                'events_link': False,
+                'events_manage_ingestion': False,
                 # PSA Tickets (v3.17.477) — Documentation Writer: view only.
                 'tickets_view': True,
                 'tickets_create': False,
@@ -2201,6 +2231,9 @@ class RoleTemplate(BaseModel):
                 'security_alerts_manage_connections': False,
                 'security_alerts_acknowledge': False,
                 'security_alerts_create_rules': False,
+                'events_view': True,
+                'events_link': False,
+                'events_manage_ingestion': False,
                 # PSA Tickets (v3.17.477) — Read-Only: view only.
                 'tickets_view': True,
                 'tickets_create': False,

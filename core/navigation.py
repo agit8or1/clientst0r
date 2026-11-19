@@ -1330,8 +1330,8 @@ PRIMARY = (
               gate=_all(_msp_staff, _psa),
               keywords='security overview operational summary alerts incidents rmm monitoring mtta mttr'),
         # Shared event layer (Phase 82): every source's alerts in one list;
-        # staff-only /security/ prefix and security_alerts_view, scoped per customer.
-        Entry(_('Events'), url_name='events:list', icon='fa-stream', gate=_all(_msp_staff, _security_reader),
+        # staff-only /security/ prefix and events_view, scoped per customer.
+        Entry(_('Events'), url_name='events:list', icon='fa-stream', gate=_all(_msp_staff, _perm('events_view')),
               keywords='events alerts all sources normalized ingestion health backup rmm rem0te website down'),
         Entry(_('Security Alerts'), section='mod_security', icon='fa-triangle-exclamation',
               keywords='edr siem vendor connections auto-ticket rules digest'),

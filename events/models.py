@@ -170,6 +170,8 @@ class EventSettings(models.Model):
                                                      help_text='Clear the raw payload copy after this many days')
     max_events = models.PositiveIntegerField(default=200000,
                                              help_text='Storage quota: oldest closed events go first when exceeded')
+    source_retention_days = models.JSONField(default=dict, blank=True,
+                                             help_text='Per-source override of retention_days {source: days}')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -179,3 +181,15 @@ class EventSettings(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class CustomerRetention(models.Model):
+    """Per-customer retention for closed events (82.4); wins over the source
+    and install-wide settings."""
+    organization = models.OneToOneField('core.Organization', on_delete=models.CASCADE,
+                                        related_name='event_retention')
+    retention_days = models.PositiveIntegerField(help_text='Delete closed events after this many days (0 = keep)')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'events_customer_retention'

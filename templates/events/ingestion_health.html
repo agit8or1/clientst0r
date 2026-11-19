@@ -11,9 +11,9 @@
 
 <div class="card mb-3"><div class="table-responsive">
   <table class="table table-sm mb-0 align-middle">
-    <thead><tr><th>Source</th><th>State</th><th>Last success</th><th>Last run</th><th>Last batch</th><th>Total</th><th>Last error</th></tr></thead>
+    <thead><tr><th>Source</th><th>State</th><th>Last success</th><th>Last run</th><th>Last batch</th><th>Total</th><th>Last error</th><th>Keep closed (days)</th></tr></thead>
     <tbody>
-    {% for key, label, h in rows %}
+    {% for key, label, h, keep in rows %}
       <tr>
         <td>{{ label }}</td>
         <td>{% if not h %}<span class="badge bg-secondary">Not run yet</span>{% elif h.state == 'ok' %}<span class="badge bg-success">OK</span>{% elif h.state == 'degraded' %}<span class="badge bg-warning text-dark">Errors</span>{% elif h.state == 'failing' %}<span class="badge bg-danger">Failing ({{ h.consecutive_failures }} runs)</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}</td>
@@ -22,6 +22,7 @@
         <td>{{ h.last_batch|default:"0" }}</td>
         <td>{{ h.total_projected|default:"0" }}</td>
         <td class="small text-break">{% if h.last_error %}{{ h.last_error }} <span class="text-muted">({{ h.last_error_at|date:"Y-m-d H:i" }})</span>{% else %}—{% endif %}</td>
+        <td><input form="events-settings" class="form-control form-control-sm" style="width:6rem" type="number" min="0" name="retention_{{ key }}" value="{{ keep }}" placeholder="default" aria-label="Keep closed {{ label }} events (days)" {% if not can_admin %}disabled{% endif %}></td>
       </tr>
     {% endfor %}
     </tbody>
@@ -40,17 +41,31 @@
   </div>
   <div class="col-lg-6">
     <div class="card"><div class="card-header py-2"><h6 class="mb-0">Retention and switches</h6></div>
-      <form method="post" class="card-body">{% csrf_token %}<input type="hidden" name="action" value="settings">
+      <form method="post" class="card-body" id="events-settings">{% csrf_token %}<input type="hidden" name="action" value="settings">
         <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ingestion_enabled" name="ingestion_enabled" value="1" {% if settings.ingestion_enabled %}checked{% endif %} {% if not can_admin %}disabled{% endif %}><label class="form-check-label" for="ingestion_enabled">Copy source alerts into the event layer</label></div>
         <div class="row g-2">
           <div class="col-sm-4"><label class="form-label small" for="retention_days">Keep closed events (days)</label><input class="form-control form-control-sm" type="number" min="0" id="retention_days" name="retention_days" value="{{ settings.retention_days }}" {% if not can_admin %}disabled{% endif %}></div>
           <div class="col-sm-4"><label class="form-label small" for="raw_retention_days">Keep raw payloads (days)</label><input class="form-control form-control-sm" type="number" min="0" id="raw_retention_days" name="raw_retention_days" value="{{ settings.raw_retention_days }}" {% if not can_admin %}disabled{% endif %}></div>
           <div class="col-sm-4"><label class="form-label small" for="max_events">Storage quota (events)</label><input class="form-control form-control-sm" type="number" min="0" id="max_events" name="max_events" value="{{ settings.max_events }}" {% if not can_admin %}disabled{% endif %}></div>
         </div>
-        <small class="text-muted d-block mt-2">Open and acknowledged events are never deleted. Source alerts are not affected by these settings. 0 = no limit.</small>
+        <small class="text-muted d-block mt-2">Open and acknowledged events are never deleted. Source alerts are not affected by these settings. 0 = no limit. A source's own value in the table above replaces "Keep closed events" for that source; a customer's value below replaces both.</small>
         {% if can_admin %}<button class="btn btn-sm btn-primary mt-2">Save</button>{% endif %}
       </form>
     </div>
+  </div>
+</div>
+<div class="card mt-3"><div class="card-header py-2"><h6 class="mb-0">Retention per customer</h6></div>
+  <div class="card-body small">
+    {% if customer_retention %}
+    <ul class="list-unstyled mb-3">{% for r in customer_retention %}<li>{{ r.organization.name }}: {% if r.retention_days %}{{ r.retention_days }} days{% else %}kept{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p class="text-muted">No customer overrides; every customer follows the source and default settings.</p>{% endif %}
+    {% if can_admin %}
+    <form method="post" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="customer_retention">
+      <div><label class="form-label small" for="cr-org">Customer</label><select id="cr-org" name="organization" class="form-select form-select-sm">{% for id, name in customers %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select></div>
+      <div><label class="form-label small" for="cr-days">Keep closed events (days)</label><input id="cr-days" name="days" type="number" min="0" class="form-control form-control-sm" style="width:8rem" placeholder="blank = remove"></div>
+      <button class="btn btn-sm btn-outline-primary">Save</button>
+    </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

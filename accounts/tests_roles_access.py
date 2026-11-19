@@ -98,7 +98,10 @@ class RegistryTests(TestCase):
         mig = importlib.import_module('accounts.migrations.0046_roles_access_seed_and_review')
         live = {d['key']: d for d in as_frozen()}
         frozen = {d['key']: d for d in mig.FROZEN_DEFS}
-        self.assertEqual(set(live), set(frozen))
+        # Roles added after 0046 are seeded by their own migration
+        # (Security Analyst / Security Administrator: accounts 0064).
+        self.assertEqual(set(live) - set(frozen), {'security_analyst', 'security_admin'})
+        self.assertLessEqual(set(frozen), set(live))
         for key, d in frozen.items():
             if live[key]['version'] == d['version']:
                 self.assertEqual(live[key]['flags'], d['flags'], key)

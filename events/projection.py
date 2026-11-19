@@ -286,8 +286,20 @@ def prune(settings=None):
     now = timezone.now()
     closed = M.OperationalEvent.objects.exclude(status__in=(M.STATUS_OPEN, M.STATUS_ACK))
     deleted = 0
+    # Precedence: customer, then source, then install-wide. 0 keeps forever.
+    customers = dict(M.CustomerRetention.objects.values_list('organization_id', 'retention_days'))
+    for org_id, days in customers.items():
+        if days:
+            deleted += closed.filter(organization_id=org_id,
+                                     last_seen_at__lt=now - timedelta(days=days)).delete()[0]
+    rest = closed.exclude(organization_id__in=list(customers))
+    sources = {k: v for k, v in (settings.source_retention_days or {}).items() if k in dict(M.SOURCES)}
+    for source, days in sources.items():
+        if days:
+            deleted += rest.filter(source=source, last_seen_at__lt=now - timedelta(days=int(days))).delete()[0]
     if settings.retention_days:
-        deleted += closed.filter(last_seen_at__lt=now - timedelta(days=settings.retention_days)).delete()[0]
+        deleted += rest.exclude(source__in=list(sources)).filter(
+            last_seen_at__lt=now - timedelta(days=settings.retention_days)).delete()[0]
     if settings.raw_retention_days:
         (M.OperationalEvent.objects.filter(last_seen_at__lt=now - timedelta(days=settings.raw_retention_days))
          .exclude(raw={}).update(raw={}))
