@@ -3251,6 +3251,73 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 
 **Sizing:** **L**.
 
+## Phase 91 — Workflow automation safety **(M · PSA)** [planned]
+
+Automation that can be inspected, tested before it runs and cannot run away. Extends the workflow engine
+(Phase 14) and ticket routing.
+
+- **91.1 Loop and storm protection** *(planned)* — a rule never re-fires inside its own chain; per-rule and
+  per-ticket rate limits with a cut-off that is recorded and shown.
+- **91.2 Execution log** *(planned)* — every firing recorded with trigger, rule version, each action and its
+  result, actor and duration, visible on the rule page.
+- **91.3 Dry run** *(planned)* — evaluate rules against a chosen ticket with no side effects.
+- **91.4 Permission checks for high-impact actions** *(planned)* — charges behind approval or a cap with
+  fire-once protection; assignment and watchers limited to technicians allowed at that customer.
+
+**Sizing:** **M**.
+
+## Phase 92 — Verified usage and recurring billing **(M · billing)** [planned]
+
+Per-device and per-user billing that never bills an unverified count. Extends contracts and billing
+(Phase 70).
+
+- **92.1 Recurring charge generation** *(planned)* — a scheduler job creates each next-period charge once,
+  with an audit trail; the "recurring" option on charges does this today in name only.
+- **92.2 Usage count snapshots** *(planned)* — monthly per-customer device and user counts with source,
+  observed time and verification state (verified, stale, unverified); stale or unverified counts never update
+  a meter.
+- **92.3 Reconciliation** *(planned)* — billed versus observed per agreement; differences become adjustment
+  requests that need approval, never automatic invoice changes.
+- **92.4 Count sources** *(planned)* — synced RMM devices first, Rem0te through a signed count once the
+  contract supports it, Microsoft 365 seats from licensing.
+
+**Sizing:** **M**.
+
+## Phase 93 — Business-hours SLA calendars **(M · PSA)** [planned]
+
+- **93.1 Calendars** *(planned)* — working hours, time zone and holidays per install default, customer and
+  contract, reusing resourcing holidays.
+- **93.2 SLA clocks on calendars** *(planned)* — due dates, pause and resume, and breach flags computed in
+  working time; routing business hours read the same calendar; existing due dates unchanged on upgrade unless
+  recomputed explicitly.
+
+**Sizing:** **M**.
+
+## Phase 94 — Evidence integrity and routine backups **(M · security)** [planned]
+
+- **94.1 Tamper-evident audit log** *(planned)* — hash-chained audit rows with a verification command and
+  optional shipping to an external append-only destination.
+- **94.2 Audit retention** *(planned)* — retention with export before pruning; deleting audit rows goes
+  through a protected change.
+- **94.3 Scheduled off-host backups** *(planned)* — encrypted backups to an off-host destination with
+  periodic restore verification and key-escrow guidance.
+
+**Sizing:** **M**.
+
+## Phase 95 — PSA migration importers **(L · imports)** [planned]
+
+Extends the import framework (Phase 61).
+
+- **95.1 Importer guarantees** *(planned)* — every importer offers dry run, field mapping, duplicate
+  detection, a per-record error report, rollback and an integrity report; destructive imports need explicit
+  confirmation and a verified backup.
+- **95.2 First PSA source** *(planned)* — clients, contacts, tickets with comments and attachments,
+  contracts, time, invoices, assets and credentials from one source, proven against a real instance.
+- **95.3 Further sources** *(planned)* — ITFlow, HaloPSA, ConnectWise Manage, Autotask, Syncro and a
+  broader CSV import, each listed as shipped only after a real-instance or sandbox run.
+
+**Sizing:** **L**.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -3350,3 +3417,8 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 | 88 — Service dependency and impact mapping | M | planned | Phase 82; asset relationships |
 | 89 — Security posture scorecards and customer service reviews | L | planned | Phases 82, 84, 78 |
 | 90 — AI Operations Analyst (OPTIONAL AI) | L | planned | Phase 85; Phase 56 gateway |
+| 91 — Workflow automation safety | M | planned | Phase 14 workflow engine |
+| 92 — Verified usage and recurring billing | M | planned | Phase 70; Rem0te count support for 92.4 |
+| 93 — Business-hours SLA calendars | M | planned | — |
+| 94 — Evidence integrity and routine backups | M | planned | — |
+| 95 — PSA migration importers | L | planned | Phase 61; Phase 94.3 for destructive imports |
