@@ -17,7 +17,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         from security_alerts.models import SecurityVendorConnection
-        from integrations.sdk.registry import get as get_provider
 
         qs = SecurityVendorConnection.objects.filter(is_active=True, sync_enabled=True)
         if opts['connection_id']:
@@ -31,12 +30,12 @@ class Command(BaseCommand):
                 next_due = conn.last_sync_at + timedelta(minutes=conn.poll_interval_minutes)
                 if next_due > now:
                     continue
-            adapter_slug = f'security_{conn.provider}'
-            # Adapter slug is 'security_<provider>' — look up by full slug first,
-            # then fall back to provider-only.
-            adapter = get_provider(adapter_slug) or get_provider(conn.provider)
+            # Only a working API adapter polls; a stub (supports_polling =
+            # False) is skipped so its connection never shows a false "OK".
+            from security_alerts.capabilities import api_adapter
+            adapter = api_adapter(conn.provider)
             if not adapter:
-                self.stdout.write(f'  [skip] No adapter registered for {conn.provider}')
+                self.stdout.write(f'  [skip] No API integration for {conn.provider}; webhook only')
                 continue
             self.stdout.write(f'  Polling {conn.name}...')
             if opts['dry_run']:

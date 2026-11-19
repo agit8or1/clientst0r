@@ -24,19 +24,16 @@ class DefenderForEndpoint(SecurityProvider):
     label = 'Microsoft Defender for Endpoint (reference stub — no live alerts)'
     category = 'security_edr'
     icon = 'fa-shield-virus'
+    # A stub: it must never be treated as a working API integration (the
+    # connection test, the sync button and the scheduled poller check this).
+    supports_polling = False
 
     def test_connection(self, connection):
-        # TODO: actual Microsoft Graph token + GET /alerts
-        if not connection.base_url:
-            return {'ok': False, 'message': 'Missing base_url'}
-        return {
-            'ok': True,
-            'message': (
-                'Reference stub adapter — connection metadata accepted, but '
-                'no live Graph API call is wired up. No alerts will be '
-                'ingested until the adapter is fleshed out.'
-            ),
-        }
+        # TODO: actual Microsoft Graph token + GET /alerts. Until then the
+        # test must not report success.
+        from security_alerts.capabilities import not_implemented_message
+        return {'ok': False, 'code': 'not_implemented',
+                'message': not_implemented_message('Microsoft Defender for Endpoint')}
 
     def poll_alerts(self, connection, since=None):
         # TODO: implement Graph API call to /security/alerts_v2 with

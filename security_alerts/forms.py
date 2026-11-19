@@ -40,6 +40,15 @@ class SecurityVendorConnectionForm(forms.ModelForm):
                 'placeholder': 'Internal notes — e.g. who set this up, ticket links, vendor portal account.'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Say which vendors only receive alerts by webhook, so the list never
+        # implies an API integration that does not exist.
+        from .capabilities import polls_api
+        self.fields['provider'].choices = [
+            (v, label if not v or polls_api(v) else f'{label} — webhook only (no API integration yet)')
+            for v, label in self.fields['provider'].choices]
+
 
 class SecurityAlertRuleForm(forms.ModelForm):
     class Meta:

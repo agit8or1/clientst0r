@@ -2559,7 +2559,8 @@ security levels) and Phase 52 (technician workspace).
   phone and tablet widths.
 - **63.10 Tests and coordination** *(shipped v3.17.664)* — unit and browser tests per part, a
   cross-peer run against a real Rem0te, and a shared coordination record
-  (`INTEGRATION_COORDINATION.md`) with the Rem0te project.
+  (`INTEGRATION_COORDINATION.md`) with the Rem0te project. *(record brought up to date for Rem0te 0.68.0,
+  citing the cross-peer CI run, v3.17.723)*
 
 **Sizing:** **XL** — ten parts across integrations, assets, PSA, AI and
 permissions; interoperability with Rem0te is claimed only for what both
@@ -3148,7 +3149,7 @@ vendor's test environment.
   retries, duplicate suppression, token-expiry warnings, credential rotation, health checks and diagnostics.
 - **84.2 Generic receivers** *(planned)* — signed webhook receiver with replay protection (Phase 81) and a
   TLS syslog collector for CEF, LEEF and JSON, run as its own service and off by default.
-- **84.3 Connection administration** *(planned — extends Vendor Connections)* — vendor picker, credentials
+- **84.3 Connection administration** *(partial — honest capability labels shipped v3.17.723: vendors without a working API adapter are marked webhook only, their test and sync say "not implemented", and the scheduled poller skips them; the rest planned — extends Vendor Connections)* — vendor picker, credentials
   (never shown again), test connection, customers, categories, severity mapping, polling frequency, routing,
   test ingestion, retention and sync status.
 - **84.4 Batch A** *(planned)* — Wazuh, Microsoft Sentinel, OPNsense, pfSense.

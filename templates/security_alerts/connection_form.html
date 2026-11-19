@@ -29,6 +29,12 @@
             Connect ClientSt0r to a security vendor (EDR / AV / Firewall) so its alerts flow into the unified triage
             queue. Connections can be MSP-wide or scoped to one client org. Credentials are encrypted at rest.
         </p>
+        <div class="alert alert-light border small" data-vendor-webhook-only>
+            Alerts arrive through this connection's signed webhook, posted as JSON with <code>external_id</code>,
+            <code>title</code>, <code>severity</code>, <code>description</code> and <code>asset_hint</code> (from the
+            vendor's notification rules or a relay). Vendors marked <em>webhook only</em> have no API integration
+            yet, so ClientSt0r cannot test or poll them.
+        </div>
 
         <form method="post" novalidate{% if instance.pk %} action="{% url 'security_alerts:connection_edit' instance.pk %}"{% endif %}>
             {% csrf_token %}

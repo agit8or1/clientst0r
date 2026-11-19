@@ -108,6 +108,12 @@ class SecurityVendorConnection(models.Model):
 
     WEBHOOK_TOKEN_PURPOSE = 'security_alerts.vendor.webhook'
 
+    @property
+    def polls_api(self):
+        """True only when a working API adapter exists for this vendor."""
+        from .capabilities import polls_api
+        return polls_api(self.provider)
+
     @classmethod
     def hash_webhook_token(cls, raw):
         return hash_token(raw, cls.WEBHOOK_TOKEN_PURPOSE)

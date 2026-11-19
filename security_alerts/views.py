@@ -311,10 +311,11 @@ def connection_form(request, pk=None):
 def connection_test(request, pk):
     orgs = _user_orgs(request.user, 'security_alerts_manage_connections')
     conn = get_object_or_404(SecurityVendorConnection, pk=pk, organization__in=orgs)
-    from integrations.sdk.registry import get as get_provider
-    adapter = get_provider(f'security_{conn.provider}') or get_provider(conn.provider)
+    from .capabilities import api_adapter, not_implemented_message
+    adapter = api_adapter(conn.provider)
     if not adapter:
-        return JsonResponse({'ok': False, 'message': f'No adapter for {conn.provider}'})
+        return JsonResponse({'ok': False, 'code': 'not_implemented',
+                             'message': not_implemented_message(conn.get_provider_display())})
     try:
         result = adapter.test_connection(conn)
     except Exception as exc:
@@ -328,10 +329,10 @@ def connection_test(request, pk):
 def connection_sync(request, pk):
     orgs = _user_orgs(request.user, 'security_alerts_manage_connections')
     conn = get_object_or_404(SecurityVendorConnection, pk=pk, organization__in=orgs)
-    from integrations.sdk.registry import get as get_provider
-    adapter = get_provider(f'security_{conn.provider}') or get_provider(conn.provider)
+    from .capabilities import api_adapter, not_implemented_message
+    adapter = api_adapter(conn.provider)
     if not adapter:
-        messages.error(request, f'No adapter for {conn.provider}')
+        messages.warning(request, not_implemented_message(conn.get_provider_display()))
         return redirect('security_alerts:connection_list')
     result = adapter.sync(conn)
     if result.get('ok'):

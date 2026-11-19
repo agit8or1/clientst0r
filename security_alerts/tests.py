@@ -975,3 +975,82 @@ class WebhookProtectionTests(TestCase):
         r = Client().post(f'/security/webhook/{token}/', data=b'{"id":"l1","title":"x"}',
                           content_type='application/json')
         self.assertEqual(r.status_code, 200)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class VendorCapabilityHonestyTests(TestCase):
+    """No page, test or poll claims an API integration that does not exist
+    (gap 6.02 / 9.01): every vendor is webhook only until a working adapter
+    lands; the Defender reference stub never reports success."""
+
+    def setUp(self):
+        self.org = _make_org('Honesty Co', 'honesty-co')
+        self.user = User.objects.create_user(username='sec-admin', password='pw',
+                                             is_superuser=True, is_staff=True)
+        from accounts.models import Membership
+        Membership.objects.create(user=self.user, organization=self.org, is_active=True)
+        self.c = Client()
+        self.c.force_login(self.user)
+
+    def test_no_vendor_polls_today(self):
+        from security_alerts.capabilities import polls_api
+        for value, _label in SecurityVendorConnection.PROVIDER_CHOICES:
+            self.assertFalse(polls_api(value), value)
+
+    def test_form_labels_every_vendor_webhook_only(self):
+        from security_alerts.forms import SecurityVendorConnectionForm
+        labels = dict(SecurityVendorConnectionForm().fields['provider'].choices)
+        self.assertIn('webhook only', labels['defender'])
+        self.assertIn('webhook only', labels['crowdstrike_falcon'])
+        self.assertEqual(len([l for v, l in labels.items() if v and 'webhook only' not in l]), 0)
+
+    def test_stub_connection_test_is_not_implemented(self):
+        from integrations.sdk.registry import get
+        conn = _make_conn(self.org, base_url='https://graph.example.com')
+        result = get('security_defender').test_connection(conn)
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['code'], 'not_implemented')
+
+    def test_test_view_reports_not_implemented(self):
+        conn = _make_conn(self.org, base_url='https://graph.example.com')
+        r = self.c.post(f'/security/connections/{conn.pk}/test/')
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertFalse(data['ok'])
+        self.assertEqual(data['code'], 'not_implemented')
+        self.assertIn('webhook', data['message'])
+
+    def test_sync_view_does_not_mark_ok(self):
+        conn = _make_conn(self.org)
+        r = self.c.post(f'/security/connections/{conn.pk}/sync/')
+        self.assertEqual(r.status_code, 302)
+        conn.refresh_from_db()
+        self.assertNotEqual(conn.last_sync_status, 'ok')
+        self.assertIsNone(conn.last_sync_at)
+
+    def test_poller_skips_the_stub(self):
+        from io import StringIO
+        conn = _make_conn(self.org)
+        out = StringIO()
+        call_command('poll_security_alerts', stdout=out)
+        conn.refresh_from_db()
+        self.assertIsNone(conn.last_sync_at)
+        self.assertIn('webhook only', out.getvalue())
+
+    def test_list_shows_webhook_only_and_hides_test_and_sync(self):
+        conn = _make_conn(self.org)
+        r = self.c.get('/security/connections/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('Webhook only', html)
+        self.assertNotIn(f'/security/connections/{conn.pk}/test/', html)
+        self.assertNotIn(f'/security/connections/{conn.pk}/sync/', html)
+
+    def test_webhook_still_ingests(self):
+        _seed_psa()
+        conn = _make_conn(self.org, require_signature=False)
+        token = conn.issued_webhook_token
+        r = self.client.post(f'/security/webhook/{token}/', data='{"external_id": "x1", "title": "t", "severity": "high"}',
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200, r.content[:200])
+        self.assertTrue(SecurityAlert.objects.filter(connection=conn, external_id='x1').exists())

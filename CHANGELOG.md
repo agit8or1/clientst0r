@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.723] - 2026-11-19
+
+### Changed
+- **Security vendor connections only claim what works.** No vendor has a working API integration yet, so each vendor is now marked *webhook only*: in the vendor list, as a badge on the Connections page, and in a note on the connection form that gives the JSON fields the webhook expects. On webhook-only connections the Test and Sync buttons are hidden. Calling them directly returns "not implemented" instead of a failure or a false success.
+- **The Microsoft Defender for Endpoint reference stub no longer reports success.** Its connection test returns "not implemented", and the scheduled poller skips it. Before, the poller marked Defender connections *OK* with nothing imported. Alerts posted to every vendor connection's webhook are received as before.
+- **Coordination record with Rem0te.** `INTEGRATION_COORDINATION.md` now reflects Rem0te 0.68.0 and cites the cross-peer CI run (141 passed). The same update, including three requests, was posted to Rem0te's response file.
+
 ## [3.17.722] - 2026-11-19
 
 ### Changed

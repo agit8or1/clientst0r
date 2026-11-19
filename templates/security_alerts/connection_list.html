@@ -34,7 +34,7 @@
             {% for c in connections %}
                 <tr>
                     <td><strong>{{ c.name }}</strong></td>
-                    <td>{{ c.get_provider_display }}</td>
+                    <td>{{ c.get_provider_display }}{% if not c.polls_api %} <span class="badge bg-light text-dark border" title="ClientSt0r has no API integration for this vendor yet; alerts arrive only through the connection's webhook.">Webhook only</span>{% endif %}</td>
                     <td>{{ c.get_category_display }}</td>
                     <td>{{ c.client_org.name|default:"(MSP-wide)" }}</td>
                     <td>{% if c.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Off</span>{% endif %}</td>
@@ -47,8 +47,10 @@
                     <td class="text-nowrap">
                         {% if can_manage %}
                         <a href="{% url 'security_alerts:connection_edit' c.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                        {% if c.polls_api %}
                         <form method="post" action="{% url 'security_alerts:connection_test' c.pk %}" style="display:inline;">{% csrf_token %}<button class="btn btn-sm btn-outline-info" title="Test"><i class="fas fa-vial"></i></button></form>
                         <form method="post" action="{% url 'security_alerts:connection_sync' c.pk %}" style="display:inline;">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" title="Sync now"><i class="fas fa-sync"></i></button></form>
+                        {% endif %}
                         {% endif %}
                     </td>
                 </tr>
