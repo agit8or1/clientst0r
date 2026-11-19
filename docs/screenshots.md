@@ -1,6 +1,6 @@
 # ClientSt0r — screenshot gallery
 
-96 views of the running application — 49 in the light theme (Default Blue), 47 in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+107 views of the running application — 55 in the light theme (Default Blue), 52 in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -11,14 +11,16 @@ All organizations, people, hostnames, addresses and credentials below are invent
 ## Contents
 
 - [Finding your way](#finding-your-way) — 7 views
-- [Overview and dashboards](#overview-and-dashboards) — 7 views
+- [Overview and dashboards](#overview-and-dashboards) — 8 views
 - [Visual insights and monitoring](#visual-insights-and-monitoring) — 19 views
 - [Hardware and cabling](#hardware-and-cabling) — 16 views
 - [Everyday workflows](#everyday-workflows) — 21 views
 - [Tickets and the paired RMM](#tickets-and-the-paired-rmm) — 6 views
 - [Management and configuration](#management-and-configuration) — 5 views
 - [Access and administration](#access-and-administration) — 6 views
-- [Security and client data protection](#security-and-client-data-protection) — 9 views
+- [Operations and monitoring](#operations-and-monitoring) — 4 views
+- [Business operations](#business-operations) — 5 views
+- [Security and client data protection](#security-and-client-data-protection) — 10 views
 
 ---
 
@@ -95,6 +97,14 @@ Where a technician starts the day, and where an owner looks at the whole book of
 [![Dashboard in light theme with Northwind Logistics selected: the navy ten-section sidebar, the top bar with Go to, Favorites, Recent and the client switcher, a header with New Ticket, Log Time, Add Client, Create Project and Dispatch Board, seven KPI tiles, My ticket queue with three tickets and their SLA due times, an SLA overview at 67 percent, technician workload, upcoming tasks and system status](images/github/client-dashboard-light.png)](images/github/client-dashboard-light.png)
 
 The dashboard for the client you have selected: quick actions in the header, a KPI row of what needs you (open tickets, SLA at risk, overdue, unassigned, pending approvals, due today, RMM alerts), then your ticket queue, the SLA overview, technician workload, upcoming tasks and system status. The layout follows your role.
+
+### Client dashboard (dark)
+
+**Professional Dark theme**
+
+[![Dashboard in dark theme for Northwind Logistics with KPI tiles, the technician's ticket queue, SLA overview, technician workload, upcoming tasks and system status](images/github/client-dashboard-dark.png)](images/github/client-dashboard-dark.png)
+
+The technician home in the Professional Dark theme: queue, SLA overview, workload, upcoming tasks and system status for the selected customer.
 
 ### My Work
 
@@ -766,6 +776,90 @@ One page for the customer portal: its address and sign-in, branding (name, logo,
 
 ---
 
+## Operations and monitoring
+
+Every alert source in one event list, ingestion health, backup monitoring and the wallboards on the office screen.
+
+### Events
+
+**Professional Dark theme**
+
+[![Events list in dark theme showing website, backup, security and RMM alerts across several customers with severity badges and occurrence counts](images/github/events-dark.png)](images/github/events-dark.png)
+
+One list of alerts from every source — security vendors and SIEM, RMM, Rem0te, backups and website monitors — with severity, customer, status and repeat counts.
+
+### Event ingestion health
+
+**Light theme**
+
+[![Event ingestion health page listing each alert source with last ingestion time, error counts and retention settings](images/github/events-ingestion-light.png)](images/github/events-ingestion-light.png)
+
+Per-source ingestion status, queue depth and dead letters, with retention settings per source and per customer.
+
+### Backup monitoring
+
+**Light theme**
+
+[![Backup monitoring dashboard listing two customers marked stale data, with job counts, newest and oldest successful backups, repository capacity bars, restore test status and open alert counts](images/github/backup-monitoring-light.png)](images/github/backup-monitoring-light.png)
+
+Backup health per customer from Proxmox Backup Server and restic reports: newest and oldest success, repository capacity, restore tests and open alerts. A source that has stopped reporting shows as stale, never as healthy.
+
+### Wallboard
+
+**Professional Dark theme**
+
+[![Service Desk wallboard in dark theme with ticket, monitor and certificate counters, a monitor status pie chart, a 30-day ticket chart and tickets by priority](images/github/wallboard-dark.png)](images/github/wallboard-dark.png)
+
+A configurable wallboard for the office screen: open and overdue tickets, monitors down, certificates expiring, monitor status and ticket trends.
+
+---
+
+## Business operations
+
+The owner's view: business overview, licensing, customer health, pricing findings and onboarding a new customer.
+
+### Business overview
+
+**Professional Dark theme**
+
+[![Business overview in dark theme with MRR and ARR, invoiced revenue, gross margin, customer profitability and contract renewal cards](images/github/business-overview-dark.png)](images/github/business-overview-dark.png)
+
+Revenue, recurring revenue, margin and customer figures for the date range, each card showing its data source and whether the figure is complete.
+
+### Software licensing
+
+**Light theme**
+
+[![Software licensing overview listing renewals, an over-allocated subscription and unused licenses, with purchased, assigned and unused counts per customer](images/github/licensing-light.png)](images/github/licensing-light.png)
+
+What each customer has purchased, what is assigned and when it renews, with unused, over-allocated and renewal items called out.
+
+### Client health
+
+**Professional Dark theme**
+
+[![Client health table in dark theme with overall scores, coverage and per-dimension scores for each customer, some marked unknown](images/github/client-health-dark.png)](images/github/client-health-dark.png)
+
+A score per customer across technical, security, backup, service delivery, commercial and satisfaction dimensions; dimensions without trustworthy data show as unknown.
+
+### Pricing advisor
+
+**Light theme**
+
+[![Pricing advisor listing high-severity findings per customer and the coverage of each detector](images/github/pricing-advisor-light.png)](images/github/pricing-advisor-light.png)
+
+Loss-making customers, underpriced contracts, unbilled work and renewals to review, from contract, invoice and time data. Recommendations only create drafts.
+
+### Customer onboarding
+
+**Light theme**
+
+[![Customer onboarding page with an in-progress list, a button to onboard a new customer and a form to start a change for an existing customer](images/github/onboarding-wizard-light.png)](images/github/onboarding-wizard-light.png)
+
+Start onboarding a new customer (record, locations, plan, agreement, integrations, activation) or a change for an existing one; price and contract changes go through approval as drafts.
+
+---
+
 ## Security and client data protection
 
 Which safeguards are in effect for a customer, who may see and widen what, and how secrets reach a customer.
@@ -841,6 +935,14 @@ Alerts that need handling become incidents with a severity, a status, the client
 [![Top bar in light theme: the ClientSt0r logo with an amber Update Available v3.17.681 pill beside it, then Go to with its Ctrl K hint, Favorites, Recent, the client switcher, the notifications bell, Help, the settings gear and the account menu](images/github/update-badge-light.png)](images/github/update-badge-light.png)
 
 When the scheduled update check finds a newer release, superusers see a glowing amber Update Available pill beside the logo, at every window width, and an entry in the notifications bell; both link to Administration → System → System Updates. Pages never contact GitHub while loading, and other users never see it.
+
+### API access control
+
+**Light theme**
+
+[![API Access Control settings with global mode selectors, per-address limits and a rules table with allow and deny entries](images/github/api-access-light.png)](images/github/api-access-light.png)
+
+Address rules for the inbound API and webhooks: allowlist and denylist modes, per-key and per-integration scopes, rate and size limits, and a trial window that undoes risky changes.
 
 ---
 

@@ -1,0 +1,43 @@
+name: Docs check
+
+on:
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail on warnings as well as errors
+        type: boolean
+        default: false
+      rebuild_gallery:
+        description: Rebuild docs/screenshots.md before checking
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Run docs check
+        env:
+          STRICT: ${{ inputs.strict }}
+          REBUILD: ${{ inputs.rebuild_gallery }}
+        run: |
+          args=""
+          [ "$STRICT" = "true" ] && args="$args --strict"
+          [ "$REBUILD" = "true" ] && args="$args --rebuild-gallery"
+          set +e
+          python scripts/docs_check.py --output docs-check-report.md $args
+          status=$?
+          cat docs-check-report.md >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: docs-check-report
+          path: docs-check-report.md

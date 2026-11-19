@@ -35,6 +35,10 @@ GROUPS = [
      'The commercial side: what is quoted, what is billed, and what each client is entitled to.'),
     ('access',     'Access and administration',
      'Tenancy, membership and the switches that decide which modules exist.'),
+    ('operations', 'Operations and monitoring',
+     'Every alert source in one event list, ingestion health, backup monitoring and the wallboards on the office screen.'),
+    ('business',   'Business operations',
+     'The owner\'s view: business overview, licensing, customer health, pricing findings and onboarding a new customer.'),
     ('security',   'Security and client data protection',
      'Which safeguards are in effect for a customer, who may see and widen what, and how secrets reach a customer.'),
 ]

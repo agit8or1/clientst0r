@@ -14,11 +14,15 @@ classic `bash install.sh` path still works and is documented in
 git clone https://github.com/agit8or1/clientst0r.git
 cd clientst0r
 cp .env.example .env
-# edit .env — at minimum: SECRET_KEY, DB_*_PASSWORD, APP_MASTER_KEY
+# edit .env — at minimum: SECRET_KEY, APP_MASTER_KEY, API_KEY_SECRET, DB_PASSWORD, DB_ROOT_PASSWORD
 docker compose up -d
 ```
 
-Then open `http://localhost:8000`. The first boot runs migrations and
+Then open `http://localhost:8000` (or your TLS proxy's address). The
+`.env.example` defaults assume HTTPS (`SECURE_SSL_REDIRECT=True` and
+secure cookies), so plain HTTP redirects to HTTPS; for a local trial over
+HTTP set `SECURE_SSL_REDIRECT=False`, `SESSION_COOKIE_SECURE=False` and
+`CSRF_COOKIE_SECURE=False`. The first boot runs migrations and
 collects static files automatically. If you set `DJANGO_SUPERUSER_*`
 in `.env`, the entrypoint creates the admin account on first boot too.
 
@@ -78,6 +82,7 @@ SECRET_KEY=...               # python -c "import secrets; print(secrets.token_ur
 APP_MASTER_KEY=...           # python -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
 DB_ROOT_PASSWORD=...         # strong; only used on first DB init
 DB_PASSWORD=...              # strong; the app uses this
+API_KEY_SECRET=...           # python -c "import secrets; print(secrets.token_urlsafe(50))"; compose refuses to start without it
 ALLOWED_HOSTS=clientst0r.example.com,localhost
 ```
 

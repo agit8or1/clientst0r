@@ -1718,13 +1718,243 @@ def seed_navigation():
     print(f'  navigation: {len(NAV_FAVORITES)} favorites, {len(NAV_RECENT)} recent pages')
 
 
+def seed_operations():
+    """Derived-data sources for the operations pages: RMM alerts on the
+    Ridgeline Tactical RMM fixture, one website monitor down, backup monitoring
+    (a PBS connection for Northwind, a restic push connection for Harbor Point,
+    with systems, repositories, jobs, runs and alerts), licensing subscriptions,
+    a 'Service Desk' wallboard, and API access rules plus a trusted proxy.
+
+    Nothing contacts anything: connections are inactive, sync is off and every
+    host is an invented .example name. The global API access modes stay
+    Unrestricted so the demo API keeps working. The events, health score and
+    advisor pages are filled by the app's own commands, which setup_demo.py
+    runs after the seeding.
+    """
+    from assets.models import Asset
+    from backup_monitoring import models as bm
+    from integrations.models import RMMAlert, RMMConnection, RMMDevice
+    from licensing.models import LicenseAssignment, LicenseSubscription, SoftwareProduct
+    from monitoring.models import WebsiteMonitor
+    from psa.models import Ticket
+
+    # 1. RMM alerts ---------------------------------------------------------
+    rdg = org('Ridgeline Dental Group')
+    conn = RMMConnection.objects.get(organization=rdg, name='Ridgeline — Tactical RMM')
+    dev = RMMDevice.objects.get(connection=conn, external_id='agent-7f3c21')
+    for ext, atype, msg, sev, status, ago, resolved in [
+        ('alert-1001', 'Disk space', 'Drive C: has 4% free space (9.8 GB of 237 GB)', 'critical', 'active',
+         timedelta(hours=3), None),
+        ('alert-1002', 'Service stopped', 'Service "Veeam Backup Service" is not running', 'warning',
+         'acknowledged', timedelta(hours=9), None),
+        ('alert-1003', 'Pending reboot', 'Windows has been waiting for a restart for 6 days', 'warning',
+         'active', timedelta(days=1, hours=2), None),
+        ('alert-1004', 'High CPU', 'CPU above 95% for 15 minutes', 'error', 'resolved',
+         timedelta(days=2), timedelta(days=2) - timedelta(minutes=50)),
+    ]:
+        RMMAlert.objects.update_or_create(
+            connection=conn, external_id=ext, defaults=dict(
+                organization=rdg, device=dev, alert_type=atype, message=msg, severity=sev, status=status,
+                triggered_at=now - ago, resolved_at=(now - resolved) if resolved else None,
+                raw_data={'demo': True}))
+
+    # 2. One website monitor down -------------------------------------------
+    mon = WebsiteMonitor.objects.filter(organization=org('Cascade Manufacturing'),
+                                        url='https://plant.cascade-mfg.example').first() \
+        or WebsiteMonitor.objects.order_by('pk').first()
+    WebsiteMonitor.objects.filter(pk=mon.pk).update(
+        status='down', alert_state='down', consecutive_failures=3, last_status_code=None,
+        last_error='Connection timed out after 15 seconds (3 consecutive failures)',
+        last_checked_at=now - timedelta(minutes=3))
+
+    # 3. Backup monitoring --------------------------------------------------
+    nwl, hpc = org('Northwind Logistics'), org('Harbor Point Credit Union')
+    tib = 1024 ** 4
+    pbs, _ = bm.BackupConnection.objects.get_or_create(
+        organization=nwl, name='Northwind — Proxmox Backup Server', provider=bm.PROVIDER_PBS,
+        defaults=dict(base_url='https://pbs.northwind.example:8007', verify_tls=True, active=False,
+                      last_poll_at=now - timedelta(minutes=12), last_poll_status='ok'))
+    rst, _ = bm.BackupConnection.objects.get_or_create(
+        organization=hpc, name='Harbor Point — restic reports', provider=bm.PROVIDER_RESTIC,
+        defaults=dict(active=False, last_ingest_at=now - timedelta(hours=2),
+                      last_poll_at=now - timedelta(hours=2), last_poll_status='ok'))
+
+    def system(conn_, cust, name, ext, asset_name):
+        asset = Asset.objects.filter(organization=cust, name=asset_name).first()
+        obj, _ = bm.ProtectedSystem.objects.get_or_create(
+            connection=conn_, external_id=ext, defaults=dict(customer=cust, asset=asset, name=name))
+        return obj
+
+    s_dc = system(pbs, nwl, 'NWL-DC01', 'vm/101', 'NWL-DC01')
+    s_fs = system(pbs, nwl, 'NWL-FS01', 'vm/102', 'NWL-FS01')
+    s_nas = system(pbs, nwl, 'NWL-NAS01', 'host/nas01', 'NWL-NAS01')
+    s_hv1 = system(rst, hpc, 'HPC-HV01', 'hpc-hv01', 'HPC-HV01')
+    s_hv2 = system(rst, hpc, 'HPC-HV02', 'hpc-hv02', 'HPC-HV02')
+
+    def repo(conn_, cust, name, ext, total, used, **kw):
+        obj, _ = bm.BackupRepository.objects.update_or_create(
+            connection=conn_, external_id=ext, defaults=dict(
+                organization=cust, name=name, total_bytes=int(total * tib), used_bytes=int(used * tib),
+                last_checked_at=now - timedelta(minutes=12), **kw))
+        return obj
+
+    r_main = repo(pbs, nwl, 'datastore-main', 'datastore-main', 12, 8.1)
+    repo(pbs, nwl, 'datastore-offsite', 'datastore-offsite', 8, 3.2)
+    r_hpc = repo(rst, hpc, 'sftp:backup.harborpoint.example/restic', 'restic-main', 6, 5.4)
+
+    def job(conn_, cust, sys_, ext, name, schedule, retention, runs):
+        """runs: [(hours_ago, status, GB, minutes, message)], newest first."""
+        j, _ = bm.BackupJob.objects.get_or_create(
+            connection=conn_, external_id=ext, defaults=dict(
+                organization=cust, system=sys_, name=name, schedule=schedule, retention=retention))
+        for i, (h, status, gb, mins, msg) in enumerate(runs):
+            started = now - timedelta(hours=h)
+            bm.BackupRun.objects.get_or_create(
+                connection=conn_, external_id=f'{ext}-run-{i}', defaults=dict(
+                    job=j, started_at=started, finished_at=started + timedelta(minutes=mins),
+                    status=status, bytes_processed=int(gb * 1024 ** 3) if gb else None,
+                    duration_seconds=mins * 60, message=msg))
+        newest = runs[0]
+        ok = next((r for r in runs if r[1] in ('success', 'warning')), None)
+        bm.BackupJob.objects.filter(pk=j.pk).update(
+            last_run_at=now - timedelta(hours=newest[0]), last_status=newest[1],
+            last_success_at=(now - timedelta(hours=ok[0])) if ok else None)
+        return j
+
+    ok = lambda h, gb, m: (h, 'success', gb, m, 'Backup completed')
+    j_dc = job(pbs, nwl, s_dc, 'vm-101-nightly', 'NWL-DC01 nightly', 'daily 01:00', 'keep 14 daily, 8 weekly',
+               [ok(7, 38, 21), ok(31, 36, 20), ok(55, 37, 22)])
+    j_fs = job(pbs, nwl, s_fs, 'vm-102-nightly', 'NWL-FS01 nightly', 'daily 01:30', 'keep 14 daily, 8 weekly',
+               [(7, 'failed', None, 4, 'Datastore write error: no space left on device (ENOSPC)'),
+                (31, 'failed', None, 3, 'Datastore write error: no space left on device (ENOSPC)'),
+                ok(55, 212, 64)])
+    job(pbs, nwl, s_nas, 'host-nas01-weekly', 'NWL-NAS01 weekly', 'Sun 03:00', 'keep 8 weekly',
+        [ok(70, 840, 190), ok(238, 836, 188)])
+    j_h1 = job(rst, hpc, s_hv1, 'hpc-hv01-restic', 'HPC-HV01 restic', 'daily 22:00', 'keep 30 daily, 12 monthly',
+               [ok(2, 96, 47), ok(26, 95, 46), ok(50, 94, 46)])
+    j_h2 = job(rst, hpc, s_hv2, 'hpc-hv02-restic', 'HPC-HV02 restic', 'daily 22:30', 'keep 30 daily, 12 monthly',
+               [ok(52, 88, 43), ok(76, 87, 44), ok(100, 87, 43)])
+    bm.BackupJob.objects.filter(pk=j_h2.pk).update(last_status='missed')
+
+    def alert(conn_, cust, kind, sev, title, detail, key, **kw):
+        obj, _ = bm.BackupAlert.objects.get_or_create(
+            connection=conn_, dedup_key=key, status=bm.ALERT_OPEN, defaults=dict(
+                organization=cust, kind=kind, severity=sev, title=title, detail=detail,
+                first_seen_at=now - timedelta(hours=6), last_seen_at=now - timedelta(minutes=30),
+                occurrences=2, **kw))
+        return obj
+
+    ticket = Ticket.objects.filter(organization=nwl).order_by('pk').first()
+    alert(pbs, nwl, 'repeated_failures', 'critical', 'NWL-FS01 nightly: last 2 runs failed',
+          'Datastore write error: no space left on device (ENOSPC).', f'repeat:{j_fs.pk}',
+          job=j_fs, system=s_fs, ticket=ticket)
+    alert(rst, hpc, 'missed', 'warning', 'HPC-HV02 restic: no successful run in 52 hours',
+          'Expected a run every 26 hours; the last good run was two days ago.', f'missed:{j_h2.pk}',
+          job=j_h2, system=s_hv2)
+    alert(rst, hpc, 'capacity', 'warning', 'restic repository is 90% full',
+          '5.4 TiB of 6 TiB used on sftp:backup.harborpoint.example/restic.', f'capacity:{r_hpc.pk}',
+          repository=r_hpc)
+
+    # 4. Licensing ----------------------------------------------------------
+    nwl_sub = []
+    cmf = org('Cascade Manufacturing')
+    for cust, vendor, pname, sku, qty, consumed, cost, price, renew_days, ltype in [
+        (nwl, 'Microsoft', '365 Business Premium', 'DEMO-M365-BP', 25, 22, '16.50', '22.00', 142, 'per_user'),
+        (nwl, 'Microsoft', '365 E3', 'DEMO-M365-E3', 8, 8, '29.00', '36.00', 18, 'per_user'),
+        (nwl, 'Huntress', 'Managed EDR', 'DEMO-EDR', 60, 57, '3.60', '5.50', 201, 'per_device'),
+        (cmf, 'Microsoft', '365 Business Premium', 'DEMO-M365-BP', 40, 31, '16.50', '22.00', 96, 'per_user'),
+        (cmf, 'Bitdefender', 'GravityZone Business Security', 'DEMO-AV', 55, 58, '2.90', '4.50', 74, 'per_device'),
+    ]:
+        product, _ = SoftwareProduct.objects.get_or_create(
+            vendor=vendor, vendor_sku=sku, defaults=dict(name=pname, license_type=ltype))
+        sub, _ = LicenseSubscription.objects.get_or_create(
+            organization=cust, product=product, source='manual', vendor_subscription_id='', defaults=dict(
+                quantity_purchased=qty, vendor_consumed=consumed, unit_cost=Decimal(cost),
+                unit_price=Decimal(price), billing_frequency='monthly' if ltype == 'per_user' else 'annual',
+                term_start=today - timedelta(days=365 - renew_days), renewal_date=today + timedelta(days=renew_days),
+                auto_renew=True, status='active'))
+        if cust == nwl and sku == 'DEMO-M365-E3':
+            nwl_sub.append(sub)
+    # Seat-level assignments for the E3 subscription (the others use the vendor count).
+    for i, who in enumerate(['avery.cole', 'mina.park', 'luis.ortega', 'sara.nguyen',
+                             'tom.bell', 'priya.rao', 'ken.ito', 'dee.walsh']):
+        LicenseAssignment.objects.get_or_create(
+            subscription=nwl_sub[0], assigned_to=f'{who}@northwind.example', defaults=dict(
+                assigned_at=today - timedelta(days=200 - i * 9)))
+
+    # 5. Wallboard ----------------------------------------------------------
+    from reports.models import Wallboard, WallboardWidget
+    board = Wallboard.objects.filter(organization__isnull=True, name='Service Desk').first() \
+        or Wallboard.objects.create(organization=None, name='Service Desk', refresh_seconds=60, order=10,
+                                    description='Queue health and what is on fire, for the NOC screen.',
+                                    created_by=user('demo.tech'))
+    # The widget type comes from the source's recommended type, as the
+    # wallboard editor does (a pie fed by a table source draws nothing).
+    from reports.widget_sources import DATA_SOURCE_CHOICES
+    kinds = {k: t for k, _label, t in DATA_SOURCE_CHOICES}
+    WallboardWidget.objects.filter(wallboard=board).exclude(title__in=[
+        'Open tickets', 'Overdue tickets', 'Monitors down', 'SSL certificates expiring',
+        'Monitor status', 'Tickets opened, 30 days', 'Tickets by priority']).delete()
+    for order, (title, source, x, y, w, h) in enumerate([
+        ('Open tickets', 'open_tickets_count', 0, 0, 3, 2),
+        ('Overdue tickets', 'overdue_tickets_count', 3, 0, 3, 2),
+        ('Monitors down', 'monitors_down', 6, 0, 3, 2),
+        ('SSL certificates expiring', 'ssl_expiring_soon', 9, 0, 3, 2),
+        ('Monitor status', 'monitors_status_breakdown', 0, 2, 4, 4),
+        ('Tickets opened, 30 days', 'tickets_opened_30d', 4, 2, 5, 4),
+        ('Tickets by priority', 'tickets_by_priority', 9, 2, 3, 4),
+    ]):
+        WallboardWidget.objects.update_or_create(
+            wallboard=board, title=title, defaults=dict(
+                widget_type=kinds[source], data_source=source, order=order * 10,
+                position={'x': x, 'y': y, 'width': w, 'height': h}))
+
+    # 5b. Recurring contract amounts and technician cost rates, so the
+    # business overview shows MRR and margin instead of "incomplete".
+    import datetime as _dt
+    from decimal import Decimal as _D
+    from psa.models import Contract
+    from resourcing.models import TechCostRate
+    for name, freq, amount in (('Northwind — Managed Services', 'monthly', '4850.00'),
+                               ('Ridgeline — Block Hours 40', 'quarterly', '5400.00'),
+                               ('Harbor Point — Managed + Compliance', 'monthly', '6200.00')):
+        Contract.objects.filter(name=name).update(billing_frequency=freq, recurring_amount=_D(amount))
+    for username, rate in (('demo.tech', '48.00'), ('demo.ipatel', '42.00'), ('demo.mokafor', '55.00')):
+        TechCostRate.objects.get_or_create(user=user(username), effective_from=_dt.date(2025, 1, 1),
+                                           defaults={'rate_per_hour': _D(rate)})
+
+    # 6. API access control -------------------------------------------------
+    from api_access.models import ApiAccessRule, ApiAccessSettings, TrustedProxy
+    admin = user('demo.tech')
+    created = 0
+    for name, net, action, scope, target, desc, active in [
+        ('RMM server', '198.51.100.0/24', 'allow', 'endpoint_group', 'integration_api',
+         'The Rem0te server that calls the integration API', True),
+        ('Blocked scanner', '203.0.113.0/24', 'deny', 'global', '',
+         'Vulnerability scanner that kept probing the API', True),
+        ('Old VPN range', '192.0.2.0/24', 'allow', 'global', '',
+         'Retired site-to-site VPN; kept for reference', False),
+    ]:
+        _, made = ApiAccessRule.objects.get_or_create(
+            name=name, network=net, defaults=dict(
+                action=action, surface='api', scope=scope, target=target, description=desc,
+                is_active=active, created_by=admin))
+        created += made
+    _, made = TrustedProxy.objects.get_or_create(
+        network='10.0.0.10/32', defaults=dict(description='Edge proxy', created_by=admin))
+    if created or made:
+        ApiAccessSettings.bump(admin)  # modes stay Unrestricted; this only refreshes the policy cache
+    print('  operations: 4 RMM alerts, 1 monitor down, 2 backup connections, 3 backup alerts, '
+          '5 subscriptions, 1 wallboard, 3 API rules, 1 trusted proxy')
+
+
 def main():
     steps = [seed_showcase, seed_presentation, seed_asset_detail, seed_commercial,
              rename_msp_tenant, seed_project_work, seed_visual, seed_dispatch,
              seed_my_work, seed_document_lifecycle, seed_readiness, seed_portal_request,
              seed_scheduler_history, seed_rack_artwork, seed_named_approvers,
              seed_readiness_custom_fields, seed_secure_link, seed_ticket_ai, seed_superuser_approval,
-             seed_rmm_fixture, seed_rmm_pairing, seed_navigation]
+             seed_rmm_fixture, seed_rmm_pairing, seed_navigation, seed_operations]
     only = set(sys.argv[1:])
     for step in steps:
         if only and step.__name__ not in only:

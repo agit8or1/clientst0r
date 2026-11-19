@@ -44,7 +44,7 @@ git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash in
 
 The installer handles all dependencies:
 
-- **Python**: python3.12, python3.12-venv, python3.12-dev, python3-pip
+- **Python**: Python 3.11, 3.12 or 3.13 with venv and dev headers, plus python3-pip (uses an installed version; otherwise installs the newest one apt offers)
 - **Database**: mariadb-server, mariadb-client, default-libmysqlclient-dev
 - **Build Tools**: build-essential, pkg-config
 - **Libraries**: libssl-dev, libffi-dev, libldap2-dev, libsasl2-dev
@@ -68,14 +68,15 @@ The installer handles all dependencies:
    ```
 
 3. **Follow the prompts:**
-   - The installer runs 11 automated steps
-   - You'll be prompted to create a superuser account
-   - Enter username, email, and password (minimum 12 characters)
+   - The installer runs its steps automatically; the organization setup step asks for your business name
+   - It creates a superuser account non-interactively: username **`admin`**, password **`ChangeMe123!`**
+   - **Change this password immediately at first login.** Anyone who reaches the server before you do can sign in with it
 
 4. **Access the application:**
    - When complete, you'll see the access URL
    - Open `http://YOUR_IP:8000` in your browser
-   - Log in with the credentials you created
+   - Log in as `admin` / `ChangeMe123!`, change the password, and enrol 2FA (required by default)
+   - The installer does not install Nginx or TLS. Gunicorn listens on port 8000; put your own reverse proxy with TLS in front of it (a sample config is in `deploy/nginx-clientst0r.conf`)
 
 ### Installation Steps (Automated)
 
@@ -90,7 +91,7 @@ The installer performs these steps automatically:
 7. ✅ **Log Directory** - Creates `/var/log/itdocs/`
 8. ✅ **Database Migrations** - Applies all schema migrations
 9. ✅ **Organization Setup** - Interactive prompt for your business name and demo data
-10. ✅ **Superuser Account** - Interactive prompt for admin user
+10. ✅ **Superuser Account** - Creates `admin` / `ChangeMe123!` non-interactively (change it at first login)
 11. ✅ **Static Files** - Collects CSS, JavaScript, images
 12. ✅ **Production Server** - Starts Gunicorn with systemd
 
@@ -486,7 +487,7 @@ tail -f /var/log/itdocs/django.log
 
 1. **Access the application:**
    - Open `http://YOUR_IP:8000` in browser
-   - Log in with superuser credentials
+   - Log in as `admin` / `ChangeMe123!` and change the password immediately
 
 2. **Load demo data (Optional, Recommended for Testing):**
    - Loads comprehensive demo data under "Acme Corporation" organization
@@ -496,7 +497,7 @@ tail -f /var/log/itdocs/django.log
    source venv/bin/activate
    python manage.py seed_demo_data
    ```
-   - Demo users created:
+   - Demo users created (demo and test installs only; never load demo data on a server that holds real customer data):
      - `demo.admin` / `demo123` - Admin role
      - `demo.editor` / `demo123` - Editor role
      - `demo.viewer` / `demo123` - Read-only role

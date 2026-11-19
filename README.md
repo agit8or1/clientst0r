@@ -5,352 +5,289 @@
   <img src="docs/images/github/clientst0r-wordmark.svg" alt="ClientSt0r" width="420">
 </picture>
 
-**Self-hosted IT documentation and service desk for MSPs.**
+**Your clients. Your infrastructure. Your data. One platform.**
 
-Keep customer documentation, assets, credentials and support workflows on your own infrastructure — one place for the runbook, the device it describes, the credential it needs, and the ticket it came from.
+Self-hosted, open-source IT documentation, password vault, service desk and asset platform for MSPs.
 
 [![License: MIT](https://img.shields.io/github/license/agit8or1/clientst0r?color=blue)](LICENSE) [![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release)](https://github.com/agit8or1/clientst0r/releases) [![CodeQL](https://github.com/agit8or1/clientst0r/actions/workflows/codeql.yml/badge.svg)](https://github.com/agit8or1/clientst0r/actions/workflows/codeql.yml) [![Docker image](https://github.com/agit8or1/clientst0r/actions/workflows/docker-image.yml/badge.svg)](https://github.com/agit8or1/clientst0r/actions/workflows/docker-image.yml)
 
-[Quick Start](#quick-start) · [Screenshots](docs/screenshots.md) · [Walkthrough](#watch-it-work) · [Documentation](#documentation) · [Releases](https://github.com/agit8or1/clientst0r/releases) · [Report a bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml) · [MSP Reboot](https://mspreboot.com)
+[Features](FEATURES.md) · [Screenshots](docs/screenshots.md) · [Quick start](#quick-start) · [Docs](#documentation) · [Roadmap](docs/ROADMAP.md) · [Comparison](COMPARISON.md)
 
 </div>
 
 ---
 
-[![The ClientSt0r dashboard in light theme with Northwind Logistics selected: the navy ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the client switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-light.png)](docs/images/github/client-dashboard-light.png)
+[![The ClientSt0r dashboard in the Professional Dark theme with a client selected: the ten-section sidebar, the top bar with Go to (Ctrl K), Favorites, Recent and the client switcher, quick actions, a KPI row of open, at-risk, overdue and unassigned tickets, pending approvals, work due today and RMM alerts, then the ticket queue, SLA overview, technician workload, upcoming tasks and system status](docs/images/github/client-dashboard-dark.png)](docs/screenshots.md)
+
+<sub>Dashboard in the Professional Dark theme (the default). Click for the full screenshot gallery.</sub>
+
+## Why ClientSt0r?
+
+- **Self-hosted.** It runs on your server, as a Docker Compose stack or a native install. There is no hosted tier and no usage telemetry; outbound calls are the GitHub update check and the integrations you configure.
+- **One place for the daily work.** Documentation, the credential vault, tickets, contracts, assets, racks and network ports live in one application and link to each other. A ticket shows the client's contract, the asset it concerns, the runbook and the credentials the job needs.
+- **Your data stays on your server.** Customer records, ticket history and secrets sit in your database, under your backup policy.
+- **Open source.** MIT-licensed, with no paid tiers, seat limits or license activation.
+- **Role-based access per customer.** Every record belongs to a customer organization. Customer users see only their own organization and only the tickets you share with them. Technician access to AI and RMM tools is assigned per customer.
+- **Optional AI.** AI features are off by default and call nothing until an administrator turns them on and configures a provider. Local models (Ollama) are supported.
 
 ## Watch it work
 
-[![Walkthrough video: a technician starts from the dashboard's KPI row, opens the ten-section sidebar and its icon-rail flyouts, finds a client with Ctrl+K, works from the client workspace and the queue into a ticket carrying its contract and credentials, documents a switch port on the panel artwork and traces its cable, then reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
+[![Walkthrough animation: a technician starts from the dashboard, opens the sidebar and its icon-rail flyouts, finds a client with Ctrl+K, works from the client workspace and the queue into a ticket, documents a switch port on the panel artwork, traces its cable and reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
 
-**[▶ Watch the full 3¾-minute walkthrough (MP4, 6.9 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.683/clientst0r-walkthrough.mp4)**
-— or the [84-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.683/clientst0r-walkthrough-highlight.mp4).
-The animation above is a 52-second excerpt, played at 1.6× speed.
+A 52-second excerpt of the walkthrough recorded on **v3.17.683** (the interface has gained pages since then).
+Full video: [3¾-minute walkthrough (MP4)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.683/clientst0r-walkthrough.mp4) ·
+[84-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.683/clientst0r-walkthrough-highlight.mp4) ·
+[transcript](docs/media/walkthrough.txt) · [captions](docs/media/walkthrough.vtt).
+Regenerate it, or the screenshots, with [`scripts/demo/`](scripts/demo/README.md).
 
-It opens with the frame you work in — the dashboard, the sidebar and its icon rail, Go to
-(Ctrl+K) and the client workspace — then runs through four end-to-end workflows: a ticket
-from queue to runbook, the physical network from switch port to desk and patch-panel
-mapping, the week scheduled on the dispatch board and a project plan, and quote to invoice
-to profitability, ending in the settings center and the module switches. It starts in Professional Dark, the
-default, and switches to the light theme partway. It is caption-led; there is no
-narration track. [Transcript](docs/media/walkthrough.txt) ·
-[captions](docs/media/walkthrough.vtt) · regenerate it, or the screenshots, with
-[`scripts/demo/`](scripts/demo/README.md).
-
-## Why MSPs run it
-
-**Documentation that sits next to the work.** A ticket opens with the client's active
-contract, the asset it concerns, the runbook that covers it and the vault entries the
-technician will need — without leaving the ticket or opening a second product. Secrets are
-never rendered into the ticket page; opening one goes through the vault's own permissions
-and is logged. Documentation readiness standards score every client against what should be
-documented, explain each gap and queue the fixes; documents have owners, review dates,
-drafts, version compare and restore.
-
-**A service desk you own, not one you rent.** Queues, SLA timers with pause logic, time
-entries, quotes, invoices, contracts, projects, approvals and workflow rules are built in
-and run on your server. Each technician starts from **My Work** — their tickets in SLA
-order, running timers, customer replies and approvals — and customers request services
-through guided portal forms that route, ask for approval and track progress in plain
-language. Your ticket history and your client data stay in your database, on
-your hardware, under your backup policy.
-
-**The physical network, drawn.** Pick a model from a catalog of about 16,500 device, module
-and rack types, and each client device gets its front and rear panel as artwork. Click a port
-to record its VLANs, PoE and cable, trace a path through patch panels and wall jacks, and
-print true-size labels with QR codes. Racks and diagrams are drawn only from what has been
-documented, and every layout says whether it was checked against the manufacturer's documentation.
-
-**One tenant per client, from day one.** Every asset, document, credential, location and
-ticket belongs to an organization. Technicians switch client context in one click, and each
-client opens as a workspace — overview, tickets, assets, RMM devices, contacts, documents,
-passwords (names only), contracts, billing, projects, activity and members on tabs, with
-a KPI row and quick actions. Role-based membership decides who sees what. Multi-site
-clients, parent/child organizations and per-client PSA settings are first-class, not
-bolted on.
-
-**Built for the working day.** Ten sections in one sidebar (Dashboard, My Work, Service
-Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring,
-Reports, and Administration pinned at the foot) that collapses to an icon rail with flyout
-menus. Ctrl+K (or Cmd+K) opens **Go to**: pages, settings, quick commands, clients,
-tickets, devices, projects, documents and reports, searched with each list's own
-permission rules — passwords are never searched. Star any page into **Favorites**, pick
-up where you left off from **Recent**, and start from a dashboard whose KPI row and panels
-follow your role (administrator, manager, L1/L2/L3 technician, sales, customer).
-
-## See it in action
-
-A ticket that reads as a conversation — the customer on one side, technicians on the other,
-internal notes in amber and marked staff only — beside the contract, SLA countdown and the
-credentials the job needs, listed but never revealed.
-
-[![Ticket detail laid out as a conversation: customer messages in left-hand bubbles, technician replies in blue right-hand bubbles, an amber internal note marked staff only, a status-change row and a composer set to Public reply, beside the Cc list, the client's active contract, the closeout checklist, details and the asset card](docs/images/github/ticket-detail-light.png)](docs/images/github/ticket-detail-light.png)
+## Visual tour
 
 <table>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/nav-sidebar-dark.png"><img src="docs/images/github/nav-sidebar-dark.png" alt="Ticket list in the Professional Dark theme with the navy sidebar expanded: a Jump to filter, the Dashboard, My Work and Service Desk sections with Service Desk open on Tickets, Dispatch Board, Shifts and Locations, Scheduling, Projects, Service Management and Workflows, the remaining sections collapsed and Administration at the foot"></a>
-<b>Ten sections, one sidebar</b> · Professional Dark<br>Collapses to an icon rail with flyouts; Configure menus hold the setup pages.
+<a href="docs/images/github/events-dark.png"><img src="docs/images/github/events-dark.png" alt="Events list in the Professional Dark theme: alerts from security vendors and SIEM, RMM, Rem0te, backups and website monitors in one table with severity, customer, source, status and last seen"></a>
+<b>One list of events</b> · Dark<br>Security, RMM, Rem0te, backup and website-monitor alerts, side by side.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/command-palette-dark.png"><img src="docs/images/github/command-palette-dark.png" alt="Command palette open over the dashboard in the Professional Dark theme with the query north: grouped results for the Northwind Logistics client, its tickets, devices and documents, with keyboard hints for moving, opening and closing"></a>
-<b>Go to anything with Ctrl+K</b> · Professional Dark<br>Pages, settings, clients, tickets, devices and documents — passwords never searched.
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-<a href="docs/images/github/client-overview-light.png"><img src="docs/images/github/client-overview-light.png" alt="Northwind Logistics client workspace in light theme on the Overview tab: the client header with Operations, Evidence pack and Edit, a current-client banner, quick actions, the tab bar, a KPI row for open tickets, SLA at risk, managed assets, RMM offline, active contracts, open invoices and active projects, then company information, contact and address, contacts, and the client's open tickets, devices and contracts"></a>
-<b>Each client is a workspace</b> · Light<br>KPIs, quick actions and tabs from tickets to billing.
-</td>
-<td width="50%" valign="top">
-<a href="docs/images/github/settings-center-light.png"><img src="docs/images/github/settings-center-light.png" alt="Settings center in light theme: a search box above ten category cards, each listing its settings pages, from General Settings and Customer Portal to Data Import and Vault Import"></a>
-<b>One settings center</b> · Light<br>Ten searchable categories, each showing only what you may open.
+<a href="docs/images/github/wallboard-dark.png"><img src="docs/images/github/wallboard-dark.png" alt="A Service Desk wallboard in the Professional Dark theme with KPI tiles for open tickets, overdue tickets, monitors down and expiring certificates, a monitor status chart, tickets opened over 30 days and tickets by priority"></a>
+<b>Wallboards</b> · Dark<br>Configurable boards of KPIs and charts for a shared screen.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/ticket-queue-dark.png"><img src="docs/images/github/ticket-queue-dark.png" alt="Service desk queue in the Professional Dark theme listing 36 tickets across five clients with subject and ticket number, client, priority, status, queue, assignee, a Needs reply flag, last activity with who acted, and age"></a>
-<b>One queue, every client</b> · Professional Dark<br>Filter by status, priority, queue or technician; see who acted last.
+<a href="docs/images/github/ticket-detail-light.png"><img src="docs/images/github/ticket-detail-light.png" alt="Ticket laid out as a conversation: customer messages on the left, technician replies on the right, an amber internal note marked staff only, beside the Cc list, the client's contract, the closeout checklist and the asset card"></a>
+<b>Ticket workspace</b> · Light<br>The conversation beside the contract, SLA, asset and credentials.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/dispatch-board-dark.png"><img src="docs/images/github/dispatch-board-dark.png" alt="Dispatch board in the Professional Dark theme showing a week of scheduled work by technician with an SLA-at-risk banner and unassigned tickets"></a>
-<b>Dispatch the week</b> · Professional Dark<br>Drag a ticket onto a technician; breaches surface up top.
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation in the Professional Dark theme drawn from catalog artwork: a FortiGate firewall at U40, an HPE Aruba 6300M core switch at U37, a 2U Panduit patch panel, a legacy KVM console placement with no model shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units"></a>
-<b>What is actually in the rack</b> · Professional Dark<br>Drawn from each model's artwork across its real U span; click a device for its ports.
-</td>
-<td width="50%" valign="top">
-<a href="docs/images/github/project-timeline-light.png"><img src="docs/images/github/project-timeline-light.png" alt="Project timeline in light theme: a Gantt chart of seven tasks with milestones marked, above a dependency table showing blocked tasks and what each waits for"></a>
-<b>Projects with dependencies</b> · Light<br>Drag a bar to reschedule; blocked work is flagged.
+<a href="docs/images/github/ticket-rmm-requests-dark.png"><img src="docs/images/github/ticket-rmm-requests-dark.png" alt="Requests to the RMM on a ticket: a handoff marked sent, a read-only disk space diagnostic with its result, and a fix referral approved in the RMM"></a>
+<b>RMM requests on a ticket</b> · Dark<br>Handoffs and requests to a paired RMM; diagnostics and fixes with Rem0te are in development.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-device-light.png"><img src="docs/images/github/hardware-device-light.png" alt="Device page in light theme for a 48-port Dell PowerConnect 3448P switch: front and rear panel artwork with ports coloured by VLAN, a verified-front and approximate-rear badge, a VLAN legend and the port table below"></a>
-<b>Every port, on the panel</b> · Light<br>Click a port to document its VLANs, PoE and cable.
+<a href="docs/images/github/vault-dark.png"><img src="docs/images/github/vault-dark.png" alt="Password vault in the Professional Dark theme listing credentials for one client with title, username and security status, every secret hidden"></a>
+<b>Password vault</b> · Dark<br>AES-256-GCM at rest; every reveal checked and audited.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-trace-light.png"><img src="docs/images/github/hardware-trace-light.png" alt="Cable trace in light theme from switch port 12 through a patch panel, a 34.5 m permanent link and wall jack Office 104 A to workstation XYZ-WS-104, marked complete documented path"></a>
+<a href="docs/images/github/technician-access-light.png"><img src="docs/images/github/technician-access-light.png" alt="Technician Access settings: assignments of L1, L2 and L3 presets to technicians per customer, protected changes waiting, an effective-access preview and the preset capability table"></a>
+<b>Technician access per customer</b> · Light<br>L1/L2/L3 presets; widening access needs a second administrator.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation drawn from catalog artwork: firewall, core switch, patch panel, servers and NAS at their U positions"></a>
+<b>Racks from real artwork</b> · Dark<br>Each device drawn across its U span; click through to its ports.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/hardware-trace-light.png"><img src="docs/images/github/hardware-trace-light.png" alt="Cable trace from a switch port through a patch panel, a permanent link and a wall jack to a workstation, marked as a complete documented path"></a>
 <b>Trace the cable</b> · Light<br>Switch port to desk, through panel and wall jack.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-port-editor-dark.png"><img src="docs/images/github/hardware-port-editor-dark.png" alt="Switch page in the Professional Dark theme with the port editor open for port 1/e12: description, mode access, VLAN 10 Staff with voice VLAN 20, PoE auto, and cable C-0012 to PP-01 Port 12, with the port highlighted on the panel artwork"></a>
-<b>Document a port in place</b> · Professional Dark<br>Mode, VLANs, PoE and the cable, from the artwork.
+<a href="docs/images/github/business-overview-dark.png"><img src="docs/images/github/business-overview-dark.png" alt="Business Overview in the Professional Dark theme: filters for dates, customer, service line and location above cards for MRR and ARR, invoiced revenue, gross margin, customer profitability, growth and churn, and contract renewals, each with its data source and completeness"></a>
+<b>Business Overview</b> · Dark<br>Revenue, margin and renewals, each card naming its source.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/hardware-panel-mapping-light.png"><img src="docs/images/github/hardware-panel-mapping-light.png" alt="Patch panel mapping in light theme for PP-01: port 12 from switch port 12 through C-0012 and L-104A to XYZ-WS-104 (complete), port 13 through L-105A to Office 105 jack A (incomplete), port 24 to XYZ-AP-01 (complete)"></a>
-<b>Front-to-rear port mapping</b> · Light<br>Every panel port: what it is patched from and where it goes.
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-<a href="docs/images/github/vault-dark.png"><img src="docs/images/github/vault-dark.png" alt="Password vault in the Professional Dark theme listing nine credentials for one client with title, username and security status, every secret hidden"></a>
-<b>Credentials, never on screen</b> · Professional Dark<br>AES-GCM at rest; every reveal audited.
-</td>
-<td width="50%" valign="top">
-<a href="docs/images/github/report-profitability-light.png"><img src="docs/images/github/report-profitability-light.png" alt="Profitability by client report in light theme showing revenue, cost, margin and blended margin percentage with a per-client breakdown"></a>
-<b>What the month earned</b> · Light<br>Revenue against cost of delivery, from logged time.
+<a href="docs/images/github/api-access-light.png"><img src="docs/images/github/api-access-light.png" alt="API Access Control settings: global mode for the inbound API and webhooks, a trial window that undoes changes, per-address limits, and allow and deny rules by address range and scope"></a>
+<b>API access control</b> · Light<br>Allow and deny rules for the API and webhooks, with a rollback window.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/ticket-rmm-requests-dark.png"><img src="docs/images/github/ticket-rmm-requests-dark.png" alt="Requests to the RMM list on a ticket in the Professional Dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM"></a>
-<b>Work the device from the ticket</b> · Professional Dark<br>Hand off, run a read-only check or refer a fix to a paired RMM.
+<a href="docs/images/github/portal-ticket-light.png"><img src="docs/images/github/portal-ticket-light.png" alt="Customer portal ticket: the shared conversation in the same layout, with no internal notes"></a>
+<b>Customer portal</b> · Light<br>Customers see the shared conversation, never internal notes.
 </td>
 <td width="50%" valign="top">
-<a href="docs/images/github/technician-access-light.png"><img src="docs/images/github/technician-access-light.png" alt="Technician Access settings in light theme: the order of evaluation, a password and authenticator confirmation box, protected changes waiting, an effective-access preview, assignments of L1 Help Desk and L2 Technician presets to three technicians at Northwind Logistics, and the preset capability table"></a>
-<b>Who may do what, per customer</b> · Light<br>L1/L2/L3 presets; widening needs a second administrator.
+<a href="docs/images/github/command-palette-dark.png"><img src="docs/images/github/command-palette-dark.png" alt="Command palette open over the dashboard with grouped results for a client, its tickets, devices and documents"></a>
+<b>Go to anything with Ctrl+K</b> · Dark<br>Pages, settings, clients, tickets, devices and documents.
 </td>
 </tr>
 </table>
 
-**[See all screenshots →](docs/screenshots.md)** — 96 views, light and Professional Dark, across navigation,
-documentation, the service desk, the paired RMM, dispatch, projects, reporting, security and
-administration, plus the phone layout.
+**[See all screenshots →](docs/screenshots.md)** — light and Professional Dark, plus the phone layout.
 
-## Quick Start
+## Features at a glance
 
-### Docker (recommended)
+Full list with status, configuration and limitations: **[FEATURES.md](FEATURES.md)**.
 
-Requires Docker Engine 24.0+ with the Compose v2 plugin, about 2 GB of disk for the image
-and 1 GB for the database volume.
+- **Service desk (PSA):** tickets, queues, SLAs with pause, time and expenses, My Work, email-to-ticket, service catalog with guided portal requests, problems, changes, workflow rules, optional rule-based routing. Off until you turn on `psa_enabled`.
+- **Clients:** one workspace per customer, parent/child organizations, locations, an onboarding wizard, a customer operations page.
+- **Documentation:** WYSIWYG or Markdown documents, templates, versions with compare and restore, review and approval, a global knowledge base shared with chosen customers, documentation readiness scores, draw.io diagrams, agreements.
+- **Password vault:** encrypted entries, folders, access rules, reveal approval, break-glass, breach checks, per-entry portal visibility.
+- **Assets and network:** assets with custom types and fields, a hardware catalog with panel artwork, ports, cables, racks, IPAM and VLANs, network config backups, network controller sync.
+- **Monitoring and security:** website, SSL and WAN monitors, status pages, backup monitoring, security alerts from webhooks and SIEM endpoints, incidents, a shared event list.
+- **RMM:** device, alert and software sync from six RMM products (Rem0te included), a device workspace, and alert-to-ticket with a paired RMM.
+- **Business:** contracts, quotes with e-signature, invoices, contract documents with signing, CRM, procurement, licensing, accounting push, profitability and Business Overview.
+- **Reports:** profitability and SLA reports, custom dashboards, wallboards, scheduled reports, client health score, pricing advisor.
+- **Administration:** a searchable settings center, roles with about a hundred permission switches, SSO, a REST API with scoped keys, outbound webhooks, a built-in scheduler, web updates.
+
+## What's new
+
+Since the last documentation refresh (v3.17.683), releases through **v3.17.719** added:
+
+- **Navigation.** Ten sidebar sections (Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring, Reports, and Administration at the foot) that collapse to an icon rail with flyouts. **Ctrl+K** opens Go to; the sidebar has a **Jump to** filter; any page can be starred into **Favorites**, and **Recent** lists what you opened last.
+- **AI (OPTIONAL AI).** Off by default, gated by `psa_ai_enabled` and a per-customer AI policy. Ticket AI uses model profiles for Anthropic, OpenAI or a local Ollama model; documentation AI also supports Moonshot and MiniMax. Secrets are redacted from the evidence sent, and vault data, attachments and internal notes are never sent. Ticket *Analyze* and *Compare models* run through a paired RMM; reply drafts, triage and suggested actions do not need one.
+- **Rem0te.** Rem0te is a separate RMM application, not part of this repository. ClientSt0r pairs with it over a signed contract (ticket-rmm-v1 revision 2: Ed25519 signatures, replay protection, the Rem0te tenant pinned by immutable IDs). Tested with both real applications in CI: pairing, Rem0te alerts becoming ClientSt0r tickets with a link back, optional AI analysis of Rem0te-supplied evidence, containment, revoked access and tenant isolation. Read-only diagnostics, remediation proposals and results flowing back to the ticket are **in development**: the contract routes are agreed but not yet built on the Rem0te side. Approval of any endpoint action always happens in Rem0te, never in ClientSt0r or by AI.
+- **Technician security.** L1/L2/L3 technician access per customer with expiry and a "why can this technician" page, optional Superuser Approval by a second administrator, and vault visibility that shows a customer's entries only where a membership or global role grants it.
+- **Wallboards.** Configurable boards under Reports → Wallboards, and a public token-protected scheduler wallboard.
+- **Security alerts and events.** Generic JSON vendor webhooks and SIEM webhook endpoints (CEF, JSON, Syslog format over HTTPS), incidents, and a shared **Events** list that copies security, RMM, Rem0te, backup and website-monitor alerts into one place with ingestion health and retention per source and per customer.
+- **API security.** API Access Control (IP/CIDR allow and deny rules for the API and webhooks), a rollback window that undoes risky changes, webhook signatures with timestamps and replay protection, API key expiry and rotation, mutual TLS per API key, and trusted proxies set in Settings.
+- **Business tools.** Business Overview, backup monitoring (Proxmox Backup Server, restic, Borg, Kopia), client health scores, software licensing, the pricing advisor and the customer onboarding wizard. Payments (Stripe, GoCardless), sales tax (Avalara, TaxJar) and OIDC sign-in are in the code but not yet verified against live services; see [FEATURES.md](FEATURES.md).
+
+Release-by-release detail: [CHANGELOG.md](CHANGELOG.md).
+
+## Coming soon
+
+No dates. Status comes from the [roadmap](docs/ROADMAP.md); ideas and votes go to [GitHub discussion #161](https://github.com/agit8or1/clientst0r/discussions/161).
+
+**In development**
+
+- Rem0te ticket actions: read-only diagnostics, remediation proposals approved in Rem0te, and results returned to the ticket (contract revision 3).
+- Shared event and alert foundation (Phase 82, remainder): per-connection rate limits, which arrive with push connectors, and the correlation, automation and AI analysis switches. (Event permissions, the Security Analyst and Security Administrator roles, and per-source and per-customer retention shipped in v3.17.720.)
+
+**Planned**
+
+- Contracts, recurring billing and quote conversion (Phase 70): accepting a quote creates a contract or invoice.
+- Customer command center portal (Phase 77): one customer dashboard for health, backups, contracts, licensing and billing, with self-service requests.
+- NOC/SOC wallboards and secure display pairing (Phase 83): presentation mode, preset boards and paired read-only displays.
+- Security connector framework and vendor integrations (Phase 84): a connector SDK, a TLS syslog collector, then vendor connectors in batches.
+- Operations Center, alert triage and correlation (Phase 85).
+- SOAR Lite (Phase 86): approval-driven security automation, read-only by default.
+- Alert routing, on-call and escalation (Phase 87).
+- Service dependency and impact mapping (Phase 88).
+- Security posture scorecards and customer service reviews (Phase 89).
+- AI Operations Analyst (Phase 90, OPTIONAL AI): alert and incident analysis with labelled provenance, no autonomous actions.
+
+**Under consideration**
+
+- Live wallboard updates over server-sent events (SSE)
+- API concurrency limits with a shared cache
+- Lead capture from an IMAP mailbox
+- JSON and Excel report export
+- Travel-time-aware dispatch
+
+## How it compares
+
+ClientSt0r covers ground that is often split across several tool categories: IT documentation, PSA/ticketing, password management, asset and network documentation, basic monitoring, and billing. It is not a full RMM (device management runs in a paired RMM such as Rem0te), not a SIEM (it receives alerts, it does not collect logs), and not an accounting package (it pushes invoices to one). **[COMPARISON.md](COMPARISON.md)** goes category by category: what is native, what comes through integrations, what is planned, and where a dedicated tool fits better.
+
+## Quick start
+
+### Docker
+
+Requires Docker Engine 24.0+ with Docker Compose v2.24+, about 2 GB of disk for the image and 1 GB for the database volume.
 
 ```bash
 git clone https://github.com/agit8or1/clientst0r.git
 cd clientst0r
 cp .env.example .env
-# edit .env — at minimum: SECRET_KEY, DB_PASSWORD, DB_ROOT_PASSWORD, APP_MASTER_KEY
+# edit .env and set at least:
+#   SECRET_KEY, APP_MASTER_KEY, API_KEY_SECRET, DB_PASSWORD, DB_ROOT_PASSWORD
+#   ALLOWED_HOSTS and BASE_URL for your hostname
+# optional: DJANGO_SUPERUSER_USERNAME / _EMAIL / _PASSWORD to create the first admin
 docker compose up -d
 ```
 
-Open `http://localhost:8000`. The entrypoint runs migrations and collects static files on
-first boot; set `DJANGO_SUPERUSER_*` in `.env` and it creates the admin account too.
-Pre-built images are published to `ghcr.io/agit8or1/clientst0r`.
+Compose refuses to start if a required secret is missing. `.env.example` ships placeholder values for `SECRET_KEY`, `API_KEY_SECRET` and the database passwords; replace every one of them. Keep a copy of `APP_MASTER_KEY` off the server: without it, vault data in a backup cannot be decrypted.
 
-Optional services are behind compose profiles:
+The app listens on port 8000. The `.env.example` defaults assume HTTPS (`SECURE_SSL_REDIRECT=True`, secure cookies), so put TLS in front: your own reverse proxy, or the bundled Nginx profile (`docker compose --profile proxy up -d`). Other profiles: `cache` (Redis) and `ai-gateway`. Full guide: **[docs/docker.md](docs/docker.md)**.
 
-```bash
-docker compose --profile proxy up -d   # Nginx + TLS on 80/443
-docker compose --profile cache up -d   # Redis (only if you switch CACHES to Redis)
-```
+### Native install (Ubuntu or Debian)
 
-Full guide: **[docs/docker.md](docs/docker.md)**.
-
-### Native install on Ubuntu or Debian
-
-Ubuntu 20.04+ / Debian 11+, 2 GB RAM (4 GB recommended), 10 GB free disk. The installer
-adds Python 3.12, MariaDB, Gunicorn and the systemd units, generates the encryption keys,
-runs migrations and starts the service.
+Ubuntu 20.04+ / Debian 11+, 2 GB RAM (4 GB recommended), 10 GB free disk.
 
 ```bash
 git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash install.sh
 ```
 
-It detects an existing installation and offers upgrade, system check or clean reinstall.
-Full guide: **[INSTALL.md](INSTALL.md)**.
+The installer sets up Python (3.11–3.13), MariaDB, Gunicorn on port 8000 and the systemd units, generates the encryption keys and runs migrations.
 
-### First steps after install
+> [!WARNING]
+> `install.sh` creates a superuser named **`admin`** with the password **`ChangeMe123!`**. Change it immediately at first login, and enrol 2FA (required by default).
 
-**Settings** — the gear in the top bar, or Administration at the foot of the sidebar —
-opens the settings center: one searchable card per category — General, Users & Access, Security,
-Integrations, AI Configuration, Automation, Communications, Modules, System and
-Maintenance — listing only the pages you may open.
+`install.sh` does **not** install Nginx or TLS. Put your own reverse proxy in front of port 8000; a sample config is in `deploy/nginx-clientst0r.conf`. Full guide: **[INSTALL.md](INSTALL.md)**.
 
-1. Sign in and enrol 2FA — it is enforced for every account by default.
-2. Create your first client under **Clients → All Clients**.
-3. Add your technicians under **Settings → Users & Access → Access Management** and
-   set their **User Type** to **Staff**. Staff users work across every client; everyone
-   else is treated as a customer user and sees only their own organizations, only tickets
-   shared with them, and no internal notes.
-4. Turn the service desk on under **Settings → Modules → Feature Toggles**
-   (`psa_enabled` is off by default, so the Service Desk section stays hidden until you
-   switch it on).
-5. If customers will use the portal, set its address, branding and features under
-   **Settings → General → Customer Portal**.
-6. Check **Settings → Automation → Task Scheduler**. Recurring invoices,
-   email-to-ticket, SLA checks and the other periodic jobs run from this built-in
-   scheduler; no crontab is needed.
+### First steps
+
+1. Sign in, change the default password and enrol 2FA.
+2. Create your first client under **Clients**.
+3. Add technicians under **Settings → Users & Access → Access Management** and set their **User Type** to **Staff**. Everyone else is a customer user.
+4. Turn on the service desk under **Settings → Modules → Feature Toggles** (`psa_enabled` is off by default).
+5. For the customer portal, set its address and branding under **Settings → General → Customer Portal**.
+6. Check **Settings → Automation → Task Scheduler**. Periodic jobs run from the built-in scheduler; no crontab is needed.
 
 ## Updating and backups
 
-**Update** from **Settings → System → System Updates** in the web UI: *Check for
-Updates*, then *Apply*. When a newer release is published, superusers also see an
-**Update Available** pill beside the logo. The apply step is a graceful reload — no manual
-service restart.
+**Update from the web UI:** **Settings → System → System Updates** → *Check for Updates* → *Apply*. Superusers also see an **Update Available** pill when a newer release is published. Apply installs a reviewed, pinned commit, verifies the release tag signature, runs preflight checks and takes a verified backup before it changes anything. Rollback is not automatic: restoring a pre-upgrade backup is a command run on the server, shown on the Updates page. See [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) and [AUTO_UPDATE.md](AUTO_UPDATE.md).
 
-CLI fallback:
+CLI fallback (native installs; bypasses the verified pipeline):
 
 ```bash
 git pull && python manage.py migrate && sudo systemctl restart clientst0r-gunicorn.service
 ```
 
-Under Docker, `docker compose pull && docker compose up -d`. There is no automatic rollback;
-see [AUTO_UPDATE.md](AUTO_UPDATE.md) for what an update does and
-[the manual update guide](docs/MANUAL_UPDATE_GUIDE.md) for recovery.
+Under Docker: `docker compose pull && docker compose up -d`.
 
-**Back up before every upgrade.** The bundled command writes the database and media to a
-single archive:
+Standalone backups:
 
 ```bash
 python manage.py backup --output-dir /var/backups/clientst0r --encrypt --retention-days 30
 ```
 
-Keep a copy of `APP_MASTER_KEY` (from `.env`) somewhere other than the server: without it,
-the vault entries and stored credentials in a backup cannot be decrypted. Docker users: see
-[Backups](docs/docker.md#backups) for the volume-level equivalent.
+Restore is command-line only (`python manage.py restore <file>`). Docker users: see [Backups](docs/docker.md#backups).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Clients
+        B[Web browser]
+        P[Customer portal]
+        M[Mobile app / PWA]
+    end
+    B & P & M --> APP["ClientSt0r<br/>Django app on Gunicorn"]
+    APP --> DB[("MariaDB / MySQL<br/>or SQLite")]
+    S["Built-in scheduler<br/>(systemd timer or<br/>scheduler container)"] --> DB
+    APP -- outbound APIs --> I["PSA, RMM, accounting,<br/>network controllers, M365"]
+    APP <-- signed contract --> R["Rem0te<br/>(separate application)"]
+```
+
+One server per MSP; there is no clustered deployment. Redis is optional (cache only). MariaDB is the production database; SQLite is for local development.
 
 ## Supported versions and limitations
 
 - Security fixes land on the current **3.17.x** line. See [SECURITY.md](SECURITY.md).
-- **Single-server by design.** There is no clustered or multi-node deployment story; it
-  targets one VM or one container host per MSP.
-- **Self-hosted software.** You run it on your own server, and there is no public demo
-  instance. Optional managed hosting and support are offered separately by
-  [MSP Reboot](#msp-reboot).
-- **The service desk is opt-in.** `psa_enabled` is off until an administrator turns it on.
-- **AI-assisted features are optional.** Nothing calls an AI provider until you configure
-  one; the documentation and service desk AI features are also gated behind
-  `psa_ai_enabled`, which is off by default. Documentation AI can use a local Ollama model.
-- Third-party PSA and RMM integrations (ConnectWise, Autotask, HaloPSA, NinjaOne, Datto RMM,
-  Syncro, Atera and others) are supported for teams that already run one — but the service
-  desk here is native, not a front end for someone else's.
+- **Single server by design.** One VM or container host per MSP.
+- **Self-hosted only.** There is no public demo instance. Optional managed hosting and support are offered separately by [MSP Reboot](#msp-reboot).
+- **The service desk is opt-in** (`psa_enabled` off by default).
+- **AI is optional** (`psa_ai_enabled` off by default).
+- **Some integrations are not verified against live services:** payments (Stripe, GoCardless), sales tax (Avalara, TaxJar), OIDC with real identity providers, office editors (ONLYOFFICE, Collabora, Microsoft 365 documents). Warranty lookups (Dell, HPE, Lenovo) are stubs; enter warranty dates by hand. Security vendor names in the connection list are labels: alerts arrive only through the generic JSON webhook or a SIEM webhook endpoint.
 
 ## How ClientSt0r protects client data
 
-ClientSt0r holds your customers' credentials, tickets and device data. These are the
-protections that ship today, with their defaults. The full walkthrough, with the evidence
-behind each one and the known gaps, is [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md).
-Administrators can check whether each one is in effect at a given customer under
-**Settings → Security → Security Features**.
+Full walkthrough with evidence and known gaps: [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md). Administrators can check each protection per customer under **Settings → Security → Security Features**.
 
-- **A customer sees the shared conversation, never your working notes.** When Example
-  Dental's office manager opens "Printer offline at front desk", they see the description
-  and public replies, and can reply and attach a photo. The technician's internal note,
-  time entries, expenses, kit list, workflows and the RMM's view of the PC stay with
-  technicians. Posting directly to technician-only URLs returns 403.
-- **Revealing a credential is its own permission, and every reveal is recorded.** Owners,
-  Admins and Editors of a customer may reveal; Read-only members and new custom roles may
-  not. Optional per-entry approval and access rules (country, address range, time) come
-  first; reveals are limited to 30 an hour. Each reveal writes an audit event naming the
-  user, entry, customer and address. The web vault, REST and mobile
-  APIs and the browser extension use the same check.
-- **Sign-in defaults:** two-factor (TOTP) required for everyone, Argon2 password hashes,
-  12+ character passwords, lockout after 5 failures for 30 minutes, sign-out after 60
-  minutes idle or 8 hours. Environment variables override the Settings page.
-- **Encryption:** vault passwords, TOTP seeds and stored integration credentials use
-  AES-256-GCM with a separate HKDF-derived key per purpose; tokens are stored as
-  HMAC-SHA256 hashes. Ticket text and attachments are not encrypted by the app.
-- **MSP staff get broader access than customers, by design.** Staff and superusers reach
-  every customer; a staff global role narrows what they can do. The vault is stricter: a
-  technician sees a customer's vault entries, even their titles, only where a membership or
-  a global role grants "view vault". Ticket AI and RMM tools are
-  different: they need an L1/L2/L3 technician assignment *at each customer*, whatever the
-  user's flags.
-- **Ticket AI (OPTIONAL AI) is off** until a superuser enables it and sets each customer's
-  AI policy. Vault data, attachments and internal notes are never sent; secrets in the
-  ticket text are redacted. Nothing AI produces is sent to a customer until a technician
-  presses Send, and ClientSt0r sends no commands to devices.
-- **A paired RMM does the device work (from 3.17.658).** Any RMM that implements the
-  ticket-rmm-v1 contract can be paired to a single-customer connection; pairing is a
-  protected change a second administrator approves, and it is pinned to one RMM tenant.
-  From a ticket, technicians whose assignment allows it can send a redacted handoff, run a
-  read-only diagnostic the RMM advertises, launch a view or control session, or refer a fix
-  — which the RMM approves and runs, never ClientSt0r.
-- **Optional Superuser Approval.** With two or more administrators, granting superuser can
-  require a second administrator's approval (Settings → Security → Superuser Approval).
+- **Customers see the shared conversation, never your working notes.** Internal notes, time entries, expenses and the RMM's view stay with technicians; posting to technician-only URLs returns 403.
+- **Revealing a credential is its own permission, and every reveal is recorded.** Optional per-entry approval and access rules (country, address range, time) apply first; reveals are rate-limited. The web vault, REST and mobile APIs and the browser extension use the same check.
+- **Sign-in defaults:** TOTP 2FA required for everyone, Argon2 hashes, 12+ character passwords, lockout after 5 failures for 30 minutes, sign-out after 60 minutes idle or 8 hours.
+- **Encryption:** vault passwords, TOTP seeds and stored integration credentials use AES-256-GCM with per-purpose keys; tokens are stored as HMAC-SHA256 hashes. Ticket text and attachments are not encrypted by the app.
+- **Staff have broader access than customers, by design.** The vault is stricter: a technician sees a customer's entries only where a membership or global role grants "view vault". Ticket AI and RMM tools need an L1/L2/L3 assignment at each customer.
+- **Ticket AI (OPTIONAL AI)** is off until a superuser enables it and sets each customer's AI policy. Nothing AI produces reaches a customer until a technician presses Send.
+- **A paired RMM does the device work.** Pairing is a protected change a second administrator approves and is pinned to one RMM tenant. Any endpoint action is approved in the RMM, never in ClientSt0r or by AI. Rem0te is the only known implementation of the pairing contract.
 
-Setup checklist and limitations (audit log deletable by superusers, though each deletion is recorded, Azure AD sign-in skips
-TOTP, mobile tokens last until revoked, CSP report-only by default):
-[docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md#limitations). Reporting a
-vulnerability: [SECURITY.md](SECURITY.md).
+Known limitations (audit log deletable by superusers, with each deletion recorded; Azure AD sign-in skips local TOTP; mobile tokens last until revoked; CSP report-only by default): [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md#limitations).
 
 ## Security
 
-- Two-factor (TOTP) sign-in required by default, Argon2 password hashing, brute-force lockout, idle and maximum
-  session length — all set in Settings → Security → Security Settings, with environment variables taking
-  precedence when set.
-- AES-256-GCM encryption at rest for vault entries and every other stored secret
-  (integration, SMTP/SMS, directory and webhook credentials); tokens the app only compares
-  are stored as hashes. `manage.py rotate_encryption_key` rotates the master key and
-  `manage.py check_secrets_storage` audits storage.
-- Per-entry vault access rules, approval and break-glass flows, audited reveals.
-- Role permissions for viewing passwords, documents and assets are enforced across the web
-  UI, search, the APIs and the mobile app. Customer users see only their own organizations
-  and only the tickets you share with them.
-- Uploaded files are served only after a permission check on the record they belong to.
-- Optional Azure AD / Entra ID single sign-on and LDAP / Active Directory sign-in.
-- Content-Security-Policy with per-request nonces and no inline event handlers, in
-  report-only mode by default (`CSP_REPORT_ONLY=False` to enforce).
-- CodeQL and dependency scanning run on every push to `main` and weekly.
+- TOTP 2FA, Argon2, brute-force lockout and session limits, set in **Settings → Security → Security Settings** (environment variables take precedence).
+- AES-256-GCM for vault entries and every other stored secret; `manage.py rotate_encryption_key` and `manage.py check_secrets_storage`.
+- Role permissions for passwords, documents, assets, files, monitors and integrations, enforced across the web UI, search, the APIs and the mobile app.
+- Azure AD / Entra ID SSO, LDAP / Active Directory sign-in, and OIDC sign-in (not yet verified against a live provider).
+- API Access Control, API key expiry and mutual TLS, signed webhooks with replay protection, application-level IP and GeoIP rules.
+- Content-Security-Policy with per-request nonces, report-only by default (`CSP_REPORT_ONLY=False` to enforce).
+- CodeQL and dependency scanning in CI.
 
-**Found a vulnerability?** Please report it privately via
-[GitHub Security Advisories](https://github.com/agit8or1/clientst0r/security/advisories/new)
-rather than a public issue. Full policy and response timelines: [SECURITY.md](SECURITY.md).
+**Found a vulnerability?** Report it privately through [GitHub Security Advisories](https://github.com/agit8or1/clientst0r/security/advisories/new), not a public issue. Policy: [SECURITY.md](SECURITY.md).
 
 ## Documentation
 
@@ -358,52 +295,38 @@ rather than a public issue. Full policy and response timelines: [SECURITY.md](SE
 |---|---|
 | [Installation](INSTALL.md) | Native install, upgrade, troubleshooting |
 | [Docker](docs/docker.md) | Compose layout, profiles, backups, upgrades |
-| [Features](FEATURES.md) | Full capability list by area |
-| [Screenshots](docs/screenshots.md) | Complete visual tour |
-| [Hardware inventory](docs/HARDWARE_INVENTORY.md) | Device catalog, panel artwork, ports, cables, racks, diagrams, labels |
+| [Upgrades and recovery](docs/UPGRADE_AND_RECOVERY.md) | Update channels, verified backups, restore |
+| [Features](FEATURES.md) | Every area with status, configuration and limitations |
+| [Comparison](COMPARISON.md) | Coverage by tool category |
+| [Screenshots](docs/screenshots.md) | Full visual tour |
 | [Roadmap](docs/ROADMAP.md) | Shipped, in progress and planned phases |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Integrations](docs/INTEGRATION_SETUP_GUIDE.md) | Connecting PSA, RMM, M365, accounting and distributors |
+| [Integrations](docs/INTEGRATION_SETUP_GUIDE.md) | PSA, RMM, M365, accounting and distributors |
+| [API access control](docs/API_ACCESS_CONTROL.md) | Address rules, webhook signatures, mutual TLS |
 | [API](API_V2_GRAPHQL.md) | REST and GraphQL endpoints |
-| [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, secure messages, ticket AI, RMM pairing, limitations |
-| [Technician access](docs/TECHNICIAN_ACCESS.md) | Per-customer L1/L2/L3 presets, protected changes, Superuser Approval, RMM tools on a ticket |
-| [Security](SECURITY.md) | Policy, supported versions, reporting |
-| [FAQ](docs/faq.md) | Common questions |
-| [More docs](docs/README.md) | Everything else |
+| [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, ticket AI, RMM pairing |
+| [Technician access](docs/TECHNICIAN_ACCESS.md) | Per-customer L1/L2/L3 presets, protected changes |
+| [Hardware inventory](docs/HARDWARE_INVENTORY.md) | Device catalog, panel artwork, ports, cables, racks |
+| [Security policy](SECURITY.md) | Supported versions, reporting |
+| [FAQ](docs/faq.md) · [More docs](docs/README.md) | Everything else |
 
 ## Contributing
 
 Issues and pull requests are welcome.
 
 - **Bugs:** [open a bug report](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml)
-- **Ideas:** [open a feature request](https://github.com/agit8or1/clientst0r/issues/new?template=feature_request.yml)
-- **Code:** fork, branch, add a test in the relevant app's `tests.py`, run
-  `python manage.py test <app>`, then open a PR. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Ideas:** [open a feature request](https://github.com/agit8or1/clientst0r/issues/new?template=feature_request.yml) or join [discussion #161](https://github.com/agit8or1/clientst0r/discussions/161)
+- **Code:** fork, branch, add a test in the relevant app's `tests.py`, run `python manage.py test <app>`, then open a PR. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Support
-
-Questions and troubleshooting go in [GitHub Issues](https://github.com/agit8or1/clientst0r/issues)
-or [Discussions](https://github.com/agit8or1/clientst0r/discussions).
+Questions: [GitHub Issues](https://github.com/agit8or1/clientst0r/issues) or [Discussions](https://github.com/agit8or1/clientst0r/discussions).
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Use it, fork it, run it for your clients.
+MIT — see [LICENSE](LICENSE). Every first-party feature works on a self-hosted install: no paid tiers, no seat or client limits, no license activation.
 
 ## MSP Reboot
 
-ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)** — an MSP
-consulting practice run by a former 25-year MSP owner, working with owners on pricing,
-operations, margins, service delivery and technology strategy.
-
-ClientSt0r is self-hosted software. **Optional managed hosting and commercial support**
-are offered separately by MSP Reboot for teams that would rather not run it themselves, or want someone on the hook when something
-breaks. [Get in touch](https://mspreboot.com) for scope and pricing.
-
-None of that is required to use ClientSt0r. The software is MIT-licensed and every
-first-party feature is free and unrestricted when you self-host it — no paid tiers, no
-seat or client limits, no licence activation, and no feature that only works with a
-subscription. Paying for hosting or support buys you our time and infrastructure, not
-access to the product.
+ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**, an MSP consulting practice working with owners on pricing, operations, margins and service delivery. **Optional managed hosting and commercial support** are offered separately for teams that would rather not run it themselves. None of that is required to use ClientSt0r; paying for hosting or support buys time and infrastructure, not access to features.
 
 ---
 
@@ -411,6 +334,6 @@ access to the product.
 
 If ClientSt0r saves you time, a ⭐ helps other MSPs find it.
 
-<sub>Built by a small team and one German Shepherd. 🐕 Luna supervises.</sub>
+<sub>Built by a small team and one German Shepherd. Luna supervises.</sub>
 
 </div>

@@ -26,6 +26,16 @@
       "max_h": 1200
     },
     {
+      "name": "client-dashboard-dark",
+      "route": "/core/dashboard/",
+      "theme": "dark",
+      "group": "overview",
+      "heading": "Client dashboard (dark)",
+      "caption": "The technician home in the Professional Dark theme: queue, SLA overview, workload, upcoming tasks and system status for the selected customer.",
+      "alt": "Dashboard in dark theme for Northwind Logistics with KPI tiles, the technician's ticket queue, SLA overview, technician workload, upcoming tasks and system status",
+      "max_h": 1200
+    },
+    {
       "name": "my-work-light",
       "route": "/psa/my-work/",
       "theme": "light",
@@ -1229,6 +1239,116 @@
       "heading": "Recently opened",
       "caption": "The pages and records you opened last, newest first, checked against your access each time the menu opens.",
       "alt": "Dashboard in the Professional Dark theme with the top bar Recent menu open, listing recently opened pages and records such as tickets, an asset, a runbook and the vault"
+    },
+    {
+      "name": "events-dark",
+      "route": "/security/events/",
+      "theme": "dark",
+      "group": "operations",
+      "heading": "Events",
+      "caption": "One list of alerts from every source — security vendors and SIEM, RMM, Rem0te, backups and website monitors — with severity, customer, status and repeat counts.",
+      "alt": "Events list in dark theme showing website, backup, security and RMM alerts across several customers with severity badges and occurrence counts",
+      "organization": "Beacon Managed IT",
+      "max_h": 1300
+    },
+    {
+      "name": "events-ingestion-light",
+      "route": "/security/events/ingestion/",
+      "theme": "light",
+      "group": "operations",
+      "heading": "Event ingestion health",
+      "caption": "Per-source ingestion status, queue depth and dead letters, with retention settings per source and per customer.",
+      "alt": "Event ingestion health page listing each alert source with last ingestion time, error counts and retention settings",
+      "organization": "Beacon Managed IT",
+      "max_h": 1500
+    },
+    {
+      "name": "backup-monitoring-light",
+      "route": "/backup-monitoring/?customer=all",
+      "theme": "light",
+      "group": "operations",
+      "heading": "Backup monitoring",
+      "caption": "Backup health per customer from Proxmox Backup Server and restic reports: newest and oldest success, repository capacity, restore tests and open alerts. A source that has stopped reporting shows as stale, never as healthy.",
+      "alt": "Backup monitoring dashboard listing two customers marked stale data, with job counts, newest and oldest successful backups, repository capacity bars, restore test status and open alert counts",
+      "organization": "Beacon Managed IT",
+      "max_h": 1400
+    },
+    {
+      "name": "wallboard-dark",
+      "route": "/reports/wallboards/1/",
+      "theme": "dark",
+      "group": "operations",
+      "heading": "Wallboard",
+      "caption": "A configurable wallboard for the office screen: open and overdue tickets, monitors down, certificates expiring, monitor status and ticket trends.",
+      "alt": "Service Desk wallboard in dark theme with ticket, monitor and certificate counters, a monitor status pie chart, a 30-day ticket chart and tickets by priority",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100
+    },
+    {
+      "name": "api-access-light",
+      "route": "/settings/security/api-access/",
+      "theme": "light",
+      "group": "security",
+      "heading": "API access control",
+      "caption": "Address rules for the inbound API and webhooks: allowlist and denylist modes, per-key and per-integration scopes, rate and size limits, and a trial window that undoes risky changes.",
+      "alt": "API Access Control settings with global mode selectors, per-address limits and a rules table with allow and deny entries",
+      "organization": "Beacon Managed IT",
+      "max_h": 1500
+    },
+    {
+      "name": "business-overview-dark",
+      "route": "/reports/business-overview/",
+      "theme": "dark",
+      "group": "business",
+      "heading": "Business overview",
+      "caption": "Revenue, recurring revenue, margin and customer figures for the date range, each card showing its data source and whether the figure is complete.",
+      "alt": "Business overview in dark theme with MRR and ARR, invoiced revenue, gross margin, customer profitability and contract renewal cards",
+      "organization": "Beacon Managed IT",
+      "max_h": 1500
+    },
+    {
+      "name": "licensing-light",
+      "route": "/licensing/",
+      "theme": "light",
+      "group": "business",
+      "heading": "Software licensing",
+      "caption": "What each customer has purchased, what is assigned and when it renews, with unused, over-allocated and renewal items called out.",
+      "alt": "Software licensing overview listing renewals, an over-allocated subscription and unused licenses, with purchased, assigned and unused counts per customer",
+      "organization": "Beacon Managed IT",
+      "max_h": 1300
+    },
+    {
+      "name": "client-health-dark",
+      "route": "/client-health/",
+      "theme": "dark",
+      "group": "business",
+      "heading": "Client health",
+      "caption": "A score per customer across technical, security, backup, service delivery, commercial and satisfaction dimensions; dimensions without trustworthy data show as unknown.",
+      "alt": "Client health table in dark theme with overall scores, coverage and per-dimension scores for each customer, some marked unknown",
+      "organization": "Beacon Managed IT",
+      "max_h": 1300
+    },
+    {
+      "name": "pricing-advisor-light",
+      "route": "/reports/advisor/",
+      "theme": "light",
+      "group": "business",
+      "heading": "Pricing advisor",
+      "caption": "Loss-making customers, underpriced contracts, unbilled work and renewals to review, from contract, invoice and time data. Recommendations only create drafts.",
+      "alt": "Pricing advisor listing high-severity findings per customer and the coverage of each detector",
+      "organization": "Beacon Managed IT",
+      "max_h": 1300
+    },
+    {
+      "name": "onboarding-wizard-light",
+      "route": "/onboarding/",
+      "theme": "light",
+      "group": "business",
+      "heading": "Customer onboarding",
+      "caption": "Start onboarding a new customer (record, locations, plan, agreement, integrations, activation) or a change for an existing one; price and contract changes go through approval as drafts.",
+      "alt": "Customer onboarding page with an in-progress list, a button to onboard a new customer and a form to start a change for an existing customer",
+      "organization": "Beacon Managed IT",
+      "max_h": 1300
     }
   ]
 }
