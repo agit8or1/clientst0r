@@ -20,9 +20,7 @@
   </g>
 
   <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
-    <text x="112" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="#1e293b">ClientSt</text>
-    <text x="303" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="url(#zg)">0</text>
-    <text x="332" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="#1e293b">r</text>
+    <text x="112" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="#1e293b">ClientSt<tspan fill="url(#zg)">0</tspan>r</text>
     <text x="114" y="84" font-size="14.5" font-weight="500" letter-spacing="1.6" fill="#64748b">SELF-HOSTED IT DOCS &#38; SERVICE DESK</text>
   </g>
 </svg>
