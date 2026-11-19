@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.724] - 2026-11-19
+
+### Security
+- **Invoice approval needs a second person.** Only MSP staff can clear an invoice's approval hold. A customer user is refused even when their role holds the billing permission for their own organization. The person who created the invoice cannot approve it while another active staff member could; the refusal is recorded in the audit log. On an install with a single staff member, that person can still approve, and the audit entry says so.
+- **Uploaded document files are checked.** Bulk upload and the document form refuse executables, scripts and HTML, including names like `invoice.pdf.exe`. They also enforce the 50MB limit the form already stated, and refuse a file whose content doesn't match its extension, such as HTML named `photo.png`. The stored file type now comes from the file name, not the type the browser declared. Common office, image, archive and data files are accepted as before.
+- **Security-vendor webhook severities are validated.** Values such as `CRITICAL`, `9` or `informational` map onto the five known levels. Unknown values become *medium* and are logged, instead of being stored as sent and then ranked below every rule threshold.
+- **The asset edit endpoint behind the rack and network-closet pages now requires a CSRF token,** which those pages already send.
+
 ## [3.17.723] - 2026-11-19
 
 ### Changed

@@ -1054,3 +1054,28 @@ class VendorCapabilityHonestyTests(TestCase):
                              content_type='application/json')
         self.assertEqual(r.status_code, 200, r.content[:200])
         self.assertTrue(SecurityAlert.objects.filter(connection=conn, external_id='x1').exists())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WebhookSeverityTests(TestCase):
+    """SR-10: a vendor's severity is mapped onto the known choices."""
+
+    def setUp(self):
+        _seed_psa()
+        self.org = _make_org('Sev Co', 'sev-co')
+        self.conn = _make_conn(self.org, require_signature=False)
+
+    def post(self, ext, severity):
+        import json
+        return self.client.post(f'/security/webhook/{self.conn.issued_webhook_token}/',
+                                data=json.dumps({'external_id': ext, 'title': 't', 'severity': severity}),
+                                content_type='application/json')
+
+    def test_known_and_numeric_and_unknown(self):
+        cases = {'a1': ('CRITICAL', 'critical'), 'a2': ('9', 'critical'), 'a3': ('Sev-Ultra', 'medium'),
+                 'a4': ('<b>x</b>', 'medium'), 'a5': ('informational', 'info')}
+        with self.assertLogs('security_alerts.siem', level='WARNING'):
+            for ext, (given, _) in cases.items():
+                self.assertEqual(self.post(ext, given).status_code, 200)
+        for ext, (_, expected) in cases.items():
+            self.assertEqual(SecurityAlert.objects.get(connection=self.conn, external_id=ext).severity, expected)

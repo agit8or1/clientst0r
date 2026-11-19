@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.permission_utils import require_perm, user_has_perm
+from .siem import _bucket_severity
 from .forms import (
     SecurityVendorConnectionForm,
     SecurityAlertRuleForm,
@@ -463,7 +464,7 @@ def _vendor_ingest(conn, request, body):
             defaults={
                 'organization': conn.organization,
                 'client_org': conn.client_org,
-                'severity': (a.get('severity') or 'medium'),
+                'severity': _bucket_severity(a.get('severity')),
                 'title': (a.get('title') or '')[:300],
                 'description': a.get('description') or '',
                 'asset_hint': (a.get('asset_hint') or '')[:200],

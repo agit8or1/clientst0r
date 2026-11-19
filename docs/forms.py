@@ -147,6 +147,17 @@ class DocumentForm(forms.ModelForm):
             self.fields['category'].queryset = DocumentCategory.objects.filter(cat_q).order_by('order', 'name')
             self.fields['category'].required = False
 
+    def clean_file(self):
+        f = self.cleaned_data.get('file')
+        # Only a newly uploaded file is checked; an existing stored file
+        # (FieldFile, no content_type) is left as it is.
+        if f and hasattr(f, 'content_type'):
+            from .upload_check import check
+            problem = check(f)
+            if problem:
+                raise forms.ValidationError(f'This file cannot be uploaded: {problem}.')
+        return f
+
     def clean(self):
         data = super().clean()
         if data.get('scope') == 'selected' and not (data.get('share_orgs') or data.get('share_groups')):

@@ -557,7 +557,8 @@ class DocumentFileUploadTests(TestCase):
             file=SimpleUploadedFile('a.txt', b'hi', content_type='text/plain'),
             created_by=self.staff, last_modified_by=self.staff)
         new_upload = SimpleUploadedFile(
-            'b.png', b'\x89PNG fake', content_type='image/png')
+            # A real PNG signature: uploads are checked against their extension (SR-05).
+            'b.png', b'\x89PNG\r\n\x1a\n fake', content_type='image/png')
         r = c.post(f'/docs/{doc.slug}/edit/', {
             'title': 'Existing',
             'body': '',

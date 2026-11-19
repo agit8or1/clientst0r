@@ -78,12 +78,15 @@ def _uploaded_file_type(request, field_name, file_name=None):
     to a mimetypes guess from the filename (or an empty string).
     """
     uploaded = request.FILES.get(field_name)
-    if uploaded is not None and getattr(uploaded, 'content_type', None):
-        return uploaded.content_type
-    if file_name:
-        guessed, _ = mimetypes.guess_type(file_name)
+    # SR-05: the type comes from the file name; the browser's declared type
+    # is only a fallback when the name says nothing.
+    name = file_name or getattr(uploaded, 'name', '')
+    if name:
+        guessed, _ = mimetypes.guess_type(name)
         if guessed:
             return guessed
+    if uploaded is not None and getattr(uploaded, 'content_type', None):
+        return uploaded.content_type
     return ''
 
 
@@ -618,7 +621,12 @@ def document_upload(request):
     uploaded_count = 0
     failed = []
 
+    from .upload_check import check as check_upload, stored_type
     for file in files:
+        problem = check_upload(file)
+        if problem:
+            failed.append(f'{file.name}: {problem}')
+            continue
         try:
             # Generate title from filename
             title = os.path.splitext(file.name)[0]
@@ -639,7 +647,7 @@ def document_upload(request):
                 content_type='file',
                 file=file,
                 file_size=file.size,
-                file_type=file.content_type,
+                file_type=stored_type(file),
                 category=category,
                 created_by=request.user,
                 last_modified_by=request.user,

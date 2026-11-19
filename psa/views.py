@@ -5853,17 +5853,40 @@ def invoice_approve(request, pk):
     if org is not None:
         qs = qs.filter(organization=org)
     item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
+    # SR-04: only MSP staff clear the approval gate, never a customer user
+    # (even a customer administrator holding the billing flag for their own
+    # organization), and not the person who created the invoice while
+    # another staff member could approve it instead.
+    if not is_msp_staff(request.user):
+        raise PermissionDenied('Only MSP staff can approve invoices.')
     _require_invoice_flag(request, item, 'billing_send_invoices')
     if not item.requires_approval:
         messages.info(request, f'Invoice {item.invoice_number} does not require approval.')
         return redirect('psa:invoice_detail', pk=item.pk)
+    self_approval = bool(item.created_by_id and item.created_by_id == request.user.pk)
+    if self_approval:
+        from django.contrib.auth import get_user_model
+        from .visibility import msp_staff_q
+        others = (get_user_model().objects.filter(msp_staff_q(), is_active=True)
+                  .exclude(pk=request.user.pk).exists())
+        if others:
+            AuditLog.log(
+                user=request.user, action='update',
+                organization=org or item.organization,
+                object_type='psa.Invoice', object_id=item.pk,
+                object_repr=item.invoice_number,
+                description=f'Refused: {request.user} tried to approve invoice {item.invoice_number} they created',
+                ip_address=_client_ip(request), path=request.path,
+            )
+            raise PermissionDenied('You created this invoice, so another staff member has to approve it.')
     item.approve(user=request.user)
     AuditLog.log(
         user=request.user, action='update',
         organization=org or item.organization,
         object_type='psa.Invoice', object_id=item.pk,
         object_repr=item.invoice_number,
-        description=f'Approved invoice {item.invoice_number} (was: {item.approval_reason or "manual hold"})',
+        description=(f'Approved invoice {item.invoice_number} (was: {item.approval_reason or "manual hold"})'
+                     + (' — approved by its creator, the only active staff member' if self_approval else '')),
         ip_address=_client_ip(request), path=request.path,
     )
     messages.success(request, f'Approved invoice {item.invoice_number}.')

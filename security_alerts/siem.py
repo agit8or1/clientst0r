@@ -62,6 +62,10 @@ def _bucket_severity(value) -> str:
         try:
             value = int(v)
         except (TypeError, ValueError):
+            # SR-10: never store a vendor's free-text severity; an unknown
+            # word becomes medium and is logged so the mapping can be added.
+            import logging
+            logging.getLogger(__name__).warning('Unknown security alert severity %r mapped to medium', v[:40])
             return 'medium'
     if isinstance(value, (int, float)):
         n = max(0, min(10, int(value)))

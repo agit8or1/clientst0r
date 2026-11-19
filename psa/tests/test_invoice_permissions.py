@@ -139,3 +139,77 @@ class InvoicePermissionTests(TestCase):
                                                {'title': 'Sneaky', 'client_org': str(self.b.pk),
                                                 'client_org_id': str(self.b.pk)})
         self.assertFalse(Invoice.objects.filter(title='Sneaky').exists())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class InvoiceApprovalSeparationTests(TestCase):
+    """SR-04: only MSP staff clear the approval gate, and not the invoice's
+    creator while another staff member could approve it."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _setup_seed()
+        _enable_psa_global()
+        cls.org = Organization.objects.create(name='SoD Co', slug='sod-co')
+        _enable_psa_for(cls.org)
+        cls.admin = User.objects.create_superuser('sod_admin', 'a@msp.test', 'pw-sod-123')
+        cls.admin2 = User.objects.create_superuser('sod_admin2', 'a2@msp.test', 'pw-sod-123')
+        cls.customer_owner = User.objects.create_user('sod_owner', 'o@sod.test', 'pw-sod-123')
+        Membership.objects.create(user=cls.customer_owner, organization=cls.org, role=Role.OWNER, is_active=True)
+
+    def _held(self, created_by):
+        inv = Invoice.objects.create(organization=self.org, client_org=self.org, title='Held',
+                                     invoice_date=date.today(), status='draft', created_by=created_by,
+                                     requires_approval=True, approval_reason='over threshold')
+        InvoiceLineItem.objects.create(invoice=inv, description='Work', quantity=1, unit_price=Decimal('900'))
+        return inv
+
+    def _approve(self, user, inv):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = self.org.pk
+        s.save()
+        return c.post(reverse('psa:invoice_approve', args=[inv.pk]))
+
+    def test_customer_owner_cannot_approve(self):
+        inv = self._held(self.admin)
+        r = self._approve(self.customer_owner, inv)
+        self.assertIn(r.status_code, (403, 404))
+        inv.refresh_from_db()
+        self.assertTrue(inv.requires_approval)
+        self.assertIsNone(inv.approved_by_id)
+
+    def test_creator_cannot_approve_own_invoice(self):
+        inv = self._held(self.admin)
+        r = self._approve(self.admin, inv)
+        self.assertEqual(r.status_code, 403)
+        inv.refresh_from_db()
+        self.assertTrue(inv.requires_approval)
+        from audit.models import AuditLog
+        self.assertTrue(AuditLog.objects.filter(object_type='psa.Invoice', object_id=inv.pk,
+                                                description__startswith='Refused').exists())
+
+    def test_other_staff_member_approves(self):
+        inv = self._held(self.admin)
+        r = self._approve(self.admin2, inv)
+        self.assertEqual(r.status_code, 302)
+        inv.refresh_from_db()
+        self.assertFalse(inv.requires_approval)
+        self.assertEqual(inv.approved_by_id, self.admin2.pk)
+
+    def test_sole_staff_member_may_approve_and_it_is_recorded(self):
+        User.objects.filter(pk=self.admin2.pk).update(is_active=False)
+        inv = self._held(self.admin)
+        r = self._approve(self.admin, inv)
+        self.assertEqual(r.status_code, 302)
+        inv.refresh_from_db()
+        self.assertFalse(inv.requires_approval)
+        from audit.models import AuditLog
+        self.assertTrue(AuditLog.objects.filter(object_type='psa.Invoice', object_id=inv.pk,
+                                                description__contains='only active staff member').exists())
+
+    def test_invoice_without_creator_is_approvable(self):
+        inv = self._held(None)
+        self.assertEqual(self._approve(self.admin, inv).status_code, 302)

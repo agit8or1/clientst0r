@@ -6,7 +6,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from core.middleware import get_request_organization
@@ -1064,7 +1063,7 @@ def contact_delete(request, pk):
     })
 
 
-@csrf_exempt
+# SR-13: no CSRF exemption; the rack and closet pages send X-CSRFToken.
 @login_required
 @org_flag_required({'GET': 'assets_view', 'PATCH': 'assets_edit'}, owner(Asset), json=True)
 def asset_api_detail(request, pk):  # noqa: write permission checked inline for PATCH

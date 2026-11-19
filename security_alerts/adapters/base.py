@@ -10,6 +10,7 @@ Each adapter implements:
 """
 from abc import abstractmethod
 from integrations.sdk.base import IntegrationProvider
+from security_alerts.siem import _bucket_severity
 
 
 class SecurityProvider(IntegrationProvider):
@@ -43,7 +44,7 @@ class SecurityProvider(IntegrationProvider):
                 defaults={
                     'organization': connection.organization,
                     'client_org': connection.client_org,
-                    'severity': a.get('severity', 'medium'),
+                    'severity': _bucket_severity(a.get('severity')),
                     'title': (a.get('title') or '')[:300],
                     'description': a.get('description', ''),
                     'asset_hint': (a.get('asset_hint') or '')[:200],

@@ -1202,3 +1202,32 @@ class RemediationSuggestionTests(TestCase):
             kind='firmware_update', asset=self.asset).first()
         self.assertIsNotNone(sug)
         self.assertIn('Firmware update', sug.summary)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class AssetApiCsrfTests(TestCase):
+    """SR-13: the session-authenticated asset PATCH needs a CSRF token."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='CsrfCo', slug='csrf-co')
+        self.user = User.objects.create_user('csrfuser', email='c@x.com', password='pw')
+        Membership.objects.create(user=self.user, organization=self.org, role=Role.OWNER, is_active=True)
+        self.asset = Asset.objects.create(organization=self.org, name='Rack-Srv', asset_type='server')
+        self.c = Client(enforce_csrf_checks=True)
+        _login_in_org(self.c, self.user, self.org)
+        self.url = f'/assets/api/assets/{self.asset.pk}/'
+
+    def test_patch_without_token_is_refused(self):
+        r = self.c.patch(self.url, data='{"name": "Changed"}', content_type='application/json')
+        self.assertEqual(r.status_code, 403)
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.name, 'Rack-Srv')
+
+    def test_patch_with_token_and_get_still_work(self):
+        self.assertEqual(self.c.get(self.url).status_code, 200)
+        from django.middleware.csrf import _get_new_csrf_string
+        token = _get_new_csrf_string()
+        self.c.cookies[django_settings.CSRF_COOKIE_NAME] = token
+        r = self.c.patch(self.url, data='{"hostname": "rack-srv-01"}', content_type='application/json',
+                         HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(r.status_code, 200, r.content[:200])

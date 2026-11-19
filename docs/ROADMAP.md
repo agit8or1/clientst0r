@@ -1839,6 +1839,12 @@ are built on top of them.
   customer links on their own host, with staff pages there returning 404.
   The portal and its sign-in pages have their own look with the customer's
   logo and colour, light and dark.
+- **Security review fixes, first wave** *(shipped v3.17.724)* — invoice approval needs MSP staff and,
+  while another staff member exists, someone other than the invoice's creator (refusals audited); files
+  stored as documents are checked (executable, script and HTML types refused, 50MB limit, content must
+  match the extension, stored type taken from the file name); security-vendor webhook severities are mapped
+  onto the known levels with unknown values logged; the asset edit endpoint used by rack and closet pages
+  no longer skips CSRF protection. Each finding has a reproducing test.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 
