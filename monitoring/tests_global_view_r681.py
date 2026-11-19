@@ -94,3 +94,68 @@ class GlobalViewScopingTests(_Data):
         self.assertIn(b'mon-bravo-qzx', resp.content)
         resp = self.call('monitoring:expiration_list', self.su)
         self.assertIn(b'exp-bravo-qzx', resp.content)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WebsiteMonitorCustomerTests(_Data):
+    """Each monitor belongs to one customer, shown on the list and detail."""
+
+    def _mon(self, tag):
+        from monitoring.models import WebsiteMonitor
+        return WebsiteMonitor.objects.get(name=f'mon-{tag}-qzx')
+
+    def test_list_shows_customer_and_searches_by_it(self):
+        c = self.login(self.manager)
+        r = c.get(reverse('monitoring:website_monitor_list'))
+        self.assertContains(r, '<th>Customer</th>', html=True)
+        self.assertContains(r, 'Alpha Qzx Co')
+        self.assertContains(r, 'Bravo Qzx Co')
+        r = c.get(reverse('monitoring:website_monitor_list'), {'q': 'Bravo Qzx'})
+        self.assertContains(r, 'mon-bravo-qzx')
+        self.assertNotContains(r, 'mon-alpha-qzx')
+
+    def test_detail_shows_customer(self):
+        c = self.login(self.manager)
+        r = c.get(reverse('monitoring:website_monitor_detail', args=[self._mon('alpha').pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'data-monitor-customer')
+        self.assertContains(r, 'Alpha Qzx Co')
+
+    def test_scoped_technician_cannot_open_other_customers_monitor(self):
+        c = self.login(self.scoped)
+        r = c.get(reverse('monitoring:website_monitor_detail', args=[self._mon('bravo').pk]))
+        self.assertEqual(r.status_code, 302)
+        r = c.get(reverse('monitoring:website_monitor_detail', args=[self._mon('alpha').pk]), follow=True)
+        self.assertContains(r, 'mon-alpha-qzx')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class CreateFromGlobalViewTests(_Data):
+    """The customer picked on the create form is used (v3.17.727)."""
+
+    def _post(self, org_id):
+        c = self.login(self.su)
+        return c.post(reverse('monitoring:website_monitor_create'), {
+            '_selected_organization_id': org_id, 'name': 'picked-qzx', 'url': 'https://picked-qzx.test',
+            'check_interval_minutes': 10, 'is_enabled': 'on', 'ssl_warning_days': 30, 'domain_warning_days': 30,
+        })
+
+    def test_selected_customer_is_used(self):
+        from monitoring.models import WebsiteMonitor
+        self._post(self.b.pk)
+        m = WebsiteMonitor.objects.filter(name='picked-qzx').first()
+        self.assertIsNotNone(m)
+        self.assertEqual(m.organization, self.b)
+
+    def test_inactive_customer_is_refused(self):
+        from monitoring.models import WebsiteMonitor
+        r = self._post(self.gone.pk)
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(WebsiteMonitor.objects.filter(name='picked-qzx').exists())
+
+    def test_picker_lists_only_reachable_customers_and_targets_page_form(self):
+        c = self.login(self.su)
+        r = c.get(reverse('monitoring:website_monitor_create'))
+        self.assertContains(r, 'id="orgSelectorBanner"')
+        self.assertContains(r, 'DOCUMENT_POSITION_FOLLOWING')
+        self.assertNotContains(r, 'Gone Qzx Co')

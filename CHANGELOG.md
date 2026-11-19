@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.727] - 2026-11-19
+
+### Fixed
+- **Creating a monitor, asset, contact, password, document or alert rule from Global View** ignored the customer picked on the form and said "Please select an organization before creating this resource". The picker filled in the navigation bar's form instead of the page's own; it now fills in the page's form. The picker lists only customers you can work in, and the server accepts only those.
+- **Website monitor errors are readable.** A failed check now says what went wrong in one line, for example "Couldn't find the server: the name admin.acme.demo does not resolve (DNS)". Refused connections, untrusted certificates, unreachable hosts and timeouts get similar messages; the full technical text goes to the log. Existing monitors show the new wording after their next check.
+- **Website monitors show their customer.** The list has a Customer column, sorted by customer, and search matches customer names. The detail page shows the customer under the title, in the breadcrumb and in the details. A technician limited to some customers can no longer open another customer's monitor by its address. Searching the monitor list no longer fails with a server error.
+- **Security alerts:** a later delivery of an alert with the same ID can no longer lower its severity or reset its status; the attempt is recorded in the audit log.
+- **Security alert tickets:** an alert for the same customer, device and title as an open auto-ticket from the last 24 hours joins that ticket instead of opening another, and one source opens at most 20 tickets an hour (alerts are still recorded; the audit log notes the limit once an hour). Rules that match on vendor or category no longer fail for alerts from SIEM endpoints.
+- **Security Overview** lists vendor connections and SIEM endpoints that still accept posts without a signature.
+- **Workflow rules:** *Assign to*, *Add watcher* and the round-robin, skill-match and load-balanced assignment actions now apply the same customer checks as ticket routing (technician status, ticket access at that customer, the customer's authorized-technician list, explicit denies). A customer user can watch only their own organization's tickets. A skipped action no longer stops the rule's other actions; the reason is shown as the rule's last error.
+
 ## [3.17.726] - 2026-11-19
 
 ### Changed

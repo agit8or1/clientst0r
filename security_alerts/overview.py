@@ -134,9 +134,17 @@ def _alerts_widget(orgs, link, now):
         total=Count('id'), active=Count('id', filter=Q(is_active=True)))
     configured = bool(vendors or siem['total'] or c['total'])
     base = link('security_alerts:alert_list')
+    # SR-08: webhooks that still take posts without a signature (connections
+    # made before v3.17.715 keep that until switched over).
+    unsigned = (list(SecurityVendorConnection.objects.filter(organization__in=orgs, is_active=True,
+                                                            require_signature=False)
+                     .order_by('name').values_list('name', flat=True)[:20])
+                + list(SIEMWebhookEndpoint.objects.filter(organization__in=orgs, is_active=True, require_hmac=False)
+                       .order_by('name').values_list('name', flat=True)[:20]))
     return {
         'state': '' if configured else NOT_CONFIGURED,
         'counts': c,
+        'unsigned': unsigned,
         'sources': _health(vendors, now),
         'siem': siem,
         'links': {

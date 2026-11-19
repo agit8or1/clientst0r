@@ -58,7 +58,7 @@ def website_monitor_list(request):
         monitors = _global_rows(request, WebsiteMonitor.objects.all()).select_related('organization')
     else:
         # Organization view: show only monitors for current org
-        monitors = WebsiteMonitor.objects.filter(organization=org)
+        monitors = WebsiteMonitor.objects.filter(organization=org).select_related('organization')
 
     # Filter by status
     status_filter = request.GET.get('status')
@@ -70,8 +70,10 @@ def website_monitor_list(request):
     if query:
         monitors = monitors.filter(
             Q(url__icontains=query) |
-            Q(description__icontains=query)
+            Q(name__icontains=query) |
+            Q(organization__name__icontains=query)
         )
+    monitors = monitors.order_by('organization__name', 'name')
 
     return render(request, 'monitoring/website_monitor_list.html', {
         'monitors': monitors,
@@ -118,16 +120,17 @@ def website_monitor_detail(request, pk):
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     is_privileged = request.user.is_superuser or is_staff
 
-    # Privileged users can view any monitor regardless of org context.
-    # Regular users are scoped to their current org.
+    # Privileged users can open a monitor of any customer they hold
+    # monitoring_view at (same scope as the global list); others are scoped
+    # to the current customer.
     if is_privileged:
-        monitor = get_object_or_404(WebsiteMonitor, pk=pk)
+        monitor = (_global_rows(request, WebsiteMonitor.objects.all())
+                   .select_related('organization').filter(pk=pk).first())
     else:
-        try:
-            monitor = WebsiteMonitor.objects.get(pk=pk, organization=org)
-        except WebsiteMonitor.DoesNotExist:
-            messages.warning(request, 'That monitor is not available in the current organisation.')
-            return redirect('monitoring:website_monitor_list')
+        monitor = WebsiteMonitor.objects.select_related('organization').filter(pk=pk, organization=org).first()
+    if monitor is None:
+        messages.warning(request, 'That monitor is not available to you here.')
+        return redirect('monitoring:website_monitor_list')
 
     return render(request, 'monitoring/website_monitor_detail.html', {
         'monitor': monitor,

@@ -1850,6 +1850,12 @@ are built on top of them.
   survey and unsubscribe links are throttled per address and per link; a satisfaction survey says when it
   was already answered and limits changes; ticket attachments (uploads and inbound e-mail) take their type
   from the extension, must match it in content and may not hide an executable or HTML in the name.
+- **Security review fixes, third wave** *(shipped v3.17.727)* — a re-delivered alert never lowers its
+  severity; security auto-tickets join an open ticket for the same customer, device and title and are
+  capped per source per hour; unsigned webhooks are listed on the Security Overview; workflow assign and
+  watcher actions apply the routing engine's customer authorization; creating from Global View uses the
+  picked customer and only reachable ones; website monitors show their customer, are scoped on the detail
+  page, and report failed checks in plain words.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

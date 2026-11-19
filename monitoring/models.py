@@ -216,7 +216,8 @@ class WebsiteMonitor(BaseModel):
                             self.ssl_version = ssock.version() or 'Unknown'
 
                 except Exception as ssl_error:
-                    self.last_error += f' SSL error: {str(ssl_error)}'
+                    from .check_errors import describe
+                    self.last_error += ' Certificate details unavailable: ' + describe(ssl_error, hostname)
 
         except UnsafeURLError as e:
             # The guard refused the address the name resolved to at connect time.
@@ -226,12 +227,15 @@ class WebsiteMonitor(BaseModel):
 
         except requests.exceptions.Timeout:
             self.status = 'down'
-            self.last_error = 'Connection timeout'
+            self.last_error = 'The server did not answer in time.'
             self.last_checked_at = timezone.now()
 
         except requests.exceptions.ConnectionError as e:
+            from urllib.parse import urlsplit
+            from .check_errors import describe
+            parts = urlsplit(self.url or '')
             self.status = 'down'
-            self.last_error = f'Connection error: {str(e)}'
+            self.last_error = describe(e, parts.hostname or '', parts.port)
             self.last_checked_at = timezone.now()
 
         except Exception as e:

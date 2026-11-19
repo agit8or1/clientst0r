@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.permission_utils import require_perm, user_has_perm
 from core.public_throttle import throttled
+from .ingest import upsert_alert
 from .siem import _bucket_severity
 from .forms import (
     SecurityVendorConnectionForm,
@@ -460,9 +461,9 @@ def _vendor_ingest(conn, request, body):
         ext = a.get('external_id') or a.get('id') or ''
         if not ext:
             continue
-        obj, created = SecurityAlert.objects.update_or_create(
-            connection=conn, external_id=ext,
-            defaults={
+        obj, created = upsert_alert(
+            {'connection': conn, 'external_id': ext},
+            {
                 'organization': conn.organization,
                 'client_org': conn.client_org,
                 'severity': _bucket_severity(a.get('severity')),

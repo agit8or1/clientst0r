@@ -136,6 +136,39 @@ def _resolve_user(username: Optional[str]) -> Optional[User]:
     return User.objects.filter(username=username, is_active=True).first()
 
 
+class ActionSkipped(Exception):
+    """An action that was not carried out; the rule's other actions still run
+    and the reason is kept on the rule's last error."""
+
+
+def _assignable(ticket, users):
+    """Users from ``users`` who may be given this ticket (SR-03)."""
+    from .routing.engine import assignment_problem
+    return [u for u in users if assignment_problem(u, ticket) is None]
+
+
+def _check_assignee(ticket, user, action):
+    from .routing.engine import assignment_problem
+    problem = assignment_problem(user, ticket)
+    if problem:
+        raise ActionSkipped(f'{action}: {user.username} was not assigned ({problem})')
+
+
+def _check_watcher(ticket, user):
+    """Staff pass the assignment check; a customer user may only watch their
+    own organization's tickets."""
+    from .visibility import is_msp_staff
+    if is_msp_staff(user):
+        from .routing.engine import assignment_problem
+        problem = assignment_problem(user, ticket)
+    else:
+        from accounts.models import Membership
+        own = Membership.objects.filter(user=user, organization_id=ticket.organization_id, is_active=True).exists()
+        problem = None if own else 'not a member of this customer'
+    if problem:
+        raise ActionSkipped(f'add_watcher: {user.username} was not added ({problem})')
+
+
 def run_action(ticket, action: Dict[str, Any]) -> None:
     """Run a single action dict against a ticket. Raises on bad input."""
     from .models import (
@@ -160,12 +193,14 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
     elif atype == 'assign_to':
         u = _resolve_user(action.get('username'))
         if u:
+            _check_assignee(ticket, u, 'assign_to')
             ticket.assigned_to = u
             ticket.save(update_fields=['assigned_to', 'updated_at'])
 
     elif atype == 'add_watcher':
         u = _resolve_user(action.get('username'))
         if u:
+            _check_watcher(ticket, u)
             TicketWatcher.objects.get_or_create(ticket=ticket, user=u)
 
     elif atype == 'add_internal_note':
@@ -198,8 +233,9 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
         grp = action.get('group')
         if grp:
             candidates = candidates.filter(groups__name=grp)
-        if not candidates.exists():
-            return
+        candidates = _assignable(ticket, candidates)
+        if not candidates:
+            raise ActionSkipped('assign_round_robin: no technician in the pool may be given this customer\'s tickets')
         last_assigned = (_T.objects
                          .filter(assigned_to__in=candidates)
                          .values('assigned_to_id')
@@ -230,10 +266,11 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
             is_active=True, is_staff=True,
             groups__name=skill,
         )
-        if not candidates.exists():
-            return
+        allowed = [u.pk for u in _assignable(ticket, candidates)]
+        if not allowed:
+            raise ActionSkipped('assign_skill_match: no technician in the group may be given this customer\'s tickets')
         # Tie-break by current open-ticket count (low first)
-        ranked = candidates.annotate(
+        ranked = candidates.filter(pk__in=allowed).annotate(
             open_count=Count('psa_assigned_tickets',
                               filter=~_Q(psa_assigned_tickets__status__is_terminal=True)),
         ).order_by('open_count', 'id')
@@ -248,9 +285,10 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
         grp = action.get('group')
         if grp:
             candidates = candidates.filter(groups__name=grp)
-        if not candidates.exists():
-            return
-        ranked = candidates.annotate(
+        allowed = [u.pk for u in _assignable(ticket, candidates)]
+        if not allowed:
+            raise ActionSkipped('assign_load_balanced: no technician in the pool may be given this customer\'s tickets')
+        ranked = candidates.filter(pk__in=allowed).annotate(
             open_count=Count('psa_assigned_tickets',
                               filter=~_Q(psa_assigned_tickets__status__is_terminal=True)),
         ).order_by('open_count', 'id')
@@ -378,14 +416,18 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
                 continue
             chain = _chain()
             chain.append(rule.pk)
+            skipped = []
             try:
                 for action in branch:
-                    run_action(ticket, action)
+                    try:
+                        run_action(ticket, action)
+                    except ActionSkipped as exc:
+                        skipped.append(str(exc))
             finally:
                 chain.pop()
             rule.last_fired_at = timezone.now()
             rule.fire_count = (rule.fire_count or 0) + 1
-            rule.last_error = ''
+            rule.last_error = '; '.join(skipped)[:1000]
             rule.save(update_fields=['last_fired_at', 'fire_count', 'last_error'])
 
             if getattr(rule, 'fire_once_per_ticket', False) and ticket.pk:

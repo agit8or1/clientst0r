@@ -244,6 +244,18 @@ def condition_failures(conditions, facts) -> List[str]:
 # Candidates
 # ---------------------------------------------------------------------------
 
+def assignment_problem(user, ticket):
+    """None when ``user`` may be assigned (or watch, as staff) ``ticket``,
+    else why not. The same check the routing engine applies to candidates;
+    used by workflow rules too (SR-03)."""
+    org = ticket.organization
+    cust = customer_settings(org)
+    authorized_ids = set()
+    if cust is not None and cust.restrict_technicians:
+        authorized_ids = set(cust.authorized_technicians.values_list('pk', flat=True))
+    return _authorization_problem(user, org, cust, authorized_ids)
+
+
 def _authorization_problem(user, organization, cust, authorized_ids):
     """None when `user` may be given this customer's tickets, else why not."""
     from psa.visibility import is_msp_staff

@@ -35,6 +35,7 @@
         <p class="so-note">Active = new or acknowledged. {{ alerts.counts.last_24h }} alert{{ alerts.counts.last_24h|pluralize }} received in the last 24 hours. The Critical and High lists show every status.</p>
         <div class="so-sub">Alert sources</div>
         {% include "security_alerts/_so_health.html" with health=alerts.sources empty="alerts arrive through SIEM endpoints only." %}
+        {% if alerts.unsigned %}<p class="so-note so-note--warn" data-so-unsigned>{{ alerts.unsigned|length }} webhook{{ alerts.unsigned|length|pluralize }} accept{{ alerts.unsigned|length|pluralize:"s," }} posts without a signature: {{ alerts.unsigned|join:", " }}. Turn on <em>Require signature</em> (vendor connections) or <em>Require HMAC</em> (SIEM endpoints) once the sender signs.</p>{% endif %}
         {% if alerts.siem.total %}<p class="so-note">{{ alerts.siem.active }} of {{ alerts.siem.total }} SIEM endpoint{{ alerts.siem.total|pluralize }} active{% if alerts.links.siem %} · <a href="{{ alerts.links.siem }}">SIEM Endpoints</a>{% endif %}</p>{% endif %}
     {% endif %}
         <div class="so-links">

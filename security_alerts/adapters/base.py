@@ -38,10 +38,10 @@ class SecurityProvider(IntegrationProvider):
 
         imported = 0
         for a in alerts:
-            obj, created = SecurityAlert.objects.update_or_create(
-                connection=connection,
-                external_id=a.get('external_id', ''),
-                defaults={
+            from security_alerts.ingest import upsert_alert
+            obj, created = upsert_alert(
+                {'connection': connection, 'external_id': a.get('external_id', '')},
+                {
                     'organization': connection.organization,
                     'client_org': connection.client_org,
                     'severity': _bucket_severity(a.get('severity')),
@@ -69,6 +69,67 @@ class SecurityProvider(IntegrationProvider):
         return {'ok': True, 'records_imported': imported, 'errors': []}
 
 
+# SR-08: an alert matching an open auto-ticket for the same customer, asset
+# and title (within the window) joins that ticket instead of opening another,
+# and one source opens at most AUTO_TICKET_HOURLY_CAP tickets an hour; past
+# the cap alerts are still stored, no tickets are opened, and the audit log
+# records it once an hour.
+AUTO_TICKET_DEDUP_HOURS = 24
+AUTO_TICKET_HOURLY_CAP = 20
+
+
+def _open_duplicate_ticket(alert):
+    from datetime import timedelta
+    from django.utils import timezone
+    from security_alerts.models import SecurityAlert
+    twin = (SecurityAlert.objects
+            .filter(organization=alert.organization, client_org=alert.client_org,
+                    asset_hint__iexact=alert.asset_hint, title__iexact=alert.title.strip(),
+                    auto_ticket__isnull=False, auto_ticket__status__is_terminal=False,
+                    seen_at__gte=timezone.now() - timedelta(hours=AUTO_TICKET_DEDUP_HOURS))
+            .exclude(pk=alert.pk).select_related('auto_ticket').order_by('-seen_at').first())
+    return twin.auto_ticket if twin else None
+
+
+def _source_filter(alert):
+    if alert.connection_id:
+        return {'connection_id': alert.connection_id}
+    if alert.siem_endpoint_id:
+        return {'siem_endpoint_id': alert.siem_endpoint_id}
+    return None
+
+
+def _over_hourly_cap(alert):
+    from datetime import timedelta
+    from django.utils import timezone
+    from security_alerts.models import SecurityAlert
+    source = _source_filter(alert)
+    if source is None:
+        return False
+    recent = SecurityAlert.objects.filter(
+        **source, auto_ticket__isnull=False,
+        auto_ticket__created_at__gte=timezone.now() - timedelta(hours=1)).values('auto_ticket').distinct().count()
+    return recent >= AUTO_TICKET_HOURLY_CAP
+
+
+def _note_cap_reached(alert):
+    from django.core.cache import cache
+    source = _source_filter(alert)
+    key = 'security_alerts:autoticket_cap:' + ':'.join(f'{k}={v}' for k, v in source.items())
+    if not cache.add(key, 1, 3600):
+        return
+    from audit.models import AuditLog
+    import logging
+    logging.getLogger('security_alerts').warning('auto-ticket cap reached for %s', source)
+    AuditLog.log(
+        user=None, action='update', organization=alert.organization,
+        object_type='security_alerts.SecurityAlert', object_id=alert.pk, object_repr=alert.title[:200],
+        description=(f'Auto-ticket limit reached: this source opened {AUTO_TICKET_HOURLY_CAP} tickets in the last '
+                     f'hour. Alerts are still recorded; no more tickets this hour.'),
+        extra_data={'event': 'security_auto_ticket_cap', **source},
+    )
+
+
 def _maybe_auto_ticket(alert):
     """Evaluate active SecurityAlertRule rows; create a ticket if any matches."""
     from security_alerts.models import SecurityAlertRule
@@ -80,9 +141,10 @@ def _maybe_auto_ticket(alert):
 
     severity_rank = {'info': 0, 'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
     for rule in rules:
-        if rule.match_provider and rule.match_provider != alert.connection.provider:
+        conn = alert.connection  # None for SIEM alerts
+        if rule.match_provider and (conn is None or rule.match_provider != conn.provider):
             continue
-        if rule.match_category and rule.match_category != alert.connection.category:
+        if rule.match_category and (conn is None or rule.match_category != conn.category):
             continue
         if rule.match_client_org_id and rule.match_client_org_id != alert.client_org_id:
             continue
@@ -99,7 +161,15 @@ def _maybe_auto_ticket(alert):
             )
             if in_window:
                 continue
-        # Match — create ticket
+        # Match. Join an open ticket for the same alert, or stop at the cap.
+        existing = _open_duplicate_ticket(alert)
+        if existing is not None:
+            alert.auto_ticket = existing
+            alert.save(update_fields=['auto_ticket'])
+            return
+        if _over_hourly_cap(alert):
+            _note_cap_reached(alert)
+            return
         try:
             from psa.models import Ticket, Queue, TicketPriority, TicketStatus, TicketType
             queue = (Queue.objects.filter(pk=rule.ticket_queue_id).first()

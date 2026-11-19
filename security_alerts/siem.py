@@ -283,10 +283,8 @@ def ingest_payload(endpoint, alerts: list[dict]) -> int:
             'asset_hint': (a.get('asset_hint') or '')[:200],
             'raw_payload': a.get('raw_payload') or {},
         }
-        obj, created = SecurityAlert.objects.update_or_create(
-            siem_endpoint=endpoint, external_id=ext_id,
-            defaults=defaults,
-        )
+        from .ingest import upsert_alert
+        obj, created = upsert_alert({'siem_endpoint': endpoint, 'external_id': ext_id}, defaults)
         if created:
             imported += 1
             try:

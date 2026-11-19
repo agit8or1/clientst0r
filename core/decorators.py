@@ -157,8 +157,16 @@ def require_organization_context(view_func):
     def wrapper(request, *args, **kwargs):
         from core.middleware import get_request_organization
         from core.models import Organization
+        from core.tenancy import accessible_org_ids
 
         org = get_request_organization(request)
+
+        def _choosable():
+            qs = Organization.objects.filter(is_active=True)
+            reach = accessible_org_ids(request)
+            if reach is not None:
+                qs = qs.filter(id__in=reach)
+            return qs.order_by('name')
 
         # If org context exists, proceed normally
         if org:
@@ -177,7 +185,8 @@ def require_organization_context(view_func):
             selected_org_id = request.POST.get('_selected_organization_id')
             if selected_org_id:
                 try:
-                    selected_org = Organization.objects.get(id=selected_org_id, is_active=True)
+                    # Only a customer this user may work in (not any active one).
+                    selected_org = _choosable().get(id=selected_org_id)
                     # Switch to selected organization (same logic as switch_organization view)
                     request.session['current_organization_id'] = selected_org.id
                     if 'global_view_mode' in request.session:
@@ -191,7 +200,7 @@ def require_organization_context(view_func):
 
                     # Proceed with the view
                     return view_func(request, *args, **kwargs)
-                except Organization.DoesNotExist:
+                except (Organization.DoesNotExist, ValueError):
                     messages.error(request, "Selected organization not found.")
             else:
                 messages.error(request, "Please select an organization before creating this resource.")
@@ -208,7 +217,7 @@ def require_organization_context(view_func):
         # `response.context_data` injection only worked for
         # TemplateResponse, which most views don't use — bug fixed
         # in v3.17.314).
-        organizations = Organization.objects.filter(is_active=True).order_by('name')
+        organizations = _choosable()
         request._show_org_selector_warning = True
         request._available_organizations = list(organizations)
 
