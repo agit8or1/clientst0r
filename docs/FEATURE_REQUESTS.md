@@ -204,7 +204,7 @@ Issues are labeled with:
 - **Contributor availability:** Open-source maintainers work on a best-effort basis
 
 You can speed things up by:
-- Contributing code yourself (see [CONTRIBUTING.md](CONTRIBUTING.md))
+- Contributing code yourself (see [CONTRIBUTING.md](../CONTRIBUTING.md))
 - Funding development (contact maintainers for sponsorship)
 - Helping with testing and documentation
 
@@ -240,7 +240,7 @@ If you disagree, you can:
 **A:** Absolutely! Before starting:
 1. Comment on the issue saying you want to work on it
 2. Wait for maintainer approval to avoid wasted effort
-3. Read [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
+3. Read [CONTRIBUTING.md](../CONTRIBUTING.md) for development guidelines
 4. Open a draft PR early to get feedback
 
 ---
@@ -296,7 +296,7 @@ Maintainers may also create periodic "What should we build next?" polls.
 - 💻 Join our [Discord/Slack community] (if applicable)
 
 **Want to contribute code?**
-- 📖 Read [CONTRIBUTING.md](CONTRIBUTING.md)
+- 📖 Read [CONTRIBUTING.md](../CONTRIBUTING.md)
 - 🛠️ Check [Good First Issues](https://github.com/agit8or1/clientst0r/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 ---

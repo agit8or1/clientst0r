@@ -28,6 +28,14 @@ module and no management command references it; it only runs when you invoke it.
   cached capabilities document. No step calls the RMM. Don't run the scheduler
   (`poll_analysis_jobs`) against the demo: it would try to re-check the
   pairing (and fail, since the host doesn't exist).
+- `seed_operations` fills the operations pages: RMM alerts on the Ridgeline fixture,
+  one website monitor down, backup monitoring (an inactive PBS connection and a
+  restic push connection with jobs, runs, repositories and alerts), licensing
+  subscriptions, a 'Service Desk' wallboard and API access rules with a trusted
+  proxy (the global modes stay Unrestricted). Every connection is inactive with an
+  invented `.example` host, so nothing polls. After seeding, `setup_demo.py` runs the
+  app's own `compute_health_scores`, `run_advisor` and `events_tick` so the health,
+  advisor and event pages have derived data.
 - `setup_demo.py`, `seed_demo.py` and `scripts/capture_screenshots.py` refuse to
   run if the database they are pointed at does not look like a demo one.
 

@@ -86,7 +86,15 @@ call_command('seed_module_samples', **seed_demo.MODULE_SAMPLE_OPTIONS)
 for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fields,
              seed_demo.seed_secure_link, seed_demo.seed_ticket_ai, seed_demo.seed_superuser_approval,
              seed_demo.seed_rmm_fixture, seed_demo.seed_rmm_pairing,
-             seed_demo.seed_navigation):
+             seed_demo.seed_navigation, seed_demo.seed_operations):
     print(step.__name__)
     step()
+# Derived data: the app's own commands project the seeded rows into the pages
+# that are computed (client health, pricing advisor findings, security events).
+for command in ('compute_health_scores', 'run_advisor', 'events_tick'):
+    print(command)
+    try:
+        call_command(command)
+    except Exception as exc:  # a failed projection must not abort the build
+        print(f'  warning: {command} failed: {exc!r}')
 print(f"demo instance ready: {db['NAME']}")

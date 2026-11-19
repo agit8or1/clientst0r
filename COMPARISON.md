@@ -1,198 +1,204 @@
 # Evaluating ClientSt0r
 
-> **Self-hosted, MIT-licensed IT documentation and service desk for MSPs — no licence fees, no seat limits, your own database.**
+This page is for teams deciding whether ClientSt0r fits next to, or instead of, the tools they
+already run. It is organized by **tool category**: for each, what ClientSt0r covers natively, what
+it covers through integrations, what is planned, and where a dedicated tool is the better fit.
 
-[![License: MIT](https://img.shields.io/github/license/agit8or1/clientst0r?color=blue)](LICENSE) [![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release)](https://github.com/agit8or1/clientst0r/releases)
-
-This page is for teams deciding whether ClientSt0r fits. It describes what ClientSt0r
-does, what is limited or planned, and how far its built-in importers go.
-
-Capability labels follow [FEATURES.md](FEATURES.md): **Available**, **Limited** (works,
-with a stated limitation), **Planned**, and **Separate component**.
+Status labels follow [FEATURES.md](FEATURES.md): **Available**, **Limited** (works with a stated
+limitation, or not yet verified against the real external service), **Planned**, and **Separate
+component**. Planned work is tracked in the [roadmap](docs/ROADMAP.md).
 
 ---
 
-## Cost and licensing
+## The basics
 
 | | ClientSt0r |
 |---|---|
-| Licence | MIT — use it, fork it, modify it |
-| Licence fee | None |
-| Seat or client limits | None |
-| Paid tiers / feature gating | None — every first-party feature works on a self-hosted install |
-| What you pay for | Your own server, and your own time to run it |
-| Optional services | Managed hosting and commercial support are offered separately by [MSP Reboot](https://mspreboot.com); they buy time and infrastructure, not features |
-
----
-
-## Hosting and data control
-
-| | ClientSt0r |
-|---|---|
+| License | MIT; no license fee, seat or client limits, or paid tiers |
 | Deployment | Self-hosted: `docker compose up -d`, or `bash install.sh` on Ubuntu / Debian |
-| Database | MariaDB (MySQL 8 also supported) on your infrastructure |
-| Topology | Single server by design; no clustered or multi-node deployment |
-| Source code | Public and modifiable |
-| Updates | From the web UI (Settings → System → System Updates) with a graceful reload, or by `git pull` / `docker compose pull`. Take a backup first; there is no automatic rollback |
-| Multi-tenant | Every record belongs to a client organization; customer users see only their own organizations |
-| Exports | Documents to Markdown, HTML, DOCX and PDF; audit logs to CSV/JSON; financial reports to CSV; a whole-install JSON export for superusers |
+| Database | MariaDB (MySQL also supported) on your infrastructure; SQLite for local development |
+| Topology | Single server per MSP; no clustered deployment |
+| Tenancy | Every record belongs to a customer organization; customer users see only their own |
+| Updates | Settings → System → System Updates: signed-tag check, preflight and a verified backup before Apply. Rollback is a manual restore command |
+| Exports | Documents to Markdown, HTML, DOCX, PDF; audit logs to CSV/JSON; financial reports to CSV; whole-install JSON export |
+| What you pay for | Your server and your time. Optional hosting and support are offered separately by [MSP Reboot](https://mspreboot.com) |
 
 ---
 
-## What's included
+## IT documentation tools
 
-A summary. See [FEATURES.md](FEATURES.md) for the full list with limitations and where to
-find each screen.
-
-### Documentation and knowledge base
+**Native**
 
 | Capability | Status | Notes |
 |---|---|---|
-| Per-client documents and a global knowledge base | Available | Global KB articles are visible to MSP staff; customer users see only client-visible articles |
-| WYSIWYG or Markdown editor, templates, uploaded-file documents | Available | File attachments on documents and document favorites are not available yet |
-| Version history | Available | View any version, compare two, restore one (audited) |
-| Document lifecycle | Available | Owners and review intervals, drafts that stay out of lists and search until published, publish permissions and Submit for review → Approve, an Archived list, and template drift reports |
-| Documentation readiness | Available | Standards for what each client must have documented; a per-client score with an explanation of every gap, a repair queue and audited exceptions |
-| KB analytics | Available | Most viewed, never viewed, past review date, and searches that found nothing |
-| Search | Limited | Substring matching across titles and bodies; no ranking or saved searches |
-| Diagrams (draw.io) | Available | |
+| Per-customer documents, templates, global knowledge base shared with chosen customers or groups | Available | WYSIWYG or Markdown; no file attachments, favorites or share links on documents |
+| Versions, compare and restore; owners, review dates, drafts, approval | Available | |
+| Documentation readiness scores and repair queue | Available | |
+| Assets with custom types and fields on the form and API | Available | No bulk edit or per-asset change history |
+| Hardware catalog, panel artwork, ports, cables, racks, labels, diagrams | Available | Documentation only; nothing is read from or pushed to devices |
+| IPAM, VLANs, network config backups over SSH | Available | |
+| Search | Limited | Substring match plus the Ctrl+K Go to palette; no ranking |
+| Office document editing (ONLYOFFICE, Collabora, Microsoft 365) | Limited | Not yet verified against real editor services |
 
-### Assets, network and infrastructure
+**Through integrations and importers:** IT Glue and Hudu importers (organizations, assets,
+passwords, documents; contacts, locations, networks, attachments and relationships not yet),
+CSV/xlsx import, MagicPlan floor plans, UniFi, Omada and Grandstream controller sync.
 
-| Capability | Status | Notes |
-|---|---|---|
-| Asset tracking, tags, photos, relationships | Available | |
-| Custom asset types and per-type custom fields | Limited | Assets use a fixed list of types; custom fields are filled by imports and the API but are not editable on the asset form yet |
-| Warranty and lifecycle dates | Available | |
-| Rack elevations | Available | Drag-and-drop placement |
-| IPAM: subnets, VLANs, IP assignments | Available | |
-| CSV / spreadsheet import | Available | Assets, contacts, passwords, documents; re-running an import matches existing rows instead of duplicating them |
+**Planned:** service dependency and impact mapping (Phase 88).
 
-### Credentials and security
+**When a dedicated tool fits better:** if you need ranked full-text search, document attachments
+and share links, or a hosted service with no server to run.
 
-| Capability | Status | Notes |
-|---|---|---|
-| Encrypted vault | Available | AES-256-GCM with per-purpose keys derived by HKDF-SHA256; every reveal is audited |
-| Per-entry access rules, reveal approval, break-glass | Available | |
-| TOTP 2FA | Available | Enforced for every account by default |
-| SSO and directory sign-in | Limited | Azure AD / Entra ID SSO, and LDAP / Active Directory sign-in (optional packages). SAML and generic OIDC are not available |
-| Secrets at rest | Available | Every stored secret encrypted or hashed; `rotate_encryption_key` for master-key rotation and `check_secrets_storage` to audit |
-| Role-based access | Limited | View passwords / documents / assets are enforced; View files / monitors / integrations are not yet |
-| Audit log | Limited | Credential reveals, API key use and many explicit events are logged; other changes are recorded by request (method, path, form fields), without before/after values. See [FEATURES.md](FEATURES.md) |
-| Breach checking (Have I Been Pwned, k-anonymity) | Available | |
-| Dependency and OS package scanning | Available | Dependency scanning uses Snyk and needs a Snyk token |
-| IP and country (GeoIP) access rules | Available | Enforced by the application, not by the host firewall; plus fail2ban management on native installs |
+### Importer behavior
 
-### Service desk (opt-in, `psa_enabled`)
-
-| Capability | Status | Notes |
-|---|---|---|
-| Tickets, queues, SLAs with pause logic, time entries | Available | |
-| Technician workspace (My Work) | Available | Your tickets in SLA order, running timers, customer replies, waiting queues, approvals and appointments; reply drafts, collision warnings, an explicit public/internal composer and keyboard shortcuts |
-| Contracts, quotes with e-signature, invoices, payments | Available | Recurring invoices run from the built-in scheduler |
-| Push invoices to QuickBooks Online or Xero | Limited | Invoices push; payments are not pushed |
-| Customer portal | Available | Customers see only tickets you share with them, with progress in plain language |
-| Guided service requests | Available | "Request a service" in the portal: catalog forms with conditional questions, KB suggestions before submitting, routing and optional customer-admin approval |
-| Workflow rules, dispatch board, projects | Available | |
-
-### API, integrations and automation
-
-| Capability | Status | Notes |
-|---|---|---|
-| REST API | Limited | Assets, contacts, documents, passwords, tags; organizations read-only |
-| GraphQL API | Available | Optional dependency |
-| PSA integrations | Available | ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow — companies, contacts and tickets. RangerMSP and Alga PSA: Limited (newly added) |
-| RMM integrations | Available | Tactical RMM, NinjaOne, Datto RMM, Atera, ConnectWise Automate — devices, alerts, software |
-| Built-in scheduler for periodic jobs | Available | Settings → Automation → Task Scheduler shows each job's last run and error; no crontab needed |
-| Webhooks | Available | Assets, documents, passwords (metadata only), password reveals, locations, organizations, workflows, monitors and integration syncs |
-| Website monitoring alerts | Available | Email when a site goes down (after two failed checks) and when it recovers |
-
-### AI (OPTIONAL AI)
-
-| Capability | Status | Notes |
-|---|---|---|
-| Documentation generation and enhancement | Available | Gated by `psa_ai_enabled`. Uses the configured provider: Anthropic, OpenAI, Moonshot, MiniMax, or a local Ollama model |
-| Ticket reply drafts, triage and suggested actions | Available | Gated by `psa_ai_enabled`. Uses Anthropic only |
-| Redaction of personal data before sending to a provider | Planned | The redaction code exists but is not wired in |
+Dry run is on by default. Each job keeps a log and tags imported records with their source; records
+land in the customer their source record belongs to. A job is "Completed" only when nothing failed.
+Rollback runs in one transaction, keeps records edited after the import, and reports "Partially
+rolled back" when anything was kept. Re-running a CSV import matches existing rows instead of
+duplicating them. Guides: [IT Glue](docs/importing-from-it-glue.md), [Hudu](docs/importing-from-hudu.md).
 
 ---
 
-## Importing existing documentation
+## PSA and ticketing
 
-ClientSt0r has built-in importers for both, under **Imports** (`/imports/`). They connect to
-the source system's API with your API key.
+**Native** (opt-in, `psa_enabled`)
 
-| Data | IT Glue | Hudu |
+| Capability | Status | Notes |
 |---|---|---|
-| Organizations | Matched or created | Matched or created |
-| Assets / configurations | Imported | Imported |
-| Passwords | Imported (encrypted on arrival) | Imported (encrypted on arrival) |
-| Documents | Imported | Imported |
-| Contacts | Not yet | Not yet |
-| Locations | Not yet | Not yet |
-| Networks | Not yet | Not yet |
-| Attachments, relationships, permissions | Not yet | Not yet |
+| Tickets, queues, SLAs with pause, time entries, expenses, My Work | Available | SLAs run on calendar time |
+| Email-to-ticket (IMAP, Microsoft 365) | Available | |
+| Service catalog with guided portal requests and approvals | Available | |
+| Problems, changes with CAB, workflow rules, rule-based routing (not AI) | Available | No loop guard between chained workflow rules |
+| Projects, dispatch board, scheduling, resourcing | Available | Dispatch drag changes the assignee, not the date |
+| Customer portal | Available | Customers see only tickets you share with them |
 
-How the importer behaves today:
+**Through integrations:** sync of companies, contacts and tickets from ConnectWise Manage,
+Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk and ITFlow (Available), and RangerMSP
+and Alga PSA (Limited, newly added). Projects, agreements and field mapping are not synced.
+Process runs can post notes to ITFlow, ConnectWise Manage, Syncro, HaloPSA and Autotask tickets.
 
-- **Dry run is on by default.** It reports counts without writing anything.
-- **Import history** is kept per job, with a log, and imported records are tagged with
-  their source.
-- **Records land in the right client.** In an all-organizations import each record goes to
-  the client its source record belongs to.
-- **Honest outcomes.** A job is "Completed" only when nothing failed; otherwise "Completed
-  with errors" or "Failed", with imported / skipped / failed counts that add up to the
-  source total. The import log is on the import page.
-- **Rollback** runs in one transaction. Records edited after the import are kept and listed,
-  organizations the import created are removed only when nothing else uses them, and a
-  rollback that kept anything reports "Partially rolled back". Failed imports that created
-  records can be rolled back too.
-- **CSV imports** (assets, contacts, passwords, documents) don't duplicate rows when re-run:
-  rows are matched on a natural key such as title + username + URL for passwords.
+**Planned:** quote → contract and quote → invoice conversion (Phase 70), alert routing, on-call and
+escalation (Phase 87).
 
-Plan a check after any import: compare record counts with the source, open a sample of
-passwords and documents, and recreate contacts and locations by hand or by CSV until those
-importers ship. Bitwarden / Vaultwarden JSON exports can also be imported into the vault.
+**When a dedicated tool fits better:** if you need per-customer business-hours calendars, deep
+two-way PSA field mapping, or a service desk spread across several servers.
+
+---
+
+## RMM
+
+ClientSt0r is **not an RMM**. It stores and shows RMM data and works with a paired RMM from tickets.
+
+| Capability | Status | Notes |
+|---|---|---|
+| Device, alert and software sync | Available | Atera, ConnectWise Automate, Datto RMM, NinjaOne, Tactical RMM, Rem0te; polling |
+| Device Workspace, ticket RMM panel, alert-to-ticket policy | Available | |
+| Rem0te pairing (signed contract, Ed25519) and Rem0te alerts as tickets with link back | Available | Tested with both real applications in CI. Rem0te is a separate application |
+| Diagnostics, remediation proposals and results from a ticket | Limited | In development; contract routes agreed but not yet built on the Rem0te side |
+| Running anything on a device | Not in ClientSt0r | Endpoint actions are approved and run in the RMM, never in ClientSt0r or by AI |
+
+**Planned:** Rem0te endpoint actions in security automation (Phase 86).
+
+**When a dedicated tool fits better:** always for endpoint management itself: patching, scripting,
+remote control and monitoring agents belong in the RMM.
+
+---
+
+## Password managers
+
+| Capability | Status | Notes |
+|---|---|---|
+| Per-customer encrypted vault (AES-256-GCM), 15 entry types, folders, TOTP codes | Available | |
+| Audited reveals, access rules, reveal approval, break-glass, expiry warnings | Available | |
+| Vault visibility for technicians per customer | Available | |
+| Breach checks (Have I Been Pwned, k-anonymity) | Available | Blocking breached passwords only by environment variable |
+| Customer portal visibility per entry | Available | |
+| Personal vault | Limited | Encrypted with the server master key, not a per-user key |
+| Browser extension | Separate component | Unsigned, developer mode only |
+
+**Through importers:** Bitwarden / Vaultwarden JSON.
+
+**When a dedicated tool fits better:** for end-to-end (zero-knowledge) encryption, a signed browser
+extension with offline access, or password management for your customers' own staff.
+
+---
+
+## Monitoring and SIEM
+
+| Capability | Status | Notes |
+|---|---|---|
+| Website, SSL and WAN monitors, status pages | Available | Checks at most every 5 minutes; no WHOIS |
+| Backup monitoring | Available | Proxmox Backup Server (polled); restic, Borg, Kopia (push reports) |
+| Security alerts by generic JSON webhook | Limited | Vendor names in the list are labels; no vendor API polling works yet |
+| SIEM webhook endpoints (CEF, JSON, Syslog format over HTTPS) | Available | No network syslog listener |
+| Incidents, playbooks, auto-ticket rules, Security Overview | Available | |
+| Events: one list of security, RMM, Rem0te, backup and monitor alerts | Available | First release; Phase 82 in progress |
+| Wallboards | Available | Configurable boards; NOC/SOC presentation mode planned |
+
+**Planned:** NOC/SOC wallboards and display pairing (Phase 83), a connector framework with vendor
+connectors in batches (Phase 84), Operations Center and correlation (Phase 85), SOAR Lite
+(Phase 86), posture scorecards (Phase 89).
+
+**When a dedicated tool fits better:** for log collection, retention and search, network
+monitoring by SNMP, or detection engineering. ClientSt0r receives and organizes alerts; it does not
+collect logs.
+
+---
+
+## Standalone billing
+
+| Capability | Status | Notes |
+|---|---|---|
+| Contracts, recurring invoices, aging, late fees, approval gate | Available | |
+| Quotes with e-signature; contract documents with signing | Available / Limited | Contract starter templates are sample wording |
+| Price book, service plans, labor rate cards | Limited | Managed in the Django admin |
+| Profitability, Business Overview, pricing advisor, licensing | Available | |
+| Payments (Stripe, GoCardless) and sales tax (Avalara, TaxJar) | Limited | In the code; not yet verified against live or sandbox services |
+
+**Through integrations:** QuickBooks Online and Xero (customer sync, invoice push, payment status
+pull); Microsoft 365 and Pax8 license sync; Ingram Micro Xvantage, Pax8 and TD Synnex catalog and
+pricing lookups.
+
+**Planned:** payment posting, credit memos and refunds to accounting (Phase 71), quote and contract
+conversion (Phase 70), customer command center portal (Phase 77).
+
+**When a dedicated tool fits better:** for your general ledger and accounting, and for payment or
+tax processing you need verified today.
+
+---
+
+## Identity and AI
+
+| Capability | Status | Notes |
+|---|---|---|
+| TOTP 2FA required by default, LDAP / Active Directory | Available | |
+| Azure AD / Entra ID SSO | Limited | Counts as 2FA only when Microsoft confirms MFA |
+| OIDC sign-in | Limited | Off by default; not yet verified against a live provider |
+| SAML, passkeys | Planned | |
+| View passwords, documents, assets, files, monitors, integrations permissions | Available | Enforced per customer |
+| AI (OPTIONAL AI, off by default) | Available | Ticket AI: Anthropic, OpenAI, Ollama; documentation AI adds Moonshot and MiniMax. Redaction runs on all evidence. Ticket Analyze/Compare need a paired RMM |
 
 ---
 
 ## Getting started
 
-Docker:
-
 ```bash
 git clone https://github.com/agit8or1/clientst0r.git
 cd clientst0r
 cp .env.example .env
-# edit .env — at minimum: SECRET_KEY, DB_PASSWORD, DB_ROOT_PASSWORD, APP_MASTER_KEY
+# set SECRET_KEY, APP_MASTER_KEY, API_KEY_SECRET, DB_PASSWORD, DB_ROOT_PASSWORD
 docker compose up -d
 ```
 
-Native install on Ubuntu 20.04+ / Debian 11+:
-
-```bash
-git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash install.sh
-```
-
-Full guides: [README](README.md#quick-start), [INSTALL.md](INSTALL.md),
+Or on Ubuntu / Debian: `bash install.sh` (creates `admin` / `ChangeMe123!`; change it at first
+login). Full guides: [README](README.md#quick-start), [INSTALL.md](INSTALL.md),
 [docs/docker.md](docs/docker.md).
-
----
 
 ## Learn more
 
 - [Full feature list](FEATURES.md)
-- [Importing from IT Glue](docs/importing-from-it-glue.md)
-- [Importing from Hudu](docs/importing-from-hudu.md)
+- [Screenshots](docs/screenshots.md)
+- [Roadmap](docs/ROADMAP.md)
 - [API documentation](API_V2_GRAPHQL.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
-
----
-
-<p align="center">
-  <strong>ClientSt0r</strong> — Built by MSPs, for MSPs.<br>
-  <a href="https://github.com/agit8or1/clientst0r/issues">Report a Bug</a> ·
-  <a href="https://github.com/agit8or1/clientst0r/issues">Request a Feature</a> ·
-  <a href="CONTRIBUTING.md">Contribute</a>
-</p>
