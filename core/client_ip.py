@@ -104,3 +104,12 @@ def get_client_ip(request, networks=None):
         if not _is_trusted(address, networks):
             return str(address)
     return str(chain[0]) if chain else fallback
+
+
+def ratelimit_ip(request):
+    """django-ratelimit's ``key='ip'`` (settings.RATELIMIT_IP_META_KEY).
+
+    The real client behind a trusted proxy, not the proxy's own address, so
+    rate limits are per visitor instead of one bucket shared by everyone.
+    Malformed forwarding data falls back to the peer address."""
+    return get_client_ip(request) or request.META.get('REMOTE_ADDR') or '0.0.0.0'

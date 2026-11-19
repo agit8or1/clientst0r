@@ -1845,6 +1845,11 @@ are built on top of them.
   match the extension, stored type taken from the file name); security-vendor webhook severities are mapped
   onto the known levels with unknown values logged; the asset edit endpoint used by rack and closet pages
   no longer skips CSRF protection. Each finding has a reproducing test.
+- **Security review fixes, second wave** *(shipped v3.17.725)* — rate limits count each visitor behind the
+  trusted proxies instead of one shared bucket (public lead form and every per-address limit); public
+  survey and unsubscribe links are throttled per address and per link; a satisfaction survey says when it
+  was already answered and limits changes; ticket attachments (uploads and inbound e-mail) take their type
+  from the extension, must match it in content and may not hide an executable or HTML in the name.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

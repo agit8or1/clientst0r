@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.permission_utils import require_perm, user_has_perm
+from core.public_throttle import throttled
 from .siem import _bucket_severity
 from .forms import (
     SecurityVendorConnectionForm,
@@ -984,6 +985,7 @@ def digest_subscriptions(request):
 
 
 @csrf_exempt
+@throttled('security.digest_unsubscribe', '30/m', token_rate='20/h')
 def digest_unsubscribe(request, token):
     """Public, signed unsubscribe. GET shows a confirmation button (mail
     scanners fetch links); POST unsubscribes, including the RFC 8058

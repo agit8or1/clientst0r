@@ -11,6 +11,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
+from core.public_throttle import throttled
+
 from docs import agreements
 from docs.agreement_models import Agreement, AgreementSignature
 
@@ -101,6 +103,7 @@ def agreement_evidence(request, pk):
 
 
 @csrf_exempt
+@throttled('portal.agreement_unsubscribe', '30/m', token_rate='20/h')
 def agreement_reminder_unsubscribe(request, token):
     """Public, signed link from a reminder e-mail: stop reminders about one
     agreement for one person. GET asks (mail scanners fetch links); POST

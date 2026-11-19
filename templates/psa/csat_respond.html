@@ -39,6 +39,13 @@ body { background: #f7f8fa; }
                 {% endfor %}
             {% endif %}
 
+            {% if survey.responded_at %}
+            <div class="alert alert-light border small mb-0" data-csat-answered>
+                You answered {{ survey.rating }} out of 5 on {{ survey.responded_at|date:"j M Y" }}.
+                Submitting again changes your answer.
+            </div>
+            {% endif %}
+
             <form method="post" id="csat-form" class="mt-4">
                 {% csrf_token %}
                 <div class="csat-stars mb-2" id="csat-stars">

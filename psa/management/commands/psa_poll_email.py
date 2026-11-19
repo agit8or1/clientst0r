@@ -166,13 +166,26 @@ def _ingest_attachments(msg, *, ticket, comment) -> tuple[int, int]:
         filename = _decode_header(part.get_filename() or '') or 'attachment'
         # Strip path components defensively — never trust a header.
         filename = filename.replace('/', '_').replace('\\', '_')[:255]
+        # SR-06: the sender's declared type is only the allowlist gate above;
+        # the name must not hide an executable or HTML, the content must match
+        # the extension, and the stored type comes from the name.
+        from files import upload_rules
+        from psa.attachment_rules import BLOCKED_INNER, TYPES_BY_EXT
+        parts = filename.lower().split('.')
+        if any(p in BLOCKED_INNER for p in parts[1:]) or upload_rules.check_magic(filename, payload[:512]):
+            logger.warning('attachment rejected (name or content): ticket=%s mime=%s',
+                           ticket.ticket_number, ctype)
+            skipped += 1
+            continue
+        stored_type = TYPES_BY_EXT.get(parts[-1]) if len(parts) > 1 else None
+        stored_type = stored_type or upload_rules.content_type_for(filename)
 
         TicketAttachment.objects.create(
             ticket=ticket,
             comment=comment,
             file=ContentFile(payload, name=filename),
             filename=filename,
-            content_type=ctype[:100],
+            content_type=stored_type[:100],
             size_bytes=len(payload),
             is_internal=False,
         )

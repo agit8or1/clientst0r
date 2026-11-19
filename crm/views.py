@@ -828,13 +828,11 @@ def activity_add(request, scope, pk):
 @csrf_exempt
 def lead_capture_web(request):
     """Public web form — POST. Rate-limited by IP. Honeypot anti-spam."""
-    from django.core.cache import cache
-
-    ip = request.META.get('REMOTE_ADDR', '0')
-    key = f'lead_capture:{ip}'
-    if cache.get(key, 0) >= 10:
+    # SR-11: per visitor (the client behind trusted proxies), not one bucket
+    # for everyone sharing the proxy's address.
+    from core.public_throttle import limited
+    if limited(request, 'crm.lead_capture', '10/m'):
         return JsonResponse({'error': 'Rate limited. Try again later.'}, status=429)
-    cache.set(key, cache.get(key, 0) + 1, 60)
 
     # Honeypot — hidden field that bots tend to fill in
     if request.POST.get('website_url', '').strip():

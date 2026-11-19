@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.725] - 2026-11-19
+
+### Security
+- **Rate limits now count each visitor behind your proxy, not the proxy itself.** Before, every visitor shared one limit, so anyone could keep the public lead form answering "rate limited" for real prospects. Limits now use the client address from the trusted proxies in Settings. This applies to the lead form and to every other per-address limit, such as secure-message replies and pulse surveys.
+- **Public survey and unsubscribe links are throttled.** The customer-satisfaction survey, the security-digest unsubscribe link and the agreement-reminder unsubscribe link are limited per address and per link. Too many requests get a "please wait a minute" answer.
+- **Satisfaction surveys say when they were already answered.** Opening an answered survey shows the earlier rating and explains that submitting again changes it. Changes to one survey are limited.
+- **Ticket attachments are checked by name and content.** For uploads and inbound e-mail, the stored file type now comes from the file's extension, not from the browser or the e-mail sender. The content must match the extension, for example a real PNG for `.png`. Names that hide an executable or HTML, such as `report.exe.pdf`, are refused. The file types you can attach are unchanged, and SVG files still download rather than open in the browser.
+
 ## [3.17.724] - 2026-11-19
 
 ### Security

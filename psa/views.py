@@ -12,6 +12,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from core.public_throttle import limited, throttled
 from django.db import models
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -64,19 +65,7 @@ logger = logging.getLogger('psa.views')
 
 # Phase 2a constants
 ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024  # 25 MB
-ATTACHMENT_ALLOWED_MIMES = {
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml',
-    'text/plain', 'text/csv', 'text/markdown',
-    'application/json',
-    'application/zip',
-}
+from .attachment_rules import attachment_problem  # noqa: E402  (SR-06)
 
 
 from .visibility import is_msp_staff, msp_technicians, visible_attachments, visible_comments
@@ -1844,9 +1833,9 @@ def ticket_attach(request, ticket_number):
         messages.error(request, f'File too large (max {ATTACHMENT_MAX_BYTES // (1024 * 1024)} MB).')
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
 
-    content_type = (f.content_type or '').lower().split(';')[0].strip()
-    if content_type not in ATTACHMENT_ALLOWED_MIMES:
-        messages.error(request, f'File type "{content_type or "unknown"}" not allowed.')
+    content_type, problem = attachment_problem(f)
+    if problem:
+        messages.error(request, problem)
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
 
     is_internal = (request.POST.get('is_internal') or '').lower() in ('1', 'true', 'on', 'yes')
@@ -9932,12 +9921,14 @@ def _ticket_partner_apply(request, share, raw_body):
 # ---------------------------------------------------------------------------
 
 @require_http_methods(['GET', 'POST'])
+@throttled('psa.csat', '30/m', token_rate='30/h')
 def csat_respond(request, token):
     """
     Public, token-authenticated CSAT response form. The token is the
-    sole auth — recipient doesn't need an account. Single-use:
-    re-submitting overwrites the existing rating (treats the latest
-    response as authoritative).
+    sole auth — recipient doesn't need an account. The latest answer counts:
+    the page says when an answer already exists and that submitting again
+    changes it. Changes are limited per survey (SR-12) and each change is
+    counted on the survey.
     """
     from .models import TicketCSATSurvey
     survey = TicketCSATSurvey.lookup(token)
@@ -9953,6 +9944,9 @@ def csat_respond(request, token):
             messages.error(request, 'Pick a rating from 1 to 5.')
             return render(request, 'psa/csat_respond.html', {'survey': survey})
         comment = (request.POST.get('comment') or '').strip()[:2000]
+        if survey.responded_at and limited(request, 'psa.csat_change', '5/h', token, '5/d'):
+            messages.error(request, 'This answer has been changed several times already. Try again later.')
+            return render(request, 'psa/csat_respond.html', {'survey': survey}, status=429)
         survey.rating = rating
         survey.comment = comment
         survey.responded_at = timezone.now()

@@ -273,6 +273,10 @@ else:
         }
     }
 
+# django-ratelimit's key='ip' uses the client address behind trusted proxies
+# (Settings → trusted proxies), not the proxy's own address (SR-11).
+RATELIMIT_IP_META_KEY = 'core.client_ip.ratelimit_ip'
+
 # Caching - Use locmem cache (in-memory) for better compatibility
 # Database cache requires running createcachetable which may not be done on all systems
 CACHES = {
