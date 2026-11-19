@@ -485,6 +485,6 @@ venv/bin/python manage.py upgrade_backup --import /secure/place/clientst0r-backu
     --passphrase-file /root/backup-passphrase      # unpacks and verifies it
 ```
 
-The encrypted `manage.py backup` archive (see [AUTO_UPDATE.md](../AUTO_UPDATE.md))
+The encrypted `manage.py backup` archive (see [AUTO_UPDATE.md](AUTO_UPDATE.md))
 is still available for routine backups. It is encrypted *with*
 `APP_MASTER_KEY`, so store that key separately.

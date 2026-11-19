@@ -199,6 +199,6 @@ login). Full guides: [README](README.md#quick-start), [INSTALL.md](INSTALL.md),
 - [Full feature list](FEATURES.md)
 - [Screenshots](docs/screenshots.md)
 - [Roadmap](docs/ROADMAP.md)
-- [API documentation](API_V2_GRAPHQL.md)
+- [API documentation](docs/API_V2_GRAPHQL.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)

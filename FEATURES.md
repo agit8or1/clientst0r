@@ -282,11 +282,11 @@ policy, an enabled model profile and a technician access assignment at that cust
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| REST API: assets, contacts, documents, passwords, tags; organizations and hardware read-only | Limited | API key | No tickets, monitors or locations endpoints | [API_V2_GRAPHQL.md](API_V2_GRAPHQL.md) |
+| REST API: assets, contacts, documents, passwords, tags; organizations and hardware read-only | Limited | API key | No tickets, monitors or locations endpoints | [API_V2_GRAPHQL.md](docs/API_V2_GRAPHQL.md) |
 | API keys: levels, organization scope, expiry, allowed sources, per-key rate limit, rotation with overlap, required client-certificate fingerprint (mutual TLS) | Available | `/api/keys/` | Mutual TLS needs a reverse proxy that verifies the client certificate | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
 | API Access Control: IP/CIDR allow and deny rules for the APIs and inbound webhooks, modes, scopes, test-an-address, refused-request log, rollback window, repeat-source alerts, per-address limits, trusted proxies | Available | Settings → Security → API Access Control (superusers); Unrestricted by default | Concurrency limits not built; web pages are covered by Firewall & GeoIP instead | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
 | Inbound webhook protection: signatures, timestamps, replay protection (security vendor, SIEM, distributor, ticket partner) | Available | Per connection | Opt-in for existing security vendor connections | [API_ACCESS_CONTROL.md](docs/API_ACCESS_CONTROL.md) |
-| GraphQL | Limited | `requirements-graphql.txt` | Session only (no API keys); not in the Docker image; mostly read-only | [API_V2_GRAPHQL.md](API_V2_GRAPHQL.md) |
+| GraphQL | Limited | `requirements-graphql.txt` | Session only (no API keys); not in the Docker image; mostly read-only | [API_V2_GRAPHQL.md](docs/API_V2_GRAPHQL.md) |
 | Mobile API; native mobile app | Available / Separate component | `/api/mobile/v1/` | App source is maintained outside this repository | — |
 | Outbound webhooks (assets, documents, password metadata, reveals, locations, organizations, workflows, monitors, syncs) | Available | Settings → Integrations → Webhooks | Plain JSON; no Slack/Teams format | — |
 | Third-party PSA sync: ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow; RangerMSP and Alga PSA (newly added) | Available / Limited | Settings → Integrations; `psa_sync` task (off by default) | Companies, contacts, tickets only; no projects/agreements or field mapping | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
