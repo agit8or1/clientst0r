@@ -142,6 +142,9 @@ def document_list(request):
     if query and not category_id and not tag_id and not documents.exists():
         SearchQueryLog.record(query, result_count=0, source='docs',
                               user=request.user, organization=org)
+    from .kb_grouping import group_documents_by_category
+    documents, _groups = group_documents_by_category(
+        documents.select_related('category__parent'))
 
     # Get all categories and tags for filters
     if in_global_view:
@@ -1032,7 +1035,7 @@ def global_kb_list(request):
     documents = Document.objects.published().filter(
         is_global=True,
         is_template=False  # Exclude templates
-    ).prefetch_related('tags', 'category')
+    ).select_related('category__parent', 'last_modified_by').prefetch_related('tags')
 
     # Filter by category
     category_id = request.GET.get('category')
@@ -1055,9 +1058,12 @@ def global_kb_list(request):
     if query and not category_id and not tag_id and not documents.exists():
         SearchQueryLog.record(query, result_count=0, source='global_kb',
                               user=request.user)
+    # Grouped under category headings (order, name; Uncategorized last).
+    from .kb_grouping import group_documents_by_category
+    documents, _groups = group_documents_by_category(documents)
 
     # Get global categories (organization=None) for filters - sorted alphabetically
-    categories = DocumentCategory.objects.filter(organization__isnull=True).order_by('name')
+    categories = DocumentCategory.objects.filter(organization__isnull=True).order_by('order', 'name')
     from core.models import Tag
     # Global KB doesn't use tags, but keep for template compatibility
     tags = Tag.objects.none()

@@ -762,10 +762,17 @@ def kb_list(request):
     featured = list(qs.filter(is_featured_in_portal=True)
                        .order_by('-updated_at')[:10])
     others = list(qs.filter(is_featured_in_portal=False)
+                     .select_related('category__parent')
                      .order_by('-portal_view_count', '-updated_at')[:200])
+    # Group the already-visible articles by category, so a category that only
+    # holds articles this customer can't see never appears. A subcategory is
+    # labelled with its own name only (its parent may hold nothing visible).
+    from docs.kb_grouping import group_documents_by_category
+    others, groups = group_documents_by_category(others, full_path=False)
     return render(request, 'portal/kb_list.html', {
         'featured': featured,
         'articles': others,
+        'groups': groups,
         'query': q,
         'organization': m.organization,
     })

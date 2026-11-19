@@ -84,6 +84,7 @@
                     <th>Last Updated</th>
                     <th>Updated By</th>
                     <th width="120">Actions</th>
+                    <th>Group</th>
                 </tr>
             </thead>
             <tbody>
@@ -115,6 +116,7 @@
                             <a href="{% url 'docs:global_kb_delete' doc.slug %}" class="btn btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></a>
                         </div>
                     </td>
+                    <td>{{ doc.cat_index|stringformat:"04d" }} {{ doc.cat_label }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -133,10 +135,17 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "docs/_category_grouping_js.html" %}
 <script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
+    // Rows stay grouped by category (hidden fixed-order column); the order
+    // below applies within each category.
+    var grouping = kbCategoryGrouping({% if can_set_portal %}8{% else %}7{% endif %});
     $('#kbTable').DataTable({
         order: [[{% if can_set_portal %}5{% else %}4{% endif %}, 'desc']],
+        orderFixed: grouping.orderFixed,
+        columnDefs: grouping.columnDefs,
+        drawCallback: grouping.drawCallback,
         pageLength: 25,
         language: {
             search: "_INPUT_",

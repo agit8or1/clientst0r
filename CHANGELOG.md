@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.722] - 2026-11-19
+
+### Changed
+- **Knowledge-base articles are grouped by category.** The Global KB list, the customer portal's Knowledge Base and the Documents list show articles under category headings, in category order then name. Subcategories sit under their parent and uncategorized articles come last. Column sorting and search still work, within each category. In the portal, featured articles stay on top, and only categories that hold articles the customer can see are shown. The Global KB category filter now lists categories in the same order.
+
 ## [3.17.721] - 2026-11-19
 
 ### Added

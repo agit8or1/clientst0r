@@ -1,0 +1,27 @@
+{# DataTables helper: keeps rows grouped by category (hidden "group" column, #}
+{# "0003 Label") and inserts a heading row at each group boundary. #}
+<script nonce="{{ csp_nonce }}">
+window.kbCategoryGrouping = function (groupCol) {
+    return {
+        orderFixed: [[groupCol, 'asc']],
+        columnDefs: [{ targets: groupCol, visible: false, searchable: false }],
+        drawCallback: function () {
+            var api = this.api();
+            var rows = api.rows({ page: 'current' }).nodes();
+            var cols = api.columns(':visible').count();
+            var last = null;
+            $(rows).closest('tbody').find('tr.kb-group-row').remove();
+            api.column(groupCol, { page: 'current' }).data().each(function (val, i) {
+                if (last === val) { return; }
+                last = val;
+                var label = $('<div>').html(String(val)).text().substring(5);  // cell HTML → text (category names may contain &)
+                var $row = $('<tr class="kb-group-row table-secondary"><td></td></tr>');
+                $row.find('td').attr('colspan', cols)
+                    .append($('<strong>').append('<i class="fas fa-folder-open me-2"></i>')
+                    .append(document.createTextNode(label)));
+                $(rows).eq(i).before($row);
+            });
+        }
+    };
+};
+</script>

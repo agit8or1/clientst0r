@@ -113,6 +113,7 @@
 <!-- Card View -->
 <div id="cardView" class="row" style="display: none;">
     {% for doc in org_docs %}
+    {% ifchanged doc.cat_index %}<div class="col-12"><h6 class="text-muted border-bottom pb-1 mt-2 mb-0"><i class="fas fa-folder-open me-1"></i>{{ doc.cat_label }}</h6></div>{% endifchanged %}
     <div class="col-md-3 col-lg-2 mb-3">
         <div class="card h-100 shadow-sm">
             <!-- Preview/Thumbnail -->
@@ -223,6 +224,7 @@
                             <th>Tags</th>
                             <th>Updated</th>
                             <th class="ui-actions" data-orderable="false">Actions</th>
+                            <th>Group</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -284,6 +286,7 @@
                                 <button type="button" class="btn btn-sm btn-outline-danger ui-btn-icon" title="Delete {{ doc.title }}" aria-label="Delete {{ doc.title }}" data-action="deleteDocument" data-args='["{{ doc.slug|escapejs }}", "{{ doc.title|escapejs }}"]'><i class="fas fa-trash" aria-hidden="true"></i></button>
                                 {% endif %}
                             </td>
+                            <td>{{ doc.cat_index|stringformat:"04d" }} {{ doc.cat_label }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -376,6 +379,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% include "docs/_category_grouping_js.html" %}
 <script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     // File Upload Modal Logic
@@ -611,15 +615,18 @@ $(document).ready(function() {
             // searches title *and* body server-side across the whole result
             // set; this widget can only match text already rendered into a
             // cell, so keeping both offered two boxes with different reach.
+            var grouping = kbCategoryGrouping({% if can_make_global %}7{% else %}6{% endif %});
             table = $('#orgDocsTable').DataTable({
                 order: [[{% if can_make_global %}5{% else %}4{% endif %}, 'desc']],
+                orderFixed: grouping.orderFixed,
                 pageLength: 25,
                 searching: false,
-                columnDefs: [{ targets: -1, orderable: false }],
+                columnDefs: grouping.columnDefs.concat([{ targets: {% if can_make_global %}6{% else %}5{% endif %}, orderable: false }]),
                 lengthChange: false,
                 info: false,
                 // Paging controls only appear once there is a second page.
                 drawCallback: function () {
+                    grouping.drawCallback.call(this);
                     var api = this.api();
                     var pages = api.page.info().pages;
                     $(api.table().container()).find('.dataTables_paginate')

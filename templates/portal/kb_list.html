@@ -32,14 +32,19 @@
 </div>
 {% endif %}
 
-<div class="card">
+{% for g in groups %}
+<div class="card mb-3">
+    <div class="card-header py-2">
+        <strong><i class="fas fa-folder-open me-2"></i>{{ g.label }}</strong>
+        <span class="badge text-bg-light ms-1">{{ g.documents|length }}</span>
+    </div>
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr><th>Title</th><th class="text-end" style="width: 80px;">Views</th><th style="width: 120px;">Updated</th></tr>
             </thead>
             <tbody>
-                {% for a in articles %}
+                {% for a in g.documents %}
                 <tr>
                     <td>
                         <a href="{% url 'portal:kb_detail' a.slug %}"><strong>{{ a.title }}</strong></a>
@@ -50,11 +55,16 @@
                     </td>
                     <td><span data-utc="{{ a.updated_at|date:'c' }}">{{ a.updated_at|date:'Y-m-d' }}</span></td>
                 </tr>
-                {% empty %}
-                <tr><td colspan="3" class="text-center text-muted py-4">{% if query %}No matches.{% else %}{% if not featured %}No articles available yet.{% endif %}{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+{% empty %}
+{% if query or not featured %}
+<div class="card">
+    <div class="card-body text-center text-muted py-4">{% if query %}No matches.{% else %}No articles available yet.{% endif %}</div>
+</div>
+{% endif %}
+{% endfor %}
 {% endblock %}
