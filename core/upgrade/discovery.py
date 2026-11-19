@@ -550,10 +550,7 @@ def discover(owner=None, name=None):
     }
 
 
-_SECURITY_HEADING_RE = re.compile(r'^\s{0,3}#{2,4}\s*security\b', re.IGNORECASE | re.MULTILINE)
-
-
 def _is_security(rel) -> bool:
-    if _SECURITY_HEADING_RE.search(rel.get('notes') or rel.get('body') or ''):
-        return True
-    return 'security' in (rel.get('name') or '').lower()
+    """Critical security releases only (same rule as the update badge)."""
+    from .channels import is_critical_security
+    return is_critical_security(rel.get('name'), rel.get('notes') or rel.get('body'))

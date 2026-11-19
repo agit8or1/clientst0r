@@ -38,6 +38,8 @@ Every release commit ships:
 
 The post-commit hook auto-creates the version tag locally; the pre-push hook pushes unpushed tags.
 
+Security labelling: the in-app update badge turns into a red "Security Update" only for a release whose notes have a `### Critical security` heading or whose title starts with "Critical security". Use that only for fixes an administrator should install right away (exploitable without special access, data exposure, authentication bypass). Routine hardening and review fixes go under `### Fixed` or `### Changed`, and release titles describe the change without the word "security" where it would read as an alert.
+
 ## Wording for documentation
 
 - **No competitor name-dropping** in roadmap or marketing prose. Don't position the project as "X parity" or "matches Y's wedge". Describe what the product does on its own merits.

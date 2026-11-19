@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.726] - 2026-11-19
+
+### Changed
+- **The red "Security Update" label is reserved for critical fixes.** The update badge and the version list now mark a release as a security update only when its notes have a *Critical security* section or its title starts with "Critical security". Routine hardening and review fixes show as an ordinary update. Before, any release with a security section in its notes, or the word "security" anywhere in its title, was labelled a security update.
+- Past releases on GitHub were relabelled to match, so installs on older versions see the same thing. The only release still marked critical is v3.17.688, which fixed a Microsoft sign-in account-takeover problem.
+
 ## [3.17.725] - 2026-11-19
 
 ### Security

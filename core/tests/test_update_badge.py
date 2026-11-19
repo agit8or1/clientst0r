@@ -150,9 +150,9 @@ class SecurityUpdateBadgeTests(TestCase):
         base = get_version()
         rels = [
             {'tag_name': f'v{_bump(base, 3)}', 'name': 'Ordinary', 'body': '### Added\n- x'},
-            {'tag_name': f'v{_bump(base, 2)}', 'name': 'Fixes', 'body': '### Fixed\n- y\n\n### Security\n- z'},
-            {'tag_name': f'v{_bump(base, 1)}', 'name': 'Security hardening', 'body': ''},
-            {'tag_name': f'v{_bump(base, 4)}', 'name': 'Draft', 'body': '### Security', 'draft': True},
+            {'tag_name': f'v{_bump(base, 2)}', 'name': 'Fixes', 'body': '### Fixed\n- y\n\n### Critical security\n- z'},
+            {'tag_name': f'v{_bump(base, 1)}', 'name': 'Critical security fix', 'body': ''},
+            {'tag_name': f'v{_bump(base, 4)}', 'name': 'Draft', 'body': '### Critical security', 'draft': True},
         ]
 
         def fake_get(url):
@@ -166,7 +166,13 @@ class SecurityUpdateBadgeTests(TestCase):
 
     def test_detection_rules(self):
         from core.upgrade.channels import is_security_release
-        self.assertTrue(is_security_release({'body': '## [1.2.3]\n\n### Security\n- fix'}))
-        self.assertTrue(is_security_release({'name': 'v1 — Security fixes', 'body': ''}))
+        self.assertTrue(is_security_release({'body': '## [1.2.3]\n\n### Critical security\n- fix'}))
+        self.assertTrue(is_security_release({'name': 'v3.17.9 — Critical security fix', 'body': ''}))
+        self.assertTrue(is_security_release({'name': 'Critical security update', 'body': ''}))
+        # Routine security work is an ordinary update (no red badge).
+        self.assertFalse(is_security_release({'body': '## [1.2.3]\n\n### Security\n- fix'}))
+        self.assertFalse(is_security_release({'name': 'v1 — Security fixes', 'body': ''}))
+        self.assertFalse(is_security_release({'name': 'v3.17.723 — Security vendor connections', 'body': ''}))
+        self.assertFalse(is_security_release({'name': 'v1', 'body': 'Not critical security work, in prose'}))
         self.assertFalse(is_security_release({'name': 'v1', 'body': 'Improves security of nothing in prose'}))
         self.assertFalse(is_security_release(None))

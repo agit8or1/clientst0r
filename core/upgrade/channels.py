@@ -140,17 +140,24 @@ def current_channel():
     return ch if ch in CHANNELS else 'stable'
 
 
-_SECURITY_HEADING_RE = re.compile(r'^\s{0,3}#{2,4}\s*security\b', re.IGNORECASE | re.MULTILINE)
+# Only a release explicitly marked critical turns the update badge into a
+# security alert: a "### Critical security" heading in its notes (the
+# CHANGELOG section) or a title that starts with "Critical security" (after
+# the version). Routine fixes, a "### Security" section or the word
+# "security" in a title are an ordinary update.
+_CRITICAL_HEADING_RE = re.compile(r'^\s{0,3}#{2,4}\s*critical\s+security\b', re.IGNORECASE | re.MULTILINE)
+_CRITICAL_TITLE_RE = re.compile(r'^\s*(?:v?\d+(?:\.\d+)*\s*[—:\-]\s*)?critical\s+security\b', re.IGNORECASE)
+
+
+def is_critical_security(name, notes) -> bool:
+    return bool(_CRITICAL_HEADING_RE.search(notes or '') or _CRITICAL_TITLE_RE.search(name or ''))
 
 
 def is_security_release(rel) -> bool:
-    """A published release that carries security fixes: its notes (the
-    CHANGELOG section) have a "### Security" heading, or its title says so."""
+    """A published release explicitly marked as a critical security fix."""
     if not isinstance(rel, dict):
         return False
-    if _SECURITY_HEADING_RE.search(rel.get('body') or ''):
-        return True
-    return 'security' in (rel.get('name') or '').lower()
+    return is_critical_security(rel.get('name'), rel.get('body'))
 
 
 def _stable_release(owner, name):

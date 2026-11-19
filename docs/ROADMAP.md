@@ -2300,6 +2300,8 @@ Guide: `docs/UPGRADE_AND_RECOVERY.md`.
 - **59.7 LTS channel** *(planned)*: only once there is a published support
   window and a backport policy for security fixes. Until then there is no
   LTS.
+- **Security update label for critical fixes only** *(shipped v3.17.726)* — the update badge turns red only for a release explicitly marked as a critical security fix; routine hardening shows as an ordinary update.
+
 
 ## Phase 60 — Optional ticket routing **(M · PSA)** [shipped — v3.17.664]
 
