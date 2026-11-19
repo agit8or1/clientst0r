@@ -218,7 +218,7 @@ The installer sets up Python (3.11–3.13), MariaDB, Gunicorn on port 8000 and t
 
 ## Updating and backups
 
-**Update from the web UI:** **Settings → System → System Updates** → *Check for Updates* → *Apply*. Superusers also see an **Update Available** pill when a newer release is published. Apply installs a reviewed, pinned commit, verifies the release tag signature, runs preflight checks and takes a verified backup before it changes anything. Rollback is not automatic: restoring a pre-upgrade backup is a command run on the server, shown on the Updates page. See [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) and [AUTO_UPDATE.md](AUTO_UPDATE.md).
+**Update from the web UI:** **Settings → System → System Updates** → *Check for Updates* → *Apply*. Superusers also see an **Update Available** pill when a newer release is published. Apply installs a reviewed, pinned commit, verifies the release tag signature, runs preflight checks and takes a verified backup before it changes anything. Rollback is not automatic: restoring a pre-upgrade backup is a command run on the server, shown on the Updates page. See [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) and [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 
 CLI fallback (native installs; bypasses the verified pipeline):
 
@@ -303,7 +303,7 @@ Known limitations (audit log deletable by superusers, with each deletion recorde
 | [Changelog](CHANGELOG.md) | Release history |
 | [Integrations](docs/INTEGRATION_SETUP_GUIDE.md) | PSA, RMM, M365, accounting and distributors |
 | [API access control](docs/API_ACCESS_CONTROL.md) | Address rules, webhook signatures, mutual TLS |
-| [API](API_V2_GRAPHQL.md) | REST and GraphQL endpoints |
+| [API](docs/API_V2_GRAPHQL.md) | REST and GraphQL endpoints |
 | [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, ticket AI, RMM pairing |
 | [Technician access](docs/TECHNICIAN_ACCESS.md) | Per-customer L1/L2/L3 presets, protected changes |
 | [Hardware inventory](docs/HARDWARE_INVENTORY.md) | Device catalog, panel artwork, ports, cables, racks |
