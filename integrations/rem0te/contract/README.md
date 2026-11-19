@@ -11,6 +11,7 @@ The canonical interface between **ClientSt0r** and **rem0te**. rem0te owns it.
 |---|---|
 | `openapi.yaml` | Routes on both sides |
 | `schemas/*.schema.json` | **Generated** from `apps/api/src/integration/contract.ts`. Do not edit — run `node scripts/gen-integration-contracts.mjs` |
+| `proposed/*.schema.json` | **Proposals, not contract** (0.34): `peer-capabilities`, `timeline-inference-request`, `timeline-inference-response`, `timeline-summary-output` — items P11/P12 of revision 4 in [`INTEGRATION_COORDINATION.md`](../../../INTEGRATION_COORDINATION.md) §5A. Generated from `PROPOSED_SCHEMAS` in `contract.ts`, checked for drift like the rest, and **not** part of any `contract_revision` until ClientSt0r acknowledges them |
 | `fixtures/*.json` | Example messages, produced by rem0te's own code paths. `<schema>.invalid-*.json` must be rejected. CI validates all of them |
 | `fixtures/fixture-signing-key.pub.pem` | Verifies `signed-event.job-succeeded.json`. Test-only key; its private half was discarded |
 | `examples/*.json` | **Real exchanges** (0.30), recorded by `apps/api/scripts/e2e-ticket-workflow.mjs --write-examples`: method, path, every signing header, body, and the response. Signed with the TEST-ONLY keys in `examples/keys/` (fixed seeds; the private halves are published on purpose so a peer can reproduce the signatures). `gen-integration-contracts.mjs --check` verifies every signature, delegation binding and schema in CI |
@@ -26,6 +27,8 @@ implements.
 |---|---|---|
 | 1 | 0.25–0.29 | Jobs, events, action proposals (0.26), alerts and ticket links (0.29) |
 | 2 | 0.30 | `contract_revision`; `organizations` in `/capabilities` (each organization's `business_id`, `business_name` and `paused` kinds — the binding made explicit); `alert.patch_summary` on REBOOT_PENDING alerts (schema `patch-summary`) |
+| *3 (agreed, not built)* | *—* | *P1–P10 of [`INTEGRATION_COORDINATION.md`](../../../INTEGRATION_COORDINATION.md) §5: capabilities list and diagnostic catalog, diagnostic requests and events, fix referrals and events, remote launch, handoff notes, `Idempotency-Key`, device health summary. Acknowledged by ClientSt0r on 2026-11-11 as proposed (§9). No schema here yet: `contract_revision` stays 2 until rem0te ships them* |
+| *4 (proposed)* | *0.34, rem0te side only* | *P11: inference task `device_timeline_v1` (the device page's AI summary). P12: ClientSt0r's own capabilities document at the peers file's `capabilitiesUrl`. Not agreed; see `proposed/`* |
 
 ## Milestone status
 

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "ticket-rmm-v1"
+    },
+    "peer_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "inference_tasks": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "model_profiles": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          }
+        },
+        "required": [
+          "task",
+          "model_profiles"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "features": {
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      }
+    }
+  },
+  "required": [
+    "contract",
+    "peer_id",
+    "inference_tasks"
+  ],
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:proposed:peer-capabilities",
+  "title": "ticket-rmm-v1 PROPOSED peer-capabilities (revision 4 proposal, not agreed)"
+}

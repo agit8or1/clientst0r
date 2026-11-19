@@ -6,6 +6,11 @@
 #   [REDIS_URL=redis://127.0.0.1:6379] [PYTHON=venv/bin/python] \
 #   bash scripts/e2e/cross_peer/run.sh [--keep] [--only s4,s5]
 #
+# s12/s13 (remediation chain, approval inside Rem0te) also need RELEASE_BIN and
+# ACTION_SIM: rem0te-release and rem0te-action-sim built from Rem0te's
+# tools/windows-installer (go build ./cmd/rem0te-release ./cmd/rem0te-action-sim).
+# Without them those scenarios fail (E2E_ALLOW_SKIP=1 accepts their absence).
+#
 # Or point REM0TE_ENV_SH at a file that exports those (and PATH for node).
 # Rem0te must be built (pnpm install && pnpm -r build) with its scratch
 # database migrated and seeded (pnpm --filter api exec prisma migrate deploy;

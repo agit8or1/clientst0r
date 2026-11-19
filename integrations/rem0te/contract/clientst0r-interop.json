@@ -1,10 +1,10 @@
 {
   "generated_by": "apps/api/scripts/interop-clientst0r.mjs",
-  "generated_at": "2026-11-10T21:16:22.230Z",
-  "rem0te_version": "0.29.1",
+  "generated_at": "2026-11-11T17:17:23.137Z",
+  "rem0te_version": "0.30.1",
   "clientst0r": {
-    "version": "3.17.659",
-    "commit": "a5f83826c059af20a74f100b74045405c93aa02a"
+    "version": "3.17.660",
+    "commit": "3d0ded397f9d52b16b819465e8cf7d211f882c08"
   },
   "steps": [
     {
@@ -30,8 +30,8 @@
       "result": {
         "ok": false,
         "error": "The RMM did not say which tenant this pairing answers for (capabilities \"tenant.id\"), so it cannot be paired.",
-        "checked_at": "2026-11-10T21:16:20Z",
-        "fetched_at": "2026-11-10T21:16:20Z",
+        "checked_at": "2026-11-11T17:17:16Z",
+        "fetched_at": "2026-11-11T17:17:16Z",
         "contract": "ticket-rmm-v1",
         "capabilities": [],
         "diagnostics": [],
@@ -75,5 +75,64 @@
     "ticket: Unrecognized key: \"ref\"",
     "model_profiles: Invalid input: expected array, received undefined",
     "(root): Unrecognized keys: \"job_id\", \"kind\", \"business_id\", \"actor\", \"profiles\", \"evidence_digest\", \"processing_location\", \"inference_url\", \"events_url\""
+  ],
+  "path_a_inventory_sync": [
+    {
+      "step": "whoami",
+      "ok": true,
+      "result": {
+        "success": true,
+        "businessId": "cmwcdstbz0001125lagbkx43c",
+        "apiKeyId": "cmwcdtabx000c125lsr7h2hxc",
+        "scopes": [
+          "computers:read"
+        ],
+        "timestamp": "2026-11-11T17:17:22.751Z"
+      }
+    },
+    {
+      "step": "test_connection",
+      "ok": true,
+      "result": true
+    },
+    {
+      "step": "list_devices",
+      "ok": true,
+      "result": [
+        {
+          "external_id": "cmwcdtab60008125lw9vbyibn",
+          "device_name": "BACKOFFICE",
+          "os_type": "windows",
+          "is_online": false,
+          "client_id": "cmwcdstbz0001125lagbkx43c",
+          "client_name": "IOP Acme 7d8ad4",
+          "site_name": ""
+        },
+        {
+          "external_id": "cmwcdtab00006125l8070o9l1",
+          "device_name": "FRONTDESK",
+          "os_type": "windows",
+          "is_online": true,
+          "client_id": "cmwcdstbz0001125lagbkx43c",
+          "client_name": "IOP Acme 7d8ad4",
+          "site_name": ""
+        }
+      ]
+    },
+    {
+      "step": "business_pinned",
+      "ok": true,
+      "result": "cmwcdstbz0001125lagbkx43c"
+    },
+    {
+      "step": "console_url",
+      "ok": true,
+      "result": "http://127.0.0.1:3141/endpoints/abc"
+    },
+    {
+      "step": "other_business_key",
+      "ok": false,
+      "error": "ProviderError: This Rem0te API key belongs to a different business than the one this connection was set up for. Sync stopped so that business's computers are not filed under this organization. Use a key for the original business, or create a separate connection for the new one."
+    }
   ]
 }

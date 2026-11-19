@@ -4,7 +4,13 @@ name: cross-peer-e2e
 # pairing, ticket analysis, staff-only results, alert → exactly one ticket
 # linked back, restart/retry exactly-once, same computer name in two
 # organizations, revoked access, an unavailable peer, L1 limits and
-# secret-free failure reasons. scripts/e2e/cross_peer/run.py does the work;
+# secret-free failure reasons, and (s12) the remediation chain: a Rem0te
+# alert → ticket → a technician's catalog-action proposal → approval ONLY on
+# Rem0te's approval signer by a distinct approver (test-only signer, key,
+# roster and synthetic passkeys in the run's work directory) → Rem0te's own
+# agent decision code runs it against a simulated Windows → result note →
+# alert.resolved; (s13) direct mode refuses ClientSt0r proposals.
+# scripts/e2e/cross_peer/run.py does the work;
 # this job only provides Postgres, Redis, the pinned Rem0te build and the
 # Python dependencies. All data is synthetic; ClientSt0r runs on a throwaway
 # SQLite file.
@@ -92,6 +98,23 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm db:generate
           pnpm --filter "@reboot-remote/api..." build  # the API and the workspace packages it uses
+
+      # s12/s13: the offline release tool (signed update repository with the
+      # signer's approval/keys.json) and the agent's action verifier/executor
+      # against a simulated Windows — the binaries Rem0te's own
+      # e2e-approved-action suite uses. Test-only; nothing is published.
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: rem0te/tools/windows-installer/go.mod
+          cache-dependency-path: rem0te/tools/windows-installer/go.sum
+
+      - name: Build Rem0te's release tool and action simulator
+        working-directory: rem0te/tools/windows-installer
+        run: |
+          go build -o "$RUNNER_TEMP/bin/rem0te-release" ./cmd/rem0te-release
+          go build -o "$RUNNER_TEMP/bin/rem0te-action-sim" ./cmd/rem0te-action-sim
+          echo "RELEASE_BIN=$RUNNER_TEMP/bin/rem0te-release" >> "$GITHUB_ENV"
+          echo "ACTION_SIM=$RUNNER_TEMP/bin/rem0te-action-sim" >> "$GITHUB_ENV"
 
       - name: Migrate and seed Rem0te's scratch database
         working-directory: rem0te
