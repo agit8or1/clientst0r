@@ -69,6 +69,20 @@ KNOWN_ACTIONS = {
                                 'label': 'Start the Print Spooler service', 'risk': 'low'},
 }
 
+# Alert kinds contract revision 2 carries (alert.schema.json). Rem0te monitors
+# more kinds than that; these never reach ClientSt0r over this contract, so the
+# connection page says so instead of implying full coverage.
+CONTRACT_ALERT_KINDS = ('OFFLINE', 'DISK_FREE', 'CPU_HIGH', 'MEMORY_HIGH', 'SERVICE_STOPPED', 'EVENT_MATCH',
+                        'REBOOT_PENDING', 'SITE_OUTAGE')
+REM0TE_KINDS_NOT_SENT = (
+    ('AGENT_SILENT', 'Agent not checking in'),
+    ('DRIVE_FREE', 'Free space on other fixed drives'),
+    ('UPTIME_LONG', 'Not restarted in a long time'),
+    ('UPDATES_MISSING', 'Security updates missing'),
+    ('UPDATE_FAILED', 'Update install failed'),
+    ('WARRANTY_EXPIRING', 'Hardware warranty expiring'),
+)
+
 
 @lru_cache(maxsize=1)
 def pin() -> dict:
@@ -596,6 +610,7 @@ def status(connection) -> Dict[str, Any]:
         'peer_entry': identity.peer_entry_json(connection, usable_profile_slugs(connection)),
         'organization_id': organization_id(connection),
         'proposable_actions': proposable_actions(connection),
+        'kinds_not_sent': REM0TE_KINDS_NOT_SENT,
         'pin': pin(),
         'steps': [
             "Generate ClientSt0r's Rem0te keys (below) and set ClientSt0r's audience and the address Rem0te "

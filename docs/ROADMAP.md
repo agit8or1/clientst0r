@@ -2142,10 +2142,12 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   analysis jobs run through Rem0te with signed results; L2+ technicians
   propose Rem0te catalog actions that Rem0te approves and runs. A cross-peer
   end-to-end run against a real Rem0te (`scripts/e2e/cross_peer/`, CI
-  workflow `cross-peer-e2e`). *(shipped v3.17.664)*
+  workflow `cross-peer-e2e`). *(shipped v3.17.664; refusal reasons for Rem0te 0.31–0.68 codes, direct mode
+  shown as unavailable, and the list of Rem0te alert kinds not sent shipped v3.17.721)*
 - **56.6 Fix review** — only when the RMM advertises signed actions; ClientSt0r
   refers, the RMM approves and runs. *(partial — ClientSt0r referral and signed
-  status shipped v3.17.658; rem0te approval and execution not built yet)*
+  status shipped v3.17.658; approval and execution happen in Rem0te, proven end to end by the cross-peer
+  remediation-chain run against Rem0te 0.68.0 in v3.17.721)*
 - **56.9 Ticket AI and automation history** — one staff-only, chronological
   timeline per ticket: model/profile actually run, prompt version (file name +
   content hash) on every draft and run, the human decision on each draft

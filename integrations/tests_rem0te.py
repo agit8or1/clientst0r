@@ -489,6 +489,16 @@ class ConnectionFormAndPageTests(TestCase):
         self.assertNotIn('PRIVATE KEY', html)
         self.assertNotIn('Secret ClientSt0r signs with', html.split('data-rem0te-pairing')[1].split('</details>')[0])
 
+    def test_connection_page_lists_alert_kinds_rem0te_does_not_send(self):
+        rt.setup_identity()
+        conn = rt.make_connection(self.org)
+        html = self.c.get(f'/integrations/rmm/{conn.pk}/').content.decode()
+        self.assertIn('data-rem0te-kinds-not-sent', html)
+        for _kind, label in pairing.REM0TE_KINDS_NOT_SENT:
+            self.assertIn(label, html)
+        # The kinds the contract carries are not listed as missing.
+        self.assertFalse(set(k for k, _ in pairing.REM0TE_KINDS_NOT_SENT) & set(pairing.CONTRACT_ALERT_KINDS))
+
     def test_identity_actions_superuser_only(self):
         conn = rt.make_connection(self.org)
         r = self.c.post(f'/integrations/rmm/{conn.pk}/pairing/rem0te-identity/', {'op': 'generate'})

@@ -233,6 +233,46 @@ class ContainmentTests(Rev2Base):
         self.assertEqual(len(self.fake.calls), before)
 
 
+class RefusalCodeTests(Rev2Base):
+    """Codes Rem0te 0.31-0.68 can return on the proposal path (R-03)."""
+
+    def setUp(self):
+        super().setUp()
+        self.ticket.related_asset = self.asset_a
+        self.ticket.save()
+
+    def refer(self, key, refusal):
+        self.fake.fail = lambda m, r: refusal if (m, r) == ('POST', '/action-proposals') else None
+        req, _ = rmm_actions.refer_fix(self.tech, self.ticket, self.device.pk, key,
+                                       description='Spooler stopped.', action_key='windows.service.start@1')
+        req.refresh_from_db()
+        return req
+
+    def test_direct_mode_is_unavailable_with_what_to_change(self):
+        req = self.refer('key-direct-1', (403, 'DIRECT_MODE_PORTAL_ONLY', 'direct mode'))
+        self.assertEqual((req.status, req.remote_status), ('unavailable', 'DIRECT_MODE_PORTAL_ONLY'))
+        self.assertIn('direct mode', req.error)
+        self.assertIn('Rem0te portal', req.error)
+        self.assertNotEqual(req.status, 'rejected')
+
+    def test_newer_codes_have_specific_text(self):
+        for i, code in enumerate(('ACTION_NOT_DIRECT', 'NOT_ALLOWED', 'BAD_TARGETS', 'AGENT_MAY_STILL_RUN',
+                                  'NOT_RECONCILABLE', 'REFUSED')):
+            req = self.refer(f'key-code-{i}', (403, code, 'refused'))
+            self.assertEqual((req.status, req.remote_status), ('rejected', code))
+            self.assertTrue(req.error.startswith(actions.REFUSAL_TEXT[code]), req.error)
+
+    def test_unknown_code_is_a_failure_not_a_rejection(self):
+        req = self.refer('key-unknown-1', (403, 'SOMETHING_NEW', 'new'))
+        self.assertEqual((req.status, req.remote_status), ('failed', 'SOMETHING_NEW'))
+        self.assertIn('does not recognise (SOMETHING_NEW)', req.error)
+
+    def test_403_outside_the_envelope_is_a_failure(self):
+        # No error code in the body: the client reports HTTP_403.
+        req = self.refer('key-raw-1', (403, '', ''))
+        self.assertEqual((req.status, req.remote_status), ('failed', 'HTTP_403'))
+
+
 class ExpiredApprovalTests(Rev2Base):
     def setUp(self):
         super().setUp()

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.721] - 2026-11-19
+
+### Added
+- **Rem0te connection page lists the alerts Rem0te does not send.** Rem0te monitors more than contract revision 2 carries; agent not checking in, free space on other drives, long uptime, missing security updates, failed updates and expiring warranties do not open tickets in ClientSt0r, and the page now says so.
+- **Cross-peer test of the full remediation chain** against Rem0te 0.68.0 (pin moved from 0.30.1): a Rem0te alert opens a staff-only ticket, a technician proposes a catalog action, Rem0te's approval signer refuses the proposer's own approval, a different approver approves inside Rem0te, Rem0te's agent runs it, the result goes on the ticket and the alert resolves. A second scenario checks that direct mode refuses ClientSt0r proposals. 141 checks pass locally and in CI.
+
+### Changed
+- **Clearer reasons when Rem0te refuses an action proposal.** Codes Rem0te added since 0.31 (action not allowed, refused target, agent still busy, cannot reconcile, invalid request, refused) have plain-words text. A business in Rem0te direct mode shows as *unavailable* with what to change, not as a rejection. A code ClientSt0r does not recognise, or a refusal outside the contract's error format, is shown as *failed* with the raw code, so it never reads as an approver's decision.
+
 ## [3.17.720] - 2026-11-19
 
 ### Added

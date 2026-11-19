@@ -60,7 +60,24 @@ REFUSAL_TEXT = {
     'FORBIDDEN': 'Rem0te refused the technician or organization. Check the mappings in Rem0te.',
     'DELEGATION_INVALID': 'Rem0te refused the technician delegation. Check the delegation key and clocks.',
     'IDEMPOTENCY_CONFLICT': 'Rem0te already has a different proposal under this request key.',
+    # Codes Rem0te 0.31-0.68 can return on the proposal path (apps/api/src/actions/actions.service.ts,
+    # re-wrapped into the contract envelope by integration/action-proposals.service.ts).
+    'ACTION_NOT_DIRECT': 'Rem0te does not allow that action to run without approval.',
+    'NOT_ALLOWED': 'Rem0te does not allow that action for this computer or business.',
+    'BAD_TARGETS': 'Rem0te refused the target computer for that action.',
+    'AGENT_MAY_STILL_RUN': 'The computer\'s agent may still be running an earlier action; Rem0te refused a new one.',
+    'NOT_RECONCILABLE': 'Rem0te cannot reconcile an earlier action on this computer yet.',
+    'INVALID_REQUEST': 'Rem0te refused the request as invalid.',
+    'REFUSED': 'Rem0te refused the proposal without a specific reason.',
 }
+
+# Not a refusal of this proposal: the business is set so that only people
+# signed in to Rem0te's portal can request actions. Shown as unavailable with
+# what to change, like a containment pause.
+DIRECT_MODE = ('Rem0te runs this business in direct mode (no second approver), so it accepts action requests only '
+               'from people signed in to the Rem0te portal. Nothing was proposed.')
+DIRECT_MODE_ACTION = ('A Rem0te administrator switches the business back to signed approvals on the approval signer, '
+                      'or the technician requests the action in the Rem0te portal.')
 
 
 def proposal_body(*, connection, user, ticket, device_external_id, action_key, reason, origin, key) -> dict:
@@ -151,8 +168,16 @@ def send(req) -> str:
         health.note(req.connection, 'actions', why, code='CONTAINED',
                     action='A Rem0te administrator lifts the pause once the review is done.')
         return 'unavailable'
-    text = REFUSAL_TEXT.get(r.code, 'Rem0te refused the proposal.')
-    _update(req, status='rejected' if r.status in (400, 403, 409) else 'failed', remote_status=r.code[:40],
+    if r.code == 'DIRECT_MODE_PORTAL_ONLY':
+        _update(req, status='unavailable', remote_status=r.code, error=DIRECT_MODE)
+        health.note(req.connection, 'actions', DIRECT_MODE, code=r.code, action=DIRECT_MODE_ACTION)
+        return 'unavailable'
+    known = r.code in REFUSAL_TEXT
+    text = REFUSAL_TEXT[r.code] if known else f'Rem0te refused the proposal with a code ClientSt0r does not recognise ({r.code}).'
+    # Only a recognised contract refusal is shown as "Rejected"; anything else
+    # (an unknown code, or an answer outside the contract's error envelope) is
+    # a failure, so it never reads as an approver's decision.
+    _update(req, status='rejected' if known and r.status in (400, 403, 409) else 'failed', remote_status=r.code[:40],
             error=f'{text} ({r.code}: {r.message})'[:500])
     if r.status not in (400, 409):
         health.note(req.connection, 'actions', f'{text} ({r.code})', code=r.code)
