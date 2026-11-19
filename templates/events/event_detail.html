@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Event{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'events:list' %}">Events</a></li>
+  <li class="breadcrumb-item active">#{{ event.pk }}</li>
+</ol></nav>
+<h2 class="mb-1">{% include "events/_severity.html" with s=event.severity %} {{ event.title }}</h2>
+<p class="text-muted">{{ event.get_source_display }}{% if event.connection_label %} · {{ event.connection_label }}{% endif %} · {{ event.organization.name|default:"MSP-wide" }}
+  {% if source_url %}· <a href="{{ source_url }}">Open in the source <i class="fas fa-arrow-up-right-from-square small"></i></a>{% endif %}</p>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3"><div class="card-body">
+      <dl class="row mb-0 small">
+        <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ event.get_status_display }}{% if event.source_status %} <span class="text-muted">(source: {{ event.source_status }})</span>{% endif %}</dd>
+        <dt class="col-sm-4">Severity</dt><dd class="col-sm-8">{{ event.get_severity_display }}{% if event.source_severity %} <span class="text-muted">(source: {{ event.source_severity }})</span>{% endif %}</dd>
+        <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ event.event_type|default:"—" }}</dd>
+        <dt class="col-sm-4">First / last seen</dt><dd class="col-sm-8">{{ event.first_seen_at|date:"Y-m-d H:i" }} / {{ event.last_seen_at|date:"Y-m-d H:i" }}{% if event.occurrences > 1 %} · {{ event.occurrences }} occurrences{% endif %}</dd>
+        {% if event.resolved_at %}<dt class="col-sm-4">Resolved</dt><dd class="col-sm-8">{{ event.resolved_at|date:"Y-m-d H:i" }}</dd>{% endif %}
+        <dt class="col-sm-4">Asset</dt><dd class="col-sm-8">{% if event.asset %}<a href="{% url 'assets:asset_detail' event.asset.pk %}">{{ event.asset }}</a>{% else %}{{ event.asset_hint|default:"—" }}{% endif %}</dd>
+        {% if event.vendor_event_id %}<dt class="col-sm-4">Vendor event id</dt><dd class="col-sm-8"><code class="text-break">{{ event.vendor_event_id }}</code></dd>{% endif %}
+        {% if event.source_address or event.destination_address %}<dt class="col-sm-4">Addresses</dt><dd class="col-sm-8">{{ event.source_address|default:"?" }} → {{ event.destination_address|default:"?" }}</dd>{% endif %}
+        {% if event.account %}<dt class="col-sm-4">Account</dt><dd class="col-sm-8">{{ event.account }}</dd>{% endif %}
+        {% if event.mitre_techniques %}<dt class="col-sm-4">MITRE ATT&amp;CK</dt><dd class="col-sm-8">{% for t in event.mitre_techniques %}<span class="badge bg-light text-dark border me-1">{{ t }}</span>{% endfor %}</dd>{% endif %}
+        {% if event.rule_name %}<dt class="col-sm-4">Rule</dt><dd class="col-sm-8">{{ event.rule_name }}</dd>{% endif %}
+      </dl>
+    </div></div>
+    {% if event.raw %}
+    <details class="card"><summary class="card-header py-2">Raw payload (stored copy, size-capped)</summary>
+      <pre class="card-body small mb-0" style="max-height:24rem;overflow:auto">{{ event.raw|pprint }}</pre>
+    </details>
+    {% endif %}
+  </div>
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header py-2"><h6 class="mb-0">Tickets and incidents</h6></div>
+      <ul class="list-group list-group-flush">
+        {% for l in links %}
+        <li class="list-group-item d-flex justify-content-between align-items-center small">
+          <span>
+            {% if l.ticket %}<i class="fas fa-ticket me-1"></i><a href="{% url 'psa:ticket_detail' l.ticket.ticket_number %}">{{ l.ticket }}</a>
+            {% else %}<i class="fas fa-fire me-1"></i><a href="{% url 'security_alerts:incident_detail' l.incident.pk %}">Incident #{{ l.incident.pk }} {{ l.incident.title }}</a>{% endif %}
+            <span class="text-muted">· {% if l.origin == 'manual' %}linked by {{ l.created_by|default:"someone" }}{% else %}from the source{% endif %}</span>
+          </span>
+          {% if can_act and l.origin == 'manual' %}
+          <form method="post" action="{% url 'events:unlink' event.pk l.pk %}">{% csrf_token %}<button class="btn btn-link btn-sm text-danger p-0">Remove</button></form>
+          {% endif %}
+        </li>
+        {% empty %}<li class="list-group-item small text-muted">Not linked.</li>{% endfor %}
+      </ul>
+      {% if can_act %}
+      <form method="post" action="{% url 'events:link' event.pk %}" class="card-body d-flex flex-wrap gap-2">{% csrf_token %}
+        <input name="ticket" class="form-control form-control-sm" style="max-width:12rem" placeholder="Ticket number">
+        <input name="incident" class="form-control form-control-sm" style="max-width:9rem" placeholder="Incident #">
+        <button class="btn btn-sm btn-outline-primary">Link</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if related %}
+    <div class="card"><div class="card-header py-2"><h6 class="mb-0">Same customer and host</h6></div>
+      <ul class="list-group list-group-flush">
+        {% for r in related %}<li class="list-group-item small">{% include "events/_severity.html" with s=r.severity %} <a href="{% url 'events:detail' r.pk %}">{{ r.title }}</a> <span class="text-muted">· {{ r.get_source_display }} · {{ r.last_seen_at|date:"Y-m-d H:i" }}</span></li>{% endfor %}
+      </ul></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

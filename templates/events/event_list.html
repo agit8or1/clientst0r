@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Events{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h2 class="mb-0"><i class="fas fa-stream me-2"></i>Events</h2>
+  <a href="{% url 'events:health' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-heart-pulse me-1"></i>Ingestion health{% if health_problems %} <span class="badge bg-danger">{{ health_problems }}</span>{% endif %}
+  </a>
+</div>
+<p class="text-muted small">Alerts from every monitored source in one list: security vendors and SIEM, RMM, Rem0te, backups and website monitors. Each source page stays the place to act on its alerts.</p>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for key, label, n in sources %}
+  <a href="?source={{ key }}" class="btn btn-sm {% if filters.source == key %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ label }} <span class="badge bg-light text-dark">{{ n }}</span></a>
+  {% endfor %}
+  {% if filters.source %}<a href="?" class="btn btn-sm btn-link">All sources</a>{% endif %}
+</div>
+
+<form method="get" class="d-flex flex-wrap gap-2 mb-3">
+  <input type="hidden" name="source" value="{{ filters.source }}">
+  <select name="severity" class="form-select form-select-sm" style="width:auto" data-autosubmit>
+    <option value="">Any severity</option>
+    {% for v, l in severities %}<option value="{{ v }}" {% if filters.severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <select name="status" class="form-select form-select-sm" style="width:auto" data-autosubmit>
+    <option value="">Open and acknowledged</option>
+    {% for v, l in statuses %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All</option>
+  </select>
+  <select name="customer" class="form-select form-select-sm" style="width:auto" data-autosubmit>
+    <option value="">All customers</option>
+    {% for id, name in customers %}<option value="{{ id }}" {% if filters.customer == id|stringformat:'s' %}selected{% endif %}>{{ name }}</option>{% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ filters.q }}" class="form-control form-control-sm" style="width:auto" placeholder="Title, host or vendor id">
+  <button class="btn btn-sm btn-outline-primary">Filter</button>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead><tr><th>Severity</th><th>Event</th><th>Customer</th><th>Source</th><th>Status</th><th>Last seen</th></tr></thead>
+      <tbody>
+      {% for e in page %}
+        <tr>
+          <td>{% include "events/_severity.html" with s=e.severity %}</td>
+          <td><a href="{% url 'events:detail' e.pk %}">{{ e.title }}</a>{% if e.asset_hint %}<div class="small text-muted">{{ e.asset_hint }}</div>{% endif %}</td>
+          <td>{{ e.organization.name|default:"MSP-wide" }}</td>
+          <td class="small">{{ e.get_source_display }}{% if e.connection_label %}<div class="text-muted">{{ e.connection_label }}</div>{% endif %}</td>
+          <td>{{ e.get_status_display }}{% if e.occurrences > 1 %} <span class="badge bg-light text-dark border">×{{ e.occurrences }}</span>{% endif %}</td>
+          <td class="small text-nowrap">{{ e.last_seen_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No events match.{% if not filters.status %} Nothing is open right now.{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page.has_other_pages %}
+<nav class="mt-3"><ul class="pagination pagination-sm">
+  {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?{% for k, v in filters.items %}{{ k }}={{ v|urlencode }}&{% endfor %}page={{ page.previous_page_number }}">Previous</a></li>{% endif %}
+  <li class="page-item disabled"><span class="page-link">Page {{ page.number }} of {{ page.paginator.num_pages }}</span></li>
+  {% if page.has_next %}<li class="page-item"><a class="page-link" href="?{% for k, v in filters.items %}{{ k }}={{ v|urlencode }}&{% endfor %}page={{ page.next_page_number }}">Next</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% endblock %}

@@ -1329,6 +1329,10 @@ PRIMARY = (
         Entry(_('Security Overview'), url_name='security_alerts:overview', icon='fa-shield-halved',
               gate=_all(_msp_staff, _psa),
               keywords='security overview operational summary alerts incidents rmm monitoring mtta mttr'),
+        # Shared event layer (Phase 82): every source's alerts in one list;
+        # staff-only /security/ prefix and security_alerts_view, scoped per customer.
+        Entry(_('Events'), url_name='events:list', icon='fa-stream', gate=_all(_msp_staff, _security_reader),
+              keywords='events alerts all sources normalized ingestion health backup rmm rem0te website down'),
         Entry(_('Security Alerts'), section='mod_security', icon='fa-triangle-exclamation',
               keywords='edr siem vendor connections auto-ticket rules digest'),
         Entry(_('Security Incidents'), section='mod_security_ops', icon='fa-fire',
@@ -1400,7 +1404,7 @@ NAMESPACE_GROUP = {
     'inventory': 'assets', 'vehicles': 'assets',
     'assets': 'assets', 'hardware': 'assets', 'network_discovery': 'assets', 'locations': 'assets',
     'backup_monitoring': 'assets',
-    'statuspage': 'security', 'netconfig': 'security', 'security_alerts': 'security',
+    'statuspage': 'security', 'netconfig': 'security', 'security_alerts': 'security', 'events': 'security',
     'crm': 'business', 'pulse': 'business', 'health_score': 'business', 'contracts': 'business',
     'reports': 'reports', 'executive': 'dashboard', 'advisor': 'reports',
     'docs': 'knowledge', 'readiness': 'knowledge', 'vault': 'knowledge',

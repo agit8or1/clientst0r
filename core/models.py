@@ -1307,6 +1307,7 @@ class ScheduledTask(models.Model):
         # API Access Control: undo changes whose rollback window ended, prune old
         # refusals and expired webhook replay records (v3.17.717).
         ('api_access_tick', 'API Access Control Maintenance'),
+        ('events_tick', 'Shared Event Layer Ingestion'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1989,6 +1990,13 @@ class ScheduledTask(models.Model):
             'task_type': 'api_access_tick',
             'description': 'Undo API access changes whose rollback window ended unkept; delete refused-request '
                            'records past retention and expired webhook replay records',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'events_tick',
+            'description': 'Copy security, RMM, Rem0te, backup and website-monitor alerts into the shared event '
+                           'layer; apply event retention and the storage quota',
             'interval_minutes': 1,
             'enabled': True,
         },

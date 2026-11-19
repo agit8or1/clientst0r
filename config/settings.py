@@ -161,6 +161,7 @@ INSTALLED_APPS = [
     'tax.apps.TaxConfig',
     'connect.apps.ConnectConfig',  # Agit8or Connect (app-to-app); off unless AGIT8OR_CONNECT_ENABLED
     'api_access.apps.ApiAccessConfig',  # API and webhook network rules (Phase 81)
+    'events.apps.EventsConfig',  # Shared operational event layer (Phase 82)
     'health_score.apps.HealthScoreConfig',
     'onboarding.apps.OnboardingConfig',
 ]

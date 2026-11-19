@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.719] - 2026-11-19
+
+### Added
+- **Shared event layer** (roadmap Phase 82, first release). Security & Monitoring → **Events** lists alerts from every monitored source in one place: security vendors and SIEM webhooks, RMM, Rem0te, backup monitoring and website monitors (each outage is one event, closed when the site is back). Each source keeps its own alerts and pages; the event layer is a normalized copy with customer, source and connection, vendor event id, type, first/last seen, severity, status, asset, MITRE ATT&CK techniques when the vendor sends them, a de-duplication key, a correlation group (same customer and host) and a raw-payload copy capped at 8 KB.
+- **One link table for tickets and incidents.** Tickets and incidents already recorded by a source (auto-tickets, backup and Rem0te tickets, incident membership) appear on the event; a technician can also link a ticket or incident by hand from the event page. Links are limited to the event's customer, and alert, incident and ticket keep their own lifecycles.
+- **Ingestion runs from the scheduler**, never inside a page request: saving a source alert queues it (one entry per alert), a new every-minute task copies queued items within a 40-second budget, a rescan picks up rows written without a save (bulk syncs), and open events are rechecked in rotation. Failures retry five times, then stop as failed items you can retry. Above 50,000 waiting items new entries are skipped and arrive through the rescan instead.
+- **Ingestion health** (Events → Ingestion health): last success, last run and duration, error state and last error per source, queue size and failed items.
+- **Retention and quota:** closed events are deleted after 180 days, raw payload copies are cleared after 30 days, and a storage quota (200,000 events by default) removes the oldest closed events first. Open and acknowledged events are never pruned. An ingestion switch turns the layer off without affecting the source pages.
+
+### Notes
+- The page uses the existing staff-only `security_alerts_view` permission and is scoped per customer; events without a customer are shown only to users who see every customer. Dedicated permission keys and seeded analyst roles are still planned (82.6).
+- On upgrade the scheduler backfills existing alerts at 500 per source per minute.
+
 ## [3.17.718] - 2026-11-18
 
 ### Added

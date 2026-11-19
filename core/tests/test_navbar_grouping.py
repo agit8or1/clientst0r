@@ -57,7 +57,7 @@ BUSINESS = ['crm:home', 'psa:contract_list', 'psa:quote_list', 'psa:invoice_list
 KNOWLEDGE = ['docs:document_list', 'psa:kb_browse', 'docs:diagram_list', 'docs:document_drafts_list',
              'readiness:overview', 'vault:password_list', 'vault:personal_vault_list',
              'core:secure_note_inbox']
-TOOLS_SU = ['security_alerts:overview', 'security_alerts:alert_list', 'security_alerts:incident_list', 'integrations:rmm_alerts',
+TOOLS_SU = ['security_alerts:overview', 'events:list', 'security_alerts:alert_list', 'security_alerts:incident_list', 'integrations:rmm_alerts',
             'ticket_routing:alerts', 'monitoring:website_monitor_list']
 # A technician with no role: Security Alerts needs security_alerts_view
 # (@require_perm on the page), so it is not drawn.
@@ -69,7 +69,7 @@ ACCOUNT = ['accounts:profile', 'resourcing:my_resourcing', 'core:help_index',
            'core:install_app']
 
 # Destinations only MSP staff (or superusers) may see.
-STAFF_ONLY = ['security_alerts:overview', 'security_alerts:alert_list', 'crm:home', 'reports:home',
+STAFF_ONLY = ['security_alerts:overview', 'events:list', 'security_alerts:alert_list', 'crm:home', 'reports:home',
               'assets:vendor_list', 'core:settings_general', 'core:security_dashboard',
               'integrations:integration_list', 'core:mobile_apps_admin',
               'core:snyk_scans', 'accounts:access_management',

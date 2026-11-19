@@ -255,6 +255,8 @@ def _apply(connection, event):
                 updates['resolved_at'] = timezone.now()
             Rem0teAlertTicket.objects.filter(pk=row.pk, last_sequence__lt=seq).update(**updates,
                                                                                      updated_at=timezone.now())
+            from events.queue import enqueue
+            enqueue('rem0te', row.pk)  # .update() sends no save signal
             if policy is not None:
                 # Optional alert policy (psa/routing/alert_policy.py): recovery
                 # notes, and resolving a ticket only this alert opened.
