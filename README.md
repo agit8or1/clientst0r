@@ -141,6 +141,14 @@ Release-by-release detail: [CHANGELOG.md](CHANGELOG.md).
 
 No dates. Status comes from the [roadmap](docs/ROADMAP.md); ideas and votes go to [GitHub discussion #161](https://github.com/agit8or1/clientst0r/discussions/161).
 
+**Roadmap highlights** (all planned; priority P0 = essential, P4 = exploratory; details in the [roadmap](docs/ROADMAP.md) and the [Phases 96–100 specs](docs/plans/phases-96-100/README.md))
+
+- **P0** — First-install setup wizard and guided tours (Phase 96): a Setup Assistant for new installs, readiness checks, and walkthroughs of the live interface by role.
+- **P1** — Prospect IT assessment (Phase 97): record a prospect's IT environment during a meeting, with Quick and Detailed views of one answer set, and turn verified answers into draft records on conversion.
+- **P1** — Service estimator and forecast accuracy (Phase 98): deterministic effort, cost and price estimates from the assessment, compared with actual results after onboarding. AI explanations are optional.
+- **P2** — Phone system integration (Phase 99): caller popups, click-to-call and call-to-ticket from an existing PBX, starting with Asterisk and FreePBX.
+- **P4** — Optional simple PBX appliance (Phase 100): exploratory; not built unless the phone integration is proven and there is demand.
+
 **In development**
 
 - Rem0te ticket actions: read-only diagnostics, remediation proposals approved in Rem0te, and results returned to the ticket (contract revision 3).

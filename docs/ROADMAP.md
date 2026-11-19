@@ -3318,6 +3318,180 @@ Extends the import framework (Phase 61).
 
 **Sizing:** **L**.
 
+## Phase 96 — First-install setup wizard and interactive onboarding **(L · P0 · UX)** [planned]
+
+Priority P0. A Setup Assistant for new installs and guided tours of the live interface. The wizard writes the
+existing settings; it is not a second settings system. Spec:
+[docs/plans/phases-96-100/96-setup-wizard-and-tours.md](plans/phases-96-100/96-setup-wizard-and-tours.md).
+
+- **96.1 Default password and install readiness** *(planned)* — flag the installer's default administrator
+  password until it is changed; one readiness check (2FA, site URL, mail, backups, scheduler, disk, pending
+  migrations) with fix links, built on the upgrade preflight and system warnings.
+- **96.2 First-install detection** *(planned)* — the wizard is offered automatically only on a fresh install,
+  after 2FA enrolment; upgraded installs are never redirected; extends the onboarding step engine with an
+  install session that needs no customer.
+- **96.3 Setup Assistant, core steps** *(planned)* — MSP details and branding, administrator security, modules,
+  technicians, teams and roles, review; progress, save and resume, Back / Next / Skip, required and optional
+  steps marked; reopen any time under Administration → General without overwriting anything.
+- **96.4 Setup Assistant, service steps** *(planned)* — first customer or first prospect, service desk mail,
+  routing and notifications, optional integrations with their existing connection tests, backup and health
+  readiness. Secrets never appear in summaries or logs.
+- **96.5 Isolated sample data** *(planned)* — an optional, clearly marked demo customer that never appears in
+  reports, exports, billing or outbound messages, removable in one action.
+- **96.6 Guided tours** *(planned)* — real tours over the live interface (highlighted element, step prompt) for
+  owner, manager, sales, Level 1 and Level 2/3 technicians and portal users; steps follow permissions, enabled
+  modules and current navigation; completion, dismissal and replay per user; no new UI framework.
+- **96.7 Contextual help** *(planned)* — help links from the relevant screens and a rewritten getting-started
+  guide.
+
+Dependencies: Phases 59 (preflight), 64 (roles), 67 (navigation). Acceptance: fresh installs (script and
+Docker) are offered the wizard after 2FA enrolment and upgraded installs are not; every step saves through the
+existing settings; sample data never reaches real figures. Testing: detection on empty and populated databases,
+2FA ordering with the real middleware, permission and customer-boundary tests for every step and tour, upgrade
+rehearsal, a browser run of a multi-page tour.
+
+**Sizing:** **L** — readiness and detection first, then the wizard, then tours.
+
+## Phase 97 — Prospect IT assessment and CRM enhancements **(L · P1 · sales)** [planned]
+
+Priority P1. Extends the CRM (Phase 5) so a salesperson or technician can record a prospect's whole IT
+environment during a meeting, then turn approved answers into draft records when the deal is won. Spec:
+[docs/plans/phases-96-100/97-prospect-assessment-crm.md](plans/phases-96-100/97-prospect-assessment-crm.md).
+
+- **97.1 Assessment templates** *(planned)* — reusable, versioned templates on the request-form schema engine:
+  sections, optional and conditional questions, Yes / No / Unknown, numbers, choices and short text; a starter
+  template covering business profile, endpoints, servers, network, applications, security, backup, current IT
+  support and business and financial details.
+- **97.2 Assessments on leads and opportunities** *(planned)* — Quick and Detailed views of the same answers,
+  autosave and resume, notes and attachments per section, tablet and phone layout, several assessments per
+  lead over time.
+- **97.3 Answer provenance** *(planned)* — who supplied each answer, who recorded it, and whether it is
+  verified, unverified or disputed; "Unknown" is an explicit answer.
+- **97.4 Revisions and compare** *(planned)* — immutable revisions with side-by-side comparison.
+- **97.5 Reports and summaries** *(planned)* — printable and PDF report, customer-facing variant without
+  internal notes; **OPTIONAL AI** assessment and meeting summaries with action items, gated by
+  `psa_ai_enabled`, drafts only.
+- **97.6 Conversion to draft records** *(planned)* — on conversion, verified answers become draft customer,
+  location, contact, asset, documentation, plan, quote, contract, onboarding project and remediation records
+  through the existing lead conversion and onboarding wizard; unverified answers become "to confirm" items;
+  duplicates are linked, not created.
+- **97.7 Risk and readiness scores** *(planned)* — deterministic, explained per answer; unknown never counts as
+  healthy.
+- **97.8 Qualification rules** *(planned)* — MSP-defined qualification and profitability acceptance rules,
+  advisory only.
+- **97.9 Unified communications history** *(planned)* — sales activities, assessment events and (with Phase 99)
+  calls on one timeline.
+- **97.10 Imports and reconciliation** *(planned)* — optional spreadsheet import before conversion; discovery
+  and RMM counts reconciled after conversion for review, never overwriting answers.
+
+Dependencies: Phases 5 (CRM), 64 (roles), 75.3 (commercial onboarding). Acceptance: one answer set behind both
+views; only verified answers create records; prospects stay out of customer lists until conversion. Testing:
+schema compatibility with request forms, conversion and rollback, sales versus technical permissions,
+customer-boundary tests, AI gating, a tablet-viewport browser run.
+
+**Sizing:** **L** — templates and assessments first, then provenance, revisions and conversion.
+
+## Phase 98 — Service estimator and forecast accuracy **(L · P1 · sales)** [planned]
+
+Priority P1. Estimates monthly effort, cost and a price range from the Phase 97 assessment with a
+deterministic, explainable engine, then checks the forecast against actual results. Spec:
+[docs/plans/phases-96-100/98-service-estimator-forecasting.md](plans/phases-96-100/98-service-estimator-forecasting.md).
+
+- **98.1 Estimation models** *(planned)* — MSP-defined, versioned rules per user, endpoint, server, location,
+  application and service, with low / expected / high hours, onboarding hours and bounded complexity
+  allowances; changes need approval.
+- **98.2 Calculation engine** *(planned)* — deterministic: monthly hours range, onboarding and remediation
+  estimate, labor cost from existing cost rates, known vendor costs (unknown stays unknown), price range for the
+  target margin, projected gross profit, confidence, assumptions and missing-data warnings, each with its
+  working shown.
+- **98.3 Estimates on opportunities** *(planned)* — stored with their inputs and model version; frozen when a
+  quote is sent.
+- **98.4 Explanations** *(planned)* — **OPTIONAL AI**, gated by `psa_ai_enabled`: explains estimates, risks,
+  missing information and plan fit, and drafts proposal text; every figure is checked against the computed
+  input. AI never approves pricing, edits contracts or sends proposals.
+- **98.5 Plan comparison and draft quote** *(planned)* — compare the MSP's own service plans against the
+  estimate; create a draft quote through the existing draft-with-approval pattern; never sent automatically.
+- **98.6 Forecast-versus-actual reviews** *(planned)* — 30, 60 and 90-day and quarterly reviews of hours, labor
+  cost and margin with onboarding effort separated from steady state; surfaced in existing reports, the
+  executive overview and the advisor.
+- **98.7 Assumption-change recommendations** *(planned)* — proposals based on review history that a person
+  accepts into a new draft model version; nothing applied silently.
+- **98.8 Prospect intelligence** *(planned)* — missing services, upsell, readiness report and follow-up
+  questions.
+
+Dependencies: Phase 97; Phases 68, 69 (pricing, rate cards), 70 (quote conversion), 75 and 76 (profitability,
+advisor); Phase 92 improves actual counts. Acceptance: same inputs always give the same results; unknown costs
+never shown as numbers; costs and margins visible only with internal-cost permission. Testing: table-driven
+engine tests, onboarding split, cost visibility, customer scoping of actuals, AI figure validation, an end-to-end
+run from assessment to 30-day review.
+
+**Sizing:** **L** — models and engine first, then plan comparison, then reviews.
+
+## Phase 99 — Phone system integration and call-to-ticket **(XL · P2 · integrations)** [planned]
+
+Priority P2. Connects ClientSt0r to a PBX the MSP already runs; media and routing stay on the PBX and calls
+never transit ClientSt0r. First target: Asterisk 22 LTS and FreePBX 17 through the Asterisk Manager Interface,
+via a small bridge on the PBX host. No platform is listed as supported until its integration is verified. Spec:
+[docs/plans/phases-96-100/99-pbx-integration.md](plans/phases-96-100/99-pbx-integration.md).
+
+- **99.1 Adapter framework and signed event contract** *(planned)* — vendor-neutral call events with HMAC
+  signatures, timestamps, replay protection, ordering and retries on the existing webhook guard; network
+  rules from Phase 81.
+- **99.2 Asterisk / FreePBX bridge** *(planned)* — a small outbound-only process on the PBX host with an
+  on-disk buffer; AMI kept on localhost; continuous integration against a real containerized Asterisk.
+- **99.3 Number normalization and matching** *(planned)* — E.164 normalization; matches to contacts,
+  customers, leads and users, with ambiguous matches shown as such. A phone number never establishes identity
+  or authorization.
+- **99.4 Caller popup** *(planned)* — compact slide-out with caller, customer, open tickets and permitted
+  contract and SLA facts; quick ticket or new lead.
+- **99.5 Click-to-call** *(planned)* — from customer, contact, ticket and lead records through the PBX, with
+  permission checks, rate limits and an audit trail.
+- **99.6 Call log and timelines** *(planned)* — inbound, outbound and missed calls on ticket, contact,
+  customer and lead timelines.
+- **99.7 Missed calls, voicemail-to-ticket and callbacks** *(planned)* — voicemail-to-ticket optional and off
+  by default; callback due times in business hours.
+- **99.8 Queue and agent status** *(planned)* — where the PBX reports them; IVR, trunks and routing stay in the
+  PBX.
+- **99.9 Health alerts** *(planned)* — bridge offline and signature failures through the event layer
+  (Phase 82).
+- **99.10 Recording and transcription policy** *(planned)* — off by default; links to PBX-held recordings only,
+  behind their own permission; transcription would be **OPTIONAL AI** with consent and retention settings.
+- **99.11 Further adapters** *(planned)* — Yeastar P-Series, 3CX, Wazo Platform, FreeSWITCH / FusionPBX,
+  Grandstream UCM, one at a time, each after licensing checks and a verified integration.
+
+Dependencies: Phases 81, 82, 64; uses Phase 93 calendars and Phase 97 leads when present. Acceptance: a
+disconnected PBX never affects sign-in or ticketing; call state is stored in the database; every call
+operation is permission-checked. Testing: signature, replay and ordering tests, customer-boundary tests on
+popups and call lists, failure-isolation tests, and a CI job placing real calls against containerized
+Asterisk 22.
+
+**Sizing:** **XL** — contract and bridge first, then matching and popup, then click-to-call and call history.
+
+## Phase 100 — Optional simple PBX appliance **(XL · P4 · exploratory)** [planned]
+
+Priority P4, exploratory. An optional, separate PBX appliance built on an existing open-source engine (no new
+SIP or media stack), isolated from the ClientSt0r application and database so voice keeps working when
+ClientSt0r is offline. **Not to be built until Phase 99 is proven with real users and the go/no-go criteria
+are met.** Spec:
+[docs/plans/phases-96-100/100-simple-pbx-appliance.md](plans/phases-96-100/100-simple-pbx-appliance.md).
+
+- **100.1 Research refresh** *(planned)* — Asterisk versus FreeSWITCH, licensing, measured footprint, trunk and
+  NAT compatibility, TLS / SRTP, toll-fraud prevention, call-rate and destination limits, emergency calling
+  (Kari's Law and RAY BAUM'S Act dispatchable location), recording consent, updates and support burden.
+- **100.2 Go / no-go review** *(planned)* — recorded against the criteria in the spec: shipped Phase 99,
+  documented demand, staffed patching, emergency-calling scope, toll-fraud defaults, licensing review and
+  measured capacity.
+- **100.3 Implementation plan** *(planned — only on a go decision)* — minimum feature set: trunks, DID routing,
+  extensions, ring groups, sales and support queues, basic IVR, voicemail, business hours and holidays,
+  transfers, call history, softphones, ClientSt0r popups through the Phase 99 bridge, health monitoring, backup,
+  restore and updates.
+
+Dependencies: Phase 99 shipped and proven; Phases 59, 93, 94. Acceptance for this phase: a recorded go/no-go
+decision. Testing (if built): the Phase 99 Asterisk CI harness, security scans, emergency-calling tests on a
+test route, update and restore rehearsals, load tests.
+
+**Sizing:** **XL** if built; the exploratory work itself is **S**.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -3422,3 +3596,8 @@ Extends the import framework (Phase 61).
 | 93 — Business-hours SLA calendars | M | planned | — |
 | 94 — Evidence integrity and routine backups | M | planned | — |
 | 95 — PSA migration importers | L | planned | Phase 61; Phase 94.3 for destructive imports |
+| 96 — First-install setup wizard and interactive onboarding (P0) | L | planned | Phases 59, 64, 67 |
+| 97 — Prospect IT assessment and CRM enhancements (P1) | L | planned | Phase 5 CRM; Phase 75.3 onboarding; Phase 64 roles |
+| 98 — Service estimator and forecast accuracy (P1) | L | planned | Phase 97; Phases 68, 69, 70, 75, 76; Phase 92 for actual counts |
+| 99 — Phone system integration and call-to-ticket (P2) | XL | planned | Phases 81, 82, 64; uses Phases 93 and 97 when present |
+| 100 — Optional simple PBX appliance (P4, exploratory) | XL if built | planned — not to be built until Phase 99 is proven and the go/no-go criteria are met | Phase 99; Phases 59, 93, 94 |
