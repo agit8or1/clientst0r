@@ -180,6 +180,7 @@ def _webhook_connection(pk, provider_type):
     return conn
 
 
+# CSRF-exempt: provider-to-server call with no session; the request is authenticated by the stripe signature check in payments.webhooks (rejected before anything is recorded).
 @csrf_exempt
 @require_POST
 def stripe_webhook(request, pk):
@@ -188,6 +189,7 @@ def stripe_webhook(request, pk):
     return HttpResponse(msg, status=status, content_type='text/plain')
 
 
+# CSRF-exempt: provider-to-server call with no session; the request is authenticated by the gocardless signature check in payments.webhooks (rejected before anything is recorded).
 @csrf_exempt
 @require_POST
 def gocardless_webhook(request, pk):

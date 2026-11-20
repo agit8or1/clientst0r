@@ -212,6 +212,19 @@ class WebhookEndpointTests(PaymentsBase):
         resp = Client().get(reverse('payments:stripe_webhook', args=[self.stripe.pk]))
         self.assertEqual(resp.status_code, 405)
 
+    def test_unsigned_post_refused_on_both_webhooks(self):
+        # SR-36: the csrf_exempt webhooks rely on the signature alone; a POST
+        # with no signature header at all is refused and records nothing.
+        gc = PaymentConnection.objects.create(provider_type='gocardless', name='GC-unsigned')
+        gc.set_credentials({'access_token': 't', 'webhook_secret': GC_SECRET, 'environment': 'sandbox'})
+        gc.save()
+        for name, pk in (('stripe_webhook', self.stripe.pk), ('gocardless_webhook', gc.pk)):
+            resp = Client(enforce_csrf_checks=True).post(
+                reverse('payments:' + name, args=[pk]), data=b'{"events": []}',
+                content_type='application/json')
+            self.assertTrue(400 <= resp.status_code < 500, (name, resp.status_code))
+        self.assertFalse(GatewayEvent.objects.exists())
+
 
 # ---------------------------------------------------------------------------
 # Settlement exactly once

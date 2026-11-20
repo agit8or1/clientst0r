@@ -266,6 +266,7 @@ def _host_from_url(value):
 # ---------------------------------------------------------------------------
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['GET'])
 @extension_auth_required
@@ -332,6 +333,7 @@ def autofill(request):
     })
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['GET'])
 @extension_auth_required
@@ -437,6 +439,7 @@ def bulk_sync(request):
 # ---------------------------------------------------------------------------
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['GET'])
 @extension_auth_required
@@ -493,6 +496,7 @@ def totp_code(request, pk):
     })
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['POST'])
 @extension_auth_required
@@ -579,6 +583,7 @@ def reveal(request, pk):
 # ---------------------------------------------------------------------------
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['GET'])
 @extension_auth_required
@@ -602,6 +607,7 @@ def verify_master_nonce(request):
     return JsonResponse({'nonce': nonce, 'ttl_seconds': 60})
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['POST'])
 @extension_auth_required
@@ -673,6 +679,7 @@ def verify_master(request):
 # ---------------------------------------------------------------------------
 
 
+# CSRF-exempt: bearer token from the Authorization header only (extension_auth.resolve_extension_token); session cookies are never used, so CSRF does not apply.
 @csrf_exempt
 @require_http_methods(['GET'])
 @extension_auth_required

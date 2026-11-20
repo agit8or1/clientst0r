@@ -182,3 +182,16 @@ class GraphQLScopingTests(TestCase):
                            csrf=True)
         self.assertEqual(resp.status_code, 403)
         self.assertTrue(Asset.objects.filter(pk=self.asset_a.pk).exists())
+
+
+class DeadGraphQLModuleTests(TestCase):
+    """SR-20: the unmounted csrf_exempt GraphQL URL module is gone."""
+
+    def test_unmounted_graphql_path_does_not_resolve(self):
+        from django.urls import Resolver404, resolve
+        with self.assertRaises(Resolver404):
+            resolve('/graphql/')
+
+    def test_dead_module_removed(self):
+        with self.assertRaises(ImportError):
+            __import__('api.urls_graphql')
