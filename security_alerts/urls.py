@@ -27,6 +27,7 @@ urlpatterns = [
     path('incidents/', views.incident_list, name='incident_list'),
     path('incidents/<int:pk>/', views.incident_detail, name='incident_detail'),
     path('incidents/<int:pk>/decide/', views.incident_decide, name='incident_decide'),
+    path('incidents/<int:pk>/run-playbook/', views.incident_run_playbook, name='incident_run_playbook'),
     # Phase 23 v3.17.362 — OPTIONAL AI incident summarization
     path('incidents/<int:pk>/ai-summarize/', views.incident_ai_summarize, name='incident_ai_summarize'),
     # Phase 23 v3.17.356 — remediation playbooks

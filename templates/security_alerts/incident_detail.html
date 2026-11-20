@@ -32,6 +32,24 @@
 
 {% include "security_alerts/_related_device.html" %}
 
+{% if suggested_playbook %}
+<div class="card mb-3"><div class="card-body d-flex justify-content-between align-items-center gap-2 flex-wrap">
+    <div>
+        <h5 class="mb-1">Suggested playbook: {{ suggested_playbook.name }}</h5>
+        <ol class="mb-0 small">
+            {% for step in suggested_playbook.steps.all %}<li>{{ step.get_action_display }}</li>{% empty %}<li class="text-muted">No steps configured.</li>{% endfor %}
+        </ol>
+    </div>
+    {% if can_acknowledge %}
+    <form method="post" action="{% url 'security_alerts:incident_run_playbook' incident.pk %}" data-confirm="Run this playbook now? Each step is recorded in the timeline under your name.">
+        {% csrf_token %}
+        <input type="hidden" name="playbook" value="{{ suggested_playbook.pk }}">
+        <button class="btn btn-warning btn-sm">Approve and run</button>
+    </form>
+    {% endif %}
+</div></div>
+{% endif %}
+
 {% if incident.description %}
 <div class="card mb-3"><div class="card-body">
     <h5>Description</h5>

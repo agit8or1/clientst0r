@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     SecurityVendorConnection, SecurityAlert, SecurityAlertRule,
-    SIEMWebhookEndpoint,
+    SIEMWebhookEndpoint, RemediationPlaybook, RemediationPlaybookStep,
 )
 
 
@@ -40,3 +40,17 @@ class SIEMWebhookEndpointAdmin(admin.ModelAdmin):
     # The URL token is stored hashed and the HMAC secret encrypted; neither
     # is shown after issue (see the endpoint form's regenerate action).
     exclude = ('token_hash', 'hmac_secret')
+
+
+class RemediationPlaybookStepInline(admin.TabularInline):
+    model = RemediationPlaybookStep
+    extra = 0
+
+
+@admin.register(RemediationPlaybook)
+class RemediationPlaybookAdmin(admin.ModelAdmin):
+    # SR-37: auto_run is the switch for running a playbook without approval.
+    list_display = ('name', 'organization', 'is_active', 'auto_run', 'priority',
+                    'match_severity_min', 'match_client_org')
+    list_filter = ('is_active', 'auto_run')
+    inlines = [RemediationPlaybookStepInline]

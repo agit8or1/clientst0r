@@ -614,8 +614,10 @@ class RemediationPlaybookTests(TestCase):
         _, status, _ = results[0]
         self.assertEqual(status, 'ok')
         self.assertEqual(Ticket.objects.count(), before + 1)
-        # Timeline event recorded.
-        self.assertEqual(inc.events.filter(kind='playbook_action').count(), 1)
+        # Timeline: one event per step, plus (SR-37) one "run started;
+        # approved by ..." event recording who or what started the run.
+        self.assertEqual(inc.events.filter(kind='playbook_action', message__contains='step=').count(), 1)
+        self.assertEqual(inc.events.filter(kind='playbook_action', message__contains='run started').count(), 1)
 
     def test_execute_dry_run_no_side_effects(self):
         from psa.models import Ticket

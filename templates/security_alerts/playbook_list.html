@@ -2,12 +2,12 @@
 {% block title %}Remediation Playbooks{% endblock %}
 {% block content %}
 <h2>Remediation Playbooks</h2>
-<p class="text-muted">Automated remediation flows that fire when a SecurityIncident matches a playbook's trigger conditions. Each playbook runs an ordered list of steps and records every step in the incident timeline.</p>
+<p class="text-muted">Remediation flows suggested when a security incident matches a playbook's trigger conditions. A technician approves the run from the incident page; only playbooks set to run automatically (the auto-run switch in the admin) run on their own when an incident opens. Every step is recorded in the incident timeline.</p>
 
 <div class="card mb-3">
     <table class="table table-sm mb-0">
         <thead>
-            <tr><th>#</th><th>Name</th><th>Severity ≥</th><th>Client scope</th><th>Active</th><th>Priority</th><th>Steps</th></tr>
+            <tr><th>#</th><th>Name</th><th>Severity ≥</th><th>Client scope</th><th>Active</th><th>Runs</th><th>Priority</th><th>Steps</th></tr>
         </thead>
         <tbody>
             {% for pb in playbooks %}
@@ -17,6 +17,7 @@
                 <td>{{ pb.match_severity_min|default:"—" }}</td>
                 <td>{{ pb.match_client_org.name|default:"(MSP-wide)" }}</td>
                 <td>{% if pb.is_active %}<span class="badge bg-success">on</span>{% else %}<span class="badge bg-secondary">off</span>{% endif %}</td>
+                <td>{% if pb.auto_run %}<span class="badge bg-warning text-dark">automatically</span>{% else %}after approval{% endif %}</td>
                 <td>{{ pb.priority }}</td>
                 <td>
                     <ol class="mb-0 small">
@@ -29,7 +30,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center text-muted">No playbooks configured.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted">No playbooks configured.</td></tr>
             {% endfor %}
         </tbody>
     </table>

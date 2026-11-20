@@ -681,6 +681,7 @@ def incident_detail(request, pk):
         pk=pk, organization__in=orgs,
     )
     from .related import related_devices
+    from .models import find_matching_playbook
     events = incident.events.select_related('actor', 'alert').order_by('occurred_at', 'pk')
     alerts = incident.alerts.select_related('connection', 'siem_endpoint').order_by('-seen_at')
     return render(request, 'security_alerts/incident_detail.html', {
@@ -689,6 +690,7 @@ def incident_detail(request, pk):
         'alerts': alerts,
         'can_acknowledge': user_has_perm(request.user, 'security_alerts_acknowledge'),
         'related': related_devices(request, incident),
+        'suggested_playbook': find_matching_playbook(incident) if incident.is_open else None,
     })
 
 
@@ -733,6 +735,42 @@ def incident_decide(request, pk):
         messages.success(request, f'Incident moved to {new_status}.')
     else:
         messages.error(request, f'Unknown decision: {decision}')
+    return redirect('security_alerts:incident_detail', pk=incident.pk)
+
+
+@login_required
+@require_perm('security_alerts_acknowledge')
+@require_POST
+def incident_run_playbook(request, pk):
+    """SR-37 (51.20) — a technician approves and runs a remediation playbook
+    on an incident. The playbook must be active, belong to the incident's
+    tenant and match the incident; the approver is recorded on every
+    timeline event of the run."""
+    from .models import execute_playbook, playbook_matches
+
+    orgs = _user_orgs(request.user, 'security_alerts_acknowledge')
+    incident = get_object_or_404(
+        SecurityIncident, pk=pk, organization__in=orgs,
+    )
+    try:
+        playbook_pk = int(request.POST.get('playbook') or 0)
+    except (TypeError, ValueError):
+        playbook_pk = 0
+    playbook = RemediationPlaybook.objects.filter(
+        pk=playbook_pk, organization=incident.organization,
+    ).first()
+    if playbook is None or not playbook_matches(playbook, incident):
+        messages.error(request, 'That playbook does not apply to this incident.')
+    elif not incident.is_open:
+        messages.error(request, 'Playbooks can only run on open incidents.')
+    else:
+        results = execute_playbook(playbook, incident, approved_by=request.user)
+        done = sum(1 for _, status, _ in results if status == 'ok')
+        messages.success(
+            request,
+            f'Playbook "{playbook.name}" ran: {done} of {len(results)} step(s) '
+            f'completed. See the timeline for each step.',
+        )
     return redirect('security_alerts:incident_detail', pk=incident.pk)
 
 

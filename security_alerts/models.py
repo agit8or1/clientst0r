@@ -5,9 +5,13 @@ EDR / AV / Firewall vendors all alert independently. This app
 aggregates alerts from all configured vendors, surfaces them on the
 PSA dashboard, and lets techs triage from one screen.
 """
+import logging
+
 from django.conf import settings as django_settings
 from django.db import models
 from vault.secret_fields import EncryptedTextField, hash_token
+
+logger = logging.getLogger(__name__)
 
 
 class SecurityVendorConnection(models.Model):
@@ -501,6 +505,7 @@ class SecurityIncidentEvent(models.Model):
         ('resolved', 'Resolved'),
         ('closed', 'Closed'),
         ('playbook_action', 'Playbook action'),
+        ('playbook_suggested', 'Playbook suggested'),
         ('sla_breach', 'SLA breach'),
     ]
 
@@ -668,6 +673,17 @@ class RemediationPlaybook(models.Model):
     description = models.TextField(blank=True)
 
     is_active = models.BooleanField(default=True)
+    # SR-37 (51.20): a matching playbook runs automatically on incident
+    # open only when this is set. Off by default and for every playbook
+    # that existed before the field was added; otherwise opening an
+    # incident only records a "suggested, awaiting approval" event and a
+    # technician runs it from the incident page.
+    auto_run = models.BooleanField(
+        default=False,
+        help_text='Run this playbook automatically when a matching incident '
+                  'opens. Off = the playbook is suggested on the incident '
+                  'and a technician approves the run.',
+    )
     priority = models.PositiveIntegerField(default=100,
         help_text='Lower fires first. Only the first matching playbook '
                   'runs per incident.')
@@ -730,32 +746,53 @@ class RemediationPlaybookStep(models.Model):
         return f'{self.playbook.name} #{self.order} {self.action}'
 
 
+_SEVERITY_RANK = {'info': 0, 'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
+
+
+def playbook_matches(playbook, incident):
+    """True when `playbook` is active, owned by the incident's tenant and its
+    trigger (client scope + minimum severity) matches the incident."""
+    if not playbook.is_active or playbook.organization_id != incident.organization_id:
+        return False
+    if playbook.match_client_org_id and playbook.match_client_org_id != incident.client_org_id:
+        return False
+    if playbook.match_severity_min:
+        if _SEVERITY_RANK.get(incident.severity, 0) < _SEVERITY_RANK.get(playbook.match_severity_min, 0):
+            return False
+    return True
+
+
 def find_matching_playbook(incident):
     """Return the highest-priority active playbook matching this incident, or None."""
-    severity_rank = {'info': 0, 'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
-    inc_rank = severity_rank.get(incident.severity, 0)
-
     qs = RemediationPlaybook.objects.filter(
         organization=incident.organization, is_active=True,
     ).order_by('priority', 'pk')
     for pb in qs:
-        if pb.match_client_org_id and pb.match_client_org_id != incident.client_org_id:
-            continue
-        if pb.match_severity_min:
-            if inc_rank < severity_rank.get(pb.match_severity_min, 0):
-                continue
-        return pb
+        if playbook_matches(pb, incident):
+            return pb
     return None
 
 
-def execute_playbook(playbook, incident, *, dry_run=False):
+def execute_playbook(playbook, incident, *, dry_run=False, approved_by=None):
     """Phase 23 v3.17.356 — run a playbook against an incident.
 
     Records each step result as a `playbook_action` timeline event.
     Returns a list of `(step, status, message)` tuples for caller
     inspection. Errors in one step do not halt the rest.
+
+    `approved_by` (SR-37) is the user who approved a manual run; the run is
+    recorded in the timeline under their name. Step statuses: ok (the
+    action happened), skip (nothing done, with the reason), refused (the
+    step was not allowed for this incident), error, dry.
     """
     results = []
+    if not dry_run:
+        who = approved_by.get_username() if approved_by is not None else 'automatic run (auto_run on)'
+        incident.add_event(
+            kind='playbook_action',
+            message=f'playbook={playbook.name} run started; approved by {who}',
+            user=approved_by,
+        )
     for step in playbook.steps.order_by('order', 'pk'):
         try:
             if dry_run:
@@ -769,6 +806,7 @@ def execute_playbook(playbook, incident, *, dry_run=False):
         incident.add_event(
             kind='playbook_action',
             message=f'playbook={playbook.name} step={step.action} status={status} :: {msg}',
+            user=approved_by,
         )
         results.append((step, status, msg))
     return results
@@ -802,19 +840,23 @@ def _run_playbook_step(step, incident):
         )
         return ('ok', f'created ticket {ticket.ticket_number}')
     elif action == 'send_email':
-        recipient = cfg.get('to') or ''
-        # Use the same email-out plumbing PSA uses where possible; fall back
-        # to a logged event so tests can verify the call path.
+        recipient = (cfg.get('to') or '').strip()
+        if not recipient:
+            return ('skip', 'no recipient configured')
+        from django.core.mail import send_mail
+        from django.conf import settings as dj_settings
+        subject = cfg.get('subject') or f'[Security] {incident.title[:80]}'
+        body = cfg.get('body') or incident.description or 'See incident dashboard.'
+        sender = cfg.get('from') or getattr(dj_settings, 'DEFAULT_FROM_EMAIL', 'no-reply@localhost')
         try:
-            from django.core.mail import send_mail
-            subject = cfg.get('subject') or f'[Security] {incident.title[:80]}'
-            body = cfg.get('body') or incident.description or 'See incident dashboard.'
-            from django.conf import settings as dj_settings
-            sender = cfg.get('from') or getattr(dj_settings, 'DEFAULT_FROM_EMAIL', 'no-reply@localhost')
-            send_mail(subject, body, sender, [recipient] if recipient else [], fail_silently=True)
-            return ('ok', f'email queued to {recipient or "(no recipient)"}')
+            # SR-37: not fail_silently, so a failed send is reported as an
+            # error rather than recorded as delivered.
+            sent = send_mail(subject, body, sender, [recipient], fail_silently=False)
         except Exception as exc:
             return ('error', f'send_mail failed: {exc}')
+        if not sent:
+            return ('error', f'mail to {recipient} was not accepted by the mail backend')
+        return ('ok', f'email sent to {recipient}')
     elif action == 'quarantine_asset_flag':
         # Best-effort: stamp a tag onto the asset matched by asset_hint.
         if not incident.asset_hint:
@@ -841,17 +883,26 @@ def _run_playbook_step(step, incident):
         except Exception as exc:
             return ('error', f'asset flag failed: {exc}')
     elif action == 'run_workflow_rule':
+        # SR-37: this step never ran anything; it used to report 'ok'. It
+        # now checks the rule belongs to the incident's customer (or is a
+        # rule for every client) and then reports honestly that playbooks
+        # cannot run workflow rules — those fire on ticket events.
         rule_id = cfg.get('rule_id')
         if not rule_id:
             return ('skip', 'no rule_id in config')
+        from psa.models import WorkflowRule
         try:
-            from psa.models import WorkflowRule
-            rule = WorkflowRule.objects.filter(pk=rule_id).first()
-            if not rule:
-                return ('skip', f'workflow rule {rule_id} not found')
-            return ('ok', f'workflow rule {rule.name} flagged for execution')
-        except Exception as exc:
-            return ('error', f'workflow rule lookup failed: {exc}')
+            rule_pk = int(rule_id)
+        except (TypeError, ValueError):
+            return ('skip', f'invalid rule_id {rule_id!r}')
+        rule = WorkflowRule.objects.filter(pk=rule_pk).first()
+        if not rule:
+            return ('skip', f'workflow rule {rule_pk} not found')
+        allowed = {incident.organization_id, incident.client_org_id} - {None}
+        if rule.organization_id is not None and rule.organization_id not in allowed:
+            return ('refused', f'workflow rule {rule_pk} belongs to another customer')
+        return ('skip', f'not supported: playbooks cannot run workflow rule '
+                        f'"{rule.name}"; workflow rules fire on ticket events')
     return ('skip', f'unknown action {action}')
 
 
@@ -894,13 +945,22 @@ def _correlate_alert_to_incident(alert, *, window_minutes=60):
             message=f'Incident opened from alert {alert.pk}: {alert.title[:200]}',
             alert=alert,
         )
-        # Phase 23 v3.17.356 — auto-fire matching remediation playbook.
+        # Phase 23 v3.17.356 — matching remediation playbook. SR-37: runs
+        # automatically only when the playbook has auto_run set; otherwise
+        # it is suggested and waits for a technician to approve the run.
         try:
             pb = find_matching_playbook(incident)
             if pb is not None:
-                execute_playbook(pb, incident)
+                if pb.auto_run:
+                    execute_playbook(pb, incident)
+                else:
+                    incident.add_event(
+                        kind='playbook_suggested',
+                        message=f'Playbook "{pb.name}" matches this incident; '
+                                f'awaiting approval to run.',
+                    )
         except Exception:
-            pass
+            logger.exception('Playbook handling failed for incident %s', incident.pk)
     else:
         if not incident.alerts.filter(pk=alert.pk).exists():
             incident.alerts.add(alert)
