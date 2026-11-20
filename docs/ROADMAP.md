@@ -14,10 +14,10 @@ Mature contract engine — beyond the basics. Required for accurate profitabilit
 
 - Per-contract **overage rules** — different rate for billable hours past allowance *(1.1 — shipped v3.17.126)*
 - **Role-based inclusion/exclusion** — e.g. "T1 work included, T3 work billable at $X" *(1.1 — shipped v3.17.126)*
-- **Prepaid block hours with rollover** — % rollover, expiry dates *(1.1 — shipped v3.17.126)*
+- **Prepaid block hours with rollover** — % rollover, expiry dates *(1.1 — shipped v3.17.126; audit 2026-11-20: a single allowance per contract with no transaction ledger, no per-cycle reset; ledger and multiple blocks are Phase 101)*
 - **Auto-renewal** — N days before end_date, auto-create next period via `psa_auto_renew_contracts` cron *(1.2 — shipped v3.17.130)*
-- **Proration** — mid-month start/cancel *(1.1 — shipped v3.17.126)*
-- **Bundled services** — line items per agreement via `ContractBundleItem` model with dynamic editor *(1.2 — shipped v3.17.130)*
+- **Proration** — mid-month start/cancel *(1.1 — shipped v3.17.126; audit 2026-11-20: start only, a contract ending mid-period bills the full period)*
+- **Bundled services** — line items per agreement via `ContractBundleItem` model with dynamic editor *(1.2 — shipped v3.17.130; audit 2026-11-20: modelled but not billed, see 70.4)*
 - Agreement **profitability snapshot** — revenue vs. cost-of-delivery this period, surfaced on contract detail page *(1.2 — shipped v3.17.130)*
 
 ## Phase 2 — Resource management foundation **(M · foundation)** [complete]
@@ -350,6 +350,9 @@ Planned capabilities:
 ## Phase 15 — Recurring Billing & Contract Management **(M)** [shipped — v3.17.299]
 
 **Roadmap item:** Recurring Billing & Financial Workflow Automation. Extends Phase 1 (contract engine) + invoicing.
+
+Audit 2026-11-20: recurring `Charge` rows are never generated (Phase 92.1); billing in arrears, failed-billing
+alerts and an in-app dry run are planned in Phase 102.
 
 Planned capabilities:
 - Recurring invoices (auto-generated from contract bundles) *(shipped v3.17.291 — `Contract.billing_frequency` (monthly/quarterly/yearly) + `next_billing_date` + `recurring_amount`; `Contract.generate_invoice()` method; daily `psa_generate_recurring_invoices` cron with catch-up cap + dry-run)*
@@ -863,9 +866,9 @@ Planned capabilities:
 - **Recurring agreement billing review** — monthly (or per-cycle) review screen that lists every agreement, included-hours bucket consumed, overage hours, and the draft invoice *(partial — per-contract consumption table shipped v3.17.225 at /reports/agreement-reconciliation/)*. Review screen *(shipped v3.17.664)* — `/psa/billing-review/?period=YYYY-MM` lists every agreement in the cycle with qualifying hours split into included and overage (counted chronologically against the allowance from the agreement's start), the overage value, hours remaining and the cycle's invoice. Approve and Hold act on draft invoices through the existing pre-invoice approval gate: Hold sets `requires_approval` so the invoice cannot be sent or pushed until approved; both are audit-logged
 - **Included vs billable labor reconciliation** *(shipped v3.17.248 — `agreement_reconciliation_detail` view classifies entries chronologically as covered/overage/split; per-tech overage breakdown + CSV export)*
 - **Over-serviced / under-serviced client alerts** — if a client consistently uses < 30% of included hours (under-served = upsell signal) or > 130% of included hours 3 months running (over-served = re-quote signal), alert the account manager *(shipped v3.17.225 — surfaced as status badges + summary counts on the reconciliation page; recurring-pattern detection across multiple periods deferred to v2)*
-- **Agreement profitability reports** *(extends Phase 3.2 contract profitability with per-agreement P&L; cost-of-labor at tech rate vs. contracted revenue)*
+- **Agreement profitability reports** *(planned — no shipped marker found in the 2026-11-20 audit; extends Phase 3.2 contract profitability with per-agreement P&L; cost-of-labor at tech rate vs. contracted revenue)*
 - **Pre-invoice approval workflow** *(extends Phase 20 approval routing — gate any draft invoice over $X or with > Y% overage on a manager queue before sending)* *(shipped v3.17.228 — `Invoice.flag_for_approval` + `Invoice.approve` + `/psa/invoices/<pk>/approve/` endpoint + push-to-accounting blocked while pending)*
-- **Revenue leakage detection expansion** *(extends the existing `revenue_leakage` query that powers the `unbilled_hours` widget; adds aging buckets, per-tech leakage attribution, and a per-client leakage trend)*
+- **Revenue leakage detection expansion** *(planned — not found in the 2026-11-20 audit; the client-account unbilled list also includes already-invoiced time, fixed in Phase 102; extends the existing `revenue_leakage` query that powers the `unbilled_hours` widget; adds aging buckets, per-tech leakage attribution, and a per-client leakage trend)*
 
 Dependencies: Phase 1 (contract engine — `Contract`, `ContractBundle`, `ContractBundleItem`), Phase 15 (recurring billing automation), Phase 20 (approval routing).
 
@@ -2849,9 +2852,9 @@ A single priced catalog and named service plans, so quotes, contracts and invoic
 hand. Audit: [docs/plans/COMMERCIAL_OPS_AUDIT.md](plans/COMMERCIAL_OPS_AUDIT.md). Separate from the ticket
 request catalog (`ServiceCatalogItem`).
 
-- **68.1 Price book and products** *(shipped v3.17.692)* — products and services with SKU,
+- **68.1 Price book and products** *(partial — models and Django admin shipped v3.17.692; staff screens and a caller of the price lookup in quotes and invoices planned, Phase 103)* — products and services with SKU,
   unit, cost, list price and markup.
-- **68.2 Service plans** *(shipped v3.17.692)* — named plans (included hours, meters, bundled
+- **68.2 Service plans** *(partial — plans shipped v3.17.692; billing contracts cannot reference a plan yet and plan prices are read only by onboarding drafts)* — named plans (included hours, meters, bundled
   items) that a contract can reference.
 - **68.3 Catalog links on quote, invoice and contract lines** *(partial — line fields and price snapshot shipped v3.17.692; picking items in the quote and invoice editors planned)* — optional product reference on
   each line type.
@@ -2861,21 +2864,27 @@ request catalog (`ServiceCatalogItem`).
 
 ## Phase 69 — Labor rate cards and cost rates **(M · billing)** [in progress]
 
-- **69.1 Rate cards** *(shipped v3.17.692)* — bill rates by role, client and ticket type, with
+- **69.1 Rate cards** *(partial — shipped v3.17.692 for reporting; invoicing still prices ticket time at the contract rate, or $0 without a contract — fixed in Phase 101)* — bill rates by role, client and ticket type, with
   effective dates.
-- **69.2 Rate snapshots on time entries** *(shipped v3.17.692)* — bill and cost rate stored on
+- **69.2 Rate snapshots on time entries** *(partial — snapshots stored v3.17.692; not yet used by invoicing, and the time screens never set after-hours or holiday rate types)* — bill and cost rate stored on
   each entry so history does not drift.
-- **69.3 Remove placeholder rates** *(shipped v3.17.692)* — replace the 60% cost assumption and the fixed fallback
+- **69.3 Remove placeholder rates** *(partial — profitability and reports v3.17.692; the $60 loaded-rate fallback is still used in resourcing)* — replace the 60% cost assumption and the fixed fallback
   rates in profitability and reports with real rate lookups.
 - **69.4 Effective-dated billable targets** *(planned)*.
 
 **Sizing:** **M** — rate models, time-entry snapshot, then report changes.
 
-## Phase 70 — Contracts, recurring billing and quote conversion **(M · billing)** [planned]
+## Phase 70 — Contracts, recurring billing and quote conversion **(M · P0 · billing)** [in progress]
 
-- **70.1 Quote to contract** *(planned)* — accepting a quote can create a billing contract.
-- **70.2 Quote to invoice** *(planned)* — one-off lines copied to an invoice using the existing source link.
-- **70.3 Signed document to billing contract** *(planned)* — carry line items, hours, rates and next billing
+- **70.1 Quote to contract** *(planned · P0)* — accepting a quote can create a billing contract after a conversion
+  review: selected package, inclusions and exclusions, recurring and one-time charges, included and block hours,
+  overage rates, quantities, term, frequency, payment terms, effective dates, renewal and SLA carried across;
+  idempotent (a retry or reopened quote never creates a second contract, invoice or project); the signed legal
+  document (Phase 65) and the billing contract stay distinct and are linked.
+- **70.2 Quote to invoice** *(planned · P0)* — one-off lines copied to an invoice using the existing source link;
+  never the whole contract value up front unless agreed, no one-time charge for a recurring item, prices frozen at
+  acceptance, lines reference the quote and catalog item.
+- **70.3 Signed document to billing contract** *(partial — a signed document creates a draft billing contract with the header fields; line items, hours and rates planned)* — carry line items, hours, rates and next billing
   date across.
 - **70.4 Bill bundle items and recurring charges** *(planned)*.
 - **70.5 Database uniqueness for recurring invoices** *(shipped v3.17.690)* — constraint on contract and billing period.
@@ -2892,7 +2901,9 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 - **71.3 Xero payment account setting** *(shipped v3.17.690)* — replace the bank account placeholder.
 - **71.4 Invoice update, credit memos, refunds and voids** *(planned)*.
 - **71.5 Tax-code mapping** *(planned)*.
-- **71.6 Payment posting to the provider** *(planned)*.
+- **71.6 Payment posting to the provider** *(partial — QuickBooks Online and Xero adapters exist, nothing calls them yet)*.
+- **71.11 Sandbox verification** *(planned)* — every QuickBooks Online and Xero capability exercised against a
+  real sandbox company before it is called production ready; today all provider tests use mocked HTTP.
 - **71.7 Webhooks with signature checks** *(planned)*.
 - **71.8 Retry queue and error review** *(planned)*.
 - **71.9 Other providers** *(planned)* — after QuickBooks Online and Xero, additional accounting providers
@@ -2948,7 +2959,7 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 ## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [in progress]
 
-- **75.1 Profitability analytics** *(shipped v3.17.692)* — margin by client, contract, plan and service line from
+- **75.1 Profitability analytics** *(shipped v3.17.692; audit 2026-11-20: reports use three revenue definitions — one includes tax, one counts unbilled bundles, one uses contract terms — unified in Phase 102.7)* — margin by client, contract, plan and service line from
   rate snapshots.
 - **75.2 Customer commercial portal** *(planned)* — plans, invoices, device health and backup status.
 - **75.3 Commercial onboarding wizard** *(shipped v3.17.700)* — new-customer onboarding (customer, locations,
@@ -3424,6 +3435,10 @@ customer-boundary tests, AI gating, a tablet-viewport browser run.
 
 **Sizing:** **L** — templates and assessments first, then provenance, revisions and conversion.
 
+Program link (2026-11-20): this phase carries the IT Discovery wizard of the
+[MSP billing program](plans/msp-billing-program/README.md) §H. Opportunity → quote today creates an empty quote;
+97 and 98 feed Phase 103 proposals.
+
 ## Phase 98 — Service estimator and forecast accuracy **(L · P1 · sales)** [planned]
 
 Priority P1. Estimates monthly effort, cost and a price range from the Phase 97 assessment with a
@@ -3459,6 +3474,10 @@ engine tests, onboarding split, cost visibility, customer scoping of actuals, AI
 run from assessment to 30-day review.
 
 **Sizing:** **L** — models and engine first, then plan comparison, then reviews.
+
+Program link (2026-11-20): the rules-based workload estimator, low / expected / high scenarios and standard
+proposal generation of the [MSP billing program](plans/msp-billing-program/README.md) §H build on this phase;
+all of it works without AI.
 
 ## Phase 99 — Phone system integration and call-to-ticket **(XL · P2 · integrations)** [planned]
 
@@ -3524,6 +3543,127 @@ decision. Testing (if built): the Phase 99 Asterisk CI harness, security scans, 
 test route, update and restore rehearsals, load tests.
 
 **Sizing:** **XL** if built; the exploratory work itself is **S**.
+
+## Phase 101 — Ticket Time & Charges and prepaid-hour ledger **(XL · P0 · billing)** [planned]
+
+Priority P0. The first phase of the [MSP billing program](plans/msp-billing-program/README.md) (§B, §C), from the
+[capability audit](plans/msp-billing-program/CAPABILITY_AUDIT.md) of 2026-11-20. Extends the existing time
+entries, `psa.Contract` allowances, charges and rate cards; no second billing engine.
+
+- **101.1 Coverage resolver** *(planned)* — one function decides, for an approved time entry or charge, the
+  customer, the agreement (explicit precedence and effective dates when several apply; an ambiguous overlap needs
+  a choice), coverage (service category, remote / onsite, business hours), rate and the covered / prepaid /
+  chargeable split. Consumption follows the entry's own contract link instead of customer and date, so two
+  overlapping contracts no longer count the same time.
+- **101.2 Prepaid-hour ledger** *(planned)* — immutable postings for purchases, consumption, expiry, reversals and
+  authorized manual adjustments, with the source entry, agreement, date, quantity and status; several blocks per
+  customer consumed earliest-expiry first; rollover and expiry; negative balance only when configured; low-balance
+  alerts; idempotency keys and row locks against retries, scheduled jobs and concurrent approvals. A block
+  purchase is not counted as revenue again on consumption.
+- **101.3 Approval-time consumption** *(planned)* — draft and rejected time consume nothing (today they do);
+  approval posts, rejection or reversal releases; partial coverage splits into block and overage; retainer
+  allowances reset each billing cycle.
+- **101.4 Rates and rules in invoicing** *(planned)* — ticket time is priced from the rate cards and the entry's
+  rate snapshot (no more $0 for time-and-materials customers without a contract); minimum time, billing increments
+  and trip fees from the existing billing rules; after-hours and holiday rate types set from the time worked and
+  the SLA calendar (Phase 93).
+- **101.5 Time & Charges on the ticket** *(planned)* — timer, manual time, work type and classification (billable,
+  covered, non-billable, warranty, goodwill, awaiting classification), agreement picker when permitted, and the
+  calculated treatment: actual and rounded time, rate, covered hours, remaining block hours, overage, estimated
+  charge. Uses the existing time-entry screens.
+- **101.6 Add Item on tickets** *(planned)* — catalog search or a one-off line for parts, hardware, software,
+  licenses, materials, travel, shipping, third-party services and permissioned credits; cost and margin visible only
+  with permission; inventory reserved and consumed as separate events and deducted once (Phase 73).
+- **101.7 Ticket billing summary** *(planned)* — agreement, hours before and after, items, unbilled total before
+  tax; Review Charges and Send to Billing; closing a ticket never hides unbilled items, which are flagged for review.
+
+Acceptance: block deduction, partial overage split, unlimited coverage produces no labor charge, break/fix labor
+and parts reach the invoice, concurrent approvals cannot deduct twice, existing contracts and invoices unchanged on
+upgrade.
+
+## Phase 102 — Ready for Billing queue and invoice integrity **(L · P0 · billing)** [planned]
+
+Priority P0 (§D, §E). Extends Phase 36 pre-invoice approval and the existing invoices.
+
+- **102.1 Account charge bundling under a lock** *(planned)* — bundling a customer's account charges into an
+  invoice runs in one transaction with a row lock; today two quick clicks can bill the same charges twice.
+- **102.2 Accurate unbilled list** *(planned)* — the client-account "Unbilled work" list excludes time already
+  invoiced.
+- **102.3 Ready for Billing queue** *(planned)* — approved unbilled time, items, expenses, overages, recurring
+  charges, milestones and customer-approved work across tickets; review, approve, hold, exclude, adjust.
+- **102.4 Consolidated invoices** *(planned)* — several tickets, charges and the contract fee on one invoice;
+  every line keeps its source; retries never double bill; finalized invoices corrected only by credit notes.
+- **102.5 Invoice presentation** *(planned)* — itemized, grouped by ticket, monthly summary or summary with a
+  service report; MSP branding.
+- **102.6 Recurring billing gaps** *(planned)* — billing in arrears, failed-billing alerts, an in-app dry run
+  before automatic billing is switched on (extends Phase 15 and 92).
+- **102.7 One set of financial definitions** *(planned)* — billed, collected and recognized revenue, direct cost,
+  gross profit and margin defined once and used by every report (Phase 75.1 today uses three revenue definitions);
+  partial costs labelled as partial.
+- **102.8 Settings → Billing** *(planned)* — a page for the billing settings that exist but cannot be changed
+  anywhere (invoice approval threshold, late fees, automatic accounting push), with per-customer and per-contract
+  overrides showing where each value comes from.
+
+## Phase 103 — Quote builder, options and price-book selection **(L · P1 · sales)** [planned]
+
+Priority P1 (§G). Extends the existing quotes and the Phase 65 signing; no second quote or signing module.
+
+- **103.1 Price book in the editors** *(planned)* — catalog search on quote and invoice lines with price
+  snapshots (completes 68.3) and staff screens for the price book outside Django admin (completes 68.1);
+  customer-specific, bundle, volume and effective-dated prices; stale distributor price warnings.
+- **103.2 Recurring and one-time totals** *(planned)* — monthly recurring, one-time subtotal and contract value
+  shown separately, tax separately; payment terms, contract length, effective and expiry dates, assumptions and
+  exclusions.
+- **103.3 Quote templates** *(planned)* — editable, versioned templates fed by service plans and the price book.
+- **103.4 Packages and optional items** *(planned)* — Good / Better / Best options in one proposal, optional,
+  mutually exclusive and bundled items with quantity limits and dependencies; the customer chooses, the chosen
+  configuration becomes a fixed, approved revision before signing, and the signature evidence covers it; only the
+  chosen option is ever activated.
+- **103.5 Revisions and signing** *(planned)* — quote versions with immutable accepted revisions; multiple and
+  sequential signers, MSP countersignature, decline with reason, reminders, expiry job, reusing the Phase 65
+  contract-document signing that already supports these.
+- **103.6 Margin guardrails** *(planned)* — revenue, direct cost and expected margin against the target before
+  sending; approval thresholds for low margin and large discounts, enforced server-side; never shown to customers.
+- **103.7 Quote-to-cash dashboard** *(planned)* — drafts, approvals, sent, awaiting signature, accepted, awaiting
+  activation, onboarding, unbilled work, draft and overdue invoices, with blockers and next actions; sales
+  analytics kept apart from contracted and recognized revenue.
+
+## Phase 104 — Customer approvals, deposits, change orders and portal billing **(L · P1 · billing)** [planned]
+
+Priority P1 (§B, §G, §J).
+
+- **104.1 Out-of-scope approval from a ticket** *(planned)* — itemized estimate through a secure link; approve,
+  decline or ask; approver, time, exact revision and decision recorded; work and invoices link to it; changes past
+  the contract threshold need a new approval.
+- **104.2 Deposits and payment schedules** *(planned)* — percentage or fixed deposits, milestones, deposit
+  invoices, balance due, application to the final invoice, refunds and credits; deposits not counted as earned
+  revenue early.
+- **104.3 Change orders** *(planned)* — through the quote and signing path; the original agreement is kept, the
+  difference, effective date and authorization recorded, with version history.
+- **104.4 Portal billing additions** *(planned)* — agreements, block balances and usage history, service
+  summaries, disputes and explanation requests; never costs, margins or internal notes.
+
+## Phase 105 — Market pricing research and AI proposals **(L · P3 · OPTIONAL AI)** [planned]
+
+Priority P3 (§I). Extends Phase 76; every switch separate, off by default, gated by `psa_ai_enabled`; billing and
+quoting work fully without it.
+
+- **105.1 Research provider and markets (OPTIONAL AI)** *(planned)* — a configurable search provider, geographic
+  markets (city to national, several territories), legitimate public sources only, terms and rate limits respected;
+  each observation stores source, URL, retrieval date, region, scope, price, unit, terms, confidence and
+  comparability; nothing invented, verified prices kept apart from estimates.
+- **105.2 Item and package pricing (OPTIONAL AI)** *(planned)* — Analyze Pricing on catalog items, packages and
+  custom packages with scope normalization; recommendations combine market evidence with internal cost and never
+  override the target margin; prices change only on explicit acceptance.
+- **105.3 Prospect proposal (OPTIONAL AI)** *(planned)* — Analyze Prospect & Build Quote: Phase 97 assessment,
+  Phase 98 estimate, market evidence, Basic / Standard / Premium, margins, risks and gaps, into an editable Phase
+  103 quote; proposal text written only from recorded facts; approval stays human.
+- **105.4 Market reports and customer reviews (OPTIONAL AI)** *(planned)* — market and pricing intelligence
+  reports with methodology, sources and limitations; renewal reviews; a what-if simulator that separates facts,
+  assumptions and AI suggestions.
+- **105.5 AI pricing settings (OPTIONAL AI)** *(planned)* — per-feature switches, provider and model, search
+  provider, encrypted keys, budgets and request limits, data-sharing rules, research retention; redaction, no
+  secrets sent, prompt-injection protection for fetched pages, usage and cost logging.
 
 ## Sizing
 
@@ -3603,7 +3743,7 @@ test route, update and restore rehearsals, load tests.
 **Scope note:** This is a PSA + Asset + Vault + Documentation + Monitoring platform that integrates with external RMMs (Phase 9 connection framework + Phase 7 Integration SDK). First-party RMM agents and remote-access relays aren't on the roadmap — installs that need those capabilities use the supported third-party tools (TacticalRMM, NinjaOne, Datto RMM, ConnectWise Automate, ScreenConnect, RustDesk, MeshCentral, etc.).
 | 68 — Commercial price book and service plans | L | in progress (68.1–68.2 shipped v3.17.692) | Phase 15 contracts; quotes and invoices |
 | 69 — Labor rate cards and cost rates | M | in progress (69.1–69.3 shipped v3.17.692) | Phase 2 cost rates; Phase 68 |
-| 70 — Contracts, recurring billing and quote conversion | M | planned | Phases 65, 68, 69 |
+| 70 — Contracts, recurring billing and quote conversion | M | in progress (70.5 shipped v3.17.690; 70.3 partial) | Phases 65, 68, 69 |
 | 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
 | 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (73.1 shipped v3.17.699) | Phase 4 and 13 procurement; Phase 68 |
@@ -3634,3 +3774,8 @@ test route, update and restore rehearsals, load tests.
 | 98 — Service estimator and forecast accuracy (P1) | L | planned | Phase 97; Phases 68, 69, 70, 75, 76; Phase 92 for actual counts |
 | 99 — Phone system integration and call-to-ticket (P2) | XL | planned | Phases 81, 82, 64; uses Phases 93 and 97 when present |
 | 100 — Optional simple PBX appliance (P4, exploratory) | XL if built | planned — not to be built until Phase 99 is proven and the go/no-go criteria are met | Phase 99; Phases 59, 93, 94 |
+| 101 — Ticket Time & Charges and prepaid-hour ledger (P0) | XL | planned | Phases 1, 36, 69, 70, 73, 93 |
+| 102 — Ready for Billing queue and invoice integrity (P0) | L | planned | Phases 15, 36, 75, 92, 101 |
+| 103 — Quote builder, options and price-book selection (P1) | L | planned | Phases 65, 68, 70 |
+| 104 — Customer approvals, deposits, change orders and portal billing (P1) | L | planned | Phases 72, 101, 103 |
+| 105 — Market pricing research and AI proposals (P3, OPTIONAL AI) | L | planned | Phases 76, 97, 98, 103; Phase 56 gateway |

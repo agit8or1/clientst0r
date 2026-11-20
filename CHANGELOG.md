@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.733] - 2026-11-20
+
+### Changed
+- **Roadmap: MSP billing, quote-to-cash and CRM discovery program.** The program is consolidated in
+  `docs/plans/msp-billing-program/README.md`, with a capability audit of the current code in
+  `CAPABILITY_AUDIT.md` (what works, what is partial, what is missing, with file references). Five phases are
+  added: 101 ticket Time & Charges and a prepaid-hour ledger (P0), 102 Ready for Billing queue and invoice
+  integrity (P0), 103 quote builder, options and price-book selection (P1), 104 customer approvals, deposits,
+  change orders and portal billing (P1), and 105 market pricing research and AI proposals (P3, optional AI).
+  CRM discovery and the workload estimator stay in Phases 97 and 98, quote conversion in Phase 70.
+- **Roadmap statuses corrected from the audit.** Items that were marked shipped but only partly work now say
+  so: the price book and service plans (no staff screens, not billed), rate cards (used by reports, not by
+  invoicing), placeholder rates (still used in resourcing), prepaid hours (no ledger), proration (start only),
+  bundled services (not billed) and profitability revenue definitions. Signed document to billing contract and
+  accounting payment posting are now partial instead of planned. No code changed in this release.
+
 ## [3.17.732] - 2026-11-20
 
 ### Fixed
