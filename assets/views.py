@@ -1077,7 +1077,16 @@ def asset_api_detail(request, pk):  # noqa: write permission checked inline for 
     if org:
         asset = get_org_object_or_404(Asset, org, pk=pk)
     else:
-        asset = get_object_or_404(Asset, pk=pk)
+        # SR-15: no customer selected - only assets of customers the user
+        # holds the permission at, within their reach (besides the decorator).
+        from accounts.permission_utils import filter_by_org_perm
+        from core.tenancy import accessible_org_ids
+        flag = 'assets_edit' if request.method == 'PATCH' else 'assets_view'
+        qs = filter_by_org_perm(Asset.objects.all(), request.user, flag)
+        reach = accessible_org_ids(request)
+        if reach is not None:
+            qs = qs.filter(organization_id__in=reach)
+        asset = get_object_or_404(qs, pk=pk)
 
     if request.method == 'GET':
         return JsonResponse({

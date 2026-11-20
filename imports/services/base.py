@@ -24,7 +24,12 @@ class BaseImportService:
     def __init__(self, import_job):
         self.job = import_job
         self.organization = import_job.target_organization  # May be None for multi-org imports
-        self.session = requests.Session()
+        # SR-16: the typed source URL goes through the outbound-address
+        # guard (internal addresses only with ALLOW_PRIVATE_IP_INTEGRATIONS;
+        # cloud metadata never), like the migration framework's transport.
+        from core.safe_http import configured_service_policy, guard_session
+        self.session = guard_session(requests.Session(), configured_service_policy())
+        self.session.trust_env = False
         self.session.headers.update(self._get_auth_headers())
 
         # Initialize organization matcher for multi-org imports. Without fuzzy
@@ -48,6 +53,13 @@ class BaseImportService:
     def _make_request(self, method, endpoint, **kwargs):
         """Make API request with error handling."""
         url = f"{self.job.source_url.rstrip('/')}{endpoint}"
+        from core.safe_http import UnsafeURLError, configured_service_policy, validate_url
+        try:
+            validate_url(url, configured_service_policy())
+        except UnsafeURLError as e:
+            raise requests.RequestException(
+                f'The source address is not allowed ({e}). A server on a private network needs '
+                f'ALLOW_PRIVATE_IP_INTEGRATIONS=true in the install settings.') from e
 
         try:
             response = self.session.request(method, url, timeout=30, **kwargs)

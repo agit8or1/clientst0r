@@ -602,13 +602,12 @@ def document_upload(request):
     """
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"Document upload request received from {request.user.username}")
-    logger.info(f"Files in request: {request.FILES}")
-    logger.info(f"POST data: {request.POST}")
+    # SR-18: counts only, never form values or file names.
+    logger.info('Document upload from user %s: %d file(s)', request.user.pk,
+                len(request.FILES.getlist('files')))
 
     org = get_request_organization(request)
     files = request.FILES.getlist('files')
-    logger.info(f"Files list: {files}")
     category_id = request.POST.get('category')
 
     category = None

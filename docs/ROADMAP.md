@@ -1860,6 +1860,10 @@ are built on top of them.
   administrator staff flag write by their global role within their customer scope (Global View create
   works); backup server requests go through the outbound-address guard, with a staff-only, audited
   per-connection opt-in for private addresses.
+- **Security review fixes, fourth wave** *(shipped v3.17.729)* — process detail in Global View and dashboard
+  widget changes check the record's customer; the asset API stays in reach without a selected customer;
+  the legacy importer's requests are address-guarded; bulk upload logs counts only; CORS limited to the
+  API and off in production.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

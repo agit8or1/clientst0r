@@ -323,12 +323,24 @@ def dashboard_delete(request, pk):
 # Dashboard widget CRUD (v3.17.142)
 # ---------------------------------------------------------------------------
 
+def _may_change_dashboard(user, dashboard):
+    """SR-14: the dashboard's creator, or someone who manages dashboards at
+    its customer (an install-wide dashboard: at every customer). Before
+    v3.17.729 any Django staff account could change any dashboard."""
+    if user.is_superuser or dashboard.created_by_id == user.id:
+        return True
+    from accounts.permission_utils import orgs_with_perm, user_has_org_perm
+    if dashboard.organization_id is None:
+        return orgs_with_perm(user, 'reports_manage_dashboards') is None
+    return user_has_org_perm(user, dashboard.organization_id, 'reports_manage_dashboards')
+
+
 @login_required
 @require_perm('reports_manage_dashboards')
 def dashboard_widget_add(request, dashboard_pk):
     """Add a widget to a dashboard. Owner or staff only."""
     dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
-    if dashboard.created_by_id != request.user.id and not request.user.is_staff:
+    if not _may_change_dashboard(request.user, dashboard):
         raise PermissionDenied
     from .widget_sources import DATA_SOURCE_CHOICES
     if request.method == 'POST':
@@ -358,7 +370,7 @@ def dashboard_widget_edit(request, pk):
     """Edit an existing widget. Owner or staff only."""
     widget = get_object_or_404(DashboardWidget, pk=pk)
     dashboard = widget.dashboard
-    if dashboard.created_by_id != request.user.id and not request.user.is_staff:
+    if not _may_change_dashboard(request.user, dashboard):
         raise PermissionDenied
     from .widget_sources import DATA_SOURCE_CHOICES
     if request.method == 'POST':
@@ -386,7 +398,7 @@ def dashboard_widget_delete(request, pk):
     """Delete a widget. Owner or staff only."""
     widget = get_object_or_404(DashboardWidget, pk=pk)
     dashboard = widget.dashboard
-    if dashboard.created_by_id != request.user.id and not request.user.is_staff:
+    if not _may_change_dashboard(request.user, dashboard):
         raise PermissionDenied
     if request.method == 'POST':
         widget.delete()

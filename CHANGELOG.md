@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.729] - 2026-11-20
+
+### Fixed
+- **Processes in Global View** open only when they are shared processes or belong to a customer where you can view documents, within your customer scope. Before, any staff account in Global View could open any customer's process by its address.
+- **Dashboard widgets** can be added, edited or removed by the dashboard's creator, or by someone who manages dashboards at the dashboard's customer (every customer, for an install-wide dashboard). Before, any account with the administrator staff flag could change any dashboard.
+- **Asset API without a customer selected** looks the asset up only among customers you hold the permission at, within your scope.
+- **IT Glue / Hudu importer (legacy path)** requests go through the outbound-address guard: cloud metadata addresses are always refused, and internal addresses need the install-wide private-address setting (`ALLOW_PRIVATE_IP_INTEGRATIONS=true`), as for the other integrations.
+- **Document bulk upload** no longer writes form values or file names to the log; it records the user and the number of files.
+- **Cross-site browser access (CORS)** applies only to `/api/` paths, and the localhost development origins are allowed only when DEBUG is on. In production no origin is allowed. The mobile app is unaffected.
+
 ## [3.17.728] - 2026-11-20
 
 ### Fixed

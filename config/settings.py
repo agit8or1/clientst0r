@@ -894,12 +894,15 @@ GRAPHENE = {
     ] if DEBUG else [],
 }
 
-# CORS Configuration for GraphQL API
+# CORS Configuration for GraphQL API (SR-19, v3.17.729): only the API paths,
+# and the localhost development origins only when DEBUG is on. The mobile
+# app is native and needs no CORS; in production no origin is allowed.
+CORS_URLS_REGEX = r'^/api/'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:19006",  # Expo default
     "http://localhost:8081",   # React Native default
-]
+] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',

@@ -132,7 +132,22 @@ def process_detail(request, slug):
         return redirect('accounts:organization_list')
 
     if in_global_view:
-        process = get_object_or_404(Process, slug=slug)
+        # SR-14: global processes, or those of customers where the user
+        # holds docs_view, within their reach (as the Global View lists).
+        from accounts.permission_utils import orgs_with_perm
+        from core.tenancy import accessible_org_ids
+        qs = Process.objects.all()
+        allowed = orgs_with_perm(request.user, 'docs_view')
+        reach = accessible_org_ids(request)
+        if allowed is not None or reach is not None:
+            # (An empty Q() would drop out of the OR and hide every
+            # non-global process, so only filter when something is limited.)
+            ids = None
+            for limit in (allowed, reach):
+                if limit is not None:
+                    ids = set(limit) if ids is None else ids & set(limit)
+            qs = qs.filter(Q(is_global=True) | Q(organization_id__in=ids))
+        process = get_object_or_404(qs, slug=slug)
     else:
         _require(request, org, 'docs_view')
         process = get_object_or_404(
