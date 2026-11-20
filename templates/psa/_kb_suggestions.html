@@ -1,0 +1,14 @@
+{% load psa_kb %}{% kb_suggestions ticket request.user as kb_sugg %}{% if kb_sugg %}
+<div class="card mt-3" id="kb-suggestions-card">
+    <div class="card-header"><strong><i class="fas fa-book-open me-1"></i>Suggested articles</strong></div>
+    <ul class="list-group list-group-flush small">
+        {% for s in kb_sugg %}
+        <li class="list-group-item">
+            <a href="{{ s.url }}">{{ s.title }}</a>
+            <span class="badge bg-secondary ms-1">{% if s.kind == 'runbook' %}Runbook{% else %}Article{% endif %}</span>
+            <div class="text-muted">{{ s.reason }}</div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}

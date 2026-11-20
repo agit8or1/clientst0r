@@ -144,6 +144,35 @@ list's ?queue= filter, so every count below equals the list its link opens.
     <div class="col-lg-4">
         {% if panels %}{% include "psa/_my_work_panels.html" with part="top" %}{% endif %}
 
+        {# Ticket reminders (52.21) #}
+        {% if is_staff_view %}
+        <div class="card mb-3" id="mw-reminders">
+            <div class="card-header py-2">
+                <h2 class="h6 mb-0"><i class="fas fa-clock"></i> Reminders <span class="badge {% if reminders_due %}bg-danger{% else %}bg-secondary{% endif %}">{{ reminders|length }}</span></h2>
+            </div>
+            {% if reminders %}
+            <div class="list-group list-group-flush">
+                {% for r in reminders %}
+                <div class="list-group-item py-2 d-flex justify-content-between align-items-start gap-2" data-reminder="{{ r.pk }}">
+                    <div class="ui-wrap">
+                        <a class="small" href="{% url 'psa:ticket_detail' r.ticket.ticket_number %}">{{ r.ticket.ticket_number }} {{ r.ticket.subject }}</a>
+                        {% if r.note %}<div class="small">{{ r.note }}</div>{% endif %}
+                        <div class="small {% if r.remind_at <= now %}text-danger fw-semibold{% else %}text-muted{% endif %}">{% if r.remind_at <= now %}Due {% endif %}{{ r.remind_at|date:"D j M H:i" }}</div>
+                    </div>
+                    <form method="post" action="{% url 'psa:reminder_complete' r.pk %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'psa:my_work' %}">
+                        <button type="submit" class="btn btn-sm btn-outline-success" title="Mark done"><i class="fas fa-check"></i></button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-3 small">No reminders. Set one from a ticket page.</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {# 6. Appointments #}
         <div class="card mb-3" id="mw-appointments">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">

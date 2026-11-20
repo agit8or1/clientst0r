@@ -145,6 +145,16 @@ class ActionSkipped(Exception):
     and the reason is kept on the rule's last error."""
 
 
+class BudgetExceeded(ValueError):
+    """More than MAX_ACTIONS_PER_EVENT actions for one ticket event (a
+    ValueError, as before; the subclass lets the run log tell it apart)."""
+
+
+class LoopRefused(ValueError):
+    """fire_rule refused: the target is already running, or the chain is too
+    deep (a ValueError, as before)."""
+
+
 def _assignable(ticket, users):
     """Users from ``users`` who may be given this ticket (SR-03)."""
     from .routing.engine import assignment_problem
@@ -188,14 +198,30 @@ def _create_charge_row(Charge, ticket, client, description, amount, action, is_c
 
 
 def run_action(ticket, action: Dict[str, Any]) -> None:
-    """Run a single action dict against a ticket. Raises on bad input."""
+    """Run a single action dict against a ticket. Raises on bad input.
+    Inside a rule firing, the step and its result go to the run log
+    (psa.workflow_runs, roadmap 91.2)."""
+    from . import workflow_runs
+    entry = workflow_runs.action_started(action, len(_chain()))
+    try:
+        _run_action(ticket, action)
+    except ActionSkipped as exc:
+        workflow_runs.action_done(entry, 'refused', exc)
+        raise
+    except Exception as exc:
+        workflow_runs.action_done(entry, 'error', exc)
+        raise
+    workflow_runs.action_done(entry, 'ok')
+
+
+def _run_action(ticket, action: Dict[str, Any]) -> None:
     used = 0
     if _chain():  # inside a rule firing: count against the event's budget
         used = getattr(_chain_state, 'actions', 0) + 1
         _chain_state.actions = used
     if used > MAX_ACTIONS_PER_EVENT:
-        raise ValueError(f'more than {MAX_ACTIONS_PER_EVENT} workflow actions for one ticket '
-                         'event; the remaining actions were not run')
+        raise BudgetExceeded(f'more than {MAX_ACTIONS_PER_EVENT} workflow actions for one ticket '
+                             'event; the remaining actions were not run')
     from .models import (
         Queue, TicketComment, TicketPriority, TicketWatcher,
     )
@@ -382,9 +408,9 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
             raise ValueError(f'fire_rule: no active rule named {name!r}')
         chain = _chain()
         if nxt.pk in chain:
-            raise ValueError(f'fire_rule: {name!r} is already running in this chain (loop)')
+            raise LoopRefused(f'fire_rule: {name!r} is already running in this chain (loop)')
         if len(chain) >= MAX_CHAIN_DEPTH:
-            raise ValueError(f'fire_rule: chain deeper than {MAX_CHAIN_DEPTH} rules')
+            raise LoopRefused(f'fire_rule: chain deeper than {MAX_CHAIN_DEPTH} rules')
         # Run nested rule's actions inline (skip the cron-like trigger
         # filter — chained execution intentionally bypasses trigger
         # matching since the parent already fired).
@@ -435,13 +461,16 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
     ).order_by('sort_order', 'pk')
 
     from .models import WorkflowRuleFiring
+    from . import workflow_runs
 
     fired = 0
     for rule in rules:
         if rule.pk in chain:
             # The rule's own action saved the ticket, which fires the
             # trigger again: running it now would re-enter it (SR-01).
+            workflow_runs.note_reentry(rule.pk)
             continue
+        run = None
         try:
             # Phase 14 v3 (v3.17.286): once-per-(rule,ticket) guard for
             # SLA tick rules so cron-driven fires don't spam.
@@ -451,6 +480,7 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
                         rule=rule, ticket=ticket).exists()):
                 continue
 
+            branch_name = 'then'
             if matches(ticket, rule.conditions or {}):
                 branch = rule.actions or []
             elif rule.else_actions:
@@ -460,8 +490,10 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
                 # a "fire" so the cooldown / fire_count tracks both
                 # branches.
                 branch = rule.else_actions
+                branch_name = 'else'
             else:
                 continue
+            run = workflow_runs.begin(rule, ticket, trigger, branch, chain, branch_name)
             chain.append(rule.pk)
             skipped = []
             try:
@@ -482,7 +514,9 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
                     rule=rule, ticket=ticket,
                 )
             fired += 1
+            workflow_runs.finish(run)
         except Exception as exc:
+            workflow_runs.finish(run, error=exc)
             logger.exception('workflow rule %s failed', rule.pk)
             rule.last_error = str(exc)[:1000]
             rule.save(update_fields=['last_error'])

@@ -19,7 +19,6 @@ Readiness
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 from datetime import timedelta
 
@@ -44,7 +43,10 @@ def _reverse(name):
 
 
 def _fingerprint(user):
-    return hashlib.sha256((user.password or '').encode()).hexdigest()
+    # Changes whenever the stored password changes. Django's session hash is a
+    # keyed HMAC of the stored hash, so the stored hash itself never reaches the
+    # cache or the readiness table and no extra hash of it is computed here.
+    return user.get_session_auth_hash()
 
 
 def default_password_in_use(user):

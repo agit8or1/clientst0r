@@ -1309,6 +1309,7 @@ class ScheduledTask(models.Model):
         ('api_access_tick', 'API Access Control Maintenance'),
         ('events_tick', 'Shared Event Layer Ingestion'),
         ('audit_chain', 'Audit Log Seal and Tamper Check'),
+        ('psa_ticket_reminders', 'PSA Ticket Reminders'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -2006,6 +2007,12 @@ class ScheduledTask(models.Model):
             'description': 'Seal new audit log entries into the tamper-evident chain; verify the whole chain '
                            'once a day',
             'interval_minutes': 5,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_ticket_reminders',
+            'description': 'Mark ticket reminders that have come due as fired, so they show in My Work and the bell',
+            'interval_minutes': 1,
             'enabled': True,
         },
     ]

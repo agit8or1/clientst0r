@@ -220,6 +220,7 @@
             {% endif %}
             {% include "psa/_conversation.html" with entries=conversation staff_view=is_msp_staff allow_reply=reply_open empty_text="No description or activity yet." %}
             {% if is_msp_staff and secure_thread %}{% include "psa/_secure_thread.html" %}{% endif %}
+            {% include "psa/_kb_suggestions.html" %}
 
             {% comment %}Reply / internal note composer — drafts autosave, posts carry the
                newest activity id so a stale reply is held for confirmation.{% endcomment %}
@@ -402,6 +403,27 @@
 
     <div class="col-lg-4">
         {% if is_msp_staff %}
+        {# 52.21 — my private reminders on this ticket #}
+        <div class="card mb-3" id="ticketReminders">
+            <div class="card-header py-2"><strong class="small"><i class="fas fa-clock me-1"></i>My reminders</strong></div>
+            <div class="card-body py-2 small">
+                {% for r in ticket_reminders %}
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2" data-reminder="{{ r.pk }}">
+                    <div class="ui-wrap"><span class="{% if r.fired_at %}text-danger fw-semibold{% endif %}">{{ r.remind_at|date:"D j M H:i" }}</span>{% if r.note %} &middot; {{ r.note }}{% endif %}</div>
+                    <div class="d-flex gap-1">
+                        <form method="post" action="{% url 'psa:reminder_complete' r.pk %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-success py-0" title="Mark done"><i class="fas fa-check"></i></button></form>
+                        <form method="post" action="{% url 'psa:reminder_delete' r.pk %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-danger py-0" title="Delete"><i class="fas fa-trash"></i></button></form>
+                    </div>
+                </div>
+                {% empty %}<p class="text-muted mb-2">None. Reminders are private to you.</p>{% endfor %}
+                <form method="post" action="{% url 'psa:reminder_create' ticket.ticket_number %}">
+                    {% csrf_token %}
+                    <input type="datetime-local" name="remind_at" class="form-control form-control-sm mb-1" required aria-label="Remind me at">
+                    <input type="text" name="note" maxlength="200" class="form-control form-control-sm mb-1" placeholder="Note (optional)" aria-label="Reminder note">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Set reminder</button>
+                </form>
+            </div>
+        </div>
         {# v3.17.654 — who is copied on e-mailed replies #}
         <div class="card mb-3" id="ticketCc">
             <div class="card-header py-2"><strong class="small"><i class="fas fa-user-plus me-1"></i>Copied on replies (Cc)</strong></div>
@@ -698,6 +720,8 @@
             </div>
         </div>
         {% endif %}
+
+        {% include "psa/_handoff_summary.html" %}
 
         {% comment %}
             Phase 46 (v3.17.533) — what the tech has to take. Attached to the
@@ -1531,6 +1555,7 @@
 {% if ai_enabled %}<script src="{% static 'js/ticket_ai_assist.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/ticket_conversation.js' %}" defer></script>
 <script src="{% static 'js/ticket_dropzone.js' %}" defer></script>
+{% if handoff_text %}<script src="{% static 'js/ticket_handoff.js' %}" defer></script>{% endif %}
 <script nonce="{{ csp_nonce }}">
 (function () {
     var kind = document.getElementById('kit_kind');

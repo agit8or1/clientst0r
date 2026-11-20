@@ -18,6 +18,19 @@
 .bo-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); }
 .bo-card { border: 1px solid var(--bo-border); border-radius: .5rem; background: var(--bo-card); padding: .85rem 1rem .7rem;
            display: flex; flex-direction: column; min-height: 15rem; }
+/* Every card has the same eight slots (title, label, figure, chart, list,
+   filter chips, source, date). With subgrid each slot takes the height of the
+   tallest card in its row, so titles, figures, charts, lists and footers line
+   up across the row whatever a card contains. */
+@supports (grid-template-rows: subgrid) {
+  .bo-card { display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 0; min-height: 0; }
+  .bo-grid { row-gap: .75rem; }
+}
+.bo-slot-chart:empty, .bo-slot-list:empty { min-height: 0; }
+.bo-slot-chips { padding-top: .5rem; }
+.bo-slot-src, .bo-slot-date { font-size: .72rem; color: var(--bo-muted); }
+.bo-slot-src { padding-top: .25rem; }
+.bo-slot-date { padding-top: .25rem; align-self: end; }
 .bo-card-h { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
 .bo-card-t { font-size: .9rem; font-weight: 600; margin: 0; }
 .bo-card-t i { color: var(--bo-muted); margin-right: .35rem; }
@@ -39,7 +52,6 @@
 [data-bs-theme="dark"] .bo-incomplete { color: #fab219; }
 .bo-state { font-size: .82rem; color: var(--bo-muted); margin-top: .6rem; }
 .bo-notes { font-size: .75rem; color: var(--bo-muted); margin: .2rem 0 0; padding-left: 1rem; }
-.bo-foot { margin-top: auto; padding-top: .5rem; font-size: .72rem; color: var(--bo-muted); display: flex; flex-direction: column; gap: .25rem; }
 .bo-foot-row { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .bo-chips { display: flex; gap: .25rem; flex-wrap: wrap; }
 .bo-chip { border: 1px solid var(--bo-border); border-radius: .25rem; padding: 0 .3rem; font-size: .66rem; }
@@ -92,20 +104,20 @@
           <h3 class="bo-card-t"><i class="fas {{ c.icon }}" aria-hidden="true"></i>{{ c.title }}</h3>
           <span class="bo-badge bo-badge-ok d-none" data-badge></span>
         </div>
-        {% if c.label %}<div class="bo-label">{{ c.label }}</div>{% endif %}
-        <div data-body><div class="bo-skel"></div></div>
-        <div class="bo-foot">
-          <div class="bo-chips" aria-label="Filters this card uses">
+        <div class="bo-label">{{ c.label }}</div>
+        <div data-main><div class="bo-skel"></div></div>
+        <div class="bo-slot-chart" data-chart-slot></div>
+        <div class="bo-slot-list" data-list></div>
+          <div class="bo-chips bo-slot-chips" aria-label="Filters this card uses">
             {% for f, label in filter_labels.items %}
               {% if f in c.supported_filters %}<span class="bo-chip" title="Uses the {{ label|lower }} filter">{{ label }}</span>
               {% elif label in c.unsupported %}<span class="bo-chip bo-chip-ignored" title="This card ignores the {{ label|lower }} filter you set">{{ label }}</span>
               {% else %}<span class="bo-chip bo-chip-off" title="This card does not use the {{ label|lower }} filter">{{ label }}</span>{% endif %}
             {% endfor %}
           </div>
-          <div data-source>{{ c.source }}</div>
-          {% if c.permission_note %}<div>{{ c.permission_note }}</div>{% endif %}
-          <div class="bo-foot-row"><span data-asof></span><a href="{{ c.records_url }}" class="d-none" data-records>View records <i class="fas fa-arrow-right" aria-hidden="true"></i></a></div>
-        </div>
+        <div class="bo-slot-src"><div data-source>{{ c.source }}</div>
+          {% if c.permission_note %}<div>{{ c.permission_note }}</div>{% endif %}</div>
+        <div class="bo-foot-row bo-slot-date"><span data-asof></span><a href="{{ c.records_url }}" class="d-none" data-records>View records <i class="fas fa-arrow-right" aria-hidden="true"></i></a></div>
       </article>
       {% endfor %}
     </div>
@@ -159,7 +171,7 @@
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', data.title + ': ' + series.map(function (p) { return p.label + ' ' + fmt(p.value, unit); }).join(', '));
     box.appendChild(canvas);
-    card.querySelector('[data-body]').appendChild(box);
+    card.querySelector('[data-chart-slot]').appendChild(box);
     var blue = cssVar('--bo-series'), red = cssVar('--bo-negative');
     var values = series.map(function (p) { return p.value === null ? null : Number(p.value); });
     var type = kind === 'line' ? 'line' : 'bar';
@@ -194,12 +206,15 @@
       li.appendChild(el('span', 'bo-num', val));
       ul.appendChild(li);
     });
-    card.querySelector('[data-body]').appendChild(ul);
+    card.querySelector('[data-list]').appendChild(ul);
   }
 
   function render(card, data) {
-    var body = card.querySelector('[data-body]'), badge = card.querySelector('[data-badge]');
+    var body = card.querySelector('[data-main]'), badge = card.querySelector('[data-badge]');
+    var list = card.querySelector('[data-list]');
     body.innerHTML = '';
+    card.querySelector('[data-chart-slot]').innerHTML = '';
+    list.innerHTML = '';
     card.setAttribute('aria-busy', 'false');
     if (charts[card.id]) { charts[card.id].destroy(); delete charts[card.id]; }
     if (data.state !== 'ok') {
@@ -207,6 +222,8 @@
       badge.textContent = label; badge.className = 'bo-badge bo-badge-ok';
       body.appendChild(el('div', 'bo-value bo-none', label));
       body.appendChild(el('div', 'bo-state', data.reason || ''));
+      card.querySelector('[data-asof]').textContent = '';
+      card.querySelector('[data-records]').classList.add('d-none');
       return;
     }
     if (data.is_complete) { badge.textContent = 'Complete'; badge.className = 'bo-badge bo-badge-ok'; }
@@ -219,7 +236,7 @@
     if (data.notes && data.notes.length) {
       var ul = el('ul', 'bo-notes');
       data.notes.forEach(function (n) { ul.appendChild(el('li', '', n)); });
-      body.appendChild(ul);
+      list.appendChild(ul);
     }
     if (data.source) card.querySelector('[data-source]').textContent = 'Source: ' + data.source;
     card.querySelector('[data-asof]').textContent = asOf(data.as_of);

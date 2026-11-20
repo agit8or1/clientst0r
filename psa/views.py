@@ -633,6 +633,13 @@ def ticket_detail(request, ticket_number):
     if workspace['is_msp_staff']:
         from .ticket_secure import thread_for_ticket
         context['secure_thread'] = thread_for_ticket(ticket)
+        # Roadmap 52.21: the technician's own reminders on this ticket.
+        context['ticket_reminders'] = list(ticket.reminders.filter(
+            user=request.user, completed_at__isnull=True))
+        from .handoff import build_handoff, render_text
+        _handoff = build_handoff(ticket, request.user)
+        context['handoff'] = _handoff
+        context['handoff_text'] = render_text(_handoff) if _handoff else ''
     if not workspace['is_msp_staff']:
         # A customer user reaching the staff ticket page gets the portal's
         # view of the ticket: the shared conversation and their own
@@ -4942,9 +4949,25 @@ def workflow_rule_flow(request, pk=None):
         flows.append({'flow': flow, 'problems': problems,
                       'only_chained': rule.name in chained,
                       'can_edit': workflow_access.can_edit_rule(request.user, rule)})
+    runs, current_fp = [], ''
+    if pk:
+        # Roadmap 91.2: the rule's recent runs, limited to tickets of
+        # customers the viewer can reach (an MSP-wide rule's runs on other
+        # customers' tickets are left out).
+        from . import workflow_runs
+        runs = list(workflow_runs.visible_runs(rules[0].runs.select_related('ticket', 'actor'), request.user)
+                    .order_by('-started_at', '-id')[:RULE_RUNS_SHOWN])
+        current_fp = workflow_runs.fingerprint(rules[0])
+        labels = dict(WorkflowRule.TRIGGER_CHOICES)
+        for run in runs:
+            run.trigger_label = labels.get(run.trigger, run.trigger)
     return render(request, 'psa/workflow_rule_flow.html', {
         'flows': flows, 'single': bool(pk), 'trigger_labels': dict(WorkflowRule.TRIGGER_CHOICES),
+        'runs': runs, 'current_fingerprint': current_fp, 'runs_shown': RULE_RUNS_SHOWN,
     })
+
+
+RULE_RUNS_SHOWN = 25
 
 
 @login_required
@@ -11176,6 +11199,10 @@ def my_work(request):
                        'elapsed': f'{secs // 3600}:{(secs % 3600) // 60:02d}'})
 
     approvals = _my_work_approvals(request) if staff else []
+    reminders = []
+    if staff:
+        from .reminders import reminders_for
+        reminders = list(reminders_for(request.user, base).order_by('remind_at')[:MY_WORK_LIMIT])
     appointments = _my_work_appointments(request.user)
     # SLA risk, alerts, device health, maintenance, recent devices, remote
     # sessions, jobs to review and (OPTIONAL AI) suggestions — MSP staff
@@ -11196,6 +11223,8 @@ def my_work(request):
         'approvals': approvals,
         'approvals_total': sum(q['count'] for q in approvals),
         'appointments': appointments,
+        'reminders': reminders,
+        'reminders_due': sum(1 for r in reminders if r.remind_at <= now),
         'appointments_today': sum(1 for a in appointments if a['is_today']),
         'limit': MY_WORK_LIMIT,
         'now': now,

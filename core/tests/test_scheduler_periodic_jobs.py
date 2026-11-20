@@ -60,6 +60,7 @@ PERIODIC_COMMANDS = {
     'sync_distributors',
     'run_scheduled_reports',
     'poll_security_alerts',
+    'psa_ticket_reminders',
 }
 
 # The crontab cadences these had, kept by the scheduler defaults.

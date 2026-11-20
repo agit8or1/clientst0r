@@ -934,6 +934,32 @@ tr.low-stock-row > td {
     border-color: var(--bs-table-border-color) !important;
 }
 
+/* `.table-secondary` rows (the knowledge-base category headings, report
+   subtotals, inactive rows) are pinned to Bootstrap's light grey as well, so
+   dark themes showed a near-white bar. Same treatment, one step lighter than
+   `.table-light` so a heading row still stands out from the rows under it. */
+[data-bs-theme="dark"] .table-secondary,
+[data-bs-theme="dark"] .table > tbody > tr.table-secondary > td,
+[data-bs-theme="dark"] .table > tbody > tr.table-secondary > th {
+    --bs-table-color: #f1f3f5;
+    --bs-table-bg: #343a40;
+    --bs-table-border-color: #495057;
+    --bs-table-striped-bg: #3a4046;
+    --bs-table-striped-color: #f1f3f5;
+    --bs-table-active-bg: #3f454b;
+    --bs-table-active-color: #f1f3f5;
+    --bs-table-hover-bg: #3f454b;
+    --bs-table-hover-color: #f1f3f5;
+    color: var(--bs-table-color) !important;
+    background-color: var(--bs-table-bg) !important;
+    border-color: var(--bs-table-border-color) !important;
+}
+/* Bootstrap's `.text-bg-light` (used for count badges) is light-pinned too. */
+[data-bs-theme="dark"] .text-bg-light {
+    background-color: #3a4046 !important;
+    color: #f1f3f5 !important;
+}
+
 /* Generic .bg-light is also light-pinned; soften it in dark themes.
    Also handle the .bg-light.text-dark badge combo so the dark text doesn't
    stay locked against the (now-dark) background. */

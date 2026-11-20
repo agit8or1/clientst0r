@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.739] - 2026-11-20
+
+Ticket reminders, a handoff summary and knowledge suggestions on the ticket page; a run history for workflow rules.
+
+### Added
+
+- **Ticket reminders (roadmap 52.21).**
+  - A technician can set a private reminder on a ticket: a date and time plus a short note, under "My reminders"
+    on the ticket page.
+  - When it comes due, the top-bar bell counts it, and My Work lists it in a new Reminders card with a link to the
+    ticket.
+  - A new scheduled task, "PSA Ticket Reminders", runs every minute.
+  - Reminders are for MSP staff only, private to their owner, and only allowed on tickets the technician can open.
+- **Handoff summary (roadmap 52.22).**
+  - A collapsed card on the ticket page for shift or technician changes.
+  - It shows status, priority, assignee, age and SLA state, the last eight actions including internal notes, open
+    checklist items and the ticket's devices.
+  - **Copy** puts it on the clipboard as plain text.
+  - Customer users never see it, and it contains no vault data. No AI is involved; an optional AI wording is
+    planned.
+- **Suggested articles (roadmap 52.23).** A card on the ticket page suggests up to five knowledge-base articles
+  and runbooks, without AI.
+  - **Matching:** by the alert's kind, the ticket's tags and the asset type of its devices, with a one-line reason
+    for each suggestion.
+  - **Scope:** only published items from the ticket's customer, or global articles shared with that customer.
+- **Workflow rule run history (roadmap 91.2).** Each rule's flow page lists its recent runs.
+  - **Each run shows:** when it ran, the outcome, the ticket, the trigger, who caused it and how long it took.
+  - **Steps** expands each run to every action with its result or refusal reason. A badge marks runs made by an
+    older version of the rule.
+  - **Scope:** technicians limited to some customers see only runs on those customers' tickets.
+  - **Retention:** runs are kept for 30 days, at most 500 per rule.
+
+### Fixed
+
+- **Business Overview tiles line up:** in each row, every card's title, figure, chart, breakdown list, filter
+  chips, source and date now sit at the same height, whatever each card contains. Roadmap 67.23.
+- **Dark-theme contrast:** the knowledge base's category heading rows, other light-grey table rows and light count
+  badges no longer show as a near-white bar in dark themes. Roadmap 67.24.
+- **Readiness check:** it no longer computes its own hash of the stored password hash to notice password changes.
+  It uses Django's keyed session hash instead. After the update, the default-password check runs once more for
+  each superuser.
+- **Maintenance page:** after an audit-log clean-up it redirects to a fixed address instead of the request's own
+  path.
+
+### Documentation
+
+- **Roadmap:**
+  - 52.21, 52.23 and 91.2 are shipped and 52.22 is partial.
+  - Access groups were added as 111.6 (in progress), and Business Overview tile alignment as 67.23 (shipped).
+  - Phase 111 is now in progress.
+
 ## [3.17.738] - 2026-11-20
 
 Workflow rules follow each technician's customer scope.

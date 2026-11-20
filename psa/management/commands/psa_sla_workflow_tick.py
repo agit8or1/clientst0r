@@ -93,6 +93,16 @@ class Command(BaseCommand):
                     self.stdout.write(f'Support workflows updated: {n}')
             except Exception as exc:  # pragma: no cover
                 self.stdout.write(self.style.ERROR(f'support workflows: {exc}'))
+            # Workflow rule execution log retention (roadmap 91.2): runs older
+            # than PSA_WORKFLOW_RUN_RETENTION_DAYS (30) and beyond
+            # PSA_WORKFLOW_RUNS_PER_RULE (500) per rule; at most hourly.
+            try:
+                from psa.workflow_runs import prune_if_due
+                n = prune_if_due()
+                if n:
+                    self.stdout.write(f'Workflow run log: {n} old run(s) removed')
+            except Exception as exc:  # pragma: no cover
+                self.stdout.write(self.style.ERROR(f'workflow run log prune: {exc}'))
 
         self.stdout.write(self.style.SUCCESS(
             f'{"[dry] " if dry else ""}Evaluated {evaluated} ticket(s); '

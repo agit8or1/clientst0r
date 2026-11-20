@@ -962,7 +962,7 @@ def maintenance(request):
             if days is None or not AUDIT_PURGE_MIN_DAYS <= days <= AUDIT_PURGE_MAX_DAYS:
                 messages.error(request, f'Audit logs can only be cleaned up when older than '
                                         f'{AUDIT_PURGE_MIN_DAYS} to {AUDIT_PURGE_MAX_DAYS} days. Nothing was deleted.')
-                return redirect(request.path)
+                return redirect('core:maintenance')
             cutoff_date = timezone.now() - timedelta(days=days)
             # Through the tamper-evident chain (SR-07): the entries are
             # archived first, only the start of the chain is removed, and
@@ -972,11 +972,11 @@ def maintenance(request):
                 deleted_count, archive = audit_chain.prune_before(cutoff_date)
             except audit_chain.PruneRefused as e:
                 messages.error(request, str(e))
-                return redirect(request.path)
+                return redirect('core:maintenance')
             except OSError as e:
                 messages.error(request, f'The audit archive could not be written ({e.__class__.__name__}); '
                                         'nothing was deleted.')
-                return redirect(request.path)
+                return redirect('core:maintenance')
             # The clean-up itself stays on record (v3.17.652).
             AuditLog.log(user=request.user, action='delete', object_type='audit_log',
                          description=f'Deleted {deleted_count} audit log entries older than {days} days',

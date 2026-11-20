@@ -12,6 +12,8 @@ so a number never points at a page the user cannot open:
   rmm_permissions.approvals.open_for + refusal);
 * unread secure notes (core.securenotes_views.secure_note_inbox: the
   module on; the inbox's own query);
+* ticket reminders that have come due (psa.reminders; the owner's own,
+  on tickets they can still open; listed on My Work);
 * unread contract notifications (contracts.views.dashboard: MSP staff with
   contracts_view; only contracts the user may see);
 * a newer release found by the scheduled update check (superusers).
@@ -84,6 +86,18 @@ def _contracts(user, ctx):
         contract__in=perms.scope(ContractDocument.objects.all(), user)).count()
 
 
+def _ticket_reminders(user, ctx):
+    from psa.visibility import is_msp_staff
+    if not (ctx.get('psa_enabled') and is_msp_staff(user)):
+        return None
+    request = ctx.get('request')
+    if request is None:
+        return None
+    from psa.reminders import reminders_for
+    from psa.views import _scoped_ticket_qs
+    return reminders_for(user, _scoped_ticket_qs(request)).filter(fired_at__isnull=False).count()
+
+
 # key, label, icon, url name, counter
 SOURCES = (
     ('psa_approvals', _('Approvals waiting for a decision'), 'fa-circle-check', 'psa:approval_list',
@@ -91,6 +105,7 @@ SOURCES = (
     ('rmm_approvals', _('RMM approval requests'), 'fa-user-lock', 'rmm_permissions:approvals',
      _rmm_approvals),
     ('secure_notes', _('Unread secure notes'), 'fa-lock', 'core:secure_note_inbox', _secure_notes),
+    ('ticket_reminders', _('Ticket reminders due'), 'fa-clock', 'psa:my_work', _ticket_reminders),
     ('contracts', _('Contract notifications'), 'fa-file-signature', 'contracts:dashboard', _contracts),
 )
 

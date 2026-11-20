@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import requester_site_views, views
+from . import reminders, requester_site_views, views
 from . import request_builder_views as _rb
 
 app_name = 'psa'
@@ -54,6 +54,9 @@ urlpatterns = [
     path('t/<str:ticket_number>/action/', views.ticket_quick_action, name='ticket_quick_action'),
     path('t/<str:ticket_number>/watch/', views.ticket_watch_toggle, name='ticket_watch_toggle'),
     path('t/<str:ticket_number>/cc/', views.ticket_cc_update, name='ticket_cc_update'),
+    path('t/<str:ticket_number>/reminders/add/', reminders.reminder_create, name='reminder_create'),
+    path('reminders/<int:pk>/complete/', reminders.reminder_complete, name='reminder_complete'),
+    path('reminders/<int:pk>/delete/', reminders.reminder_delete, name='reminder_delete'),
     path('t/<str:ticket_number>/merge/', views.ticket_merge, name='ticket_merge'),
     path('t/<str:ticket_number>/kb-link/', views.ticket_kb_link, name='ticket_kb_link'),
     path('t/<str:ticket_number>/kb-unlink/<int:link_pk>/', views.ticket_kb_unlink, name='ticket_kb_unlink'),

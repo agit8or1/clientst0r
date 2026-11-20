@@ -1,0 +1,14 @@
+{% if handoff_text %}
+<div class="card mb-3" data-handoff>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="fas fa-people-arrows"></i> Handoff summary</strong>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-handoff-toggle aria-expanded="false" aria-controls="handoffBody">Show</button>
+    </div>
+    <div class="card-body" id="handoffBody" hidden>
+        <pre class="small mb-2" style="white-space:pre-wrap;" data-handoff-text>{{ handoff_text }}</pre>
+        <button type="button" class="btn btn-sm btn-primary" data-handoff-copy>Copy</button>
+        <span class="small text-muted ms-2" data-handoff-status role="status"></span>
+        <div class="small text-muted mt-2">Includes internal notes. Technicians only; do not paste into customer messages.</div>
+    </div>
+</div>
+{% endif %}

@@ -44,5 +44,55 @@
 <p class="text-muted">No workflow rules yet.</p>
 {% endfor %}
 
+{% if single %}
+<div class="card mb-3" id="rule-runs">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="fas fa-history me-1"></i>Recent runs</strong>
+        <small class="text-muted">Last {{ runs_shown }} on tickets you can see; kept 30 days</small>
+    </div>
+    {% if runs %}
+    <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>When</th><th>Outcome</th><th>Ticket</th><th>Trigger</th><th>By</th><th>Duration</th><th>Version</th><th></th></tr></thead>
+        <tbody>
+        {% for run in runs %}
+        <tr>
+            <td class="text-nowrap" title="{{ run.started_at|date:'Y-m-d H:i:s' }}">{{ run.started_at|date:"M j, H:i" }}</td>
+            <td>
+                {% if run.outcome == 'ok' %}<span class="badge text-bg-success">{{ run.get_outcome_display }}</span>
+                {% elif run.outcome == 'partial' %}<span class="badge text-bg-warning">{{ run.get_outcome_display }}</span>
+                {% else %}<span class="badge text-bg-danger">{{ run.get_outcome_display }}</span>{% endif %}
+                {% if run.branch == 'else' %}<span class="badge text-bg-light">otherwise</span>{% endif %}
+            </td>
+            <td>{% if run.ticket %}<a href="{% url 'psa:ticket_detail' run.ticket.ticket_number %}">{{ run.ticket.ticket_number }}</a>{% else %}<span class="text-muted">{{ run.ticket_number|default:"deleted" }}</span>{% endif %}</td>
+            <td><small>{{ run.trigger_label }}</small>{% if run.via_rule_name %}<br><small class="text-muted">via {{ run.via_rule_name }}</small>{% endif %}</td>
+            <td><small>{% if run.actor %}{{ run.actor.get_full_name|default:run.actor.username }}{% else %}{{ run.get_actor_label_display }}{% endif %}</small></td>
+            <td><small>{{ run.duration_ms }} ms</small></td>
+            <td><code class="small" title="{% if run.rule_fingerprint != current_fingerprint %}The rule has been changed since this run{% else %}Current definition{% endif %}">{{ run.rule_fingerprint|default:"-" }}</code>{% if run.rule_fingerprint != current_fingerprint %} <span class="badge text-bg-light">older</span>{% endif %}</td>
+            <td><button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#run-{{ run.pk }}" aria-expanded="false" aria-controls="run-{{ run.pk }}">Steps</button></td>
+        </tr>
+        <tr class="collapse" id="run-{{ run.pk }}"><td colspan="8" class="bg-body-tertiary">
+            {% if run.message %}<div class="small text-danger mb-1">{{ run.message }}</div>{% endif %}
+            {% if run.reentry_blocked %}<div class="small text-muted mb-1">Re-run prevented {{ run.reentry_blocked }} time{{ run.reentry_blocked|pluralize }} (the rule's own changes re-fired its trigger).</div>{% endif %}
+            <ol class="small mb-0">
+            {% for step in run.actions %}
+                <li style="margin-left: {% widthratio step.depth 1 20 %}px">
+                    <code>{{ step.type }}</code>{% if step.summary %} <span class="text-muted">{{ step.summary }}</span>{% endif %}
+                    {% if step.result == 'ok' %}<span class="badge text-bg-success">ok</span>{% elif step.result == 'refused' %}<span class="badge text-bg-warning">refused</span>{% elif step.result == 'skip' %}<span class="badge text-bg-secondary">skipped</span>{% else %}<span class="badge text-bg-danger">error</span>{% endif %}
+                    {% if step.message %}<span>{{ step.message }}</span>{% endif %}
+                </li>
+            {% empty %}<li class="text-muted">No steps.</li>{% endfor %}
+            </ol>
+        </td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="card-body text-muted small">No runs recorded yet{% if flows.0.flow.rule.organization is None %} on tickets you can see{% endif %}.</div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% include "psa/_workflow_flow_styles.html" %}
 {% endblock %}

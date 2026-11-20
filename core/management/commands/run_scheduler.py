@@ -78,6 +78,7 @@ COMMAND_TASKS = {
     'connect_deliver_events': ('connect_deliver_events', []),
     'connect_rotate_keys': ('connect_rotate_keys', []),
     'compute_health_scores': ('compute_health_scores', []),
+    'psa_ticket_reminders': ('psa_ticket_reminders', []),
 }
 
 

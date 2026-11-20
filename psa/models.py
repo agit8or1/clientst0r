@@ -4386,6 +4386,55 @@ class WorkflowRuleFiring(models.Model):
         return f'{self.rule.name} → {self.ticket.ticket_number} @ {self.fired_at:%Y-%m-%d %H:%M}'
 
 
+class WorkflowRuleRun(models.Model):
+    """One firing of a workflow rule (roadmap 91.2): written by
+    psa.workflow_runs from the engine. ``actions`` is a list of
+    {type, summary, depth, result (ok/refused/error/skip), message}.
+    Pruned by psa.workflow_runs.prune (30 days / 500 per rule by default)."""
+    OUTCOME_CHOICES = [
+        ('ok', 'Completed'),
+        ('partial', 'Completed with refused steps'),
+        ('error', 'Failed'),
+        ('loop_guard', 'Stopped by the loop guard'),
+        ('budget', 'Stopped by the action budget'),
+    ]
+    ACTOR_CHOICES = [('user', 'User'), ('system', 'System'), ('scheduler', 'Scheduler')]
+
+    rule = models.ForeignKey('WorkflowRule', on_delete=models.CASCADE, related_name='runs')
+    rule_name = models.CharField(max_length=200, blank=True)
+    rule_fingerprint = models.CharField(max_length=16, blank=True,
+                                        help_text="Hash of the rule's definition when it ran.")
+    branch = models.CharField(max_length=8, default='then')
+    ticket = models.ForeignKey('Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='workflow_runs')
+    ticket_number = models.CharField(max_length=32, blank=True)
+    organization = models.ForeignKey('core.Organization', on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name='+')
+    trigger = models.CharField(max_length=30, blank=True)
+    actor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                              null=True, blank=True, related_name='+')
+    actor_label = models.CharField(max_length=12, choices=ACTOR_CHOICES, default='system')
+    via_rule_name = models.CharField(max_length=200, blank=True)
+    started_at = models.DateTimeField(default=timezone.now)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(default=0)
+    outcome = models.CharField(max_length=12, choices=OUTCOME_CHOICES, default='ok')
+    message = models.TextField(blank=True)
+    actions = models.JSONField(default=list, blank=True)
+    reentry_blocked = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'psa_workflow_rule_runs'
+        ordering = ['-started_at', '-id']
+        indexes = [
+            models.Index(fields=['rule', '-started_at'], name='psa_wfrun_rule_started'),
+            models.Index(fields=['started_at'], name='psa_wfrun_started'),
+        ]
+
+    def __str__(self):
+        return f'{self.rule_name} on {self.ticket_number or "?"} @ {self.started_at:%Y-%m-%d %H:%M} ({self.outcome})'
+
+
 class WorkflowCharge(models.Model):
     """The charge a workflow rule's ``create_charge`` action made for a ticket.
     Unique per (rule, ticket): however often the rule fires for that ticket,
@@ -7518,3 +7567,29 @@ class TicketAffectedAsset(models.Model):
 
     def __str__(self):
         return f'{self.ticket_id} affects asset {self.asset_id}'
+
+
+class TicketReminder(models.Model):
+    """A private, per-technician reminder on a ticket (roadmap 52.21).
+
+    Only its owner ever sees it. The scheduler job `psa_ticket_reminders`
+    stamps ``fired_at`` once when ``remind_at`` passes; a fired reminder that
+    is not completed shows in My Work and counts in the top bar's bell.
+    """
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='reminders')
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='psa_ticket_reminders')
+    remind_at = models.DateTimeField(db_index=True)
+    note = models.CharField(max_length=200, blank=True)
+    fired_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_ticket_reminders'
+        ordering = ['remind_at', 'pk']
+        indexes = [models.Index(fields=['user', 'completed_at', 'remind_at'])]
+
+    def __str__(self):
+        return f'{self.ticket_id} @ {self.remind_at:%Y-%m-%d %H:%M}'

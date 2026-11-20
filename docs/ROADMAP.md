@@ -23,9 +23,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **108** in total |
 | ✅ Complete | 51 (of which 2 marked for verification) |
-| 🔵 In progress | 26 |
+| 🔵 In progress | 27 |
 | 🟡 Partial | 4 |
-| ⬜ Planned | 26 |
+| ⬜ Planned | 25 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
 | ⏸️ Deferred | 1 |
 
@@ -132,9 +132,9 @@ Approved, in priority order, not started (or started only in parts already liste
 | 2 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
 | 3 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
-| 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.2 execution log, 91.3 dry run, 91.6–91.9 | 14 |
-| 6 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.21 reminders, 52.22 handoff summary, 52.23, 52.24 | 51 |
-| 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 111.1 passkeys | 57, 64, 80 |
+| 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.3 dry run, 91.6–91.9 | 14 |
+| 6 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording | 51 |
+| 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.6 access groups (in development); 111.1 passkeys | 57, 64, 80 |
 | 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 9 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
 
@@ -154,8 +154,8 @@ unchanged. Click a feature for its details.
 | ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
 |---|---|---|---|---|---|
 | 14 | [Visual Workflow Automation Engine](#phase-14) | — | 🟡 Partial | — | Time-based triggers, delays and escalation logic (91.6) |
-| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.21 reminders, 52.22 handoff summary, 52.23, 52.24 |
-| 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.2 execution log, 91.3 dry run, 91.6–91.9 |
+| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording |
+| 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.3 dry run, 91.6–91.9 |
 | 93 | [Business-hours SLA calendars](#phase-93) | — | ⬜ Planned | — | 93.1 calendars |
 
 <details markdown="1">
@@ -294,7 +294,7 @@ unchanged. Click a feature for its details.
 | 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
 | 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
 | 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | — | 94.3 scheduled off-host backups; external append-only shipping (94.1) |
-| 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 57, 64, 80 | 111.1 passkeys |
+| 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 57, 64, 80 | 111.6 access groups (in development); 111.1 passkeys |
 
 <details markdown="1">
 <summary>8 completed phases</summary>
@@ -1478,9 +1478,9 @@ are built on top of them.
 <a id="phase-52"></a>
 
 ## Phase 52 — Technician workspace **(L · P1)** [in progress]
-<!-- phase: ws=A stage=1 view=next order=6 deps=51 next="52.21 reminders, 52.22 handoff summary, 52.23, 52.24" -->
+<!-- phase: ws=A stage=1 view=next order=6 deps=51 next="52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 51  
-**Next:** 52.21 reminders, 52.22 handoff summary, 52.23, 52.24
+**Next:** 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -1578,10 +1578,10 @@ someone else.
 
 - **52.20 Drop files on the ticket composer** *(shipped v3.17.737 — several files per upload)* — through the existing upload rules
   (`psa/attachment_rules.py`), rejecting a mismatched type.
-- **52.21 Ticket reminders** *(planned)* — per-ticket reminders on the scheduler, shown in My Work.
-- **52.22 Technician handoff summary** *(planned)* — a non-AI summary (status, last actions, open tasks,
+- **52.21 Ticket reminders** *(shipped v3.17.739 — private per-ticket reminders, the top-bar bell when due, a Reminders card on My Work)* — per-ticket reminders on the scheduler, shown in My Work.
+- **52.22 Technician handoff summary** *(partial — the non-AI summary with a Copy button shipped v3.17.739; the OPTIONAL AI wording planned)* — a non-AI summary (status, last actions, open tasks,
   devices) for shift or technician changes; an AI wording is OPTIONAL AI behind `psa_ai_enabled`.
-- **52.23 Knowledge suggestions without AI** *(planned)* — articles and runbooks matched by category, alert kind
+- **52.23 Knowledge suggestions without AI** *(shipped v3.17.739 — matched by alert kind, ticket tags and asset type with a reason for each; documents have no asset-type or alert-kind field, so matches use tags and category names)* — articles and runbooks matched by category, alert kind
   or asset type.
 - **52.24 Customer follow-up and confirm-or-close** *(planned)* — automatic follow-up when a ticket waits on the
   customer, closing after a configurable silence with a recorded reason.
@@ -2407,6 +2407,10 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   phone menu as a modal; security review of search, workspace, audit and map data.
 - **67.22 Layout and help follow-ups** *(shipped v3.17.684)* — sidebar stays in view on long
   pages, table columns break between words, help diagrams redrawn in the current layout.
+- **67.23 Business Overview tile alignment** *(shipped v3.17.739)* — tiles in a row line up: title, figure,
+  chart and footer at the same height whatever each card contains.
+- **67.24 Dark-theme contrast for category headings** *(shipped v3.17.739)* — knowledge-base category rows
+  and count badges no longer show a near-white bar in dark themes.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
@@ -3117,9 +3121,9 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 <a id="phase-91"></a>
 
 ## Phase 91 — Workflow automation safety **(M · P1 · PSA)** [in progress]
-<!-- phase: ws=A stage=1 view=next order=5 deps=14 next="91.2 execution log, 91.3 dry run, 91.6–91.9" -->
+<!-- phase: ws=A stage=1 view=next order=5 deps=14 next="91.3 dry run, 91.6–91.9" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 14  
-**Next:** 91.2 execution log, 91.3 dry run, 91.6–91.9
+**Next:** 91.3 dry run, 91.6–91.9
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3131,7 +3135,7 @@ Automation that can be inspected, tested before it runs and cannot run away. Ext
 
 - **91.1 Loop and storm protection** *(partial — loop prevention within one event and the 50-action budget shipped v3.17.732; limits across events planned as 91.9)* — a rule never re-fires inside its own chain; per-rule and
   per-ticket rate limits with a cut-off that is recorded and shown.
-- **91.2 Execution log** *(planned)* — every firing recorded with trigger, rule version, each action and its
+- **91.2 Execution log** *(shipped v3.17.739 — runs and per-action results on the rule's flow page, scoped to the viewer's customers; kept 30 days, at most 500 per rule)* — every firing recorded with trigger, rule version, each action and its
   result, actor and duration, visible on the rule page.
 - **91.3 Dry run** *(planned)* — evaluate rules against a chosen ticket with no side effects.
 - **91.4 Permission checks for high-impact actions** *(partial — charge once per rule and ticket shipped v3.17.732, assignment customer checks v3.17.727; approval or cap on charge amounts planned)* — charges behind approval or a cap with
@@ -3828,10 +3832,10 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 
 <a id="phase-111"></a>
 
-## Phase 111 — Identity lifecycle and access reviews **(L · P1 · security)** [planned]
-<!-- phase: ws=F stage=1 view=next order=7 deps="57, 64, 80" next="111.1 passkeys" -->
-**Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** F. Security & Administration · **Depends on:** 57, 64, 80  
-**Next:** 111.1 passkeys
+## Phase 111 — Identity lifecycle and access reviews **(L · P1 · security)** [in progress]
+<!-- phase: ws=F stage=1 view=next order=7 deps="57, 64, 80" next="111.6 access groups (in development); 111.1 passkeys" -->
+**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** F. Security & Administration · **Depends on:** 57, 64, 80  
+**Next:** 111.6 access groups (in development); 111.1 passkeys
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3842,6 +3846,11 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
   shared vault entries queued for rotation *(planned)*.
 - **111.4 Break-glass account** documented, alerting on every use *(planned)*.
 - **111.5 Live verification of OIDC sign-in** against a real Keycloak (Phase 80) *(planned)*.
+- **111.6 Access groups** *(in progress)* — named groups of staff (L1/L2/L3 Tech, Managers, Sales, Sales
+  Managers, Owners, Administrators, Billing, Auditors) that carry a role and a customer scope; adding a person
+  gives them that access, removing them revokes it; enforced on the server, audit-logged, owner-level groups
+  managed only by owner-level staff. Built-in roles get plain names and the older roles fold under "Legacy roles";
+  nobody's existing access changes.
 
 </details>
 
