@@ -212,21 +212,23 @@ def connection_form(request, pk=None):
         instance.save(update_fields=['ingest_secret', 'updated_at'])
         messages.warning(request, 'New signing secret issued. The previous one no longer works.')
         return render(request, 'backup_monitoring/connection_form.html', _ctx(
-            request, form=BackupConnectionForm(instance=instance, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE)), instance=instance,
+            request, form=BackupConnectionForm(instance=instance, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE), can_allow_private=_can_allow_private(request.user)), instance=instance,
             issued_secret=instance.issued_ingest_secret,
             ingest_url=request.build_absolute_uri(_ingest_path(instance))))
     if request.method == 'POST':
-        form = BackupConnectionForm(request.POST, instance=instance, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE))
+        form = BackupConnectionForm(request.POST, instance=instance, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE), can_allow_private=_can_allow_private(request.user))
         if form.is_valid():
             obj = form.save(commit=False)
             if not instance:
                 obj.created_by = request.user
             obj.save()
+            if 'allow_private_address' in form.changed_data or (not instance and obj.allow_private_address):
+                _audit_private_address(request, obj)
             secret = getattr(obj, 'issued_ingest_secret', None)
             if secret:
                 messages.success(request, 'Connection saved. Copy the signing secret now; it is not shown again.')
                 return render(request, 'backup_monitoring/connection_form.html', _ctx(
-                    request, form=BackupConnectionForm(instance=obj, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE)), instance=obj,
+                    request, form=BackupConnectionForm(instance=obj, orgs=orgs, msp_wide=has_global_reach(request.user, MANAGE), can_allow_private=_can_allow_private(request.user)), instance=obj,
                     issued_secret=secret, ingest_url=request.build_absolute_uri(_ingest_path(obj))))
             messages.success(request, 'Connection saved.')
             return redirect('backup_monitoring:connection_list')
@@ -236,10 +238,27 @@ def connection_form(request, pk=None):
         if not instance and current is not None and orgs.filter(pk=current.pk).exists():
             initial['organization'] = current
         form = BackupConnectionForm(instance=instance, orgs=orgs, initial=initial,
-                                  msp_wide=has_global_reach(request.user, MANAGE))
+                                  msp_wide=has_global_reach(request.user, MANAGE), can_allow_private=_can_allow_private(request.user))
     return render(request, 'backup_monitoring/connection_form.html', _ctx(
         request, form=form, instance=instance,
         ingest_url=request.build_absolute_uri(_ingest_path(instance)) if instance and instance.is_push else ''))
+
+
+def _can_allow_private(user):
+    """SR-02: MSP staff who manage backups at every customer."""
+    from accounts.permission_utils import is_msp_staff
+    return bool(user.is_superuser or (is_msp_staff(user) and has_global_reach(user, MANAGE)))
+
+
+def _audit_private_address(request, conn):
+    from audit.models import AuditLog
+    state = 'allowed' if conn.allow_private_address else 'not allowed'
+    AuditLog.log(
+        user=request.user, action='update', organization=conn.organization,
+        object_type='backup_monitoring.BackupConnection', object_id=conn.pk, object_repr=conn.name[:200],
+        description=f'Backup connection "{conn.name}": private network address {state} ({conn.base_url})',
+        extra_data={'event': 'backup_connection_private_address', 'allowed': conn.allow_private_address},
+    )
 
 
 def _ingest_path(conn):

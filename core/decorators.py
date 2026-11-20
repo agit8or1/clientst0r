@@ -40,6 +40,28 @@ def _is_msp_tech(user):
     return is_msp_staff(user) and staff_client_org_ids(user) is None
 
 
+# Membership.can_write(): any of these create permissions.
+WRITE_PERMS = ('vault_create', 'assets_create', 'docs_create', 'files_upload', 'monitoring_create')
+
+
+def _staff_profile_can_write(request, org_id=None):
+    """MSP technicians (profile type Staff) without the Django staff flag and
+    without a membership in the customer: write access comes from their
+    global role (or, without one, their memberships together), within their
+    customer scope - the rules of accounts.permission_utils. In Global View
+    (no customer selected) they pass when they may write at some customer;
+    the create form then asks for one (require_organization_context), and
+    the view's own permission check runs for the customer picked."""
+    from accounts.permission_utils import is_msp_staff, user_has_org_perm, user_has_perm_any_org
+    user = request.user
+    if not is_msp_staff(user):
+        return False
+    target = org_id if org_id is not None else request.session.get('current_organization_id')
+    if target:
+        return any(user_has_org_perm(user, target, p) for p in WRITE_PERMS)
+    return any(user_has_perm_any_org(user, p) for p in WRITE_PERMS)
+
+
 def require_write(view_func):
     """
     Decorator that checks if user has write permission (Editor or above).
@@ -58,6 +80,9 @@ def require_write(view_func):
             # MSP technicians reach every client; their role comes from the
             # organization they work in (unchanged behaviour).
             membership = get_user_membership(request)
+
+        if not membership and _staff_profile_can_write(request, kwargs.get('org_id')):
+            return view_func(request, *args, **kwargs)
 
         if not membership:
             if kwargs.get('org_id') is not None:

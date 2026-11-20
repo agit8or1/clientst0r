@@ -138,7 +138,7 @@ class PBSProviderTests(Fixture):
         return FakeResp(self.routes[path])
 
     def _patch(self):
-        return mock.patch('backup_monitoring.providers.pbs.requests.get', side_effect=self._get)
+        return mock.patch('backup_monitoring.providers.pbs.requests.Session.get', side_effect=self._get)
 
     def test_registry_has_only_real_providers(self):
         self.assertEqual(set(BACKUP_PROVIDER_REGISTRY), {'pbs', 'restic', 'borg', 'kopia'})
@@ -184,7 +184,7 @@ class PBSProviderTests(Fixture):
         self.assertEqual(params['typefilter'], 'backup')
 
     def test_auth_failure_is_provider_error(self):
-        with mock.patch('backup_monitoring.providers.pbs.requests.get', return_value=FakeResp(None, 401)):
+        with mock.patch('backup_monitoring.providers.pbs.requests.Session.get', return_value=FakeResp(None, 401)):
             result = ProxmoxBackupServerProvider(self.conn).test_connection()
             self.assertFalse(result['ok'])
             with self.assertRaises(ProviderError):
@@ -211,7 +211,7 @@ class PBSProviderTests(Fixture):
             poll_connection(self.conn)
         self.conn.refresh_from_db()
         good = self.conn.last_poll_at
-        with mock.patch('backup_monitoring.providers.pbs.requests.get', return_value=FakeResp(None, 500)):
+        with mock.patch('backup_monitoring.providers.pbs.requests.Session.get', return_value=FakeResp(None, 500)):
             result = poll_connection(self.conn)
         self.assertFalse(result['ok'])
         self.conn.refresh_from_db()
@@ -925,7 +925,7 @@ class IntegrationPointTests(Fixture):
         make_push(self.org_a)
         routes_ok = mock.MagicMock(side_effect=lambda url, **kw: FakeResp(
             [] if '/api2/json/status' in url or 'tasks' in url or 'prune' in url else {}))
-        with mock.patch('backup_monitoring.providers.pbs.requests.get', routes_ok):
+        with mock.patch('backup_monitoring.providers.pbs.requests.Session.get', routes_ok):
             call_command('poll_backup_monitoring', verbosity=0)
         conn.refresh_from_db()
         self.assertEqual(conn.last_poll_status, 'ok')
@@ -933,7 +933,7 @@ class IntegrationPointTests(Fixture):
     def test_poll_command_reports_failed_connections(self):
         from django.core.management.base import CommandError
         make_pbs(self.org_a)
-        with mock.patch('backup_monitoring.providers.pbs.requests.get', return_value=FakeResp(None, 500)):
+        with mock.patch('backup_monitoring.providers.pbs.requests.Session.get', return_value=FakeResp(None, 500)):
             with self.assertRaises(CommandError):
                 call_command('poll_backup_monitoring', verbosity=0)
 
@@ -1064,3 +1064,75 @@ class MspWideConnectionTests(Fixture):
         ensure_system(self.conn, 'bare', 'bare-host')
         evaluate_connection(self.conn)
         self.assertTrue(BackupAlert.objects.filter(kind='no_job', organization__isnull=True).exists())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+class PBSAddressGuardTests(Fixture):
+    """SR-02: backup server requests go through the outbound guard; a private
+    address needs the staff-only, audited per-connection opt-in."""
+
+    def setUp(self):
+        self.root = make_staff('bm-guard-all', 'bm guard all', **ROLE_MANAGE)
+        self.scoped = make_staff('bm-guard-a', 'bm guard A', scope_orgs=[self.org_a], **ROLE_MANAGE)
+
+    def _poll(self, url, allow=False):
+        conn = make_pbs(self.org_a, f'g-{url}', allow_private_address=allow)
+        conn.base_url = url
+        conn.save()
+        with mock.patch('socket.create_connection') as sock, \
+                mock.patch('socket.getaddrinfo', side_effect=AssertionError('no lookup expected')):
+            result = ProxmoxBackupServerProvider(conn).test_connection()
+        return result, sock
+
+    def test_loopback_link_local_and_metadata_refused_before_any_socket(self):
+        for url in ('https://127.0.0.1:8007', 'https://169.254.169.254', 'https://[::1]:8007'):
+            for allow in (False, True):
+                result, sock = self._poll(url, allow)
+                self.assertFalse(result['ok'], url)
+                self.assertIn('not allowed', result['message'], url)
+                sock.assert_not_called()
+
+    def test_private_address_needs_the_opt_in(self):
+        result, sock = self._poll('https://10.1.2.3:8007')
+        self.assertFalse(result['ok'])
+        self.assertIn('private network', result['message'])
+        sock.assert_not_called()
+        conn = make_pbs(self.org_a, 'lan', allow_private_address=True)
+        conn.base_url = 'https://10.1.2.3:8007'
+        policy = ProxmoxBackupServerProvider(conn)._policy()
+        self.assertTrue(policy.allow_lan)
+        self.assertFalse(policy.allow_local)
+
+    def _client(self, user):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s.save()
+        return c
+
+    def _create(self, user, **extra):
+        return self._client(user).post(reverse('backup_monitoring:connection_create'), {
+            'name': 'LAN PBS', 'provider': 'pbs', 'organization': self.org_a.pk,
+            'base_url': 'https://10.1.2.3:8007', 'verify_tls': 'on', 'active': 'on',
+            'api_token': 'u@pbs!t:x', **extra})
+
+    def test_staff_with_global_reach_can_set_it_and_it_is_audited(self):
+        from audit.models import AuditLog
+        r = self._create(self.root, allow_private_address='on')
+        self.assertEqual(r.status_code, 302)
+        conn = BackupConnection.objects.get(name='LAN PBS')
+        self.assertTrue(conn.allow_private_address)
+        self.assertTrue(AuditLog.objects.filter(extra_data__event='backup_connection_private_address',
+                                                object_id=conn.pk).exists())
+
+    def test_customer_scoped_manager_cannot_set_it(self):
+        r = self._create(self.scoped, allow_private_address='on')
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(BackupConnection.objects.filter(name='LAN PBS').exists())
+        self.assertContains(r, 'not allowed')
+
+    def test_metadata_address_refused_at_save(self):
+        r = self._create(self.root, allow_private_address='on', base_url='https://169.254.169.254')
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(BackupConnection.objects.filter(name='LAN PBS').exists())

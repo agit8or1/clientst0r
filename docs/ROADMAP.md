@@ -1856,6 +1856,10 @@ are built on top of them.
   watcher actions apply the routing engine's customer authorization; creating from Global View uses the
   picked customer and only reachable ones; website monitors show their customer, are scoped on the detail
   page, and report failed checks in plain words.
+- **Technician write access and backup server addresses** *(shipped v3.17.728)* — technicians without the
+  administrator staff flag write by their global role within their customer scope (Global View create
+  works); backup server requests go through the outbound-address guard, with a staff-only, audited
+  per-connection opt-in for private addresses.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

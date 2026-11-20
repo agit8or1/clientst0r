@@ -60,6 +60,13 @@ class BackupConnection(models.Model):
     credentials = SealedTextField(blank=True)
     base_url = models.URLField(blank=True, help_text='e.g. https://pbs.example.com:8007 (API providers only).')
     verify_tls = models.BooleanField(default=True)
+    # SR-02: the server is on the MSP's or customer's private network.
+    # Without it only public addresses are reached; loopback, link-local
+    # and cloud metadata addresses are refused either way.
+    allow_private_address = models.BooleanField(
+        default=False, verbose_name='Server is on a private network',
+        help_text='Allow a private (LAN) address such as 10.x, 172.16-31.x or 192.168.x. '
+                  'Only MSP staff who manage every customer can change this; changes are audited.')
 
     # Push (ingest) providers: public id in the URL, secret signs the body.
     ingest_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)

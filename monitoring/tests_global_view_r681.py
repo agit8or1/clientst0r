@@ -159,3 +159,50 @@ class CreateFromGlobalViewTests(_Data):
         self.assertContains(r, 'id="orgSelectorBanner"')
         self.assertContains(r, 'DOCUMENT_POSITION_FOLLOWING')
         self.assertNotContains(r, 'Gone Qzx Co')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class TechnicianWriteTests(_Data):
+    """MSP technicians (profile Staff, no Django staff flag, no membership)
+    write by their global role within their customer scope (v3.17.728)."""
+
+    FORM = {'name': 'tech-qzx', 'url': 'https://tech-qzx.test', 'check_interval_minutes': 10,
+            'is_enabled': 'on', 'ssl_warning_days': 30, 'domain_warning_days': 30}
+
+    def _created(self):
+        from monitoring.models import WebsiteMonitor
+        return WebsiteMonitor.objects.filter(name='tech-qzx').first()
+
+    def test_technician_in_global_view_gets_the_picker_and_creates(self):
+        self.assertFalse(self.manager.is_staff)
+        c = self.login(self.manager)
+        r = c.get(reverse('monitoring:website_monitor_create'))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="orgSelectorBanner"')
+        c.post(reverse('monitoring:website_monitor_create'), {**self.FORM, '_selected_organization_id': self.b.pk})
+        self.assertEqual(self._created().organization, self.b)
+
+    def test_technician_creates_in_selected_customer_without_membership(self):
+        c = self.login(self.manager, org=self.a)
+        c.post(reverse('monitoring:website_monitor_create'), self.FORM)
+        self.assertEqual(self._created().organization, self.a)
+
+    def test_scoped_technician_cannot_create_outside_scope(self):
+        c = self.login(self.scoped)
+        c.post(reverse('monitoring:website_monitor_create'), {**self.FORM, '_selected_organization_id': self.b.pk})
+        # The middleware keeps a scoped technician inside their own customers:
+        # never created at the out-of-scope customer that was posted.
+        from monitoring.models import WebsiteMonitor
+        self.assertFalse(WebsiteMonitor.objects.filter(name='tech-qzx', organization=self.b).exists())
+
+    def test_scoped_technician_cannot_write_in_out_of_scope_customer(self):
+        c = self.login(self.scoped, org=self.b)
+        c.post(reverse('monitoring:website_monitor_create'), self.FORM)
+        from monitoring.models import WebsiteMonitor
+        self.assertFalse(WebsiteMonitor.objects.filter(name='tech-qzx', organization=self.b).exists())
+
+    def test_role_without_create_rights_is_refused(self):
+        c = self.login(self.sales, org=self.a)
+        r = c.post(reverse('monitoring:website_monitor_create'), self.FORM)
+        self.assertIn(r.status_code, (302, 403))
+        self.assertIsNone(self._created())

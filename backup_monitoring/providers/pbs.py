@@ -19,6 +19,8 @@ from typing import List, Optional
 
 import requests
 
+from core.safe_http import OutboundPolicy, UnsafeURLError, configured_service_policy, guard_session, validate_url
+
 from .base import BaseBackupProvider, JobInfo, ProviderError, RepositoryInfo, RunInfo
 
 TIMEOUT = 20
@@ -37,6 +39,11 @@ def _retention_text(prune: dict) -> str:
     return 'keep ' + ', '.join(parts) if parts else ''
 
 
+def _refusal(exc) -> str:
+    return ('The backup server address is not allowed: ' + str(exc) + '. A server on a private network '
+            'needs "Server is on a private network" on the connection.')
+
+
 class ProxmoxBackupServerProvider(BaseBackupProvider):
     kind = 'pbs'
     label = 'Proxmox Backup Server'
@@ -47,13 +54,32 @@ class ProxmoxBackupServerProvider(BaseBackupProvider):
             raise ProviderError('No API token configured.')
         return {'Authorization': f'PBSAPIToken={token}', 'Accept': 'application/json'}
 
+    def _policy(self) -> OutboundPolicy:
+        """SR-02: public addresses; a private (LAN) address only when the
+        connection is marked as on a private network. Loopback, link-local and
+        metadata addresses only with the install-wide
+        ALLOW_PRIVATE_IP_INTEGRATIONS opt-in (metadata never)."""
+        base = configured_service_policy()
+        if getattr(self.connection, 'allow_private_address', False):
+            return OutboundPolicy(allow_lan=True, allow_local=base.allow_local, allowed_ports=None)
+        return base
+
     def _get(self, path, params=None):
         base = (self.connection.base_url or '').rstrip('/')
         if not base:
             raise ProviderError('No base URL configured.')
+        policy = self._policy()
         try:
-            resp = requests.get(f'{base}/api2/json{path}', headers=self._headers(), params=params,
-                                timeout=TIMEOUT, verify=self.connection.verify_tls)
+            validate_url(f'{base}/api2/json{path}', policy)
+        except UnsafeURLError as exc:
+            raise ProviderError(_refusal(exc)) from exc
+        session = guard_session(requests.Session(), policy)
+        session.trust_env = False
+        try:
+            resp = session.get(f'{base}/api2/json{path}', headers=self._headers(), params=params,
+                               timeout=TIMEOUT, verify=self.connection.verify_tls)
+        except UnsafeURLError as exc:
+            raise ProviderError(_refusal(exc)) from exc
         except requests.RequestException as exc:
             raise ProviderError(f'Cannot reach {base}: {exc.__class__.__name__}') from exc
         if resp.status_code in (401, 403):

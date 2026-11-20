@@ -15,11 +15,17 @@ class BackupConnectionForm(forms.ModelForm):
 
     class Meta:
         model = BackupConnection
-        fields = ['name', 'provider', 'organization', 'customer', 'base_url', 'verify_tls', 'active']
+        fields = ['name', 'provider', 'organization', 'customer', 'base_url', 'verify_tls',
+                  'allow_private_address', 'active']
 
-    def __init__(self, *args, orgs=None, msp_wide=False, **kwargs):
+    def __init__(self, *args, orgs=None, msp_wide=False, can_allow_private=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.msp_wide = msp_wide
+        # SR-02: only MSP staff who manage every customer may point a
+        # connection at a private address; for others the field is shown
+        # read-only and a posted value is ignored (disabled field).
+        if not can_allow_private:
+            self.fields['allow_private_address'].disabled = True
         if orgs is not None:
             self.fields['organization'].queryset = orgs
             self.fields['customer'].queryset = orgs
@@ -40,6 +46,18 @@ class BackupConnectionForm(forms.ModelForm):
             url = data.get('base_url') or ''
             if not url.lower().startswith('https://'):
                 self.add_error('base_url', 'An https:// URL is required for this provider.')
+            elif url:
+                from core.safe_http import OutboundPolicy, UnsafeURLError, configured_service_policy, validate_url
+                base = configured_service_policy()
+                policy = (OutboundPolicy(allow_lan=True, allow_local=base.allow_local, allowed_ports=None)
+                          if data.get('allow_private_address') else base)
+                try:
+                    validate_url(url, policy)
+                except UnsafeURLError as exc:
+                    hint = (' Tick "Server is on a private network" for a LAN address.'
+                            if not data.get('allow_private_address') and not self.fields['allow_private_address'].disabled
+                            else '')
+                    self.add_error('base_url', f'This address is not allowed ({exc}).{hint}')
             if not data.get('api_token') and not (self.instance.pk and self.instance.credentials):
                 self.add_error('api_token', 'An API token is required for this provider.')
         return data

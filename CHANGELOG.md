@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.728] - 2026-11-20
+
+### Fixed
+- **Technicians can create records again.** Technicians set up as Staff on their profile, without the separate administrator staff flag, were sent away from create pages with "Please select an organization first": in Global View always, and inside a customer whenever they had no membership there. Their write access now comes from their global role (or, without one, their customer memberships taken together), within their customer scope, the same rules the rest of the permissions use. In Global View they get the customer picker. The page's own permission check still runs for the customer picked, and a technician limited to some customers still can't write outside them.
+- **Backup server connections only reach allowed addresses.** Proxmox Backup Server requests now go through the same outbound-address guard as other integrations. Cloud metadata addresses are always refused. Loopback and link-local addresses are refused unless the install-wide private-address setting is on. A private (LAN) address needs the new *Server is on a private network* option on the connection. Only MSP staff who manage backups at every customer can change it, and each change is recorded in the audit log. A disallowed address is refused when the connection is saved, before any request is made.
+
+### Upgrade notes
+- Existing backup connections with a server address get *Server is on a private network* switched on, so on-premises servers keep being polled. Review it under Backups → Connections and switch it off for servers on public addresses.
+- Migration `backup_monitoring.0003`.
+
 ## [3.17.727] - 2026-11-19
 
 ### Fixed
