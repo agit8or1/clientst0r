@@ -11,7 +11,9 @@ Why: the roadmap is the single source of truth for shipped + in-progress + plann
 How (manual sub-bullets):
 - Annotate the matching sub-bullet with the version: `*(shipped v3.17.NNN)*` or `*(partial — X shipped v3.17.NNN; Y deferred)*`.
 - For new feature requests not on the roadmap yet, ADD them as planned items (not implemented) before / alongside building them.
-- Update the **Sizing table** at the bottom when adding new phases.
+- The phase record is the only place a status is written: the `## Phase N — …` header plus the `<!-- phase: … -->` line under it (workstream, stage, state, view, deps, next, blocker). The dashboard tables, NOW/NEXT/LATER, blockers and per-phase status lines are generated — run `python3 scripts/roadmap_dashboard.py` after editing; `core.tests.test_roadmap_dashboard` fails when the page is out of date. See "How to update this roadmap" at the end of `docs/ROADMAP.md`.
+- When a whole phase completes, move its details verbatim to `docs/ROADMAP_HISTORY.md` and leave the link; never delete history.
+- Keep `<a id="phase-N"></a>` above every phase header (GitHub and the in-app page slug headings differently).
 - Bump `config/version.py`, write a `CHANGELOG.md` entry, and update `docs/ROADMAP.md` — all in one commit.
 
 How (phase-header status — required for the JSON feed):
@@ -21,6 +23,7 @@ How (phase-header status — required for the JSON feed):
   - `[shipped — v3.17.NNN]` — preferred form for completed phases that mark the version
   - `[complete]` — preferred when the entire phase + all sub-phases are done
   - `**— shipped**` or `**— complete**` (legacy inline form, still parseable)
+  - Use exactly these forms (no extra words inside the brackets): the in-app page badges only `[in progress]` verbatim. Partial, Blocked, Deferred and Needs-verification go in the record line as `state=`.
 - When a phase **completes**, ALWAYS update the header marker. Otherwise the JSON feed shows it as planned and the website's polling won't reflect reality.
 - Sub-phase items (under a phase) carry their own `*(shipped vN.N.N)*` annotations on the bullet — those are visible in the rendered HTML but don't appear in the JSON feed (which is per-phase, not per-bullet).
 

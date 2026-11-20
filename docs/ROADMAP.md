@@ -1,313 +1,600 @@
-# Client St0r — Roadmap
+# Clientst0r — Development Roadmap
 
-> Living plan, the single source of truth for shipped, in-progress and planned work. History is kept: shipped
-> items stay with their version. Statuses were re-checked against the code on 2026-11-20
-> (`docs/plans/platform-program/CLIENTST0R_AUDIT.md`); where a heading said more than the code does, a
-> status note says so.
+**Clientst0r** is a self-hosted platform for managed service providers: PSA (tickets, contracts, billing, quotes),
+IT documentation and assets, a password vault, monitoring, a customer portal and integrations. Endpoint management
+(RMM) lives in the separate **Rem0te** application; Clientst0r requests and records, Rem0te approves and executes.
 
-## Summary (2026-11-20)
+[Overview](#overview) · [Current priorities](#current-priorities) · [Active development](#now) ·
+[Next priorities](#next) · [Feature matrix](#feature-matrix) · [Blockers & dependencies](#blockers) ·
+[Completed features](#completed) · [Future roadmap](#later) · [Technical details](#technical-details) ·
+[Release history](#release-history) · [Related planning documents](#related-documents) ·
+[How to update this roadmap](#maintaining)
 
-**Strategy:** finish Clientst0r first, then expand Rem0te. Rem0te remains a separate application with its own
-security model; Clientst0r requests and records, Rem0te approves, executes and verifies. Rem0te receives only
-narrow compatibility, integration or critical security changes until the Clientst0r completion checklist
-(`docs/plans/platform-program/README.md`) is met. Its future backlog:
-`docs/plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md`.
+<a id="overview"></a>
 
-**Next recommended work (P0, in order):**
+## Overview
 
-1. Release the tamper-evident audit log and the playbook approval fix (Phase 94.1, 51.20).
-2. Billing correctness: Ticket Time & Charges and the prepaid-hour ledger, then the Ready for Billing queue
-   (Phases 101, 102).
-3. Quote-to-contract and quote-to-invoice conversion (Phase 70).
-4. Remaining PSA/RMM workflow with Rem0te (63.11–63.17), each item as soon as Rem0te ships its side.
-5. Ticket workflow and automation safety (Phases 52.20–52.24, 91).
+<!-- generated:counts -->
 
-**Then:** P1 backup management (Phase 74.7–74.12: St0r/UrBackup, Comet, one backup overview, coverage, alerts,
-reports, billing 92.6), P2 device management (Phase 106 MDM), P3 the rest of Clientst0r (CRM and discovery,
-optional AI pricing, reporting, portal, Microsoft 365, interface and installation polish).
+| | |
+|---|---|
+| Latest release | ![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release) — see the [changelog](../CHANGELOG.md) |
+| Last roadmap audit | 2026-11-20 |
+| Active stage | Stage 1 — core completion (P0) |
+| Phases | **108** in total |
+| ✅ Complete | 51 (of which 2 marked for verification) |
+| 🔵 In progress | 25 |
+| 🟡 Partial | 4 |
+| ⬜ Planned | 27 |
+| 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
+| ⏸️ Deferred | 1 |
 
-**Status words used below:** Complete · In progress · Partial (some parts work; what is missing is named) ·
-Planned · Blocked (waiting on an owner decision) · Deferred. Phase headers keep the bracket markers
-`[planned]`, `[in progress]`, `[shipped — vN]`, `[complete]` that `/core/roadmap.json` reads.
+<!-- /generated:counts -->
 
-## Stages
+**Strategy — finish Clientst0r first.** Rem0te receives only compatibility, integration and critical security
+work until the [Clientst0r completion checklist](#before-rem0te) is met; its larger backlog is kept in the
+[Rem0te feature expansion roadmap](plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md).
+
+**Status legend:** ✅ Complete · 🔵 In progress · 🟡 Partial (some parts work; what is missing is named) ·
+⬜ Planned · 🔴 Blocked (waiting on a decision or another product) · ⏸️ Deferred. A ✅ phase means the whole phase is
+done; finished items inside open phases are marked *(shipped vX)* in that phase's details.
+
+<a id="current-priorities"></a>
+
+## Current priorities
+
+The P0 sequence, in order:
+
+1. Audit-log integrity and playbook approval security — [94.1](#phase-94), [51.20](#phase-51)
+2. Ticket Time & Charges and the prepaid-hour ledger — [Phase 101](#phase-101)
+3. Ready for Billing and invoice correctness — [Phase 102](#phase-102)
+4. Quote-to-contract and quote-to-invoice — [70.1, 70.2](#phase-70)
+5. Remaining PSA/RMM integration work — [63.11–63.17](#phase-63)
+6. Ticket automation and workflow safety — [Phase 91](#phase-91)
+
+Then, in this order: backup management (P1, [Phase 74](#phase-74)), device management (P2,
+[Phase 106](#phase-106)), then CRM and discovery, reporting, customer portal, advanced integrations and optional AI
+(P3).
+
+| Priority | Meaning |
+|---|---|
+| **P0 — Critical** | Core completion, financial correctness or critical security |
+| **P1 — High** | Important next-stage capabilities |
+| **P2 — Medium** | Planned platform expansion |
+| **P3 — Future** | Enhancements and advanced integrations |
+| **P4 — Deferred / exploratory** | Needs a later decision |
+
+A priority marked `*` is taken from the [stage table](#later) because the phase header carries none.
+
+<details>
+<summary>Priority notes for review</summary>
+
+- Phases 52, 91 and 111 are in Stage 1 (P0) but their headers say P1. Both are kept as written; the header value is shown.
+- Billing prerequisites 68, 69, 92 and 93 carry no priority of their own although P0 Phases 101 and 102 depend on
+  them; the dependency is shown in each row.
+- Open phases with no priority and no stage:
+
+<!-- generated:unprioritized -->
+
+- 9 — [Security alert ingestion: EDR / AV / Firewall on the dashboard](#phase-9) (🟡 Partial)
+- 14 — [Visual Workflow Automation Engine](#phase-14) (🟡 Partial)
+- 23 — [Security Event & Incident Workflows](#phase-23) (🟡 Partial)
+- 33 — [Network Discovery & Auto Documentation](#phase-33) (🟡 Partial)
+- 56 — [Ticket AI Assist and RMM handoff](#phase-56) (🔵 In progress)
+- 57 — [Technician security levels and abuse prevention](#phase-57) (🔵 In progress)
+- 59 — [Verified installs and upgrades](#phase-59) (🔵 In progress)
+- 62 — [Pluggable document editors](#phase-62) (🔵 In progress)
+- 65 — [Contract documents and digital signing](#phase-65) (🔵 In progress)
+- 66 — [Client pulse checks](#phase-66) (🔵 In progress)
+- 67 — [Interface, navigation and dashboard redesign](#phase-67) (🔵 In progress)
+- 68 — [Commercial price book and service plans](#phase-68) (🔵 In progress)
+- 69 — [Labor rate cards and cost rates](#phase-69) (🔵 In progress)
+- 71 — [Accounting sync completion](#phase-71) (🔵 In progress)
+- 72 — [Payment processing and sales tax](#phase-72) (🔵 In progress)
+- 73 — [Procurement, distributors, licensing and warranty lifecycle](#phase-73) (🔵 In progress)
+- 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) (🔵 In progress)
+- 80 — [Agit8or Identity: single sign-on for people](#phase-80) (🔵 In progress)
+- 82 — [Shared operational event and alert foundation](#phase-82) (🔵 In progress)
+- 92 — [Verified usage and recurring billing](#phase-92) (⬜ Planned)
+- 93 — [Business-hours SLA calendars](#phase-93) (⬜ Planned)
+- 95 — [PSA migration importers](#phase-95) (⬜ Planned)
+
+<!-- /generated:unprioritized -->
+
+</details>
+
+<a id="now"></a>
+
+## Active development — NOW
+
+Work being implemented now or approved as the next P0 task.
+
+<!-- generated:now -->
+
+| # | Phase | Priority | Status | Next step | Depends on |
+|---|---|---|---|---|---|
+| 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | ⬜ Planned | 94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups | — |
+| 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Ship 51.20–51.23 (in development) | — |
+| 3 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.20 drop files on the composer (in development); then 52.21–52.24 | 51 |
+
+<!-- /generated:now -->
+
+<a id="next"></a>
+
+## Next priorities — NEXT
+
+Approved, in priority order, not started (or started only in parts already listed above).
+
+<!-- generated:next -->
+
+| # | Phase | Priority | Status | Next step | Depends on |
+|---|---|---|---|---|---|
+| 1 | 101 — [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | ⬜ Planned | 101.1 coverage resolver, 101.2 hour ledger | 1, 36, 69, 70, 73, 93 |
+| 2 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
+| 3 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
+| 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
+| 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.2 execution log, 91.3 dry run, 91.6–91.9 | 14 |
+| 6 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 111.1 passkeys | 57, 64, 80 |
+| 7 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
+| 8 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
+
+<!-- /generated:next -->
+
+<a id="feature-matrix"></a>
+
+## Feature matrix
+
+Every phase appears once, under one workstream. Workstreams are presentation groups; stages and phase numbers are
+unchanged. Click a feature for its details.
+
+<!-- generated:matrix -->
+
+### A. Core PSA & Ticketing
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 14 | [Visual Workflow Automation Engine](#phase-14) | — | 🟡 Partial | — | Time-based triggers, delays and escalation logic (91.6) |
+| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.20 drop files on the composer (in development); then 52.21–52.24 |
+| 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.2 execution log, 91.3 dry run, 91.6–91.9 |
+| 93 | [Business-hours SLA calendars](#phase-93) | — | ⬜ Planned | — | 93.1 calendars |
+
+<details markdown="1">
+<summary>14 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 2 | [Resource management foundation](#phase-2) | ✅ Complete | — | — |
+| 6 | [ITIL maturity](#phase-6) | ✅ Complete | — | — |
+| 8 | [Native mobile apps (iOS + Android) with GPS auto-time + Timeclock](#phase-8) | ✅ Complete | v3.17.417 | — |
+| 10 | [Advanced Email-to-Ticket Engine](#phase-10) | ✅ Complete | — | — |
+| 11 | [Advanced Dispatch & Technician Scheduling](#phase-11) | ✅ Complete | — | Geo-aware routing and travel time deferred (needs Phase 8 GPS data) |
+| 20 | [Approval & Change Management Workflows](#phase-20) | ✅ Complete | v3.17.277 | — |
+| 21 | [Advanced Mobile Technician Workflows](#phase-21) | ✅ Complete | v3.17.318 | — |
+| 25 | [Mature Timesheet Approval Workflows](#phase-25) | ✅ Complete | — | — |
+| 35 | [Advanced Project Management](#phase-35) | ✅ Complete | — | — |
+| 38 | [Client Onboarding / Offboarding Runbooks](#phase-38) | ✅ Complete | — | — |
+| 46 | [Job Kit: tools and materials on a ticket](#phase-46) | ✅ Complete | v3.17.533 | — |
+| 47 | [Public scheduler wallboard](#phase-47) | ✅ Complete | v3.17.533 | — |
+| 48 | [Task warning windows](#phase-48) | ✅ Complete | v3.17.535 | — |
+| 60 | [Optional ticket routing](#phase-60) | ✅ Complete | v3.17.664 | — |
+
+</details>
+
+### B. Billing & Financial Management
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 65 | [Contract documents and digital signing](#phase-65) | — | 🔵 In progress | 15, 64 | 65.10 reviewed legal wording |
+| 68 | [Commercial price book and service plans](#phase-68) | — | 🔵 In progress | 15 | 68.1 staff screens; 68.2 plans on contracts; 68.4 distributor price |
+| 69 | [Labor rate cards and cost rates](#phase-69) | — | 🔵 In progress | 2, 68 | 69.1–69.3 rates used by invoicing (with 101.4); 69.4 |
+| 70 | [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 65, 68, 69 | 70.1 quote to contract, 70.2 quote to invoice |
+| 71 | [Accounting sync completion](#phase-71) | — | 🔵 In progress | 44 | 71.4–71.8 accounting completion; 71.11 sandbox verification |
+| 72 | [Payment processing and sales tax](#phase-72) | — | 🔵 In progress | 71 | Provider verification; payment posting to accounting |
+| 92 | [Verified usage and recurring billing](#phase-92) | — | ⬜ Planned | 70; Rem0te counts (92.4) | 92.1 recurring charge generation |
+| 101 | [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | ⬜ Planned | 1, 36, 69, 70, 73, 93 | 101.1 coverage resolver, 101.2 hour ledger |
+| 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 15, 36, 75, 92, 101 | 102.1 bundling lock, 102.2 unbilled list |
+| 104 | [Customer approvals, deposits, change orders and portal billing](#phase-104) | P1 | ⬜ Planned | 72, 101, 103 | 104.1 out-of-scope approval |
+
+<details markdown="1">
+<summary>5 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 1 | [Contract / agreement engine deepening](#phase-1) | ✅ Complete | — | — |
+| 15 | [Recurring Billing & Contract Management](#phase-15) | ✅ Complete | v3.17.299 | — |
+| 27 | [Advanced Accounting Reconciliation](#phase-27) | ✅ Complete | v3.17.281 | — |
+| 36 | [Agreement Reconciliation & Pre-Invoice Approval](#phase-36) | ✅ Complete — verify | — | Agreement profitability reports and revenue-leakage expansion have no shipped marker (audit 2026-11-20) |
+| 44 | [Full Two-Way Accounting Sync](#phase-44) | ✅ Complete | v3.17.531 | — |
+
+</details>
+
+### C. Asset Management & Documentation
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 33 | [Network Discovery & Auto Documentation](#phase-33) | — | 🟡 Partial | 32, 16 | Decide SNMP/LLDP/CDP (108.4); label topology pages meanwhile |
+| 62 | [Pluggable document editors](#phase-62) | — | 🔵 In progress | documents | 62.5 Google Docs connector; 62.6 portal editing permissions |
+| 73 | [Procurement, distributors, licensing and warranty lifecycle](#phase-73) | — | 🔵 In progress | 4, 13, 68 | 73.2–73.6 ordering, receiving, warranty |
+| 95 | [PSA migration importers](#phase-95) | — | ⬜ Planned | 61, 94.3 | 95.1 importer guarantees |
+| 107 | [Documentation search, attachments, sharing and asset history](#phase-107) | P3 | ⬜ Planned | 16, 53 | 107.1 ranked search |
+| 108 | [Discovery scope approval and suggested-device staging](#phase-108) | P3 | ⬜ Planned | 32, 33 | 108.1 approved scan ranges |
+
+<details markdown="1">
+<summary>11 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 4 | [Procurement workflow](#phase-4) | ✅ Complete | — | — |
+| 13 | [Procurement & Lifecycle Management](#phase-13) | ✅ Complete | v3.17.272 | — |
+| 16 | [Documentation Relationship Mapping](#phase-16) | ✅ Complete | v3.17.303 | — |
+| 17 | [Advanced Asset Intelligence](#phase-17) | ✅ Complete | v3.17.310 | — |
+| 18 | [Multi-Location Client Hierarchy](#phase-18) | ✅ Complete | v3.17.283 | — |
+| 22 | [Knowledge Base & SOP Management](#phase-22) | ✅ Complete | — | — |
+| 32 | [Remote Network Discovery Import](#phase-32) | ✅ Complete | — | — |
+| 34 | [Network Configuration Backup](#phase-34) | ✅ Complete | — | — |
+| 53 | [Documentation readiness and lifecycle](#phase-53) | ✅ Complete | v3.17.656 | — |
+| 55 | [Hardware catalog and visual inventory](#phase-55) | ✅ Complete | v3.17.630 | — |
+| 61 | [One-customer migration rehearsals (IT Glue, Hudu)](#phase-61) | ✅ Complete | v3.17.664 | — |
+
+</details>
+
+### D. RMM & Platform Integrations
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 9 | [Security alert ingestion: EDR / AV / Firewall on the dashboard](#phase-9) | — | 🟡 Partial | — | Real vendor API connectors (Phase 84); today every vendor is webhook-only |
+| 23 | [Security Event & Incident Workflows](#phase-23) | — | 🟡 Partial | — | Playbooks behind approval (51.20, SR-37) |
+| 56 | [Ticket AI Assist and RMM handoff](#phase-56) | — | 🔵 In progress | 57; Rem0te ticket-rmm-v1 | Remaining Rem0te-side items move with 63.11–63.16 |
+| 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
+| 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
+| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.6 Rem0te side; 79.7 decide versus Phase 63 (duplicate channel) |
+| 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.3 bounded ingestion; 82.6 permission keys; first consumers |
+| 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
+| 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
+| 86 | [SOAR Lite: approval-driven security automation](#phase-86) | P3\* | ⬜ Planned | 85, 51.20; Rem0te contract | 86.1 builder on the Phase 91 engine |
+| 87 | [Alert routing, on-call and escalation](#phase-87) | P3\* | ⬜ Planned | 82, 85 | 87.1 notification routing |
+| 88 | [Service dependency and impact mapping](#phase-88) | P3\* | ⬜ Planned | 16, 82 | 88.2 impact analysis |
+| 106 | [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 64, 74.9, 82, 92 | 106.1 provider connections |
+| 109 | [Microsoft 365 administration](#phase-109) | P3 | ⬜ Planned | 64, 82 | 109.1 structured tenant models |
+
+<details markdown="1">
+<summary>1 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 7 | [Outsourcing, integrations, polish](#phase-7) | ✅ Complete | — | — |
+
+</details>
+
+### E. Sales & CRM
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 97 | [Prospect IT assessment and CRM enhancements](#phase-97) | P1 | ⬜ Planned | 5, 64, 75.3 | 97.1 assessment templates |
+| 98 | [Service estimator and forecast accuracy](#phase-98) | P1 | ⬜ Planned | 97, 68–70, 75, 76, 92 | 98.1 estimation models |
+| 103 | [Quote builder, options and price-book selection](#phase-103) | P1 | ⬜ Planned | 65, 68, 70 | 103.1 price book in the editors |
+| 105 | [Market pricing research and AI proposals](#phase-105) | P3 | ⬜ Planned | 76, 97, 98, 103, 56 | 105.1 research provider |
+
+<details markdown="1">
+<summary>2 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 5 | [CRM / sales pipeline](#phase-5) | ✅ Complete — verify | — | 5.3 IMAP lead poller was stubbed and deferred to a 5.4 follow-up; confirm whether it now works |
+| 76 | [Profitability and pricing advisor](#phase-76) | ✅ Complete | v3.17.696 | — |
+
+</details>
+
+### F. Security & Administration
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 51 | [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | — | Ship 51.20–51.23 (in development) |
+| 57 | [Technician security levels and abuse prevention](#phase-57) | — | 🔵 In progress | — | Confirm remaining items against 64 roles |
+| 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
+| 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
+| 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | ⬜ Planned | — | 94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups |
+| 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 57, 64, 80 | 111.1 passkeys |
+
+<details markdown="1">
+<summary>8 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 28 | [Browser Extension + Offline Vault Access](#phase-28) | ✅ Complete | v3.17.331 | Server-side API shipped; the browser extension binary is out of scope |
+| 31 | [Vault GeoIP / IP / Time Access Rules](#phase-31) | ✅ Complete | v3.17.163 | — |
+| 37 | [Vault Approval & Break-Glass Workflow](#phase-37) | ✅ Complete | — | — |
+| 39 | [Compliance Evidence Packs](#phase-39) | ✅ Complete | — | — |
+| 41 | [Compliance Frameworks & Recertification](#phase-41) | ✅ Complete | v3.17.444 | — |
+| 43 | [Multi-Organization REST API Access](#phase-43) | ✅ Complete | v3.17.496 | — |
+| 49 | [Interface consistency and tenant-boundary hardening](#phase-49) | ✅ Complete | — | — |
+| 81 | [API access control and network restrictions](#phase-81) | ✅ Complete | v3.17.718 | — |
+
+</details>
+
+### G. Customer Portal & Communications
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 66 | [Client pulse checks](#phase-66) | — | 🔵 In progress | portal, scheduler | 66.5 export and reminders |
+| 77 | [Customer command center portal](#phase-77) | P3\* | ⬜ Planned | 72, 73, 74 | 77.1 unified customer dashboard |
+| 99 | [Phone system integration and call-to-ticket](#phase-99) | P2 | ⬜ Planned | 64, 81, 82 | 99.1 adapter framework |
+| 100 | [Optional simple PBX appliance](#phase-100) | P4 | ⏸️ Deferred | 99 | Go/no-go review after Phase 99 ships |
+
+<details markdown="1">
+<summary>3 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 12 | [Customer Communication Workflows](#phase-12) | ✅ Complete | — | — |
+| 40 | [Public / Client-Facing Status Page](#phase-40) | ✅ Complete | — | — |
+| 54 | [Guided customer service requests](#phase-54) | ✅ Complete | v3.17.669 | — |
+
+</details>
+
+### H. Reporting, Analytics & Optional AI
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 75 | [Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard](#phase-75) | P3\* | 🔵 In progress | 68–74 | 75.2 customer commercial portal; 75.5 permissions |
+| 78 | [Customer health score](#phase-78) | P3\* | 🔵 In progress | 66, 74, 75 | 78.6 portal display |
+| 83 | [NOC/SOC wallboards and secure display pairing](#phase-83) | P3\* | ⬜ Planned | 82 | 83.1 presentation mode |
+| 89 | [Security posture scorecards and customer service reviews](#phase-89) | P3\* | ⬜ Planned | 78, 82, 84 | 89.1 posture scorecard |
+| 90 | [AI Operations Analyst](#phase-90) | P3\* | ⬜ Planned | 85, 56 | 90.1 alert analysis |
+| 110 | [Service-delivery reporting and one set of definitions](#phase-110) | P3 | ⬜ Planned | 3, 75, 102 | 110.1 one calculation layer |
+
+<details markdown="1">
+<summary>3 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 3 | [Financial reporting + BI](#phase-3) | ✅ Complete | — | — |
+| 19 | [Advanced Reporting & Analytics](#phase-19) | ✅ Complete | v3.17.326 | — |
+| 26 | [Custom Report Writer + Saved Queries](#phase-26) | ✅ Complete | — | JSON and Excel export deferred; auto-chart status to confirm |
+
+</details>
+
+### I. Deployment, Updates & Reliability
+
+| ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
+|---|---|---|---|---|---|
+| 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
+| 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
+| 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.2 first-install detection; 96.3–96.4 assistant |
+
+<details markdown="1">
+<summary>4 completed phases</summary>
+
+| ID | Feature | Status | Released | Note |
+|---|---|---|---|---|
+| 42 | [First-class Docker / containerized deployment](#phase-42) | ✅ Complete | v3.17.490 | — |
+| 45 | [System-wide Appearance Controls](#phase-45) | ✅ Complete | v3.17.527 | — |
+| 50 | ["Help Us Grow" call to action](#phase-50) | ✅ Complete | v3.17.586 | — |
+| 58 | [Condensed navigation](#phase-58) | ✅ Complete | v3.17.647 | — |
+
+</details>
+
+<!-- /generated:matrix -->
+
+<a id="blockers"></a>
+
+## Blockers & dependencies
+
+Only blockers that stop current or next work are listed; ordinary prerequisites are in the matrix.
+
+<!-- generated:blockers -->
+
+| Phase | Blocker | Depends on | Decision / action needed | State |
+|---|---|---|---|---|
+| 33 — [Network Discovery & Auto Documentation](#phase-33) | Topology and port maps need link-layer data nothing collects | 32, 16 | Owner decision on SNMP/LLDP/CDP collection (previously declined) | 🟡 Partial |
+| 59 — [Verified installs and upgrades](#phase-59) | LTS channel needs a published support policy | updater, root helper | Owner publishes a support policy | 🔵 In progress |
+| 63 — [RMM integration and technician workspace](#phase-63) | 63.11–63.16 need Rem0te contract items (P2/P3, R13, P10, P6, R7/P5, P7, R2) | 52, 56, 57; Rem0te contract | Rem0te ships the items; two-application tests pass | 🔵 In progress |
+| 65 — [Contract documents and digital signing](#phase-65) | Starter contract wording is sample text | 15, 64 | Legal review of the wording | 🔵 In progress |
+| 71 — [Accounting sync completion](#phase-71) | Provider capabilities verified only against mocks | 44 | QuickBooks Online and Xero sandbox accounts | 🔵 In progress |
+| 72 — [Payment processing and sales tax](#phase-72) | Payment providers verified only against mocks | 71 | Payment provider sandbox accounts | 🔵 In progress |
+| 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | 74.7 needs St0r’s integration API (in development, St0r PR #54) | 63, 82; St0r API (74.7) | St0r ships /api/v1 with scoped tokens | 🔵 In progress |
+| 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | 79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel | Rem0te contract | Decision on one Rem0te channel; Rem0te Stage 8 | 🔵 In progress |
+| 80 — [Agit8or Identity: single sign-on for people](#phase-80) | 80.4 Keycloak deployment requires approval | Keycloak | Owner approves a Keycloak deployment | 🔵 In progress |
+| 100 — [Optional simple PBX appliance](#phase-100) | Exploratory; not built until Phase 99 is proven | 99 | Go decision against the recorded criteria | ⏸️ Deferred |
+| 106 — [Device management (MDM) integrations](#phase-106) | Mosyle has no official API documentation found | 64, 74.9, 82, 92 | Obtain official Mosyle API documentation (other providers unaffected) | ⬜ Planned |
+| 108 — [Discovery scope approval and suggested-device staging](#phase-108) | 108.4 SNMP/LLDP/CDP collection | 32, 33 | Owner decision (previously declined) | ⬜ Planned |
+
+<!-- /generated:blockers -->
+
+**Cross-product dependencies**
+
+| Product | What Clientst0r needs | Where it is tracked |
+|---|---|---|
+| Rem0te | Contract items P2/P3, R13, P10, P6, R7/P5, P7, R2 for 63.11–63.16; per-endpoint capability flags for 63.18; signed counts for 92.4 | [Rem0te backlog](plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md) Priority 9; coordination file |
+| St0r | Versioned `/api/v1` with scoped tokens (in development) for 74.7 | St0r PR #54 (`docs/ROADMAP.md` in St0r) |
+| Comet Backup | Read-only administrator account; separate account for actions | [Comet API notes](plans/backup-integrations/COMET_API_NOTES.md) |
+| MDM providers | Per-provider credentials and consent; Mosyle documentation | [MDM specification](plans/mdm/README.md) |
+| Accounting and payment providers | Sandbox accounts for verification (71.11, 72) | Phases 71, 72 |
+
+<a id="completed"></a>
+
+## Completed features
+
+Each workstream in the [feature matrix](#feature-matrix) lists its completed phases in a collapsed table. The full
+original descriptions, sub-items and release versions of completed phases are in
+[ROADMAP_HISTORY.md](ROADMAP_HISTORY.md); release notes are in the [changelog](../CHANGELOG.md).
+
+<a id="verify"></a>
+
+**Statuses to verify** — completed phases whose wording and the code may disagree:
+
+<!-- generated:verify -->
+
+| Phase | What to verify |
+|---|---|
+| 5 — [CRM / sales pipeline](#phase-5) | 5.3 IMAP lead poller was stubbed and deferred to a 5.4 follow-up; confirm whether it now works |
+| 36 — [Agreement Reconciliation & Pre-Invoice Approval](#phase-36) | Agreement profitability reports and revenue-leakage expansion have no shipped marker (audit 2026-11-20) |
+| 57 — [Technician security levels and abuse prevention](#phase-57) | Confirm remaining items against 64 roles |
+
+<!-- /generated:verify -->
+
+<a id="later"></a>
+
+## Future roadmap — LATER
+
+Planned and partly built phases not in NOW or NEXT, by workstream:
+
+<!-- generated:later -->
+
+- **A. Core PSA & Ticketing:** 93 [Business-hours SLA calendars](#phase-93) (—)
+- **B. Billing & Financial Management:** 65 [Contract documents and digital signing](#phase-65) (—), 68 [Commercial price book and service plans](#phase-68) (—), 69 [Labor rate cards and cost rates](#phase-69) (—), 71 [Accounting sync completion](#phase-71) (—), 72 [Payment processing and sales tax](#phase-72) (—), 92 [Verified usage and recurring billing](#phase-92) (—), 104 [Customer approvals, deposits, change orders and portal billing](#phase-104) (P1)
+- **C. Asset Management & Documentation:** 33 [Network Discovery & Auto Documentation](#phase-33) (—), 62 [Pluggable document editors](#phase-62) (—), 73 [Procurement, distributors, licensing and warranty lifecycle](#phase-73) (—), 95 [PSA migration importers](#phase-95) (—), 107 [Documentation search, attachments, sharing and asset history](#phase-107) (P3), 108 [Discovery scope approval and suggested-device staging](#phase-108) (P3)
+- **D. RMM & Platform Integrations:** 56 [Ticket AI Assist and RMM handoff](#phase-56) (—), 79 [Agit8or Connect: secure application-to-application integration](#phase-79) (—), 82 [Shared operational event and alert foundation](#phase-82) (—), 84 [Security connector framework and vendor integrations](#phase-84) (P3\*), 85 [Operations Center, alert triage and correlation](#phase-85) (P3\*), 86 [SOAR Lite: approval-driven security automation](#phase-86) (P3\*), 87 [Alert routing, on-call and escalation](#phase-87) (P3\*), 88 [Service dependency and impact mapping](#phase-88) (P3\*), 109 [Microsoft 365 administration](#phase-109) (P3)
+- **E. Sales & CRM:** 97 [Prospect IT assessment and CRM enhancements](#phase-97) (P1), 98 [Service estimator and forecast accuracy](#phase-98) (P1), 103 [Quote builder, options and price-book selection](#phase-103) (P1), 105 [Market pricing research and AI proposals](#phase-105) (P3)
+- **F. Security & Administration:** 57 [Technician security levels and abuse prevention](#phase-57) (—), 64 [Roles, permission groups and access settings](#phase-64) (P0\*), 80 [Agit8or Identity: single sign-on for people](#phase-80) (—)
+- **G. Customer Portal & Communications:** 66 [Client pulse checks](#phase-66) (—), 77 [Customer command center portal](#phase-77) (P3\*), 99 [Phone system integration and call-to-ticket](#phase-99) (P2), 100 [Optional simple PBX appliance](#phase-100) (P4)
+- **H. Reporting, Analytics & Optional AI:** 75 [Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard](#phase-75) (P3\*), 78 [Customer health score](#phase-78) (P3\*), 83 [NOC/SOC wallboards and secure display pairing](#phase-83) (P3\*), 89 [Security posture scorecards and customer service reviews](#phase-89) (P3\*), 90 [AI Operations Analyst](#phase-90) (P3\*), 110 [Service-delivery reporting and one set of definitions](#phase-110) (P3)
+- **I. Deployment, Updates & Reliability:** 59 [Verified installs and upgrades](#phase-59) (—), 67 [Interface, navigation and dashboard redesign](#phase-67) (—), 96 [First-install setup wizard and interactive onboarding](#phase-96) (P0)
+
+<!-- /generated:later -->
+
+**Stages**
+
+<!-- generated:stages -->
 
 | Stage | Content | Priority | Phases |
 |---|---|---|---|
-| 0 | Roadmap, audits, feature matrix, Rem0te backlog | — | this update |
-| 1 | Core completion: PSA/RMM workflow, quote conversion, billing correctness, security and permissions, ticket workflow, setup wizard | P0 | 51, 52, 63, 64, 70, 91, 94, 96, 101, 102, 111 |
-| 2 | Backup management: St0r/UrBackup, Comet, one overview, alerts, tickets, reports, billing | P1 | 74, 77.8, 92.6 |
-| 3 | Device management: MDM inventory and compliance, approved device workflows, Linux/macOS visibility through Rem0te, one device record | P2 | 106, 92.7 |
-| 4 | Sales and documentation: CRM discovery, estimator, quotes, documentation, discovery staging | P3 | 97, 98, 103, 104, 107, 108 |
-| 5 | Reporting and customer portal | P3 | 75, 77, 78, 89, 110 |
-| 6 | Advanced integrations and optional AI: Microsoft 365, security vendors, operations center, automation, AI pricing | P3 | 83–90, 99, 105, 109 |
-| 7 | Polish, regression coverage, documentation, completion checklist | — | 59, 67, remaining items |
-| 8 | Rem0te functional expansion (Linux, macOS, patching, scripting, remediation, MDM and backup coordination) | after Stage 7 | Rem0te backlog |
+| 1 | Core completion: PSA/RMM workflow, quote conversion, billing correctness, security, ticket workflow, setup | P0 | [51](#phase-51), [52](#phase-52), [63](#phase-63), [64](#phase-64), [70](#phase-70), [91](#phase-91), [94](#phase-94), [96](#phase-96), [101](#phase-101), [102](#phase-102), [111](#phase-111) |
+| 2 | Backup management: St0r/UrBackup, Comet, one overview, alerts, reports, billing | P1 | [74](#phase-74) |
+| 3 | Device management: MDM, compliance, Linux/macOS visibility, one device record | P2 | [106](#phase-106) |
+| 4 | Sales and documentation: CRM discovery, estimator, quotes, documentation, discovery staging | P3 | [97](#phase-97), [98](#phase-98), [103](#phase-103), [104](#phase-104), [107](#phase-107), [108](#phase-108) |
+| 5 | Reporting and customer portal | P3 | [75](#phase-75), [77](#phase-77), [78](#phase-78), [89](#phase-89), [110](#phase-110) |
+| 6 | Advanced integrations and optional AI | P3 | [83](#phase-83), [84](#phase-84), [85](#phase-85), [86](#phase-86), [87](#phase-87), [88](#phase-88), [90](#phase-90), [99](#phase-99), [105](#phase-105), [109](#phase-109) |
+| 7 | Polish, regression coverage, documentation, completion checklist | — | [59](#phase-59), [67](#phase-67) |
+| 8 | Rem0te functional expansion (separate backlog) | after Stage 7 | [Rem0te backlog](plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md) |
 
-Planning documents: platform program `docs/plans/platform-program/README.md`; feature matrix
-`docs/plans/MSP_PLATFORM_FEATURE_MATRIX.md`; billing program `docs/plans/msp-billing-program/README.md`; backup
-integrations `docs/plans/backup-integrations/README.md`; device management `docs/plans/mdm/README.md`; backup, MDM and
-cross-platform overview `docs/plans/BACKUP_MDM_CROSS_PLATFORM_ROADMAP.md`;
-cross-platform requirements `docs/plans/platform-program/CROSS_PLATFORM_REQUIREMENTS.md`; security review
-`docs/plans/competitive/SECURITY_REVIEW.md`.
+<!-- /generated:stages -->
 
-## Contents — phase index
+<a id="before-rem0te"></a>
 
-| Phase | Title | Status | Priority |
-|---|---|---|---|
-| 1 | Contract / agreement engine deepening | Complete |  |
-| 2 | Resource management foundation | Complete |  |
-| 3 | Financial reporting + BI | Complete |  |
-| 4 | Procurement workflow | Complete |  |
-| 5 | CRM / sales pipeline | Complete |  |
-| 6 | ITIL maturity | Complete |  |
-| 7 | Outsourcing, integrations, polish | Complete |  |
-| 8 | Native mobile apps (iOS + Android) with GPS auto-time + Timeclock | Complete (v3.17.417) |  |
-| 9 | Security alert ingestion: EDR / AV / Firewall on the dashboard | Partial (vendors webhook-only) |  |
-| 10 | Advanced Email-to-Ticket Engine | Complete |  |
-| 11 | Advanced Dispatch & Technician Scheduling | Complete |  |
-| 12 | Customer Communication Workflows | Complete |  |
-| 13 | Procurement & Lifecycle Management | Complete (v3.17.272) |  |
-| 14 | Visual Workflow Automation Engine | Partial (four bullets unbuilt, now 91.6) |  |
-| 15 | Recurring Billing & Contract Management | Complete (v3.17.299) |  |
-| 16 | Documentation Relationship Mapping | Complete (v3.17.303) |  |
-| 17 | Advanced Asset Intelligence | Complete (v3.17.310) |  |
-| 18 | Multi-Location Client Hierarchy | Complete (v3.17.283) |  |
-| 19 | Advanced Reporting & Analytics | Complete (v3.17.326) |  |
-| 20 | Approval & Change Management Workflows | Complete (v3.17.277) |  |
-| 21 | Advanced Mobile Technician Workflows | Complete (v3.17.318) |  |
-| 22 | Knowledge Base & SOP Management | Complete |  |
-| 23 | Security Event & Incident Workflows | Partial (playbooks need approval, 51.20) |  |
-| 25 | Mature Timesheet Approval Workflows | Complete |  |
-| 26 | Custom Report Writer + Saved Queries | Complete |  |
-| 27 | Advanced Accounting Reconciliation | Complete (v3.17.281) |  |
-| 28 | Browser Extension + Offline Vault Access | Complete (v3.17.331) |  |
-| 31 | Vault GeoIP / IP / Time Access Rules | Complete (v3.17.163) |  |
-| 32 | Remote Network Discovery Import | Complete |  |
-| 33 | Network Discovery & Auto Documentation | Partial (topology data blocked) |  |
-| 34 | Network Configuration Backup | Complete |  |
-| 35 | Advanced Project Management | Complete |  |
-| 36 | Agreement Reconciliation & Pre-Invoice Approval | Complete |  |
-| 37 | Vault Approval & Break-Glass Workflow | Complete |  |
-| 38 | Client Onboarding / Offboarding Runbooks | Complete |  |
-| 39 | Compliance Evidence Packs | Complete |  |
-| 40 | Public / Client-Facing Status Page | Complete |  |
-| 41 | Compliance Frameworks & Recertification | Complete (v3.17.444) |  |
-| 42 | First-class Docker / containerized deployment | Complete (v3.17.490) |  |
-| 43 | Multi-Organization REST API Access | Complete (v3.17.496) |  |
-| 44 | Full Two-Way Accounting Sync | Complete (v3.17.531) |  |
-| 45 | System-wide Appearance Controls | Complete (v3.17.527) |  |
-| 46 | Job Kit: tools and materials on a ticket | Complete (v3.17.533) |  |
-| 47 | Public scheduler wallboard | Complete (v3.17.533) |  |
-| 48 | Task warning windows | Complete (v3.17.535) |  |
-| 49 | Interface consistency and tenant-boundary hardening | Complete |  |
-| 50 | "Help Us Grow" call to action | Complete (v3.17.586) |  |
-| 51 | Reliability and customer-boundary hardening | In progress |  |
-| 52 | Technician workspace | In progress | P1 |
-| 53 | Documentation readiness and lifecycle | Complete (v3.17.656) |  |
-| 54 | Guided customer service requests | Complete (v3.17.669) |  |
-| 55 | Hardware catalog and visual inventory | Complete (v3.17.630) |  |
-| 56 | Ticket AI Assist and RMM handoff | In progress |  |
-| 57 | Technician security levels and abuse prevention | In progress |  |
-| 58 | Condensed navigation | Complete (v3.17.647) |  |
-| 59 | Verified installs and upgrades | In progress |  |
-| 60 | Optional ticket routing | Complete (v3.17.664) |  |
-| 61 | One-customer migration rehearsals (IT Glue, Hudu) | Complete (v3.17.664) |  |
-| 62 | Pluggable document editors | In progress |  |
-| 63 | RMM integration and technician workspace | In progress | P0 |
-| 64 | Roles, permission groups and access settings | In progress |  |
-| 65 | Contract documents and digital signing | In progress |  |
-| 66 | Client pulse checks | In progress |  |
-| 67 | Interface, navigation and dashboard redesign | In progress |  |
-| 68 | Commercial price book and service plans | In progress |  |
-| 69 | Labor rate cards and cost rates | In progress |  |
-| 70 | Contracts, recurring billing and quote conversion | In progress | P0 |
-| 71 | Accounting sync completion | In progress |  |
-| 72 | Payment processing and sales tax | In progress |  |
-| 73 | Procurement, distributors, licensing and warranty lifecycle | In progress |  |
-| 74 | Backup monitoring, backup management and endpoint health | In progress | P1 |
-| 75 | Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard | In progress |  |
-| 76 | Profitability and pricing advisor | Complete (v3.17.696) |  |
-| 77 | Customer command center portal | Planned |  |
-| 78 | Customer health score | In progress |  |
-| 79 | Agit8or Connect: secure application-to-application integration | In progress |  |
-| 80 | Agit8or Identity: single sign-on for people | In progress |  |
-| 81 | API access control and network restrictions | Complete (v3.17.718) |  |
-| 82 | Shared operational event and alert foundation | In progress |  |
-| 83 | NOC/SOC wallboards and secure display pairing | Planned |  |
-| 84 | Security connector framework and vendor integrations | Planned |  |
-| 85 | Operations Center, alert triage and correlation | Planned |  |
-| 86 | SOAR Lite: approval-driven security automation | Planned |  |
-| 87 | Alert routing, on-call and escalation | Planned |  |
-| 88 | Service dependency and impact mapping | Planned |  |
-| 89 | Security posture scorecards and customer service reviews | Planned |  |
-| 90 | AI Operations Analyst | Planned |  |
-| 91 | Workflow automation safety | In progress | P1 |
-| 92 | Verified usage and recurring billing | Planned |  |
-| 93 | Business-hours SLA calendars | Planned |  |
-| 94 | Evidence integrity and routine backups | Planned |  |
-| 95 | PSA migration importers | Planned |  |
-| 96 | First-install setup wizard and interactive onboarding | In progress | P0 |
-| 97 | Prospect IT assessment and CRM enhancements | Planned | P1 |
-| 98 | Service estimator and forecast accuracy | Planned | P1 |
-| 99 | Phone system integration and call-to-ticket | Planned | P2 |
-| 100 | Optional simple PBX appliance | Deferred (go/no-go after Phase 99) | P4 |
-| 101 | Ticket Time & Charges and prepaid-hour ledger | Planned | P0 |
-| 102 | Ready for Billing queue and invoice integrity | Planned | P0 |
-| 103 | Quote builder, options and price-book selection | Planned | P1 |
-| 104 | Customer approvals, deposits, change orders and portal billing | Planned | P1 |
-| 105 | Market pricing research and AI proposals | Planned | P3 |
-| 106 | Device management (MDM) integrations | Planned | P2 |
-| 107 | Documentation search, attachments, sharing and asset history | Planned | P3 |
-| 108 | Discovery scope approval and suggested-device staging | Planned (108.4 Blocked) | P3 |
-| 109 | Microsoft 365 administration | Planned | P3 |
-| 110 | Service-delivery reporting and one set of definitions | Planned | P3 |
-| 111 | Identity lifecycle and access reviews | Planned | P1 |
+**Before Rem0te expansion resumes** — the Clientst0r completion checklist
+([full text](plans/platform-program/README.md#clientst0r-completion-checklist-stage-7-exit)):
 
----
+1. The platform workflows run end to end on a test install with both applications' real code, each with an
+   automated test.
+2. Every P0 and P1 item is complete or explicitly deferred by the owner.
+3. No open security-review finding rated Medium or above.
+4. Every listed integration is verified against the real service or labelled by its actual level.
+5. Billing acceptance tests pass, with one set of financial definitions.
+6. A fresh install reaches a secured state through the setup wizard; upgrades keep all data.
+7. The pinned Rem0te contract matches Rem0te's release and the cross-application suite passes.
+8. Documentation describes only what items 1–7 verified.
 
-## Phasing principle
+**Out of scope**
 
-Foundations first — engines that *enable* downstream features. Then revenue-relevant features. Then ITIL + ecosystem + polish. Each phase is self-contained, ships incrementally via the Apply flow, and unblocks the next.
+- Multi-currency beyond per-record `currency` field
+- Multi-language support beyond Django i18n hooks
+- ~~Native mobile apps (PWA only — per memory)~~ → **moved into Phase 8**
+- Marketplace/app store
+- White-label tenant branding beyond per-org logo
+- An endpoint agent or remote-access relay inside Clientst0r — RMM functions come from Rem0te (a separate
+  application) or a supported third-party RMM.
+- A backup engine or an MDM server inside Clientst0r — backup and MDM come from the providers it integrates.
 
----
+<a id="technical-details"></a>
+
+## Technical details
+
+One section per phase, in numeric order. Open phases keep their full detail (expand *Details*); completed phases
+link to [ROADMAP_HISTORY.md](ROADMAP_HISTORY.md).
+
+<a id="phase-1"></a>
 
 ## Phase 1 — Contract / agreement engine deepening **(M · foundation)** [complete]
+<!-- phase: ws=B -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** B. Billing & Financial Management
 
-Mature contract engine — beyond the basics. Required for accurate profitability reporting (Phase 3).
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 1](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-1).
 
-- Per-contract **overage rules** — different rate for billable hours past allowance *(1.1 — shipped v3.17.126)*
-- **Role-based inclusion/exclusion** — e.g. "T1 work included, T3 work billable at $X" *(1.1 — shipped v3.17.126)*
-- **Prepaid block hours with rollover** — % rollover, expiry dates *(1.1 — shipped v3.17.126; audit 2026-11-20: a single allowance per contract with no transaction ledger, no per-cycle reset; ledger and multiple blocks are Phase 101)*
-- **Auto-renewal** — N days before end_date, auto-create next period via `psa_auto_renew_contracts` cron *(1.2 — shipped v3.17.130)*
-- **Proration** — mid-month start/cancel *(1.1 — shipped v3.17.126; audit 2026-11-20: start only, a contract ending mid-period bills the full period)*
-- **Bundled services** — line items per agreement via `ContractBundleItem` model with dynamic editor *(1.2 — shipped v3.17.130; audit 2026-11-20: modelled but not billed, see 70.4)*
-- Agreement **profitability snapshot** — revenue vs. cost-of-delivery this period, surfaced on contract detail page *(1.2 — shipped v3.17.130)*
+---
+
+<a id="phase-2"></a>
 
 ## Phase 2 — Resource management foundation **(M · foundation)** [complete]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-Required by capacity planning, profitability-by-tech, and scheduling improvements.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 2](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-2).
 
-- `UserSkill`, `UserCertification` models
-- `WorkingHours` (per user, per weekday + per-org override)
-- `Holiday` / `LeaveRequest` (PTO booking with approval)
-- `BillableTarget` (hours/week per tech, used for utilization KPI)
-- **Capacity report** — forecast vs. scheduled vs. actual hours per week per tech
-- **Skill matching** on the dispatch board — when assigning, surface techs ranked by skill+availability
+---
+
+<a id="phase-3"></a>
 
 ## Phase 3 — Financial reporting + BI **(L · keystone)** [complete]
+<!-- phase: ws=H -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** H. Reporting, Analytics & Optional AI
 
-Most-requested feature class. Big surface, but builds entirely on Phase 1+2 foundations.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 3](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-3).
 
-- Canonical reporting query layer (`reports/queries.py`) — single source of truth for revenue, hours, costs *(3.1 — shipped v3.17.139)*
-- **Profitability by**: client *(3.1 — shipped v3.17.139)* / contract / project / tech *(3.2 — shipped v3.17.140)* / agreement / ticket-type / closure-category
-- **Effective hourly rate** report (revenue ÷ billable hours) *(3.3 — shipped v3.17.141)*
-- **Revenue-leakage report** (unbilled time ≥ N days old + expired blocks + un-pushed invoices) *(3.3 — shipped v3.17.141)*
-- **SLA trend report** — breach rate per client, per priority, over time *(3.4 — shipped v3.17.143)*
-- **Margin analytics** by service line *(3.4 — shipped v3.17.143)*
-- **Custom dashboards** — drag-and-drop widgets sourced from the canonical query layer *(3.5 — shipped v3.17.142)*
-- **Scheduled reports** — cron-style, email PDF/CSV *(3.6 wave B — shipped v3.17.147)*
-- **Wallboard view** — TV-ready big-number display (active tickets, breaches, MTTR, queue depth) *(3.6 wave A — shipped v3.17.146; basic 6-tile fixed layout)*
-- **Configurable wallboards with widgets** *(shipped v3.17.211)* — multiple named `Wallboard` rows per org via `reports.Wallboard` + `reports.WallboardWidget`, widgets sourced from the v3.17.142 `widget_sources.REGISTRY`, per-wallboard `refresh_seconds`, per-widget refresh override, "rotate through wallboards" mode at `/reports/wallboards/<pk>/rotate/` using meta-refresh redirects (no JS required — works on any TV browser). Drag-to-reorder UI deferred — admins set the `order` field via the admin interface for now
-- **Executive scorecard** — single page rolling 30-day MSP KPIs *(3.6 wave A — shipped v3.17.146)*
-- **Client-health score** — composite of SLA hits, ticket velocity, NPS proxy, billing aging *(3.6 wave B — shipped v3.17.147)*
+---
+
+<a id="phase-4"></a>
 
 ## Phase 4 — Procurement workflow **(L)** **— shipped**
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-Builds on existing distributor integrations (Ingram/Pax8/Synnex). Adds the workflow above the catalog.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 4](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-4).
 
-- `PurchaseRequisition` → approval → `PurchaseOrder` *(4.1 — shipped v3.17.148)*
-- POs auto-numbered + branded PDF + email-to-vendor (mirror Quote/Invoice pattern) *(4.1 — shipped v3.17.148)*
-- **Receiving** — partial receive, back-orders, serial-number capture into Asset records *(4.2 — shipped v3.17.149)*
-- **Vendor relationship** model — lead times, payment terms, contact preferences *(4.3 — shipped v3.17.150)*
-- **Stock minimums + auto-replenish** suggestion *(4.3 — shipped v3.17.150)*
-- **Drop-ship handling** — direct-to-customer flag with shipping address override *(4.1 — shipped v3.17.148)*
-- **Fulfillment tracking** — link POs to tickets/projects, status pipeline *(4.1 — shipped v3.17.148)*
-- **One-click PO from accepted quote** — converts quote line items to a draft PO *(4.4 — shipped v3.17.151)*
+---
+
+<a id="phase-5"></a>
 
 ## Phase 5 — CRM / sales pipeline **(L)** **— complete**
+<!-- phase: ws=E state=verify note="5.3 IMAP lead poller was stubbed and deferred to a 5.4 follow-up; confirm whether it now works" -->
+**Status:** ✅ Complete — verify · **Priority:** — · **Workstream:** E. Sales & CRM  
+**Note:** 5.3 IMAP lead poller was stubbed and deferred to a 5.4 follow-up; confirm whether it now works
 
-A mature PSA covers sales-pipeline-to-invoice. Currently we have quotes; we need everything *before* the quote.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 5](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-5).
 
-- `Lead`, `Opportunity`, `Campaign`, `Commission` models *(5.1 — shipped v3.17.152; 5.2 — shipped v3.17.153)*
-- Lead scoring + conversion funnel report *(5.2 — shipped v3.17.153)*
-- Pipeline Kanban view (Discovery → Qualified → Proposal → Closed Won/Lost) *(5.1 — shipped v3.17.152)*
-- **Quote-to-project automation** — one click on accepted quote spins a Project with tasks pre-populated from quote line items *(5.1 — opportunity → quote shipped v3.17.152; quote → project shipped v3.17.213)*
-- **Configurable wallboards.** Multi-named per-org boards, widget grid sourced from the v3.17.142 widget registry, per-wallboard refresh + per-widget override, NOC-TV rotation mode *(shipped v3.17.211; Chart.js + nav + screenshots v3.17.212; drag-to-reorder widgets v3.17.215; global / cross-tenant overview boards v3.17.216; selectable category dropdown on widgets v3.17.217; categories on tickets/revenue/at-risk sources v3.17.218; in-form widget add/delete + starter templates v3.17.220; 9 new operations / monitoring widget sources + Monitoring template v3.17.224)*
-- Sales-activity timeline per org/lead (calls, emails, meetings logged) *(5.3 — shipped v3.17.155)*
-- Commission rules engine + per-tech commission report *(5.2 — shipped v3.17.153)*
-- **Quote signatures bound to the exact quote revision** *(shipped v3.17.664)* —
-  extends quote e-signature: the signature records a SHA-256 of the quote as
-  signed (number, client, description, validity, tax rate, lines, totals) with
-  a canonical JSON copy and the quote PDF the customer saw. A sign page left
-  open while the quote changed cannot sign the new content; a signed quote
-  cannot be edited (create a new quote); the quote page shows whether the
-  signature still matches, and staff download a hash-verifiable evidence ZIP.
-  Signatures made before this have no fingerprint and lock nothing.
-- Lead capture from web form / IMAP / API *(5.3 — web + API shipped v3.17.155; IMAP poller stubbed, full implementation deferred to 5.4 follow-up)*
+---
+
+<a id="phase-6"></a>
 
 ## Phase 6 — ITIL maturity **— complete**
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-Extends existing tickets + approvals; doesn't fork into a separate model layer.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 6](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-6).
 
-- **Change requests** as a `Ticket.ticket_type='change'` extension with required CAB approval before status moves to "Implementing" *(6.1 — shipped v3.17.158)*
-- **CAB workflow** — multi-approver gate (extends existing single-approval) *(6.1 — shipped v3.17.158)*
-- **Problem records** — link N related tickets, root-cause analysis field, status pipeline *(6.2 — shipped v3.17.160)*
-- **Release management** — group changes into release windows, freeze flags, rollback documentation *(6.3 — shipped v3.17.165)*
-- **Service-catalog governance** — approval gate on catalog item changes *(6.3 — shipped v3.17.165)*
-- MSP-named sample role templates seeded by `RoleTemplate.get_or_create_system_templates()`: Client, Client Admin, Technician, Tech Manager, Office Manager, Full Admin (in addition to the existing Owner/Administrator/Editor/Help Desk/IT Manager/Documentation Writer/Read-Only) *(shipped v3.17.164)*
+---
+
+<a id="phase-7"></a>
 
 ## Phase 7 — Outsourcing, integrations, polish **(continuous track)** [complete]
+<!-- phase: ws=D -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** D. RMM & Platform Integrations
 
-Not a single phase — runs alongside 1-6.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 7](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-7).
 
-- **Outsourcing**: subcontractor org type, share-ticket-to-partner endpoint with HMAC, two-way sync of comments + status, optional billing markup *(shipped v3.17.166)*
-- **Integration SDK**: clean provider plugin interface *(skeleton shipped v3.17.166)*; then steady drops — Datto Backup, ITGlue v2 import, Hudu sync, BackupRadar, ScreenConnect, Acronis, Liongard. Target: 5-10 new providers per quarter.
-- **Polish backlog** — test coverage gaps, permission edge cases, audit improvements, mobile UI fixes, onboarding docs, import-tool maturity, API stability, third-party trust signals *(continuous track)*
-  - Tenant-isolation security-test suite restored from rotted state; latent `/api/passwords/<id>/` audit-log crash fixed *(shipped v3.17.171)*
-  - Removed deprecated `datetime.utcnow()` / `datetime.now()` from core views; bug-report timestamp no longer mislabels server-local time as UTC *(shipped v3.17.173)*
-  - Codebase-wide sweep of deprecated datetime calls; fixes tz-naive query bug in audit-log cleanup + expired-session cleanup on non-UTC servers *(shipped v3.17.174)*
-  - Auto-apply-gunicorn-fix migration silenced on test runners + fresh dev installs (no longer spams "Fix script exited with code 1" banners) *(shipped v3.17.175)*
-  - Defender adapter flagged as a reference stub in label + test-connection message + module docstring so operators don't pick it expecting live alert flow *(shipped v3.17.179)*
-  - Silent `except Exception: pass` swallowers in `core/views.py` audit-log fallback + `core/security_views.py` scan handler tightened to log real exceptions; package-scanner JSON endpoints use a `_staff_or_superuser_api` decorator instead of inline checks *(shipped v3.17.180)*
-  - Vault password mutation audit logging — `password_edit` + `password_delete` now write per-action AuditLog rows on success and on every failure mode (form validation, EncryptionError); 2 new tests in `vault.tests.PasswordMutationAuditTests` *(shipped v3.17.181)*
-  - Phase 9 forms (Auto-Ticket Rule + Vendor Connection) rewritten with proper card-section layout, Bootstrap widget classes, copy-to-clipboard webhook helpers, "ALL must match" semantic hint on rule clauses *(shipped v3.17.182)*
-  - UniFi + M365 connection forms rewritten with the same card-section layout (the only other forms using the sloppy generic field-loop pattern; audit confirmed the rest of the integration forms were already clean) *(shipped v3.17.183)*
-  - Bare `except:` clauses replaced with `except Exception:` across 24 sites in 12 modules — no more accidental `SystemExit`/`KeyboardInterrupt` swallowing *(shipped v3.17.184)*
-  - `core/security_views.py` inline staff-check sweep finished — all 9 endpoints now use `@_staff_or_superuser_view` (HTML) or `@_staff_or_superuser_api` (JSON) decorators; latent silent `except Exception` in `run_python_scan` also logged *(shipped v3.17.185)*
-  - Documentation refresh: 8 new screenshots for Phase 9 + integration forms + the roadmap page; README updated with annotated captions; screenshot script extended with the new pages *(shipped v3.17.186)*
-  - Baseline test coverage for `imports/` app — 34 tests across org-matcher fuzzy logic, ImportJob lifecycle, rollback flow (matched orgs preserved, created orgs deleted), unique-together constraints on mapping models, CSV preview helper *(shipped v3.17.187)*
+---
 
-  ➡ **Wave 1 closed (v3.17.171 → v3.17.187)** — every item from the original Phase 7 polish survey has been delivered or explicitly deferred (reCAPTCHA needs Google credentials; scheduler email-send is a feature gap not polish; welcome-email on member-add *was* a feature gap, **shipped v3.17.214**). Phase 7 stays `[in progress]` by design (continuous track) — the next wave will be triggered by user-reported issues + the next bug-bash audit.
+<a id="phase-8"></a>
 
-  ### Wave 2 — going-from-zero baselines (v3.17.192 → ongoing)
+## Phase 8 — Native mobile apps (iOS + Android) with GPS auto-time + Timeclock **(L · keystone)** [shipped — v3.17.417]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-  The audit punch-list flagged 16 apps with no test coverage. Wave 2 is a sustained pass through them. Each app gets baseline tests (model behavior, view tenant-isolation, key happy-path flows) — not feature-complete, but enough to surface latent crashes and lock down the contract going forward.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 8](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-8).
 
-  **The pattern is paying off.** Three of the first six baselines surfaced real production bugs that had been latent for months — usually a wrong kwarg name, a stale field reference, or a `hasattr` check that doesn't catch `None`. Bugs caught:
+---
 
-  - `psa/tests.py` (5,465 lines / 220+ cases) split into 5 topical shards under `psa/tests/` so CI can run them under the 540s timeout. 271 tests across 5 shards, max shard 147s *(shipped v3.17.192)*
-  - **`api/` baseline (11 tests across 6 classes)** — caught two real bugs: `AssetViewSet.filterset_fields` and `AssetSerializer.Meta.fields` both referenced `is_active` and `location` columns that don't exist on the Asset model. Every `/api/assets/` list and detail request 500'd. Fixed in same release *(shipped v3.17.193)*
-  - **`audit/` baseline (30 tests across 7 classes)** — caught `AuditLoggingMiddleware._is_update()` crashing on POST to unresolved URLs (`hasattr(req, 'resolver_match')` returns True for None values; `None.kwargs` then raised `AttributeError`). Fixed in same release *(shipped v3.17.195)*
-  - `assets/` baseline (16 tests across 6 classes) — model behavior, OrganizationManager filtering, view tenant-isolation, EquipmentModel back-reference. No production bugs surfaced *(shipped v3.17.196)*
-  - `monitoring/` baseline (22 tests across 5 classes) — WebsiteMonitor + Expiration property logic, IPAM `(subnet, ip_address)` unique-together dedupe contract, `for_organization()` filtering. No production bugs surfaced *(shipped v3.17.197)*
-  - `processes/` baseline (19 tests across 4 classes) — workflow engine slug auto-gen, ProcessExecution lifecycle, completion-percentage math (incl. zero-stages safety), `(execution, stage)` unique-together. No production bugs surfaced *(shipped v3.17.199)*
-  - `files/` baseline (9 tests across 2 classes) — `attachment_upload_path()` enforces per-org / per-entity directory structure with UUID filenames (filesystem tenant-isolation contract). No production bugs surfaced *(shipped v3.17.200)*
-  - `scheduling/` baseline (20 tests across 5 classes) — recurrence math for every cadence, `check_completion` any-of vs all-of sign-off, `spawn_next_occurrence` clones assignments + tags. No production bugs surfaced *(shipped v3.17.201)*
-  - `locations/` baseline (20 tests across 3 classes) — HQ-uniqueness invariant, shared-location ACL, `full_address` formatting, WAN bandwidth display. No production bugs surfaced *(shipped v3.17.202)*
-  - `docs/` baseline (13 tests across 5 classes) — Document slug auto-gen, version-snapshot lifecycle (no row on first save, increments on edit), Diagram slug, `is_global` cross-tenant KB. No production bugs surfaced *(shipped v3.17.203)*
-  - `inventory/` baseline (15 tests across 5 classes) — InventoryItem QR-code auto-gen, low-stock boundary, total_value math, transaction signed-quantity formatting. No production bugs surfaced *(shipped v3.17.204)*
-  - `vehicles/` baseline (18 tests across 3 classes) — ServiceVehicle expiry warnings, `has_location` flag, `update_location()` setter, fleet inventory low-stock + needs-restock + total-value. No production bugs surfaced *(shipped v3.17.205)*
+<a id="phase-9"></a>
 
-  ➡ **Wave 2 closed (v3.17.192 → v3.17.205)** — every one of the 16 originally-untested apps now has baseline coverage. **Final ratio: 3 of 11 baseline efforts surfaced real production bugs that had been latent for months** (api/, audit/, the v3.17.171 tenant-isolation rebuild before the wave formally started). All bugs caught were stale-attribute / wrong-kwarg / hasattr-vs-None patterns — the same family the next wave should look for first.
+## Phase 9 — Security alert ingestion: EDR / AV / Firewall on the dashboard **(M)** [in progress]
+<!-- phase: ws=D state=partial next="Real vendor API connectors (Phase 84); today every vendor is webhook-only" -->
+**Status:** 🟡 Partial · **Priority:** — · **Workstream:** D. RMM & Platform Integrations  
+**Next:** Real vendor API connectors (Phase 84); today every vendor is webhook-only
 
-  Wave 2 totals: ~280 new tests across 11 modules in 14 commits. Combined with the v3.17.192 psa-tests shard split, the project's test runtime now fits comfortably under any reasonable CI ceiling: each shard ≤ 147s, smaller apps ≤ 7s.
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
-  - Installer never installed the background timers — a fresh install had no scheduler, no monitoring and no breach scan, while looking perfectly healthy; `install.sh` now installs all seven with user/path rewriting, enables the operational ones, and leaves `auto-update` and `accounting-sync` off as operator decisions *(shipped v3.17.534)*
-
-  ✅ **Phase 7 marked complete at v3.17.207.** All three pillars have shipped: outsourcing (v3.17.166), Integration SDK skeleton (v3.17.166) + first reference adapter (v3.17.168), and the polish-backlog test-coverage push (Waves 1 + 2). Ongoing polish continues as routine maintenance — bug fixes, deprecation sweeps, new vendor adapters in the SDK — but it's no longer tracked as an active phase. Future polish lands as standalone releases under whatever phase the change applies to (e.g. a vault-side improvement = Phase 31 polish).
-
-## Phase 9 — Security alert ingestion: EDR / AV / Firewall on the dashboard **(M)** [shipped — v3.17.168]
+> Header changed from *shipped — v3.17.168* to *in progress* on 2026-11-20: what shipped in v3.17.168 stays below; the phase is not finished (see the status line).
 
 MSPs run a stack of security tools that all alert independently — SentinelOne, CrowdStrike, Defender, Sophos, Bitdefender, Webroot, Fortinet, Palo Alto, Sonicwall, etc. The PSA dashboard should aggregate alerts from all of them, surface critical issues per client, and let techs triage from one screen.
 
@@ -346,155 +633,62 @@ MSPs run a stack of security tools that all alert independently — SentinelOne,
 
 **Dependencies:** none. Can run alongside Phase 2 / 3 / 8.
 
+</details>
+
 ---
 
-# Long-term roadmap — Phases 10-23
-
-The following are **planned / in-progress** items focused on MSP workflow consolidation and operational visibility. None are positioned as fully implemented. Items overlapping with already-shipped phases are noted as "Extends X" so the deltas are explicit. AI-assisted features are clearly marked **OPTIONAL AI**.
+<a id="phase-10"></a>
 
 ## Phase 10 — Advanced Email-to-Ticket Engine **(M)** [complete]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-**Roadmap item:** Advanced Email Processing & Ticket Intelligence. Extends the basic IMAP poller already shipped (v3.17.83+).
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 10](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-10).
 
-Planned capabilities:
-- Advanced inbound email parsing (HTML + plain-text fallback) *(10.2 — shipped v3.17.177)*
-- Thread reconstruction across replies + forwards *(10.1 — shipped v3.17.176)*
-- Reply correlation by Message-ID + In-Reply-To headers (more reliable than current subject-regex match) *(10.1 — shipped v3.17.176)*
-- Signature stripping *(10.2 — shipped v3.17.177)*
-- Loop detection (ignore auto-responders) *(10.3 — shipped v3.17.188)*
-- Spam scoring before ticket creation *(10.3 — shipped v3.17.188)*
-- Attachment extraction with MIME-type allowlist *(10.2 — shipped v3.17.177)*
-- Automatic contact association (match sender email → existing contact / membership) — a new emailed ticket is linked to the matching contact and customer user of the customer it was assigned to, never another customer's; ambiguous matches stay unlinked and replies never change the requester *(shipped v3.17.664 — Phase 10.3.1)*
-- Per-client parsing rules *(10.3 — shipped v3.17.188 via EmailRoutingRule)*
-- Ticket categorization (rule-based) *(10.3 — shipped v3.17.188 via routing rule queue/priority overrides)*
-- Ticket tagging
-- Email security validation (SPF / DKIM / DMARC inspection) *(10.3 — shipped v3.17.188; opt-in via enforce_dmarc)*
-- Outbound threading + per-ticket conversation panel *(10.4 — shipped v3.17.189)*
-- Microsoft 365 mailbox source via Graph API (alternative to IMAP for tenants that can't enable IMAP) *(10.5 — shipped v3.17.506 — `EmailIngestionConfig.source='graph'` reuses an existing M365 connection's app registration (needs `Mail.Read`); the poller fetches each unread message's MIME via Graph and runs the identical threading/quarantine/attachment pipeline, then marks it read — issue #142)*
-- Microsoft 365 **outbound** via Graph (optional transport; SMTP remains default) *(10.6 — shipped v3.17.507 — `EmailIngestionConfig.outbound_method='graph'` sends staff replies via Graph `sendMail`/`reply`/`replyAll` on the same mailbox (needs `Mail.Send`, scoped via Exchange Online RBAC for Applications). Durable `EmailOutboundJob` with idempotent claim-lock, 202-accepted tracking, Retry-After-aware retries for 429/5xx, fail-fast on auth/validation, and an 'uncertain' state for post-submit timeouts (never auto-resent). Immutable Graph message ids stored on inbound so replies preserve the M365 conversation. Readiness check + labeled test-send in the mailbox form — issue #142)*
-- Reply-to-requester from the ticket form *(10.7 — shipped v3.17.508 — an opt-in "Email this reply to …" checkbox on the ticket reply box sends the comment to the requester through whichever transport the originating mailbox is configured for (SMTP or Graph), closing the round trip so outbound replies are captured in the conversation panel and, on Graph, in the mailbox's Sent Items. Off by default; internal notes are never emailed; a send failure reports but never discards the saved comment — issue #142)*
-- Ticket summarization (**OPTIONAL AI**)
-- Intent detection (**OPTIONAL AI**)
+---
 
-### Sub-phase 10.1 — Threading + Message-ID correlation *(shipped v3.17.176)*
-
-- New `EmailMessage` model captures every inbound (and later, outbound) email's Message-ID, In-Reply-To, References, headers, and bodies. Unique per `(organization, message_id)` so cross-tenant Message-ID collisions never thread incorrectly.
-- New `Ticket.last_inbound_message_id` cache feeds outbound threading in 10.4.
-- Poller correlation order is now: (a) In-Reply-To against `EmailMessage.message_id` in the same org, (b) walk the References chain right-to-left, (c) subject-regex fallback (legacy tickets keep working), (d) create new ticket. Whichever path matches, the inbound message is persisted as an `EmailMessage` row so the next reply has something to chain against.
-- Tests cover header-threading, References-chain walking, subject-regex fallback for legacy replies, cross-org isolation, and new-ticket creation.
-
-### Sub-phase 10.2 — Body cleanup + attachment ingestion *(shipped v3.17.177)*
-
-- New `psa/email_parsing.py` helper module: `sanitize_html` (bleach with tight allowlist; strips scripts, styles, iframes, inline event handlers, remote images / tracking pixels; rewrites links with `rel="noopener noreferrer" target="_blank"`), `strip_signature` (RFC 3676 `\n-- \n` sentinel + mobile/marketing prefaces), `strip_quoted_reply` (Apple/Gmail "On … wrote:", Outlook `-----Original Message-----` / From-Sent-To-Subject block, trailing `>`-prefix block).
-- Reply comments to existing tickets get sig + quoted history stripped so only the new content shows. Full original body still preserved on `EmailMessage.body_text` for the Phase 10.4 conversation panel. New tickets keep the full body so context isn't lost.
-- Attachment ingestion via `_ingest_attachments`: walks parts for `Content-Disposition: attachment`, validates against `PSA_EMAIL_ATTACHMENT_MIME_ALLOWLIST` (default: images, PDF, text, Office, ZIP) + `PSA_EMAIL_ATTACHMENT_MAX_BYTES` (default 25 MB), writes accepted files as `TicketAttachment` rows linked to the new comment. Rejected files logged at WARNING level. Filenames sanitized.
-- Inbound HTML bodies are sanitized at write time before landing on `EmailMessage.body_html`.
-
-### Sub-phase 10.3 — Routing rules + auto-responder & spam gating *(shipped v3.17.188)*
-
-- New `EmailRoutingRule` model with sender-domain glob matching (exact `acme.com`, subdomain `*.acme.com`, full-email `noreply@acme.com`); MSP's generic `help@msp.com` mailbox now fans inbound mail to the right client tenant + queue + priority. First match wins, ordered by `order` (lower fires first).
-- Auto-responder detection via `detect_auto_responder()` — `Auto-Submitted`, `X-Autoreply`, `Precedence: bulk/list/junk`, NDR `multipart/report`, plus subject heuristics for "Out of Office" / "Vacation Auto-Reply" / "Undeliverable".
-- DMARC verdict gate — opt-in per-config (`enforce_dmarc`); reads upstream MTA's `Authentication-Results` header; no inline crypto / DNS.
-- Spam-keyword scorer — opt-in per-config (`spam_keyword_threshold > 0`); conservative pattern list (claim-your-prize, congratulations-winner, nigerian-prince, etc.).
-- Quarantined inbound persists with `was_quarantined=True` + reason but NEVER creates a ticket; admins triage via Django admin.
-- 16 new tests across 6 classes covering all four gates plus routing rule end-to-end.
-
-### Sub-phase 10.4 — Outbound threading + conversation panel *(shipped v3.17.189)*
-
-- New `psa/email_outbound.py::send_threaded_reply()` helper — generates Message-ID, sets `In-Reply-To` + `References` from `Ticket.last_inbound_message_id`, sends via Django email backend with optional HTML alternative, persists `EmailMessage(direction='out')` row so future replies thread back via 10.1's `_thread_target` (closing the round-trip).
-- New per-ticket conversation view at `/psa/t/<ticket_number>/conversation/` — chronological inbound + outbound rows, HTML bodies rendered in `<iframe sandbox="">` (most-restrictive sandbox), quarantined-inbound shown with reason banner, raw headers/body collapse into `<details>`.
-- 9 new tests covering threading headers, round-trip closure, HTML alternative, missing recipients, conversation view ACL.
-
-**Goal:** Reduce dispatcher and technician overhead while improving ticket workflow accuracy.
+<a id="phase-11"></a>
 
 ## Phase 11 — Advanced Dispatch & Technician Scheduling **(M)** [complete]
+<!-- phase: ws=A note="Geo-aware routing and travel time deferred (needs Phase 8 GPS data)" -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing  
+**Note:** Geo-aware routing and travel time deferred (needs Phase 8 GPS data)
 
-**Roadmap item:** Dispatch Optimization & Technician Coordination. Extends Phase 2 (resourcing) + the dispatch board (v3.17.112) + skill ranking (v3.17.138).
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 11](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-11).
 
-Planned capabilities:
-- Drag/drop dispatch board *(shipped — v3.17.112)*
-- Technician scheduling *(partial — Phase 2 WorkingHours shipped)*; weekly shift schedule *(shipped v3.17.664)*: shift templates (start/end in each technician's time zone, overnight shifts, optional on-call flag) assigned per technician or per team on chosen weekdays with start/end dates. Ticket routing availability, on-call, dispatch-board rows, assignment conflict warnings, skill ranking and mobile off-shift ping suppression read the schedule; technicians without a schedule keep using their working hours, so upgrades change nothing until a schedule is entered
-- Shift management *(shipped v3.17.664)*: Resourcing → Shift schedule shows a week grid per technician with leave, pending leave and holidays, and marks shifts that clash with them; managers (leave approvers or routing managers) add and remove assignments and see clashes as they save; a template in use is switched off rather than deleted
-- PTO conflict awareness *(11.2 — shipped v3.17.208; extends Phase 2.2 LeaveRequest)*
-- Calendar conflict detection *(11.2 — shipped v3.17.208)*
-- Recurring onsite scheduling *(deferred — handled by `scheduling.ScheduledTask` recurrence; not a separate dispatch surface)*
-- Dispatch prioritization (auto-rank queue by SLA + priority) *(11.1 — shipped v3.17.194)*
-- SLA-aware dispatching — SLA-burn panel for tickets due ≤ 4h *(11.1 — shipped v3.17.194)*
-- Technician utilization metrics *(shipped — Phase 2.3 capacity report)*
-- Geo-aware technician routing *(shipped v3.17.664)*: off until an administrator switches it on (Field Ops → Dispatch locations). Technicians opt in themselves (web page or mobile API) and see exactly what dispatch holds about them; one last known position per technician, taken from on-shift mobile pings (the geofence centre only for customers in geofence-only mode), used only while fresh (default 30 minutes), deleted after a retention window (default 8 hours), on withdrawal of consent and when the feature is switched off. MSP staff only; customers never see positions, distances or travel times. Routing rules gain a "nearest eligible technician" destination, measured to the ticket's site (60.6) or the customer's primary site
-- Travel time estimation *(shipped v3.17.664)*: straight-line distance × a road factor at a configurable average speed, shown on the dispatch board (nearest technician on open unassigned tickets, position age per technician row) and in a per-ticket travel estimate. An optional OSRM-compatible routing server configured by the administrator refines on-demand estimates through the outbound connection policy; it is never called while pages render or routing runs
-- Dispatch heatmaps *(11.3 — shipped v3.17.209)*
-- **Home-dashboard Schedule + Tasks panels** — the main dashboard now leads with a 7-day agenda (scheduled tasks + ticket resolution deadlines, grouped by day, empty days omitted) and an open-work Tasks list ordered most-urgent-first with undated items last. Expiring passwords, tracked expirations and SSL certificates are folded into Tasks rather than sitting in their own panel — an expiry is something somebody has to act on. Replaces the "My Recent", "Recent Activity" and "Expiring Soon" panels, which showed what had already happened. Same shapes as the mobile agenda (v3.17.478), so both surfaces agree on what "upcoming" means *(shipped v3.17.524)*
+---
 
-### Sub-phase 11.1 — Dispatch prioritization + SLA-burn panel *(shipped v3.17.194)*
-
-- New `_dispatch_priority_key(ticket)` returns `(priority.sort_order, no_due_flag, due)` — every lane on the dispatch board (overdue, SLA-burn, unassigned-by-day, assigned-tech cells) now sorts most-urgent first.
-- New "SLA at risk" panel above the grid: open tickets due in the next 4 hours but not yet overdue, surfaced with a yellow fire icon. Already-overdue stays in the existing red panel — no duplication. Closed tickets excluded.
-- 9 new tests across 3 classes covering sort-key contract, panel filtering, and end-to-end lane ordering.
-
-### Sub-phase 11.2 — PTO + calendar conflict awareness *(shipped v3.17.208)*
-
-- New `_dispatch_conflicts(tech, ticket)` helper returns advisory warnings: **PTO conflict** (approved `resourcing.LeaveRequest` covering the ticket's due date) + **calendar overlap** (another open ticket assigned to the same tech with a due date inside a ±2-hour window).
-- `/psa/dispatch/assign/` JSON response now carries a `conflict_warnings` array. Advisory, not blocking — dispatchers made an explicit decision; the warning surfaces as a chip for review. AuditLog includes the conflict list so post-hoc trails capture "they assigned despite the warning".
-- 9 new tests across 2 classes covering pure-function conflict detection + end-to-end JSON response shape.
-
-### Sub-phase 11.3 — Dispatch heatmap *(shipped v3.17.209)*
-
-- New `/psa/dispatch/heatmap/` — per-tech, per-day open-ticket load over a ±7-day window (15 columns), rendered as a color-intensity grid so dispatchers see lopsided assignments at a glance.
-- 5-step intensity scale (0..4) bucketized against the busiest cell in the visible window; today's column has a blue inset border.
-- Counts open assigned tickets with due dates in window; tenant-isolated.
-- Geo-aware routing + travel-time estimation **deferred** — they need GPS data the Phase 8 mobile timeclock will collect; revisit then.
-- 8 new tests in `DispatchHeatmapTests` covering the view, window calculation, what's counted vs filtered, max-count math, and tenant isolation.
-
-✅ **Phase 11 marked complete at v3.17.210.** All three planned sub-phases shipped (11.1 dispatch prioritization + SLA-burn, 11.2 PTO + calendar conflict awareness, 11.3 heatmap). 27 dispatch tests across the three sub-phases. Two listed capabilities — geo-aware technician routing and travel time estimation — were deferred to Phase 8 because they depend on GPS data the mobile timeclock will collect; revisit them in that phase rather than blocking Phase 11 closure on infrastructure that doesn't exist yet.
-
-**Goal:** Improve technician coordination and service workflow efficiency.
+<a id="phase-12"></a>
 
 ## Phase 12 — Customer Communication Workflows **(M)** [complete]
+<!-- phase: ws=G -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** G. Customer Portal & Communications
 
-**Roadmap item:** Enhanced Client Communication & Portal Workflows. Extends the existing customer portal.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 12](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-12).
 
-Planned capabilities:
-- Customer satisfaction (CSAT) surveys post-ticket-close *(shipped v3.17.231 — token-based 1-5 star rating + optional comment, gated by `psa_csat_enabled` SystemSetting flag)*
-- Branded client portals *(extends Phase v3.17.112 per-org branding)* *(shipped v3.17.233 — `Organization.portal_primary_color` consumed by portal `base.html` overriding `--bs-primary` + button/link CSS)*
-- Portal announcements *(shipped v3.17.232 — per-org banners on the portal home with severity, expiry, dismissable flag + per-session dismissal endpoint; managed via Django admin in v1)*
-- Customer approval workflows *(shipped v3.17.239 — `PSAApproval.is_client_approval` flag + `/portal/approvals/` list + decide endpoint; staff route an approval to the client side and the portal user can Approve / Deny with an optional comment)*
-- Threaded customer communication *(shipped v3.17.237 — `TicketComment.parent_comment` self-FK + portal "Reply to this comment" button + indented thread render)*
-- SMS ticket communication (using existing SMS provider plumbing) *(shipped v3.17.238 — opt-in `portal_notify_sms_status_change` flag + `notify_portal_status_change` helper hooked into the status-change signal; phone field on portal preferences page)*
-- Customer escalation workflows *(shipped v3.17.236 — `Ticket.escalated_at/by/reason` fields + portal endpoint that stamps fields and creates a `[Escalated by client]` public comment)*
-- Customer-facing knowledge base *(`Document.is_client_visible` shipped earlier; portal KB search shipped; featured + view counts shipped v3.17.234)*
-- Global KB articles shown in every customer portal, customer-scoped articles in just that customer's portal *(shipped v3.17.706 — global articles default to portal-visible, migration for existing global articles, Portal badge and bulk show / staff-only on the global KB list; customer-scoped documents stay staff only unless ticked)*
-- Scope on the Knowledge Base editor — Global (every customer) or one customer only *(shipped v3.17.710)*
-- Customer groups, sharing one KB article with several customers or groups, and bulk make-global / remove-from-global / share on the Knowledge Base list *(shipped v3.17.711 — article audience: every customer or selected customers and groups, enforced in the customer portal; Customer Groups page; bulk audience actions and an Audience column on the Knowledge Base list; bulk Make global on the Documentation list)*
-- Make a customer article global from its editor *(shipped v3.17.708 — "Global KB article (every customer)" box on the document create / edit form for staff with global KB edit and publish rights; moves the article into the global KB, detached from the customer, with a unique global slug)*
-- Customer ticket voting / prioritization *(shipped v3.17.235 — `psa.TicketVote` model + portal toggle endpoint + thumbs-up button on ticket detail)*
-- Secure customer messaging *(partial — one-way secure messages in ticket replies shipped v3.17.654: sealed, one-time link to the requester, ticket shows only whether it was opened)*. Two-way thread *(shipped v3.17.664)* — the opened secure message offers a reply form (signed token, valid 24 h, bound to that message's link, at most five replies), and portal users can send a secure reply on their ticket. Replies (`psa.TicketSecureReply`) are sealed at rest, kept 7 days and then erased by `psa_purge_secure_replies` (hourly scheduler task). Staff see the thread on the ticket — messages with their open status, replies with sender, time and read state — and open a reply with a POST-only, audit-logged Reveal. The ticket gets a content-free internal note; the assignee and watchers get a content-free e-mail
-- Customer notification preferences *(shipped v3.17.233 — three opt-in/out switches at `/portal/preferences/` for ticket replies, status changes, CSAT survey invitations; CSAT helper now honors the flag)*
+---
 
-**Goal:** Improve client interaction visibility and communication consistency.
+<a id="phase-13"></a>
 
 ## Phase 13 — Procurement & Lifecycle Management **(M)** [shipped — v3.17.272]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-**Roadmap item:** Advanced Procurement & Asset Lifecycle Management. Extends Phase 4 (Procurement) + the asset lifespan tracking already shipped.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 13](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-13).
 
-Planned capabilities:
-- Serial lifecycle tracking *(partial — serial capture shipped v3.17.149)* *(shipped v3.17.664: per-serial history kept per customer — received on a PO, assigned to / removed from an asset, moved between customers, RMA opened / sent / replaced / refunded / closed, replacement received, and returned / retired / disposed / notes recorded by a technician; shown on the asset's Serial history tab and searchable by serial at `/assets/serials/`; `assets_backfill_serial_history` seeds history for receipts, assets and RMAs recorded earlier)*
-- Warranty expiration tracking *(shipped v3.17.254 — `assets_warranty_alerts` management command emails per-org digests with 7-day per-asset cooldown; configurable warning window via `--days N`)*
-- Vendor inventory checks (live stock from distributor APIs) *(shipped v3.17.272 — `/integrations/distributors/stock-check/` fans out `?sku=` to every active DistributorConnection's `check_stock()` + `get_pricing()` so a buyer can compare live qty + unit price across Ingram / Pax8 / SYNNEX in one shot)*
-- Procurement approval workflows *(shipped — Phase 4.1 PR/PO)*
-- Purchase receiving workflows *(shipped — Phase 4.2)*
-- Margin analytics on resold hardware *(shipped v3.17.271 — `/reports/hardware-margin/` joins POs and Invoices by `source_quote_id` to compute resale margin = revenue − cost; per-quote rows + blended summary; CSV export; staff-only)*
-- RMA tracking (return / replace lifecycle) *(shipped v3.17.261 — `RMAReturn` model with explicit state machine: open → sent → received_by_vendor → replaced/refunded/closed; views at `/assets/rma/`; tenant-scoped)*
-- Asset lifecycle scoring (composite age × usage × warranty) *(shipped v3.17.263 — `Asset.lifecycle_score()` returns 0-100 breakdown {age, warranty, firmware}; report at `/reports/asset-lifecycle/` with `?threshold=` filter and CSV export)*
-- Procurement forecasting from historical PR/PO data *(shipped v3.17.268 — `/reports/procurement-forecasting/` projects per-vendor spend over the next 3 months using a 3-month moving average over the last 12 months of committed POs; CSV export; staff-only)*
-- Recurring purchasing templates *(shipped v3.17.266 — `RecurringPurchaseTemplate` with JSON line snapshot + recurrence (weekly/biweekly/monthly/quarterly/yearly); `spawn_pr()` creates a draft PR; daily `psa_run_recurring_purchases` cron with catch-up cap)*
-- Vendor cost history (price-at-time-of-PO trend) *(shipped v3.17.262 — `/reports/vendor-cost-history/` aggregates POLine items over last 730 days per `(vendor, sku, description)` with min/avg/max/last unit price; CSV export; staff-only)*
-- Procurement reporting *(shipped v3.17.258 — `/reports/procurement-summary/` per-vendor + per-month spend over last 365 days; CSV export; staff-only)*
+---
 
-**Goal:** Improve operational procurement visibility and hardware lifecycle management.
-- Spreadsheet import for Shop + VAN inventory *(shipped v3.17.523 — the CSV import pipeline now reads .xlsx as well as .csv, and gains `shop_inventory` / `vehicle_inventory` targets so stock levels can be loaded from a spreadsheet with the existing column-mapping, preview and rollback machinery. Vehicles match on name, licence plate or VIN; an unmatched van skips the row with a log line naming the value, rather than failing the batch. Legacy .xls is refused with a re-save instruction instead of a silent half-parse)*
+<a id="phase-14"></a>
 
-## Phase 14 — Visual Workflow Automation Engine **(L)** [shipped — v3.17.290]
+## Phase 14 — Visual Workflow Automation Engine **(L)** [in progress]
+<!-- phase: ws=A state=partial next="Time-based triggers, delays and escalation logic (91.6)" -->
+**Status:** 🟡 Partial · **Priority:** — · **Workstream:** A. Core PSA & Ticketing  
+**Next:** Time-based triggers, delays and escalation logic (91.6)
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
+
+> Header changed from *shipped — v3.17.290* to *in progress* on 2026-11-20: what shipped in v3.17.290 stays below; the phase is not finished (see the status line).
 
 **Roadmap item:** Visual Workflow & Operational Automation Engine. Extends the workflow rules engine (v3.17.111) + visual rule builder (v3.17.112).
 
@@ -515,193 +709,101 @@ Planned capabilities:
 
 **Goal:** Reduce repetitive operational tasks while improving workflow consistency.
 
+</details>
+
+---
+
+<a id="phase-15"></a>
+
 ## Phase 15 — Recurring Billing & Contract Management **(M)** [shipped — v3.17.299]
+<!-- phase: ws=B -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** B. Billing & Financial Management
 
-**Roadmap item:** Recurring Billing & Financial Workflow Automation. Extends Phase 1 (contract engine) + invoicing.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 15](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-15).
 
-Audit 2026-11-20: recurring `Charge` rows are never generated (Phase 92.1); billing in arrears, failed-billing
-alerts and an in-app dry run are planned in Phase 102.
+---
 
-Planned capabilities:
-- Recurring invoices (auto-generated from contract bundles) *(shipped v3.17.291 — `Contract.billing_frequency` (monthly/quarterly/yearly) + `next_billing_date` + `recurring_amount`; `Contract.generate_invoice()` method; daily `psa_generate_recurring_invoices` cron with catch-up cap + dry-run)*
-- Usage-based billing (per-seat / per-device / per-GB metered) *(shipped v3.17.292 — `ContractMeter` model with unit/unit_price/current_quantity + atomic `increment()` helper; `Contract.generate_invoice()` adds one line item per active meter alongside the base recurring amount; meter resets to 0 after billing)*
-- Contract renewals *(shipped v3.17.299 — Phase 1.2 auto-renewal cron + Phase 15 v13 pause/resume/cancel-at-period-end complete the lifecycle picture)*
-- Proration handling *(shipped v3.17.293 — `Contract._proration_factor()` method computes days-active fraction; `generate_invoice()` applies it to the base amount only (usage line items not prorated); description suffix shows the proration % to the customer)*
-- Service bundles *(shipped — Phase 1.2 ContractBundleItem)*
-- Billing reconciliation *(shipped v3.17.295 — `/reports/billing-reconciliation/` per-client invoiced-vs-paid over `?days=N` window with collection % coloring; CSV export; tenant-scoped)*
-- Late fee automation *(shipped v3.17.294 — `SystemSetting.late_fee_pct` + `late_fee_min_days_overdue`; daily `psa_apply_late_fees` cron creates a `Charge` row for each overdue invoice; idempotent)*
-- ACH / payment integrations (Stripe ACH, GoCardless, etc.) *(shipped v3.17.296 — `PaymentConnection` model + `BasePaymentProvider` interface + Stripe & GoCardless adapter stubs; live `charge()` implementation lands when an MSP connects a real account)*
-- MRR forecasting *(shipped v3.17.295 — `/reports/mrr-forecast/` reads active recurring contracts; normalizes monthly/quarterly/yearly to monthly equivalents; per-contract table + 12-month projection; staff-only)*
-- Contract profitability tracking *(shipped v3.17.299 — Phase 3 profitability-by-contract analytics + Phase 15 v9 MRR forecasting cover both revenue and cost sides)*
-- Invoice automation *(shipped v3.17.299 — `SystemSetting.psa_auto_push_recurring_invoices` toggles auto-push of recurring-cron-generated invoices to the configured `AccountingConnection`; failures captured for review on the existing accounting reconciliation report)*
-- Tax handling support (Avalara / TaxJar integrations) *(shipped v3.17.297 — `TaxConnection` model + `BaseTaxProvider` interface + Avalara & TaxJar adapter stubs; live `compute_tax()` lands when an MSP connects a real account)*
-- Subscription lifecycle management *(shipped v3.17.298 — `Contract.paused_at` / `paused_until` / `cancel_at_period_end` fields + `pause()` / `resume()` / `cancel_at_end_of_period()` methods; daily `psa_advance_subscription_lifecycle` cron auto-resumes + cancels)*
-
-**Goal:** Improve recurring service management and operational billing visibility.
+<a id="phase-16"></a>
 
 ## Phase 16 — Documentation Relationship Mapping **(M)** [shipped — v3.17.303]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-**Roadmap item:** Infrastructure Relationship Mapping & Dependency Visualization.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 16](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-16).
 
-Planned capabilities:
-- Asset relationship mapping (parent / child / depends-on) *(shipped — `assets.Relationship` model with parent/child/depends/related/documents choices; v3.17.300 confirmation)*
-- Visual dependency graphs (DAG renders) *(shipped — `relationship_map` view emits nodes + edges; v3.17.300 confirmation)*
-- Topology visualization *(shipped v3.17.303 — `/assets/relationships/topology.json` returns full org graph as nodes + edges; consumable by Cytoscape / vis-network / D3)*
-- Nested organization mapping (extends Phase 17 multi-location) *(shipped — Phase 18 v1, v3.17.240)*
-- Shared infrastructure relationships *(shipped — Phase 18 v3, v3.17.252 — `Asset.is_shared_with_descendants` + `visible_to_org()`)*
-- Automatic asset linking (heuristic — same subnet, same rack, etc.) *(shipped v3.17.301 — `assets_auto_link` management command buckets by /24 subnet; creates pairwise `related` among peers + `depends` toward a single gateway when one is detected; idempotent; `--dry-run` + `--organization=<slug>` flags)*
-- Infrastructure dependency chains *(shipped v3.17.300 — `Asset.dependency_chain(direction='downstream'|'upstream', max_depth=10)` BFS walker; cycle-safe)*
-- Rack relationship visualization *(shipped v3.17.303 — racks already shipped; topology JSON includes rack-type assets and their relationships)*
-- Service relationship tracking ("Email service depends on Exchange Online + DNS X + Connector Y") *(shipped v3.17.302 — `assets.Service` model with status (operational/degraded/down/maintenance) + criticality + owner; `set_status()` stamps last_status_change; `asset_dependencies()` walks `Relationship(source_type='service')` rows)*
-- Documentation inheritance (child sites inherit parent SOPs) *(shipped — `OrganizationManager.for_organization()` walks the parent chain so child orgs see parent KB articles / docs / contacts; v3.17.303 confirmation)*
+---
 
-**Goal:** Improve infrastructure visibility and operational context awareness.
+<a id="phase-17"></a>
 
 ## Phase 17 — Advanced Asset Intelligence **(L)** [shipped — v3.17.310]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-**Roadmap item:** Asset Intelligence & Infrastructure Visibility.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 17](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-17).
 
-Planned capabilities:
-- Asset drift detection (compare current state vs. last-known baseline) *(shipped v3.17.304 — `Asset.detect_drift()` field-by-field comparison vs. latest `AssetBaseline`; returns list of `{field, baseline, current}` dicts)*
-- Baseline comparison *(shipped v3.17.304 — `AssetBaseline` model with JSONField snapshot + `Asset.capture_baseline()` method; `is_current` flag tracks the active baseline; old ones kept for history)*
-- Software compliance auditing *(shipped v3.17.305 — `SoftwarePolicy` model with deny/require actions + severity; `/reports/software-compliance/` joins policies against `RMMSoftware` inventory and surfaces deny violations + require gaps)*
-- Hardware lifecycle scoring (composite — see Phase 13) *(shipped — Phase 13 v6, v3.17.263 — `Asset.lifecycle_score()` 0-100 composite)*
-- Warranty lookups (vendor API integrations) *(shipped v3.17.309 — `WarrantyConnection` model + `BaseWarrantyProvider` interface + Dell / HPE / Lenovo adapter stubs; live `lookup_warranty()` lands when an MSP connects a real account)*
-- Patch correlation (this CVE matches these N assets) *(shipped v3.17.306 — `Vulnerability` model with cve_id + cvss_score + affected_pattern; `affected_assets()` walks `RMMSoftware → RMMDevice → Asset` to surface affected endpoints; since v3.17.643 through the device's verified asset link inside its own customer)*
-- Smart asset grouping (auto-cohort by role/version/location) *(shipped v3.17.307 — `AssetGroup` model with JSON criteria + computed `members()`; supports `asset_type` / `manufacturer__icontains` / `model__icontains` / `os_version__icontains` / `tags__contains`)*
-- Vulnerability-to-ticket linking *(shipped v3.17.307 — `Vulnerability.create_remediation_ticket()` spawns a PSA Ticket with severity-mapped priority (critical→P1) and an affected-asset list)*
-- Configuration monitoring *(shipped v3.17.308 — `Asset.config_monitored` flag drives the daily `assets_capture_baselines` cron that snapshots into `AssetBaseline`; old baselines retained for history)*
-- Operational health scoring per asset *(shipped v3.17.308 — `Asset.health_score()` composite 0-100; deductions for drift (-25), vulnerabilities (-10/-5/-2 by severity, cap -40), lifecycle (cap -50), firmware update (-10); returns factor breakdown for UI)*
-- Automated remediation suggestions (**OPTIONAL AI**) *(shipped v3.17.310 — `RemediationSuggestion` model + `assets_generate_remediation_suggestions` heuristic command (LLM-swap-in later) gated by `psa_ai_enabled`; 4 heuristics: firmware update / drift / health regression / CVE match; review/accept/dismiss flow)*
+---
 
-**Goal:** Improve infrastructure awareness and proactive operational management.
+<a id="phase-18"></a>
 
 ## Phase 18 — Multi-Location Client Hierarchy **(M)** [shipped — v3.17.283]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-**Roadmap item:** Advanced Multi-Location Organization Management.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 18](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-18).
 
-Planned capabilities:
-- Parent / child organizations (`Organization.parent` self-FK) *(shipped v3.17.240)*
-- Multi-site hierarchy *(shipped v3.17.240 — `Organization.ancestors` property + breadcrumb labels)*
-- Shared infrastructure inheritance *(shipped v3.17.252 — `Asset.is_shared_with_descendants` flag + `Asset.visible_to_org()` classmethod that unions own/descendants/shared-from-ancestors; `core.utils.ancestor_org_ids` helper added)*
-- Location-specific documentation *(shipped — KnowledgeBase articles already scope per organization via Phase 18 v1 parent/child support; v3.17.282 confirmation)*
-- Location-level contacts *(shipped — `assets.Contact` rows already scope per organization via Phase 18 v1 parent/child support; v3.17.282 confirmation)*
-- Site-level SLA assignment (override parent SLA) *(shipped v3.17.282 — `Organization.sla_overrides` JSONField + `sla_override_for(priority_code)` method that walks up the parent chain)*
-- Site filtering on every list page *(shipped v3.17.240 — `OrganizationManager.for_organization` walks parent chain via `core.utils.descendant_org_ids` helper, parent queries see all descendants automatically)*
-- Shared services mapping *(shipped v3.17.283 — `/reports/multi-location/` "Shared services" section lists every `Asset.is_shared_with_descendants=True` row + the descendant orgs that see it)*
-- Regional operational views (group sites by region) *(shipped v3.17.283 — `/reports/multi-location/` "By region" section groups orgs by `normalized_region`)*
-- Multi-location reporting *(shipped v3.17.283 — `/reports/multi-location/` per-parent rollup: tree size, open ticket count, AR balance, asset count across the full descendant tree)*
+---
 
-**Goal:** Improve management of larger MSP client environments.
+<a id="phase-19"></a>
 
 ## Phase 19 — Advanced Reporting & Analytics **(continuous)** [shipped — v3.17.326]
+<!-- phase: ws=H -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** H. Reporting, Analytics & Optional AI
 
-**Roadmap item:** Operational Analytics & Business Intelligence. Extends Phase 3 (Financial Reporting + BI) — these are the next-tier analytics on top of the canonical query layer.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 19](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-19).
 
-Planned capabilities:
-- Technician utilization reporting *(shipped — Phase 2.3 + 3.2)*
-- SLA forecasting (predict breach risk before it happens) *(shipped v3.17.320 — `/reports/sla-forecast/` ranks open tickets by % SLA window elapsed; ok/at_risk/critical/breached bands; CSV export)*
-- Ticket aging analytics *(shipped v3.17.257 — `/reports/ticket-aging/` 5-bucket breakdown + per-priority matrix + 7+ day aged-table + CSV export)*
-- Contract profitability *(shipped — Phase 3.2)*
-- Quote conversion tracking *(shipped v3.17.321 — `/reports/quote-conversion/` per-creator quote → accepted → invoiced funnel; configurable rolling window via `?days=`; CSV export)*
-- Customer health scoring *(shipped — Phase 3.6B)*
-- Executive dashboards *(shipped — Phase 3.6A scorecard)*
-- KPI dashboards *(shipped v3.17.322 — `/reports/kpi/` live widget grid: open tickets, mean age, weekly closed, 30d SLA breaches, MRR/ARR; tenant-scoped; CSV export)*
-- Operational metrics *(shipped v3.17.323 — `/reports/operational-metrics/` mean time to first response + mean time to resolution + first-touch resolution % + queue depth + age distribution; tenant-scoped; CSV export)*
-- Workflow performance analytics *(shipped v3.17.324 — `/reports/workflow-performance/` per-rule fire-count + last-error roll-up; by-trigger distribution; errored rules floated; staff-only; CSV export)*
-- Trend analysis *(shipped v3.17.325 — `/reports/trends/` 12-month time series of tickets opened/resolved + MRR added; staff-only; CSV export)*
-- Capacity forecasting *(shipped v3.17.325 — same `/reports/trends/` page surfaces per-tech open-tickets vs `BillableTarget` target_hours_per_week; over-target rows highlighted)*
-- Reporting exports (already CSV; add PDF + scheduled email) *(shipped v3.17.326 — `?format=pdf` on procurement_summary, ar_aging, mrr_forecast, kpi dashboard via `reports.pdf_export.render_pdf` ReportLab helper; `ScheduledReport` model + `psa_send_scheduled_reports` cron already shipped earlier — confirmed end-to-end)*
+---
 
-**Goal:** Provide MSP operational visibility and business insight.
+<a id="phase-20"></a>
 
 ## Phase 20 — Approval & Change Management Workflows **(M)** [shipped — v3.17.277]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-**Roadmap item:** Approval Routing & Change Management. Extends Phase 6.1 (CAB) + the existing approvals queue.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 20](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-20).
 
-Planned capabilities:
-- Multi-stage approvals (sequential gates: tech lead → manager → CAB) *(shipped v3.17.265 — `PSAApproval.parent_approval` self-FK + `stage_index` + `blocked` status; `PSAApproval.create_chain()` factory; approve cascades to next blocked stage; deny cancels downstream)*
-- Change advisory workflows *(shipped — Phase 6.1 CAB)*
-- Quote approval routing (gate quotes above threshold) *(shipped v3.17.270 — `Quote.send_for_approval()` wraps `PSAApproval.create_chain`; default routing creates a 2-stage chain when total ≥ threshold else single-stage; idempotent against open chains; POST view at `/psa/quotes/<pk>/send-for-approval/` with modal UI on quote detail)*
-- Financial approval chains (POs / invoices over $X) *(shipped v3.17.259 — `SystemSetting.invoice_approval_threshold_total` + `invoice_approval_overage_pct` auto-flag invoices via post_save signal; uses existing `Invoice.flag_for_approval` machinery)*
-- Escalation approvals (auto-escalate idle approvals) *(shipped v3.17.256 — `psa_escalate_idle_approvals` management command + per-row `escalation_threshold_hours` + `escalated_at` dedupe; emails superusers a single digest)*
-- Conditional approvals (rules: "if value > $5k, route to owner") *(shipped v3.17.273 — `SystemSetting.quote_approval_threshold_total` drives a post_save signal that auto-creates a 2-stage approval chain when total ≥ threshold; only fires on draft/sent statuses; idempotent against open chains)*
-- Approval audit trails *(shipped v3.17.274 — `PSAApproval.decide()` and `create_chain()` now write to `audit.AuditLog` automatically; cascade transitions (auto-unblock, auto-cancel-on-deny) are logged too; per-approval history viewer at `/psa/approvals/<pk>/history/`)*
-- Workflow enforcement *(shipped v3.17.275 — `Quote.has_open_approvals` property + `Quote.mark_accepted()` raises ValueError when any chain stage is pending/blocked; matches the existing Invoice push gate)*
-- Change tracking *(shipped v3.17.276 — `ChangeRequestTransition` table records every implementation_status transition; `ChangeRequest.transition_status()` method auto-stamps timestamps + writes attribution; pre/post_save signals capture direct edits too)*
-- Operational sign-off workflows *(shipped v3.17.277 — `Ticket.sign_off()` method + `signed_off_at`/`signed_off_by`/`signoff_note` fields; `TicketStatus.requires_signoff` flag drives a pre_save guard that raises ValidationError on attempted transition without sign-off)*
+---
 
-**Goal:** Improve workflow accountability and operational governance.
+<a id="phase-21"></a>
 
 ## Phase 21 — Advanced Mobile Technician Workflows **(L)** [shipped — v3.17.318]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-**Roadmap item:** Mobile Technician Workflow Expansion. Extends Phase 8 (mobile apps + GPS auto-time + Timeclock).
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 21](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-21).
 
-Planned capabilities:
-- Offline workflow support (work without connectivity, sync on reconnect) *(shipped — `static/service-worker.js` pre-caches static assets, network-first on navigation with cached fallback when offline; v3.17.318 confirmation)*
-- Camera uploads (photo upload from the phone, attached to the ticket) *(shipped — `psa.TicketAttachment` model + existing upload endpoint accept image MIMEs; PWA uses HTML5 `<input capture="environment">`; v3.17.317 confirmation)*
-- Barcode scanning *(shipped v3.17.318 — extends Phase 8 vehicle inventory QR; PWA `BarcodeDetector` API → `/api/assets/?search=...` which now matches `mac_address` / `ip_address` too)*
-- QR scanning *(shipped v3.17.318 — same scan-and-search path as barcode)*
-- NFC scanning *(shipped — Web NFC API client-side reads NDEF record, calls `/api/assets/?search=...`; v3.17.318 confirmation)*
-- GPS time tracking *(shipped v3.17.315 — `TicketTimeEntry.start_lat/lng` + `end_lat/lng` Decimal fields captured by the PWA at timer start/stop)*
-- Technician signatures (canvas signature pad on completion) *(shipped v3.17.312 — `TicketSignature` model one-to-one with Ticket; base64 PNG data-URI storage + geo capture)*
-- Onsite checklist enforcement (must complete X before close) *(shipped v3.17.312 — `TicketChecklistItem` model + `Ticket.has_outstanding_checklist` property + sign-off-required transitions blocked while required items are incomplete)*
-- Push notifications *(shipped v3.17.313 — `WebPushSubscription` model with per-user/endpoint uniqueness + `send()` helper; live VAPID-signed delivery via pywebpush when `WEBPUSH_VAPID_PUBLIC_KEY` / `WEBPUSH_VAPID_PRIVATE_KEY` are configured)*
-- Voice-to-ticket workflows *(shipped v3.17.315 — `TicketComment.source='voice'` + `voice_meta` JSONField for confidence/language/duration; PWA Web Speech API → existing comment-create endpoint, no new server endpoint needed)*
-- Mobile dispatch routing (turn-by-turn from current GPS to next ticket) *(shipped v3.17.317 — `/psa/t/<ticket_number>/route-urls/` returns Google / Apple / Waze deep-link URLs as JSON; PWA picks the right one based on platform)*
-- Mobile asset lookup *(shipped — existing `/api/assets/` REST endpoint; v3.17.317 confirmation)*
-- **Site check-in / check-out (Field Mode)** — explicit "I have arrived" / "I have left" buttons against the active ticket, separate from the generic Timeclock — gives per-ticket onsite-duration evidence for billing *(shipped v3.17.311 — `SiteVisit` model with arrival/departure lat+lng; `check_out()` stamps closeout + computes `duration_minutes`)*
-- **Mileage and trip logging** — auto-distance from previous geofence to current geofence, plus manual override; rolls up into per-tech / per-org mileage reports *(shipped v3.17.311 — `MileageLog` model with `is_auto` flag + start/end coords + `MileageLog.haversine_miles()` static helper for great-circle distance)*
-- **Quick asset edit from phone** — beyond lookup, lets a tech update serial / location / notes inline without leaving the ticket *(shipped — existing PATCH on `/api/assets/<pk>/`; PWA calls the same REST endpoint as desktop; v3.17.317 confirmation)*
+---
 
-**Goal:** Improve field technician workflow efficiency and mobility.
+<a id="phase-22"></a>
 
 ## Phase 22 — Knowledge Base & SOP Management **(M)** [complete]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-**Roadmap item:** Knowledge Base & Operational Documentation Expansion. Extends Phase v3.17.128 (KB tree) + v3.17.134 (KB perms).
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 22](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-22).
 
-Planned capabilities:
-- Knowledge base versioning (history of edits, rollback) *(shipped earlier — `DocumentVersion`)*
-- Article approvals (review-before-publish gate) *(shipped v3.17.250 — `/docs/approval-queue/` + approve / reject / submit-for-review endpoints; rejection notes appended to article body for inline feedback)*
-- Article ownership *(shipped v3.17.245 — `Document.owner` FK defaults to `created_by`)*
-- SOP workflows (links the KB to step-by-step Process executions)
-- Review reminders (article hasn't been reviewed in 90 days → email owner) *(shipped v3.17.245 — `kb_review_reminders` management command + `Document.review_interval_days` / `last_reviewed_at` / `is_review_overdue` + `/docs/review-queue/` view + `mark-reviewed` endpoint)*
-- Internal / external KB separation *(partial — `is_client_visible` shipped; rest shipped v3.17.664)* —
-  publishers set **Visible in customer portal** (and **Featured in portal**) on the
-  document and global KB editors, and every article shows an Internal or
-  External badge. Inside a customer-visible article, technician-only notes go in
-  an internal block (`<div class="kb-internal">`, or `:::internal` … `:::` in
-  Markdown): highlighted for staff, removed from the portal article page (now
-  rendered sanitised), portal search and service-request KB suggestions,
-  customer-copy exports (`?audience=customer`, single article or ZIP; internal
-  articles have none) and agreement snapshots. The REST and GraphQL APIs report
-  the visibility flag (read-only). Uploaded-file articles that are customer
-  visible download from the portal article page (scoped to the customer or
-  global, audited; internal articles 404) *(shipped v3.17.664)*.
-- KB analytics (most-viewed, least-viewed, dead links) *(partial — `Document.portal_view_count` shipped v3.17.234; most viewed / never viewed shipped v3.17.605; least viewed, portal most/least read and dead links shipped v3.17.664)* —
-  the KB analytics page adds least-viewed articles, the most and least read
-  customer-visible articles in the portal, and a dead-link list: internal links
-  to missing, archived or unpublished documents (or from a customer-visible
-  article to an internal one), and external links that fail a HEAD check. The
-  check runs daily from the scheduler (**KB Dead Link Check**) through the
-  outbound SSRF guard — only public web addresses on ports 80/443 are fetched,
-  every redirect hop is re-validated, each URL at most weekly and 200 per run;
-  links to private addresses are recorded as not checked. Staff can re-run the
-  internal half from the page.
-- Public knowledge publishing (selected articles → public URL)
-- Documentation lifecycle management (draft → published → archived) *(model fields shipped v3.17.245 — `is_draft`, `published_at`; full pipeline is v2)*
-- Linked SOP automation (KB article triggers a workflow run)
-- **Articles grouped by category** *(shipped v3.17.722)* — the Global KB list, the customer portal's Knowledge Base and the Documents list show articles under category headings (category order, then name; subcategories under their parent; Uncategorized last). Sorting and search work within the groups, and the portal only shows categories that hold articles the customer can see.
-- Import DOCX/PDF as editable documents + AI review (**OPTIONAL AI**) *(shipped v3.17.503 — `/docs/import/` bulk-extracts Word/PDF/TXT/Markdown text into editable KB documents; optional per-document AI reformat-to-standard + gap analysis via `review_imported_document`, gated by `psa_ai_enabled`. DOCX parsed dependency-free; PDF via PyMuPDF — issue #140)*
-- Document export — Markdown / print-ready HTML / DOCX / PDF, single article or bulk ZIP *(shipped v3.17.510 — `Export` menu on every KB article and Global KB article writes Markdown, a standalone print-optimised HTML page, a real Word .docx (built dependency-free straight into the OOXML package, with Word styles, bullet/number lists, tables and live hyperlinks) or a letter-size PDF; `Export All` on the document list bundles everything the current category / tag / search filters select into one ZIP with an `index.md` table of contents, for handing a departing client their whole documentation set. Exported HTML and the article page itself carry an `@media print` block that strips background images, shadows and app chrome so a printed copy is legible. v3.17.511 drops decorative chrome — floating code-block language badges, print-hidden and screen-reader-only elements — that would otherwise flatten into stray one-word paragraphs in a linear export — issue #144)*
+---
 
-**Goal:** Improve operational knowledge management and documentation governance.
-- **Inline previews of Excel, CSV and Word files** *(shipped v3.17.659)* —
-  uploaded spreadsheets, CSVs and Word documents preview on the document page
-  (first sheet / first 200 rows; headings, paragraphs and tables), rendered
-  as escaped text with size, zip-bomb and DTD limits; download unchanged.
+<a id="phase-23"></a>
 
-## Phase 23 — Security Event & Incident Workflows **(L)** [shipped — v3.17.363]
+## Phase 23 — Security Event & Incident Workflows **(L)** [in progress]
+<!-- phase: ws=D state=partial next="Playbooks behind approval (51.20, SR-37)" -->
+**Status:** 🟡 Partial · **Priority:** — · **Workstream:** D. RMM & Platform Integrations  
+**Next:** Playbooks behind approval (51.20, SR-37)
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
+
+> Header changed from *shipped — v3.17.363* to *in progress* on 2026-11-20: what shipped in v3.17.363 stays below; the phase is not finished (see the status line).
 
 **Roadmap item:** Security Event Correlation & Incident Operations. Extends Phase 9 (security alert ingestion) — these are the next-tier incident workflows on top of the basic alert dashboard.
 
@@ -733,181 +835,82 @@ Potential integrations:
 > the rule without a customer check. Fix planned in 51.20 (approval or off by default, real-or-removed step,
 > customer check); approval-driven playbooks are Phase 86.
 
+</details>
+
+---
+
+<a id="phase-25"></a>
+
 ## Phase 25 — Mature Timesheet Approval Workflows **(M)** [complete]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-**Roadmap item:** Formal time-entry approval pipeline. Today `psa.TicketTimeEntry` is logged ad-hoc by techs; there's no formal weekly approval before billing.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 25](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-25).
 
-Planned capabilities:
-- Weekly timesheet model — groups a tech's TicketTimeEntry rows for a payroll period *(shipped v3.17.242 — `psa.TimesheetSubmission` with unique `(user, period_start, period_end)`; `TicketTimeEntry.submission` FK attaches entries to a batch)*
-- Submit → review → approve / reject pipeline *(shipped v3.17.242 — `/psa/timesheet/` tech submit + `/psa/timesheet-approvals/` staff decide)*
-- Multi-tier approval (tech → team lead → finance)
-- Per-entry rejection with note ("re-classify this billable entry as project work") *(shipped v3.17.664)* — approvers tick entries in a pending week and give each a reason; those entries go back to the technician (shown with the reason on My Timesheet, recorded as `rejected` on each entry's trail) while the rest are approved. Fixing and resubmitting them in an approved week opens a new revision of that week's submission, leaving the approved one locked as it was
-- Lock approved timesheets — entries can't be retroactively edited after approval *(shipped v3.17.249 — `TicketTimeEntry.save()` early-returns when entry's submission.status='approved'; admin override via `_force_unlock=True`)*
-- Auto-reminder cron at end of payroll period for un-submitted timesheets
-- Bulk-approve UI for managers *(shipped v3.17.249 — `/psa/timesheet-approvals/bulk/` endpoint + sticky bulk-action bar on the queue page)*
-- Export approved timesheets to payroll (CSV / QuickBooks Time / Gusto) *(shipped v3.17.249 — `/psa/timesheet-approvals/payroll-export/` returns per-(tech, week) CSV ready for QBT/Gusto import)*
-- Audit trail per entry: who approved, when, with what note *(partial — `decided_by` / `decided_at` / `decision_notes` per submission shipped v3.17.242)*. Per-entry trail *(shipped v3.17.664)* — `psa.TimeEntryAuditEvent` records submitted / approved / rejected for each entry (actor, time, note; kept after a rejection detaches the entry), every change to an approved entry with a field-by-field diff, edits the approval lock refused, and deletes after approval. Shown at `/psa/time-entries/<id>/history/` (linked from the timesheet and approval screens) and inline on the approval queue; superusers can change an approved entry there with a required reason. Per-entry rejection: see the bullet above
+---
 
-Dependencies: extends Phase 2 (BillableTarget + utilization) + the existing approval queue pattern.
-
-**Goal:** Add billing-grade rigor to time entries before they flow into invoices and commissions.
+<a id="phase-26"></a>
 
 ## Phase 26 — Custom Report Writer + Saved Queries **(L)** [complete]
+<!-- phase: ws=H note="JSON and Excel export deferred; auto-chart status to confirm" -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** H. Reporting, Analytics & Optional AI  
+**Note:** JSON and Excel export deferred; auto-chart status to confirm
 
-**Roadmap item:** User-defined reports without writing Python. Today reports are templated (Phase 3 ships ~15 canned reports); this phase lets non-developers build their own.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 26](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-26).
 
-Planned capabilities:
-- Visual query builder — pick model (Ticket / Invoice / TimeEntry / Asset / etc), filters, group-by, aggregates, sort, limit *(shipped v3.17.246 with Ticket / Asset / Password targets; v3.17.251 added Invoice + TicketTimeEntry targets with per-model `org_filter` for tenant scoping when the model lacks a direct organization FK)*
-- Saved query model — per-org or shared *(shipped v3.17.246 — `reports.SavedQuery` with `is_shared` + organization scope)*
-- Run as report (renders as table + auto-chart for numeric columns) *(table render shipped v3.17.246; auto-chart deferred to v2)*
-- Schedule a saved query as a recurring email-PDF (extends Phase 3.6 scheduled-reports runner)
-- Pin a saved query as a dashboard widget (extends Phase 3.5 widget registry)
-- Export to CSV / JSON / Excel *(CSV shipped v3.17.246; JSON/Excel deferred)*
-- SQL escape hatch for power users (gated behind a separate permission; sandboxed read-only DB connection)
-- Report-template marketplace — share / import community report definitions
+---
 
-Dependencies: Phase 3.5 (dashboards), Phase 3.6 (scheduled reports).
-
-**Goal:** Reduce the gap between what owners want to know and what's pre-templated.
+<a id="phase-27"></a>
 
 ## Phase 27 — Advanced Accounting Reconciliation **(M)** [shipped — v3.17.281]
+<!-- phase: ws=B -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** B. Billing & Financial Management
 
-**Roadmap item:** Deeper accounting integration than the basic invoice push that ships today (QBO + Xero — Phase shipped earlier). Adds true reconciliation between Client St0r's books and the accounting system.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 27](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-27).
 
-Planned capabilities:
-- Bidirectional payment sync — when a payment lands in QBO/Xero, mark the source Invoice as paid *(shipped v3.17.531 for QuickBooks Online, as Phase 44 — provider payment records are read directly (`fetch_payments`, `integrations/services/accounting_sync.py:sync_payments`), partial payments and voids are applied, payments are idempotent on the provider's payment id, and the `accounting_sync` command runs from `deploy/clientst0r-accounting-sync.timer` or the in-app scheduler. Xero payment pull *(shipped v3.17.664)*: the Xero provider reads `GET /Payments` (paged, `If-Modified-Since` from the sync window) for sales-invoice payments, treats a deleted/voided payment as a reversal, and also implements invoice-state and customer pull, so the `accounting_sync` stages run for Xero too; a 403 (consent without payment access) parks the payment pull with a "reconnect" message and the connection reads "Needs attention" instead of erroring every run. History: v3.17.280 shipped balance polling via `accounting_sync_payments`; the "daily cron" it claimed was never wired, corrected in v3.17.526)*
-- Invoice deduplication detection (catch double-pushes) *(shipped v3.17.255 — duplicate `(provider, accounting_external_id)` groups surfaced on `/reports/accounting-reconciliation/`. Extended v3.17.526 from detection to prevention: the push view refuses an invoice that already carries a provider id, so a double-click can no longer put a second invoice in front of the client. Re-push remains available as an explicit action for the deleted-provider-side case)*
-- Unpaid-vs-pushed reconciliation report (what's invoiced here but missing in QBO?) *(shipped v3.17.255 — outstanding-pushed section + push-error section + CSV export)*
-- Per-invoice line-item mapping to GL accounts (revenue vs. cost-of-services-sold splits) *(shipped v3.17.278 — `InvoiceLineItem.gl_account_code` propagates to QBO `ItemRef.value` and Xero `AccountCode` on push; blank falls through to provider default; back-compat)*
-- Tax reconciliation (compare what we calculated vs. what QBO recorded) *(shipped v3.17.267 — `Invoice.provider_tax_amount` captured at push time from QBO `TxnTaxDetail.TotalTax` / Xero `TotalTax`; reconciliation report flags any |delta| > $0.01)*
-- Accounts receivable aging tied directly back to QBO/Xero AR *(shipped v3.17.269 — `/reports/ar-aging/` per-client 0-30 / 31-60 / 61-90 / 90+ day buckets for pushed-but-unpaid invoices; CSV export; tenant-scoped)*
-- Bank-account reconciliation hooks (mark which payments matched which bank-deposit batches) *(shipped v3.17.281 — `Payment.bank_deposit_batch` + `bank_reconciled_at` fields; per-batch report at `/reports/bank-reconciliation/` with mark-reconciled / reopen actions; staff-only)*
-- Refund / credit-memo workflows *(shipped v3.17.264 — `Invoice.is_credit_memo` + `credits_invoice` FK + `create_credit_memo()` method that copies/negates lines or creates a lump-sum credit; sequential `CN-YYYY-NNNNN` numbering; UI modal on invoice detail; POST-only view at `/psa/invoices/<pk>/credit-memo/`)*
-- Multi-entity / multi-book support for MSPs operating multiple legal entities *(shipped v3.17.279 — `Invoice.target_connection` FK pins the invoice to a specific AccountingConnection; push picks pinned else falls back to first sync-enabled; inactive-pinned-connection refuses push)*
-- Audit trail of every accounting-system interaction *(shipped v3.17.260 — `AccountingAuditLog` writes one row per `push_invoice` / `record_payment` call across QBO + Xero providers; viewer at `/integrations/accounting/<pk>/audit-log/`. Stores truncated req/resp summaries — full payloads intentionally not stored to keep the log free of secrets/PII)*
+---
 
-Dependencies: existing AccountingConnection pattern. Builds on Phase 15.
-
-**Goal:** Eliminate manual cross-checking between Client St0r and the accounting system.
-
-Cross-references: Phase 36 (Agreement Reconciliation) layers an MSP-specific reconciliation flow — included-vs-billable labor, over/under-served clients, pre-invoice approval — on top of the GL-level reconciliation this phase covers.
+<a id="phase-28"></a>
 
 ## Phase 28 — Browser Extension + Offline Vault Access **(L)** [shipped — v3.17.331 — server-side API; extension binary out of scope]
+<!-- phase: ws=F note="Server-side API shipped; the browser extension binary is out of scope" -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration  
+**Note:** Server-side API shipped; the browser extension binary is out of scope
 
-**Roadmap item:** Chrome / Firefox / Edge extension for password autofill from the vault, plus an offline-capable PWA mode for read-access to the vault.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 28](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-28).
 
-Planned capabilities:
-- WebExtension (cross-browser via WebExtensions API) *(shipped v3.17.327–v3.17.331 — server-side API surface fully shipped: `vault.WebExtensionAuthToken` model + bearer-auth + autofill / sync / totp / reveal / verify-master / generate endpoints; complete contract documented in `docs/browser-extension-api.md`. The extension binary itself (Chrome / Firefox / Edge `.crx` package, store submission) is a separate codebase outside this repo)*
-- One-click autofill on login pages from `vault.Password` matched by URL pattern *(shipped v3.17.328 — `/vault/api/extension/autofill/?url=...` returns matches by host suffix; per-call audit log)*
-- Master-password unlock (re-derive AES-GCM key locally; never transmit master) *(shipped v3.17.329 — `GET /vault/api/extension/verify-master/nonce/` issues a 32-byte URL-safe nonce; `POST /vault/api/extension/verify-master/` constant-time-verifies HMAC-SHA256 keyed by the user's stored password hash; server never sees the master password)*
-- Per-organization isolation (extension UI matches the active org context in-app) *(shipped v3.17.330 — `extension_auth_required` honours `X-Organization-Id` header per call when token is unpinned, falls back to token's pinned org otherwise; org-scoped queryset prevents cross-org leakage)*
-- Offline-encrypted vault cache — last-fetched passwords are stored encrypted under a session key, valid for N hours so a tech can still pull a credential when the server is unreachable *(shipped v3.17.328 — `/vault/api/extension/sync/` cursor-paginated; returns encrypted blobs only; gated by `vault_extension_offline_cache` permission)*
-- TOTP code generation in-extension (existing `totp_secret` field on Password) *(shipped v3.17.329 — `GET /vault/api/extension/<pk>/totp/` reuses `Password.generate_otp()`; per-call audit log)*
-- Audit log of every autofill (logged when the extension reconnects) *(shipped v3.17.329 — every extension call emits a `vault_extension_*` AuditLog row synchronously: autofill / sync / totp / reveal / verify_master)*
-- Generate-strong-password helper (matches the existing in-app generator) *(shipped v3.17.330 — `/vault/api/extension/generate/` reuses `vault.utils.generate_password`; returns `{password, length, charset_size, entropy_bits}` for client-side strength meter)*
-- Browser-extension specific permissions on RoleTemplate (`vault_extension_use`, `vault_extension_offline_cache`) *(shipped v3.17.328 — both boolean fields on RoleTemplate; simple-role fallback maps Owner/Admin → both True, Editor → use only, Read-Only → neither)*
+---
 
-Dependencies: existing vault model + AES-GCM key infra. Browser extension is a separate codebase + store-submission process.
-
-**Goal:** Match the IT Glue / Bitwarden experience that techs already expect.
+<a id="phase-31"></a>
 
 ## Phase 31 — Vault GeoIP / IP / Time Access Rules **(S)** [shipped — v3.17.163]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-Per-rule GeoIP / IP / time-of-day gates on top of the vault. New `VaultAccessRule` model, scopable to a specific Password, a specific User, or an Organization (three scopes). Rules carry allowed/blocked country lists (ISO codes), allowed/blocked CIDR lists, allowed weekdays + hour window with IANA timezone, plus priority + active flag. DENY-wins-then-priority engine; empty rule set keeps back-compat ALLOW. Every reveal/view decision is audit-logged with the reason, source IP, country, and matched rule ID. New `vault_manage_access_rules` permission gate.
-
-- `vault.VaultAccessRule` model + migration *(shipped v3.17.163)*
-- Decision engine `vault/access_rules.py` reusing firewall middleware GeoIP helpers *(shipped v3.17.163)*
-- CRUD UI under `/vault/access-rules/` + access-denied page *(shipped v3.17.163)*
-- Detail-view badge: "N access rules apply" *(shipped v3.17.163)*
-- 7 unit tests in `vault.tests.VaultAccessRuleEngineTests` *(shipped v3.17.163)*
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 31](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-31).
 
 ---
-- Click-to-select world map for country selection *(shipped v3.17.522 — replaces comma-separated ISO-code text boxes on both the vault access-rule form and the global firewall country rules with a clickable world map; a country belongs to one list, so "allowed AND blocked" is not expressible. Country names resolve server-side from a bundled ISO 3166-1 table, never from the browser. Map backdrop is configurable — colour pattern, random, or an uploaded image — and is cosmetic only, saved through its own endpoint so it can never rewrite firewall rules)*
+
+<a id="phase-32"></a>
 
 ## Phase 32 — Remote Network Discovery Import **(M · future / late-stage)** [complete]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-A technician opens an Organization in ClientSt0r, picks a Location, and clicks **Generate Network Discovery Script**. ClientSt0r issues a temporary one-time-use token bound to that single org + location, generates a downloadable PowerShell script, and the tech runs it on a Windows host inside the client's network. The script does a safe (non-intrusive, non-credentialed) sweep of the local subnets, collects IP / MAC / hostname / vendor data, and uploads the results back to ClientSt0r. ClientSt0r imports / updates Asset records under that Org + Location, deduping by MAC and by org+location+IP.
-
-**Roadmap item — placed near the end of the roadmap as a future / late-stage feature.** The user request explicitly says do not turn this into an RMM agent: no persistent agents, no permanent API keys, no exploit scanning. Strictly safe, auditable, scoped, MSP-friendly network discovery.
-
-### Models (new app, e.g. `network_discovery/`)
-
-- **`NetworkDiscoveryToken`** — `id`, `organization` FK, `location` FK, `created_by`, `token_hash` (only the hash; full token never re-displayable), `expires_at`, `revoked_at`, `used_at`, `max_uses` (default 1), `use_count`, `source_ip_last_used`, `user_agent_last_used`, `notes`, audit timestamps.
-- **`NetworkDiscoveryImport`** — `id`, `organization`, `location`, `token` FK, `uploaded_by_user`, `source_ip`, `device_count`, `imported_count`, `updated_count`, `skipped_count`, `error_count`, `raw_payload` (JSON, optional summarized form), `created_at`.
-- **`NetworkDiscoveryAssetResult`** — `id`, `import` FK, `organization`, `location`, `asset` FK (nullable; set when matched / created), `ip_address`, `mac_address`, `hostname`, `vendor`, `device_type`, `discovery_method`, `status`, `raw` JSON, `created_at`.
-
-### Endpoints
-
-- `POST /orgs/<org_id>/locations/<location_id>/network-discovery/generate/` — authenticated; gates on a new `network_discovery_generate` RoleTemplate boolean. Returns the script file + the one-time token displayed once on screen (never again).
-- `GET /orgs/<org_id>/locations/<location_id>/network-discovery/download/<token_id>/` — re-downloads the script (token still hidden; re-renders only the script body with the token already embedded server-side at first generation).
-- `POST /api/network-discovery/upload/` — public, **token-only** auth. Token is single-use (or limited-use), short-lived, scoped to one (org, location), POST-only, write-only — cannot read anything. Validates payload size + IP/MAC/hostname formats. Rate-limited.
-- `POST /orgs/<org_id>/locations/<location_id>/network-discovery/revoke/<token_id>/` — revokes immediately.
-- `GET /orgs/<org_id>/locations/<location_id>/network-discovery/imports/` — import history.
-
-### PowerShell script behavior
-
-- Auto-detects active local IPv4 subnets from active network adapters
-- Optional params: `-Subnet`, `-ServerUrl`, `-Token`, `-OrgId`, `-LocationId`, `-TimeoutMs`, `-MaxHosts`, `-SkipUpload`, `-OutputJsonPath`
-- Default: ping sweep / `Test-Connection`, ARP table collection, optional reverse-DNS, MAC harvest from `arp -a` / `Get-NetNeighbor`
-- Optional lightweight enrichment: probe ports 80 / 443 / 22 / 3389 / 445 only — for device-type classification (workstation / server / router / printer / unknown). Never destructive, never credentialed, never vulnerability scan.
-- Runs on Windows PowerShell 5.1+ and PowerShell 7+
-- Doesn't require admin unless necessary
-- Always writes a local JSON summary before upload
-- Shows count of discovered devices and upload result
-
-### Asset import behavior
-
-1. Match by MAC first.
-2. If no MAC match, match by `(organization, location, ip_address)`.
-3. On match: update missing fields only; never overwrite manually-entered names; bump `last_seen` / discovery metadata.
-4. On no match: create a new Asset with `organization`, `location`, name = hostname → IP → MAC, `asset_type` = "Network Discovered Device" (or "Unknown Network Device"), IP, MAC, vendor, notes "Discovered by Remote Network Discovery Import".
-5. Optional dry-run / preview mode.
-
-### Security requirements
-
-- Token is **temporary** (short expiry, default 15 min)
-- Scoped to **one org + one location** only
-- **Write-only** — can't read anything; only POST to the discovery upload endpoint
-- **Single-use by default** (or limited-use with expiration) — `max_uses=1`, `use_count` tracked
-- Server stores **only a hashed version** of the token; full plaintext shown once at generation, then never again
-- Revocable from the UI
-- Every generation, download, upload, import event audit-logged (user, org, location, source IP, count, errors)
-- Upload endpoint rate-limited
-- Payload size validated; all IP/MAC/hostname fields validated
-- Generation requires existing authenticated user permissions
-- The PowerShell script clearly shows the ClientSt0r server URL it will upload to but contains **no permanent credentials**
-
-### UI
-
-- Network Discovery section on Organization detail page (location-scoped)
-- "Generate Network Discovery Script" button after a Location is picked
-- Token expiration shown
-- Last generated scripts list
-- Revoke buttons
-- Import history with imported / updated / skipped / error counts per import
-- Last scan summary
-- Warning banner: **"Run this only on networks you are authorized to scan."**
-
-### Tests
-
-Token generation; expiration; revocation; valid upload; expired token rejected; revoked token rejected; cross-org / cross-location upload rejected; duplicate MAC updates existing asset; duplicate IP/location updates existing asset; new devices create assets; unauthorized users cannot generate scripts; payload validation; rate limiting (if testable).
-
-### Goal
-
-Provide MSP-friendly remote network discovery without standing up a full RMM agent. Everything is **temporary, scoped, auditable**, and bound to a single org + location. Not a backdoor. Not a persistent agent.
-
-✅ **Phase 32 complete at v3.17.556.** New `network_discovery` app. Every security requirement above is implemented and tested: 15-minute single-use tokens stored as SHA-256 hashes with the plaintext shown exactly once, scoped to one org + location, write-only, revocable, rate-limited, with every generation / download / upload audit-logged including source IP.
-
-Two implementation notes worth recording:
-
-- **The re-download endpoint can only work while the generating user's session still holds the plaintext.** The roadmap asked for a re-download that keeps the token hidden; since the server stores only a hash, there is nothing to rebuild the script from once that session copy is gone. It says so and offers a new token rather than pretending otherwise.
-- **Every upload rejection returns an identical response.** Expired, revoked, spent and never-existed are indistinguishable to the caller — an anonymous endpoint that distinguishes them is a token oracle.
-
-Phase 33 layers the deeper, persistent / scheduled, multi-protocol discovery on top of this single-shot foundation.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 32](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-32).
 
 ---
 
-## Phase 33 — Network Discovery & Auto Documentation **(L)** [in progress — partial]
+<a id="phase-33"></a>
+
+## Phase 33 — Network Discovery & Auto Documentation **(L)** [in progress]
+<!-- phase: ws=C state=partial view=later deps="32, 16" next="Decide SNMP/LLDP/CDP (108.4); label topology pages meanwhile" blocker="Topology and port maps need link-layer data nothing collects" unblock="Owner decision on SNMP/LLDP/CDP collection (previously declined)" -->
+**Status:** 🟡 Partial · **Priority:** — · **Workstream:** C. Asset Management & Documentation · **Depends on:** 32, 16  
+**Next:** Decide SNMP/LLDP/CDP (108.4); label topology pages meanwhile  
+**Blocked:** Topology and port maps need link-layer data nothing collects — *unblocks when:* Owner decision on SNMP/LLDP/CDP collection (previously declined)
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Multi-protocol persistent network discovery and topology inference. Phase 32 ships a one-shot, scoped, single-use ping / ARP script — useful for the first walk-through of a new client. Phase 33 is the always-on companion: a lightweight per-site collector that sweeps ICMP / ARP on a schedule, keeps the asset inventory current, and generates topology diagrams without manual draw-time.
 
@@ -940,779 +943,190 @@ Dependencies: Phase 32 (token + import models — extend rather than replace), P
 > pending an owner decision (an SNMP collector was previously declined). Discovery scope approval and
 > staging are Phase 108.
 
+</details>
+
+---
+
+<a id="phase-34"></a>
+
 ## Phase 34 — Network Configuration Backup **(M)** [complete]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-Versioned configuration backup for firewalls, switches, routers, and other manageable network gear. Treats device configs the same way the existing `Document` versioning treats KB articles — every change snapshotted, diffable, alertable.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 34](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-34).
 
-Planned capabilities:
-- **Firewall, switch, and router config backup** — pulled via SSH (the only method implemented; SCP, SNMP and vendor APIs are not built) depending on device. Per-device adapter pattern matching the integration framework shipped in Phase 7.
-- Scheduled backup jobs (per-device cadence; default daily)
-- Config diff viewer — line-level diff between any two snapshots; latest-vs-prior on the device detail page by default
-- Alert on unauthorized config changes — diff against the last "approved" snapshot; surfaces in the security-alerts dashboard (Phase 9) when something changes outside of an approved change window (Phase 6.1 CAB)
-- Firmware / version tracking — captures running firmware version on each backup so EOL transitions are visible
-- End-of-life and warranty metadata fields on the device record (extends Phase 13 lifecycle tracking)
+---
 
-### Sub-phase 34.1 — The snapshot store and diff viewer *(shipped v3.17.544)*
-- **`netconfig.ConfigBackup`** — a captured configuration, immutable once written. Not a `BaseModel`: a snapshot states what a device's config *was* at a moment, and an `updated_at` would imply editing one is normal when editing one destroys the only thing it is for. The admin renders the body read-only for the same reason. *(shipped v3.17.544)*
-- **Identical captures do not duplicate.** `record_for_asset()` hashes the body and, when it matches the newest snapshot, moves `last_seen_at` instead of writing another row — a device nobody touches for a year is one row plus a moving timestamp, not 365 copies. The hash normalises trailing whitespace and line endings, so a device that starts padding lines or switches CRLF to LF does not read as "everything changed". *(shipped v3.17.544)*
-- **Line-level diff** between any two snapshots, with latest-vs-prior rendered on the device page without being asked for. Diffing against nothing returns an empty diff rather than raising — the first capture of a device has nothing to compare against, and that is a normal state. *(shipped v3.17.544)*
-- **Manual capture — paste or upload.** Collection over SSH is 34.2, but this works with nothing but a paste box on purpose: a config pasted by hand is worth versioning, and waiting for device credentials before storing anything would be the wrong order. *(shipped v3.17.544)*
-
-### Sub-phase 34.2 — Collection over SSH *(shipped v3.17.545)*
-- **`netconfig.BackupTarget`** — host, port, username, platform, per-device cadence. Credentials are **not** stored on it: the field links to a `vault.Password`, because the vault already encrypts, audits and access-controls secrets and a second half-built secrets store beside it would be strictly worse. Deleting the vault entry disables collection rather than falling back to anything. *(shipped v3.17.545)*
-- **An approval-gated credential cannot be used by the scheduled job.** A vault entry marked `requires_reveal_approval` exists because somebody decided a human should sign off on each use; a nightly run cannot ask anyone, and reading the secret anyway would defeat the control while leaving the setting switched on and looking effective. The device reports why instead. *(shipped v3.17.545)*
-- **Seven platform adapters** — Cisco IOS/IOS-XE, Cisco ASA, Arista EOS, Juniper Junos, MikroTik RouterOS, FortiOS, HP/Aruba ProCurve — plus a generic single-command fallback and a per-device command override for an appliance nobody wrote an adapter for. Adapters know vendor commands and output tidying; the SSH transport is shared, so a timeout bug is fixed in one place. *(shipped v3.17.545)*
-- **`backup_network_configs`** management command and a `network_config_backup` scheduler task. One unreachable device never stops a run: every device failure is recorded on the target and the run continues. Every collection writes an audit row, success or failure — opening an administrative session to a firewall with a stored credential should not happen without a trace. *(shipped v3.17.545)*
-- `paramiko` added to `requirements.txt` and imported lazily, so an install that has not re-run pip keeps working everywhere except this one feature, which reports the missing dependency rather than failing at import and taking the app with it.
-
-### Sub-phase 34.3 — Drift alerts *(shipped v3.17.546)*
-- **Baseline per device** — mark a snapshot approved and later configs are compared against it. Approving one demotes the previous: two baselines would make "drift from the approved config" ambiguous, and an ambiguous alert is one nobody trusts. *(shipped v3.17.546)*
-- **Change-window awareness** — a change is `expected` when an approved `psa.ChangeRequest` for that client covers the capture time, and `unauthorized` otherwise. Only `approved` and `implementing` count; a `draft` or `pending_cab` change is exactly the case that should still raise. A request with no schedule is not a window — "approved, sometime" is not a licence, and treating it as one would silence every alert for that client. *(shipped v3.17.546)*
-- **No baseline means no drift.** Alerting before anybody has declared a known-good config would mean every device screams from its first capture, which trains people to ignore the alerts. *(shipped v3.17.546)*
-- **Unauthorized changes raise a `SecurityAlert`** at high severity on the Phase 9 dashboard, carrying the diff size and links back to the snapshot and baseline. A failure in the alert path is logged and swallowed — it must not lose the snapshot or fail the backup run that produced it. *(shipped v3.17.546)*
-
-### Sub-phase 34.4 — Firmware and lifecycle *(shipped v3.17.547)*
-- **Firmware history derived from the snapshots** rather than stored separately, so it cannot disagree with them. Consecutive captures reporting the same version collapse into one entry — a device on one firmware for a year is one row, not 365 — and a snapshot with no firmware reported is skipped rather than shown as a transition to "nothing". *(shipped v3.17.547)*
-- **`Asset.vendor_end_of_life` / `vendor_end_of_support`** — the vendor's announced dates, which have nothing to do with when you bought the thing. A model's last day of support is the same date whether it was racked in 2019 or bought refurbished last month, so it cannot be derived from purchase date plus lifespan the way the existing estimate is. `get_end_of_life_date()` now prefers a published date over the arithmetic. *(shipped v3.17.547)*
-- **Lifecycle view** listing network gear that is out of vendor support or reaching either date within a year, out-of-support first: a switch no longer receiving security fixes is a different kind of problem from one due for replacement next year. *(shipped v3.17.547)*
-
-✅ **Phase 34 complete at v3.17.547.** Shipped across four sub-phases (v3.17.544–547). The stated Phase 33 dependency turned out not to block it — `assets.Asset` already carries the network-gear types, so the device list had a source without waiting for discovery.
-
-Dependencies: Phase 33 (device inventory provides the target list) — **not blocking**: 34.1 targets `assets.Asset` rows already typed as switch / router / firewall / load balancer / wireless AP or controller / modem / gateway / bridge / console server, so the feature is usable before Phase 33 exists. Phase 9 (alert framework for drift notifications) and Phase 6.1 (CAB / change-window awareness) are needed for 34.3.
-
-**Goal:** Eliminate the manual config-export-and-store-in-a-folder routine. Make unauthorized changes loud.
+<a id="phase-35"></a>
 
 ## Phase 35 — Advanced Project Management **(L)** [complete]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-Mature the existing `psa.Project` and `psa.ProjectTask` models *(quote-to-project automation shipped v3.17.213)* into a full delivery management feature.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 35](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-35).
 
-Planned capabilities:
-### Sub-phase 35.1 — Project templates *(shipped v3.17.548)*
-- **`psa.ProjectTemplate` / `ProjectTemplateTask`** — predefined work breakdowns for common project types. A server migration is the same twenty tasks every time, and retyping them is where steps get forgotten. *(shipped v3.17.548)*
-- **Applying a template copies.** The resulting rows are ordinary `ProjectTask`s with no link back to the template: a project that silently changed shape because somebody edited the template months later would be worse than having no templates. Deleting a template leaves every project built from it untouched. *(shipped v3.17.548)*
-- **Template tasks carry an offset, not a date** — a template is used in March and again in November, and a stored date would be wrong both times. `0` means the project's start date and is deliberately distinct from "no date". *(shipped v3.17.548)*
-- **Applying appends rather than replaces**, so a template dropped onto a project that already has work does not delete it. Nested tasks keep their parent through the copy.  *(shipped v3.17.548)*
+---
 
-### Sub-phase 35.2 — Budget tracking *(shipped v3.17.549)*
-- **`Project.budget_hours` / `budget_amount` / `budget_warn_at_percent`** — a budget is what the work is *allowed* to take, deliberately separate from `estimated_hours`, which is what it was *thought* to take. They are routinely different numbers agreed by different people. *(shipped v3.17.549)*
-- **Actuals come from time logged on the project's tickets**, since that is the only place time is recorded. Billable and total are tracked separately. *(shipped v3.17.549)*
-- **An unknown amount is reported as unknown, never as zero.** Spend needs an hourly rate from the client's active contract; without one `actual_amount()` returns `None` and the page says so. A project showing no spend because nobody recorded a rate reads as comfortably under budget when the truth is that it has not been measured. *(shipped v3.17.549)*
-- **Worst of the two budgets wins.** A project inside its hours but over its money is over — saying otherwise would be the comfortable answer rather than the true one. An unmeasurable money budget does not mask a breached hours budget. *(shipped v3.17.549)*
-
-### Sub-phase 35.6 — Billing *(shipped v3.17.555)*
-- **`Project.billing_type`** — time and materials, fixed fee, or milestone. The three produce genuinely different invoices: logged hours, one agreed number, or a number per delivered milestone. *(shipped v3.17.555)*
-- **Nothing bills twice.** Billed time is found through `InvoiceLineItem.source_id`, the pointer the existing time-to-invoice path already writes, rather than a second flag that could disagree with it. A fixed fee is stamped with a sentinel source id; a milestone carries a `billed_on_invoice` foreign key so "which invoice was that on" survives. *(shipped v3.17.555)*
-- **An unpriceable invoice is refused, not raised at zero.** Without a contract rate, T&M work cannot be priced and generation stops with a message. Milestones are stamped only after the invoice exists, so a failure part-way cannot mark work billed that never reached a bill. *(shipped v3.17.555)*
-- **Everything generated is a draft.** Nothing in this sub-phase decides to send a client a bill. *(shipped v3.17.555)*
-
-✅ **Phase 35 complete at v3.17.555.** Shipped across six sub-phases (v3.17.548–555): templates, budgets, profitability, task-to-ticket, timeline with dependencies, and billing.
-
-### Sub-phase 35.5 — Timeline and dependencies *(shipped v3.17.554)*
-- **`ProjectTask.start_date`** — a timeline bar needs both ends. `due_date` alone described a deadline; a schedule needs to know when work is meant to begin. A task carrying only one date draws as a single-day marker rather than vanishing from the plan. *(shipped v3.17.554)*
-- **`ProjectTask.depends_on`** — self-referential, explicitly not symmetrical, with cycles refused at the point of creation. A cycle makes "what can start now" unanswerable and sends any scheduling walk into an infinite loop, so it is rejected when the edge is drawn rather than defended against everywhere afterwards. Chains and diamonds are allowed; depth is not a cycle. *(shipped v3.17.554)*
-- **Timeline view** with bars positioned as server-computed percentages, so CSS handles responsiveness and JavaScript is needed only for dragging. Drag posts to the same endpoint the date inputs use, so the feature works with scripting off. Unscheduled tasks are listed rather than hidden — a task missing from a plan is easy to forget entirely — and a dependency arrow pointing at an unscheduled task is dropped rather than drawn to nowhere. *(shipped v3.17.554)*
-
-### Sub-phase 35.3 — Profitability *(shipped v3.17.553)*
-- **Cost from effective-dated `resourcing.TechCostRate`** — each time entry is costed at the rate that applied to that technician on the day the work happened, so a raise in June does not retroactively make March's work more expensive. *(shipped v3.17.553)*
-- **Revenue is billable hours at the client contract's rate; margin is the difference.** Both are `None` when no rate is known, because a margin computed against unknown revenue is a subtraction from nothing dressed up as a business figure. *(shipped v3.17.553)*
-- **Guesses are declared.** Entries costed at the system default because a technician has no configured rate are counted and surfaced, so a margin built partly on defaults is not presented as measured. Entries with no user recorded are skipped rather than costed at a default, which would attribute cost to nobody. *(shipped v3.17.553)*
-
-### Sub-phase 35.4 — Tasks become tickets *(shipped v3.17.550)*
-- **Any project task can spawn a ticket on demand**, linked through the task's existing `related_ticket`. The two are not merged: the task stays the unit of planning, and the ticket becomes the unit of work that time, SLA and comments hang off. *(shipped v3.17.550)*
-- **The ticket is attached to the project**, which is the entire point — time logged on it counts towards the project's actuals from 35.2. A task's due date becomes the ticket's resolution target, because a task due Friday whose ticket carries no date drops off every SLA view. *(shipped v3.17.550)*
-- **One ticket per task.** A second would split the time entries across two records and quietly break the project's actual-hours figure. *(shipped v3.17.550)*
-
-Remaining planned capabilities:
-- **Project templates** *(shipped v3.17.548 — see 35.1)*
-- Project phases and milestones *(milestones partial — `ProjectTask.is_milestone` flag exists)*
-- **Project budget tracking** *(shipped v3.17.549 — see 35.2)*
-- **Project profitability** *(shipped v3.17.553 — see 35.3)*
-- **Project-to-ticket task generation** *(shipped v3.17.550 — see 35.4)*
-- **Project billing support** *(shipped v3.17.555 — see 35.6)*
-- **Gantt / calendar-style planning view** *(shipped v3.17.554 — see 35.5)*
-
-Dependencies: existing `psa.Project` + `psa.ProjectTask` models, Phase 3 (profitability infra), Phase 1 (contract / billing engine).
-
-**Goal:** Take the lightweight Project model from "lets you group tickets" to "actually runs delivery engagements end-to-end."
+<a id="phase-36"></a>
 
 ## Phase 36 — Agreement Reconciliation & Pre-Invoice Approval **(M)** [complete]
+<!-- phase: ws=B state=verify note="Agreement profitability reports and revenue-leakage expansion have no shipped marker (audit 2026-11-20)" -->
+**Status:** ✅ Complete — verify · **Priority:** — · **Workstream:** B. Billing & Financial Management  
+**Note:** Agreement profitability reports and revenue-leakage expansion have no shipped marker (audit 2026-11-20)
 
-MSP-specific reconciliation between what an agreement covers and what's actually being consumed. Phase 27 handles GL-level reconciliation against QBO/Xero; this phase handles agreement-vs-labor reconciliation against the contract itself, plus an explicit pre-invoice review gate so nothing goes out the door without a human nod.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 36](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-36).
 
-Planned capabilities:
-- **Recurring agreement billing review** — monthly (or per-cycle) review screen that lists every agreement, included-hours bucket consumed, overage hours, and the draft invoice *(partial — per-contract consumption table shipped v3.17.225 at /reports/agreement-reconciliation/)*. Review screen *(shipped v3.17.664)* — `/psa/billing-review/?period=YYYY-MM` lists every agreement in the cycle with qualifying hours split into included and overage (counted chronologically against the allowance from the agreement's start), the overage value, hours remaining and the cycle's invoice. Approve and Hold act on draft invoices through the existing pre-invoice approval gate: Hold sets `requires_approval` so the invoice cannot be sent or pushed until approved; both are audit-logged
-- **Included vs billable labor reconciliation** *(shipped v3.17.248 — `agreement_reconciliation_detail` view classifies entries chronologically as covered/overage/split; per-tech overage breakdown + CSV export)*
-- **Over-serviced / under-serviced client alerts** — if a client consistently uses < 30% of included hours (under-served = upsell signal) or > 130% of included hours 3 months running (over-served = re-quote signal), alert the account manager *(shipped v3.17.225 — surfaced as status badges + summary counts on the reconciliation page; recurring-pattern detection across multiple periods deferred to v2)*
-- **Agreement profitability reports** *(planned — no shipped marker found in the 2026-11-20 audit; extends Phase 3.2 contract profitability with per-agreement P&L; cost-of-labor at tech rate vs. contracted revenue)*
-- **Pre-invoice approval workflow** *(extends Phase 20 approval routing — gate any draft invoice over $X or with > Y% overage on a manager queue before sending)* *(shipped v3.17.228 — `Invoice.flag_for_approval` + `Invoice.approve` + `/psa/invoices/<pk>/approve/` endpoint + push-to-accounting blocked while pending)*
-- **Revenue leakage detection expansion** *(planned — not found in the 2026-11-20 audit; the client-account unbilled list also includes already-invoiced time, fixed in Phase 102; extends the existing `revenue_leakage` query that powers the `unbilled_hours` widget; adds aging buckets, per-tech leakage attribution, and a per-client leakage trend)*
+---
 
-Dependencies: Phase 1 (contract engine — `Contract`, `ContractBundle`, `ContractBundleItem`), Phase 15 (recurring billing automation), Phase 20 (approval routing).
-
-**Goal:** Stop money walking out the door. Make every agreement's profitability and consumption visible before invoicing, not after.
+<a id="phase-37"></a>
 
 ## Phase 37 — Vault Approval & Break-Glass Workflow **(M)** [complete]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-Per-credential approval gates and emergency-access ("break-glass") flow for the password vault. Phase 31 *(shipped v3.17.163)* provides geo / IP / time-window restrictions; this phase adds workflow restrictions on top.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 37](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-37).
 
-Planned capabilities:
-- **Require approval before revealing sensitive vault entries** *(shipped v3.17.241 — `Password.requires_reveal_approval` flag + `VaultRevealRequest` model + `password_reveal` view gates on currently-valid approval)*
-- **Emergency break-glass access** *(shipped v3.17.241 — `/vault/<pk>/break-glass/` endpoint with mandatory ≥30-char justification, self-approves, hard audit log)*
-- **Manager / admin notifications** *(shipped v3.17.241 — every reveal request emails superusers; every break-glass emails superusers immediately)*
-- **Full access audit trail** *(extends the per-action vault audit shipped v3.17.181 — `vault_reveal_requested`, `vault_reveal_approved`, `vault_reveal_denied`, `vault_break_glass`, `reveal_blocked_no_approval` join the existing edit/delete events; shipped v3.17.241)*
-- **Optional client-level vault approval rules** *(shipped v3.17.247 — `_can_decide_vault_reveal` policy helper allows `Membership.is_org_admin=True` of the password's org to approve, with self-approval blocked regardless of role)*
+---
 
-Dependencies: Phase 31 (`vault.VaultAccessRule` infra — extend rather than replace), Phase 20 (approval routing engine).
-
-**Goal:** Make sensitive credentials require explicit human authorization to reveal, while preserving a documented escape hatch for genuine emergencies.
-- **Encrypted secure notes, always-visible notes and 2FA** *(shipped v3.17.659)* —
-  each vault entry has encrypted secure notes, shown only through Reveal with
-  the same approval, access-rule, rate-limit and audit checks as the password
-  and kept out of the browser extension, REST API and offline cache; the entry
-  page always shows its Notes and Two-factor cards with add shortcuts.
+<a id="phase-38"></a>
 
 ## Phase 38 — Client Onboarding / Offboarding Runbooks **(M)** [complete]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-Repeatable runbooks for client onboarding, employee onboarding/offboarding, and client termination. Each runbook is a structured checklist with verification steps and ticket-spawning hooks. Builds on the existing `processes/` workflow engine.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 38](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-38).
 
-Planned capabilities:
-- **Repeatable onboarding templates** — clone an `is_template=True` Process per new client; copies all stages with linked entities preserved *(shipped v3.17.223)*
-- **Employee onboarding / offboarding workflows** *(category support shipped — `onboarding` / `offboarding` already existed; `client_*` companions added v3.17.223)*
-- **Client termination checklist** — `client_termination` category added so the existing Process model carries the termination flow *(category shipped v3.17.223)*
-- **Access removal verification** — for offboarding, mechanically verify that the user is actually removed from each documented system (poll vault, M365, RMM, etc.) and surface any orphaned access *(shipped v3.17.664: an offboarding run names the departing person and a read-only, audited check reports what remains — ClientSt0r memberships / portal sign-in, vault items shared to them, user vault rules, API keys and extension tokens for the customer; Microsoft 365 sign-in and licenses through the customer's M365 connection; RMM connections are listed as not verifiable because no RMM contract offers an account read yet. Orphaned access is shown on the run and linked from the ticket; everything else stays on the runbook's manual stages)*
-- **Documentation completion scoring** — per-execution `ProcessExecution.completion_percentage` already shipped; per-org dashboard with rollup across all in-flight runbooks at `/processes/dashboard/` *(shipped v3.17.227)*
-- **Runbook-to-ticket conversion** — any runbook step can spawn a Ticket; created ticket is recorded on `ProcessStageCompletion.spawned_ticket` *(shipped v3.17.223)*
+---
 
-Dependencies: `processes/` app (existing), Phase 14 (visual workflow builder for runbook editing).
-
-**Goal:** Turn ad-hoc tribal-knowledge onboarding/offboarding into a measurable, repeatable, completable workflow.
+<a id="phase-39"></a>
 
 ## Phase 39 — Compliance Evidence Packs **(M)** [complete]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-One-click exportable audit packet per client. Bundles the evidence regulators / auditors / cyber-insurance underwriters consistently ask for, sourced from data already living in Client St0r — no manual screenshot-and-paste required.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 39](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-39).
 
-Planned capabilities:
-- **Exportable client audit packet** — single styled HTML page (with print-to-PDF stylesheet) + downloadable ZIP of per-section CSVs *(shipped v3.17.222)*
-- 2FA status — which users on the account have 2FA enrolled, by method *(shipped v3.17.222)*
-- User access report — current memberships, role templates, last-login per user *(shipped v3.17.222)*
-- Password access history *(extends vault audit shipped v3.17.181 — every reveal / edit / delete event in the period)* *(shipped v3.17.222 — last 90 days)*
-- Asset inventory — current asset list with serial / vendor / location / lifecycle stage *(shipped v3.17.222)*
-- Vulnerability scan summary *(extends Phase 9 security framework + the existing OS Package Scanner)* *(shipped v3.17.226 — 90-day open-alert summary by severity)*
-- SSL / domain expiration summary *(extends the WebsiteMonitor expiration infra)* *(shipped v3.17.226)*
-- Ticket / SLA history — ticket counts, SLA-met percentages, response and resolution medians *(shipped v3.17.222 — 12-month window)*
-- Backup and uptime evidence — backup-job success rate, monitor uptime percentages over the period *(uptime shipped v3.17.226; backup is a placeholder until a backup-tracking integration is built)*
+---
 
-Dependencies: Phase 9 (security data), vault, monitoring/, psa (SLA history), assets.
-
-**Goal:** Reduce the "audit prep" interrupt to a button-press. The data is already in the system; this phase wraps it in the standardized export shape auditors expect.
+<a id="phase-40"></a>
 
 ## Phase 40 — Public / Client-Facing Status Page **(M)** [complete]
+<!-- phase: ws=G -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** G. Customer Portal & Communications
 
-Public or per-client-private status page surfacing current service status, scheduled maintenance, incident history, and uptime. Sourced from the WebsiteMonitor + ticket-incident infrastructure already in place.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 40](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-40).
 
-**Correction (v3.17.538):** this phase was written assuming uptime could be read from "`WebsiteMonitor` history". There was no such history — `WebsiteMonitor` stored only the *current* status, last response code and last check time, and nothing recorded what any earlier check returned. Uptime percentages were therefore not computable from existing data at all, and Sub-phase 40.1 exists to build the missing history. A consequence worth stating plainly: **uptime figures start accumulating from the v3.17.538 deploy**, not retroactively, so a 365-day figure is not available until a year after that.
+---
 
-### Sub-phase 40.1 — Check history + uptime *(shipped v3.17.538)*
-- **`monitoring.MonitorCheck`** — append-only row per website check: monitor, `checked_at`, status, HTTP code, response time, error. Written by `WebsiteMonitor.check_status()` inside a guard, so a failure to record history can never turn a successful check into a failed one. *(shipped v3.17.538)*
-- **`WebsiteMonitor.uptime(days)`** — computed from those rows rather than stored, so changing retention or backfilling a gap cannot leave a counter disagreeing with the data behind it. Returns `percent=None` for a window with no checks, because 0% reads as a total outage and 100% as a clean record and both would be lies. `warning` counts as up — a redirect or an expiring certificate means the site answered. *(shipped v3.17.538)*
-- **`prune_monitor_checks`** — retention command, default 400 days. This is the highest-volume table in the app (~105,000 rows/year for a monitor on a five-minute interval). 400 rather than 365 so a full-year figure stays computable right up to the moment the prune runs. Deletes in batches so a big backlog doesn't hold one long transaction against the table the checker is appending to. *(shipped v3.17.538)*
-
-### Sub-phase 40.2 — The page itself *(shipped v3.17.540)*
-- **`statuspage.StatusPage`** — off by default, reached by a 43-character random token rather than a guessable id, rotatable, and 404-ing rather than 403-ing when disabled so a probe cannot confirm a page exists. Not a singleton, unlike the Phase 47 wallboard: `organization` null means a broadcast page covering shared infrastructure, and a page scoped to a client can only carry that client's services. *(shipped v3.17.540)*
-- **`statuspage.StatusPageService`** — the indirection that makes the page publishable. A `WebsiteMonitor` carries an internal name and the URL being polled, and neither belongs on an anonymous page; `display_name` is required and is all the public sees. Adding a service without one is refused rather than defaulted, because defaulting would leak exactly what the field exists to avoid. *(shipped v3.17.540)*
-- **Public view** at `/status/p/<token>/` — per-service status plus 30 / 90 / 365-day uptime, `no-store` and `noindex`, standalone template (no nav, no session chrome, meta-refresh so it works with scripting off). Worst status wins overall: one service down makes the page say outage. A window with no recorded checks reads "no data" rather than a percentage. *(shipped v3.17.540)*
-- **Management UI** under Operations → Monitoring → Status Pages — create, publish, rotate the link, add and remove services. *(shipped v3.17.540)*
-
-### Sub-phase 40.3 — Maintenance windows *(shipped v3.17.541)*
-- **`statuspage.MaintenanceWindow`** — title, body, start, end, and optionally the services affected. Visible on the public page **from the moment it is posted**, not from the moment it starts: announcing planned work in advance is the thing that stops the call it would otherwise generate. *(shipped v3.17.541)*
-- **State is derived from the clock**, not stored — a stored status would need a job to advance it and would be wrong in the gap between a window opening and that job running. `is_cancelled` is the one stored flag, because no amount of looking at the clock tells you a window was called off. A cancelled window stays on the page marked cancelled rather than vanishing, so anyone who read the original notice can see it is off. *(shipped v3.17.541)*
-- **Empty service selection means "everything"** and is stored as no rows rather than every row, so the set stays correct when a service is added later. Finished windows are capped at five on the public page — listing every maintenance since inception buries the one happening tonight. *(shipped v3.17.541)*
-
-### Sub-phase 40.4 — Incident history *(shipped v3.17.542)*
-- **`psa.Ticket.is_status_page`** — flags a ticket as one an operator intends to publish. The flag alone publishes nothing; it only makes the ticket appear in the incident picker. *(shipped v3.17.542)*
-- **`statuspage.StatusPageIncident`** — the published record, with a `title` written for the audience rather than the queue. The same indirection as `StatusPageService`, for the same reason: "Exchange transport stuck, DAG node 2 down again" is a fine ticket subject and a terrible thing to show a client's customers. The ticket link is optional and `SET_NULL`, so an incident can be posted before anyone opens a ticket and survives the ticket being deleted. *(shipped v3.17.542)*
-- **`statuspage.IncidentUpdate`** — the timeline, with an `investigating` / `identified` / `monitoring` / `resolved` stage. Deliberately **not** sourced from ticket comments: a non-internal comment is visible to the client in the portal, which is a different and much smaller audience than an anonymous status page, and treating the two as interchangeable would republish ticket chatter to the internet. Posting a `resolved` update resolves the incident, because doing it as a separate step is what everyone forgets. *(shipped v3.17.542)*
-- Ongoing incidents render above planned maintenance — something broken now outranks something planned. Resolved history is capped at ten. *(shipped v3.17.542)*
-
-### Sub-phase 40.5 — Per-client private pages *(shipped v3.17.543)*
-- **`StatusPage.visibility`** — `public` (anyone with the token link) or `portal` (signed-in client users only). Defaults to `public`, so every page created before this field keeps behaving exactly as it did. A portal page's token stops working anonymously, and the anonymous view returns the same 404 it gives for a wrong or disabled token — the response never distinguishes "wrong token" from "needs a login". *(shipped v3.17.543)*
-- **`/portal/status/`** — wrapped in the portal's own `portal_required`, so it inherits the portal's rules exactly: PSA on, an active membership in a portal-enabled org, and no special treatment for superusers. A page scoped to the user's own client wins over a broadcast one. *(shipped v3.17.543)* With no page published for the client, the portal shows a "no service status yet" page instead of a 404 *(v3.17.715)*.
-- **A public page is not silently reused in the portal.** The two have different audiences and an operator may deliberately publish less on the anonymous one, so a portal page must be marked as such rather than inferred. *(shipped v3.17.543)*
-
-✅ **Phase 40 complete at v3.17.543.** Shipped across five sub-phases (v3.17.538–543). The one correction worth carrying forward: the phase was written assuming uptime could be read from existing `WebsiteMonitor` history, and no such history existed — 40.1 built it, and uptime accrues from the v3.17.538 deploy rather than retroactively.
-
-Dependencies: `monitoring/` app (uptime data — built in 40.1), `psa.Ticket` (incident history with new `is_status_page` flag).
-
-**Goal:** Take the "is anything broken?" call volume out of the queue by giving clients somewhere to look first.
+<a id="phase-41"></a>
 
 ## Phase 41 — Compliance Frameworks & Recertification **(M)** [shipped — v3.17.444]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-MSPs increasingly need to attest to PCI-DSS or HIPAA on behalf of their clients. Phase 39 (Compliance Evidence Packs) handles the evidence collection side; this phase adds the *workflow* side: opt an org into one or more frameworks, walk through a checklist of real controls, attest per-control with notes + evidence, generate a customer-ready PDF, and drive recertification on a configurable cadence.
-
-Capabilities:
-- **Framework catalog** — `ComplianceFramework` model with `ComplianceCategory` + `ComplianceCheckItem`. *(shipped v3.17.436)* Pre-seeded with PCI-DSS v4.0 (12 categories, 38 check items, real control numbers like `1.2.1`, `8.4.2`, `11.3.2`) *(shipped v3.17.437 — `python manage.py seed_pci_dss`)* and HIPAA Security Rule (3 safeguard categories, 33 check items, real CFR refs like `164.308(a)(1)(ii)(A)`) *(shipped v3.17.438 — `python manage.py seed_hipaa`)*.
-- **Per-org enrollment** — `OrganizationCompliance`. One org can be enrolled in multiple frameworks. Tracks `recertification_interval_days` (30 / 60 / 90 / 180 / 365), `recertification_emails_enabled`, `notify_email`. *(shipped v3.17.439 — dashboard at `/compliance/organizations/<org_id>/` + Enroll button)*
-- **Per-control attestation UI** — checklist grouped by category, status dropdown (compliant / partial / non-compliant / N-A / unanswered), notes textarea, evidence URL. Color-coded by status. Every change audit-logged with `Status: <old> -> <new>`. *(shipped v3.17.440)*
-- **Customer-facing PDF report** — exec summary + KPI grid + per-category table with each control's status, notes, evidence link. Audit-logged on every download. *(shipped v3.17.441 — `/compliance/.../report.pdf` using Phase 19's `reports.pdf_export.render_pdf`)*
-- **Recertification reminder cron** — `python manage.py send_compliance_recertifications`. Idempotent + 7-day dedup. Resolves recipient via `notify_email` → first owner/admin Membership → `DEFAULT_FROM_EMAIL`. `--dry-run` for testing. *(shipped v3.17.442)*
-- **Toggle UI + Mark Recertified Now button** — settings card on the checklist page lets org admins flip email reminders, change interval (30/60/90/180/365 days), set notify_email override, and stamp `last_recertified_at = now()` after a quarterly review. *(shipped v3.17.443)*
-
-Dependencies: `accounts.Organization`, `audit.AuditLog`, `reports.pdf_export.render_pdf` (Phase 19).
-
-**Goal:** Give the MSP one place to track every client's compliance state and one button to produce the report when an auditor asks for it.
-
-**Operator setup:**
-1. `python manage.py seed_pci_dss && python manage.py seed_hipaa` — populate the catalog (idempotent, safe to re-run after upgrades).
-2. Add to crontab for daily recertification reminders:
-   ```
-   0 9 * * * cd /home/administrator && /home/administrator/venv/bin/python manage.py send_compliance_recertifications
-   ```
-3. For each client org needing compliance: `/compliance/organizations/<org_id>/` → click **Enroll** on the framework → walk the checklist.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 41](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-41).
 
 ---
+
+<a id="phase-42"></a>
 
 ## Phase 42 — First-class Docker / containerized deployment **(S · packaging)** [shipped — v3.17.490]
+<!-- phase: ws=I -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** I. Deployment, Updates & Reliability
 
-Self-hosted MSPs should be able to `git clone && docker compose up -d` and have a running install in under a minute — without the existing `bash install.sh` path going away.
-
-- Multi-stage `Dockerfile` (Python 3.12 slim + venv) running as non-root `clientst0r` (uid 1000) *(shipped v3.17.490)*
-- `docker-compose.yml` with `app` + `db` (MariaDB 10.11) as defaults; optional Nginx (`--profile proxy`) and Redis (`--profile cache`) services *(shipped v3.17.490)*
-- `docker-compose.dev.yml` override — source bind-mount + gunicorn `--reload` + SQLite default for fast iteration *(shipped v3.17.490)*
-- `docker-entrypoint.sh` — DB readiness wait, migrate, collectstatic, optional `DJANGO_SUPERUSER_*` bootstrap *(shipped v3.17.490)*
-- Dedicated `/health/` endpoint for HEALTHCHECK *(shipped v3.17.490)*
-- GitHub Actions workflow (`docker-image.yml`) — builds on PR, publishes `ghcr.io/agit8or1/clientst0r:latest` + semver tags on push to `main` / `v*` *(shipped v3.17.490)*
-- `Makefile` with `docker-up` / `docker-logs` / `docker-shell` / `backup` / `restore` targets *(shipped v3.17.490)*
-- `.env.example` covering every supported variable + `docs/docker.md` with backup, upgrade, profile, dev-mode, troubleshooting sections *(shipped v3.17.490)*
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 42](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-42).
 
 ---
+
+<a id="phase-43"></a>
 
 ## Phase 43 — Multi-Organization REST API Access **(S · integrations)** [shipped — v3.17.496]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-The public REST API (`/api/`) was single-tenant per request: an API key was bound to one organization and every endpoint filtered to that org alone. MSPs building a single-pane-of-glass need one connection that reads/writes across many client organizations. This phase broadens the API to multi-client without breaking any existing single-org integration.
-
-- **Per-key organization scope** — new `APIKey.scope` field (`single` / `descendants` / `all`), default `single` so every existing key is unchanged. `descendants` covers the home org + its sub-locations (Phase 18 hierarchy); `all` covers every organization the key's owner can access *(shipped v3.17.496)*
-- **`?organization=<id|slug|all>` request parameter** — narrow a multi-org key to one client, or fan out to all. Cross-org requests are refused with 403; a `single` key can never address another org *(shipped v3.17.496)*
-- **Organization surfaced on every resource** — `organization` + `organization_name` on assets, contacts, documents, and passwords so a consumer can group rows by client; writable on create to target a specific client *(shipped v3.17.496)*
-- **`/api/organizations/` returns the full accessible client set** for discovery before iterating *(shipped v3.17.496)*
-- **Scope-bounded by live permissions** — a key never grants access beyond what its owner currently has; password reveal / OTP audit rows are logged against the row's own organization for full multi-client traceability *(shipped v3.17.496)*
-- Contract documented in `docs/api-multi-org.md` *(shipped v3.17.496)*
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 43](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-43).
 
 ---
+
+<a id="phase-44"></a>
 
 ## Phase 44 — Full Two-Way Accounting Sync **(L)** [shipped — v3.17.531]
+<!-- phase: ws=B -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** B. Billing & Financial Management
 
-**Roadmap item:** requested in GitHub #145. Extends Phase 27, which delivered reconciliation *reporting* plus a one-directional invoice push. What ships today is the push half: OAuth with encrypted tokens and automatic refresh, invoice push with GL-account and tax capture, multi-book routing, and a full audit log of every provider call. What does not exist is a genuine pull.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 44](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-44).
 
-Delivered as four sub-phases, all released together in v3.17.531:
+---
 
-### Sub-phase 44.1 — Customer mapping as a first-class record *(shipped v3.17.531)*
-
-- New `integrations.AccountingCustomerLink`. The organization → provider-customer map had been a dict inside the connection's encrypted credentials blob: invisible to queries, absent from the admin, and destroyed by a credentials reset — which would silently orphan every mapping and make the next push create duplicate customers. Two unique constraints now hold the invariants: one client maps to at most one customer per connection, and one provider customer is claimed by at most one client, so a mapping cannot fork and two clients cannot quietly share a customer.
-- Data migration lifts existing mappings across, covering both QuickBooks Online's `customer_map` and Xero's `contact_map`. The blob copy is deliberately left in place so a rollback still works.
-- **Customer push now sends the whole record** — company name, billing address, email, phone, website, contact name — instead of the bare `DisplayName` that was all the previous code ever sent, leaving somebody to retype the rest provider-side. Updates carry QuickBooks' `SyncToken`, so an edit made in the accounting system since the last read surfaces as a conflict rather than being silently overwritten.
-- **Customer pull** links provider customers to organizations by name. It deliberately does *not* create organizations: inventing tenants from an accounting system is not a decision a sync job should make. Unmatched names are reported individually, since a count gives an operator nothing to act on.
-- Customer-mapping page per connection, showing what is linked, what is not, and a pull action.
-
-### Sub-phase 44.2 — Real invoice and payment pull *(shipped v3.17.531)*
-
-- **Provider payment records are read directly**, with the invoices each settles taken from `LinkedTxn`. The previous implementation never looked at a payment: it polled an invoice's balance and, on zero, synthesised a local payment for the whole outstanding amount dated today with method `other`.
-- **Partial payments work.** They were previously invisible — a non-zero balance was skipped outright — so `Invoice.status = 'partial'` was unreachable from the provider side despite being a documented status.
-- **Payments are idempotent**, keyed on the provider's own payment id via a new unique constraint on `psa.Payment`, so a re-run updates rather than double-counts.
-- **Voids reopen the invoice.** This needed a fix to `Invoice.recompute_totals()`, which was one-way: an invoice could reach Paid but never leave it, so a payment voided in the accounting system left it reading Paid with nothing against it.
-- **Invoice state reconciliation** catches an invoice voided provider-side. One deleted provider-side is flagged rather than voided locally — deleting revenue records on the strength of a single 404 is not a call a sync job gets to make.
-
-### Sub-phase 44.3 — Scheduling and on-demand sync *(shipped v3.17.531)*
-
-- New `accounting_sync` management command running customers, payments and invoice state in one pass. One stage failing does not abandon the others — a customer-pull outage should not also stop payments importing.
-- **`deploy/clientst0r-accounting-sync.{service,timer}`** — the timer the roadmap had claimed since v3.17.280 without one existing.
-- `accounting_sync` registered as a scheduler task type for installs running the in-app scheduler rather than systemd; both paths call the same command.
-- **Sync Now** on the accounting connections page, matching the RMM and PSA pages.
-- `AccountingConnection.last_sync_at` / `last_sync_status` / `last_error` are finally written. They had existed since the model was created and were never set, so the UI rendered "Never" no matter how often a sync ran.
-- `accounting_sync_payments` is superseded but still works for anyone who scripted it.
-
-### Sub-phase 44.4 — Retry, backoff and audit gaps *(shipped v3.17.531)*
-
-- Exponential backoff with jitter, `Retry-After` honoured on 429, and one forced token refresh on a 401 — an access token expiring mid-run no longer means a human re-authorising something the code can fix itself.
-- **Retry is method-aware, and this is the important part.** A 5xx or a timeout on a `POST /invoice` does not say whether the invoice was created, and the provider offers no idempotency key — so replaying it risks putting a second invoice in front of a client, the exact failure the v3.17.526 push guard exists to prevent. Writes therefore retry only on 429, where the request was provably rejected before processing. Reads retry everything transient, since replaying a GET costs nothing.
-- `poll_balance`, `push_customer`, `pull_customers`, `pull_payments` and `pull_invoices` registered in `AccountingAuditLog.ACTION_CHOICES`. `poll_balance` had been written since v3.17.280 without a label, so those rows rendered blank.
-
-Still deferred: products/services, tax codes and payment terms, as scoped below.
-
-Suggested MVP, matching the request: customers, invoices and payments, with the accounting system remaining the system of record for money and Client St0r remaining the operational platform. Products/services, tax codes and payment terms come later.
-
-Dependencies: Phase 27 (reconciliation reporting + audit log) and the existing `AccountingConnection` OAuth pattern. The PSA and RMM sync jobs are the closest in-repo model for scheduled bidirectional pulls — there is no existing two-way accounting sync to copy from; Xero is push-only in exactly the same shape as QBO.
-
-> **Correction (commercial operations audit, v3.17.687):** this phase covers QuickBooks Online and Xero
-> customer push and pull, invoice create and payment pull. Invoice updates, credit memos, refunds, tax-code
-> mapping, webhooks and payment posting are not implemented and are tracked in
-> Phase 71. See [docs/plans/COMMERCIAL_OPS_AUDIT.md](plans/COMMERCIAL_OPS_AUDIT.md).
+<a id="phase-45"></a>
 
 ## Phase 45 — System-wide Appearance Controls **(S)** [shipped — v3.17.527]
+<!-- phase: ws=I -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** I. Deployment, Updates & Reliability
 
-**Starting background (v3.17.551, softened in v3.17.552):** a new profile starts on the **Navy Space** preset (`UserProfile.background_mode='preset'`, `preset_background='abstract-12'`) and every control stays the user's to change. The system-wide `background_policy` remains `'user'`: enforcing a house style would grey out everybody's own background controls, which is a decision an admin should make deliberately rather than inherit from an install default. Should an admin switch the policy to colour, the preset it lands on is the same Navy Space, so the two layers agree. Existing profiles and installs are untouched — a Django field default applies only to a row that does not exist yet.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 45](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-45).
 
-**Roadmap item:** give administrators a say in how the app looks, without taking the choice away from users by default.
+---
 
-The page background was entirely per-user: each person picked a mode on their profile and that was that. An MSP wanting a consistent look across a team — or simply wanting to put their own image behind the app — had no way to set one.
-
-- **Background policy in General Settings** *(shipped v3.17.527)* — four modes: **user controlled** (the previous behaviour, and still the default so upgrades change nothing), **static image** (one uploaded image for everyone), **colour or pattern** (a solid hex colour or one of the twelve preset gradients), and **random images** (a different image each page load).
-- **Enforcement is honest about itself** *(shipped v3.17.527)* — when a policy is active the profile page keeps its background controls visible but disabled, under a banner naming the policy. Hiding them relocates the confusion rather than removing it. A user's own settings are preserved while a policy is in force and apply again if it is lifted.
-- **Preset table consolidated** *(shipped v3.17.527)* — the twelve abstract backgrounds had been defined twice, labels on the profile model and URLs in a context processor, with nothing keeping the two in step; a key present in one and missing from the other would have shown up only as a silently absent background. Now one table in `core/backgrounds.py` feeds all three consumers.
-
-Note the two background settings are unrelated: this one is the app page backdrop, while the GeoIP map backdrop (v3.17.522) styles the world map on the firewall and vault access-rule screens.
-
-Dependencies: `SystemSetting` singleton + the existing per-user profile background fields.
+<a id="phase-46"></a>
 
 ## Phase 46 — Job Kit: tools and materials on a ticket **(M)** [shipped — v3.17.533]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-**Roadmap item:** a tech should know what to load before leaving, without phoning the office.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 46](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-46).
 
-A scheduled job already links a ticket to a calendar entry (`Ticket.related_calendar_event` ↔ `ScheduledTask.psa_ticket`). What was missing was any record of *what the job needs*.
+---
 
-- **Tool catalogue** *(shipped v3.17.533)* — new `inventory.Tool`, deliberately separate from `InventoryItem`. A consumable is spent and its quantity drops; a tool goes out and comes back, and the question its record answers is "where is it", not "how many are left". Modelling both as stock would mean either lying about quantities or explaining why the cable tester's count never moves. Tracks code, category, home shelf or assigned van, condition, and a retire flag that keeps a tool off pick-lists without breaking history.
-- **Kit list on the ticket** *(shipped v3.17.533)* — one flat list covering tools, inventory items and free-text "other" lines, because that is how it is read: a tech looks at one list before leaving, not three. Attached to the ticket rather than the visit so it survives rescheduling and appears wherever the ticket does.
-- **Stock shortfall warning** *(shipped v3.17.533)* — a line asking for eight of something with three in stock is flagged. Sending a tech out for parts that are not there is the failure this list exists to prevent.
-- **Pack-off** *(shipped v3.17.533)* — each line ticks off while loading, recording who and when.
-- Lines keep their own copy of the item name: the foreign keys are `SET_NULL`, and a packing list that empties itself because somebody retired a tool is worse than a stale label.
-
-Dependencies: `inventory` app, `psa.Ticket`.
-
-## Phase 48 — Task warning windows **(S)** [shipped — v3.17.535]
-
-**Roadmap item:** a task should warn you before it is due, in a unit that suits it, on the screens you already watch.
-
-`ScheduledTask.alert_before_hours` and `check_scheduled_task_alerts` already existed and are unchanged. This closes the two gaps around them.
-
-- **Lead time in hours or days** *(shipped v3.17.535)* — the form takes a number plus a unit. Hours stay canonical so alerting is unaffected; the unit records how it was entered, so a 7-day lead reads back as "7 days" rather than "168 hours", including on the next occurrence of a recurring task.
-- **The warning is visible** *(shipped v3.17.535)* — a task inside its window is flagged on the calendar, the task list, the dashboard Schedule panel, the public wallboard and its own detail page. Alerting had been email/SMS only, so a task creeping up was invisible on the screens people actually watch.
-- Overdue suppresses the warning rather than stacking with it, and a lead of 0 means "do not warn" rather than "warn always".
-
-Dependencies: `scheduling.ScheduledTask`; surfaces through the Phase 47 wallboard and the v3.17.524 dashboard panel.
+<a id="phase-47"></a>
 
 ## Phase 47 — Public scheduler wallboard **(S)** [shipped — v3.17.533]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-**Roadmap item:** a schedule on the workshop wall. Extends the wallboard idea from Phase 3.6 (v3.17.146 / v3.17.211), which is authenticated and reporting-oriented.
-
-- **System-wide, not per-client** *(shipped v3.17.533)* — in this platform an Organization *is* a client, so a per-org board would show one client's jobs. A workshop screen needs the whole day across every client.
-- **Public URL, off by default** *(shipped v3.17.533)* — a wall-mounted screen has no keyboard and nobody wants to sign a display in each morning. That makes the URL the only control, so: the board ships disabled; a disabled or unknown token returns **404 rather than 403**, since a 403 would confirm a board exists at that address; the address carries a 43-character `secrets` token rather than an id, so boards cannot be enumerated; and the token can be rotated to kill a leaked link instantly.
-- **Disclosure is opt-in per field** *(shipped v3.17.533)* — client names, technician names and ticket numbers toggle separately. Client names are usually the most sensitive thing on a schedule, and the board stays useful without them.
-- Served `no-store` and `noindex`, and rendered standalone rather than through the authenticated base template.
-
-Dependencies: `scheduling.ScheduledTask`.
-
-## Phase 8 — Native mobile apps (iOS + Android) with GPS auto-time + Timeclock **(L · keystone)** [shipped — v3.17.417]
-
-Reverses the earlier "PWA only" deferral. The combination of GPS auto-documentation + employee timeclock makes this a force-multiplier for billable-hours capture, not just a UX improvement.
-
-Positioned last in the roadmap (v3.17.169) because it's the largest single undertaking and depends on a lot of other work being mature first — backend, scheduling, billing, and mobile app distribution all need to be in place before this phase pays off.
-
-### Sub-phase 8.1 — Backend foundation *(shipped v3.17.397–410)*
-- `TechnicianLocation` model — append-only GPS pings (lat/lon/accuracy/timestamp/source); retention policy + per-org enable flag. *(shipped v3.17.397)*
-- `TimeclockEntry` model — clock-in / clock-out events with tech, organization, location, optional ticket, optional project, source (`'mobile'` / `'web'` / `'manual'`); derives a `TimeEntry` row on clock-out so existing billing rolls up unchanged. *(shipped v3.17.409)*
-- `ClientSiteGeofence` model — per-client polygon or radius around their physical address(es). Used to auto-detect "tech is on site" for ticket time tracking. *(shipped v3.17.397)*
-- REST API additions: `/api/v2/mobile/locations/`, `/api/v2/mobile/timeclock/`, `/api/v2/mobile/active-ticket/`. *(shipped v3.17.410 — endpoints live at `/api/mobile/v1/locations/`, `/api/mobile/v1/timeclock/clock-in/` + `/clock-out/` + `/me/`, and `/api/mobile/v1/active-ticket/`. Off-shift GPS suppression honors `WorkingHours` per Sub-phase 8.5.)*
-- Token auth (long-lived per-device tokens stored in `MobileDevice` model with revoke-on-demand). *(API plan doc shipped v3.17.345; auth endpoints v3.17.346; dashboard + organizations v3.17.347; assets v3.17.348; tickets v3.17.349; KB endpoints — list / search / detail with raw markdown + rendered HTML — shipped v3.17.350; mobile-client login body field-name mismatch fixed v3.17.446 — was sending `email`, server reads `username`; dashboard endpoint shape aligned with `DashboardSummary` type — `recent_tickets` / `recent_assets` now arrays, `security` now an object — v3.17.448; vault list/detail/reveal endpoints with web-parity security — 30/hour throttle, per-credential approval gate, VaultAccessRule evaluation, audit logging — shipped v3.17.449. Mobile-side `monitoring/` and `security/` screens are slated for removal in a follow-up; their would-be endpoints were never built.)*
-
-### Sub-phase 8.2 — GPS auto-documentation engine *(shipped v3.17.412; mobile foreground GPS at clock-in v3.17.452)*
-- Background worker: every GPS ping with the tech "inside a client geofence" auto-starts a `TicketTimeEntry` against their currently-active ticket for that client (or creates a placeholder if no ticket open). *(shipped v3.17.412 — `python manage.py auto_document_field_visits`, cron every 1 min)*
-- On exit-geofence event: stop the time entry, write the duration, optionally prompt the tech to confirm + add notes via push notification. *(shipped v3.17.412)*
-- Selectable per-tech: **Always on** / **Ask first** / **Off**. Per-tech UserProfile flag. *(shipped v3.17.412 — `field_ops.AutoTimePreference`)*
-- Audit log every auto-time event so disputed billing can be traced. *(shipped v3.17.412)*
-
-### Sub-phase 8.3 — Timeclock feature *(shipped v3.17.413–414)*
-- Web UI: Timeclock dashboard at `/timeclock/` for staff to view who's clocked in, total hours per pay period, exception flags (long shifts, missing clock-out). *(shipped v3.17.413 — `/field-ops/timeclock/`)*
-- Mobile UI: prominent "Clock in / Clock out" button on the app home screen. Optional tie to the active ticket. *(shipped v3.17.414 — `mobile/app/timeclock/index.tsx` + dashboard widget)*
-- Selectable per-org and per-tech: required vs optional, with vs without GPS context, separate from per-ticket time tracking.
-- Payroll export — CSV per pay period, hooks for QuickBooks Time / Gusto / etc. (defer the integration; just structured export first). *(shipped v3.17.413)*
-
-### Sub-phase 8.4 — App build *(shipped v3.17.354–360)*
-- React Native (Expo SDK 51+ with EAS cloud build — revisits the earlier "no Expo accounts" rejection; required for store submission). *(read-heavy field-use slice complete: scaffold + auth v3.17.354; dashboard + orgs + assets v3.17.356; tickets + KB v3.17.357; vault + monitoring + security + settings v3.17.359; docs + EAS profiles + placeholder icons v3.17.360 — `mobile/` Expo TypeScript app. Phase 8 stays `[in progress]` because Sub-phase 8.2 (GPS auto-time) is still deferred. Local signed-AAB pipeline: targetSdk 35 v3.17.445; `expo-modules-core` Kotlin null-safety patch for `PackageInfo.requestedPermissions` (compileSdk 35 made it nullable) v3.17.446 — persisted via `patch-package`. Public `/privacy-policy/` route + Play Console Data Safety / store-listing prefill docs v3.17.447. Mobile cleanup pass v3.17.451 — removed `monitoring/` and `security/` screens (never had server endpoints), profile is now read-only sourced from `/auth/me/`, assets + vault lists grouped by organization with section headers. Asset detail full-info + Vault linkage + closed-tickets filter fix v3.17.476 — asset detail screen now renders the whole record across Identity / Hardware / Lifecycle / Notes / Metadata cards plus a "Stored secrets" section listing every Vault entry linked via `PasswordRelation`; the Mine and Critical ticket chips now also constrain to `status=open` so closed-but-critical / closed-but-mine tickets don't sneak through. Mobile ticket-flow + permissions follow-up v3.17.477 — new-ticket form now has a real searchable client picker (required), ticket detail surfaces an Assignee card with Claim / Reassign / Clear actions (Reassign gated on the new `tickets_assign` role-template flag), dashboard collapsed to a three-tile row of Critical / Open (New) / Open, and `GET /vehicles/` now returns the whole active fleet for any authenticated user since the service-vehicle pool isn't multi-tenant. Dashboard 7-day agenda strip v3.17.478 — new **Upcoming** card mixes ScheduledTask assignments and tickets (`resolution_due_at`) per day, with the same items folded into the full `/dispatch/calendar` month page; backend gains `GET /dispatch/upcoming/` and extends `/dispatch/calendar/` to emit both kinds with a `kind` discriminator. Vault edits + ticket billing + schedule-on-calendar v3.17.479 — mobile vault is no longer read-only (create/edit/rotate gated on `vault_create`/`vault_edit`), ticket detail surfaces a Billing rollup card with total/billable/non-billable minutes plus a contract progress bar for block-hours clients, and the calendar gains a "Schedule on this day" action that drops a new ScheduledTask onto the picked day. Backend gains POST/PATCH on `/vault/`, POST on `/dispatch/tasks/`, and `resolution_due_at` on the ticket PATCH so tickets can be scheduled too. Mobile asset editing + vault linking *(partial — backend shipped v3.17.480; app screens shipped v3.17.536)* — v3.17.480 added PATCH on `/assets/<id>/` and POST/DELETE on `/assets/<id>/vault-links/`, both rejecting cross-org link attempts, but the matching app screens were never written and this entry previously described them as shipped. v3.17.536 wrote them: asset detail gains an Edit form covering identity / hardware / OS / notes (gated on `assets_edit`), a "+ Link vault entry" picker scoped to the asset's organization, and an Unlink action per linked secret. Mobile public-beta release prep v3.17.481 — new `/beta-onboarding/` public page (Django view + template rendering `docs/BETA_ONBOARDING.md`), full Play Store walkthrough doc at `docs/PLAY_STORE_BETA.md`, updated listing + Data Safety drafts, mobile-side Sentry hook + Beta banner + permission allowlist (drops `RECORD_AUDIO` / `SYSTEM_ALERT_WINDOW` / legacy storage perms). Local AAB build blocked on an `expo-modules-core@1.12.26` Gradle publishing-config issue; three resolution paths documented. Mobile projects + config backups v3.17.558 — the field-relevant slice of Phases 34 and 35 reaches the app: a Projects tile (my work / open / all, task list with blocked-by reasons, tick tasks off, hours budget) and a Config Backups tile (network devices, snapshot history, read a stored config, and Capture-now which runs the *server-side* collector so the phone never holds a device credential). Money is deliberately absent from both — margin, revenue and billing stay on the web, and a test asserts none of it appears in the mobile payload. Mobile asset filters + the missing edit/link screens v3.17.536 — the Assets list "Type" box sent `asset_type` while the server read `type`, and its "Status" box was never implemented at all; both now work, with status and location read from `custom_fields` the same way the web asset list reads them. Asset detail additionally returns the full `custom_fields` map, `tags` and `created_by_name`, and finally gained the Edit form and vault link/unlink UI that v3.17.480's backend had been waiting on.)*
-- Auth: Azure SSO + email/password fallback; session-token cookie not used (mobile uses long-lived bearer).
-- Screens: Dashboard / My Tickets / Active Ticket / Clock In-Out / Map / Settings.
-- Background location: foreground-only by default, opt-in for background; iOS "Always" permission requested only for techs who enable Always-on auto-time.
-- Push notifications via FCM/APNS for ticket assignment, clock-in reminders, geofence exit prompts.
-
-### Sub-phase 8.5 — Privacy + safeguards *(shipped v3.17.411–416)*
-- **Off-shift suppression**: GPS pings outside the tech's `WorkingHours` (Phase 2) are dropped at the API layer — never stored. *(shipped v3.17.410 — 204 + audit-log `locations_dropped_offshift`)*
-- Per-tech UI to view + delete their own location history. *(shipped v3.17.415 — `/field-ops/my-location-history/`)*
-- Org-admin retention policy (default: 90 days). *(model + prune mgmt cmd shipped v3.17.411; org-admin UI shipped v3.17.416 — `/field-ops/settings/`)*
-- Geofence-only mode: store only "entered/exited geofence X at time T", never raw lat/lon. *(shipped v3.17.415 — `OrganizationFieldOpsSettings.geofence_only_mode` + `GeofenceVisit` model + locations endpoint integration)*
-- Audit trail of every location-history view + export. *(shipped v3.17.415–416 — every view, delete, geofence-only write, and settings change emits an `AuditLog` row)*
-
-**Dependencies:** Phase 2 (`WorkingHours` for off-shift suppression). Recommended before Phase 3 (so timeclock data flows into utilization reporting).
-
-**Sizing:** **L** — backend foundation 2 weeks, auto-time engine 2 weeks, timeclock UI 1-2 weeks, mobile app build 4-6 weeks, privacy hardening 1 week. ~10-13 weeks total. Sub-phase 8.1 is the first concrete deliverable and is a useful release on its own (web-only timeclock + GPS API endpoints) even before any mobile app ships.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 47](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-47).
 
 ---
+
+<a id="phase-48"></a>
+
+## Phase 48 — Task warning windows **(S)** [shipped — v3.17.535]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
+
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 48](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-48).
+
+---
+
+<a id="phase-49"></a>
 
 ## Phase 49 — Interface consistency and tenant-boundary hardening **(M · quality)** [complete]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-Two strands of work that aren't features but that everything else sits on: a
-single shared interface scale, and an audit of the places where a record is
-fetched by id without checking which tenant it belongs to.
-
-### Sub-phase 49.1 — Shared UI layer *(shipped v3.17.559)*
-- `static/css/ui.css` — one set of scale tokens (type, control height, row
-  height, spacing, radius) layered over the existing theme variables, loaded
-  last so it reads `--surface` / `--border-color` / `--text-primary` from
-  whichever of the twelve themes is active. No theme was replaced.
-- Removed the global shrink: `custom.css` had been setting `html` to 14.5px and
-  `body` to 0.92rem, which scaled the whole application down rather than sizing
-  its parts. Sizes are now stated once, in pixels.
-- Application header: the navigation needs ~1855px of content and the target
-  viewport is 1440px. Rather than let it wrap into stacked rows, a measured trim
-  window between 1400px and 1750px drops the clock, the nav-link icons and some
-  padding. Nothing is removed from the menu.
-- Page headers, filter bars, tables, badges, empty states and dashboard tiles
-  standardised against the tokens. Verified with no horizontal page overflow at
-  1440×900, 1920×1080, 1024×768 and 390px.
-- Ticket lists no longer infer urgency from a priority's code string. New
-  `psa_ui` template filters rank `TicketPriority` by its configured
-  `sort_order`, and derive a status's tone from `is_terminal` / `pauses_sla`.
-  Neither model carries a colour field, so nothing is read from one.
-
-### Sub-phase 49.2 — Tenant-boundary audit *(complete — first pass v3.17.559, closed out v3.17.581)*
-- `core/tenancy.py` — `accessible_org_ids(request)`, `scope_to_request()` and
-  `get_scoped_object_or_404()`. The last raises `Http404` rather than
-  `PermissionDenied` on purpose: a 403 confirms the record exists somewhere.
-- Fixed four views that reached across tenants by id: holiday list / edit /
-  delete in `resourcing`, and the AI workflow-suggestion list and decide views
-  in `psa`. `HolidayForm` now narrows its organization choices *and*
-  re-validates the submitted value, since a narrowed `<select>` is a UI
-  affordance and not a control.
-- Fixed the mobile clock-in endpoint, which built a `TimeclockEntry` straight
-  from four client-supplied foreign keys. This matters past the record itself:
-  `TimeclockEntry` carries `derived_time_entry`, so a clock-in can become a
-  billable time entry against whichever organization it names.
-- **Root cause, still open:** `user_has_perm()` returns True when a role
-  template sets a flag on *any* active membership. It answers "may this user do
-  this kind of thing", not "may they do it to this record". Views that call it
-  and then fetch by id are the shape to keep looking for.
-- Covered by `core/tests/test_cross_tenant_views.py` (11) and
-  `api_mobile/tests_timeclock_scoping.py` (4), alongside the existing
-  `core/tests/test_tenant_isolation.py` (10).
-- Backup and restore *(shipped v3.17.560)* — `manage.py backup` defaulted to an
-  unencrypted database dump in `/tmp` at 0755; encryption is now on by default,
-  the destination moved off `/tmp`, and both directory and archive are
-  permission-restricted. Backup and restore also handled the master key
-  differently from the vault, so an unpadded key worked throughout the
-  application and failed at restore; both now share
-  `vault.encryption.get_fernet()`, and existing archives still decrypt.
-- **Known and deferred:** RMM and integration credentials use the v1 encryption
-  layer (no AAD context binding, no version tag), while vault passwords use v2
-  (both). Re-encrypting live credentials is a migration and needs its own
-  release with a rollback path. No key rotation command exists.
-- Billing arithmetic *(tax shipped v3.17.561; credit-memo balances and late fees shipped v3.17.577–579, listed below; the remainder *(shipped v3.17.664)*: half-up rounding for invoice and quote line totals, the retainer amount, the prorated first period and late fees, where Decimal's banker's rounding put exact half cents a cent below the accounting providers; a second full credit memo for the same invoice is refused instead of crediting the same lines twice, while partial credits may still exceed the total as account credit; void invoices cannot be credited; credit amounts are rounded to cents; and credit-memo numbers retry on a collision like invoice numbers)* — `is_taxable` was
-  stored on every invoice and quote line and read by no tax calculation, so
-  invoices mixing taxable goods with non-taxable labour or reimbursed expenses
-  overcharged the customer, and partial credit memos were worth more than the
-  credit requested. Tax now accumulates over taxable lines only and rounds
-  half-up rather than banker's. Issued invoices are not restated; the new
-  read-only `manage.py psa_tax_audit` reports which are affected and by how
-  much, per client.
-- Update progress reporting *(shipped v3.17.562)* — the progress file was
-  written non-atomically and the reload that ends an update killed the writer
-  mid-write, leaving unparseable JSON that `get_progress` reported as `idle`.
-  The front-end could not distinguish that from "no update running" and sat on
-  the last step forever, while the update had in fact succeeded. Writes are now
-  atomic, logs bounded, and an unreadable file reports `unknown` so the page
-  says so and re-checks the running version.
-- SLA calculation *(shipped v3.17.563)* — the breach flags the SLA report and
-  KPI read were never written by any code, so both reported zero while the
-  ticket badge computed the truth live; and pausing the clock never moved the
-  deadline, despite the module docstring saying it did, so a ticket waiting on
-  a client breached through no fault of the technician. Breach state is now
-  persisted on save and on the five-minute tick, and pause time is accumulated
-  and credited back to both due-dates on resume.
-- Invoice duplicate prevention *(shipped v3.17.564)* — the recurring generator
-  relied on advancing a cursor after writing the invoice, with no transaction
-  around the pair, so an interrupted run re-billed the period next day and a
-  manual re-run duplicated outright. Now a unique constraint per contract and
-  period, an application guard that returns the existing invoice, and an atomic
-  cursor advance.
-- Background job failure handling *(shipped v3.17.565)* — `ScheduledTask` took
-  its run lock by writing `last_status='running'` and nothing in the codebase
-  ever cleared it except the same process on its way out. A reboot or an OOM
-  kill between those two writes left the row at `running` permanently and
-  `should_run()` returned False permanently after, so the task went off the
-  schedule silently with no recovery short of editing the database. A claim now
-  expires after six hours and is taken with a conditional UPDATE, which also
-  stops two overlapping scheduler runs from executing the same task twice.
-- Expiry notifications *(shipped v3.17.566)* — the SSL and domain expiry
-  scheduled tasks both ended at a `# TODO: Send email notifications`, so two
-  checks enabled by default reported a healthy green result daily while sending
-  nothing. Both now send, per organization. Three narrower faults went with it:
-  already-expired items were excluded from the query, per-item warning windows
-  and per-monitor opt-outs were ignored, and domain checking read only manually
-  entered rows. Re-notification is keyed on the expiry date, so a renewal
-  re-arms the warning. Also fixed the vault password expiry recipient query,
-  which named a reverse accessor no model defines and could only have raised
-  FieldError on its first real send. Shared plumbing now lives in
-  `core/mailer.py`.
-- PSA ticket notes *(shipped v3.17.567)* — the workflow completion note posted
-  to a linked PSA ticket decrypted the connection's credentials with the wrong
-  scheme, so every provider branch failed on its first line and no note had ever
-  reached a PSA. The caller discarded the result and logged "updated PSA ticket
-  X" regardless, so the audit trail asserted a note had landed every time. Note
-  posting now goes through the provider layer — which carries each vendor's
-  auth, retries and the base-URL validation the manager's own requests skipped —
-  Autotask and HaloPSA notes are implemented rather than stubs, and a failure is
-  recorded and shown to the tech instead of being swallowed.
-- Dashboard widget scoping *(shipped v3.17.568)* — every dashboard and
-  wallboard widget aggregated across every client and checked no permission
-  beyond `reports_view_dashboards`, which each role carries by default. A
-  read-only member of one client could open a shared board and read the MSP's
-  revenue and its other clients' names — data the report pages showing the same
-  numbers refuse them. Each data source now declares the permission it needs
-  and how it scopes; a viewer sees their own clients' figures, MSP staff still
-  see everything, and a source with no client to scope by is shown only to
-  someone entitled to every client.
-- AI gating + spend controls *(shipped v3.17.569)* — `AIAbuseControlMiddleware`
-  matched two hand-typed path prefixes, neither of which is a route this
-  project has, so it fell through on every request: no rate cap, no spend cap,
-  nothing recorded, on any AI endpoint. It also read an org attribute nothing
-  sets, and its spend keys were read but never written. Matching is now by
-  resolved URL name over every endpoint that reaches a provider. Separately,
-  six endpoints — the documentation assistant's four, asset AI documentation
-  and floor-plan generation — never consulted the `psa_ai_enabled` master
-  switch, so turning AI off left them generating and spending; all six now
-  read it through one shared gate.
-- Search scoping *(shipped v3.17.570)* — global search filtered a bare
-  `organization=org` on all six content types instead of going through
-  `for_organization()` like the list pages, so it ignored the Phase 18
-  organization hierarchy (a parent org got no hits for its subsidiaries' rows)
-  and returned nothing at all in global view (`organization=None` matches no
-  row). Both were under-returns, so neither was ever reported — a search
-  saying "no results" looks like the thing not existing. Results now also name
-  their owning org, since a result set can span organizations.
-- Organization hierarchy in detail views *(shipped v3.17.571)* — the list
-  pages include descendant orgs via `for_organization()`, which is what
-  `Organization.parent` documents, but the detail, edit and delete views they
-  link to looked rows up with a bare `organization=org`. A parent org's asset
-  list showed a subsidiary's server and the link 404'd; the same split ran
-  through passwords, contacts, inventory, scheduled tasks, documents and the
-  integration connections — 78 lookups in nine modules. All now go through a
-  new `core.tenancy.get_org_object_or_404` (current org + descendants, not the
-  wider membership rule PSA uses). Models whose lists are strict keep strict
-  detail scoping.
-- AI abuse middleware hotfix *(shipped v3.17.572)* — v3.17.569 made the
-  middleware match real endpoints for the first time, which activated a 401 it
-  had always carried but never executed. `api_mobile` resolves its
-  `Authorization: Token` header inside the view, so `request.user` is anonymous
-  at middleware level and every token-authenticated AI call — the mobile
-  receipt scanner among them — was refused before its view ran. The middleware
-  caps usage and no longer authenticates.
-- Export scoping + the data export itself *(shipped v3.17.573)* — all three
-  export serializers read fields their models do not have (`asset.location`,
-  `asset.status`, `doc.content`, `pwd.password_encrypted`), so Assets,
-  Documents, Passwords and All had only ever downloaded
-  `{"success": false}` at HTTP 200; only Contacts worked. The export also
-  ignored the organization selector, and offering passwords in the Hudu / IT
-  Glue formats produced a file with no passwords in it. The KB list, its
-  category/tag filters and `document_export_bulk` now include descendant orgs
-  like the detail pages do, so a departing parent company's archive stops
-  omitting its subsidiaries' documentation.
-- Vault export permission *(shipped v3.17.574)* — `vault_export` is on every
-  role template, is a checkbox in the role editor and appears in the role list,
-  and nothing checks it: there is no bulk password export in the product. It is
-  now labelled unimplemented in both places rather than advertising a
-  capability that does not exist. The export itself was deliberately not built
-  — decrypting every credential in an organization into a file needs
-  master-key handling, per-record audit and an approval path, which is a
-  feature to design rather than something to add while fixing adjacent bugs.
-- AI data access *(shipped v3.17.575)* — receipt scanning in the web UI built
-  its own Anthropic client from `ANTHROPIC_API_KEY` while the mobile app went
-  through the configured provider, so an install running Ollama for data
-  residency still sent every receipt image off-network. It now routes through
-  `LLMProvider.extract_receipt_fields` like the mobile scanner does. The PSA AI
-  context builder was already org-scoped and withholds internal notes; the
-  floor-plan generator followed in v3.17.576, and a test now parses every
-  module and fails if any AI feature builds its own provider client again.
-- Billing arithmetic — credit memos *(shipped v3.17.577)* — `get_psa_balance`
-  skipped every non-positive invoice balance, and a credit memo is an invoice
-  with negated lines, so credit memos reduced nothing. A $500 memo against a
-  $2,000 invoice left both the client account page and the aging report showing
-  $2,000 due. Credit memos and overpaid invoices now net off the balance, and
-  the aging report stops dropping clients whose only balance is a credit.
-- Billing arithmetic — late fees on credited invoices *(shipped v3.17.578)* —
-  a credit memo leaves the credited invoice's `amount_paid` and `status`
-  untouched, so the late-fee cron read the full balance and charged a
-  percentage of money the customer no longer owed; an invoice credited in full
-  still drew a fee on the whole original amount. Fees now use
-  `Invoice.net_balance_due`.
-- Late-fee audit command *(shipped v3.17.579)* — `psa_audit_late_fees`
-  reports fees already charged on amounts a credit memo had credited back,
-  reconstructing each fee's working from the description the cron recorded and
-  counting only credits that existed when the fee was raised. Read-only, like
-  `psa_tax_audit`; the correction stays a decision for the operator.
-- Navbar overflow + contract billing stamp *(shipped v3.17.580)* — ten
-  top-level menus plus the search box, org pill and user menu did not fit the
-  bar; Security, CRM and Reports became headed sections of one More menu, with
-  their feature flags intact and every destination tested to still render.
-  Separately, `Contract.generate_invoice()` now stamps its own
-  `last_billed_at` rather than relying on its single caller to do it.
-- Expired contracts kept billing *(shipped v3.17.581)* — the recurring-invoice
-  cron filtered on `status='active'` and never read `end_date`, and nothing
-  ever set a contract to `expired`, so a client who did not renew was invoiced
-  every month forever while `Contract.for_ticket` had already stopped covering
-  their tickets. The invoice cron now respects `end_date` and the lifecycle
-  cron expires ended contracts, so billing and coverage agree.
-**Decisions taken, so they read as choices rather than gaps:**
-
-- **The remaining hand-rolled `filter(organization=org)` sites stay strict.**
-  About 170 of them survive the v3.17.571 sweep, and they divide into two
-  groups. Some are correctly strict by nature — creating a row, checking slug
-  uniqueness within an organization, looking up a membership — and widening
-  them would be a bug, not a fix. The rest are per-organization *configuration*
-  rather than client records: tags, document categories, API keys, webhooks,
-  audit logs. Those have strict lists **and** strict detail views, so unlike
-  the 78 lookups fixed in v3.17.571 there is no broken link to repair. Whether
-  a parent organization should administer a subsidiary's API keys and webhooks
-  is a product decision rather than a defect, and the answer taken here is no:
-  seeing a subsidiary's assets is a roll-up, holding its credentials is not.
-- **Contracts ending mid-period bill the full period.** Proration applies to a
-  mid-period start only. This is left as-is deliberately: whether a customer
-  who cancels on the 10th owes the whole month is a commercial term, not an
-  arithmetic error, and the software should not decide it. v3.17.581 fixed the
-  part that *was* an error — billing continuing after the contract ended
-  entirely.
-
-- Bundled services lost on save *(shipped v3.17.584, issue #147)* — reported
-  by @roccordx, who traced it to the editor binding its submit handler with
-  `document.querySelector('form')`, which returns the document's first form —
-  the navbar search box, since `base.html` renders the navbar before the
-  content block. `bundle_items_json` posted empty every time. Worse than it
-  looked: the view deletes rows absent from the submitted JSON, so an empty
-  field deleted every existing bundle item on any save, including ones
-  `psa_auto_renew_contracts` had copied onto a renewal. The view now separates
-  a missing field from an empty list, and a test scans every template for the
-  pattern — which also turned up the same bug in `core/settings_ai.html`.
-- Utility controls back on the toolbar *(shipped v3.17.585)* — Beta app,
-  Install app and Support this project were behind an ellipsis dropdown
-  between the star and the search box; v3.17.580 freed the room, so they are
-  individual buttons again with accessible names, tooltips and focus styling.
-  Verified in a browser at seven widths: single row on the bar, labelled rows
-  in the drawer below 1400, and navbar height unchanged from baseline at every
-  width. Wrapping was tried and rejected by measurement — at 1536 it produced
-  one control per row and a 345px navbar.
-- **Sync status honesty** *(shipped v3.17.582)* — `PSASync` and `RMMSync`
-  wrote `last_sync_status = 'success'` however many records they had dropped,
-  and the incremental cursor only advances after a success, so silently
-  dropped records were never re-offered. A run with per-record errors now ends
-  `partial`, which both tells the operator what was lost and makes the next
-  run a full sync that retries it.
-
-- **Scheduler failure reporting** *(shipped v3.17.583)* — nine `run_*` methods
-  in `run_scheduler` caught their own exceptions and wrote them to stdout, so
-  the task was marked completed successfully and the Scheduled Tasks page
-  showed a green tick for a job that failed every night. The outer loop
-  already recorded failures correctly; the guards only hid the outcome.
-
-- **SSRF in property URL import** *(shipped v3.17.587)* — the location
-  "Import from URL" endpoint fetched whatever URL it was given, following
-  redirects, so a logged-in user could make the server request loopback,
-  private networks or the cloud metadata address. User-supplied URLs now go
-  through `core/safe_http.py`: public http(s) on 80/443 only, every resolved
-  address checked at connect time (so DNS rebinding cannot swap the target),
-  redirects re-checked hop by hop, and size and time caps on the response.
-  The endpoint also now requires write access, and its errors no longer echo
-  internal detail.
-- **SSRF guard for integrations and monitors** *(shipped v3.17.588)* — the
-  same connection-level guard now covers every PSA, RMM, accounting,
-  distributor and network-controller integration and the website monitor,
-  replacing a check-then-connect pattern that DNS rebinding could get past.
-  Network controllers may reach the LAN by default; everything else needs
-  `ALLOW_PRIVATE_IP_INTEGRATIONS`, and metadata endpoints are refused even
-  with it.
-- **Vehicle damage diagrams redrawn** *(shipped v3.17.589)* — all ten van
-  and pickup views redrawn as recognisable work vehicles at one consistent
-  scale, with every click area kept and the mirrored left/right on the
-  front and top views corrected.
-- **Vault permission scoping + trusted proxies** *(shipped v3.17.592, PR #148)*
-  — secret reveal/OTP/QR checks the credential's own organization, policy
-  failures refuse instead of releasing, and client addresses come only from
-  trusted proxies (`TRUSTED_PROXY_CIDRS`; unix-socket nginx treated as
-  local), closing an `X-Forwarded-For` spoof past the firewall and vault IP
-  rules.
-
-**Remaining:** nothing named. Both the sync paths and the scheduler have now
-had a pass, and the recurring finding — code reporting success while doing
-nothing — is recorded above.
-
-**Sizing:** **M** — both sub-phases complete. 49.1 delivered the shared UI
-layer; 49.2 worked through covered views, backup/restore, invoice tax, update
-progress, SLA, invoice duplication, background job failure handling, expiry
-notifications, PSA ticket notes, dashboard widget scoping, AI gating and spend
-controls, search scoping, the organization hierarchy in detail views, the
-abuse-middleware hotfix, the data export, the vault-export permission, AI data
-access, credit memos, late fees, the navbar, and expired contracts.
-
-The recurring finding across 49.2 is worth recording: most of what it caught
-was code that reported success while doing nothing. Notes that never posted
-but were logged as posted, an export that served its own error message as the
-downloaded file with HTTP 200, spend caps guarding no endpoint, a search
-returning empty rather than scoped, a permission gating nothing, and credits
-that credited nothing. None of that produces a support ticket, which is why it
-survived so long — and it is the argument for auditing quiet paths rather than
-waiting for reports.
-
-## Phase 50 — "Help Us Grow" call to action **(S · growth)** [shipped — v3.17.586]
-
-The project has always had a Support modal behind a heart in the navbar. It
-offered three links and asked for a GitHub star. The thing most likely to
-actually help — one person telling another person about it — was the one thing
-it did not make easy.
-
-Phase 50 rebuilds that heart into a share-first call to action, and moves every
-destination it points at into one configuration file so the same partial can be
-reused across our other apps.
-
-- **A visible entry point** *(shipped v3.17.586)* — the navbar heart is now a
-  labelled pill, "Help Us Grow", with a two-beat pulse and a red glow. The beat
-  lasts under a second in a four-and-a-half-second cycle, and
-  `prefers-reduced-motion` turns the movement off while keeping the glow and
-  the colour. It opens the modal on click and never by itself.
-- **Sharing first** *(shipped v3.17.586)* — the first card in the modal, above
-  the fold on a laptop, offers the native share sheet where the browser has one
-  (`navigator.share`), a copyable link, a copyable ready-to-post message shown
-  in an editable field so it can be read before it is sent, and LinkedIn,
-  Facebook, X and email as fallbacks. Every one of them opens a draft the user
-  sends themselves; nothing is posted on anyone's behalf.
-- **The rest of what we build** *(shipped v3.17.586)* — MSP Reboot and MSPZero
-  each get a Visit action and a separate Share and Copy link action, plus a
-  ready-to-copy message for the network as a whole. Only this project is
-  described as open source, because only this project's licence is ours to
-  state.
-- **GitHub, sponsorship and the business** *(shipped v3.17.586)* — a star
-  button, the GitHub profile, the existing verified GitHub Sponsors link, and
-  MSP Reboot with its Facebook page. The sponsorship card omits itself when no
-  destination is configured rather than rendering an empty ask.
-- **One place for the destinations** *(shipped v3.17.586)* —
-  `config/support_links.py` holds the project, the network, GitHub, the sponsor
-  link and the business, overridable per install through a `SUPPORT_LINKS`
-  setting. The templates carry no URLs; a test fails if one appears in them.
-  What gets shared is the public project URL, never the address of the running
-  install.
-
-**Open configuration:** `PROJECT.public_url` is currently the public
-repository, because there is no ClientSt0r product site — see
-`docs/github-about.md`. If one is stood up, that one value is the only edit
-needed.
-
-**Sizing:** **S** — one config module, two template partials, one stylesheet
-section, one script, 45 tests. No migrations, no new dependencies, no new
-views or URLs.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 49](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-49).
 
 ---
-## What's explicitly NOT in this plan
 
-- Multi-currency beyond per-record `currency` field
-- Multi-language support beyond Django i18n hooks
-- ~~Native mobile apps (PWA only — per memory)~~ → **moved into Phase 8**
-- Marketplace/app store
-- White-label tenant branding beyond per-org logo
+<a id="phase-50"></a>
+
+## Phase 50 — "Help Us Grow" call to action **(S · growth)** [shipped — v3.17.586]
+<!-- phase: ws=I -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** I. Deployment, Updates & Reliability
+
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 50](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-50).
+
+---
+
+<a id="phase-51"></a>
 
 ## Phase 51 — Reliability and customer-boundary hardening **(M · quality)** [in progress]
+<!-- phase: ws=F stage=1 view=now order=2 deps="—" next="Ship 51.20–51.23 (in development)" -->
+**Status:** 🔵 In progress · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
+**Next:** Ship 51.20–51.23 (in development)
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 A code audit in October 2026 found work that the product described as finished
 but that did not hold up in use: periodic jobs that nothing ran, edit forms that
@@ -2057,7 +1471,19 @@ are built on top of them.
 - **51.23 Workflow rule visibility by customer scope** *(planned)* — technicians restricted to some customers
   see and edit only those customers' rules; rule editing checks the roles registry (64.8).
 
+</details>
+
+---
+
+<a id="phase-52"></a>
+
 ## Phase 52 — Technician workspace **(L · P1)** [in progress]
+<!-- phase: ws=A stage=1 view=now order=3 deps=51 next="52.20 drop files on the composer (in development); then 52.21–52.24" -->
+**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 51  
+**Next:** 52.20 drop files on the composer (in development); then 52.21–52.24
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Day-to-day ticket work in fewer steps, without losing work or replying over
 someone else.
@@ -2160,161 +1586,49 @@ someone else.
 - **52.24 Customer follow-up and confirm-or-close** *(planned)* — automatic follow-up when a ticket waits on the
   customer, closing after a configurable silence with a recorded reason.
 
-## Phase 53 — Documentation readiness and lifecycle **(L)** [shipped — v3.17.656]
-
-Know what's missing, why it matters and who owns the fix.
-
-- **Readiness standards, scoring, repair queue and exceptions**
-  *(shipped v3.17.605)*.
-- **Broken-relationship report and cleanup** *(shipped v3.17.605)*.
-- **Enforced publish rules, owner and review fields, version
-  view/diff/restore, archive** *(shipped v3.17.605)*.
-- **Template version tracking and drift view** *(shipped v3.17.605)*.
-- **KB analytics** *(shipped v3.17.605)*.
-- **"Create it" links prefill the new record** *(shipped v3.17.656)* — fix
-  links open the document, contact, vault and relationship forms filled in
-  (title, category, tags, role, the asset to link; only the customer's own
-  categories and tags) and switch to the customer the gap belongs to first;
-  a form opened for one customer never saves into another.
-- **Custom asset fields and types** *(shipped v3.17.621)* — MSP-defined custom
-  fields (per asset type, required, eight field types) on the asset form and
-  the Custom Fields tab; custom asset types alongside the built-in list; REST
-  API `custom_fields` and `asset_type_display`; equipment catalog relabelled
-  and its changes limited to MSP staff.
-- **Per-asset-type custom fields as readiness requirements**
-  *(shipped v3.17.656)* — extends custom asset fields (shipped v3.17.621): an
-  asset-fields requirement can name custom fields, checked on the asset types
-  they apply to, with the empty ones listed and fixed from the asset's Custom
-  Fields section.
-- **Version-specific agreements: MSAs, SOWs and policy acknowledgments**
-  *(shipped v3.17.664)* — extends the document approval
-  workflow (shipped v3.17.605) and the customer signing pattern of quote
-  e-signature: a signature or acknowledgment binds to one issued revision
-  (content hash, version number, HTML snapshot and PDF), signer identity,
-  time, IP address and browser. Edits to the live document issue a new
-  revision that needs a new signature; earlier revisions and their
-  hash-verifiable evidence stay downloadable. Portal users sign only for their
-  own customer; staff see who signed which version and who is outstanding.
-  Uploaded-file documents can be agreements: each revision binds to the
-  file's SHA-256 and keeps a copy of the exact file, which is in the evidence
-  ZIP. Signer-role limits choose who may sign for the customer (any portal
-  user, the customer's org admins, or named people). Reminder e-mails go to
-  outstanding signers when a new revision needs signing or acknowledging —
-  hourly scheduler task **Agreement Signature Reminders**, at most once per
-  the agreement's interval and five times per revision, skipping people who
-  turned off e-mail notifications. Revisions are issued on save, publish or
-  reopen and by that scheduler task, never by a page view. Per-agreement
-  unsubscribe link in reminders (signed, no sign-in, RFC 8058 one-click) and
-  a first sentence that says "a new version" only to someone who signed an
-  earlier one *(shipped v3.17.664)*.
-
-## Phase 54 — Guided customer service requests **(L)** [shipped — v3.17.669]
-
-Collect what technicians need up front and show customers where things stand.
-
-- **Guided, conditional request forms from the service catalog**
-  *(shipped v3.17.606)*.
-- **Customer approvals, process start and routing on submit**
-  *(shipped v3.17.606)*.
-- **KB suggestions before submitting, plain-language progress**
-  *(shipped v3.17.606)*.
-- **Per-customer catalog availability, PSA opt-out, customer switcher**
-  *(shipped v3.17.606)*.
-- **Named approvers per request type** *(shipped v3.17.656)* — per customer,
-  staff name the people who approve a request type; any one of them approves.
-  Without names, or when the requester is the only one named, the customer's
-  admins approve as before. Approvers are e-mailed and shown on the portal
-  approvals list.
-- **54.7 Request types with dynamic forms** *(shipped v3.17.669)* — the portal's New Ticket opens a "What do you
-  need help with?" picker, with general support always available.
-  - Form builder: drag-and-drop or move up/down, preview, and draft / publish /
-    archive with numbered form versions. Question types include text, choices,
-    date and time with time zone, files, contacts, locations and assets.
-    Show-if and required-if conditions; circular conditions are refused.
-  - Per-customer copies, an org-admins-only audience, and starter templates
-    (new employee, new phone, offboard, general support and more).
-  - Tickets keep structured answers, the form version and a snapshot of the
-    form. Subject patterns, a request-type filter and report, and audited
-    staff corrections.
-  - Routing rules can match request answers; the builder has a routing
-    preview. Pending approvals are not treated as approved work.
+</details>
 
 ---
 
+<a id="phase-53"></a>
+
+## Phase 53 — Documentation readiness and lifecycle **(L)** [shipped — v3.17.656]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
+
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 53](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-53).
+
+---
+
+<a id="phase-54"></a>
+
+## Phase 54 — Guided customer service requests **(L)** [shipped — v3.17.669]
+<!-- phase: ws=G -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** G. Customer Portal & Communications
+
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 54](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-54).
+
+---
+
+<a id="phase-55"></a>
+
 ## Phase 55 — Hardware catalog and visual inventory **(L)** [shipped — v3.17.630]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-Document a client's physical network the way a technician sees it: pick the
-model, see its front and rear panel, click a port, and record what it does and
-where its cable goes. Extends assets (`Asset`), racks (`monitoring.Rack`,
-`RackDevice`) and VLANs (`monitoring.VLAN`) rather than adding a second
-inventory. Documentation only — nothing is pushed to devices.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 55](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-55).
 
-- **55.1 Shared hardware catalog** — manufacturers, device / module / rack
-  models with component templates and front→rear port mappings, kept apart
-  from client inventory. Imported from the community devicetype-library (CC0)
-  at a pinned revision by `manage.py import_hardware_catalog`: preview mode,
-  per-file records, resumable batches, idempotent re-runs, upstream id / path /
-  revision / licence kept on every model, fields without a column preserved and
-  listed, local edits never overwritten without `--overwrite-local`. Coverage
-  report and import history in the app. *(shipped v3.17.630)*
-- **55.2 Generated device artwork** — SVG front/rear (and AP top/bottom) views
-  drawn from layout geometry in millimetres; connector drawings for RJ45,
-  SFP/QSFP-family cages, LC/SC/ST/MPO fibre, DE-9, USB, IEC/NEMA power and
-  more; each clickable connector is the stable component key, and its hit
-  target is the drawn rectangle. Separate accuracy states — verified,
-  approximate, generic — and separate specification and layout provenance.
-  Artwork cached per model / layout version; no per-client rendering.
-  *(shipped v3.17.630)*
-- **55.3 Layout editor and model requests** — place and number ports, arrange
-  rows and blocks, move components between faces, preview, save as a new
-  version; add missing models from documentation or from generic templates;
-  technicians request models the catalog lacks. *(shipped v3.17.630)*
-- **55.4 Client devices, ports and modules** — devices built from a model with
-  versioned templates (preview before applying a catalog change; port ids and
-  cables survive renames); configurable modules in bays; port editor with
-  documented mode, native/tagged/voice VLANs, LAG, PoE settings and labels, kept
-  separate from observed state; multi-select bulk edits and patch-panel
-  assignment; client- and site-scoped VLAN groups; cloning without serials or
-  cables. *(shipped v3.17.630)*
-- **55.5 Cables and tracing** — cables with both ends, labels, type, colour and
-  length; occupancy, client, connector and combo/breakout checks; full physical
-  path tracing through patch panels and wall jacks in both directions, with
-  loops detected and gaps named. *(shipped v3.17.630)*
-- **55.6 Racks, diagrams and labels** — front/rear rack elevations from catalog
-  artwork with depth-aware placement; connectivity and VLAN diagrams drawn only
-  from documented records with undocumented continuations marked, saved
-  positions, SVG/PNG/PDF export; label templates in millimetres for devices,
-  racks, ports, patch strips, wall jacks and cables, with calibration page and
-  QR codes that open the record for authorized users only. *(shipped v3.17.630)*
-- **55.7 Search, CSV and API** — search by model, hostname, serial, asset tag,
-  IP, cable ID and port text; validated CSV import with preview and CSV export;
-  read-only REST endpoints. *(shipped v3.17.630)*
-- **55.8 Documentation and demo media** — feature list, guide and seeding
-  notes; ten light/dark screenshots of the hardware screens, taken from the
-  isolated demo instance, which now loads the catalog and the Client XYZ demo.
-  Fixes found while capturing them: VLAN-diagram thumbnails, the sub-nav in the
-  light theme, laptops and desktops inferred as access points.
-  *(shipped v3.17.632)* Port editor, patch panel, port-mapping, access-point,
-  cable-register and asset-artwork views added. The panel mapping page now
-  names the right ends and has an in-use filter *(shipped v3.17.633)*
-  The README walkthrough now includes the hardware screens *(shipped v3.17.636;
-  release MP4s replaced v3.17.637)*
-  A GitHub social preview image built from the same screenshots *(shipped v3.17.638)*
-  The repository description and topics name the hardware inventory *(v3.17.639)*
-- **55.9 Catalog artwork in every rack view** — the monitoring rack, cabinet /
-  closet elevation and free-position board draw each device from the same
-  artwork as its asset and device pages, as one chassis across its U span, with
-  front/rear faces and half-depth rules, names beside the rack and a plain face
-  (saved name only, no invented ports) where no model is recorded. Devices open
-  a detail panel by mouse or keyboard with a link to the device and its ports.
-  *(shipped v3.17.641)*
-- **Asset pictures** *(shipped v3.17.659)* — an uploaded photo (resized,
-  location and camera data removed, visible only to people who can see the
-  asset) or catalog artwork picked for the asset; documented devices show
-  their model's artwork automatically and everything else a stock drawing for
-  its type, in the asset header and as list thumbnails.
+---
+
+<a id="phase-56"></a>
 
 ## Phase 56 — Ticket AI Assist and RMM handoff **(L · OPTIONAL AI)** [in progress]
+<!-- phase: ws=D view=later deps="57; Rem0te ticket-rmm-v1" next="Remaining Rem0te-side items move with 63.11–63.16" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 57; Rem0te ticket-rmm-v1  
+**Next:** Remaining Rem0te-side items move with 63.11–63.16
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 **OPTIONAL AI** — gated by `psa_ai_enabled`, the customer's PSA switch, a customer
 AI policy, an enabled model profile and technician access (Phase 57). ClientSt0r
@@ -2392,7 +1706,19 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 **Sizing:** **L** — 56.1–56.4 shipped; ClientSt0r side of 56.5–56.6 shipped
 v3.17.658; the RMM side waits on rem0te.
 
+</details>
+
+---
+
+<a id="phase-57"></a>
+
 ## Phase 57 — Technician security levels and abuse prevention **(L · security)** [in progress]
+<!-- phase: ws=F state=verify view=later deps="—" next="Confirm remaining items against 64 roles" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** F. Security & Administration · **Depends on:** —  
+**Next:** Confirm remaining items against 64 roles
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **57.1 Presets and assignments** — L1 Help Desk / L2 Technician / L3 Senior
   presets seeded idempotently; clone and customise; assign per technician or
@@ -2444,30 +1770,30 @@ v3.17.658; the RMM side waits on rem0te.
 
 **Sizing:** **L** — 57.1–57.5 and 57.7 shipped; 57.6 partial with Phase 56.5.
 
-## Phase 58 — Condensed navigation **(M · UX)** [shipped — v3.17.647]
+</details>
 
-- **58.1 Section landing pages** *(shipped v3.17.647)* — each top-level menu
-  lists its sections' main pages only; the pages that used to sit beside them
-  become a row of tabs above the content (`core/navigation.py`). URLs are
-  unchanged. Item-by-item map with audiences in `docs/navigation-map.md`.
-- **58.2 Client switcher for large client lists** *(shipped v3.17.647)* —
-  current context in the pill; up to ten clients listed inline, otherwise
-  recents plus a search limited to the clients the user may open; "View all
-  clients" when the list page would show any. Recents never grant access.
-- **58.3 Grouped Settings sidebar** *(shipped v3.17.647)* — System, Security,
-  Organizations & Access, Integrations and Mobile, each collapsible, with only
-  the pages the viewer may open (`core/settings_groups.py`).
-- **58.4 Shortcut strip** *(shipped v3.17.647)* — up to three pinned pages for
-  MSP technicians, re-checked against permissions and modules on every request;
-  separate from record Favorites. Customer users get no strip.
-- **58.5 Ticket page** *(shipped v3.17.647)* — Analyze / Compare sit in the
-  Conversation header beside the thread; remote connect stays on the asset
-  card next to the device it opens.
-- **58.6 Update badge** *(shipped v3.17.649)* — superusers see when a newer
-  release is out, from the scheduled update check, linking to Settings →
-  Updates; it disappears once that version is running.
+---
+
+<a id="phase-58"></a>
+
+## Phase 58 — Condensed navigation **(M · UX)** [shipped — v3.17.647]
+<!-- phase: ws=I -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** I. Deployment, Updates & Reliability
+
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 58](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-58).
+
+---
+
+<a id="phase-59"></a>
 
 ## Phase 59 — Verified installs and upgrades **(M · reliability)** [in progress]
+<!-- phase: ws=I stage=7 view=later deps="updater, root helper" next="59.7 LTS channel" blocker="LTS channel needs a published support policy" unblock="Owner publishes a support policy" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** updater, root helper  
+**Next:** 59.7 LTS channel  
+**Blocked:** LTS channel needs a published support policy — *unblocks when:* Owner publishes a support policy
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 An upgrade installs exactly the revision the administrator reviewed. It
 doesn't migrate without a backup that has been proven to restore, and an
@@ -2519,86 +1845,39 @@ Guide: `docs/UPGRADE_AND_RECOVERY.md`.
   LTS.
 - **Security update label for critical fixes only** *(shipped v3.17.726)* — the update badge turns red only for a release explicitly marked as a critical security fix; routine hardening shows as an ordinary update.
 
+</details>
+
+---
+
+<a id="phase-60"></a>
 
 ## Phase 60 — Optional ticket routing **(M · PSA)** [shipped — v3.17.664]
+<!-- phase: ws=A -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** A. Core PSA & Ticketing
 
-Routing that assigns new and changed tickets by rule, off unless an
-administrator turns it on. Extends the workflow engine's round-robin,
-skill-match and load-balanced actions (shipped v3.17.287), email routing
-rules and service-catalog defaults. Works with AI disabled, never starts a
-remote session or authorizes an endpoint action, and never changes a
-ticket's customer, access or SLA clock.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 60](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-60).
 
-- **60.1 Modes and inheritance** *(shipped v3.17.664)*: Off / Suggest only / Automatic in
-  Settings → PSA, an MSP-wide default and per-customer inherit or override.
-  Off on fresh installs and upgrades; email intake, catalog defaults, manual
-  assignment and existing workflow rules behave as before while it is off.
-- **60.2 Visual rules** *(shipped v3.17.664)*: conditions on customer, intake source, ticket
-  type, priority, tags, service or contract, business hours and on-call,
-  and SLA risk; destinations queue, named technician, team, round-robin,
-  skill match, least-loaded or on-call; a fallback queue or visible triage.
-  A plain-language review before saving, versioned rules, conflict and
-  shadowing warnings before activation, and how each rule interacts with
-  email rules, catalog defaults and workflow rules.
-- **60.3 Safe routing** *(shipped v3.17.664)*: the customer is verified at intake; only
-  active MSP technicians authorized for that customer qualify, with skills,
-  on-call and availability honoured and every skipped candidate recorded;
-  one decision per ticket and trigger (duplicate email, simultaneous
-  arrivals); a dispatcher's manual assignment is kept by default;
-  rerouting on customer reply, reopen or SLA threshold is configured
-  individually; publishing a rule never reassigns existing tickets.
-- **60.4 Test routing, suggestions and history** *(shipped v3.17.664)*: Test routing on a
-  sample or historical ticket changes nothing and sends nothing; Suggest
-  only waits for a dispatcher to accept; Automatic records rule version,
-  trigger, previous and new assignment and reason in staff-only ticket
-  history. Separate role permissions to manage rules, test, and override.
-- **60.5 Visual builder actions** *(shipped v3.17.664)*: the workflow rule builder offers
-  round-robin, skill-group and least-loaded assignment; raw JSON rules keep
-  working.
-- **60.6 Site conditions** *(shipped v3.17.664)*: tickets carry an optional site (one of the customer's
-  own or shared locations), filled at intake from the asset's site, the requester
-  contact's or portal user's default site, or the customer's only site, and editable
-  on the ticket (optionally remembered as the requester's default). The portal
-  new-ticket form has a site picker (the customer's own active sites, preselecting
-  the user's default) and staff set contacts' and portal users' default sites on
-  one page. Routing rules and
-  the visual builder match on specific sites or on "has a site / has none"; a site from
-  another customer is a review error. Routing still never changes the customer, access,
-  SLA or the site.
+---
+
+<a id="phase-61"></a>
 
 ## Phase 61 — One-customer migration rehearsals (IT Glue, Hudu) **(M · imports)** [shipped — v3.17.664]
+<!-- phase: ws=C -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** C. Asset Management & Documentation
 
-Extends the IT Glue and Hudu importers with a rehearsal for one customer at
-a time.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 61](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-61).
 
-- **61.1 More of the source** *(shipped v3.17.664)*: contacts, locations, networks (IT Glue
-  network flexible assets; Hudu networks and IP addresses), attachments, and
-  relationships between them where the source provides them.
-- **61.2 Plan before writing** *(shipped v3.17.664)*: per type, what will be created,
-  updated, left unchanged, skipped as a duplicate or conflict, or can't be
-  read, broken links, and why anything is skipped; representative records
-  shown source vs proposed vs current, with corrections stored on the plan.
-- **61.3 Apply exactly what was reviewed** *(shipped v3.17.664)*: the plan and staged data are
-  frozen and hashed; apply refuses if either changed and never re-reads the
-  source; reruns are idempotent and an interrupted apply resumes; every
-  lookup is scoped by customer, source account and source ID. Runs in the
-  background on the scheduler.
-- **61.4 Rollback that keeps later edits** *(shipped v3.17.664)*: only records still exactly
-  as imported are removed or restored; everything kept is reported with the
-  reason.
-- **61.5 Reconciliation and inventory export** *(shipped v3.17.664)*: a redacted
-  reconciliation report (JSON/CSV) with source vs destination counts per
-  customer, and a permission-checked per-customer inventory export
-  (metadata only, audit-logged).
-- **61.6 Remaining source types** *(shipped v3.17.664)*: Hudu procedures, IT Glue
-  domains and non-network flexible assets. Procedures become runbooks with one
-  stage per task (or documents, or skipped, per the plan's type mapping);
-  domains become disabled website monitors carrying registrar and expiry;
-  non-network flexible asset types stay skipped until the operator maps them
-  to documents or to assets with custom fields. All through the same plan,
-  review, apply, rollback and report.
+---
+
+<a id="phase-62"></a>
 
 ## Phase 62 — Pluggable document editors **(L · documents)** [in progress]
+<!-- phase: ws=C view=later deps=documents next="62.5 Google Docs connector; 62.6 portal editing permissions" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** C. Asset Management & Documentation · **Depends on:** documents  
+**Next:** 62.5 Google Docs connector; 62.6 portal editing permissions
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 View, edit and create Word, Excel and PowerPoint files attached to
 documentation, tickets and assets, through an editor the MSP chooses: on the
@@ -2741,7 +2020,21 @@ Microsoft 365 and Google Docs 1–2 weeks each.
   rule that lets the editor's own user reach only clientst0r over HTTPS. Start, stop, update,
   roll back, uninstall, logs, setup checks, layouts and engine switching work for both
   runtimes. ONLYOFFICE keeps running in Docker.
+
+</details>
+
+---
+
+<a id="phase-63"></a>
+
 ## Phase 63 — RMM integration and technician workspace **(XL · P0 · RMM)** [in progress]
+<!-- phase: ws=D stage=1 view=next order=4 deps="52, 56, 57; Rem0te contract" next="63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item" blocker="63.11–63.16 need Rem0te contract items (P2/P3, R13, P10, P6, R7/P5, P7, R2)" unblock="Rem0te ships the items; two-application tests pass" -->
+**Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 52, 56, 57; Rem0te contract  
+**Next:** 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item  
+**Blocked:** 63.11–63.16 need Rem0te contract items (P2/P3, R13, P10, P6, R7/P5, P7, R2) — *unblocks when:* Rem0te ships the items; two-application tests pass
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 One place for a technician to see a customer's devices, alerts and tickets,
 act on them within their permission level, and leave a record of what was
@@ -2821,7 +2114,19 @@ result → verified recovery → ticket update runs in the cross-peer suite with
 permissions; interoperability with Rem0te is claimed only for what both
 applications have passed end to end.
 
+</details>
+
+---
+
+<a id="phase-64"></a>
+
 ## Phase 64 — Roles, permission groups and access settings **(L · security)** [in progress]
+<!-- phase: ws=F stage=1 view=later deps="57, 63" next="64.8 remaining enforcement call sites" -->
+**Status:** 🔵 In progress · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** 57, 63  
+**Next:** 64.8 remaining enforcement call sites
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 One permission model for MSP staff and customer users: every permission
 named and described in one registry, built-in roles for the usual jobs,
@@ -2876,7 +2181,20 @@ See [ROLES_AND_ACCESS.md](ROLES_AND_ACCESS.md) for the role matrix.
 **Sizing:** **L** — registry, roles and helpers, then enforcement module by
 module.
 
+</details>
+
+---
+
+<a id="phase-65"></a>
+
 ## Phase 65 — Contract documents and digital signing **(L · sales)** [in progress]
+<!-- phase: ws=B view=later deps="15, 64" next="65.10 reviewed legal wording" blocker="Starter contract wording is sample text" unblock="Legal review of the wording" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** B. Billing & Financial Management · **Depends on:** 15, 64  
+**Next:** 65.10 reviewed legal wording  
+**Blocked:** Starter contract wording is sample text — *unblocks when:* Legal review of the wording
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Write a contract for a client, get internal approval, send it for signature
 and keep the signed result with its evidence. Separate from PSA billing
@@ -2949,7 +2267,19 @@ agreements and quote acceptance. Items 65.1–65.9 **shipped v3.17.669**.
 public signing pages; integrates with PSA billing contracts, the scheduler,
 mail settings and roles.
 
+</details>
+
+---
+
+<a id="phase-66"></a>
+
 ## Phase 66 — Client pulse checks **(M · client relationship)** [in progress]
+<!-- phase: ws=G view=later deps="portal, scheduler" next="66.5 export and reminders" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** G. Customer Portal & Communications · **Depends on:** portal, scheduler  
+**Next:** 66.5 export and reminders
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Short, periodic service-feedback surveys the MSP sends to people at its
 client organizations, about the relationship as a whole. Separate from the
@@ -2982,7 +2312,19 @@ default (Settings → System → Optional modules → Pulse checks). Setup and u
 **Sizing:** **M** — a new app (`pulse`) with its own models, staff pages,
 portal pages, one scheduled task and an optional-module switch.
 
+</details>
+
+---
+
+<a id="phase-67"></a>
+
 ## Phase 67 — Interface, navigation and dashboard redesign **(L · usability)** [in progress]
+<!-- phase: ws=I stage=7 view=later deps=64 next="67.8 validation and 67.16 follow-ups" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 64  
+**Next:** 67.8 validation and 67.16 follow-ups
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 A cleaner, more compact interface over the same features, URLs and permissions.
 Plan and audit: [docs/plans/2026-11-ui-redesign.md](plans/2026-11-ui-redesign.md).
@@ -3069,7 +2411,20 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
 
+</details>
+
+---
+
+<a id="phase-68"></a>
+
 ## Phase 68 — Commercial price book and service plans **(L · sales)** [in progress]
+<!-- phase: ws=B view=later deps=15 next="68.1 staff screens; 68.2 plans on contracts; 68.4 distributor price" note="Prerequisite of 103" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** B. Billing & Financial Management · **Depends on:** 15  
+**Next:** 68.1 staff screens; 68.2 plans on contracts; 68.4 distributor price  
+**Note:** Prerequisite of 103
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 A single priced catalog and named service plans, so quotes, contracts and invoices stop typing prices by
 hand. Audit: [docs/plans/COMMERCIAL_OPS_AUDIT.md](plans/COMMERCIAL_OPS_AUDIT.md). Separate from the ticket
@@ -3085,7 +2440,20 @@ request catalog (`ServiceCatalogItem`).
 
 **Sizing:** **L** — models and admin, then line-level integration across quotes, contracts and invoices.
 
+</details>
+
+---
+
+<a id="phase-69"></a>
+
 ## Phase 69 — Labor rate cards and cost rates **(M · billing)** [in progress]
+<!-- phase: ws=B view=later deps="2, 68" next="69.1–69.3 rates used by invoicing (with 101.4); 69.4" note="Prerequisite of 101" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** B. Billing & Financial Management · **Depends on:** 2, 68  
+**Next:** 69.1–69.3 rates used by invoicing (with 101.4); 69.4  
+**Note:** Prerequisite of 101
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **69.1 Rate cards** *(partial — shipped v3.17.692 for reporting; invoicing still prices ticket time at the contract rate, or $0 without a contract — fixed in Phase 101)* — bill rates by role, client and ticket type, with
   effective dates.
@@ -3097,7 +2465,19 @@ request catalog (`ServiceCatalogItem`).
 
 **Sizing:** **M** — rate models, time-entry snapshot, then report changes.
 
+</details>
+
+---
+
+<a id="phase-70"></a>
+
 ## Phase 70 — Contracts, recurring billing and quote conversion **(M · P0 · billing)** [in progress]
+<!-- phase: ws=B stage=1 view=next order=3 deps="65, 68, 69" next="70.1 quote to contract, 70.2 quote to invoice" -->
+**Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 65, 68, 69  
+**Next:** 70.1 quote to contract, 70.2 quote to invoice
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **70.1 Quote to contract** *(planned · P0)* — accepting a quote can create a billing contract after a conversion
   review: selected package, inclusions and exclusions, recurring and one-time charges, included and block hours,
@@ -3114,7 +2494,20 @@ request catalog (`ServiceCatalogItem`).
 
 **Sizing:** **M** — conversions and the recurring-billing hardening.
 
+</details>
+
+---
+
+<a id="phase-71"></a>
+
 ## Phase 71 — Accounting sync completion **(L · accounting)** [in progress]
+<!-- phase: ws=B view=later deps=44 next="71.4–71.8 accounting completion; 71.11 sandbox verification" blocker="Provider capabilities verified only against mocks" unblock="QuickBooks Online and Xero sandbox accounts" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** B. Billing & Financial Management · **Depends on:** 44  
+**Next:** 71.4–71.8 accounting completion; 71.11 sandbox verification  
+**Blocked:** Provider capabilities verified only against mocks — *unblocks when:* QuickBooks Online and Xero sandbox accounts
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Builds on Phase 44, which covers customer sync, invoice create and payment pull for QuickBooks Online and Xero.
 
@@ -3137,7 +2530,20 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — safety fixes first, then provider capabilities one at a time.
 
+</details>
+
+---
+
+<a id="phase-72"></a>
+
 ## Phase 72 — Payment processing and sales tax **(L · payments)** [in progress]
+<!-- phase: ws=B view=later deps=71 next="Provider verification; payment posting to accounting" blocker="Payment providers verified only against mocks" unblock="Payment provider sandbox accounts" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** B. Billing & Financial Management · **Depends on:** 71  
+**Next:** Provider verification; payment posting to accounting  
+**Blocked:** Payment providers verified only against mocks — *unblocks when:* Payment provider sandbox accounts
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **72.1 Stripe** *(shipped v3.17.690 — needs verification with test-mode keys)*.
 - **72.2 GoCardless** *(shipped v3.17.690 — needs verification with sandbox keys)*.
@@ -3149,7 +2555,19 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — provider code needs sandbox testing before release.
 
+</details>
+
+---
+
+<a id="phase-73"></a>
+
 ## Phase 73 — Procurement, distributors, licensing and warranty lifecycle **(L · procurement)** [in progress]
+<!-- phase: ws=C view=later deps="4, 13, 68" next="73.2–73.6 ordering, receiving, warranty" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** C. Asset Management & Documentation · **Depends on:** 4, 13, 68  
+**Next:** 73.2–73.6 ordering, receiving, warranty
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **73.1 Software licensing** *(shipped v3.17.699 — Google Workspace planned)* — license subscriptions,
   seat assignments, renewals and utilization alerts; Microsoft 365 and Pax8 sync; per-customer monthly
@@ -3165,7 +2583,20 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — licensing first, then procurement wiring.
 
+</details>
+
+---
+
+<a id="phase-74"></a>
+
 ## Phase 74 — Backup monitoring, backup management and endpoint health **(XL · P1 · backup)** [in progress]
+<!-- phase: ws=D stage=2 view=next order=7 deps="63, 82; St0r API (74.7)" next="74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands" blocker="74.7 needs St0r’s integration API (in development, St0r PR #54)" unblock="St0r ships /api/v1 with scoped tokens" -->
+**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 63, 82; St0r API (74.7)  
+**Next:** 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands  
+**Blocked:** 74.7 needs St0r’s integration API (in development, St0r PR #54) — *unblocks when:* St0r ships /api/v1 with scoped tokens
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **74.1 Backup monitoring framework** *(shipped v3.17.695)* — jobs, runs, repositories with capacity,
   restore tests, alert policies and alerts (with tickets), customer and device views, MSP-wide connections
@@ -3218,7 +2649,19 @@ Customer-portal backup status is 77.8; backup billing from verified counts is 92
 
 **Sizing:** **L** — framework, then providers, then Rem0te contract changes.
 
+</details>
+
+---
+
+<a id="phase-75"></a>
+
 ## Phase 75 — Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard **(L · analytics)** [in progress]
+<!-- phase: ws=H stage=5 view=later deps="68–74" next="75.2 customer commercial portal; 75.5 permissions" -->
+**Status:** 🔵 In progress · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 68–74  
+**Next:** 75.2 customer commercial portal; 75.5 permissions
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **75.1 Profitability analytics** *(shipped v3.17.692; audit 2026-11-20: reports use three revenue definitions — one includes tax, one counts unbilled bundles, one uses contract terms — unified in Phase 102.7)* — margin by client, contract, plan and service line from
   rate snapshots.
@@ -3236,26 +2679,29 @@ Customer-portal backup status is 77.8; backup billing from verified counts is 92
 
 **Sizing:** **L** — depends on Phases 68–74.
 
+</details>
+
+---
+
+<a id="phase-76"></a>
+
 ## Phase 76 — Profitability and pricing advisor **(L · OPTIONAL AI)** [shipped — v3.17.696]
+<!-- phase: ws=E -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** E. Sales & CRM
 
-- **76.1 Per-customer financial monitoring** *(shipped v3.17.696 — licensing cost once the licensing module ships; hardware and other vendor costs reported as not tracked)* — MRR, ARR, labor, vendor, licensing, hardware and
-  delivery costs, gross profit and margin, contract utilization, unbilled work and revenue leakage.
-- **76.2 Detection** *(shipped v3.17.696)* — loss-making customers, declining margins, underpriced contracts, support
-  consumption above contract, services delivered without a charge, unused allowances, renewals to review and
-  distributor cost increases not passed through.
-- **76.3 Recommendations** *(shipped v3.17.696)* — price increase amounts, renegotiation, after-hours rate, per-device
-  price, bundle review and upsell or tier fit. Each shows its supporting calculations, data and assumptions.
-- **76.4 Approval required** *(shipped v3.17.696)* — the advisor never changes pricing or contracts
-  automatically; accepting creates a draft contract amendment or draft quote that goes through the usual approval flow.
-- **76.5 Optional AI narrative (OPTIONAL AI)** *(shipped v3.17.696)* — uses the existing multi-LLM architecture and AI
-  permission controls, gated by `psa_ai_enabled`. Explains verified figures separately from estimates and
-  never invents or assumes missing costs.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 76](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-76).
 
-Depends on Phases 68, 69 and 75 (profitability).
+---
 
-**Sizing:** **L** — deterministic calculations and detection first, then recommendations, then the optional AI narrative.
+<a id="phase-77"></a>
 
 ## Phase 77 — Customer command center portal **(XL · portal)** [planned]
+<!-- phase: ws=G stage=5 view=later deps="72, 73, 74" next="77.1 unified customer dashboard" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** G. Customer Portal & Communications · **Depends on:** 72, 73, 74  
+**Next:** 77.1 unified customer dashboard
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **77.1 Unified customer dashboard** *(planned)* — sections for IT health, backup and recovery, services and
   contracts (plan, allowances, renewals), licensing, service desk, financial (invoices, payments, quotes,
@@ -3276,7 +2722,19 @@ Depends on Phases 72, 73 and 74.
 
 **Sizing:** **XL** — the largest portal surface; split into release-sized slices by section.
 
+</details>
+
+---
+
+<a id="phase-78"></a>
+
 ## Phase 78 — Customer health score **(M)** [in progress]
+<!-- phase: ws=H stage=5 view=later deps="66, 74, 75" next="78.6 portal display" -->
+**Status:** 🔵 In progress · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 66, 74, 75  
+**Next:** 78.6 portal display
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **78.1 Health dimensions** *(shipped v3.17.695)* — technical, security, backup, service delivery, commercial and
   satisfaction. Satisfaction reuses the client pulse checks from Phase 66.
@@ -3291,7 +2749,20 @@ Depends on Phases 72, 73 and 74.
 
 **Sizing:** **M** — scoring model and explanations first, then dashboard and portal display.
 
+</details>
+
+---
+
+<a id="phase-79"></a>
+
 ## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
+<!-- phase: ws=D view=later deps="Rem0te contract" next="79.6 Rem0te side; 79.7 decide versus Phase 63 (duplicate channel)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** Rem0te contract  
+**Next:** 79.6 Rem0te side; 79.7 decide versus Phase 63 (duplicate channel)  
+**Blocked:** 79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel — *unblocks when:* Decision on one Rem0te channel; Rem0te Stage 8
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 A reusable, self-hosted standard for Agit8or applications to discover, pair, authenticate and exchange
 events with each other, starting with Clientst0r and Rem0te. It runs alongside the existing
@@ -3313,7 +2784,20 @@ events with each other, starting with Clientst0r and Rem0te. It runs alongside t
 
 **Sizing:** **XL** — protocol and Clientst0r side first, then the Rem0te side, then integration features.
 
+</details>
+
+---
+
+<a id="phase-80"></a>
+
 ## Phase 80 — Agit8or Identity: single sign-on for people **(L · security)** [in progress]
+<!-- phase: ws=F view=later deps=Keycloak next="80.4 Keycloak deployment; 80.5; 80.6" blocker="80.4 Keycloak deployment requires approval" unblock="Owner approves a Keycloak deployment" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** F. Security & Administration · **Depends on:** Keycloak  
+**Next:** 80.4 Keycloak deployment; 80.5; 80.6  
+**Blocked:** 80.4 Keycloak deployment requires approval — *unblocks when:* Owner approves a Keycloak deployment
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Single sign-on across Agit8or applications through a shared, self-hosted Keycloak, using standard OpenID
 Connect. Each application keeps making its own authorization decisions; signing in to one application never
@@ -3331,66 +2815,29 @@ grants access to another. Kept separate from Agit8or Connect (separate keys, aud
 
 **Sizing:** **L** — client and session work first, then the identity server, then cross-application sign-on.
 
+</details>
+
+---
+
+<a id="phase-81"></a>
+
 ## Phase 81 — API access control and network restrictions **(L · security)** [shipped — v3.17.718]
+<!-- phase: ws=F -->
+**Status:** ✅ Complete · **Priority:** — · **Workstream:** F. Security & Administration
 
-One policy layer that decides, before any protected API or webhook operation runs, whether a request's
-source address is allowed. It adds to authentication, permissions, rate limits and customer isolation, and
-never replaces them. Ships before any new vendor API or webhook endpoint from Phases 84–86. Audit and design:
-`docs/plans/NOC_SOC_PROGRAM_AUDIT.md` §7.
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 81](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-81).
 
-- **81.1 Policy engine** *(shipped v3.17.713 — service-account scope follows when service accounts exist; API keys are the credential scope today)* — IPv4 and IPv6 addresses and CIDR ranges; Unrestricted, Allowlist only,
-  Denylist and Combined modes; scopes for global, customer, integration, API key, service account and
-  endpoint group, with separate inbound-API and webhook policies; expiring temporary rules. An explicit deny
-  always wins; once an allowlist applies, anything it does not match is denied. Private addresses get no
-  implicit trust. Fails closed when a configured restrictive policy cannot be evaluated.
-- **81.2 Trusted proxies and client-address diagnostics** *(shipped — diagnostic page, documented proxy setup and
-  the Connect rate-limiter fix v3.17.713; trusted proxies managed in Settings v3.17.716)* — trusted proxy addresses managed in Settings, multi-hop chains, forwarding
-  headers accepted only from a trusted proxy, and a diagnostic page showing the detected address and how the
-  chain was read. Reverse-proxy setup documented for Nginx, HAProxy and Cloudflare. The Connect rate limiter
-  moves to the same resolver.
-- **81.3 Settings → Security → API Access Control** *(shipped v3.17.713)* — rule table (address or range, allow or deny,
-  scope, key or integration, customer, status, owner, last change, expiry, recent matches), add / edit /
-  enable / disable / delete, bulk import and export, search and filters, "test an address", effective-policy
-  preview before saving, recent denials and rule history.
-- **81.4 API key network restrictions** *(shipped — allowed sources per key v3.17.713; set on the key,
-  expiry, rotation with a grace period, per-key and per-address rate limits and request size limits shipped
-  v3.17.714; read-only / write split already enforced by key levels since v3.17.618; client certificate pinning
-  v3.17.718. Concurrency limits deferred: the single-host server runs four single-request workers with no
-  shared cache, so it cannot exceed four requests in flight and a per-key count could not be enforced across
-  workers — revisit with a shared cache)* — allowed sources per key; key expiry, rotation and
-  revocation; read-only versus write-capable keys; per-key and per-address rate limits; request size and
-  concurrency limits. Key secrets never appear in logs or pages.
-- **81.5 Webhook protection** *(shipped — separate webhook mode and per-receiver source rules shipped
-  v3.17.713; webhook rate and body-size limits shipped v3.17.714; signed timestamps, replay protection and
-  body limits on the security vendor, SIEM, distributor and ticket-partner receivers, signatures required by
-  default for new vendor and SIEM receivers, and distributor signatures enforced shipped v3.17.716; the
-  share-bound partner signature required once a partner has used it, and a signed, single-use
-  emergency-restart call shipped v3.17.717. Reviewed, no change needed: payment events stay de-duplicated
-  per provider (event ids are unique per provider, so two connections receiving one event must process it once),
-  and GoCardless batches need no freshness window because processed event ids are kept permanently)* — per-receiver source rules (including vendor ranges that change,
-  without silently widening access), signature verification, timestamp window and replay protection, body
-  size and rate limits, and a dedicated credential per receiver; source address is never the only check.
-- **81.6 Lockout prevention and recovery** *(shipped — impact preview, confirmation and the
-  `api_access_recover` command v3.17.713; automatic rollback window v3.17.717)* — validation, the administrator's own address and
-  whether the current session and integrations would still pass, confirmation for high-impact changes, an
-  automatic rollback window for global changes, and a recovery command that needs server access. No
-  unauthenticated bypass endpoint.
-- **81.7 Decision log and dashboards** *(shipped — folded refusal log and refused-request dashboard
-  v3.17.713; repeat-source e-mail and system warnings, and retention pruning v3.17.717; feeding the shared
-  event layer moves to Phase 82, which builds that layer)* — every decision with time, address, matched rule, key or
-  integration, endpoint, customer, reason and policy version, with rate-limited denial logging; dashboards
-  for blocked requests, repeat sources, policy violations, unusual key use and integrations broken by a rule;
-  notifications for repeated violations; events feed the shared event layer (Phase 82).
-- **81.8 Optional mutual TLS** *(shipped v3.17.718)* — for high-security integrations, terminated at the reverse proxy
-  with the verified client identity passed only from a trusted proxy.
+---
 
-Existing installs start Unrestricted: current API clients keep working until an administrator tightens a
-policy.
-
-**Sizing:** **L** — policy engine and proxy resolution first, then keys and webhooks, then the settings UI and
-dashboards.
+<a id="phase-82"></a>
 
 ## Phase 82 — Shared operational event and alert foundation **(L · monitoring)** [in progress]
+<!-- phase: ws=D view=later deps=81 next="82.3 bounded ingestion; 82.6 permission keys; first consumers" -->
+**Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 81  
+**Next:** 82.3 bounded ingestion; 82.6 permission keys; first consumers
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 One normalized layer over the alert sources that exist today — security alerts, RMM and Rem0te alerts,
 backup alerts and website / WAN monitors — instead of a new alert engine per feature. Each source keeps its
@@ -3415,7 +2862,19 @@ read.
 
 **Sizing:** **L** — envelope and links first, then queueing, retention and health.
 
+</details>
+
+---
+
+<a id="phase-83"></a>
+
 ## Phase 83 — NOC/SOC wallboards and secure display pairing **(XL · monitoring)** [planned]
+<!-- phase: ws=H stage=6 view=later deps=82 next="83.1 presentation mode" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 82  
+**Next:** 83.1 presentation mode
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends the wallboards shipped in the Reports module (12-column boards, rotation and permission-checked
 widget sources) into large-screen operations displays.
@@ -3446,7 +2905,19 @@ widget sources) into large-screen operations displays.
 
 **Sizing:** **XL** — presentation mode and presets first, then the editor, then pairing.
 
+</details>
+
+---
+
+<a id="phase-84"></a>
+
 ## Phase 84 — Security connector framework and vendor integrations **(XL · security)** [planned]
+<!-- phase: ws=D stage=6 view=later deps="81, 82" next="84.1 connector SDK; vendor batches" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 81, 82  
+**Next:** 84.1 connector SDK; vendor batches
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends the security alerts module (vendor connections, SIEM webhook endpoints and the integration SDK) into
 a connector framework, then real vendor connectors in batches. A connector is listed as shipped only after
@@ -3473,7 +2944,19 @@ vendor's test environment.
 
 **Sizing:** **XL** — SDK and generic receivers first, then one batch at a time.
 
+</details>
+
+---
+
+<a id="phase-85"></a>
+
 ## Phase 85 — Operations Center, alert triage and correlation **(L · security)** [planned]
+<!-- phase: ws=D stage=6 view=later deps="82, 84" next="85.1 Operations Center" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 82, 84  
+**Next:** 85.1 Operations Center
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **85.1 Operations Center** *(planned)* — one dark operations page under Security & Monitoring combining
   Service Desk incidents, Rem0te and RMM alerts, monitors, backups, security alerts and investigations,
@@ -3490,7 +2973,19 @@ vendor's test environment.
 
 **Sizing:** **L** — triage and the Operations Center first, then correlation.
 
+</details>
+
+---
+
+<a id="phase-86"></a>
+
 ## Phase 86 — SOAR Lite: approval-driven security automation **(L · security)** [planned]
+<!-- phase: ws=D stage=6 view=later deps="85, 51.20; Rem0te contract" next="86.1 builder on the Phase 91 engine" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 85, 51.20; Rem0te contract  
+**Next:** 86.1 builder on the Phase 91 engine
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends incident playbooks and the support-workflow approval model. Read-only by default; nothing runs
 because an event or a model said so.
@@ -3512,7 +3007,19 @@ because an event or a model said so.
 
 **Sizing:** **L** — dry-run builder first, then approvals, then Rem0te actions as the contract allows.
 
+</details>
+
+---
+
+<a id="phase-87"></a>
+
 ## Phase 87 — Alert routing, on-call and escalation **(M · monitoring)** [planned]
+<!-- phase: ws=D stage=6 view=later deps="82, 85" next="87.1 notification routing" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 82, 85  
+**Next:** 87.1 notification routing
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends on-call shifts, alert policies and maintenance windows to every alert source.
 
@@ -3525,7 +3032,19 @@ Extends on-call shifts, alert policies and maintenance windows to every alert so
 
 **Sizing:** **M**.
 
+</details>
+
+---
+
+<a id="phase-88"></a>
+
 ## Phase 88 — Service dependency and impact mapping **(M · assets)** [planned]
+<!-- phase: ws=D stage=6 view=later deps="16, 82" next="88.2 impact analysis" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 16, 82  
+**Next:** 88.2 impact analysis
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends asset relationships and the topology view.
 
@@ -3537,7 +3056,19 @@ Extends asset relationships and the topology view.
 
 **Sizing:** **M**.
 
+</details>
+
+---
+
+<a id="phase-89"></a>
+
 ## Phase 89 — Security posture scorecards and customer service reviews **(L · reporting)** [planned]
+<!-- phase: ws=H stage=5 view=later deps="78, 82, 84" next="89.1 posture scorecard" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 78, 82, 84  
+**Next:** 89.1 posture scorecard
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends the customer health score (Phase 78) and scheduled reports.
 
@@ -3552,7 +3083,19 @@ Extends the customer health score (Phase 78) and scheduled reports.
 
 **Sizing:** **L**.
 
+</details>
+
+---
+
+<a id="phase-90"></a>
+
 ## Phase 90 — AI Operations Analyst **(L · OPTIONAL AI)** [planned]
+<!-- phase: ws=H stage=6 view=later deps="85, 56" next="90.1 alert analysis" -->
+**Status:** ⬜ Planned · **Priority:** P3\* · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 85, 56  
+**Next:** 90.1 alert analysis
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-customer AI policy.
 
@@ -3567,19 +3110,31 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 
 **Sizing:** **L**.
 
+</details>
+
+---
+
+<a id="phase-91"></a>
+
 ## Phase 91 — Workflow automation safety **(M · P1 · PSA)** [in progress]
+<!-- phase: ws=A stage=1 view=next order=5 deps=14 next="91.2 execution log, 91.3 dry run, 91.6–91.9" -->
+**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 14  
+**Next:** 91.2 execution log, 91.3 dry run, 91.6–91.9
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 > Status (audit 2026-11-20): loop prevention within one event and charge-once shipped v3.17.732; customer checks on assignment actions shipped v3.17.727. The items below that are not marked remain planned.
 
 Automation that can be inspected, tested before it runs and cannot run away. Extends the workflow engine
 (Phase 14) and ticket routing.
 
-- **91.1 Loop and storm protection** *(planned)* — a rule never re-fires inside its own chain; per-rule and
+- **91.1 Loop and storm protection** *(partial — loop prevention within one event and the 50-action budget shipped v3.17.732; limits across events planned as 91.9)* — a rule never re-fires inside its own chain; per-rule and
   per-ticket rate limits with a cut-off that is recorded and shown.
 - **91.2 Execution log** *(planned)* — every firing recorded with trigger, rule version, each action and its
   result, actor and duration, visible on the rule page.
 - **91.3 Dry run** *(planned)* — evaluate rules against a chosen ticket with no side effects.
-- **91.4 Permission checks for high-impact actions** *(planned)* — charges behind approval or a cap with
+- **91.4 Permission checks for high-impact actions** *(partial — charge once per rule and ticket shipped v3.17.732, assignment customer checks v3.17.727; approval or cap on charge amounts planned)* — charges behind approval or a cap with
   fire-once protection; assignment and watchers limited to technicians allowed at that customer.
 
 **Added 2026-11-20 (planned, P1):**
@@ -3593,7 +3148,20 @@ Automation that can be inspected, tested before it runs and cannot run away. Ext
 
 **Sizing:** **M**.
 
+</details>
+
+---
+
+<a id="phase-92"></a>
+
 ## Phase 92 — Verified usage and recurring billing **(M · billing)** [planned]
+<!-- phase: ws=B view=later deps="70; Rem0te counts (92.4)" next="92.1 recurring charge generation" note="Prerequisite of 102" -->
+**Status:** ⬜ Planned · **Priority:** — · **Workstream:** B. Billing & Financial Management · **Depends on:** 70; Rem0te counts (92.4)  
+**Next:** 92.1 recurring charge generation  
+**Note:** Prerequisite of 102
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Per-device and per-user billing that never bills an unverified count. Extends contracts and billing
 (Phase 70).
@@ -3618,7 +3186,20 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 
 **Sizing:** **M**.
 
+</details>
+
+---
+
+<a id="phase-93"></a>
+
 ## Phase 93 — Business-hours SLA calendars **(M · PSA)** [planned]
+<!-- phase: ws=A view=later deps="—" next="93.1 calendars" note="Prerequisite of 101" -->
+**Status:** ⬜ Planned · **Priority:** — · **Workstream:** A. Core PSA & Ticketing · **Depends on:** —  
+**Next:** 93.1 calendars  
+**Note:** Prerequisite of 101
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **93.1 Calendars** *(planned)* — working hours, time zone and holidays per install default, customer and
   contract, reusing resourcing holidays.
@@ -3631,7 +3212,19 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 
 **Sizing:** **M**.
 
+</details>
+
+---
+
+<a id="phase-94"></a>
+
 ## Phase 94 — Evidence integrity and routine backups **(M · security)** [planned]
+<!-- phase: ws=F stage=1 view=now order=1 deps="—" next="94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups" -->
+**Status:** ⬜ Planned · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
+**Next:** 94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **94.1 Tamper-evident audit log** *(planned)* — hash-chained audit rows with a verification command and
   optional shipping to an external append-only destination.
@@ -3642,7 +3235,19 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 
 **Sizing:** **M**.
 
+</details>
+
+---
+
+<a id="phase-95"></a>
+
 ## Phase 95 — PSA migration importers **(L · imports)** [planned]
+<!-- phase: ws=C view=later deps="61, 94.3" next="95.1 importer guarantees" -->
+**Status:** ⬜ Planned · **Priority:** — · **Workstream:** C. Asset Management & Documentation · **Depends on:** 61, 94.3  
+**Next:** 95.1 importer guarantees
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Extends the import framework (Phase 61).
 
@@ -3656,7 +3261,19 @@ Extends the import framework (Phase 61).
 
 **Sizing:** **L**.
 
+</details>
+
+---
+
+<a id="phase-96"></a>
+
 ## Phase 96 — First-install setup wizard and interactive onboarding **(L · P0 · UX)** [in progress]
+<!-- phase: ws=I stage=1 view=later deps="59, 64, 67" next="96.2 first-install detection; 96.3–96.4 assistant" -->
+**Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 59, 64, 67  
+**Next:** 96.2 first-install detection; 96.3–96.4 assistant
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P0. A Setup Assistant for new installs and guided tours of the live interface. The wizard writes the
 existing settings; it is not a second settings system. Spec:
@@ -3693,7 +3310,19 @@ tested, healthy, documented — linked from the setup wizard and Settings.
 
 **Sizing:** **L** — readiness and detection first, then the wizard, then tours.
 
+</details>
+
+---
+
+<a id="phase-97"></a>
+
 ## Phase 97 — Prospect IT assessment and CRM enhancements **(L · P1 · sales)** [planned]
+<!-- phase: ws=E stage=4 view=later deps="5, 64, 75.3" next="97.1 assessment templates" -->
+**Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** E. Sales & CRM · **Depends on:** 5, 64, 75.3  
+**Next:** 97.1 assessment templates
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P1. Extends the CRM (Phase 5) so a salesperson or technician can record a prospect's whole IT
 environment during a meeting, then turn approved answers into draft records when the deal is won. Spec:
@@ -3736,7 +3365,19 @@ Program link (2026-11-20): this phase carries the IT Discovery wizard of the
 [MSP billing program](plans/msp-billing-program/README.md) §H. Opportunity → quote today creates an empty quote;
 97 and 98 feed Phase 103 proposals.
 
+</details>
+
+---
+
+<a id="phase-98"></a>
+
 ## Phase 98 — Service estimator and forecast accuracy **(L · P1 · sales)** [planned]
+<!-- phase: ws=E stage=4 view=later deps="97, 68–70, 75, 76, 92" next="98.1 estimation models" -->
+**Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** E. Sales & CRM · **Depends on:** 97, 68–70, 75, 76, 92  
+**Next:** 98.1 estimation models
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P1. Estimates monthly effort, cost and a price range from the Phase 97 assessment with a
 deterministic, explainable engine, then checks the forecast against actual results. Spec:
@@ -3776,7 +3417,19 @@ Program link (2026-11-20): the rules-based workload estimator, low / expected / 
 proposal generation of the [MSP billing program](plans/msp-billing-program/README.md) §H build on this phase;
 all of it works without AI.
 
+</details>
+
+---
+
+<a id="phase-99"></a>
+
 ## Phase 99 — Phone system integration and call-to-ticket **(XL · P2 · integrations)** [planned]
+<!-- phase: ws=G stage=6 view=later deps="64, 81, 82" next="99.1 adapter framework" -->
+**Status:** ⬜ Planned · **Priority:** P2 · **Workstream:** G. Customer Portal & Communications · **Depends on:** 64, 81, 82  
+**Next:** 99.1 adapter framework
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P2. Connects ClientSt0r to a PBX the MSP already runs; media and routing stay on the PBX and calls
 never transit ClientSt0r. First target: Asterisk 22 LTS and FreePBX 17 through the Asterisk Manager Interface,
@@ -3816,7 +3469,20 @@ Asterisk 22.
 
 **Sizing:** **XL** — contract and bridge first, then matching and popup, then click-to-call and call history.
 
+</details>
+
+---
+
+<a id="phase-100"></a>
+
 ## Phase 100 — Optional simple PBX appliance **(XL · P4 · exploratory)** [planned]
+<!-- phase: ws=G state=deferred view=later deps=99 next="Go/no-go review after Phase 99 ships" blocker="Exploratory; not built until Phase 99 is proven" unblock="Go decision against the recorded criteria" -->
+**Status:** ⏸️ Deferred · **Priority:** P4 · **Workstream:** G. Customer Portal & Communications · **Depends on:** 99  
+**Next:** Go/no-go review after Phase 99 ships  
+**Blocked:** Exploratory; not built until Phase 99 is proven — *unblocks when:* Go decision against the recorded criteria
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P4, exploratory. An optional, separate PBX appliance built on an existing open-source engine (no new
 SIP or media stack), isolated from the ClientSt0r application and database so voice keeps working when
@@ -3841,7 +3507,19 @@ test route, update and restore rehearsals, load tests.
 
 **Sizing:** **XL** if built; the exploratory work itself is **S**.
 
+</details>
+
+---
+
+<a id="phase-101"></a>
+
 ## Phase 101 — Ticket Time & Charges and prepaid-hour ledger **(XL · P0 · billing)** [planned]
+<!-- phase: ws=B stage=1 view=next order=1 deps="1, 36, 69, 70, 73, 93" next="101.1 coverage resolver, 101.2 hour ledger" -->
+**Status:** ⬜ Planned · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 1, 36, 69, 70, 73, 93  
+**Next:** 101.1 coverage resolver, 101.2 hour ledger
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P0. The first phase of the [MSP billing program](plans/msp-billing-program/README.md) (§B, §C), from the
 [capability audit](plans/msp-billing-program/CAPABILITY_AUDIT.md) of 2026-11-20. Extends the existing time
@@ -3878,7 +3556,19 @@ Acceptance: block deduction, partial overage split, unlimited coverage produces 
 and parts reach the invoice, concurrent approvals cannot deduct twice, existing contracts and invoices unchanged on
 upgrade.
 
+</details>
+
+---
+
+<a id="phase-102"></a>
+
 ## Phase 102 — Ready for Billing queue and invoice integrity **(L · P0 · billing)** [planned]
+<!-- phase: ws=B stage=1 view=next order=2 deps="15, 36, 75, 92, 101" next="102.1 bundling lock, 102.2 unbilled list" -->
+**Status:** ⬜ Planned · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 15, 36, 75, 92, 101  
+**Next:** 102.1 bundling lock, 102.2 unbilled list
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P0 (§D, §E). Extends Phase 36 pre-invoice approval and the existing invoices.
 
@@ -3901,7 +3591,19 @@ Priority P0 (§D, §E). Extends Phase 36 pre-invoice approval and the existing i
   anywhere (invoice approval threshold, late fees, automatic accounting push), with per-customer and per-contract
   overrides showing where each value comes from.
 
+</details>
+
+---
+
+<a id="phase-103"></a>
+
 ## Phase 103 — Quote builder, options and price-book selection **(L · P1 · sales)** [planned]
+<!-- phase: ws=E stage=4 view=later deps="65, 68, 70" next="103.1 price book in the editors" -->
+**Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** E. Sales & CRM · **Depends on:** 65, 68, 70  
+**Next:** 103.1 price book in the editors
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P1 (§G). Extends the existing quotes and the Phase 65 signing; no second quote or signing module.
 
@@ -3925,7 +3627,19 @@ Priority P1 (§G). Extends the existing quotes and the Phase 65 signing; no seco
   activation, onboarding, unbilled work, draft and overdue invoices, with blockers and next actions; sales
   analytics kept apart from contracted and recognized revenue.
 
+</details>
+
+---
+
+<a id="phase-104"></a>
+
 ## Phase 104 — Customer approvals, deposits, change orders and portal billing **(L · P1 · billing)** [planned]
+<!-- phase: ws=B stage=4 view=later deps="72, 101, 103" next="104.1 out-of-scope approval" -->
+**Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** B. Billing & Financial Management · **Depends on:** 72, 101, 103  
+**Next:** 104.1 out-of-scope approval
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P1 (§B, §G, §J).
 
@@ -3940,7 +3654,19 @@ Priority P1 (§B, §G, §J).
 - **104.4 Portal billing additions** *(planned)* — agreements, block balances and usage history, service
   summaries, disputes and explanation requests; never costs, margins or internal notes.
 
+</details>
+
+---
+
+<a id="phase-105"></a>
+
 ## Phase 105 — Market pricing research and AI proposals **(L · P3 · OPTIONAL AI)** [planned]
+<!-- phase: ws=E stage=6 view=later deps="76, 97, 98, 103, 56" next="105.1 research provider" -->
+**Status:** ⬜ Planned · **Priority:** P3 · **Workstream:** E. Sales & CRM · **Depends on:** 76, 97, 98, 103, 56  
+**Next:** 105.1 research provider
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Priority P3 (§I). Extends Phase 76; every switch separate, off by default, gated by `psa_ai_enabled`; billing and
 quoting work fully without it.
@@ -3962,7 +3688,20 @@ quoting work fully without it.
   provider, encrypted keys, budgets and request limits, data-sharing rules, research retention; redaction, no
   secrets sent, prompt-injection protection for fetched pages, usage and cost logging.
 
+</details>
+
+---
+
+<a id="phase-106"></a>
+
 ## Phase 106 — Device management (MDM) integrations **(XL · P2 · devices)** [planned]
+<!-- phase: ws=D stage=3 view=next order=8 deps="64, 74.9, 82, 92" next="106.1 provider connections" blocker="Mosyle has no official API documentation found" unblock="Obtain official Mosyle API documentation (other providers unaffected)" -->
+**Status:** ⬜ Planned · **Priority:** P2 · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 64, 74.9, 82, 92  
+**Next:** 106.1 provider connections  
+**Blocked:** Mosyle has no official API documentation found — *unblocks when:* Obtain official Mosyle API documentation (other providers unaffected)
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Inventory, compliance and approved device workflows through established MDM providers — Microsoft Intune with
 Entra ID devices, Jamf Pro, Kandji, Mosyle (once its official API documentation is obtained), Apple Business Manager (device assignment and enrollment records) and
@@ -3994,7 +3733,19 @@ provider, customer isolation, step-up for destructive actions, never send device
 Acceptance: inventory from a sandbox tenant of each provider built, with a test that a wipe without step-up and
 the wipe permission is refused at the API.
 
+</details>
+
+---
+
+<a id="phase-107"></a>
+
 ## Phase 107 — Documentation search, attachments, sharing and asset history **(L · P3 · documentation)** [planned]
+<!-- phase: ws=C stage=4 view=later deps="16, 53" next="107.1 ranked search" -->
+**Status:** ⬜ Planned · **Priority:** P3 · **Workstream:** C. Asset Management & Documentation · **Depends on:** 16, 53  
+**Next:** 107.1 ranked search
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **107.1 Ranked full-text search** for documents, assets and the knowledge base *(planned)*.
 - **107.2 Document attachments and expiring share links** *(planned)* — share links scoped, logged and revocable.
@@ -4004,7 +3755,20 @@ the wipe permission is refused at the API.
 
 Reuses Phase 16 relationships, Phase 53 readiness and the vault's permission model.
 
+</details>
+
+---
+
+<a id="phase-108"></a>
+
 ## Phase 108 — Discovery scope approval and suggested-device staging **(M · P3 · network)** [planned]
+<!-- phase: ws=C stage=4 view=later deps="32, 33" next="108.1 approved scan ranges" blocker="108.4 SNMP/LLDP/CDP collection" unblock="Owner decision (previously declined)" -->
+**Status:** ⬜ Planned · **Priority:** P3 · **Workstream:** C. Asset Management & Documentation · **Depends on:** 32, 33  
+**Next:** 108.1 approved scan ranges  
+**Blocked:** 108.4 SNMP/LLDP/CDP collection — *unblocks when:* Owner decision (previously declined)
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **108.1 Administrator-approved scan ranges** a collector cannot exceed, scheduled runs for approved ranges and
   rate limits *(planned)*.
@@ -4015,7 +3779,19 @@ Reuses Phase 16 relationships, Phase 53 readiness and the vault's permission mod
   *(blocked — owner decision pending; an SNMP collector was previously declined)*. Until decided, the topology
   and port-map pages are labelled as needing pushed data.
 
+</details>
+
+---
+
+<a id="phase-109"></a>
+
 ## Phase 109 — Microsoft 365 administration **(L · P3 · cloud)** [planned]
+<!-- phase: ws=D stage=6 view=later deps="64, 82" next="109.1 structured tenant models" -->
+**Status:** ⬜ Planned · **Priority:** P3 · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 64, 82  
+**Next:** 109.1 structured tenant models
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 Today: read-only tenant inventory with manual sync, not verified against a real tenant.
 
@@ -4026,7 +3802,19 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
   approval before anything is written to the tenant; least-privilege delegated access *(planned)*.
 - **109.4 Google Workspace inventory** where practical *(planned)*.
 
+</details>
+
+---
+
+<a id="phase-110"></a>
+
 ## Phase 110 — Service-delivery reporting and one set of definitions **(L · P3 · reporting)** [planned]
+<!-- phase: ws=H stage=5 view=later deps="3, 75, 102" next="110.1 one calculation layer" -->
+**Status:** ⬜ Planned · **Priority:** P3 · **Workstream:** H. Reporting, Analytics & Optional AI · **Depends on:** 3, 75, 102  
+**Next:** 110.1 one calculation layer
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **110.1 One calculation layer** — executive providers become the only source for revenue, MRR, margin and
   utilization; the duplicate KPI, scorecard, wallboard and health-score pages are retired *(planned)*.
@@ -4034,7 +3822,19 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
   escalations, repeat issues, satisfaction, common problems, automation impact *(planned)*.
 - **110.3 Sales** — pipeline, win rate, sales cycle, renewals and churn *(planned)*.
 
+</details>
+
+---
+
+<a id="phase-111"></a>
+
 ## Phase 111 — Identity lifecycle and access reviews **(L · P1 · security)** [planned]
+<!-- phase: ws=F stage=1 view=next order=6 deps="57, 64, 80" next="111.1 passkeys" -->
+**Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** F. Security & Administration · **Depends on:** 57, 64, 80  
+**Next:** 111.1 passkeys
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
 
 - **111.1 Passkeys (WebAuthn)** as second factor and for step-up *(planned)*.
 - **111.2 Periodic access reviews** with attestation per customer *(planned)*.
@@ -4043,123 +3843,53 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 - **111.4 Break-glass account** documented, alerting on every use *(planned)*.
 - **111.5 Live verification of OIDC sign-in** against a real Keycloak (Phase 80) *(planned)*.
 
-## Sizing
+</details>
 
-| Phase | Size | Estimated effort | Dependencies |
-|---|---|---|---|
-| 1 — Contract engine | M | 2-3 weeks | none — **1.1 + 1.2 shipped (v3.17.126 / v3.17.130)** |
-| 2 — Resource mgmt | M | 2-3 weeks | none |
-| 3 — Financial reporting + BI | L | 4-6 weeks | 1, 2 — **complete (v3.17.139–147)** |
-| 4 — Procurement | L | 4-5 weeks | none (ideally after 1) |
-| 5 — CRM | L | 4-5 weeks | none |
-| 6 — ITIL | M | 2-3 weeks | none |
-| 7 — Outsourcing + ecosystem + polish | Continuous | **complete (v3.17.207); 2 polish waves closed at v3.17.187 + v3.17.205** | ran alongside Phases 1-6 |
-| 9 — Security alert ingestion (EDR / AV / Firewall) | M | 5 weeks — **framework + 1 reference adapter shipped v3.17.168** | none — can run alongside any |
-| 10 — Advanced Email-to-Ticket Engine | M | 2-3 weeks — **all sub-phases complete (10.1 v3.17.176; 10.2 v3.17.177; 10.3 v3.17.188; 10.4 v3.17.189)** | extends existing IMAP poller |
-| 11 — Advanced Dispatch & Tech Scheduling | M | **complete (11.1 v3.17.194; 11.2 v3.17.208; 11.3 v3.17.209); geo-aware deferred to Phase 8** | extends Phase 2 + dispatch board |
-| 12 — Customer Communication Workflows | M | **complete (CSAT v3.17.231; announcements v3.17.232; brand + prefs v3.17.233; KB v3.17.234; voting v3.17.235; escalation v3.17.236; threading v3.17.237; SMS v3.17.238; client approvals v3.17.239); secure messaging deferred** | extends customer portal |
-| 13 — Procurement & Lifecycle Mgmt | M | 2-3 weeks | extends Phase 4 |
-| 14 — Visual Workflow Automation Engine | L | 4-5 weeks | extends workflow rules engine |
-| 15 — Recurring Billing & Contract Mgmt | M | 3-4 weeks | extends Phase 1 |
-| 16 — Documentation Relationship Mapping | M | 2-3 weeks | none |
-| 17 — Advanced Asset Intelligence | L | 4-5 weeks | extends RMM sync |
-| 18 — Multi-Location Client Hierarchy | M | 2-3 weeks | none |
-| 19 — Advanced Reporting & Analytics | Continuous | ongoing | extends Phase 3 |
-| 20 — Approval & Change Management Workflows | M | 2-3 weeks | extends Phase 6.1 |
-| 21 — Advanced Mobile Technician Workflows | L | 4-6 weeks | requires Phase 8 |
-| 22 — Knowledge Base & SOP Management | M | 2-3 weeks | extends KB v3.17.128/134 |
-| 23 — Security Event & Incident Workflows | L | 4-6 weeks | shipped v3.17.337–363 (extends Phase 9 + 17) |
-| 25 — Mature Timesheet Approval Workflows | M | 2-3 weeks | extends Phase 2 + approvals |
-| 26 — Custom Report Writer + Saved Queries | L | 4-5 weeks | extends Phase 3.5 + 3.6 |
-| 27 — Advanced Accounting Reconciliation | M | 2-3 weeks | extends QBO/Xero connection |
-| 28 — Browser Extension + Offline Vault Access | L | 4-5 weeks | separate codebase |
-| 31 — Vault GeoIP / IP / Time Access Rules | S | shipped v3.17.163 | extends FirewallMiddleware GeoIP infra |
-| 32 — Remote Network Discovery Import | M | shipped v3.17.556 | future / late-stage — non-RMM, scoped, single-use tokens |
-| 33 — Network Discovery \& Auto Documentation | L | partial — server side shipped v3.17.557; topology data source blocked on owner decision (Phase 108.4) | extends Phase 32 + Phase 16 |
-| 34 — Network Configuration Backup | M | shipped v3.17.544–547 | extends Phase 33 + Phase 9 alerts |
-| 35 — Advanced Project Management | L | shipped v3.17.548–555 | extends `psa.Project` (v3.17.213 quote→project shipped) |
-| 36 — Agreement Reconciliation & Pre-Invoice Approval | M | 2-3 weeks | extends Phase 1 + 15 + 20 |
-| 37 — Vault Approval & Break-Glass Workflow | M | 2-3 weeks | extends Phase 31 (VaultAccessRule) + Phase 20 |
-| 38 — Client Onboarding / Offboarding Runbooks | M | 2-3 weeks | extends `processes/` + Phase 14 |
-| 39 — Compliance Evidence Packs | M | 2-3 weeks | extends Phase 9 + vault + monitoring + psa |
-| 40 — Public / Client-Facing Status Page | M | shipped v3.17.538–543 | extends monitoring + psa Tickets |
-| 41 — Compliance Frameworks & Recertification | M | shipped v3.17.435–444 | extends accounts + audit + reports.pdf_export (Phase 19); built atop Phase 39 evidence-pack infra |
-| 42 — Docker / Containerized deployment | S | shipped v3.17.490 | none — packaging only; classic `bash install.sh` path unchanged |
-| 43 — Multi-Organization REST API Access | S | shipped v3.17.496 | extends Phase 18 hierarchy; backward-compatible (default key scope unchanged) |
-| 44 — Full Two-Way Accounting Sync | L | shipped v3.17.531 | extends Phase 27 + the AccountingConnection OAuth pattern; requested in GitHub #145 |
-| 45 — System-wide Appearance Controls | S | shipped v3.17.527 | `SystemSetting` + existing per-user background fields |
-| 46 — Job Kit (tools + materials on a ticket) | M | shipped v3.17.533 | `inventory` + `psa.Ticket` |
-| 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
-| 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
-| 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582, scheduler failure reporting v3.17.583, bundled services #147 v3.17.584, utility toolbar v3.17.585** | none — touches every app |
-| 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
-| 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603; encrypted secrets v3.17.607; LDAP sign-in v3.17.608; alerts and webhooks v3.17.609; security settings and CSP v3.17.610; documentation v3.17.611; tokens, share links and 2FA keys v3.17.612; dispatch technicians only v3.17.613; no inline event handlers v3.17.614; monitoring docs v3.17.616; scheduled WAN checks v3.17.617; API key levels and staff-only reports v3.17.618; staff-only CRM and Security Alerts v3.17.619; drafts for editors only v3.17.620; global KB staff only v3.17.625 | none — touches PSA, docs, accounts, API, vault and the scheduler |
-| 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
-| 53 — Documentation readiness and lifecycle | L | shipped — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621; prefilled fix links, custom-field requirements v3.17.656; version-specific agreements in progress (unreleased) | docs publish rules |
-| 54 — Guided customer service requests | L | shipped — guided requests, approvals, progress v3.17.606; named approvers v3.17.656 | Phase 53 publish rules (KB suggestions) |
-| 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
-| 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
-| 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; why-a-technician-can view v3.17.664; remote grants with Phase 56.5 | none |
-| 58 — Condensed navigation | M | shipped v3.17.647 | none |
-| 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals v3.17.664; LTS planned | updater, root helper (release signing key), Docker entrypoint |
-| 60 — Optional ticket routing | M | shipped v3.17.664 | extends the workflow engine (Phase 14), email routing rules, service catalog, dispatch |
-| 61 — One-customer migration rehearsals | M | shipped v3.17.664 | extends the IT Glue / Hudu importers and import rollback; scheduler |
-| 62 — Pluggable document editors | L | in progress — framework, ONLYOFFICE, Collabora, Microsoft 365 documents, installer and Managed Local ONLYOFFICE (untested) shipped v3.17.668; not yet tested against real editors; Google Docs planned | documents and file attachments; optional Microsoft 365 / Google connectors |
-| 63 — RMM integration and technician workspace | XL | in progress — 63.1–63.10 v3.17.664; Rem0te revision 2 tested against Rem0te 0.30.1 (99/102), restart case pending | Phases 52, 56, 57; rem0te ticket-rmm-v1 |
-| 64 — Roles, permission groups and access settings | L | in progress — registry, built-in roles, scope, delegation protection, role pages, upgrade review list and module enforcement shipped v3.17.669; pending flags await call sites | Phases 57 and 63 (RMM tiers); every module reads the permissions |
-| 65 — Contract documents and digital signing | L | in progress — 65.1–65.9 shipped v3.17.669; reviewed legal wording planned | PSA billing contracts, scheduler, mail settings, Phase 64 roles and permissions |
-| 66 — Client pulse checks | M | in progress — templates, audience, sending, results built (unreleased); export and reminders planned | portal, scheduler, mail settings, roles |
-| 67 — Interface, navigation and dashboard redesign | L | in progress — navigation, settings workspace, dashboard (Classic kept as fallback) and Professional Dark shipped v3.17.677; Classic retirement planned | every page's navigation entry; roles and permissions (Phase 64) |
+---
 
-**Phases 1-6**: ~4 months of focused work at the established cadence.
+<a id="release-history"></a>
 
-**Phase 8** adds another ~2.5-3 months on top, but sub-phase 8.1 (web timeclock + GPS APIs) is shippable as a 2-week chunk well before the mobile app itself.
+## Release history
 
-**Phases 10-30**: long-term operational deepening. None should be positioned as fully implemented today; each extends or adds to the foundations already shipped. Items overlapping shipped phases call out the deltas explicitly. AI-assisted features are explicitly **OPTIONAL AI** and gated by `psa_ai_enabled` (existing pattern from v3.17.125 AI Triage).
+- [CHANGELOG.md](../CHANGELOG.md) — every release, newest first.
+- [GitHub releases](https://github.com/agit8or1/clientst0r/releases).
+- [ROADMAP_HISTORY.md](ROADMAP_HISTORY.md) — completed phases with their original wording and versions, earlier
+  planning notes and the superseded sizing table.
+- Machine-readable status: `GET /core/roadmap.json` on any install.
 
-**Scope note:** This is a PSA + Asset + Vault + Documentation + Monitoring platform that integrates with external RMMs (Phase 9 connection framework + Phase 7 Integration SDK). First-party RMM agents and remote-access relays aren't on the roadmap — installs that need those capabilities use the supported third-party tools (TacticalRMM, NinjaOne, Datto RMM, ConnectWise Automate, ScreenConnect, RustDesk, MeshCentral, etc.).
-| 68 — Commercial price book and service plans | L | in progress (68.1–68.2 shipped v3.17.692) | Phase 15 contracts; quotes and invoices |
-| 69 — Labor rate cards and cost rates | M | in progress (69.1–69.3 shipped v3.17.692) | Phase 2 cost rates; Phase 68 |
-| 70 — Contracts, recurring billing and quote conversion | M | in progress (70.5 shipped v3.17.690; 70.3 partial) | Phases 65, 68, 69 |
-| 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
-| 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
-| 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (73.1 shipped v3.17.699) | Phase 4 and 13 procurement; Phase 68 |
-| 74 — Backup monitoring, backup management and endpoint health (P1) | XL | in progress (74.1, 74.6 shipped v3.17.695; St0r, Comet, coverage, actions planned 74.7–74.12) | Phase 63 RMM; Rem0te contract; Phase 82; St0r versioned API for 74.7 |
-| 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; 75.3 shipped v3.17.700) | Phases 68–74 |
-| 76 — Profitability and pricing advisor (OPTIONAL AI) | L | shipped v3.17.696 | Phases 68, 69, 75 (profitability) |
-| 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
-| 78 — Customer health score | M | in progress (scoring shipped v3.17.695; portal display planned) | Phase 66 pulse checks; Phases 74 and 75 (profitability) |
-| 79 — Agit8or Connect | XL | in progress (79.1–79.5 Clientst0r side shipped v3.17.692; Rem0te side planned) | Rem0te contract ticket-rmm-v1 |
-| 80 — Agit8or Identity | L | in progress (80.2 shipped v3.17.689; 80.3 shipped v3.17.690) | Keycloak shared with Rem0te |
-| 81 — API access control and network restrictions | L | shipped v3.17.713–718 (concurrency limits deferred until a shared cache; event-layer feed with Phase 82) | trusted-proxy resolution (`core/client_ip.py`); API keys; ships before new vendor endpoints |
-| 82 — Shared operational event and alert foundation | L | in progress (82.1, 82.2, 82.5 v3.17.719; 82.4 v3.17.720; 82.6 permissions v3.17.720; 82.3 partial) | Phase 81; security, RMM, Rem0te, backup and monitor alerts |
-| 83 — NOC/SOC wallboards and secure display pairing | XL | planned | Reports wallboards; Phase 82 for security and NOC widgets |
-| 84 — Security connector framework and vendor integrations | XL | planned | Phases 81, 82; integration SDK |
-| 85 — Operations Center, alert triage and correlation | L | planned | Phases 82, 84 |
-| 86 — SOAR Lite | L | planned | Phase 85; Rem0te contract additions |
-| 87 — Alert routing, on-call and escalation | M | planned | Phases 82, 85 |
-| 88 — Service dependency and impact mapping | M | planned | Phase 82; asset relationships |
-| 89 — Security posture scorecards and customer service reviews | L | planned | Phases 82, 84, 78 |
-| 90 — AI Operations Analyst (OPTIONAL AI) | L | planned | Phase 85; Phase 56 gateway |
-| 91 — Workflow automation safety | M | in progress (loop prevention and charge-once v3.17.732; assignment checks v3.17.727) | Phase 14 workflow engine |
-| 92 — Verified usage and recurring billing | M | planned | Phase 70; Rem0te count support for 92.4 |
-| 93 — Business-hours SLA calendars | M | planned | — |
-| 94 — Evidence integrity and routine backups | M | planned | — |
-| 95 — PSA migration importers | L | planned | Phase 61; Phase 94.3 for destructive imports |
-| 96 — First-install setup wizard and interactive onboarding (P0) | L | planned | Phases 59, 64, 67 |
-| 97 — Prospect IT assessment and CRM enhancements (P1) | L | planned | Phase 5 CRM; Phase 75.3 onboarding; Phase 64 roles |
-| 98 — Service estimator and forecast accuracy (P1) | L | planned | Phase 97; Phases 68, 69, 70, 75, 76; Phase 92 for actual counts |
-| 99 — Phone system integration and call-to-ticket (P2) | XL | planned | Phases 81, 82, 64; uses Phases 93 and 97 when present |
-| 100 — Optional simple PBX appliance (P4, exploratory) | XL if built | planned — not to be built until Phase 99 is proven and the go/no-go criteria are met | Phase 99; Phases 59, 93, 94 |
-| 101 — Ticket Time & Charges and prepaid-hour ledger (P0) | XL | planned | Phases 1, 36, 69, 70, 73, 93 |
-| 102 — Ready for Billing queue and invoice integrity (P0) | L | planned | Phases 15, 36, 75, 92, 101 |
-| 103 — Quote builder, options and price-book selection (P1) | L | planned | Phases 65, 68, 70 |
-| 104 — Customer approvals, deposits, change orders and portal billing (P1) | L | planned | Phases 72, 101, 103 |
-| 105 — Market pricing research and AI proposals (P3, OPTIONAL AI) | L | planned | Phases 76, 97, 98, 103; Phase 56 gateway |
-| 106 — Device management (MDM) integrations (P2) | XL | planned | Phases 64, 74.9, 82, 92 |
-| 107 — Documentation search, attachments, sharing and asset history (P3) | L | planned | Phases 16, 53 |
-| 108 — Discovery scope approval and suggested-device staging (P3) | M | planned (108.4 blocked on owner decision) | Phases 32, 33 |
-| 109 — Microsoft 365 administration (P3) | L | planned | Phases 64, 82 |
-| 110 — Service-delivery reporting and one set of definitions (P3) | L | planned | Phases 3, 75, 102 |
-| 111 — Identity lifecycle and access reviews (P1) | L | planned | Phases 57, 64, 80 |
+<a id="related-documents"></a>
+
+## Related planning documents
+
+| Document | Covers |
+|---|---|
+| [Platform program](plans/platform-program/README.md) | Stages, areas, development rules, completion checklist |
+| [Clientst0r audit](plans/platform-program/CLIENTST0R_AUDIT.md) · [Rem0te audit](plans/platform-program/REM0TE_AUDIT.md) | Code audits of 2026-11-20 behind the statuses |
+| [Rem0te feature expansion](plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md) | Stage 8 backlog |
+| [Cross-platform requirements](plans/platform-program/CROSS_PLATFORM_REQUIREMENTS.md) | Windows, Linux, macOS, MDM and backup responsibilities |
+| [Billing program](plans/msp-billing-program/README.md) | Billing, quoting, CRM discovery specification |
+| [Backup integrations](plans/backup-integrations/README.md) | St0r, Comet and unified backup management |
+| [Device management](plans/mdm/README.md) | MDM providers and workflows |
+| [Backup, MDM and cross-platform overview](plans/BACKUP_MDM_CROSS_PLATFORM_ROADMAP.md) | Combined plan |
+| [Platform feature matrix](plans/MSP_PLATFORM_FEATURE_MATRIX.md) | Benchmark comparison (internal) |
+| [Security review](plans/competitive/SECURITY_REVIEW.md) | Open findings |
+
+<a id="maintaining"></a>
+
+## How to update this roadmap
+
+The **phase record** is the only place a status is written: the `## Phase N — …` header and the
+`<!-- phase: … -->` line under it. Everything else on this page is generated from those records.
+
+1. Header marker: `[planned]`, `[in progress]`, `[shipped — vX.Y.Z]` or `[complete]` — these feed
+   `/core/roadmap.json` and the in-app roadmap page, so keep exactly these forms.
+2. Record line: `ws` (workstream A–I), `stage`, `state` (`partial`, `blocked`, `deferred`, `verify`), `view`
+   (`now`, `next`, `later`), `order`, `deps`, `next`, `blocker`, `unblock`, `note`. Use double quotes for values
+   with spaces; no double quotes or double hyphens inside values.
+3. When something ships: mark the sub-item in the phase's details `*(shipped vX.Y.Z)*`, update `next`, and when the
+   whole phase is done change the header marker and move the phase's details to ROADMAP_HISTORY.md, leaving the
+   link.
+4. New phase: add the anchor `<a id="phase-N"></a>`, the header, the record line and a `**Status:**` line, plus a
+   Details block; new phases are `[planned]`.
+5. Run `python3 scripts/roadmap_dashboard.py` (rewrites the generated tables and status lines). The test suite runs
+   it with `--check` and fails when the page is out of date.
