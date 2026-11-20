@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.731] - 2026-11-20
+
+### Fixed
+- Release 3.17.730 accidentally included a developer's `venv` link in the repository. It is removed again
+  and ignored from now on. Update straight to this version; 3.17.730 should not be installed on its own.
+
 ## [3.17.730] - 2026-11-20
 
 ### Added

@@ -259,3 +259,4 @@ walkthrough-raw/
 /backups/
 /.update-trigger
 /.update_progress_sandbox.json
+/venv
