@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Access groups - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0"><i class="fas fa-people-group"></i> Access groups</h2>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'accounts:role_list' %}" class="btn btn-outline-secondary"><i class="fas fa-id-badge"></i> Roles</a>
+        <a href="{% url 'accounts:access_group_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New access group</a>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    An access group gives each of its MSP staff members one role at a set of customers, on top of their own
+    access (global role and memberships). Removing someone from a group, or deleting the group, takes that
+    access away at once. Groups hold staff only, never set superuser or staff flags and never grant an RMM
+    tier. A group can also receive technician access presets on the Technician Access page.
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Group</th><th>Role</th><th>Customers</th><th>Members</th><th>Technician presets</th><th></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td><a href="{% url 'accounts:access_group_edit' row.group.pk %}"><strong>{{ row.group.name }}</strong></a>
+                        {% if row.group.seed_key %}<span class="badge bg-light text-dark border ms-1">default</span>{% endif %}
+                        {% if row.group.description %}<div class="small text-muted">{{ row.group.description }}</div>{% endif %}</td>
+                    <td>{% if row.group.role_template %}<a href="{% url 'accounts:role_detail' row.group.role_template.pk %}">{{ row.group.role_template.name }}</a>
+                        {% if row.group.role_template.is_privileged %}<span class="badge bg-warning text-dark ms-1">privileged</span>{% endif %}
+                        {% else %}<span class="text-muted">No role</span>{% endif %}</td>
+                    <td>{{ row.group.scope_label }}</td>
+                    <td>{{ row.members }}</td>
+                    <td>{{ row.presets }}</td>
+                    <td class="text-end">{% if row.refusal %}<span class="small text-muted" title="{{ row.refusal }}"><i class="fas fa-lock"></i> view only</span>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted text-center py-3">No access groups yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

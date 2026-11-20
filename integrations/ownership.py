@@ -62,7 +62,11 @@ def _global_flag(user, flag):
     if profile is None or not getattr(profile, 'is_staff_user', lambda: False)():
         return False
     role = profile.get_global_permissions()
-    return bool(role is not None and getattr(role, flag, False))
+    if role is not None and getattr(role, flag, False):
+        return True
+    # An access group covering every customer counts like a global role.
+    from accounts.access_groups import holds_msp_wide
+    return holds_msp_wide(user, flag)
 
 
 def can_manage_platform(user):

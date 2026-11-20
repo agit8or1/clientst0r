@@ -34,8 +34,8 @@ def switch_organization(request, org_id):
     is_staff = hasattr(request.user, 'profile') and request.user.profile.is_staff_user()
 
     if is_staff and not request.user.is_superuser:
-        from .permission_utils import staff_client_org_ids
-        scope = staff_client_org_ids(request.user)
+        from .permission_utils import navigable_org_ids
+        scope = navigable_org_ids(request.user)
         if scope is not None and org.pk not in scope:
             messages.error(request, "This organization is outside your client scope.")
             return redirect('core:dashboard')
@@ -1639,6 +1639,8 @@ def user_detail(request, user_id):
         'viewed_user': user,
         'profile': profile,
         'memberships': memberships,
+        'user_access_groups': user.technician_groups.select_related('role_template').prefetch_related(
+            'customers').order_by('name'),
         'mobile_sessions': _active_mobile_sessions(user),
         **_azure_link_context(user),
         'admin_needs_otp': TOTPDevice.objects.filter(user=request.user, confirmed=True).exists(),

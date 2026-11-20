@@ -211,5 +211,29 @@ def connect_related():
         post_save.connect(_invalidate, sender=AccessAssignment, dispatch_uid='authz_ta_save')
         post_delete.connect(_invalidate, sender=AccessAssignment, dispatch_uid='authz_ta_delete')
         m2m_changed.connect(_invalidate, sender=TechnicianGroup.members.through, dispatch_uid='authz_ta_group')
+        # Access groups (accounts.access_groups): role, scope and the group
+        # itself change what members hold.
+        post_save.connect(_invalidate, sender=TechnicianGroup, dispatch_uid='authz_ta_group_save')
+        post_delete.connect(_invalidate, sender=TechnicianGroup, dispatch_uid='authz_ta_group_delete')
+        m2m_changed.connect(_invalidate, sender=TechnicianGroup.customers.through,
+                            dispatch_uid='authz_ta_group_customers')
+        m2m_changed.connect(_staff_only_members, sender=TechnicianGroup.members.through,
+                            dispatch_uid='access_group_staff_only')
     except Exception:  # pragma: no cover - app missing
         pass
+
+
+def _staff_only_members(sender, instance, action, reverse, pk_set, **_kw):
+    """Access groups hold MSP staff only: refuse any add of a customer user,
+    whichever side of the relation it comes from and whichever page or job
+    makes it."""
+    if action != 'pre_add' or not pk_set:
+        return
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError
+    from psa.visibility import is_msp_staff
+    users = [instance] if reverse else list(get_user_model().objects.filter(pk__in=pk_set)
+                                            .select_related('profile'))
+    bad = [u.get_username() for u in users if not is_msp_staff(u)]
+    if bad:
+        raise ValidationError(f'Access groups hold MSP staff only; refused: {", ".join(sorted(bad))}.')

@@ -51,8 +51,9 @@ def authorized_organizations(request):
     if has_all_client_access(request):
         return qs
     if getattr(request, 'is_staff_user', False):
-        from accounts.permission_utils import staff_client_org_ids
-        return qs.filter(pk__in=staff_client_org_ids(request.user) or set())
+        # Navigation reach: client scope plus access-group customers.
+        from accounts.permission_utils import navigable_org_ids
+        return qs.filter(pk__in=navigable_org_ids(request.user) or set())
     return qs.filter(
         memberships__user=request.user,
         memberships__is_active=True,

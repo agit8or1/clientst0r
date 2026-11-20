@@ -2514,7 +2514,14 @@ class RoleTemplate(BaseModel):
 
         # Phase 8 RMM tiers: L1, L2, L3, Platform Administrator.
         from .rmm_role_templates import template_rows
-        templates += [dict(defaults, name=name) for name, defaults in template_rows(ALL_FALSE.keys())]
+        for name, defaults in template_rows(ALL_FALSE.keys()):
+            # The L1/L2/L3 tier templates are adopted by the built-in roles
+            # and renamed ("RMM L1 — Help Desk" -> "L1 Tech"): look them up
+            # by tier, so a renamed one is not created again under its old name.
+            if cls.objects.filter(organization=None, is_system_template=True,
+                                  rmm_tier=defaults['rmm_tier']).exists():
+                continue
+            templates.append(dict(defaults, name=name))
 
         for template_data in templates:
             template, created = cls.objects.get_or_create(

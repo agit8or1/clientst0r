@@ -289,6 +289,13 @@ def _check_roles(u, ctx):
     return _can_view_roles(u, org)
 
 
+def _can_manage_access_groups(u):
+    """accounts.access_group_views: access_groups.can_manage (roles_manage
+    MSP-wide)."""
+    from accounts.access_groups import can_manage
+    return can_manage(u)
+
+
 def _check_office_org_manager(u, ctx):
     """office.views_admin.org_policy: a current organization the user may
     manage (superuser, or org_manage_settings there)."""
@@ -338,6 +345,7 @@ _aging_reader = _view_check(_check_aging_reader)
 _rmm_policy_reader = _view_check(_check_rmm_policy_reader)
 _members_admin = _view_check(_check_members)
 _roles_reader = _view_check(_check_roles)
+_access_group_manager = _view_check(lambda u, ctx: _can_manage_access_groups(u))
 _office_org_manager = _view_check(_check_office_org_manager)
 _office_templates = _view_check(_check_office_templates)
 _field_ops_admin = _view_check(_check_field_ops_admin)
@@ -803,6 +811,9 @@ SECTIONS = (
             keywords='permissions templates', also=('accounts:role_review', 'accounts:role_compare',
                                                     'accounts:permission_catalog', 'accounts:portal_access',
                                                     'accounts:access_explain')),
+        Tab(_('Access groups'), 'accounts:access_group_list', 'fa-people-group', gate=_access_group_manager,
+            keywords='groups teams l1 l2 l3 tech manager sales owner billing auditor',
+            also=('accounts:access_group_create', 'accounts:access_group_edit')),
         Tab(_('Access Management'), 'accounts:access_management', 'fa-users-cog', gate=_superuser,
             keywords='users roles permissions api keys tokens'),
         Tab(_('Directory Services'), 'core:settings_directory', 'fa-address-book', gate=_superuser,

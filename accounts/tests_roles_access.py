@@ -247,11 +247,11 @@ class SeedingTests(TestCase):
 
     def test_name_clash_is_not_overwritten(self):
         RoleTemplate.objects.filter(seed_key='auditor').delete()
-        clash = RoleTemplate.objects.create(name='Internal Read-Only / Auditor', organization=None,
+        clash = RoleTemplate.objects.create(name='Auditor', organization=None,
                                             docs_edit=True)
         summary = seed_builtin_roles(RoleTemplate)
         clash.refresh_from_db()
-        self.assertIn('Internal Read-Only / Auditor', summary['skipped'])
+        self.assertIn('Auditor', summary['skipped'])
         self.assertTrue(clash.docs_edit)
         self.assertEqual(clash.seed_key, '')
 

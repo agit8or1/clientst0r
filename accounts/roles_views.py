@@ -59,6 +59,11 @@ def _can_manage_roles(user, org):
     return bool(user.is_superuser or (org is not None and user_has_org_perm(user, org, 'roles_manage')))
 
 
+def _can_manage_groups(user):
+    from .access_groups import can_manage
+    return can_manage(user)
+
+
 def _can_view_roles(user, org):
     return bool(_can_manage_roles(user, org) or (org is not None and (
         user_has_org_perm(user, org, 'org_manage_members') or user_has_org_perm(user, org, 'org_invite_members'))))
@@ -186,13 +191,17 @@ def role_list(request):
         granted_anywhere |= set(registry.granted_keys(Membership(role=simple)._primary_permissions()))
     unassigned = [p for p in registry.PERMISSIONS if p.key not in granted_anywhere]
 
+    from .role_order import is_legacy, sort_key
+    rows.sort(key=lambda row: sort_key(row['role']))
     return render(request, 'accounts/roles/role_list.html', {
         'current_organization': org,
-        'builtin_rows': [r for r in rows if r['role'].organization_id is None],
+        'builtin_rows': [r for r in rows if r['role'].organization_id is None and not is_legacy(r['role'])],
+        'legacy_rows': [r for r in rows if is_legacy(r['role'])],
         'custom_rows': [r for r in rows if r['role'].organization_id is not None],
         'unused_rows': [r for r in rows if r['users'] == 0],
         'unassigned_permissions': unassigned,
         'can_manage': _can_manage_roles(request.user, org),
+        'can_manage_groups': _can_manage_groups(request.user),
         'show_archived': show_archived,
         'open_reviews': RoleReviewItem.objects.filter(status='open').count() if request.user.is_superuser else 0,
     })
@@ -217,6 +226,7 @@ def role_detail(request, pk):
         'groups': _module_groups(registry.flags_of(role)),
         'granted_count': len(registry.granted_keys(role)),
         'primary': primary, 'additional': additional, 'staff': staff,
+        'access_groups': list(role.access_groups.annotate(n=Count('members')).order_by('name')),
         'can_manage': _can_manage_roles(request.user, org) and (
             role.organization_id == org.pk or request.user.is_superuser),
         'non_customer': registry.non_customer_keys(role) if role.audience == 'customer' else [],
@@ -427,9 +437,9 @@ def role_delete(request, pk):
     if request.method == 'POST':
         primary, additional, staff = _role_users(role)
         users_count = len(primary) + len(additional) + len(staff)
-        if users_count > 0 or role.ldap_group_mappings.exists():
+        if users_count > 0 or role.ldap_group_mappings.exists() or role.access_groups.exists():
             messages.error(request, f'Cannot delete role "{role.name}" - it is assigned to {users_count} user(s) '
-                                    'or used by a directory mapping. Reassign them first, or archive it.')
+                                    'or used by a directory mapping or access group. Reassign them first, or archive it.')
             return redirect('accounts:role_list')
 
         role_name = role.name
@@ -487,6 +497,10 @@ def access_explain(request):
                .distinct().order_by('username'))
     if request.user.is_superuser:
         members = (members | User.objects.filter(profile__user_type='staff')).distinct().order_by('username')
+    elif _can_manage_groups(request.user):
+        # Staff holding a role here through an access group.
+        members = (members | User.objects.filter(technician_groups__role_template__isnull=False)
+                   ).distinct().order_by('username')
     target = None
     result = None
     perm_key = request.GET.get('perm', '')
@@ -654,13 +668,18 @@ def member_role_assign(request, user_id):
             messages.success(request, f'Cleared custom role for {user.username}. Using default role.')
         return redirect('accounts:member_list')
 
-    system_templates = [r for r in available if r.organization_id is None]
+    from .role_order import is_legacy, ordered
+    available = ordered(available)
+    system_templates = [r for r in available if r.organization_id is None and not is_legacy(r)]
+    legacy_templates = [r for r in available if is_legacy(r)]
     custom_templates = [r for r in available if r.organization_id is not None]
     return render(request, 'accounts/roles/member_role_assign.html', {
         'current_organization': org,
         'user': user,
         'user_membership': user_membership,
         'system_templates': system_templates,
+        'legacy_templates': legacy_templates,
+        'legacy_selected': any(r.pk == user_membership.role_template_id for r in legacy_templates),
         'custom_templates': custom_templates,
         'assignable_ids': available_ids,
         'current_extra_ids': set(user_membership.additional_roles.values_list('pk', flat=True)),

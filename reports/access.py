@@ -42,12 +42,18 @@ def has_msp_wide_perm(user, perm_name, legacy='membership'):
     is_staff, global_perms = _global_role(user)
     if not is_staff:
         return False
+    # An access group covering every customer counts like a global role
+    # (accounts.access_groups); a group limited to some customers never
+    # opens an MSP-wide figure.
+    from accounts.access_groups import holds_msp_wide
+    if holds_msp_wide(user, perm_name):
+        return True
     if global_perms is not None:
         return bool(getattr(global_perms, perm_name, False))
     if legacy == 'staff':
         return True
-    from accounts.permission_utils import user_has_perm
-    return user_has_perm(user, perm_name)
+    from accounts.permission_utils import user_has_perm_any_org
+    return user_has_perm_any_org(user, perm_name, include_groups=False)
 
 
 def viewer_client_scope(user):
@@ -56,9 +62,13 @@ def viewer_client_scope(user):
     scope 'all'), else a list of customer Organization ids (possibly empty)
     from the staff member's client_scope. Pass it as `organization=` to the
     reports.queries functions so aggregates (MRR, churn, utilization,
-    profitability) only add up customers the viewer is entitled to."""
-    from accounts.permission_utils import staff_client_org_ids
-    ids = staff_client_org_ids(user)
+    profitability) only add up customers the viewer is entitled to.
+
+    The technician's own client scope: customers reached only through an
+    access group are not added (a group's role is not the role that opened
+    the MSP-wide figure)."""
+    from accounts.permission_utils import direct_client_org_ids
+    ids = direct_client_org_ids(user)
     return None if ids is None else sorted(ids)
 
 

@@ -85,6 +85,8 @@
                 {% if request.user.is_superuser %}
                 <strong>Global role (MSP staff)</strong>
                 <ul>{% for p in staff %}<li>{{ p.user.username }} ({{ p.get_client_scope_display }})</li>{% empty %}<li class="text-muted">None</li>{% endfor %}</ul>
+                <strong>Access groups</strong>
+                <ul>{% for g in access_groups %}<li>{{ g.name }} ({{ g.n }} member{{ g.n|pluralize }}, {{ g.scope_label|lower }})</li>{% empty %}<li class="text-muted">None</li>{% endfor %}</ul>
                 {% endif %}
             </div>
         </div>

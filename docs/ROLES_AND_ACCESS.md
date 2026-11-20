@@ -32,6 +32,34 @@ server; hiding a button is never the check.
 - *Staff only* permissions (internal notes, quotes, CRM, resourcing team data, AI and similar) never
   take effect for a customer user, whatever their role says.
 
+## Access groups
+
+An access group (Users & Access → Access groups) is a named group of MSP staff that carries one internal role
+and a customer scope: every customer, or chosen customers and their subsidiaries. Each member holds the group's
+role at those customers **in addition to** their own access (global role inside their client scope, and their
+memberships). Effective access is the union; a group never removes anything.
+
+- Resolved where every other permission is: `user_has_org_perm`, `user_has_perm`, `orgs_with_perm` and the row
+  scoping in `accounts.scope` add one grant per group, each with the group's own customers. Pages, the API,
+  background jobs and the "why does this person have access" page all see the same answer. Removing a member or
+  deleting the group revokes the access at the next check.
+- Row scope stays per permission. `staff_client_org_ids` and `core.tenancy.accessible_org_ids` /
+  `scope_to_request` are the technician's own client scope and never include group customers; group customers are
+  added only where the permission is named (`orgs_with_perm`, `filter_by_org_perm`, `accounts.scope`,
+  `scope_to_request(..., perm=...)`, workflow rules under `psa_manage_workflow_rules`). The client switcher
+  (`navigable_org_ids`) lets a member select a group customer; there, and whenever a customer is selected,
+  `user_has_perm` answers for that customer. MSP-wide checks (single sign-on, payment gateways, platform integrations, MSP-wide report
+  figures) count a group only when it covers every customer, like a global role.
+- Groups hold MSP staff only; adding a customer user is refused wherever it is attempted. A group never sets the
+  superuser or Django staff flag and never grants an RMM tier: tiers come from the global role, which needs a
+  protected change.
+- Managing groups needs `roles_manage` across every customer. A group whose role is privileged also needs that level
+  (`org_owner` for an owner role, `org_manage_privileged` otherwise); only a superuser manages a group whose role
+  holds permissions they lack, or a group they belong to. Every change is in the audit trail with before / after.
+- The same groups receive technician access presets on the Technician Access page.
+- Default groups, created once and empty: L1 Tech, L2 Tech, L3 Tech, Managers, Sales, Sales Managers, Owners,
+  Administrators, Billing, Auditors — each with the matching built-in role, scope all customers.
+
 ## Helpers for application code
 
 | Question | Helper |
@@ -129,6 +157,11 @@ silently grants a powerful role.
 - The existing **Owner** template and the **RMM L1/L2/L3** templates are adopted as the built-in Owner and Level 1–3
   Technician roles. Adoption only adds permissions. New built-in roles are created next to them. An existing role
   with the same name as a new built-in is left alone and listed for review.
+- Built-in roles have plain display names: L1 Tech, L2 Tech, L3 Tech (were RMM L1 — Help Desk, RMM L2 —
+  Technician, RMM L3 — Senior Technician), Manager (Service Manager), Sales (Sales Representative) and Auditor
+  (Internal Read-Only / Auditor). A role an administrator renamed keeps its name. Renaming changes no permission.
+  The older templates without a seed key (Administrator, Editor, Read-Only, Help Desk, IT Manager, Documentation
+  Writer, Platform Administrator) are shown as **Legacy roles**; they keep working and stay assignable.
 - Built-in roles carry a version and checksum. A later release upgrades a built-in role only if nobody changed it.
   A customized one is kept and listed for review.
 - Whatever needs a person's decision goes on the review list (the **Review** page and
@@ -393,16 +426,16 @@ Generated from `accounts/role_seeds.py`. A blank cell means the role does not ho
 |---|---|---|---|
 | Organization Owner | Owner | `org_owner` | adopted existing template |
 | Organization Administrator | Organization Administrator | `org_admin` | new template |
-| Service Manager | Service Manager | `service_manager` | new template |
-| Level 1 Technician | RMM L1 — Help Desk | `tech_l1` | adopted existing template, RMM tier l1 |
-| Level 2 Technician | RMM L2 — Technician | `tech_l2` | adopted existing template, RMM tier l2 |
-| Level 3 Technician | RMM L3 — Senior Technician | `tech_l3` | adopted existing template, RMM tier l3 |
+| Service Manager | Manager | `service_manager` | new template |
+| Level 1 Technician | L1 Tech | `tech_l1` | adopted existing template, RMM tier l1 |
+| Level 2 Technician | L2 Tech | `tech_l2` | adopted existing template, RMM tier l2 |
+| Level 3 Technician | L3 Tech | `tech_l3` | adopted existing template, RMM tier l3 |
 | Security Analyst | Security Analyst | `security_analyst` | new template |
 | Security Administrator | Security Administrator | `security_admin` | new template |
-| Sales Representative | Sales Representative | `sales_rep` | new template |
+| Sales Representative | Sales | `sales_rep` | new template |
 | Sales Manager | Sales Manager | `sales_manager` | new template |
 | Billing / Finance | Billing / Finance | `billing_finance` | new template |
-| Internal Read-Only / Auditor | Internal Read-Only / Auditor | `auditor` | new template |
+| Internal Read-Only / Auditor | Auditor | `auditor` | new template |
 | Customer Administrator | Customer Administrator | `customer_admin` | new template |
 | Customer Manager | Customer Manager | `customer_manager` | new template |
 | Customer Standard User | Customer Standard User | `customer_user` | new template |

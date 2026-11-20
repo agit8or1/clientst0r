@@ -19,6 +19,12 @@ the full permission map. The seeder, for each definition:
       - customized since (checksum differs): left alone, listed for review;
   * same version: nothing.
 
+Display names: a built-in role whose name is still one of its earlier
+built-in names (`former_names`) is renamed to the current one (accounts
+0065: "RMM L1 — Help Desk" -> "L1 Tech" ...); a name an administrator
+changed is kept. Renaming never touches permissions. Code finds built-in
+roles by seed_key (or rmm_tier), never by name.
+
 So reseeding (migrations, `manage.py init_role_templates`, `manage.py
 seed_roles`) is idempotent and never undoes an administrator's edits.
 
@@ -80,6 +86,7 @@ class RoleDef:
     adopt: Tuple[str, ...] = ()
     rmm_tier: str = ''
     spec_name: str = ''           # the name the requirement uses, when different
+    former_names: Tuple[str, ...] = ()  # earlier built-in names, renamed while unedited
 
     def full_flags(self, field_names) -> Dict[str, bool]:
         data = {f: False for f in field_names}
@@ -192,6 +199,7 @@ def _rmm_flags():
 
 
 def _tech(tier):
+    """(the RMM template name the role was adopted from, flags)."""
     name, flags = _rmm_flags()[tier]
     extra = dict(tickets_view_internal=True, vehicles_view=True, view_backup_status=True)
     if tier != 'l1':
@@ -256,24 +264,27 @@ def _definitions() -> List[RoleDef]:
         RoleDef('org_admin', 'Organization Administrator', 'internal',
                 'Manages users, roles, configuration and authorized integrations. No ownership transfer or '
                 'owner-only operations; stored secrets need explicit vault permissions.', _ORG_ADMIN, version=6),
-        RoleDef('service_manager', 'Service Manager', 'internal',
+        RoleDef('service_manager', 'Manager', 'internal',
                 'Service operations: queues, assignment, escalation, change / problem / release and service '
                 'reports for authorized clients. No billing administration, secrets or security settings.',
-                _SERVICE_MANAGER, version=3),
-        RoleDef('tech_l1', l1_name, 'internal',
+                _SERVICE_MANAGER, version=3, spec_name='Service Manager', former_names=('Service Manager',)),
+        RoleDef('tech_l1', 'L1 Tech', 'internal',
                 'Level 1 Technician: assigned tickets and authorized client records, approved documentation '
                 'and basic asset information. No stored passwords, remote shell, scripts, exports, '
                 'integrations, user administration or destructive operations.',
-                l1, adopt=(l1_name,), rmm_tier='l1', spec_name='Level 1 Technician', version=3),
-        RoleDef('tech_l2', l2_name, 'internal',
+                l1, adopt=(l1_name,), rmm_tier='l1', spec_name='Level 1 Technician', version=3,
+                former_names=(l1_name,)),
+        RoleDef('tech_l2', 'L2 Tech', 'internal',
                 'Level 2 Technician: Level 1 plus troubleshooting and asset-management actions. Remote '
                 'access and credentials stay separate permissions.',
-                l2, adopt=(l2_name,), rmm_tier='l2', spec_name='Level 2 Technician', version=3),
-        RoleDef('tech_l3', l3_name, 'internal',
+                l2, adopt=(l2_name,), rmm_tier='l2', spec_name='Level 2 Technician', version=3,
+                former_names=(l2_name,)),
+        RoleDef('tech_l3', 'L3 Tech', 'internal',
                 'Level 3 Technician: advanced technical work for authorized clients. Scripts, remote shell, '
                 'credentials and destructive actions stay explicit permissions; no organization '
                 'administration.',
-                l3, adopt=(l3_name,), rmm_tier='l3', spec_name='Level 3 Technician', version=3),
+                l3, adopt=(l3_name,), rmm_tier='l3', spec_name='Level 3 Technician', version=3,
+                former_names=(l3_name,)),
         RoleDef('security_analyst', 'Security Analyst', 'internal',
                 'Triage of security alerts and the shared event list for authorized clients: acknowledge, '
                 'link tickets and incidents, open tickets. No vendor connections, rules, ingestion settings, '
@@ -282,10 +293,11 @@ def _definitions() -> List[RoleDef]:
                 'Security Analyst plus vendor connections, SIEM endpoints, auto-ticket rules, event ingestion '
                 'and retention, and the audit log. No billing, user administration or stored secrets.',
                 _SECURITY_ADMIN),
-        RoleDef('sales_rep', 'Sales Representative', 'internal',
+        RoleDef('sales_rep', 'Sales', 'internal',
                 'Leads, opportunities, quotes and contract drafts. No technical credentials, remote access, '
                 'internal technical notes or security administration; sending contracts, approving '
-                'discounts and countersigning are separate.', _SALES_REP),
+                'discounts and countersigning are separate.', _SALES_REP, spec_name='Sales Representative',
+                former_names=('Sales Representative',)),
         RoleDef('sales_manager', 'Sales Manager', 'internal',
                 "The sales team's pipeline, quotes, pricing exceptions and forecast. Approving or sending "
                 'contracts only when explicitly added.', _SALES_MANAGER, version=2),
@@ -293,9 +305,10 @@ def _definitions() -> List[RoleDef]:
                 'Billing records, invoices, payment status and financial reports; reads commercial '
                 'agreements and configures sales tax. No credentials, remote tools or security settings.',
                 _BILLING, version=5),
-        RoleDef('auditor', 'Internal Read-Only / Auditor', 'internal',
+        RoleDef('auditor', 'Auditor', 'internal',
                 'Reads authorized records, reports and the audit log. No editing or operational actions; '
-                'secret reveal, file downloads and exports stay separate.', _AUDITOR, version=3),
+                'secret reveal, file downloads and exports stay separate.', _AUDITOR, version=3,
+                spec_name='Internal Read-Only / Auditor', former_names=('Internal Read-Only / Auditor',)),
         RoleDef('customer_admin', 'Customer Administrator', 'customer',
                 "Manages the customer's portal users and contacts with approved customer roles; sees the "
                 "organization's tickets and customer-visible documents and assets. Not a contract signer "
@@ -328,7 +341,7 @@ def as_frozen() -> List[dict]:
     for d in definitions():
         out.append({'key': d.key, 'name': d.name, 'audience': d.audience, 'description': d.description,
                     'flags': {k: True for k, v in sorted(d.flags.items()) if v}, 'version': d.version,
-                    'adopt': list(d.adopt), 'rmm_tier': d.rmm_tier})
+                    'adopt': list(d.adopt), 'rmm_tier': d.rmm_tier, 'former_names': list(d.former_names)})
     return out
 
 
@@ -348,7 +361,7 @@ def seed_builtin_roles(RoleTemplate, defs=None, RoleReviewItem=None, source='see
     and on a migration's historical model (pass `defs` as frozen dicts).
 
     Returns {'created': [...], 'adopted': [...], 'upgraded': [...],
-             'kept_customized': [...], 'unchanged': [...], 'skipped': [...]}.
+             'kept_customized': [...], 'unchanged': [...], 'skipped': [...], 'renamed': [...]}.
     """
     if RoleReviewItem is None:
         try:
@@ -358,7 +371,8 @@ def seed_builtin_roles(RoleTemplate, defs=None, RoleReviewItem=None, source='see
     if defs is None:
         defs = as_frozen()
     names = _field_names(RoleTemplate)
-    summary = {k: [] for k in ('created', 'adopted', 'upgraded', 'kept_customized', 'unchanged', 'skipped')}
+    summary = {k: [] for k in ('created', 'adopted', 'upgraded', 'kept_customized', 'unchanged', 'skipped',
+                               'renamed')}
 
     def review(reason, row, detail):
         if RoleReviewItem is None:
@@ -420,4 +434,33 @@ def seed_builtin_roles(RoleTemplate, defs=None, RoleReviewItem=None, source='see
             review('builtin_customized', row,
                    f"'{row.name}' was customized, so version {d['version']} of the built-in definition was "
                    'not applied. Compare it with the built-in and update it by hand if wanted.')
+    summary['renamed'] = rename_builtin_roles(RoleTemplate, defs, review=review)
     return summary
+
+
+def rename_builtin_roles(RoleTemplate, defs=None, review=None):
+    """Give built-in roles their current display name. Only a role whose name
+    is still one of its earlier built-in names is renamed (a name an
+    administrator changed is kept), and never onto a name another role of
+    the install already uses. Display only: permissions, seed version and
+    checksum are untouched. Returns ['old -> new', ...]."""
+    if defs is None:
+        defs = as_frozen()
+    done = []
+    for d in defs:
+        former = tuple(d.get('former_names') or ())
+        if not former:
+            continue
+        row = RoleTemplate.objects.filter(seed_key=d['key'], organization__isnull=True).first()
+        if row is None or row.name == d['name'] or row.name not in former:
+            continue
+        if RoleTemplate.objects.filter(name=d['name'], organization__isnull=True).exclude(pk=row.pk).exists():
+            if review is not None:
+                review('other', row, f"The built-in role '{row.name}' is now called '{d['name']}', but another "
+                                     'role already uses that name, so it was not renamed.')
+            continue
+        old = row.name
+        row.name = d['name']
+        row.save(update_fields=['name', 'updated_at'])
+        done.append(f'{old} -> {d["name"]}')
+    return done

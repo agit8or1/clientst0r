@@ -218,7 +218,7 @@ def _visible_device_ids(request, kind, ids):
     from accounts.permission_utils import orgs_with_perm
     from core.tenancy import accessible_org_ids
     _model, _url, perm, _label, _extra = DEVICE_KINDS[kind]
-    allowed = _intersect(accessible_org_ids(request), orgs_with_perm(request.user, perm))
+    allowed = _intersect(accessible_org_ids(request, perm=perm), orgs_with_perm(request.user, perm))
     if kind == 'rmm_device':
         # RMM device pages are MSP-staff only (/integrations/rmm/) and sit in
         # the integrations section (integrations_view), on top of assets_view.

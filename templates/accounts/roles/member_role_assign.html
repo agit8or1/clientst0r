@@ -132,6 +132,31 @@
             </div>
             {% endif %}
 
+            {% if legacy_templates %}
+            <details class="mb-4"{% if legacy_selected %} open{% endif %}>
+                <summary class="text-muted mb-2"><i class="fas fa-box-archive"></i> Legacy roles ({{ legacy_templates|length }})</summary>
+                <p class="small text-muted">Older built-in templates. They keep working for everyone who has them; the roles above are the current ones.</p>
+                <div class="row">
+                    {% for role in legacy_templates %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100"><div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="role_template_id"
+                                       id="role_{{ role.id }}" value="{{ role.id }}"
+                                       {% if user_membership.role_template.id == role.id %}checked{% endif %}>
+                                <label class="form-check-label w-100" for="role_{{ role.id }}">
+                                    <strong>{{ role.name }}</strong>
+                                    <span class="badge bg-light text-dark border ms-2">Legacy</span>
+                                    <p class="small text-muted mb-0 mt-1">{{ role.description }}</p>
+                                </label>
+                            </div>
+                        </div></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
             {% if user_membership.role_template and user_membership.role_template.id not in assignable_ids %}
             <div class="mb-4">
                 <div class="card border-warning"><div class="card-body">
@@ -171,6 +196,11 @@
                 {% for role in system_templates %}{% include "accounts/roles/_extra_role.html" %}{% endfor %}
                 {% for role in custom_templates %}{% include "accounts/roles/_extra_role.html" %}{% endfor %}
             </div>
+            {% if legacy_templates %}
+            <details class="mb-4"><summary class="small text-muted">Legacy roles</summary>
+                <div class="row mt-2">{% for role in legacy_templates %}{% include "accounts/roles/_extra_role.html" %}{% endfor %}</div>
+            </details>
+            {% endif %}
 
             <h5 class="mb-2">Record scope</h5>
             <div class="mb-4" style="max-width: 32rem">

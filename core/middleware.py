@@ -32,8 +32,8 @@ class CurrentOrganizationMiddleware:
         member's client scope (UserProfile.client_scope) narrows it."""
         if request.user.is_superuser:
             return True
-        from accounts.permission_utils import staff_client_org_ids
-        scope = staff_client_org_ids(request.user)
+        from accounts.permission_utils import navigable_org_ids
+        scope = navigable_org_ids(request.user)
         return scope is None or org.pk in scope
 
     def _resolve(self, request):

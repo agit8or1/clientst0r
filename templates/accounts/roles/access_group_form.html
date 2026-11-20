@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{% if group %}{{ group.name }}{% else %}New access group{% endif %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0"><i class="fas fa-people-group"></i> {% if group %}{{ group.name }}{% else %}New access group{% endif %}</h2>
+    <a href="{% url 'accounts:access_group_list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Access groups</a>
+</div>
+
+{% if refusal %}<div class="alert alert-warning"><i class="fas fa-lock"></i> {{ refusal }} This group is shown read-only.</div>{% endif %}
+{% for e in errors %}<div class="alert alert-danger">{{ e }}</div>{% endfor %}
+
+<form method="post">
+    {% csrf_token %}
+    <fieldset {% if refusal %}disabled{% endif %}>
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" for="ag-name">Name</label>
+                    <input class="form-control" id="ag-name" name="name" maxlength="100" required value="{{ form.name }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="ag-desc">Description</label>
+                    <textarea class="form-control" id="ag-desc" name="description" rows="2">{{ form.description }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="ag-role">Role</label>
+                    <select class="form-select" id="ag-role" name="role">
+                        <option value="">No role (technician presets only)</option>
+                        {% for _bucket, label, roles in role_groups %}
+                        <optgroup label="{{ label }}">
+                            {% for r in roles %}<option value="{{ r.pk }}" {% if r.pk == form.role_id %}selected{% endif %}>{{ r.name }}{% if r.is_privileged %} (privileged){% endif %}</option>{% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Every member holds this role's permissions at the customers below, in addition to their own access. An RMM tier on the role is not granted through a group.</small>
+                </div>
+                <div class="mb-2">
+                    <span class="form-label d-block">Customers</span>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="scope" value="all" id="ag-scope-all" {% if form.all_customers %}checked{% endif %}>
+                        <label class="form-check-label" for="ag-scope-all">All customers</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="scope" value="selected" id="ag-scope-sel" {% if not form.all_customers %}checked{% endif %}>
+                        <label class="form-check-label" for="ag-scope-sel">Only the customers chosen (and their subsidiaries)</label>
+                    </div>
+                    <select class="form-select mt-2" name="customers" multiple size="8" aria-label="Customers">
+                        {% for o in customers %}<option value="{{ o.pk }}" {% if o.pk in form.customer_ids %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div></div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body">
+                <input type="hidden" name="members_present" value="1">
+                <label class="form-label" for="ag-members">Members (MSP staff)</label>
+                <select class="form-select" id="ag-members" name="members" multiple size="14">
+                    {% for u in staff_users %}<option value="{{ u.pk }}" {% if u.pk in form.member_ids %}selected{% endif %}>{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>{% endfor %}
+                </select>
+                <small class="text-muted">Only MSP staff can be members; customer users are never listed or accepted.</small>
+                {% if assignments %}
+                <h6 class="mt-4">Technician access presets of this group</h6>
+                <ul class="small mb-0">{% for a in assignments %}<li>{{ a.preset.name }} at {{ a.organization.name }}</li>{% endfor %}</ul>
+                <small class="text-muted">Managed on the Technician Access page. Adding a member who would gain more than they have waits for a second administrator there.</small>
+                {% endif %}
+            </div></div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
+    </div>
+    </fieldset>
+</form>
+
+{% if group and not refusal %}
+<form method="post" action="{% url 'accounts:access_group_delete' group.pk %}" class="mt-4"
+      data-confirm="Delete this access group? Its members lose the access it gives, and its technician presets are removed.">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-danger"><i class="fas fa-trash"></i> Delete group</button>
+</form>
+{% endif %}
+{% endblock %}

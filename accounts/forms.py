@@ -573,6 +573,8 @@ class UserCreateForm(forms.ModelForm):
         self.fields['scope_organizations'].queryset = Organization.objects.filter(is_active=True).order_by('name')
         self.fields['global_role_template'].queryset = RoleTemplate.objects.filter(
             is_system_template=True, is_archived=False).exclude(audience='customer')
+        from .role_order import grouped_model_choice_field
+        grouped_model_choice_field(self.fields['global_role_template'])
 
     def clean_password2(self):
         password1 = self.cleaned_data.get('password1')
@@ -659,6 +661,8 @@ class UserEditForm(forms.ModelForm):
         self.fields['scope_organizations'].queryset = Organization.objects.filter(is_active=True).order_by('name')
         self.fields['global_role_template'].queryset = RoleTemplate.objects.filter(
             is_system_template=True, is_archived=False).exclude(audience='customer')
+        from .role_order import grouped_model_choice_field
+        grouped_model_choice_field(self.fields['global_role_template'])
 
         # Set initial values from profile
         if self.instance and self.instance.pk:

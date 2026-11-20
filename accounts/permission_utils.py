@@ -20,6 +20,9 @@ Who holds what, at one organization:
   * Everyone else (customer users): the membership at that organization, or
     at a parent organization (a parent's members see its subsidiaries). A
     membership's additional roles add to its primary role.
+  * MSP staff in access groups (accounts.access_groups): each group's role
+    at the group's customers, added to the above (union). One group's role
+    never combines with another grant's customers.
   * Staff-only permissions (permission_registry.STAFF_ONLY_KEYS: internal
     notes, CRM, financial reports, AI...) are never effective for a customer
     user, whatever their role says.
@@ -99,6 +102,46 @@ def _profile_staff(user):
 
 
 def staff_client_org_ids(user):
+    """Row scope of an MSP staff member: their own client scope, None (all)
+    or a set. Never includes access-group customers.
+
+    Callers use this as the row scope for whatever permission they checked
+    once (often the global role's), so adding a group's customers here would
+    show rows the group's role does not grant. Group customers are added only
+    per permission: client_org_ids_for_perm, orgs_with_perm,
+    core.tenancy.scope_to_request(..., perm=...). For "which customers may
+    this person select" (navigation) use navigable_org_ids."""
+    return direct_client_org_ids(user)
+
+
+def navigable_org_ids(user):
+    """Customers an MSP staff member may select in the switcher: their client
+    scope plus their access groups' customers (None = all). Navigation only:
+    data at a selected customer is gated by user_has_org_perm there."""
+    direct = direct_client_org_ids(user)
+    if direct is None:
+        return None
+    from . import access_groups
+    extra = access_groups.reach(user)
+    if extra is None:
+        return None
+    return set(direct) | extra if extra else direct
+
+
+def client_org_ids_for_perm(user, perm_name):
+    """Row scope for one permission: the client scope plus the customers where
+    an access group grants `perm_name` (None = all)."""
+    direct = direct_client_org_ids(user)
+    if direct is None:
+        return None
+    from . import access_groups
+    extra = access_groups.orgs_with_perm(user, perm_name)
+    if extra is None:
+        return None
+    return set(direct) | extra if extra else direct
+
+
+def direct_client_org_ids(user):
     """Clients an MSP staff member's global role reaches: None (all) or a set.
 
     'assigned' = customers where they hold a live technician access
@@ -178,27 +221,36 @@ def user_has_org_perm(user, organization, perm_name) -> bool:
     org_id = getattr(organization, 'pk', organization)
 
     def compute():
-        profile = _profile_staff(user)
-        if profile is not None:
-            if org_id is not None:
-                scope = staff_client_org_ids(user)
-                if scope is not None and org_id not in scope:
-                    return False
-            global_permissions = profile.get_global_permissions()
-            if global_permissions is not None:
-                return bool(getattr(global_permissions, perm_name, False))
-            if not perm_name.startswith(MEMBERSHIP_SCOPED_PREFIXES):
-                return legacy_staff_holds(user, perm_name)
-        elif perm_name in STAFF_ONLY_KEYS and not is_msp_staff(user):
-            return False
-        if org_id is None:
-            return False
-        return any(getattr(m.get_permissions(), perm_name, False)
-                   for m in memberships_covering(user, org_id))
+        if _direct_org_perm(user, org_id, perm_name):
+            return True
+        from . import access_groups
+        return access_groups.holds_at(user, org_id, perm_name)
     return authz_cache.memo(('org_perm', user.pk, org_id, perm_name), compute)
 
 
-def user_has_perm_any_org(user, perm_name) -> bool:
+def _direct_org_perm(user, org_id, perm_name) -> bool:
+    """user_has_org_perm without access groups: global role in client scope,
+    or memberships."""
+    profile = _profile_staff(user)
+    if profile is not None:
+        if org_id is not None:
+            scope = direct_client_org_ids(user)
+            if scope is not None and org_id not in scope:
+                return False
+        global_permissions = profile.get_global_permissions()
+        if global_permissions is not None:
+            return bool(getattr(global_permissions, perm_name, False))
+        if not perm_name.startswith(MEMBERSHIP_SCOPED_PREFIXES):
+            return legacy_staff_holds(user, perm_name)
+    elif perm_name in STAFF_ONLY_KEYS and not is_msp_staff(user):
+        return False
+    if org_id is None:
+        return False
+    return any(getattr(m.get_permissions(), perm_name, False)
+               for m in memberships_covering(user, org_id))
+
+
+def user_has_perm_any_org(user, perm_name, include_groups=True) -> bool:
     """True if `user` holds `perm_name` on ANY active membership (or their
     global role, or is a superuser).
 
@@ -222,13 +274,16 @@ def user_has_perm_any_org(user, perm_name) -> bool:
         # authoritative for reach) or reports.access.has_msp_wide_perm.
     elif perm_name in STAFF_ONLY_KEYS and not is_msp_staff(user):
         return False
-    scope = staff_client_org_ids(user) if profile is not None else None
+    scope = direct_client_org_ids(user) if profile is not None else None
     for m in _membership_rows(user):
         if scope is not None and m.organization_id not in scope:
             continue
         if getattr(m.get_permissions(), perm_name, False):
             return True
-    return False
+    if not include_groups:
+        return False
+    from . import access_groups
+    return access_groups.holds_anywhere(user, perm_name)
 
 
 def user_has_perm(user, perm_name) -> bool:
@@ -245,6 +300,14 @@ def user_has_perm(user, perm_name) -> bool:
     if user.is_superuser:
         return True
     if is_msp_staff(user):
+        ctx = authz_cache.current_context()
+        if ctx is not None and ctx.organization_id is not None and _groups_widen_reach(user):
+            # Access groups reach customers outside the technician's own
+            # client scope, where their global role does not apply: with a
+            # customer selected, answer for that customer (as for customer
+            # users), so a capability from one grant never opens a page for
+            # another grant's customer.
+            return user_has_org_perm(user, ctx.organization_id, perm_name)
         return user_has_perm_any_org(user, perm_name)
     ctx = authz_cache.current_context()
     if ctx is not None and ctx.organization_id is not None:
@@ -252,6 +315,14 @@ def user_has_perm(user, perm_name) -> bool:
     # No organization selected (API token requests authenticate after the
     # middleware; jobs; shell): the cross-organization answer.
     return user_has_perm_any_org(user, perm_name)
+
+
+def _groups_widen_reach(user) -> bool:
+    direct = direct_client_org_ids(user)
+    if direct is None:
+        return False
+    extra = navigable_org_ids(user)
+    return extra is None or bool(set(extra) - set(direct))
 
 
 def require_perm(perm_name):
@@ -333,32 +404,54 @@ def orgs_with_perm(user, perm_name):
         return None
 
     def compute():
-        profile = _profile_staff(user)
-        if profile is not None:
-            scope = staff_client_org_ids(user)
-            global_permissions = profile.get_global_permissions()
-            if global_permissions is not None:
-                if not getattr(global_permissions, perm_name, False):
-                    return set()
-                return None if scope is None else set(scope)
-            if not perm_name.startswith(MEMBERSHIP_SCOPED_PREFIXES):
-                if _membership_rows(user) and not legacy_staff_holds(user, perm_name):
-                    return set()
-                return None if scope is None else set(scope)
-        elif perm_name in STAFF_ONLY_KEYS and not is_msp_staff(user):
-            return set()
-        else:
-            scope = None
-        from core.utils import descendant_org_ids
-        allowed = set()
-        for membership in _membership_rows(user):
-            if getattr(membership.get_permissions(), perm_name, False):
-                allowed |= descendant_org_ids(membership.organization_id)
-        if scope is not None:
-            allowed &= scope
-        return allowed
+        direct = _direct_orgs_with_perm(user, perm_name)
+        if direct is None:
+            return None
+        from . import access_groups
+        extra = access_groups.orgs_with_perm(user, perm_name)
+        if extra is None:
+            return None
+        return set(direct) | extra
     result = authz_cache.memo(('orgs_with', user.pk, perm_name), compute)
     return None if result is None else set(result)
+
+
+def _has_other_sources(user) -> bool:
+    if _membership_rows(user):
+        return True
+    from . import access_groups
+    return bool(access_groups.group_grants(user))
+
+
+def _direct_orgs_with_perm(user, perm_name):
+    """orgs_with_perm without access groups."""
+    profile = _profile_staff(user)
+    if profile is not None:
+        scope = direct_client_org_ids(user)
+        global_permissions = profile.get_global_permissions()
+        if global_permissions is not None:
+            if not getattr(global_permissions, perm_name, False):
+                return set()
+            return None if scope is None else set(scope)
+        if not perm_name.startswith(MEMBERSHIP_SCOPED_PREFIXES):
+            # The historical "no global role, no membership: data reach of
+            # the whole client scope" applies only to accounts with no other
+            # source of access; an access group member gets the group's reach.
+            if _has_other_sources(user) and not legacy_staff_holds(user, perm_name):
+                return set()
+            return None if scope is None else set(scope)
+    elif perm_name in STAFF_ONLY_KEYS and not is_msp_staff(user):
+        return set()
+    else:
+        scope = None
+    from core.utils import descendant_org_ids
+    allowed = set()
+    for membership in _membership_rows(user):
+        if getattr(membership.get_permissions(), perm_name, False):
+            allowed |= descendant_org_ids(membership.organization_id)
+    if scope is not None:
+        allowed &= scope
+    return allowed
 
 
 def filter_by_org_perm(qs, user, perm_name, field='organization'):
@@ -405,9 +498,11 @@ def explain_access(user, organization, perm_name):
         sources.append({'label': 'Django superuser (platform administration)', 'grants': True,
                         'scope': 'Every organization', 'note': ''})
         return {'allowed': True, 'sources': sources, 'notes': notes}
+    from . import access_groups
+    group_rows = access_groups.sources_at(user, org_id, perm_name)
     profile = _profile_staff(user)
     if profile is not None:
-        scope = staff_client_org_ids(user)
+        scope = direct_client_org_ids(user)
         scope_label = profile.get_client_scope_display()
         in_scope = scope is None or org_id in scope
         if not in_scope:
@@ -417,6 +512,7 @@ def explain_access(user, organization, perm_name):
             sources.append({'label': f'Global role: {gr.name}', 'grants': bool(getattr(gr, perm_name, False))
                             and in_scope, 'scope': f'{scope_label}; records: {profile.get_record_scope_display()}',
                             'note': 'MSP staff: the global role decides; memberships do not add to it.'})
+            sources.extend(group_rows)
             return {'allowed': allowed, 'sources': sources, 'notes': notes}
         notes.append('MSP staff without a global role: a permission any of their memberships grants applies at '
                      'every client in scope; vault permissions stay per membership (listed for review).')
@@ -430,6 +526,7 @@ def explain_access(user, organization, perm_name):
             via = '' if m.organization_id == org_id else f' (membership in parent {m.organization.name})'
             sources.append({'label': f'{name}{via}', 'grants': bool(getattr(r, perm_name, False)),
                             'scope': m.get_record_scope_display(), 'note': ''})
+    sources.extend(group_rows)
     if not sources:
-        notes.append('No membership applies at this organization.')
+        notes.append('No membership or access group applies at this organization.')
     return {'allowed': allowed, 'sources': sources, 'notes': notes}

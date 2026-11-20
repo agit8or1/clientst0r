@@ -182,6 +182,22 @@ def _membership_source(user, organization) -> Optional[Source]:
                   granted_at=m.created_at, history=_audit('membership', m.pk))
 
 
+def _access_group_role_sources(user, organization) -> List[Source]:
+    """Roles the user holds here through access groups (accounts.access_groups).
+    Informational: a group's role never grants a technician-access capability;
+    the group's preset assignments below do."""
+    from accounts.access_groups import group_grants
+    out = []
+    for g in group_grants(user):
+        if not g.covers(getattr(organization, 'pk', None)):
+            continue
+        out.append(Source('access_group', f'Access group {g.group_name}', INFO,
+                          detail=f'Holds the role “{g.role.name}” here ({g.scope_label.lower()}). Roles give '
+                                 'permissions, not technician access presets.',
+                          status='active', record_url=_url('accounts:access_group_edit', g.group_id)))
+    return out
+
+
 def _containment_source(user, now) -> Optional[Source]:
     held = active_containment(user)
     if held is None:
@@ -327,6 +343,7 @@ def explain(user, organization, capability, now=None) -> Explanation:
     tech = _technician_source(user)
     sources.append(tech)
     sources.append(_membership_source(user, organization))
+    sources += _access_group_role_sources(user, organization)
     if not is_technician(user):
         tech.decisive = True
         return Explanation(user, organization, capability, decision, sources)

@@ -70,6 +70,9 @@
                             {% if profile.global_role_template %}
                                 <br><small class="text-muted mt-1">Global Role: <strong>{{ profile.global_role_template.name }}</strong></small>
                             {% endif %}
+                            {% for g in user_access_groups %}
+                                <br><small class="text-muted">Access group: <strong>{{ g.name }}</strong>{% if g.role_template %} &mdash; {{ g.role_template.name }} at {{ g.scope_label|lower }}{% else %} &mdash; no role{% endif %}</small>
+                            {% endfor %}
                         {% else %}
                             <span class="badge bg-secondary">Organization User (Client)</span>
                         {% endif %}

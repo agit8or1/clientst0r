@@ -317,7 +317,11 @@ def can_manage_role_defaults(user):
         return False
     profile = getattr(user, 'profile', None)
     role = profile.get_global_permissions() if profile is not None else None
-    return bool(role is not None and getattr(role, 'roles_manage', False))
+    if role is not None and getattr(role, 'roles_manage', False):
+        return True
+    # An access group covering every customer counts like a global role.
+    from accounts.access_groups import holds_msp_wide
+    return holds_msp_wide(user, 'roles_manage')
 
 
 def _quick_action_options(request):

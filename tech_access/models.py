@@ -63,10 +63,37 @@ class AccessPreset(models.Model):
 
 
 class TechnicianGroup(models.Model):
+    """An access group: a named set of MSP staff users.
+
+    Shown as "Access groups" (Users & Access). A group can carry
+
+      * one internal role (`role_template`) at a customer scope
+        (`all_customers`, or the chosen `customers` and their subsidiaries):
+        every member holds that role's permissions there, in addition to
+        their own access (accounts.access_groups, read by
+        accounts.permission_utils - the one place permissions are resolved);
+      * technician access presets, through AccessAssignment rows that name the
+        group (unchanged).
+
+    Members are MSP staff only (enforced on every add, accounts.signals). A
+    group never sets superuser / Django staff flags and never grants an RMM
+    tier (tiers stay on the global role, behind a protected change).
+    """
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='technician_groups')
+    role_template = models.ForeignKey(
+        'accounts.RoleTemplate', on_delete=models.SET_NULL, null=True, blank=True, related_name='access_groups',
+        help_text='Internal role every member holds at the customers below. Empty = no role (presets only).')
+    all_customers = models.BooleanField(
+        default=True, help_text='The role applies at every customer; otherwise only at the customers chosen.')
+    customers = models.ManyToManyField(
+        'core.Organization', blank=True, related_name='access_groups',
+        help_text='With "all customers" off: the customers (and their subsidiaries) the role applies at.')
+    seed_key = models.SlugField(max_length=40, blank=True, default='',
+                                help_text='Set on the default groups only.')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     class Meta:
         db_table = 'tech_access_groups'
@@ -74,6 +101,14 @@ class TechnicianGroup(models.Model):
 
     def __str__(self):
         return self.name
+
+    def scope_label(self) -> str:
+        if self.all_customers:
+            return 'All customers'
+        names = sorted(o.name for o in self.customers.all())
+        if not names:
+            return 'No customers'
+        return ', '.join(names[:3]) + (f' and {len(names) - 3} more' if len(names) > 3 else '')
 
 
 class AccessAssignmentQuerySet(models.QuerySet):

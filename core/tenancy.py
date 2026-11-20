@@ -39,16 +39,34 @@ def is_cross_tenant_user(request) -> bool:
     return staff_client_org_ids(user) is None
 
 
-def accessible_org_ids(request) -> set[int] | None:
+def accessible_org_ids(request, perm: str | None = None) -> set[int] | None:
     """Organization ids this request may touch, or None for "all of them".
 
     None is deliberately distinct from an empty set: None means unrestricted,
     an empty set means "this user is a member of nothing" and must match no
     rows at all.
+
+    Without `perm` this is the direct reach only (client scope, or
+    memberships) and never includes access-group customers: callers apply
+    it as the row scope of a permission they checked once, and a group's role
+    may not grant that permission at its customers. Pass `perm` - the
+    permission the rows are read under - to add the customers where an
+    access group grants exactly that permission.
     """
     if is_cross_tenant_user(request):
         return None
+    ids = _direct_accessible_org_ids(request)
+    if perm and ids is not None:
+        user = getattr(request, 'user', None)
+        from accounts import access_groups
+        extra = access_groups.orgs_with_perm(user, perm)
+        if extra is None:
+            return None
+        ids = set(ids) | extra
+    return ids
 
+
+def _direct_accessible_org_ids(request):
     user = getattr(request, 'user', None)
     if user is None or not user.is_authenticated or not hasattr(user, 'memberships'):
         return set()
@@ -69,7 +87,7 @@ def accessible_org_ids(request) -> set[int] | None:
 
 
 def scope_to_request(queryset, request, field: str = 'organization', *,
-                     include_global: bool = False):
+                     include_global: bool = False, perm: str | None = None):
     """Narrow `queryset` to the organizations this request may touch.
 
     Some tenant-scoped models treat a NULL organization as "applies to every
@@ -81,7 +99,7 @@ def scope_to_request(queryset, request, field: str = 'organization', *,
     non-cross-tenant user gets a 404 on those, exactly as they would for
     another tenant's row.
     """
-    allowed = accessible_org_ids(request)
+    allowed = accessible_org_ids(request, perm=perm)
     if allowed is None:
         return queryset
     predicate = models.Q(**{f'{field}_id__in': allowed})
@@ -91,7 +109,7 @@ def scope_to_request(queryset, request, field: str = 'organization', *,
 
 
 def get_scoped_object_or_404(model_or_qs, request, *, field: str = 'organization',
-                             include_global: bool = False, **lookup):
+                             include_global: bool = False, perm: str | None = None, **lookup):
     """`get_object_or_404`, bounded to the caller's organizations.
 
     Raises Http404 rather than PermissionDenied on purpose: a 404 does not
@@ -99,7 +117,7 @@ def get_scoped_object_or_404(model_or_qs, request, *, field: str = 'organization
     """
     qs = model_or_qs if hasattr(model_or_qs, 'filter') else model_or_qs._default_manager.all()
     return get_object_or_404(
-        scope_to_request(qs, request, field=field, include_global=include_global),
+        scope_to_request(qs, request, field=field, include_global=include_global, perm=perm),
         **lookup,
     )
 

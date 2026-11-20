@@ -3,7 +3,7 @@ Accounts URL configuration
 """
 from django.urls import path
 from . import views
-from . import roles_views
+from . import access_group_views, roles_views
 from . import quick_views
 from . import shortcut_views
 from . import oauth_views
@@ -90,6 +90,11 @@ urlpatterns = [
     path('roles/catalog/', roles_views.permission_catalog, name='permission_catalog'),
     path('roles/review/', roles_views.review_list, name='role_review'),
     path('roles/portal-access/', roles_views.portal_access, name='portal_access'),
+    path('roles/access-groups/', access_group_views.access_group_list, name='access_group_list'),
+    path('roles/access-groups/new/', access_group_views.access_group_edit, name='access_group_create'),
+    path('roles/access-groups/<int:pk>/', access_group_views.access_group_edit, name='access_group_edit'),
+    path('roles/access-groups/<int:pk>/delete/', access_group_views.access_group_delete,
+         name='access_group_delete'),
     path('members/', views.member_list, name='member_list'),
     path('members/<int:user_id>/assign-role/', roles_views.member_role_assign, name='member_role_assign'),
     path('members/<int:member_id>/suspend/', views.member_suspend, name='member_suspend'),

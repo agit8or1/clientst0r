@@ -11,6 +11,9 @@
         <a href="{% url 'accounts:role_compare' %}" class="btn btn-outline-secondary"><i class="fas fa-columns"></i> Compare</a>
         <a href="{% url 'accounts:access_explain' %}" class="btn btn-outline-secondary"><i class="fas fa-question-circle"></i> Why does someone have access?</a>
         <a href="{% url 'accounts:portal_access' %}" class="btn btn-outline-secondary"><i class="fas fa-door-open"></i> Portal access</a>
+        {% if can_manage_groups %}
+        <a href="{% url 'accounts:access_group_list' %}" class="btn btn-outline-secondary"><i class="fas fa-people-group"></i> Access groups</a>
+        {% endif %}
         {% if request.user.is_superuser %}
         <a href="{% url 'accounts:role_review' %}" class="btn btn-outline-warning"><i class="fas fa-clipboard-check"></i> Review{% if open_reviews %} <span class="badge bg-warning text-dark">{{ open_reviews }}</span>{% endif %}</a>
         {% endif %}
@@ -54,6 +57,25 @@
         </div>
     </div>
 </div>
+
+{% if legacy_rows %}
+<details class="card mb-4">
+    <summary class="card-header"><span class="h6"><i class="fas fa-box-archive"></i> Legacy roles ({{ legacy_rows|length }})</span>
+        <span class="small text-muted ms-2">Older built-in templates; they keep working and stay assignable.</span></summary>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Role</th><th>For</th><th>Status</th><th>Users</th><th>Description</th><th></th></tr></thead>
+                <tbody>
+                {% for row in legacy_rows %}
+                    {% include "accounts/roles/_role_row.html" %}
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</details>
+{% endif %}
 
 <div class="card mb-4">
     <div class="card-header"><h5 class="mb-0"><i class="fas fa-user-cog"></i> Custom roles of {{ current_organization.name }}</h5></div>

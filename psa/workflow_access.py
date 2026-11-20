@@ -54,18 +54,25 @@ def is_restricted(user) -> bool:
 
 # --- reading -------------------------------------------------------------------
 
+def _visible_scope(user) -> Optional[Set[int]]:
+    """Client scope plus the customers where an access group grants the
+    workflow rule permission (a group whose role lacks it shows nothing)."""
+    from accounts.permission_utils import client_org_ids_for_perm
+    return client_org_ids_for_perm(user, PERM)
+
+
 def visible_rules(qs, user):
     """`qs` narrowed to the rules `user` may see (in-scope + MSP-wide)."""
     if not _is_staff(user):
         return qs.none()
-    scope = client_scope(user)
+    scope = _visible_scope(user)
     if scope is None:
         return qs
     return qs.filter(Q(organization__isnull=True) | Q(organization_id__in=scope))
 
 
 def visible_org_ids(user) -> Optional[Set[int]]:
-    return client_scope(user)
+    return _visible_scope(user)
 
 
 # --- changing ------------------------------------------------------------------

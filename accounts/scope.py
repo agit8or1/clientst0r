@@ -37,6 +37,8 @@ Scopes in the product:
   * explicitly assigned clients  UserProfile.client_scope = 'assigned' (technician access assignments)
   * selected organizations       UserProfile.client_scope = 'selected' + scope_organizations
   * all clients of the provider  UserProfile.client_scope = 'all' (MSP staff default)
+  * access groups                tech_access.TechnicianGroup role + customers (accounts.access_groups),
+                                 one grant per group with the group's own customers
 """
 from __future__ import annotations
 
@@ -63,15 +65,24 @@ class Grant:
 
 def grants_for(user, perm_name) -> List[Grant]:
     """Every grant through which `user` holds `perm_name`, each with its own scope."""
-    from .permission_utils import (MEMBERSHIP_SCOPED_PREFIXES, _active, _membership_rows, _profile_staff,
-                                   is_msp_staff, legacy_staff_holds, staff_client_org_ids)
+    out = _direct_grants_for(user, perm_name)
+    from .access_groups import group_grants
+    for g in group_grants(user):
+        if g.holds(perm_name):
+            out.append(Grant(f'Access group {g.group_name}', g.org_ids, ORGANIZATION, 'access_group'))
+    return out
+
+
+def _direct_grants_for(user, perm_name) -> List[Grant]:
+    from .permission_utils import (MEMBERSHIP_SCOPED_PREFIXES, _active, _has_other_sources, _membership_rows,
+                                   _profile_staff, direct_client_org_ids, is_msp_staff, legacy_staff_holds)
     if not _active(user):
         return []
     if user.is_superuser:
         return [Grant('Superuser', None, ORGANIZATION, 'superuser')]
     profile = _profile_staff(user)
     if profile is not None:
-        scope = staff_client_org_ids(user)
+        scope = direct_client_org_ids(user)
         org_ids = None if scope is None else frozenset(scope)
         role = profile.get_global_permissions()
         if role is not None:
@@ -82,7 +93,7 @@ def grants_for(user, perm_name) -> List[Grant]:
         if not perm_name.startswith(MEMBERSHIP_SCOPED_PREFIXES):
             # Staff without a global role: their memberships act as one
             # (accounts.permission_utils.legacy_staff_holds).
-            if legacy_staff_holds(user, perm_name) or not _membership_rows(user):
+            if legacy_staff_holds(user, perm_name) or not _has_other_sources(user):
                 return [Grant('MSP staff without a global role (memberships)', org_ids, ORGANIZATION,
                               'legacy_staff')]
             return []
@@ -90,7 +101,7 @@ def grants_for(user, perm_name) -> List[Grant]:
         return []
     from core.utils import descendant_org_ids
     out = []
-    scope = staff_client_org_ids(user) if profile is not None else None
+    scope = direct_client_org_ids(user) if profile is not None else None
     for m in _membership_rows(user):
         if not getattr(m.get_permissions(), perm_name, False):
             continue

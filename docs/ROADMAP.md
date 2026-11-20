@@ -134,7 +134,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
 | 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
 | 6 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording | 51 |
-| 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.6 access groups (in development); 111.1 passkeys | 57, 64, 80 |
+| 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
 | 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 9 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
 | 10 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.8 Connect hardening (Quick Connect increment A); then 79.10–79.12 default-deny source and approved destinations | Rem0te contract |
@@ -295,7 +295,7 @@ unchanged. Click a feature for its details.
 | 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
 | 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
 | 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | — | 94.3 scheduled off-host backups; external append-only shipping (94.1) |
-| 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 57, 64, 80 | 111.6 access groups (in development); 111.1 passkeys |
+| 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 57, 64, 80 | 111.1 passkeys; 111.3 one-action offboarding |
 
 <details markdown="1">
 <summary>8 completed phases</summary>
@@ -3855,9 +3855,9 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 <a id="phase-111"></a>
 
 ## Phase 111 — Identity lifecycle and access reviews **(L · P1 · security)** [in progress]
-<!-- phase: ws=F stage=1 view=next order=7 deps="57, 64, 80" next="111.6 access groups (in development); 111.1 passkeys" -->
+<!-- phase: ws=F stage=1 view=next order=7 deps="57, 64, 80" next="111.1 passkeys; 111.3 one-action offboarding" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** F. Security & Administration · **Depends on:** 57, 64, 80  
-**Next:** 111.6 access groups (in development); 111.1 passkeys
+**Next:** 111.1 passkeys; 111.3 one-action offboarding
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3868,7 +3868,7 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
   shared vault entries queued for rotation *(planned)*.
 - **111.4 Break-glass account** documented, alerting on every use *(planned)*.
 - **111.5 Live verification of OIDC sign-in** against a real Keycloak (Phase 80) *(planned)*.
-- **111.6 Access groups** *(in progress)* — named groups of staff (L1/L2/L3 Tech, Managers, Sales, Sales
+- **111.6 Access groups** *(shipped v3.17.742)* — named groups of staff (L1/L2/L3 Tech, Managers, Sales, Sales
   Managers, Owners, Administrators, Billing, Auditors) that carry a role and a customer scope; adding a person
   gives them that access, removing them revokes it; enforced on the server, audit-logged, owner-level groups
   managed only by owner-level staff. Built-in roles get plain names and the older roles fold under "Legacy roles";

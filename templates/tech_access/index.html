@@ -115,7 +115,7 @@
                     {% csrf_token %}<input type="hidden" name="section" value="assignments">
                     <div class="col-md-3"><label class="form-label">Technician</label>
                         <select name="user" class="form-select form-select-sm"><option value="">—</option>{% for u in technicians %}<option value="{{ u.pk }}" {% if assign_form.user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select></div>
-                    <div class="col-md-2"><label class="form-label">or group</label>
+                    <div class="col-md-2"><label class="form-label">or access group</label>
                         <select name="group" class="form-select form-select-sm"><option value="">—</option>{% for g in groups %}<option value="{{ g.pk }}" {% if assign_form.group == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></div>
                     <div class="col-md-3"><label class="form-label">Customer</label>
                         <select name="organization" class="form-select form-select-sm" required>{% for o in organizations %}<option value="{{ o.pk }}" {% if assign_form.organization == o.pk|stringformat:"s" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
@@ -180,11 +180,13 @@
 
         {# Groups #}
         <div class="card mb-3" id="groups">
-            <div class="card-header"><strong>Groups</strong></div>
+            <div class="card-header"><strong>Access groups</strong></div>
             <div class="card-body small">
+                <p class="text-muted">The same groups as <a href="{% url 'accounts:access_group_list' %}">Users &amp; Access → Access groups</a>,
+                    where each group's role and customers are set. Here they receive presets (assignments above).</p>
                 {% for g in groups %}
                 <form method="post" class="border rounded p-2 mb-2">{% csrf_token %}<input type="hidden" name="action" value="group_members"><input type="hidden" name="group" value="{{ g.pk }}"><input type="hidden" name="members_present" value="1"><input type="hidden" name="section" value="groups">
-                    <strong>{{ g.name }}</strong>
+                    <strong>{{ g.name }}</strong>{% if g.role_template %} <span class="text-muted">— role {{ g.role_template.name }}, {{ g.scope_label|lower }}</span>{% endif %}
                     <select name="members" multiple class="form-select form-select-sm my-1" size="4">{% for u in technicians %}<option value="{{ u.pk }}" {% if u in g.members.all %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
                     <button class="btn btn-sm btn-outline-primary">Save members</button>
                 </form>

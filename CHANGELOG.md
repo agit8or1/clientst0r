@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.742] - 2026-11-20
+
+Access groups for MSP staff; plain names for the built-in roles.
+
+### Added
+
+- **Access groups (roadmap 111.6)** under Settings → Users & Access → **Access groups**, also linked from Roles and
+  Technician Access.
+  - **What a group is:** a group of MSP staff that carries one internal role at all customers or at chosen
+    customers. Members hold that role there, in addition to their own access.
+  - **Removing access:** removing a member or deleting a group takes the access away at the next check, including in
+    background jobs.
+  - **Ten default groups, created empty:** L1 Tech, L2 Tech, L3 Tech, Managers, Sales, Sales Managers, Owners,
+    Administrators, Billing and Auditors. An empty group grants nothing.
+  - **Who can be a member:** MSP staff only. Customer users are refused.
+  - **What groups never grant:** RMM tiers (a role with a tier still needs a second administrator's approval),
+    superuser rights or staff flags.
+  - **Who can manage groups:** someone who manages roles across every customer. They must also hold every permission
+    in the group's role and, for owner or privileged roles, that level themselves. Nobody but a superuser can change a
+    group they belong to. Every change is audit-logged with the before and after state.
+  - **Customer reach:** a group's customers can be selected in the client switcher. Once one is selected, only the
+    group's role applies there. Pages that list several customers include a group's customers only for permissions
+    the group's role grants. Cross-customer pages not yet updated for groups show only the technician's own customers.
+  - **Technician access presets:** groups can also be given presets on the Technician Access page, as before.
+- **Where access comes from:**
+  - A user's page lists their access groups.
+  - A role's page lists the groups that carry it.
+  - The access explanations show which group grants a permission.
+
+### Changed
+
+- **Built-in roles have plain names** where the administrator hasn't renamed them and the new name is free.
+  Permissions are unchanged. Roles that can't be renamed go on the review list instead.
+  - RMM L1 — Help Desk → L1 Tech
+  - RMM L2 — Technician → L2 Tech
+  - RMM L3 — Senior Technician → L3 Tech
+  - Service Manager → Manager
+  - Sales Representative → Sales
+  - Internal Read-Only / Auditor → Auditor
+- **Role pickers and the Roles list** are ordered: owner, administrator, manager, L1–L3, sales, sales manager,
+  billing, security, auditor, then custom roles and customer roles.
+- **Legacy roles:** the seven older built-in templates (Administrator, Documentation Writer, Editor, Help Desk,
+  IT Manager, Platform Administrator, Read-Only) sit in a collapsed **Legacy roles** group. They still work and can
+  still be assigned.
+- **Roles used by a group** can't be deleted.
+
 ## [3.17.741] - 2026-11-20
 
 Dry run for workflow rules.
