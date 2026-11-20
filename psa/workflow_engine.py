@@ -25,6 +25,10 @@ import threading as _threading
 
 _chain_state = _threading.local()
 MAX_CHAIN_DEPTH = 8
+# Actions one top-level ticket event may run in total, across every rule it
+# sets off (rules reacting to other rules' saves included). A backstop: the
+# chain check below already stops a rule re-entering itself.
+MAX_ACTIONS_PER_EVENT = 50
 
 
 def _chain():
@@ -169,8 +173,29 @@ def _check_watcher(ticket, user):
         raise ActionSkipped(f'add_watcher: {user.username} was not added ({problem})')
 
 
+def _create_charge_row(Charge, ticket, client, description, amount, action, is_credit, date_cls):
+    return Charge.objects.create(
+        organization=ticket.organization,
+        client_org=client,
+        description=description,
+        amount=amount,
+        currency=action.get('currency') or 'USD',
+        charge_date=date_cls.today(),
+        is_credit=is_credit,
+        recurrence='once',
+        notes=f'Auto-created by workflow rule for ticket {ticket.ticket_number}',
+    )
+
+
 def run_action(ticket, action: Dict[str, Any]) -> None:
     """Run a single action dict against a ticket. Raises on bad input."""
+    used = 0
+    if _chain():  # inside a rule firing: count against the event's budget
+        used = getattr(_chain_state, 'actions', 0) + 1
+        _chain_state.actions = used
+    if used > MAX_ACTIONS_PER_EVENT:
+        raise ValueError(f'more than {MAX_ACTIONS_PER_EVENT} workflow actions for one ticket '
+                         'event; the remaining actions were not run')
     from .models import (
         Queue, TicketComment, TicketPriority, TicketWatcher,
     )
@@ -317,18 +342,28 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
         # the MSP and `client_org` for the customer; default to ticket.organization
         # for both, which works for single-tenant SaaS.
         client = getattr(ticket, 'client_org', None) or ticket.organization
-        _C.objects.create(
-            organization=ticket.organization,
-            client_org=client,
-            description=description,
-            amount=amount,
-            currency=action.get('currency') or 'USD',
-            charge_date=_d.today(),
-            is_credit=is_credit,
-            recurrence='once',
-            notes=f'Auto-created by workflow rule for ticket '
-                  f'{ticket.ticket_number}',
-        )
+        # Billing once per (rule, ticket), whatever re-fires the rule
+        # (security review SR-01). The key row is claimed first, inside the
+        # same transaction as the charge, so two concurrent firings cannot
+        # both bill.
+        from django.db import IntegrityError, transaction
+        from .models import WorkflowCharge as _WC
+        chain = _chain()
+        if not chain or not ticket.pk:
+            raise ActionSkipped('create_charge: only a saved workflow rule can create a charge')
+        rule_pk = chain[-1]
+        if _WC.objects.filter(rule_id=rule_pk, ticket_id=ticket.pk).exists():
+            raise ActionSkipped(f'create_charge: ticket {ticket.ticket_number} was already charged by this rule')
+        try:
+            with transaction.atomic():
+                key = _WC.objects.create(rule_id=rule_pk, ticket_id=ticket.pk)
+                key.charge = _create_charge_row(_C, ticket, client, description, amount,
+                                                action, is_credit, _d)
+                key.save(update_fields=['charge'])
+        except IntegrityError:
+            raise ActionSkipped(f'create_charge: ticket {ticket.ticket_number} was already charged by this rule')
+        logger.info('workflow rule %s charged ticket %s (%s %s)', rule_pk, ticket.pk,
+                    amount, action.get('currency') or 'USD')
 
     elif atype == 'fire_rule':
         # Phase 14 v4 (v3.17.285): multi-step orchestration. Chain
@@ -382,6 +417,15 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
     if ticket is None or not ticket.organization_id:
         return 0
 
+    chain = _chain()
+    if not chain:
+        # A new top-level event: a fresh action budget.
+        _chain_state.actions = 0
+    elif len(chain) >= MAX_CHAIN_DEPTH:
+        logger.warning('workflow: %s for ticket %s not run, %d rules already running',
+                       trigger, ticket.pk, len(chain))
+        return 0
+
     # Match MSP-wide rules (organization IS NULL) AND rules scoped to this
     # ticket's client organization.
     rules = WorkflowRule.objects.filter(
@@ -394,6 +438,10 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
 
     fired = 0
     for rule in rules:
+        if rule.pk in chain:
+            # The rule's own action saved the ticket, which fires the
+            # trigger again: running it now would re-enter it (SR-01).
+            continue
         try:
             # Phase 14 v3 (v3.17.286): once-per-(rule,ticket) guard for
             # SLA tick rules so cron-driven fires don't spam.
@@ -414,7 +462,6 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
                 branch = rule.else_actions
             else:
                 continue
-            chain = _chain()
             chain.append(rule.pk)
             skipped = []
             try:

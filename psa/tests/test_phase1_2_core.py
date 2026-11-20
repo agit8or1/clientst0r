@@ -535,7 +535,7 @@ class Phase2aTicketActionsTests(TestCase):
     def test_attach_sanitises_filename(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
         from psa.models import TicketAttachment
-        f = SimpleUploadedFile('../../etc/passwd', b'data', content_type='text/plain')
+        f = SimpleUploadedFile('../../etc/passwd.txt', b'data', content_type='text/plain')
         self.client.post(self._url('attach/'), {'file': f})
         att = TicketAttachment.objects.filter(ticket=self.ticket).first()
         self.assertIsNotNone(att)

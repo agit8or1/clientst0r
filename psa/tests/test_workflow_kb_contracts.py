@@ -552,6 +552,10 @@ class WorkflowDynamicAssignmentTests(TestCase):
         # An inactive user — must never be picked.
         self.zach = User.objects.create_user('zach', 'z@x.com', 'pw',
                                                is_staff=True, is_active=False)
+        # Workflow assignment only picks MSP technicians (SR-03, v3.17.727).
+        from psa.tests._base import _make_msp_tech
+        for u in (self.alice, self.bob, self.carol):
+            _make_msp_tech(u)
         # Skill group on Alice
         self.linux = Group.objects.create(name='linux-experts')
         self.alice.groups.add(self.linux)

@@ -4386,6 +4386,26 @@ class WorkflowRuleFiring(models.Model):
         return f'{self.rule.name} → {self.ticket.ticket_number} @ {self.fired_at:%Y-%m-%d %H:%M}'
 
 
+class WorkflowCharge(models.Model):
+    """The charge a workflow rule's ``create_charge`` action made for a ticket.
+    Unique per (rule, ticket): however often the rule fires for that ticket,
+    it bills it once (security review SR-01)."""
+    rule = models.ForeignKey('WorkflowRule', on_delete=models.CASCADE, related_name='charges_made')
+    ticket = models.ForeignKey('Ticket', on_delete=models.CASCADE, related_name='workflow_charges')
+    charge = models.ForeignKey('Charge', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_workflow_charges'
+        constraints = [
+            models.UniqueConstraint(fields=['rule', 'ticket'], name='psa_workflow_charge_once'),
+        ]
+
+    def __str__(self):
+        return f'rule {self.rule_id} -> ticket {self.ticket_id}'
+
+
 # ---------------------------------------------------------------------------
 # Billing — invoices + payments (Workstream 5 expansion)
 # ---------------------------------------------------------------------------

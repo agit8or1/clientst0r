@@ -1864,6 +1864,8 @@ are built on top of them.
   widget changes check the record's customer; the asset API stays in reach without a selected customer;
   the legacy importer's requests are address-guarded; bulk upload logs counts only; CORS limited to the
   API and off in production.
+- **Workflow re-entry and charge limits** *(shipped v3.17.732)* — a running rule is not started again by its
+  own ticket save, one ticket event runs at most 50 actions, and `create_charge` bills a ticket once per rule.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

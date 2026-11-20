@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.732] - 2026-11-20
+
+### Fixed
+- **Workflow rules no longer re-trigger themselves.** A "ticket updated" rule whose own action saved the
+  ticket could set itself off again, over and over, until Python gave up; each round could add another
+  charge. A rule that is already running is now skipped, and one ticket event runs at most 50 workflow
+  actions across all rules, with the rest reported on the rule's last error.
+- **A workflow "create charge" bills a ticket once.** Each rule can charge a given ticket at most once,
+  however often it fires; a repeat is skipped and noted on the rule. A charge outside a running rule is
+  refused.
+- Three workflow assignment tests and one attachment test were updated for the technician-only assignment
+  (3.17.727) and extension check (3.17.725) rules.
+
 ## [3.17.731] - 2026-11-20
 
 ### Fixed
