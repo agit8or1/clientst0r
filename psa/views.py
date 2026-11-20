@@ -1824,40 +1824,42 @@ def ticket_attach(request, ticket_number):
     """Upload a file. Enforces size, MIME allowlist, tenant-scoped storage."""
     ticket = _scoped_ticket_for_write(request, ticket_number)
     _require_ticket_perm(request, ticket, 'tickets_edit')
-    f = request.FILES.get('file')
-    if not f:
+    files = request.FILES.getlist('file')
+    detail = redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+    if not files:
         messages.error(request, 'No file selected.')
-        return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
-
-    if f.size > ATTACHMENT_MAX_BYTES:
-        messages.error(request, f'File too large (max {ATTACHMENT_MAX_BYTES // (1024 * 1024)} MB).')
-        return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
-
-    content_type, problem = attachment_problem(f)
-    if problem:
-        messages.error(request, problem)
-        return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+        return detail
 
     is_internal = (request.POST.get('is_internal') or '').lower() in ('1', 'true', 'on', 'yes')
     if is_internal and not is_msp_staff(request.user):
         is_internal = False  # customers can't file internal attachments
-    safe_name = (f.name or 'attachment').rsplit('/', 1)[-1].rsplit('\\', 1)[-1].replace('\x00', '')[:255]
-
-    attachment = TicketAttachment.objects.create(
-        ticket=ticket, uploaded_by=request.user, file=f,
-        filename=safe_name, content_type=content_type, size_bytes=f.size,
-        is_internal=is_internal,
-    )
-    AuditLog.log(
-        user=request.user, action='create', organization=ticket.organization,
-        object_type='psa.TicketAttachment', object_id=attachment.pk,
-        object_repr=safe_name,
-        description=f'Attached {safe_name} ({f.size} bytes) to {ticket.ticket_number}',
-        ip_address=_client_ip(request), path=request.path,
-        extra_data={'is_internal': is_internal, 'mime': content_type, 'size': f.size},
-    )
-    messages.success(request, f'Attached {safe_name}.')
-    return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+    for f in files:
+        # Each file is checked on its own, so one bad file in a drag-and-drop
+        # batch does not stop the others (the user sees a message per refusal).
+        label = (f.name or 'attachment')[:80]
+        if f.size > ATTACHMENT_MAX_BYTES:
+            messages.error(request, f'{label}: file too large (max {ATTACHMENT_MAX_BYTES // (1024 * 1024)} MB).')
+            continue
+        content_type, problem = attachment_problem(f)
+        if problem:
+            messages.error(request, f'{label}: {problem}' if len(files) > 1 else problem)
+            continue
+        safe_name = (f.name or 'attachment').rsplit('/', 1)[-1].rsplit('\\', 1)[-1].replace('\x00', '')[:255]
+        attachment = TicketAttachment.objects.create(
+            ticket=ticket, uploaded_by=request.user, file=f,
+            filename=safe_name, content_type=content_type, size_bytes=f.size,
+            is_internal=is_internal,
+        )
+        AuditLog.log(
+            user=request.user, action='create', organization=ticket.organization,
+            object_type='psa.TicketAttachment', object_id=attachment.pk,
+            object_repr=safe_name,
+            description=f'Attached {safe_name} ({f.size} bytes) to {ticket.ticket_number}',
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'is_internal': is_internal, 'mime': content_type, 'size': f.size},
+        )
+        messages.success(request, f'Attached {safe_name}.')
+    return detail
 
 
 # ---------------------------------------------------------------------------

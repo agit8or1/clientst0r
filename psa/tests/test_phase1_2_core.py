@@ -543,6 +543,29 @@ class Phase2aTicketActionsTests(TestCase):
         self.assertNotIn('/', att.filename)
         self.assertNotIn('\\', att.filename)
 
+    def test_attach_multiple_files_in_one_post(self):
+        """Drag-and-drop adds several files to one post; each is checked on its own."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from psa.models import TicketAttachment
+        files = [
+            SimpleUploadedFile('a.txt', b'one', content_type='text/plain'),
+            SimpleUploadedFile('virus.exe', b'MZ', content_type='application/x-msdownload'),
+            SimpleUploadedFile('b.csv', b'x,y\n1,2\n', content_type='text/csv'),
+        ]
+        resp = self.client.post(self._url('attach/'), {'file': files, 'is_internal': '1'})
+        self.assertEqual(resp.status_code, 302)
+        atts = TicketAttachment.objects.filter(ticket=self.ticket)
+        self.assertEqual(sorted(a.filename for a in atts), ['a.txt', 'b.csv'])
+        self.assertTrue(all(a.is_internal for a in atts))
+
+    def test_ticket_page_has_dropzone_and_multiple_input(self):
+        resp = self.client.get(f'/psa/t/{self.ticket.ticket_number}/')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('data-dropzone', html)
+        self.assertIn('js/ticket_dropzone.js', html)
+        self.assertRegex(html, r'<input type="file" name="file"[^>]*aria-label="File to attach"[^>]*multiple')
+
     # ---------- Quick actions ----------
     def test_assign_me(self):
         self.client.post(self._url('action/'), {'action': 'assign_me'})

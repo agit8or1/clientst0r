@@ -303,3 +303,9 @@
 }
 .tc-secure .fa-envelope-circle-check { margin-right: .25rem; }
 .tc-secure--expired, .tc-secure--withdrawn { opacity: .75; }
+
+/* Drop zone over the composer (roadmap 52.20) */
+.tc-dropzone { position: relative; border: 2px dashed transparent; border-radius: 8px; padding: 2px; transition: border-color .12s, background-color .12s; }
+.tc-dropzone.is-dragover { border-color: var(--bs-primary, #0d6efd); background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), .08); }
+.tc-dropzone-list li { display: flex; align-items: center; gap: .5rem; }
+.tc-dropzone-list button { line-height: 1; }

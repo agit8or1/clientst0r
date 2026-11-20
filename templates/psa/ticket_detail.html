@@ -251,6 +251,7 @@
                     </div>
                     {% endif %}
 
+                    <div id="composerDropzone" class="tc-dropzone" data-dropzone data-target-input="attachFileInput" data-target-internal="attach_is_internal">
                     <div id="composerBox" class="tc-composer{% if draft.is_internal %} is-internal{% endif %}">
                         <div id="composerLabel" class="tc-composer-label" aria-live="polite">
                             {% if draft.is_internal %}<i class="fas fa-lock me-1"></i>INTERNAL NOTE — staff only, never sent to the client{% else %}<i class="fas fa-globe me-1"></i>PUBLIC REPLY — visible to the client{% endif %}
@@ -325,6 +326,13 @@
                         <button type="submit" class="btn btn-sm {% if draft.is_internal %}btn-warning{% else %}btn-primary{% endif %}" id="composerSubmit">{% if draft.is_internal %}Add internal note{% else %}Post reply{% endif %}</button>
                     </div>
                     </div>
+                    <div class="tc-dropzone-hint small text-muted mt-1" data-dropzone-hint><i class="fas fa-paperclip me-1"></i>Drop files here to attach them to this ticket. The normal file field in the Attachments card still works.</div>
+                    <ul class="tc-dropzone-list list-unstyled small mb-0 mt-1" data-dropzone-list aria-live="polite"></ul>
+                    <div class="small mt-1" data-dropzone-actions hidden>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-dropzone-upload>Upload <span data-dropzone-count></span> file(s) now</button>
+                        <span class="text-muted ms-1">Uploaded separately from the reply text, with the Internal flag matching the current mode.</span>
+                    </div>
+                    </div>
                 </form>
             </div>
 
@@ -376,9 +384,9 @@
             {% endif %}
             {% if not is_closed %}
             <div class="card-body">
-                <form method="post" action="{% url 'psa:ticket_attach' ticket.ticket_number %}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                <form method="post" id="attachForm" action="{% url 'psa:ticket_attach' ticket.ticket_number %}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
                     {% csrf_token %}
-                    <input type="file" name="file" class="form-control form-control-sm" aria-label="File to attach" required>
+                    <input type="file" name="file" id="attachFileInput" class="form-control form-control-sm" aria-label="File to attach" multiple required>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="attach_is_internal" name="is_internal" value="1">
                         <label class="form-check-label small" for="attach_is_internal">internal</label>
@@ -1522,6 +1530,7 @@
 <script src="{% static 'js/psa_ticket_workspace.js' %}" defer></script>
 {% if ai_enabled %}<script src="{% static 'js/ticket_ai_assist.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/ticket_conversation.js' %}" defer></script>
+<script src="{% static 'js/ticket_dropzone.js' %}" defer></script>
 <script nonce="{{ csp_nonce }}">
 (function () {
     var kind = document.getElementById('kit_kind');
