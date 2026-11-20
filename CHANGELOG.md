@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.734] - 2026-11-20
+
+Roadmap and planning update: platform audit, feature matrix, backup and device-management plans. Documentation
+only; no application change.
+
+### Changed
+
+- `docs/ROADMAP.md`:
+  - New at the top: a summary with the next recommended work, a stage table (Stages 0–8, P0–P3) and a phase
+    index with statuses (Complete, In progress, Partial, Planned, Blocked, Deferred).
+  - Statuses corrected from a code audit:
+    - Phase 33 is partial: the topology data source is blocked on an owner decision.
+    - Phases 9 and 23 have status notes: vendors are webhook-only, and playbooks need an approval step.
+    - Phase 91 is in progress, and 74.6 is marked shipped.
+    - 74.4 is merged into 84.5, and 88.1 is re-scoped to impact analysis.
+    - The Phase 34 method list now says SSH only.
+- Backup management is now P1:
+  - Phase 74 adds the St0r/UrBackup provider (74.7), the Comet Backup provider (74.8), one backup overview
+    with protection coverage (74.9), alerts on the event layer (74.10), permissioned backup actions (74.11)
+    and backup reports (74.12).
+  - Portal backup status is 77.8; backup billing from verified counts is 92.6.
+- New planned phases:
+  - 106: device management (MDM) integrations.
+  - 107: documentation search, attachments and asset history.
+  - 108: discovery scope approval. Its SNMP/LLDP part (108.4) is blocked pending an owner decision.
+  - 109: Microsoft 365 administration.
+  - 110: service-delivery reporting and one set of definitions.
+  - 111: identity lifecycle and access reviews.
+- Extended phases:
+  - 51.20–51.23: playbook approval and other review fixes.
+  - 52.20–52.24: ticket workspace.
+  - 63.11–63.18: the remaining PSA/RMM workflow with Rem0te, and platform-aware device views.
+  - 91.6–91.9: automation.
+  - Phase 93: coverage schedules.
+  - Phase 96: module health.
+- FEATURES.md: Microsoft 365 is labelled Limited, the evidence-pack note is corrected, and the network
+  discovery note now mentions the topology and port-map pages.
+
+### Added
+
+- `docs/plans/platform-program/`:
+  - the program brief
+  - Clientst0r and Rem0te audits
+  - competitor sources
+  - cross-platform requirements
+  - the future Rem0te backlog (Stage 8: Linux, macOS, patching, scripting, remediation, MDM and backup
+    coordination)
+- `docs/plans/MSP_PLATFORM_FEATURE_MATRIX.md`.
+- `docs/plans/backup-integrations/`: the St0r, Comet and unified backup specification, the St0r audit and
+  Comet API notes.
+- `docs/plans/mdm/`: the MDM specification and provider API notes.
+- `docs/plans/BACKUP_MDM_CROSS_PLATFORM_ROADMAP.md` (added separately in 6e3092f7): phase numbers reconciled with
+  the roadmap and the broken Rem0te link replaced.
+- `docs/plans/competitive/SECURITY_REVIEW.md`: SR-37 (security playbooks run without approval).
+
 ## [3.17.733] - 2026-11-20
 
 ### Changed

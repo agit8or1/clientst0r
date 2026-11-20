@@ -469,6 +469,23 @@ confirms that the code path exists, not that it is exploitable.
 
 ---
 
+### SR-37 — Security playbooks run without approval; a step reports success without acting
+
+Found by the platform audit, 2026-11-20 (static read of v3.17.732). Severity: Medium.
+
+- `security_alerts/models.py` `_correlate_alert_to_incident` calls `find_matching_playbook` and
+  `execute_playbook` whenever a new incident opens, with no approval step and no off switch per customer.
+- The `run_workflow_rule` step returns `('ok', 'workflow rule … flagged for execution')` but runs nothing, so
+  the incident timeline records an action that did not happen.
+- That step looks the rule up by primary key with no check that it belongs to the incident's customer.
+- Playbook mail is sent with `fail_silently=True`, so an alert accepted through a legacy token webhook can cause
+  mail to go out.
+
+Fix (roadmap 51.20): playbooks off by default or behind an approval; the step either runs the rule through the
+workflow engine with the same customer checks as other rule actions, or is removed; the lookup is scoped to the
+incident's customer. Tests: an incident opened from a forged alert sends no mail while playbooks are off; a rule
+from another customer is refused; the timeline never records "ok" for an action that did not run.
+
 ## Informational
 
 - **SR-20 — Dead GraphQL URL module with `csrf_exempt`.** The audit flagged `api/urls_graphql.py` as a

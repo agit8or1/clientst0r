@@ -1,6 +1,6 @@
 # ClientSt0r Features
 
-What ClientSt0r does as of **v3.17.719**, by area, with what each feature needs and where it stops.
+What ClientSt0r does as of **v3.17.734**, by area, with what each feature needs and where it stops.
 See the [README](README.md) for install steps, [docs/screenshots.md](docs/screenshots.md) for the
 visual tour, and the [roadmap](docs/ROADMAP.md) for planned work.
 
@@ -144,7 +144,7 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Domain and certificate expiry tracking | Limited | `monitoring_enabled` | No WHOIS; domain expiry entered by hand | — |
 | Status pages (public token pages, per customer, incident posts) | Available | Monitoring → Status pages | | — |
 | Network config backups over SSH (Cisco IOS/ASA, Arista EOS, Juniper Junos, MikroTik, FortiOS, HP ProCurve, generic), diff, approve, drift | Available | Per-device SSH credentials | | — |
-| Network discovery import (script run on a Windows host, results imported as assets) | Available | Collector token | No SNMP or LLDP | — |
+| Network discovery import (script run on a Windows host, results imported as assets) | Available | Collector token | No SNMP or LLDP; the topology and port-map pages have no data source until pushed link data exists | — |
 | Network controller sync: UniFi, Omada, Grandstream | Limited | Settings → Integrations | Scheduled UniFi sync records every device as an access point; use manual import for correct types | — |
 | Backup monitoring: Proxmox Backup Server (polled), restic, Borg, Kopia (signed push reports); alerts, tickets, restore tests | Available | Assets & Network → Backup Monitoring; `view_backup_status` | Commercial backup products planned | [BACKUP_MONITORING.md](docs/BACKUP_MONITORING.md) |
 | Service dependency and impact mapping | Planned | | Phase 88 | [ROADMAP.md](docs/ROADMAP.md) |
@@ -228,7 +228,7 @@ reports permission.
 | Client health score (six dimensions, nightly snapshots) | Limited | Business → Client Health | Staff-only; portal display planned | — |
 | Pricing Advisor (nightly findings, recommendations) | Available | Reports → Pricing Advisor | Plain-English explanation is OPTIONAL AI (`psa_ai_enabled`) | — |
 | Pulse checks (periodic customer feedback) | Available | `pulse_enabled` (off by default) | CSV export planned | [PULSE_CHECKS.md](docs/PULSE_CHECKS.md) |
-| Compliance: PCI-DSS v4 and HIPAA catalogs, attestation, PDF report, evidence pack ZIP | Limited | None | Evidence pack backups section is empty; no other frameworks seeded | — |
+| Compliance: PCI-DSS v4 and HIPAA catalogs, attestation, PDF report, evidence pack ZIP | Limited | None | No other frameworks seeded | — |
 | Audit log with CSV/JSON export | Limited | Owner/Admin | Request-level log; no before/after values for most changes | — |
 
 ## 14. Client portal
@@ -290,7 +290,7 @@ policy, an enabled model profile and a technician access assignment at that cust
 | Mobile API; native mobile app | Available / Separate component | `/api/mobile/v1/` | App source is maintained outside this repository | — |
 | Outbound webhooks (assets, documents, password metadata, reveals, locations, organizations, workflows, monitors, syncs) | Available | Settings → Integrations → Webhooks | Plain JSON; no Slack/Teams format | — |
 | Third-party PSA sync: ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow; RangerMSP and Alga PSA (newly added) | Available / Limited | Settings → Integrations; `psa_sync` task (off by default) | Companies, contacts, tickets only; no projects/agreements or field mapping | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
-| Microsoft 365 tenant connection | Available | Settings → Integrations | | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
+| Microsoft 365 tenant connection | Limited | Settings → Integrations | Read-only inventory with manual sync; not yet verified against a real tenant | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
 | SMS: Twilio, Plivo, Vonage, Telnyx | Available | Settings → Communications → SMS Provider | AWS SNS and Sinch are listed but not implemented | — |
 | Agit8or Connect (app-to-app pairing, signed tokens and events) | Limited | `AGIT8OR_CONNECT_ENABLED=True` (off) | Incoming events are stored; acting on them is planned | [agit8or-connect/](docs/agit8or-connect/) |
 | Built-in scheduler (no crontab, Redis or Celery) | Available | Settings → Automation → Task Scheduler | | — |

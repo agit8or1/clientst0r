@@ -2,8 +2,14 @@
 
 **Status:** Planned. This document defines future scope; it is not an implementation claim.
 **Priority:** Finish Clientst0r first. Build Clientst0r's provider-facing, read-only workflows before undertaking a broad rem0te agent expansion.
+> **Phase numbers reconciled 2026-11-20 with `docs/ROADMAP.md`:** backup management is an extension of Phase 74
+> (74.7–74.12, portal 77.8, billing 92.6), MDM is Phase 106, and the Clientst0r side of macOS/Linux coordination
+> is 63.18 plus 106.6. Detailed specifications: `docs/plans/backup-integrations/README.md`, `docs/plans/mdm/README.md`,
+> `docs/plans/platform-program/CROSS_PLATFORM_REQUIREMENTS.md`. The headings below keep this document's own
+> numbering only as section labels.
+
 **Related phases:** 63 (RMM), 74 (backup monitoring), 75/77 (customer portal and reports), 79 (Agit8or Connect), 82 (events), 86 (approval-driven automation), 92 (verified usage), 96 (setup wizard).
-**Future rem0te work:** [rem0te feature expansion](https://github.com/agit8or1/rem0te/blob/main/docs/FEATURE_EXPANSION_ROADMAP.md).
+**Future rem0te work:** `docs/plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md` (Clientst0r's record of the Stage 8 backlog), reconciled with Rem0te's own `docs/rmm-expansion-audit.md` (rem0te PR #182, open at the time of writing) and `docs/readiness.md`.
 
 ## Design boundary and common rules
 
@@ -18,9 +24,9 @@ Clientst0r is the multi-customer **control, workflow and reporting plane**. Back
 - Treat backup *success*, replication *success*, restore *verification*, and *recoverability* as different states; never infer one from another.
 - Provider integrations are independently optional and can coexist per customer/site.
 
-## Phase 106 — Unified backup management: St0r/UrBackup + Comet Backup (P1/P2)
+## Unified backup management: St0r/UrBackup + Comet Backup (roadmap Phase 74.7–74.12; P1)
 
-### 106.1 St0r (UrBackup management interface) connector — P1
+### St0r (UrBackup management interface) connector — roadmap 74.7, P1
 
 Repo: [agit8or1/St0r](https://github.com/agit8or1/St0r). **St0r manages UrBackup**, which performs backups; St0r is not a separate backup engine. St0r currently operates alongside *one* local UrBackup server. A Clientst0r integration must support *multiple independent St0r installations* serving different customers or sites.
 
@@ -32,7 +38,7 @@ Repo: [agit8or1/St0r](https://github.com/agit8or1/St0r). **St0r manages UrBackup
 6. Follow St0r source links; enable authorized run-backup, review configuration and request-restore workflows **only after** capabilities, approvals and API authorization are designed. Do not proxy restored backup contents through Clientst0r by default.
 7. Include reporting: protected asset coverage, RPO evidence and latest restore drill, source-age warnings, service-level exceptions, customer summaries and optional billing quantities backed by verified data.
 
-### 106.2 Comet Backup integration — P1
+### Comet Backup integration — roadmap 74.8, P1
 
 Comet is a **distinct provider**, not part of St0r and not UrBackup. Start with a direct Clientst0r Comet Management Console adapter; do not assume St0r manages Comet. If a future St0r Comet connector is evaluated, keep it optional, explicit and nonduplicating.
 
@@ -48,7 +54,7 @@ Official reference: https://docs.cometbackup.com/latest/api/api-guide/
 - Model licensing/seat quantities and cost only from verified API facts or explicit configured data; reuse Clientst0r licensing/contract/billing rules to avoid duplicate metering.
 - Provide consolidated per-customer Comet and St0r reporting without implying a Comet restore is equivalent to a St0r/UrBackup restore.
 
-### 106.3 Unified backup view — P1
+### Unified backup view — roadmap 74.9–74.10, P1
 
 Add **Clientst0r → Backups** integrating current PBS/restic/Borg/Kopia monitoring and the new St0r/UrBackup and Comet providers.
 
@@ -60,7 +66,7 @@ Add **Clientst0r → Backups** integrating current PBS/restic/Borg/Kopia monitor
 
 Acceptance: two St0r installations and two Comet consoles mapped to distinct customers, identical endpoint hostnames across customers, expired tokens, event retries, lost events, stale sync, one missing backup, one failed restoration test, and exact read-only/approval behavior. No duplicate ticket or invoice under retry.
 
-## Phase 107 — MDM/UEM provider integration (P2)
+## MDM/UEM provider integration (roadmap Phase 106; P2)
 
 **Start with provider integrations in Clientst0r; do not create a native MDM server.** Evaluate available APIs, licensing and permissions for Microsoft Intune/Entra, Apple Business Manager and Apple device-management providers (Jamf, Mosyle, Kandji), Android Enterprise via a supported UEM/EMM provider, and other MSP demand.
 
@@ -73,7 +79,7 @@ Acceptance: two St0r installations and two Comet consoles mapped to distinct cus
 
 Acceptance: users cannot see or operate other customers' devices; unsupported actions are hidden/refused at API layer; no automated wipe; stale compliance is unknown rather than passing; reconciliation after reconnect.
 
-## Phase 108 — macOS/Linux device management coordination (Clientst0r P2; rem0te agent expansion deferred)
+## macOS/Linux device management coordination (roadmap 63.18 and 106.6 on the Clientst0r side, P2; Rem0te agent expansion deferred to Stage 8)
 
 Rem0te already offers Linux/macOS enrollment, basic inventory, metrics, monitoring, read-only patch reports and RustDesk access. The missing work is **active, appropriately authorized management** on those operating systems.
 

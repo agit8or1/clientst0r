@@ -1,6 +1,170 @@
 # Client St0r — Roadmap
 
-> Living plan. Phases 1–7 + 9 + 10 + 11 + 31 (Vault Access Rules) complete. Update as phases complete.
+> Living plan, the single source of truth for shipped, in-progress and planned work. History is kept: shipped
+> items stay with their version. Statuses were re-checked against the code on 2026-11-20
+> (`docs/plans/platform-program/CLIENTST0R_AUDIT.md`); where a heading said more than the code does, a
+> status note says so.
+
+## Summary (2026-11-20)
+
+**Strategy:** finish Clientst0r first, then expand Rem0te. Rem0te remains a separate application with its own
+security model; Clientst0r requests and records, Rem0te approves, executes and verifies. Rem0te receives only
+narrow compatibility, integration or critical security changes until the Clientst0r completion checklist
+(`docs/plans/platform-program/README.md`) is met. Its future backlog:
+`docs/plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md`.
+
+**Next recommended work (P0, in order):**
+
+1. Release the tamper-evident audit log and the playbook approval fix (Phase 94.1, 51.20).
+2. Billing correctness: Ticket Time & Charges and the prepaid-hour ledger, then the Ready for Billing queue
+   (Phases 101, 102).
+3. Quote-to-contract and quote-to-invoice conversion (Phase 70).
+4. Remaining PSA/RMM workflow with Rem0te (63.11–63.17), each item as soon as Rem0te ships its side.
+5. Ticket workflow and automation safety (Phases 52.20–52.24, 91).
+
+**Then:** P1 backup management (Phase 74.7–74.12: St0r/UrBackup, Comet, one backup overview, coverage, alerts,
+reports, billing 92.6), P2 device management (Phase 106 MDM), P3 the rest of Clientst0r (CRM and discovery,
+optional AI pricing, reporting, portal, Microsoft 365, interface and installation polish).
+
+**Status words used below:** Complete · In progress · Partial (some parts work; what is missing is named) ·
+Planned · Blocked (waiting on an owner decision) · Deferred. Phase headers keep the bracket markers
+`[planned]`, `[in progress]`, `[shipped — vN]`, `[complete]` that `/core/roadmap.json` reads.
+
+## Stages
+
+| Stage | Content | Priority | Phases |
+|---|---|---|---|
+| 0 | Roadmap, audits, feature matrix, Rem0te backlog | — | this update |
+| 1 | Core completion: PSA/RMM workflow, quote conversion, billing correctness, security and permissions, ticket workflow, setup wizard | P0 | 51, 52, 63, 64, 70, 91, 94, 96, 101, 102, 111 |
+| 2 | Backup management: St0r/UrBackup, Comet, one overview, alerts, tickets, reports, billing | P1 | 74, 77.8, 92.6 |
+| 3 | Device management: MDM inventory and compliance, approved device workflows, Linux/macOS visibility through Rem0te, one device record | P2 | 106, 92.7 |
+| 4 | Sales and documentation: CRM discovery, estimator, quotes, documentation, discovery staging | P3 | 97, 98, 103, 104, 107, 108 |
+| 5 | Reporting and customer portal | P3 | 75, 77, 78, 89, 110 |
+| 6 | Advanced integrations and optional AI: Microsoft 365, security vendors, operations center, automation, AI pricing | P3 | 83–90, 99, 105, 109 |
+| 7 | Polish, regression coverage, documentation, completion checklist | — | 59, 67, remaining items |
+| 8 | Rem0te functional expansion (Linux, macOS, patching, scripting, remediation, MDM and backup coordination) | after Stage 7 | Rem0te backlog |
+
+Planning documents: platform program `docs/plans/platform-program/README.md`; feature matrix
+`docs/plans/MSP_PLATFORM_FEATURE_MATRIX.md`; billing program `docs/plans/msp-billing-program/README.md`; backup
+integrations `docs/plans/backup-integrations/README.md`; device management `docs/plans/mdm/README.md`; backup, MDM and
+cross-platform overview `docs/plans/BACKUP_MDM_CROSS_PLATFORM_ROADMAP.md`;
+cross-platform requirements `docs/plans/platform-program/CROSS_PLATFORM_REQUIREMENTS.md`; security review
+`docs/plans/competitive/SECURITY_REVIEW.md`.
+
+## Contents — phase index
+
+| Phase | Title | Status | Priority |
+|---|---|---|---|
+| 1 | Contract / agreement engine deepening | Complete |  |
+| 2 | Resource management foundation | Complete |  |
+| 3 | Financial reporting + BI | Complete |  |
+| 4 | Procurement workflow | Complete |  |
+| 5 | CRM / sales pipeline | Complete |  |
+| 6 | ITIL maturity | Complete |  |
+| 7 | Outsourcing, integrations, polish | Complete |  |
+| 8 | Native mobile apps (iOS + Android) with GPS auto-time + Timeclock | Complete (v3.17.417) |  |
+| 9 | Security alert ingestion: EDR / AV / Firewall on the dashboard | Partial (vendors webhook-only) |  |
+| 10 | Advanced Email-to-Ticket Engine | Complete |  |
+| 11 | Advanced Dispatch & Technician Scheduling | Complete |  |
+| 12 | Customer Communication Workflows | Complete |  |
+| 13 | Procurement & Lifecycle Management | Complete (v3.17.272) |  |
+| 14 | Visual Workflow Automation Engine | Partial (four bullets unbuilt, now 91.6) |  |
+| 15 | Recurring Billing & Contract Management | Complete (v3.17.299) |  |
+| 16 | Documentation Relationship Mapping | Complete (v3.17.303) |  |
+| 17 | Advanced Asset Intelligence | Complete (v3.17.310) |  |
+| 18 | Multi-Location Client Hierarchy | Complete (v3.17.283) |  |
+| 19 | Advanced Reporting & Analytics | Complete (v3.17.326) |  |
+| 20 | Approval & Change Management Workflows | Complete (v3.17.277) |  |
+| 21 | Advanced Mobile Technician Workflows | Complete (v3.17.318) |  |
+| 22 | Knowledge Base & SOP Management | Complete |  |
+| 23 | Security Event & Incident Workflows | Partial (playbooks need approval, 51.20) |  |
+| 25 | Mature Timesheet Approval Workflows | Complete |  |
+| 26 | Custom Report Writer + Saved Queries | Complete |  |
+| 27 | Advanced Accounting Reconciliation | Complete (v3.17.281) |  |
+| 28 | Browser Extension + Offline Vault Access | Complete (v3.17.331) |  |
+| 31 | Vault GeoIP / IP / Time Access Rules | Complete (v3.17.163) |  |
+| 32 | Remote Network Discovery Import | Complete |  |
+| 33 | Network Discovery & Auto Documentation | Partial (topology data blocked) |  |
+| 34 | Network Configuration Backup | Complete |  |
+| 35 | Advanced Project Management | Complete |  |
+| 36 | Agreement Reconciliation & Pre-Invoice Approval | Complete |  |
+| 37 | Vault Approval & Break-Glass Workflow | Complete |  |
+| 38 | Client Onboarding / Offboarding Runbooks | Complete |  |
+| 39 | Compliance Evidence Packs | Complete |  |
+| 40 | Public / Client-Facing Status Page | Complete |  |
+| 41 | Compliance Frameworks & Recertification | Complete (v3.17.444) |  |
+| 42 | First-class Docker / containerized deployment | Complete (v3.17.490) |  |
+| 43 | Multi-Organization REST API Access | Complete (v3.17.496) |  |
+| 44 | Full Two-Way Accounting Sync | Complete (v3.17.531) |  |
+| 45 | System-wide Appearance Controls | Complete (v3.17.527) |  |
+| 46 | Job Kit: tools and materials on a ticket | Complete (v3.17.533) |  |
+| 47 | Public scheduler wallboard | Complete (v3.17.533) |  |
+| 48 | Task warning windows | Complete (v3.17.535) |  |
+| 49 | Interface consistency and tenant-boundary hardening | Complete |  |
+| 50 | "Help Us Grow" call to action | Complete (v3.17.586) |  |
+| 51 | Reliability and customer-boundary hardening | In progress |  |
+| 52 | Technician workspace | In progress | P1 |
+| 53 | Documentation readiness and lifecycle | Complete (v3.17.656) |  |
+| 54 | Guided customer service requests | Complete (v3.17.669) |  |
+| 55 | Hardware catalog and visual inventory | Complete (v3.17.630) |  |
+| 56 | Ticket AI Assist and RMM handoff | In progress |  |
+| 57 | Technician security levels and abuse prevention | In progress |  |
+| 58 | Condensed navigation | Complete (v3.17.647) |  |
+| 59 | Verified installs and upgrades | In progress |  |
+| 60 | Optional ticket routing | Complete (v3.17.664) |  |
+| 61 | One-customer migration rehearsals (IT Glue, Hudu) | Complete (v3.17.664) |  |
+| 62 | Pluggable document editors | In progress |  |
+| 63 | RMM integration and technician workspace | In progress | P0 |
+| 64 | Roles, permission groups and access settings | In progress |  |
+| 65 | Contract documents and digital signing | In progress |  |
+| 66 | Client pulse checks | In progress |  |
+| 67 | Interface, navigation and dashboard redesign | In progress |  |
+| 68 | Commercial price book and service plans | In progress |  |
+| 69 | Labor rate cards and cost rates | In progress |  |
+| 70 | Contracts, recurring billing and quote conversion | In progress | P0 |
+| 71 | Accounting sync completion | In progress |  |
+| 72 | Payment processing and sales tax | In progress |  |
+| 73 | Procurement, distributors, licensing and warranty lifecycle | In progress |  |
+| 74 | Backup monitoring, backup management and endpoint health | In progress | P1 |
+| 75 | Profitability analytics, customer commercial portal, onboarding wizard and executive dashboard | In progress |  |
+| 76 | Profitability and pricing advisor | Complete (v3.17.696) |  |
+| 77 | Customer command center portal | Planned |  |
+| 78 | Customer health score | In progress |  |
+| 79 | Agit8or Connect: secure application-to-application integration | In progress |  |
+| 80 | Agit8or Identity: single sign-on for people | In progress |  |
+| 81 | API access control and network restrictions | Complete (v3.17.718) |  |
+| 82 | Shared operational event and alert foundation | In progress |  |
+| 83 | NOC/SOC wallboards and secure display pairing | Planned |  |
+| 84 | Security connector framework and vendor integrations | Planned |  |
+| 85 | Operations Center, alert triage and correlation | Planned |  |
+| 86 | SOAR Lite: approval-driven security automation | Planned |  |
+| 87 | Alert routing, on-call and escalation | Planned |  |
+| 88 | Service dependency and impact mapping | Planned |  |
+| 89 | Security posture scorecards and customer service reviews | Planned |  |
+| 90 | AI Operations Analyst | Planned |  |
+| 91 | Workflow automation safety | In progress | P1 |
+| 92 | Verified usage and recurring billing | Planned |  |
+| 93 | Business-hours SLA calendars | Planned |  |
+| 94 | Evidence integrity and routine backups | Planned |  |
+| 95 | PSA migration importers | Planned |  |
+| 96 | First-install setup wizard and interactive onboarding | In progress | P0 |
+| 97 | Prospect IT assessment and CRM enhancements | Planned | P1 |
+| 98 | Service estimator and forecast accuracy | Planned | P1 |
+| 99 | Phone system integration and call-to-ticket | Planned | P2 |
+| 100 | Optional simple PBX appliance | Deferred (go/no-go after Phase 99) | P4 |
+| 101 | Ticket Time & Charges and prepaid-hour ledger | Planned | P0 |
+| 102 | Ready for Billing queue and invoice integrity | Planned | P0 |
+| 103 | Quote builder, options and price-book selection | Planned | P1 |
+| 104 | Customer approvals, deposits, change orders and portal billing | Planned | P1 |
+| 105 | Market pricing research and AI proposals | Planned | P3 |
+| 106 | Device management (MDM) integrations | Planned | P2 |
+| 107 | Documentation search, attachments, sharing and asset history | Planned | P3 |
+| 108 | Discovery scope approval and suggested-device staging | Planned (108.4 Blocked) | P3 |
+| 109 | Microsoft 365 administration | Planned | P3 |
+| 110 | Service-delivery reporting and one set of definitions | Planned | P3 |
+| 111 | Identity lifecycle and access reviews | Planned | P1 |
+
+---
 
 ## Phasing principle
 
@@ -173,6 +337,10 @@ MSPs run a stack of security tools that all alert independently — SentinelOne,
 - "Mean time to acknowledge" metric per client / per vendor
 - Suppression rules (don't auto-ticket from this vendor between 22:00–06:00 etc.)
 - Weekly digest email to client of unresolved alerts (opt-in) *(shipped v3.17.664)* — `security_alerts.SecurityDigestSubscription` holds a per-contact opt-in per customer (off by default). Portal users switch it on or off in portal preferences; staff add customer contacts and switch them at `/security/digest/`, with a preview of this week's digest. `send_security_digests` runs weekly from the in-app scheduler, mails only customers with unresolved (new / acknowledged) alerts, and lists severity, title, device, first-seen date and open / being-investigated only — no description, vendor payload, connection, rule, ticket or acknowledger. Each digest carries a signed unsubscribe link (GET confirms, POST unsubscribes, RFC 8058 one-click supported) that works without signing in; a contact mailed in the last six days is skipped. Optional per-customer "all clear" e-mail *(shipped v3.17.664)*: off by default; when switched on at `/security/digest/`, opted-in contacts get a short "no unresolved alerts" note in weeks with nothing open
+
+> **Status note (audit 2026-11-20):** ingestion, normalization and the dashboard shipped as described, but
+> no vendor has a working API connector: every vendor listed above reaches Clientst0r as a signed or token
+> webhook only, and the product labels them that way since v3.17.723. Real vendor connectors are Phase 84.
 
 **Sizing:** **M** — 9.1+9.2 = 2 weeks (one reference adapter + the framework), 9.3 = 2 weeks, 9.4 = 1 week. Each new vendor adapter beyond the first is ~2-4 days. Ship the framework + 1-2 reference adapters first, then add vendors as customer demand arrives.
 
@@ -560,6 +728,10 @@ Potential integrations:
 - Other security platforms
 
 **Goal:** Improve operational security visibility and incident response workflows.
+> **Status note (audit 2026-11-20, SR-37):** remediation playbooks run automatically when an incident opens,
+> with no approval step; the `run_workflow_rule` step reports success without running anything and looks up
+> the rule without a customer check. Fix planned in 51.20 (approval or off by default, real-or-removed step,
+> customer check); approval-driven playbooks are Phase 86.
 
 ## Phase 25 — Mature Timesheet Approval Workflows **(M)** [complete]
 
@@ -735,7 +907,7 @@ Phase 33 layers the deeper, persistent / scheduled, multi-protocol discovery on 
 
 ---
 
-## Phase 33 — Network Discovery & Auto Documentation **(L)** [complete]
+## Phase 33 — Network Discovery & Auto Documentation **(L)** [in progress — partial]
 
 Multi-protocol persistent network discovery and topology inference. Phase 32 ships a one-shot, scoped, single-use ping / ARP script — useful for the first walk-through of a new client. Phase 33 is the always-on companion: a lightweight per-site collector that sweeps ICMP / ARP on a schedule, keeps the asset inventory current, and generates topology diagrams without manual draw-time.
 
@@ -762,13 +934,18 @@ Dependencies: Phase 32 (token + import models — extend rather than replace), P
 - **Scheduled and on-demand scans** — cadence lives on the site; "scan now" is a flag the collector picks up on its next check-in, because it polls and we never connect inbound to a client network.
 
 **Scope note, stated plainly:** the server side is complete and tested (112 tests). `deploy/network-collector/collector.py` is a reference implementation that ping-sweeps and reads ARP with only the standard library. It does not collect SNMP, LLDP or CDP data; the unused SNMP stubs and per-site SNMP settings were removed in v3.17.594. The topology and port-map views show whatever neighbour and port records the results endpoint receives.
+> **Status note (audit 2026-11-20):** server side complete (scan jobs, import, review, asset creation). The
+> topology map and port map need LLDP/CDP/bridge-table data that nothing produces: the collector sends ICMP
+> and ARP results only, and `classify_enabled` is not honoured. SNMP/LLDP/CDP collection is **blocked**
+> pending an owner decision (an SNMP collector was previously declined). Discovery scope approval and
+> staging are Phase 108.
 
 ## Phase 34 — Network Configuration Backup **(M)** [complete]
 
 Versioned configuration backup for firewalls, switches, routers, and other manageable network gear. Treats device configs the same way the existing `Document` versioning treats KB articles — every change snapshotted, diffable, alertable.
 
 Planned capabilities:
-- **Firewall, switch, and router config backup** — pulled via SSH / SCP / SNMP / vendor APIs depending on device. Per-device adapter pattern matching the integration framework shipped in Phase 7.
+- **Firewall, switch, and router config backup** — pulled via SSH (the only method implemented; SCP, SNMP and vendor APIs are not built) depending on device. Per-device adapter pattern matching the integration framework shipped in Phase 7.
 - Scheduled backup jobs (per-device cadence; default daily)
 - Config diff viewer — line-level diff between any two snapshots; latest-vs-prior on the device detail page by default
 - Alert on unauthorized config changes — diff against the last "approved" snapshot; surfaces in the security-alerts dashboard (Phase 9) when something changes outside of an approved change window (Phase 6.1 CAB)
@@ -1869,8 +2046,18 @@ are built on top of them.
   API and off in production.
 - **Workflow re-entry and charge limits** *(shipped v3.17.732)* — a running rule is not started again by its
   own ticket save, one ticket event runs at most 50 actions, and `create_charge` bills a ticket once per rule.
+**Added 2026-11-20 (platform audit; P0 unless noted):**
 
-## Phase 52 — Technician workspace **(L)** [in progress]
+- **51.20 Security playbooks behind approval (SR-37)** *(planned)* — remediation playbooks off by default or
+  behind an approval, the `run_workflow_rule` step either runs the rule or is removed, and the rule lookup
+  checks the incident's customer. Tests: a forged alert sends no mail; a rule from another customer is
+  refused.
+- **51.21 Remove the dead GraphQL module (SR-20)** *(planned)* — with a URL-resolver test.
+- **51.22 Throttling on public quote-signing and satisfaction-survey endpoints** *(planned)*.
+- **51.23 Workflow rule visibility by customer scope** *(planned)* — technicians restricted to some customers
+  see and edit only those customers' rules; rule editing checks the roles registry (64.8).
+
+## Phase 52 — Technician workspace **(L · P1)** [in progress]
 
 Day-to-day ticket work in fewer steps, without losing work or replying over
 someone else.
@@ -1961,6 +2148,17 @@ someone else.
   Features) now switch their module off: menus, pages and scheduled reports
   (secure-note links already sent keep working). Both stay on after an
   upgrade. *(shipped v3.17.664)*
+**Added 2026-11-20 (platform audit, area E; planned, P1):**
+
+- **52.20 Drop files on the ticket composer** *(planned)* — through the existing upload rules
+  (`psa/attachment_rules.py`), rejecting a mismatched type.
+- **52.21 Ticket reminders** *(planned)* — per-ticket reminders on the scheduler, shown in My Work.
+- **52.22 Technician handoff summary** *(planned)* — a non-AI summary (status, last actions, open tasks,
+  devices) for shift or technician changes; an AI wording is OPTIONAL AI behind `psa_ai_enabled`.
+- **52.23 Knowledge suggestions without AI** *(planned)* — articles and runbooks matched by category, alert kind
+  or asset type.
+- **52.24 Customer follow-up and confirm-or-close** *(planned)* — automatic follow-up when a ticket waits on the
+  customer, closing after a configurable silence with a recorded reason.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [shipped — v3.17.656]
 
@@ -2543,7 +2741,7 @@ Microsoft 365 and Google Docs 1–2 weeks each.
   rule that lets the editor's own user reach only clientst0r over HTTPS. Start, stop, update,
   roll back, uninstall, logs, setup checks, layouts and engine switching work for both
   runtimes. ONLYOFFICE keeps running in Docker.
-## Phase 63 — RMM integration and technician workspace **(XL · RMM)** [in progress]
+## Phase 63 — RMM integration and technician workspace **(XL · P0 · RMM)** [in progress]
 
 One place for a technician to see a customer's devices, alerts and tickets,
 act on them within their permission level, and leave a record of what was
@@ -2567,7 +2765,7 @@ security levels) and Phase 52 (technician workspace).
   each fact's source and age, and an explicit "not supported by this RMM"
   where a provider has no such field. Per-provider field maps, opt-in service
   lists (Tactical RMM) and a rate-limited Refresh from RMM.
-- **63.4 Ticket RMM panel** *(shipped v3.17.664)* — affected devices on a ticket (same customer
+- **63.4 Ticket RMM panel** *(shipped v3.17.664; audit 2026-11-20: read-only diagnostics work for synced RMMs but return nothing for Rem0te connections until 63.11)* — affected devices on a ticket (same customer
   only), device health and history, read-only diagnostics, result notes and
   verify-then-close.
 - **63.5 AI Troubleshoot** **OPTIONAL AI** *(shipped v3.17.664)* — gated by `psa_ai_enabled` and
@@ -2593,6 +2791,31 @@ security levels) and Phase 52 (technician workspace).
   cross-peer run against a real Rem0te, and a shared coordination record
   (`INTEGRATION_COORDINATION.md`) with the Rem0te project. *(record brought up to date for Rem0te 0.68.0,
   citing the cross-peer CI run, v3.17.723)*
+
+**Added 2026-11-20 — remaining PSA/RMM workflow (P0).** Each item needs the matching Rem0te contract item
+(Rem0te backlog Priority 9 in `docs/plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md`); none is
+claimed until a two-application test passes against real Rem0te code. Clientst0r requests and records; Rem0te
+approves, executes and verifies.
+
+- **63.11 Read-only diagnostics from Rem0te** *(planned — needs Rem0te P2/P3, R13)* — no AI involved; results
+  stored on the ticket with their observation time.
+- **63.12 Device health summary in the ticket** *(planned — needs Rem0te P10)* — with an age per field group.
+- **63.13 Remote session launch from the ticket** *(planned — needs Rem0te P6)* — a deep link only, no
+  credential in any response; the session record is written back to the ticket.
+- **63.14 Proposal status events and automatic result notes** *(planned — needs Rem0te R7/P5)* — replaces the
+  poll and the technician click; results arrive signed.
+- **63.15 Handoff note and ticket status to Rem0te** *(planned — needs Rem0te P7)*.
+- **63.16 Patch status on demand and newer alert kinds** *(planned — needs Rem0te revision negotiation, R2)* —
+  the six newer alert kinds only after both sides declare the revision.
+- **63.17 Contract hygiene** *(planned)* — re-vendor the interop file (SR-33), outbound client certificate to
+  Rem0te (SR-23), complete the double-ticket guard (SR-27).
+- **63.18 Platform-aware device views (P2)** *(planned — needs per-endpoint capability flags from Rem0te)* —
+  Windows, Linux and macOS endpoints shown at the capability Rem0te actually reports; read-only agents
+  labelled read-only; no Windows-only action offered on Linux or macOS, refused at the API as well as hidden.
+  See `docs/plans/platform-program/CROSS_PLATFORM_REQUIREMENTS.md`.
+
+Acceptance: the end-to-end chain alert → ticket → diagnostics → proposal → approval in Rem0te → signed
+result → verified recovery → ticket update runs in the cross-peer suite with both applications' real code.
 
 **Sizing:** **XL** — ten parts across integrations, assets, PSA, AI and
 permissions; interoperability with Rem0te is claimed only for what both
@@ -2777,7 +3000,7 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
 - **67.3 Compact page frame** *(shipped v3.17.677)* — top bar that stays usable on
   1366-px laptops; breadcrumb and section tabs on one row; shortcut pins in
   the sidebar.
-- **67.4 Settings workspace** *(shipped v3.17.677)* — nine settings categories with
+- **67.4 Settings workspace** *(shipped v3.17.677)* — nine settings categories (ten since 67.12) with
   secondary navigation, settings search, unsaved-change warnings.
 - **67.5 Dashboard that fits the window** *(shipped v3.17.677)* — compact dashboard
   (default) built from permission-checked widgets that fits 1366×768 and up
@@ -2942,7 +3165,7 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 
 **Sizing:** **L** — licensing first, then procurement wiring.
 
-## Phase 74 — Backup monitoring and endpoint health **(L · monitoring)** [in progress]
+## Phase 74 — Backup monitoring, backup management and endpoint health **(XL · P1 · backup)** [in progress]
 
 - **74.1 Backup monitoring framework** *(shipped v3.17.695)* — jobs, runs, repositories with capacity,
   restore tests, alert policies and alerts (with tickets), customer and device views, MSP-wide connections
@@ -2951,9 +3174,47 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
   for restic, Borg and Kopia shipped v3.17.695; commercial products planned)* — commercial products as they
   can be tested.
 - **74.3 Rem0te backup and endpoint health** *(planned)* — needs additions to the Rem0te contract.
-- **74.4 Security product adapters** *(planned)* — replace the Defender stub; further vendors.
+- **74.4 Security product adapters** *(moved to 84.5 — one plan for security vendor connectors)* — replace the Defender stub; further vendors.
 - **74.5 Device workspace panels** *(partial — backup panel shipped v3.17.695; security and events planned)*.
-- **74.6 Compliance backup evidence** *(planned)* — replace the hard-coded zero.
+- **74.6 Compliance backup evidence** *(shipped v3.17.695 — the evidence pack reads backup monitoring data; audit 2026-11-20)* — replace the hard-coded zero.
+
+**Added 2026-11-20 — unified backup management (P1).** Extends the framework above; no second backup module and
+no backup engine inside Clientst0r. Every provider is an implementation of the existing provider interface
+(`backup_monitoring/providers/base.py`) feeding the same jobs, runs, repositories, restore tests, alerts and
+tickets. Several connections per provider are already supported (MSP-wide or per customer); each new provider
+keeps that. Specification: `docs/plans/backup-integrations/README.md`.
+
+- **74.7 St0r / UrBackup provider** *(planned — read-only first; needs a versioned service API in St0r)* —
+  several St0r installations, each mapped to one or more customers and sites; protected clients, file and
+  image backup status, last success and failure, job history, running jobs, storage, retention, replication
+  status and lag, restore-test results and server health, as far as St0r's API provides them. Clientst0r never
+  reads St0r's database or UrBackup's files. St0r API requirements are recorded in the St0r repository roadmap.
+- **74.8 Comet Backup provider** *(planned — read-only first)* — several Comet Management Servers; users,
+  devices, protected items, storage vaults, policies, job history, last success, storage use, retention,
+  restore activity and licensing counts through the documented admin API, using an administrator account
+  limited to the needed permissions. Devices map to existing assets by stable provider identifiers; no
+  duplicate inventory records. Deep links to the Comet console for devices, protected items and history.
+- **74.9 Backup overview and protection coverage** *(planned)* — one page across all providers: customer, site,
+  device, provider, protection status, last success, backup age against the RPO, replication, restore
+  verification, storage, open alerts and related tickets, filterable. Coverage compares the asset inventory
+  with provider inventories: verified, failed, overdue, not protected, unknown. A device whose backup identity
+  is not yet matched is **unknown**, never "unprotected"; uncertain matches wait in a review queue. Backup
+  success, replication success, restore verification and recoverability are separate states; none is
+  inferred from another.
+- **74.10 Backup alerts on the event layer** *(planned)* — failed, missed and overdue-against-RPO backups,
+  unprotected devices, storage near capacity, replication failure and lag, failed restore tests, server
+  offline; deduplicated by provider event identity so repeated delivery never opens a second ticket; flows
+  into the existing alert-to-ticket policy and the Phase 82 event layer. A ticket closes only after a later
+  successful backup or a recorded technician decision.
+- **74.11 Permissioned backup actions** *(planned — after 74.7–74.10)* — start a backup, view schedules,
+  configuration and retention, request a restore and follow its status, where the provider's API supports it
+  (checked per connection from the provider's reported capabilities). Restores and anything destructive need
+  a permission of their own, step-up authentication and an audit record; ordinary technicians never get
+  provider-administrator operations.
+- **74.12 Backup reports** *(planned)* — per-customer protection and restore-verification report (PDF/CSV),
+  feeding the evidence pack (74.6) and service reviews (89.2).
+
+Customer-portal backup status is 77.8; backup billing from verified counts is 92.6.
 
 **Sizing:** **L** — framework, then providers, then Rem0te contract changes.
 
@@ -3005,6 +3266,13 @@ Depends on Phases 68, 69 and 75 (profitability).
 - **77.3 Multi-location views** *(planned)* — tenant and location-level permissions.
 
 Depends on Phases 72, 73 and 74.
+
+**Added 2026-11-20 (planned):**
+
+- **77.8 Backup status for customers** — protected-device counts, backup health, latest backup and restore
+  verification, backup-related tickets; never backup contents or internal provider configuration. Needs 74.9.
+- **77.9 Maintenance notices and managed assets** — scheduled maintenance from the status page and the
+  customer's managed devices (with MDM compliance once Phase 106 lands), filtered by portal permissions.
 
 **Sizing:** **XL** — the largest portal surface; split into release-sized slices by section.
 
@@ -3238,6 +3506,10 @@ because an event or a model said so.
   monitoring history, diagnostics and evidence collection, approved remediation with tracked results, and
   remote sessions where authorized.
 
+> Prerequisite added 2026-11-20: 51.20 (playbooks behind approval) ships first. Phase 86 then becomes the one
+> automation path for security actions; no fifth rule engine — it reuses the workflow engine's safety work
+> from Phase 91.
+
 **Sizing:** **L** — dry-run builder first, then approvals, then Rem0te actions as the contract allows.
 
 ## Phase 87 — Alert routing, on-call and escalation **(M · monitoring)** [planned]
@@ -3257,7 +3529,7 @@ Extends on-call shifts, alert policies and maintenance windows to every alert so
 
 Extends asset relationships and the topology view.
 
-- **88.1 Dependency graph** *(planned)* — customers, sites, endpoints, servers, VMs, hosts, network, storage,
+- **88.1 Dependency graph** *(re-scoped 2026-11-20: the relationship graph, services and dependency chains shipped in Phase 16; what remains is impact analysis and provenance on top of them)* — customers, sites, endpoints, servers, VMs, hosts, network, storage,
   applications, services, internet links and backup, from assets, Rem0te inventory and discovery; inferred
   links are marked unverified until confirmed.
 - **88.2 Impact analysis** *(planned)* — affected services and customers for an outage, root-cause
@@ -3295,7 +3567,9 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 
 **Sizing:** **L**.
 
-## Phase 91 — Workflow automation safety **(M · PSA)** [planned]
+## Phase 91 — Workflow automation safety **(M · P1 · PSA)** [in progress]
+
+> Status (audit 2026-11-20): loop prevention within one event and charge-once shipped v3.17.732; customer checks on assignment actions shipped v3.17.727. The items below that are not marked remain planned.
 
 Automation that can be inspected, tested before it runs and cannot run away. Extends the workflow engine
 (Phase 14) and ticket routing.
@@ -3307,6 +3581,15 @@ Automation that can be inspected, tested before it runs and cannot run away. Ext
 - **91.3 Dry run** *(planned)* — evaluate rules against a chosen ticket with no side effects.
 - **91.4 Permission checks for high-impact actions** *(planned)* — charges behind approval or a cap with
   fire-once protection; assignment and watchers limited to technicians allowed at that customer.
+
+**Added 2026-11-20 (planned, P1):**
+
+- **91.6 Time-based triggers and delayed actions** — "no reply in N hours", scheduled rules and wait steps, run
+  by the scheduler.
+- **91.7 Retries for transient failures** — mail and PSA pushes retried with backoff; the execution log (91.2)
+  records each attempt.
+- **91.8 Per-customer overrides** — switch off or adjust an MSP-wide rule for one customer.
+- **91.9 Limits across events** — per-rule and per-ticket firing limits over time, with a visible cut-off.
 
 **Sizing:** **M**.
 
@@ -3325,6 +3608,14 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 - **92.4 Count sources** *(planned)* — synced RMM devices first, Rem0te through a signed count once the
   contract supports it, Microsoft 365 seats from licensing.
 
+- **92.6 Backup service billing from verified counts** *(planned, added 2026-11-20)* — per protected device,
+  server, workstation or licensed user, per GB/TB only where the provider reports a reliable measurement, or
+  a fixed monthly service; counts come from 74.7–74.9 and go through the same review step as other verified
+  usage — never an automatic invoice change. Reuses contracts, service plans and invoicing; no second billing
+  engine.
+- **92.7 Device-management billing from verified MDM counts** *(planned, added 2026-11-20)* — same rules, counts
+  from Phase 106.
+
 **Sizing:** **M**.
 
 ## Phase 93 — Business-hours SLA calendars **(M · PSA)** [planned]
@@ -3334,6 +3625,9 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 - **93.2 SLA clocks on calendars** *(planned)* — due dates, pause and resume, and breach flags computed in
   working time; routing business hours read the same calendar; existing due dates unchanged on upgrade unless
   recomputed explicitly.
+
+**Added 2026-11-20 (planned):** several coverage schedules per contract (for example 8×5 for normal work and
+24×7 for priority 1), and an at-risk forecast from queue load and remaining working time.
 
 **Sizing:** **M**.
 
@@ -3393,6 +3687,9 @@ Docker) are offered the wizard after 2FA enrolment and upgraded installs are not
 existing settings; sample data never reaches real figures. Testing: detection on empty and populated databases,
 2FA ordering with the real middleware, permission and customer-boundary tests for every step and tour, upgrade
 rehearsal, a browser run of a multi-page tour.
+
+**Added 2026-11-20 (planned):** one module-health page — for each module: enabled, configured, connection
+tested, healthy, documented — linked from the setup wizard and Settings.
 
 **Sizing:** **L** — readiness and detection first, then the wizard, then tours.
 
@@ -3665,6 +3962,87 @@ quoting work fully without it.
   provider, encrypted keys, budgets and request limits, data-sharing rules, research retention; redaction, no
   secrets sent, prompt-injection protection for fetched pages, usage and cost logging.
 
+## Phase 106 — Device management (MDM) integrations **(XL · P2 · devices)** [planned]
+
+Inventory, compliance and approved device workflows through established MDM providers — Microsoft Intune with
+Entra ID devices, Jamf Pro, Kandji, Mosyle (once its official API documentation is obtained), Apple Business Manager (device assignment and enrollment records) and
+Android Enterprise through a supporting provider. No native MDM server. Specification:
+`docs/plans/mdm/README.md`.
+
+- **106.1 Provider connections** *(planned)* — several connections per provider, each mapped to customers;
+  least-privilege provider credentials (read-only first), sealed storage, rotation, TLS verification, a
+  connection test and the provider's reported capabilities.
+- **106.2 Device inventory** *(planned)* — Windows, macOS, iPhone, iPad and Android, corporate and (where the
+  customer allows) personal devices: identity, customer, assigned user, OS and version, enrollment, last
+  check-in, compliance, encryption, policy state, apps where available, ownership. Matched to existing assets
+  and RMM devices by stable identifiers; unmatched devices stay "unmatched", never duplicated.
+- **106.3 Compliance views and alerts** *(planned)* — non-compliant, unencrypted and stale devices per customer,
+  through the Phase 82 event layer into tickets.
+- **106.4 Approved device actions** *(planned — after 106.1–106.3)* — enrollment and assignment workflows, policy
+  and profile assignment, app deployment, lock, lost mode, retire and wipe, only where the provider supports
+  them. Wipe, retire and other destructive actions need their own permission, fresh authentication, typed
+  confirmation and an audit record; no AI-initiated destructive action; the provider's own authorization
+  stays separate from the Clientst0r approval.
+- **106.5 Offboarding and onboarding** *(planned)* — the employee-leaver checklist gains an MDM device review,
+  authorized retirement and license recovery steps, each an approved task, ending in a documentation update.
+- **106.6 One device record across sources** *(planned)* — asset, RMM (including Linux and macOS devices from
+  Rem0te, shown at the level Rem0te actually supports) and MDM facts on one device page, each with its source
+  and age; unified device reporting; device counts available to 92.7.
+
+Depends on: Phase 82 (events), 64 (roles), 74.9's matching approach, 92 (billing). Security: least privilege per
+provider, customer isolation, step-up for destructive actions, never send device or user secrets to AI.
+Acceptance: inventory from a sandbox tenant of each provider built, with a test that a wipe without step-up and
+the wipe permission is refused at the API.
+
+## Phase 107 — Documentation search, attachments, sharing and asset history **(L · P3 · documentation)** [planned]
+
+- **107.1 Ranked full-text search** for documents, assets and the knowledge base *(planned)*.
+- **107.2 Document attachments and expiring share links** *(planned)* — share links scoped, logged and revocable.
+- **107.3 Per-asset field history and bulk asset editing** *(planned)*.
+- **107.4 Retire duplicate graphs** *(planned)* — one relationship view instead of the asset map, topology and
+  connectivity diagrams.
+
+Reuses Phase 16 relationships, Phase 53 readiness and the vault's permission model.
+
+## Phase 108 — Discovery scope approval and suggested-device staging **(M · P3 · network)** [planned]
+
+- **108.1 Administrator-approved scan ranges** a collector cannot exceed, scheduled runs for approved ranges and
+  rate limits *(planned)*.
+- **108.2 Suggested / unverified state** for discovered devices and inferred links, never overwriting approved
+  documentation *(planned)*.
+- **108.3 Honour `classify_enabled`** in the collector *(planned)*.
+- **108.4 SNMP, LLDP/CDP, MAC and ARP tables, switch-port association and SNMP-based network monitoring**
+  *(blocked — owner decision pending; an SNMP collector was previously declined)*. Until decided, the topology
+  and port-map pages are labelled as needing pushed data.
+
+## Phase 109 — Microsoft 365 administration **(L · P3 · cloud)** [planned]
+
+Today: read-only tenant inventory with manual sync, not verified against a real tenant.
+
+- **109.1 Structured tenant models** replacing the single cached JSON row, with history *(planned)*.
+- **109.2 Users, licenses, guests, dormant and disabled accounts, MFA registration, security defaults,
+  conditional-access visibility, service health and baseline drift** *(planned)*.
+- **109.3 Prepared new-user provisioning from a ticket** — user, licenses, groups, mailbox, onboarding tasks;
+  approval before anything is written to the tenant; least-privilege delegated access *(planned)*.
+- **109.4 Google Workspace inventory** where practical *(planned)*.
+
+## Phase 110 — Service-delivery reporting and one set of definitions **(L · P3 · reporting)** [planned]
+
+- **110.1 One calculation layer** — executive providers become the only source for revenue, MRR, margin and
+  utilization; the duplicate KPI, scorecard, wallboard and health-score pages are retired *(planned)*.
+- **110.2 Service delivery** — tickets per customer, device and technician, first response, resolution, reopens,
+  escalations, repeat issues, satisfaction, common problems, automation impact *(planned)*.
+- **110.3 Sales** — pipeline, win rate, sales cycle, renewals and churn *(planned)*.
+
+## Phase 111 — Identity lifecycle and access reviews **(L · P1 · security)** [planned]
+
+- **111.1 Passkeys (WebAuthn)** as second factor and for step-up *(planned)*.
+- **111.2 Periodic access reviews** with attestation per customer *(planned)*.
+- **111.3 One-action technician offboarding** — sessions, keys and assignments revoked, tickets reassigned,
+  shared vault entries queued for rotation *(planned)*.
+- **111.4 Break-glass account** documented, alerting on every use *(planned)*.
+- **111.5 Live verification of OIDC sign-in** against a real Keycloak (Phase 80) *(planned)*.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -3697,7 +4075,7 @@ quoting work fully without it.
 | 28 — Browser Extension + Offline Vault Access | L | 4-5 weeks | separate codebase |
 | 31 — Vault GeoIP / IP / Time Access Rules | S | shipped v3.17.163 | extends FirewallMiddleware GeoIP infra |
 | 32 — Remote Network Discovery Import | M | shipped v3.17.556 | future / late-stage — non-RMM, scoped, single-use tokens |
-| 33 — Network Discovery \& Auto Documentation | L | shipped v3.17.557 | extends Phase 32 + Phase 16 |
+| 33 — Network Discovery \& Auto Documentation | L | partial — server side shipped v3.17.557; topology data source blocked on owner decision (Phase 108.4) | extends Phase 32 + Phase 16 |
 | 34 — Network Configuration Backup | M | shipped v3.17.544–547 | extends Phase 33 + Phase 9 alerts |
 | 35 — Advanced Project Management | L | shipped v3.17.548–555 | extends `psa.Project` (v3.17.213 quote→project shipped) |
 | 36 — Agreement Reconciliation & Pre-Invoice Approval | M | 2-3 weeks | extends Phase 1 + 15 + 20 |
@@ -3747,7 +4125,7 @@ quoting work fully without it.
 | 71 — Accounting sync completion | L | in progress (71.1–71.3 shipped v3.17.690) | extends Phase 44 |
 | 72 — Payment processing and sales tax | L | in progress (72.1–72.6 shipped v3.17.690; provider verification pending) | Phase 71; customer portal |
 | 73 — Procurement, distributors, licensing and warranty lifecycle | L | in progress (73.1 shipped v3.17.699) | Phase 4 and 13 procurement; Phase 68 |
-| 74 — Backup monitoring and endpoint health | L | in progress (74.1 shipped v3.17.695) | Phase 63 RMM; Rem0te contract; Phase 9 |
+| 74 — Backup monitoring, backup management and endpoint health (P1) | XL | in progress (74.1, 74.6 shipped v3.17.695; St0r, Comet, coverage, actions planned 74.7–74.12) | Phase 63 RMM; Rem0te contract; Phase 82; St0r versioned API for 74.7 |
 | 75 — Profitability, customer commercial portal and executive dashboard | L | in progress (75.1 shipped v3.17.692; 75.4 and 75.6 shipped v3.17.693; 75.3 shipped v3.17.700) | Phases 68–74 |
 | 76 — Profitability and pricing advisor (OPTIONAL AI) | L | shipped v3.17.696 | Phases 68, 69, 75 (profitability) |
 | 77 — Customer command center portal | XL | planned | Phases 72, 73, 74 |
@@ -3764,7 +4142,7 @@ quoting work fully without it.
 | 88 — Service dependency and impact mapping | M | planned | Phase 82; asset relationships |
 | 89 — Security posture scorecards and customer service reviews | L | planned | Phases 82, 84, 78 |
 | 90 — AI Operations Analyst (OPTIONAL AI) | L | planned | Phase 85; Phase 56 gateway |
-| 91 — Workflow automation safety | M | planned | Phase 14 workflow engine |
+| 91 — Workflow automation safety | M | in progress (loop prevention and charge-once v3.17.732; assignment checks v3.17.727) | Phase 14 workflow engine |
 | 92 — Verified usage and recurring billing | M | planned | Phase 70; Rem0te count support for 92.4 |
 | 93 — Business-hours SLA calendars | M | planned | — |
 | 94 — Evidence integrity and routine backups | M | planned | — |
@@ -3779,3 +4157,9 @@ quoting work fully without it.
 | 103 — Quote builder, options and price-book selection (P1) | L | planned | Phases 65, 68, 70 |
 | 104 — Customer approvals, deposits, change orders and portal billing (P1) | L | planned | Phases 72, 101, 103 |
 | 105 — Market pricing research and AI proposals (P3, OPTIONAL AI) | L | planned | Phases 76, 97, 98, 103; Phase 56 gateway |
+| 106 — Device management (MDM) integrations (P2) | XL | planned | Phases 64, 74.9, 82, 92 |
+| 107 — Documentation search, attachments, sharing and asset history (P3) | L | planned | Phases 16, 53 |
+| 108 — Discovery scope approval and suggested-device staging (P3) | M | planned (108.4 blocked on owner decision) | Phases 32, 33 |
+| 109 — Microsoft 365 administration (P3) | L | planned | Phases 64, 82 |
+| 110 — Service-delivery reporting and one set of definitions (P3) | L | planned | Phases 3, 75, 102 |
+| 111 — Identity lifecycle and access reviews (P1) | L | planned | Phases 57, 64, 80 |
