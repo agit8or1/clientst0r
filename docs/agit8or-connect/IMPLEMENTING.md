@@ -43,7 +43,8 @@ Serve every route in openapi.yaml, under any prefix, as long as discovery lists 
 as discovery. Rules that are easy to get wrong:
 
 1. Gate the whole surface behind a setting that is **off by default**.
-2. Don't fetch anything from a pairing request's `discovery_url` until your administrator acts on the request.
+2. Don't fetch anything from a pairing request's `discovery_url` until your administrator acts on the request
+   with a deliberate action (a POST, never on opening the review page).
 3. Count wrong pairing codes **in the database**, not only in a cache, and burn every open invitation at 5.
 4. Store replay ids (assertion `jti`, DPoP `jti`, poll `jti`, pairing `jti`, event ids) with an expiry, and use a
    unique constraint as the check.
@@ -52,7 +53,15 @@ as discovery. Rules that are easy to get wrong:
 6. Check `tokens_not_before` and connection state on every request, not only at token issue.
 7. Never put tokens, assertions, codes, signatures or keys in logs, audit detail, error messages or admin pages.
 8. Outbound HTTP: HTTPS, TLS ≥ 1.2, verification always on, no redirects, no proxies, IP check at connect time,
-   metadata addresses always blocked.
+   metadata, loopback and link-local addresses always blocked (whatever general "allow private IPs" switch
+   your application has), private ranges only when the administrator allowed them for that connection, and only
+   port 443 or the explicit port of the peer's address. Keep TLS keys out of plaintext files.
+9. Put only absolute https URLs in what you send (`discovery_url`, `endpoints`): make the public base URL a
+   required setting rather than deriving it from a request.
+10. Don't let an approval or activation happen while your kill switch is engaged.
+11. Warn, and require a second administrator, when an inbound request claims the installation id of a peer that
+    is already connected.
+12. Don't write a permanent audit record for every unauthenticated refusal: count them and summarise.
 
 ## 4. Pairing UI checklist
 

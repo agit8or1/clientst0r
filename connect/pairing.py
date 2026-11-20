@@ -69,6 +69,33 @@ def friendly(e: ConnectError) -> str:
     return FRIENDLY.get(e.code, e.message)
 
 
+def _refuse_if_stopped():
+    """Nothing becomes (or moves towards) active while the kill switch is
+    engaged (PROTOCOL.md §12). Checked in every approval and activation path,
+    not only in the UI."""
+    if identity.kill_switch_engaged():
+        raise PairingFailed(FRIENDLY['kill_switch'], 'kill_switch')
+
+
+def _require_public_url():
+    """Pairing messages carry our absolute URLs; never send relative ones."""
+    problem = identity.public_url_problem()
+    if problem:
+        raise PairingFailed(problem, identity.NOT_CONFIGURED)
+
+
+def duplicate_connections(conn):
+    """Other connections here to the installation id `conn` claims: connected,
+    suspended, or approved here and waiting on the other side / a second
+    administrator. Other unreviewed inbound requests do not count."""
+    from django.db.models import Q
+    from .models import Connection
+    connected = (Connection.ACTIVE, Connection.SUSPENDED, Connection.AWAITING_REMOTE, Connection.AWAITING_SECOND)
+    return Connection.objects.filter(
+        Q(state__in=connected) | Q(state=Connection.AWAITING_LOCAL, direction=Connection.OUTBOUND),
+        remote_installation_id=conn.remote_installation_id).exclude(pk=conn.pk)
+
+
 def _err(data, fallback):
     err = data.get('error') if isinstance(data, dict) else None
     if isinstance(err, dict):
@@ -99,7 +126,8 @@ def scope_fingerprint(connection, scopes, grants) -> str:
 
 def discover(base_url: str, *, allow_private=False, ca_pem='') -> sdk_discovery.DiscoveryInfo:
     try:
-        info = sdk_discovery.fetch(transport.for_settings(allow_private=allow_private, ca_pem=ca_pem), base_url)
+        info = sdk_discovery.fetch(transport.for_settings(allow_private=allow_private, ca_pem=ca_pem,
+                                                          base_url=base_url), base_url)
     except ConnectError as e:
         raise PairingFailed(friendly(e), e.code) from e
     if info.installation_id == identity.installation_id():
@@ -111,8 +139,8 @@ def start_outbound(info: sdk_discovery.DiscoveryInfo, code: str, *, requested_sc
                    organizations: Iterable = (), user=None, allow_private=False, ca_pem='',
                    rotation_interval_days=90):
     from .models import Connection
-    if identity.kill_switch_engaged():
-        raise PairingFailed(FRIENDLY['kill_switch'], 'kill_switch')
+    _refuse_if_stopped()
+    _require_public_url()
     try:
         sdk_pairing.normalize_code(code)
     except ConnectError as e:
@@ -263,22 +291,32 @@ def _needs_second_admin(scopes) -> bool:
     return bool(catalog.CATALOG.elevated(scopes))
 
 
-def _propose(conn, mode, scopes, grants, user, request, requested_scopes=()):
+def _propose(conn, mode, scopes, grants, user, request, requested_scopes=(), duplicate_of=()):
     from tech_access.protected import propose
     elevated = catalog.CATALOG.elevated(scopes)
-    change = propose('app_connection',
-                     f'Connected application "{conn.remote_display_name or conn.remote_app_type}": grant '
-                     f'{", ".join(elevated)}',
+    name = conn.remote_display_name or conn.remote_app_type
+    parts = []
+    widening = [f'App permission {s}' for s in elevated]
+    if duplicate_of:
+        parts.append(f'second connection for installation {conn.remote_installation_id}, which is already '
+                     'connected here')
+        widening.insert(0, f'Another connection claiming installation {conn.remote_installation_id} '
+                           '(already connected)')
+    if elevated:
+        parts.append('grant ' + ', '.join(elevated))
+    change = propose('app_connection', f'Connected application "{name}": ' + '; '.join(parts),
                      {'connection': str(conn.pk), 'mode': mode, 'scopes': sorted(scopes),
                       'grants': [[o, t, s] for o, t, s in grants], 'requested_scopes': sorted(requested_scopes),
+                      'duplicate_of': sorted(str(c) for c in duplicate_of),
                       'fingerprint': scope_fingerprint(conn, scopes, grants)},
-                     [f'App permission {s}' for s in elevated], user, request=request)
+                     widening, user, request=request)
     return change
 
 
 def approve_local(conn, *, scopes: Sequence[str], grants, user, request=None):
     """Outbound connection: approve what the other app asked of us."""
     from .models import Connection
+    _refuse_if_stopped()
     if conn.state != Connection.AWAITING_LOCAL or conn.direction != Connection.OUTBOUND:
         raise PairingFailed('This connection is not waiting for approval here.')
     scopes = sorted(set(scopes))
@@ -297,6 +335,7 @@ def approve_local(conn, *, scopes: Sequence[str], grants, user, request=None):
 
 def finalize_local(conn, scopes, grants, user):
     from .models import Connection
+    _refuse_if_stopped()
     with transaction.atomic():
         conn.inbound_scopes = sorted(set(scopes))
         conn.inbound_event_types = _event_types(scopes)
@@ -317,6 +356,7 @@ def _event_types(scopes) -> List[str]:
 
 def _activate(conn):
     from .models import Connection
+    _refuse_if_stopped()   # inside the caller's transaction: raising rolls the approval back
     conn.state = Connection.ACTIVE
     conn.next_rotation_at = timezone.now() + timedelta(days=conn.rotation_interval_days or 90)
     conn.save()
@@ -326,8 +366,8 @@ def _activate(conn):
 
 def create_invitation(user, label='', ttl_seconds=sdk_pairing.CODE_TTL):
     from .models import PairingInvitation
-    if identity.kill_switch_engaged():
-        raise PairingFailed(FRIENDLY['kill_switch'], 'kill_switch')
+    _refuse_if_stopped()
+    _require_public_url()
     code = sdk_pairing.generate_code()
     inv = PairingInvitation.objects.create(code_hash=sdk_pairing.hash_code(code, identity.pairing_pepper()),
                                            label=label[:200], expires_at=timezone.now() + timedelta(seconds=ttl_seconds),
@@ -371,8 +411,12 @@ def receive_request(token: str, source_ip: str = '') -> dict:
             inv.save(update_fields=['used_at'])
     if inv is None:
         locked = _burn_attempt()
-        audit_log.record('pairing.code_rejected', 'locked' if locked else 'denied', app=str(claims['iss'])[:128],
-                         detail={'source_ip': source_ip})
+        if locked:   # once per burn of the open invitations: kept in the chain
+            audit_log.record('pairing.code_rejected', 'locked', app=str(claims['iss'])[:128],
+                             detail={'source_ip': source_ip})
+        else:        # repeatable by anyone: folded refusal log, summarised into the chain (QC-03)
+            from . import denials
+            denials.note(denials.CODE_REJECTED, source_ip=source_ip, path=denials.PAIRING_PATH)
         if locked:
             raise ConnectError('pairing_locked', 'too many wrong codes: ask for a new invitation', 403)
         raise ConnectError('invalid_pairing_code', 'pairing code invalid or expired', 400)
@@ -438,6 +482,8 @@ def approve_inbound(preq, *, scopes, grants, requested_scopes=(), user, request=
                     ca_pem=''):
     from .models import Connection, PairingRequest
     conn = preq.connection
+    _refuse_if_stopped()
+    _require_public_url()
     if preq.status != PairingRequest.PENDING or preq.expires_at <= timezone.now():
         raise PairingFailed('This pairing request is no longer waiting for a decision.')
     scopes = sorted(set(scopes))
@@ -454,14 +500,15 @@ def approve_inbound(preq, *, scopes, grants, requested_scopes=(), user, request=
         raise PairingFailed(f'The other application does not offer "{unknown[0]}".', 'invalid_scope')
     conn.requested_outbound_scopes = sorted(set(requested_scopes))
     conn.save()
-    if _needs_second_admin(scopes):
-        change = _propose(conn, 'inbound', scopes, grants, user, request, requested_scopes)
+    duplicates = list(duplicate_connections(conn).values_list('pk', flat=True))
+    if _needs_second_admin(scopes) or duplicates:
+        change = _propose(conn, 'inbound', scopes, grants, user, request, requested_scopes, duplicate_of=duplicates)
         preq.status, preq.protected_change_id = PairingRequest.AWAITING_SECOND, change.pk
         preq.save(update_fields=['status', 'protected_change_id'])
         conn.state = Connection.AWAITING_SECOND
         conn.save(update_fields=['state', 'updated_at'])
         audit_log.record('pairing.second_approval_requested', 'pending', connection=conn, user=user, scopes=scopes,
-                         detail={'protected_change': change.pk})
+                         detail={'protected_change': change.pk, 'duplicate_installation': bool(duplicates)})
         return change
     finalize_inbound(preq, scopes, grants, conn.requested_outbound_scopes, user)
     return None
@@ -471,6 +518,7 @@ def finalize_inbound(preq, scopes, grants, requested_scopes, user):
     from core.models import Organization
     from .models import PairingRequest
     conn = preq.connection
+    _refuse_if_stopped()
     _, priv = store.active_key(conn)
     with transaction.atomic():
         conn.inbound_scopes = sorted(set(scopes))

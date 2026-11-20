@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.743] - 2026-11-20
+
+Agit8or Connect hardening (Quick Connect increment A). Agit8or Connect stays off by default; these changes matter
+only where an administrator has enabled it.
+
+### Changed
+
+- **Outbound requests:** Connect no longer follows the global `ALLOW_PRIVATE_IP_INTEGRATIONS` setting.
+  - Private addresses are reached only when that connection's "private network" option is on.
+  - Loopback, link-local and cloud metadata addresses are always refused.
+  - Peers must listen on 443 or on the port written in their address.
+- **Pairing needs a public address:** `AGIT8OR_CONNECT_PUBLIC_URL` must be set to an absolute https address. Without
+  it, pairing and approval are refused and the pages explain why.
+- **Kill switch:** approvals (pairing requests, approvals at this end, pending second-administrator changes for a
+  connected app) fail while the kill switch is engaged. Releasing the switch activates nothing.
+- **Known installation id:** a request claiming the installation id of an already-connected application shows a
+  warning, and approving it needs a second administrator.
+- **Request review page:** opening it no longer contacts the other application. A **Look up the other
+  application** button does that, as a POST.
+- **Refusal logging:** unauthenticated token refusals and wrong pairing codes are counted in the API access refusal
+  log under `connect_api`. The Connect audit chain records them as one total per minute instead of one row per
+  request.
+- **Connection state checks:** token requests and calls re-check the connection's state, so a suspended or revoked
+  connection stops at once in every worker.
+
+### Fixed
+
+- **mTLS client keys** are no longer written to a temporary file. They are loaded from memory (or, where that is not
+  available, from a private 0600 file that is always removed). Leftover `a8c-*` files from earlier releases are
+  removed at start-up when Connect is enabled.
+
+### Notes
+
+- **Compatibility:** no protocol change. Version 1 messages and test vectors are unchanged, and the Rem0te link is
+  not affected.
+- **Roadmap:** 79.8 is shipped. The SDK's fallback transport still allows loopback when private networks are on,
+  and is scheduled with 79.12.
+
 ## [3.17.742] - 2026-11-20
 
 Access groups for MSP staff; plain names for the built-in roles.

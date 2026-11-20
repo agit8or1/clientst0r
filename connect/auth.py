@@ -110,8 +110,13 @@ def token_request(request):
     except ConnectError as e:
         if conn is not None:
             _note_auth_failure(conn, e.code)
-        audit_log.record('token.issue', e.code, connection=conn,
-                         app=(conn.remote_installation_id if conn else ''), scopes=[])
+            audit_log.record('token.issue', e.code, connection=conn, app=conn.remote_installation_id, scopes=[])
+        else:
+            # No (known) connection: anyone can cause this, so it is counted in
+            # the folded refusal log and summarised into the chain (QC-03).
+            from . import denials, ratelimit
+            denials.note(denials.token_reason(e.code), source_ip=ratelimit.client_ip(request),
+                         path=request.path, method=request.method)
         status = e.status if e.status in (400, 401, 503) else 400
         return status, {'error': e.code, 'error_description': e.message}, {'Cache-Control': 'no-store'}
     audit_log.record('token.issue', 'ok', connection=conn, app=conn.remote_installation_id, scopes=granted,

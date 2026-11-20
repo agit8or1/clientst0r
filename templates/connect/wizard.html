@@ -4,7 +4,8 @@
 <h1 class="h3"><i class="fas {{ app.icon }}"></i> Connect {{ app.name }}</h1>
 {% include "connect/_steps.html" %}
 {% if app.note %}<div class="alert alert-info small">{{ app.note }}</div>{% endif %}
-{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger" {% if not_configured %}data-connect-not-configured{% endif %}>{{ error }}</div>{% endif %}
+{% if not_configured %}<a class="btn btn-link" href="{% url 'connect:index' %}">Back</a>{% else %}
 <form method="post">{% csrf_token %}
 <div class="card mb-3"><div class="card-header"><strong>Connect application</strong></div><div class="card-body">
   <label class="form-label" for="url">Address of {{ app.name }}</label>
@@ -39,4 +40,5 @@
 {% endif %}
 <a class="btn btn-link" href="{% url 'connect:index' %}">Cancel</a>
 </form>
+{% endif %}
 {% endblock %}

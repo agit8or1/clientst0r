@@ -47,15 +47,46 @@ def kill_switch_engaged() -> bool:
     return InstallationIdentity.objects.filter(kill_switch_engaged=True).exists()
 
 
+NOT_CONFIGURED = 'not_configured'
+PUBLIC_URL_MISSING = ('Set AGIT8OR_CONNECT_PUBLIC_URL to the https address other applications reach this '
+                      'Clientst0r at (for example https://psa.example.com) before pairing. Without it the '
+                      'other application would be given addresses it cannot use.')
+
+
+def configured_public_url() -> str:
+    """AGIT8OR_CONNECT_PUBLIC_URL without a trailing slash, or '' when it is
+    unset or not an absolute https URL with a host."""
+    from urllib.parse import urlsplit
+    base = str(getattr(settings, 'AGIT8OR_CONNECT_PUBLIC_URL', '') or '').strip().rstrip('/')
+    try:
+        p = urlsplit(base)
+        ok = p.scheme == 'https' and bool(p.hostname) and not p.username and not p.query and not p.fragment
+    except ValueError:
+        ok = False
+    return base if ok else ''
+
+
+def public_url_problem() -> str:
+    """'' when AGIT8OR_CONNECT_PUBLIC_URL is usable, else what to do."""
+    if configured_public_url():
+        return ''
+    if getattr(settings, 'AGIT8OR_CONNECT_PUBLIC_URL', ''):
+        return ('AGIT8OR_CONNECT_PUBLIC_URL must be an absolute https address other applications reach this '
+                'Clientst0r at, such as https://psa.example.com. Fix it before pairing.')
+    return PUBLIC_URL_MISSING
+
+
 def public_base(request=None) -> str:
-    """The https base other apps reach us at. AGIT8OR_CONNECT_PUBLIC_URL when
-    set (required behind a proxy that rewrites the scheme or host)."""
-    base = getattr(settings, 'AGIT8OR_CONNECT_PUBLIC_URL', '')
+    """The absolute https base other apps reach us at: AGIT8OR_CONNECT_PUBLIC_URL
+    (required for pairing), else, while answering a request, that request's
+    scheme and host. Never a relative URL: without either it raises."""
+    base = configured_public_url()
     if base:
-        return base.rstrip('/')
+        return base
     if request is not None:
         return f'{request.scheme}://{request.get_host()}'  # nosemgrep: python.flask.security.audit.directly-returned-format-string.directly-returned-format-string -- a URL for other code, not an HTTP response
-    return ''
+    from agit8or_connect.errors import ConnectError
+    raise ConnectError(NOT_CONFIGURED, PUBLIC_URL_MISSING, 503)
 
 
 def url(name: str, request=None, **kwargs) -> str:

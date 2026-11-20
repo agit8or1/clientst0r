@@ -2,6 +2,7 @@
 {% block title %}Invitation code{% endblock %}
 {% block content %}
 <h1 class="h3"><i class="fas fa-qrcode"></i> Let another application connect</h1>
+{% if error %}<div class="alert alert-danger" data-connect-not-configured>{{ error }}</div>{% endif %}
 {% if code %}
 <div class="row"><div class="col-md-6">
 <div class="card mb-3"><div class="card-body text-center">

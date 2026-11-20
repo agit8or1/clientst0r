@@ -17,9 +17,21 @@ from . import catalog, identity, store, transport
 _cache = {}   # (connection id, kid) -> (token, expires_at); in-process only
 
 
+def require_active(conn):
+    """Refuse unless the connection is active NOW. The state is re-read from
+    the database, so a suspend or revoke done in another worker applies here
+    at once, whatever this process cached (QC-14)."""
+    from .models import Connection
+    state = Connection.objects.filter(pk=conn.pk).values_list('state', flat=True).first()
+    if state != Connection.ACTIVE:
+        clear_cache(conn)
+        raise ConnectError('connection_inactive', f'the connection is {state or "gone"}, not active', 409)
+
+
 def get_token(conn, scopes=(), *, key_row=None, use_cache=True) -> dict:
     if identity.kill_switch_engaged():
         raise ConnectError('kill_switch', 'connected applications are stopped', 503)
+    require_active(conn)
     if key_row is None:
         key_row, priv = store.active_key(conn)
     else:
@@ -55,7 +67,7 @@ def get_token(conn, scopes=(), *, key_row=None, use_cache=True) -> dict:
 
 
 def call(conn, method: str, url: str, *, tenant_org=None, body: Optional[bytes] = None, scopes=()):
-    data = get_token(conn, scopes)
+    data = get_token(conn, scopes)   # checks the kill switch and that the connection is active
     _, priv = store.active_key(conn)
     headers = {'Authorization': f'DPoP {data["access_token"]}', 'Accept': 'application/json',
                'DPoP': sdk_tokens.build_dpop_proof(priv, method, url, access_token=data['access_token'])}

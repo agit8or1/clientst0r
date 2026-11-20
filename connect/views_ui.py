@@ -96,6 +96,10 @@ def connect_app(request, app_type):
     if app is None or app['status'] != 'available':
         raise Http404
     ctx = _ctx(request, app=app, step=1, url=request.POST.get('url', ''))
+    problem = identity.public_url_problem()
+    if problem:   # pairing would send this installation's address; refuse without it
+        ctx.update(error=problem, not_configured=True)
+        return render(request, 'connect/wizard.html', ctx)
     if request.method != 'POST':
         return render(request, 'connect/wizard.html', ctx)
     adv = _advanced(request)
@@ -132,13 +136,17 @@ def _qr_svg(text):
 @page()
 def invite(request):
     ctx = _ctx(request)
+    problem = identity.public_url_problem()
+    if problem:
+        ctx['error'] = problem
+        return render(request, 'connect/invite.html', ctx)
     if request.method == 'POST':
         try:
             inv, code = pairing.create_invitation(request.user, label=request.POST.get('label', ''))
         except pairing.PairingFailed as e:
             messages.error(request, e.message)
             return redirect('connect:index')
-        base = identity.public_base(request)
+        base = identity.configured_public_url()
         ctx.update(invitation=inv, code=code, discovery_url=base,
                    qr=_qr_svg(sdk_pairing.qr_payload(base, code, identity.installation_id())))
     return render(request, 'connect/invite.html', ctx)
@@ -178,9 +186,31 @@ def request_review(request, pk):
     asked = [s for s in conn.peer_requested_scopes if catalog.CATALOG.get(s)]
     ctx = _ctx(request, preq=preq, conn=conn, groups=_grouped(catalog.CATALOG, asked),
                unknown=[s for s in conn.peer_requested_scopes if not catalog.CATALOG.get(s)],
-               organizations=_orgs(request), proposed=conn.proposed_tenants, step=4)
+               organizations=_orgs(request), proposed=conn.proposed_tenants, step=4,
+               duplicates=list(pairing.duplicate_connections(conn)) if preq.status == PairingRequest.PENDING else [],
+               public_url_problem=identity.public_url_problem())
     if request.method == 'POST':
         try:
+            if request.POST.get('op') == 'lookup':
+                # An explicit administrator action (never on GET): contact the
+                # address the code holder supplied and offer its permissions.
+                if preq.status != PairingRequest.PENDING:
+                    raise pairing.PairingFailed('This pairing request is no longer waiting for a decision.')
+                if identity.kill_switch_engaged():
+                    raise pairing.PairingFailed(pairing.FRIENDLY['kill_switch'], 'kill_switch')
+                conn.allow_private_network = request.POST.get('allow_private') == 'on'
+                conn.tls_ca_bundle = (request.POST.get('ca_pem') or '').strip()[:20000]
+                try:
+                    pairing.refresh_remote_discovery(conn)
+                except ConnectError as e:
+                    raise pairing.PairingFailed('Clientst0r could not look up the other application: '
+                                                + pairing.friendly(e), e.code) from e
+                conn.save(update_fields=['remote_endpoints', 'remote_catalog', 'remote_protocol_version',
+                                         'remote_app_version', 'allow_private_network', 'tls_ca_bundle',
+                                         'updated_at'])
+                messages.success(request, 'Looked up the other application. Choose what Clientst0r asks in '
+                                          'return, if anything.')
+                return redirect('connect:request_review', pk=preq.pk)
             if request.POST.get('op') == 'reject':
                 pairing.reject_inbound(preq, request.user)
                 messages.info(request, 'Pairing rejected. The other application will be told.')
@@ -191,7 +221,8 @@ def request_review(request, pk):
                 allow_private=request.POST.get('allow_private') == 'on',
                 ca_pem=(request.POST.get('ca_pem') or '').strip()[:20000])
             if change is not None:
-                messages.warning(request, 'High-risk permissions need a second administrator. Confirm the '
+                messages.warning(request, 'This approval needs a second administrator (high-risk permissions, '
+                                          'or an installation id that is already connected here). Confirm the '
                                           'protected change, then another approver approves it.')
                 return redirect('tech_access:change_detail', pk=change.pk)
             messages.success(request, 'Approved. The other application completes the pairing on its next check.')
@@ -199,13 +230,8 @@ def request_review(request, pk):
         except pairing.PairingFailed as e:
             ctx['error'] = e.message
         conn.refresh_from_db()
-    if not conn.remote_catalog and preq.status == PairingRequest.PENDING and request.method == 'GET':
-        try:   # an administrator opened the page: look the other app up to offer its permissions
-            pairing.refresh_remote_discovery(conn)
-            conn.save(update_fields=['remote_endpoints', 'remote_catalog', 'remote_protocol_version',
-                                     'remote_app_version', 'updated_at'])
-        except ConnectError as e:
-            ctx['discovery_problem'] = pairing.friendly(e)
+    # GET never contacts the other application (QC-11): the "Look up the other
+    # application" button posts op=lookup.
     if conn.remote_catalog:
         ctx['remote_groups'] = _grouped(pairing.catalog_for(conn))
     return render(request, 'connect/request_review.html', ctx)

@@ -4,6 +4,10 @@
 <h1 class="h3"><i class="fas fa-user-check"></i> Review pairing request</h1>
 {% include "connect/_steps.html" %}
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+{% if public_url_problem and preq.status == 'pending' %}<div class="alert alert-danger" data-connect-not-configured>{{ public_url_problem }}</div>{% endif %}
+{% if duplicates %}<div class="alert alert-warning" data-connect-duplicate><strong>This request claims installation <code>{{ conn.remote_installation_id }}</code>, which is already connected here</strong>
+({% for d in duplicates %}<a href="{% url 'connect:detail' d.pk %}">{{ d.remote_display_name|default:d.remote_app_type }}</a> — {{ d.get_state_display }}{% if not forloop.last %}; {% endif %}{% endfor %}).
+Anyone holding a pairing code can claim any installation id. Unless you expected a second connection, compare the address, the sender and the comparison code with the other administrator, or reject it. Approving needs a second administrator.</div>{% endif %}
 <div class="row"><div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Requesting application</strong></div><div class="card-body small">
   <div>{{ conn.remote_display_name|default:"(no name)" }} — <code>{{ conn.remote_app_type }}</code> {{ conn.remote_app_version }}</div>
   <div>Installation <code>{{ conn.remote_installation_id }}</code></div>
@@ -23,7 +27,10 @@ The other application shows a code too. Approve only if the two are identical �
   {% include "connect/_grant_rows.html" with rows=proposed scopes=conn.peer_requested_scopes %}
 </div></div>
 {% if remote_groups %}<div class="card mb-3"><div class="card-header"><strong>What Clientst0r asks in return</strong> (optional)</div><div class="card-body">{% include "connect/_scopes.html" with name="requested_scopes" groups=remote_groups checked="" %}</div></div>{% endif %}
-{% if discovery_problem %}<div class="alert alert-warning small">Could not look up the requesting application yet: {{ discovery_problem }}</div>{% endif %}
+{% if not remote_groups %}<div class="card mb-3"><div class="card-body small">
+  Clientst0r has not contacted <code>{{ conn.base_url }}</code> yet. Look it up to see what Clientst0r may ask of it in return (uses the Advanced settings below for an internal address or a private CA).
+  <div class="mt-2"><button class="btn btn-sm btn-outline-secondary" name="op" value="lookup" formnovalidate data-connect-lookup>Look up the other application</button></div>
+</div></div>{% endif %}
 {% include "connect/_advanced.html" %}
 <button class="btn btn-primary" name="op" value="approve">Approve</button>
 <button class="btn btn-outline-danger" name="op" value="reject" formnovalidate>Reject</button>
