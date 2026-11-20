@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.737] - 2026-11-20
+
+Security playbooks run only after approval; rate limits on public signing and survey pages; drop files onto a
+ticket.
+
+### Changed
+
+- **Security playbooks**:
+  - **Approval:** remediation playbooks no longer run on their own when an incident opens. This includes playbooks
+    that already exist. The incident timeline records "Playbook suggested … awaiting approval". A technician with
+    the acknowledge permission for that customer then clicks **Approve and run** on the incident page, and the
+    timeline records who approved it.
+  - **Automatic runs:** to have a playbook run automatically again, turn on `auto_run` for that playbook in the
+    admin site.
+  - **Playbook list:** a new column shows how each playbook runs.
+  - Roadmap 51.20; security review SR-37.
+- **Playbook step results now report what actually happened**:
+  - A "Run PSA workflow rule" step shows "not supported", or "refused" when the rule belongs to another customer.
+    It never shows "ok".
+  - An email step with no recipient is skipped.
+  - An email that fails to send is recorded as an error.
+- **Public quote signing page**:
+  - Page views are limited to 60 a minute per address and 120 an hour per link.
+  - Signature submissions are limited to 10 a minute per address and 10 an hour per link.
+  - A limited request gets HTTP 429 and never reveals whether a link exists.
+  - Roadmap 51.22.
+- **Satisfaction survey responses** are limited to 10 a minute per address and 10 an hour per link. Survey page
+  views keep their existing limit.
+- **Ticket attachments**:
+  - Files can be dragged onto the ticket composer. They go through the existing upload rules, and each file is
+    checked separately.
+  - The Attachments form accepts several files at once.
+  - Roadmap 52.20.
+- **Reopen-on-comment workflow:** a comment from a repository maintainer no longer reopens a closed issue. A
+  reporter's reply still reopens their issue.
+
+### Fixed
+
+- **Removed the unused GraphQL URL module**, which had CSRF protection turned off and was not mounted anywhere.
+  The mounted `/api/v2/graphql/` endpoint is unchanged. Security review SR-20.
+- **Webhook and browser-extension endpoints:**
+  - Each one with CSRF protection turned off now has a comment explaining why.
+  - A new test checks that an unsigned post to either payment webhook is refused.
+  - Security review SR-35 and SR-36.
+
 ## [3.17.736] - 2026-11-20
 
 Tamper-evident audit log.

@@ -473,6 +473,8 @@ confirms that the code path exists, not that it is exploitable.
 
 ### SR-37 — Security playbooks run without approval; a step reports success without acting
 
+> **Status (v3.17.737):** addressed — playbooks run only after approval (per-playbook `auto_run`, off for existing playbooks), customer check on the rule step, honest step results.
+
 Found by the platform audit, 2026-11-20 (static read of v3.17.732). Severity: Medium.
 
 - `security_alerts/models.py` `_correlate_alert_to_incident` calls `find_matching_playbook` and
@@ -490,7 +492,7 @@ from another customer is refused; the timeline never records "ok" for an action 
 
 ## Informational
 
-- **SR-20 — Dead GraphQL URL module with `csrf_exempt`.** The audit flagged `api/urls_graphql.py` as a
+- **SR-20 — Dead GraphQL URL module with `csrf_exempt`.** *(Fixed v3.17.737.)* The audit flagged `api/urls_graphql.py` as a
   CSRF-exempt, session-authenticated GraphQL endpoint. Re-read at v3.17.720: the module is not included by
   any URLconf; the mounted endpoint is `/api/v2/graphql/` in `config/urls.py:150-158`, which is **not**
   exempt (comment states why). Action: delete the dead module so it cannot be re-included. Test: a URL
@@ -499,11 +501,11 @@ from another customer is refused; the timeline never records "ok" for an action 
   404 today (fail-closed). Raise in the P16 answer.
 - **SR-33 — Vendored `clientst0r-interop.json` is the 0.29.1 run**, while `PIN.json` says the directory was
   copied at `4b2b9f5c`. Cosmetic; fixed by re-vendoring (increment R-02).
-- **SR-35 — Vault extension views are `csrf_exempt`.** Re-read at v3.17.720: `extension_auth_required`
+- **SR-35 — Vault extension views are `csrf_exempt`.** *(Comments added v3.17.737.)* Re-read at v3.17.720: `extension_auth_required`
   accepts only a bearer token from the `Authorization` header (`vault/extension_auth.py`
   `resolve_extension_token`) and replaces `request.user`, so session cookies are not used and CSRF does not
   apply. Not a finding; add a comment at each exemption.
-- **SR-36 — Payment webhooks `csrf_exempt` without a comment** (`payments/views.py` L183, L191). The audit
+- **SR-36 — Payment webhooks `csrf_exempt` without a comment** *(Comments and test added v3.17.737.)* (`payments/views.py` L183, L191). The audit
   reports provider signature verification in `payments.webhooks`; add comments and a test that an unsigned
   post is refused.
 

@@ -114,8 +114,7 @@ Work being implemented now or approved as the next P0 task.
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | 94.3 scheduled off-host backups; external append-only shipping (94.1) | — |
-| 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Ship 51.20–51.23 (in development) | — |
-| 3 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.20 drop files on the composer (in development); then 52.21–52.24 | 51 |
+| 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | 51.23 workflow rules by customer scope (in development) | — |
 
 <!-- /generated:now -->
 
@@ -134,9 +133,10 @@ Approved, in priority order, not started (or started only in parts already liste
 | 3 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
 | 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.2 execution log, 91.3 dry run, 91.6–91.9 | 14 |
-| 6 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 111.1 passkeys | 57, 64, 80 |
-| 7 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
-| 8 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
+| 6 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.21 reminders, 52.22 handoff summary, 52.23, 52.24 | 51 |
+| 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 111.1 passkeys | 57, 64, 80 |
+| 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
+| 9 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
 
 <!-- /generated:next -->
 
@@ -154,7 +154,7 @@ unchanged. Click a feature for its details.
 | ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
 |---|---|---|---|---|---|
 | 14 | [Visual Workflow Automation Engine](#phase-14) | — | 🟡 Partial | — | Time-based triggers, delays and escalation logic (91.6) |
-| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.20 drop files on the composer (in development); then 52.21–52.24 |
+| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.21 reminders, 52.22 handoff summary, 52.23, 52.24 |
 | 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.2 execution log, 91.3 dry run, 91.6–91.9 |
 | 93 | [Business-hours SLA calendars](#phase-93) | — | ⬜ Planned | — | 93.1 calendars |
 
@@ -243,7 +243,7 @@ unchanged. Click a feature for its details.
 | ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
 |---|---|---|---|---|---|
 | 9 | [Security alert ingestion: EDR / AV / Firewall on the dashboard](#phase-9) | — | 🟡 Partial | — | Real vendor API connectors (Phase 84); today every vendor is webhook-only |
-| 23 | [Security Event & Incident Workflows](#phase-23) | — | 🟡 Partial | — | Playbooks behind approval (51.20, SR-37) |
+| 23 | [Security Event & Incident Workflows](#phase-23) | — | 🟡 Partial | — | Approval-driven security automation (Phase 86); playbooks run only after approval since v3.17.737 |
 | 56 | [Ticket AI Assist and RMM handoff](#phase-56) | — | 🔵 In progress | 57; Rem0te ticket-rmm-v1 | Remaining Rem0te-side items move with 63.11–63.16 |
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
@@ -289,7 +289,7 @@ unchanged. Click a feature for its details.
 
 | ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
 |---|---|---|---|---|---|
-| 51 | [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | — | Ship 51.20–51.23 (in development) |
+| 51 | [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | — | 51.23 workflow rules by customer scope (in development) |
 | 57 | [Technician security levels and abuse prevention](#phase-57) | — | 🔵 In progress | — | Confirm remaining items against 64 roles |
 | 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
 | 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
@@ -796,9 +796,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 2
 <a id="phase-23"></a>
 
 ## Phase 23 — Security Event & Incident Workflows **(L)** [in progress]
-<!-- phase: ws=D state=partial next="Playbooks behind approval (51.20, SR-37)" -->
+<!-- phase: ws=D state=partial next="Approval-driven security automation (Phase 86); playbooks run only after approval since v3.17.737" -->
 **Status:** 🟡 Partial · **Priority:** — · **Workstream:** D. RMM & Platform Integrations  
-**Next:** Playbooks behind approval (51.20, SR-37)
+**Next:** Approval-driven security automation (Phase 86); playbooks run only after approval since v3.17.737
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -1121,9 +1121,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 5
 <a id="phase-51"></a>
 
 ## Phase 51 — Reliability and customer-boundary hardening **(M · quality)** [in progress]
-<!-- phase: ws=F stage=1 view=now order=2 deps="—" next="Ship 51.20–51.23 (in development)" -->
+<!-- phase: ws=F stage=1 view=now order=2 deps="—" next="51.23 workflow rules by customer scope (in development)" -->
 **Status:** 🔵 In progress · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
-**Next:** Ship 51.20–51.23 (in development)
+**Next:** 51.23 workflow rules by customer scope (in development)
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -1462,12 +1462,12 @@ are built on top of them.
   own ticket save, one ticket event runs at most 50 actions, and `create_charge` bills a ticket once per rule.
 **Added 2026-11-20 (platform audit; P0 unless noted):**
 
-- **51.20 Security playbooks behind approval (SR-37)** *(planned)* — remediation playbooks off by default or
+- **51.20 Security playbooks behind approval (SR-37)** *(shipped v3.17.737 — playbooks run only after approval unless `auto_run` is switched on per playbook; the workflow-rule step reports "not supported" or "refused", never ok)* — remediation playbooks off by default or
   behind an approval, the `run_workflow_rule` step either runs the rule or is removed, and the rule lookup
   checks the incident's customer. Tests: a forged alert sends no mail; a rule from another customer is
   refused.
-- **51.21 Remove the dead GraphQL module (SR-20)** *(planned)* — with a URL-resolver test.
-- **51.22 Throttling on public quote-signing and satisfaction-survey endpoints** *(planned)*.
+- **51.21 Remove the dead GraphQL module (SR-20)** *(shipped v3.17.737, with SR-35/SR-36 comments and an unsigned-webhook test)* — with a URL-resolver test.
+- **51.22 Throttling on public quote-signing and satisfaction-survey endpoints** *(shipped v3.17.737)*.
 - **51.23 Workflow rule visibility by customer scope** *(planned)* — technicians restricted to some customers
   see and edit only those customers' rules; rule editing checks the roles registry (64.8).
 
@@ -1478,9 +1478,9 @@ are built on top of them.
 <a id="phase-52"></a>
 
 ## Phase 52 — Technician workspace **(L · P1)** [in progress]
-<!-- phase: ws=A stage=1 view=now order=3 deps=51 next="52.20 drop files on the composer (in development); then 52.21–52.24" -->
+<!-- phase: ws=A stage=1 view=next order=6 deps=51 next="52.21 reminders, 52.22 handoff summary, 52.23, 52.24" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 51  
-**Next:** 52.20 drop files on the composer (in development); then 52.21–52.24
+**Next:** 52.21 reminders, 52.22 handoff summary, 52.23, 52.24
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -1576,7 +1576,7 @@ someone else.
   upgrade. *(shipped v3.17.664)*
 **Added 2026-11-20 (platform audit, area E; planned, P1):**
 
-- **52.20 Drop files on the ticket composer** *(planned)* — through the existing upload rules
+- **52.20 Drop files on the ticket composer** *(shipped v3.17.737 — several files per upload)* — through the existing upload rules
   (`psa/attachment_rules.py`), rejecting a mismatched type.
 - **52.21 Ticket reminders** *(planned)* — per-ticket reminders on the scheduler, shown in My Work.
 - **52.22 Technician handoff summary** *(planned)* — a non-AI summary (status, last actions, open tasks,
@@ -2590,7 +2590,7 @@ Builds on Phase 44, which covers customer sync, invoice create and payment pull 
 <a id="phase-74"></a>
 
 ## Phase 74 — Backup monitoring, backup management and endpoint health **(XL · P1 · backup)** [in progress]
-<!-- phase: ws=D stage=2 view=next order=7 deps="63, 82; St0r API (74.7)" next="74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands" blocker="74.7 needs St0r’s integration API (in development, St0r PR #54)" unblock="St0r ships /api/v1 with scoped tokens" -->
+<!-- phase: ws=D stage=2 view=next order=8 deps="63, 82; St0r API (74.7)" next="74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands" blocker="74.7 needs St0r’s integration API (in development, St0r PR #54)" unblock="St0r ships /api/v1 with scoped tokens" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 63, 82; St0r API (74.7)  
 **Next:** 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands  
 **Blocked:** 74.7 needs St0r’s integration API (in development, St0r PR #54) — *unblocks when:* St0r ships /api/v1 with scoped tokens
@@ -3695,7 +3695,7 @@ quoting work fully without it.
 <a id="phase-106"></a>
 
 ## Phase 106 — Device management (MDM) integrations **(XL · P2 · devices)** [planned]
-<!-- phase: ws=D stage=3 view=next order=8 deps="64, 74.9, 82, 92" next="106.1 provider connections" blocker="Mosyle has no official API documentation found" unblock="Obtain official Mosyle API documentation (other providers unaffected)" -->
+<!-- phase: ws=D stage=3 view=next order=9 deps="64, 74.9, 82, 92" next="106.1 provider connections" blocker="Mosyle has no official API documentation found" unblock="Obtain official Mosyle API documentation (other providers unaffected)" -->
 **Status:** ⬜ Planned · **Priority:** P2 · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 64, 74.9, 82, 92  
 **Next:** 106.1 provider connections  
 **Blocked:** Mosyle has no official API documentation found — *unblocks when:* Obtain official Mosyle API documentation (other providers unaffected)
@@ -3829,7 +3829,7 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 <a id="phase-111"></a>
 
 ## Phase 111 — Identity lifecycle and access reviews **(L · P1 · security)** [planned]
-<!-- phase: ws=F stage=1 view=next order=6 deps="57, 64, 80" next="111.1 passkeys" -->
+<!-- phase: ws=F stage=1 view=next order=7 deps="57, 64, 80" next="111.1 passkeys" -->
 **Status:** ⬜ Planned · **Priority:** P1 · **Workstream:** F. Security & Administration · **Depends on:** 57, 64, 80  
 **Next:** 111.1 passkeys
 

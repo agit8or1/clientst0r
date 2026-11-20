@@ -7,8 +7,13 @@ on:
 jobs:
   reopen-issue:
     runs-on: ubuntu-latest
-    # Only run if the issue is closed
-    if: github.event.issue.state == 'closed'
+    # Only run if the issue is closed and the comment is not from a maintainer:
+    # a reporter's reply reopens their issue, a maintainer's closing note does not.
+    # Pull-request comments are ignored.
+    if: >-
+      github.event.issue.state == 'closed' &&
+      !github.event.issue.pull_request &&
+      !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
 
     permissions:
       issues: write
