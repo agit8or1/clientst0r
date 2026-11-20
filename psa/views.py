@@ -9931,6 +9931,11 @@ def csat_respond(request, token):
     counted on the survey.
     """
     from .models import TicketCSATSurvey
+    # Submissions get a tighter limit than page views (the decorator's),
+    # checked before the token lookup so a 429 never reveals a valid token.
+    if request.method == 'POST' and limited(request, 'psa.csat_submit', '10/m', token, '10/h'):
+        from core.public_throttle import too_many_response
+        return too_many_response()
     survey = TicketCSATSurvey.lookup(token)
     if survey is None:
         raise Http404('No survey here')

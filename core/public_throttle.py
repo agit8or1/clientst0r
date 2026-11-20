@@ -30,16 +30,20 @@ def limited(request, group, rate, token=None, token_rate=None, increment=True) -
     return False
 
 
+def too_many_response():
+    resp = HttpResponse(TOO_MANY, status=429, content_type='text/plain; charset=utf-8')
+    resp['Retry-After'] = '60'
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 def throttled(group, rate, token_rate=None):
     """Decorator for public views; ``token`` comes from the URL kwargs."""
     def deco(view):
         @wraps(view)
         def wrapper(request, *args, **kwargs):
             if limited(request, group, rate, kwargs.get('token'), token_rate):
-                resp = HttpResponse(TOO_MANY, status=429, content_type='text/plain; charset=utf-8')
-                resp['Retry-After'] = '60'
-                resp['Cache-Control'] = 'no-store'
-                return resp
+                return too_many_response()
             return view(request, *args, **kwargs)
         return wrapper
     return deco

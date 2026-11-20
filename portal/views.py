@@ -628,6 +628,17 @@ def quote_sign(request, token):
         Queue, Quote, QuoteSignature,
         TicketPriority, TicketStatus, TicketType,
     )
+    from core.public_throttle import limited, too_many_response
+
+    # Per visitor address and per link, before the token is looked up, so a
+    # 429 says nothing about whether the token exists. Page views are allowed
+    # more than signature submissions.
+    if request.method == 'POST':
+        over = limited(request, 'portal.quote_sign.post', '10/m', token, '10/h')
+    else:
+        over = limited(request, 'portal.quote_sign.view', '60/m', token, '120/h')
+    if over:
+        return too_many_response()
 
     quote = get_object_or_404(
         Quote.lookup_by_customer_token(token).select_related('client_org'))
