@@ -137,6 +137,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.6 access groups (in development); 111.1 passkeys | 57, 64, 80 |
 | 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 9 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
+| 10 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.8 Connect hardening (Quick Connect increment A); then 79.10–79.12 default-deny source and approved destinations | Rem0te contract |
 
 <!-- /generated:next -->
 
@@ -247,7 +248,7 @@ unchanged. Click a feature for its details.
 | 56 | [Ticket AI Assist and RMM handoff](#phase-56) | — | 🔵 In progress | 57; Rem0te ticket-rmm-v1 | Remaining Rem0te-side items move with 63.11–63.16 |
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
-| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.6 Rem0te side; 79.7 decide versus Phase 63 (duplicate channel) |
+| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.8 Connect hardening (Quick Connect increment A); then 79.10–79.12 default-deny source and approved destinations |
 | 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.3 bounded ingestion; 82.6 permission keys; first consumers |
 | 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
 | 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
@@ -444,7 +445,7 @@ Planned and partly built phases not in NOW or NEXT, by workstream:
 - **A. Core PSA & Ticketing:** 93 [Business-hours SLA calendars](#phase-93) (—)
 - **B. Billing & Financial Management:** 65 [Contract documents and digital signing](#phase-65) (—), 68 [Commercial price book and service plans](#phase-68) (—), 69 [Labor rate cards and cost rates](#phase-69) (—), 71 [Accounting sync completion](#phase-71) (—), 72 [Payment processing and sales tax](#phase-72) (—), 92 [Verified usage and recurring billing](#phase-92) (—), 104 [Customer approvals, deposits, change orders and portal billing](#phase-104) (P1)
 - **C. Asset Management & Documentation:** 33 [Network Discovery & Auto Documentation](#phase-33) (—), 62 [Pluggable document editors](#phase-62) (—), 73 [Procurement, distributors, licensing and warranty lifecycle](#phase-73) (—), 95 [PSA migration importers](#phase-95) (—), 107 [Documentation search, attachments, sharing and asset history](#phase-107) (P3), 108 [Discovery scope approval and suggested-device staging](#phase-108) (P3)
-- **D. RMM & Platform Integrations:** 56 [Ticket AI Assist and RMM handoff](#phase-56) (—), 79 [Agit8or Connect: secure application-to-application integration](#phase-79) (—), 82 [Shared operational event and alert foundation](#phase-82) (—), 84 [Security connector framework and vendor integrations](#phase-84) (P3\*), 85 [Operations Center, alert triage and correlation](#phase-85) (P3\*), 86 [SOAR Lite: approval-driven security automation](#phase-86) (P3\*), 87 [Alert routing, on-call and escalation](#phase-87) (P3\*), 88 [Service dependency and impact mapping](#phase-88) (P3\*), 109 [Microsoft 365 administration](#phase-109) (P3)
+- **D. RMM & Platform Integrations:** 56 [Ticket AI Assist and RMM handoff](#phase-56) (—), 82 [Shared operational event and alert foundation](#phase-82) (—), 84 [Security connector framework and vendor integrations](#phase-84) (P3\*), 85 [Operations Center, alert triage and correlation](#phase-85) (P3\*), 86 [SOAR Lite: approval-driven security automation](#phase-86) (P3\*), 87 [Alert routing, on-call and escalation](#phase-87) (P3\*), 88 [Service dependency and impact mapping](#phase-88) (P3\*), 109 [Microsoft 365 administration](#phase-109) (P3)
 - **E. Sales & CRM:** 97 [Prospect IT assessment and CRM enhancements](#phase-97) (P1), 98 [Service estimator and forecast accuracy](#phase-98) (P1), 103 [Quote builder, options and price-book selection](#phase-103) (P1), 105 [Market pricing research and AI proposals](#phase-105) (P3)
 - **F. Security & Administration:** 57 [Technician security levels and abuse prevention](#phase-57) (—), 64 [Roles, permission groups and access settings](#phase-64) (P0\*), 80 [Agit8or Identity: single sign-on for people](#phase-80) (—)
 - **G. Customer Portal & Communications:** 66 [Client pulse checks](#phase-66) (—), 77 [Customer command center portal](#phase-77) (P3\*), 99 [Phone system integration and call-to-ticket](#phase-99) (P2), 100 [Optional simple PBX appliance](#phase-100) (P4)
@@ -2760,9 +2761,9 @@ Depends on Phases 72, 73 and 74.
 <a id="phase-79"></a>
 
 ## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
-<!-- phase: ws=D view=later deps="Rem0te contract" next="79.6 Rem0te side; 79.7 decide versus Phase 63 (duplicate channel)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
+<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.8 Connect hardening (Quick Connect increment A); then 79.10–79.12 default-deny source and approved destinations" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
 **Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** Rem0te contract  
-**Next:** 79.6 Rem0te side; 79.7 decide versus Phase 63 (duplicate channel)  
+**Next:** 79.8 Connect hardening (Quick Connect increment A); then 79.10–79.12 default-deny source and approved destinations  
 **Blocked:** 79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel — *unblocks when:* Decision on one Rem0te channel; Rem0te Stage 8
 
 <details markdown="1">
@@ -2785,6 +2786,27 @@ events with each other, starting with Clientst0r and Rem0te. It runs alongside t
   until enabled by an administrator.
 - **79.6 Rem0te side** *(planned)* — implemented in the Rem0te repository against the shared contract.
 - **79.7 Device sync, alert tickets, ticket-to-device and approved remote actions over Connect** *(planned)*.
+
+**Secure HTTPS Quick Connect** — guided, default-deny connection setup on top of this protocol; audit, design and increment plan in [docs/plans/quick-connect/](plans/quick-connect/AUDIT.md). Connect stays off by default; Quick Connect is not offered on production installations until 79.23 and 79.24 pass.
+
+- **79.8 Connect hardening from the Quick Connect audit** *(planned)* — outbound requests never reach loopback or link-local addresses and use only the approved port, approvals respect the kill switch, a public address is required before pairing, unauthenticated refusals no longer grow the audit log, and a request claiming an existing installation needs a second administrator.
+- **79.9 Browser-mediated bootstrap** *(planned)* — the administrator authorises the connection in the other application's own admin page; a short-lived, single-use, signed invitation and an authorization code with PKCE replace typed codes; no password ever passes between applications.
+- **79.10 Default-deny source policy for Connect** *(planned)* — Connect endpoints refuse every address until one is authorised, with IPv4 and IPv6 addresses and ranges, explicit deny winning, no allow-all and no implicit trust for private addresses, checked before any authentication and independent of the general API settings; reuses the API access policy engine.
+- **79.11 Per-connection inbound addresses** *(planned)* — a second, per-connection allowlist that every request must also pass; a request is bound to the connection whose address rule it matched, so shared NAT addresses stay separated by key; unexpected sources are refused and shown, never added automatically.
+- **79.12 Approved outbound destinations** *(planned)* — per connection: host, port, approved addresses, trust anchor and expected identity; every resolved and connected address is checked against the approved set; an address change blocks the connection until an administrator approves it and it is retested.
+- **79.13 Two-sided authorization** *(planned)* — each side approves permissions, customers and the other side's source address independently; the reverse direction is its own approval; elevated permissions and widening network changes need a second administrator.
+- **79.14 Staged configuration changes** *(planned)* — network and permission changes are staged with a preview of who gains or loses access, approved, and committed atomically; rollback only ever narrows access; changes reach every worker through a policy version.
+- **79.15 Certificate verification and pinning** *(planned)* — certificates are always verified, an IP address is accepted only when the certificate names it, a private CA can be set per connection, and an optional public-key pin is available; a failure blocks the connection.
+- **79.16 Connection health states** *(planned)* — Pending Setup, Awaiting Approval, Awaiting Network Authorization, Testing, Connected, Degraded, Offline, Security Blocked, Suspended and Revoked, from separate transport, TLS, authentication, authorization and operational checks every 60 seconds with jitter and hysteresis; "Connected" only after every test passed.
+- **79.17 Automatic reconnection** *(planned)* — backoff from 10 seconds to 15 minutes with jitter and a circuit breaker, restart-safe on the scheduler; never after a revocation, suspension, identity or certificate change, unauthorised address or other security failure, and the evidence of a security failure is kept.
+- **79.18 Event queue recovery** *(planned)* — events wait while a peer is offline instead of being used up by retries, drain in order on recovery, expire by age, and can be requeued from the failed list.
+- **79.19 Connection alerts** *(planned)* — status changes go through the shared event layer and existing notification channels, with deduplication, rate limits, muting and recovery notices; an optional ticket per incident, never one per check.
+- **79.20 Connection diagnostics** *(planned)* — fifteen independent checks from DNS to reverse connectivity, each with a result, explanation, next step, error code and time, a run history, and a redacted export.
+- **79.21 Public Agit8or Connect standard** *(planned)* — a public repository with the specification, OpenAPI, message schemas, test vectors, conformance tests, a reference peer, examples and an integration guide; this repository keeps a pinned copy.
+- **79.22 SDK updates for protocol revision 1.1** *(planned)* — Python and TypeScript support for the optional bootstrap, source-binding and diagnostics extensions with new test vectors; version 1 messages and vectors unchanged, so version 1 peers keep working.
+- **79.23 Independent interoperability testing** *(planned)* — Clientst0r and the reference peer connect over real HTTPS on one host, covering both pairing flows, address and certificate changes, outages and recovery, without changes to host firewalls, DNS or proxies.
+- **79.24 Security review of Quick Connect** *(planned)* — an independent review, an updated threat model and limitations, and owner sign-off before Quick Connect is offered on production installations.
+- **79.25 Quick Connect wizard** *(planned)* — enter a host name or address (HTTPS on 443 by default), check the network and certificate, authorise in the other application, compare the code, choose permissions and customers, allow the other side's address, watch the tests, and only then see Connected.
 
 **Sizing:** **XL** — protocol and Clientst0r side first, then the Rem0te side, then integration features.
 

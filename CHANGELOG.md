@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.740] - 2026-11-20
+
+Secure HTTPS Quick Connect: audit, design and roadmap. Documentation only; no behaviour changes.
+
+### Documentation
+
+- **`docs/plans/quick-connect/`** has four new documents:
+  - **AUDIT.md:** the existing Agit8or Connect code checked against the Quick Connect requirements, with file
+    references.
+  - **DESIGN.md:** the design for the guided connection setup.
+  - **INCREMENTS.md:** the order of independently tested releases.
+  - **ROADMAP_ITEMS.md:** the proposed roadmap entries.
+- **Audit findings:** sixteen, none critical. Agit8or Connect is off by default and was off on the reference
+  installation, so none is reachable there.
+  - **One high:** Connect endpoints have no Connect-specific address restriction; only the general API policy
+    applies.
+  - **The rest are medium or low**, covering pairing denial of service, unauthenticated growth of the audit log,
+    private-address reachability when the global private-integration setting is on, an unpinned peer address,
+    events abandoned after about eight hours, and "Connected" shown before any connectivity test.
+  - All of them are scheduled as roadmap 79.8 and the increments after it.
+- **Protocol plan:** Quick Connect is protocol revision 1.1, a set of optional extensions advertised in discovery.
+  Version 1 messages, endpoints and test vectors are unchanged, so version 1 peers and the existing Rem0te link keep
+  working.
+- **Roadmap:** Phase 79 gains 79.8–79.25 (all planned):
+  - hardening
+  - browser-mediated bootstrap
+  - default-deny source policy, at installation and per-connection level
+  - approved outbound destinations
+  - two-sided authorization
+  - staged configuration changes
+  - certificate verification
+  - health states
+  - automatic reconnection
+  - event queue recovery
+  - alerts
+  - diagnostics
+  - the public standard repository and SDK updates
+  - interoperability testing
+  - security review
+  - the wizard
+
 ## [3.17.739] - 2026-11-20
 
 Ticket reminders, a handoff summary and knowledge suggestions on the ticket page; a run history for workflow rules.
