@@ -235,6 +235,7 @@ TEMPLATES = [
                 # base.html on every page, so no view can supply them.
                 'core.context_processors.support_links',
                 'core.context_processors.csp_nonce',
+                'core.context_processors.default_password_warning',
                 'core.dashboard_views.role_ui_defaults',
             ],
         },

@@ -194,3 +194,18 @@ def _update_badge(request, system_settings):
             is_security = False
     return {'version': latest, 'security': is_security,
             'security_version': security if is_security else ''}
+
+
+def default_password_warning(request):
+    """``default_password_warning``: True for a superuser who still signs in
+    with the installer's password (core.readiness, Phase 96.1). Answered from
+    a stored per-password result, so a normal page view costs a cache read."""
+    user = getattr(request, 'user', None)
+    if not (user is not None and user.is_authenticated and user.is_superuser):
+        return {}
+    try:
+        from core.readiness import default_password_in_use
+        return {'default_password_warning': default_password_in_use(user)}
+    except Exception:
+        # A failed check must not take out every page.
+        return {}

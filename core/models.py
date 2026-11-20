@@ -3123,3 +3123,23 @@ class DashboardRoleMapping(models.Model):
 
     def __str__(self):
         return f'Dashboard mapping: {self.role_template_id} -> {self.preset}'
+
+
+class ReadinessResult(models.Model):
+    """The latest result of a slow install check (core.readiness), one row per
+    key, so pages show the stored result instead of re-running the check.
+
+    Keys: ``install`` (the composite readiness list) and
+    ``default_password:<user id>`` (whether that superuser still signs in
+    with the installer's password, tied to a fingerprint of the stored hash
+    so a password change invalidates it). Never holds a password or secret.
+    """
+    key = models.CharField(max_length=100, unique=True)
+    data = models.JSONField(default=dict)
+    checked_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'core_readiness_result'
+
+    def __str__(self):
+        return f'{self.key} @ {self.checked_at:%Y-%m-%d %H:%M}'

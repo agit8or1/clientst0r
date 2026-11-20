@@ -62,6 +62,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_ssl_expiry())
     warnings.extend(_warnings_from_domain_expiry())
     warnings.extend(_warnings_from_api_access())
+    warnings.extend(_warnings_from_default_password())
 
     # Filter by min severity, then sort.
     filtered = [w for w in warnings if SEVERITY_RANK.get(w['severity'], 9) <= threshold]
@@ -210,6 +211,30 @@ def _warnings_from_app_version():
         'source_date': timezone.now(),
     })
     return out
+
+
+def _warnings_from_default_password():
+    """A superuser still signing in with the installer's password (Phase
+    96.1). core.readiness remembers the answer per password, so this costs a
+    hash only after a password changed."""
+    try:
+        from core.readiness import superusers_with_default_password
+        users = superusers_with_default_password()
+    except Exception:
+        return []
+    if not users:
+        return []
+    names = ', '.join(u.get_username() for u in users)
+    return [{
+        'id': 'default_admin_password',
+        'severity': 'high',
+        'category': 'default_password',
+        'title': 'The default administrator password is still in use',
+        'detail': f'Change it for: {names}.',
+        'action_url': _safe_reverse('accounts:password_change'),
+        'action_label': 'Change password',
+        'source_date': timezone.now(),
+    }]
 
 
 def _warnings_from_ssl_expiry():

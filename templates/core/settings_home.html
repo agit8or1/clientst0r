@@ -26,6 +26,41 @@ page's own check. The search filters the cards in the browser
         </div>
         <div id="settingsCenterStatus" class="visually-hidden" role="status" aria-live="polite"></div>
     </div>
+    {% if readiness %}
+    <section class="card mb-3" data-readiness-card aria-labelledby="readinessTitle">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <h2 class="h6 mb-0" id="readinessTitle"><i class="fas fa-clipboard-check" aria-hidden="true"></i> {% trans "Install readiness" %}</h2>
+                {% if readiness.checked_at %}
+                    {% if readiness.summary.open %}
+                    <span class="badge text-bg-{% if readiness.summary.worst == 'high' or readiness.summary.worst == 'critical' %}danger{% else %}warning{% endif %}">{% blocktrans count n=readiness.summary.open %}{{ n }} item needs attention{% plural %}{{ n }} items need attention{% endblocktrans %}</span>
+                    {% else %}
+                    <span class="badge text-bg-success">{% trans "Ready" %}</span>
+                    {% endif %}
+                    <span class="small text-body-secondary">{% blocktrans with when=readiness.checked_at|timesince %}checked {{ when }} ago{% endblocktrans %}</span>
+                {% else %}
+                    <span class="small text-body-secondary">{% trans "Not checked yet: sign-in security, site address, e-mail, backups, scheduler, migrations and disk space." %}</span>
+                {% endif %}
+                <form method="post" action="{% url 'core:readiness_run' %}" class="ms-auto">{% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-primary">{% if readiness.checked_at %}{% trans "Check again" %}{% else %}{% trans "Run the check" %}{% endif %}</button>
+                </form>
+            </div>
+            {% if readiness.checks %}
+            <ul class="list-unstyled small mb-0 mt-2">
+                {% for c in readiness.checks %}
+                <li class="d-flex flex-wrap gap-2 py-1 border-top" data-readiness-check="{{ c.id }}">
+                    {% if c.ok %}<i class="fas fa-circle-check text-success mt-1" aria-hidden="true"></i>{% else %}<i class="fas fa-circle-exclamation {% if c.severity == 'high' or c.severity == 'critical' %}text-danger{% else %}text-warning{% endif %} mt-1" aria-hidden="true"></i>{% endif %}
+                    <span class="visually-hidden">{% if c.ok %}{% trans "OK" %}{% else %}{% trans "Needs attention" %}{% endif %}</span>
+                    <strong>{{ c.title }}</strong>
+                    <span class="text-body-secondary flex-grow-1">{{ c.detail }}</span>
+                    {% if c.action_url %}<a href="{{ c.action_url }}">{{ c.action_label }}</a>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
     <div class="settings-center__grid" id="settingsCenterGrid">
         {% for c in categories %}
         <section class="settings-card" data-settings-group="{{ c.key }}" aria-labelledby="settingsCard-{{ c.key }}">

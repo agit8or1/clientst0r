@@ -3349,13 +3349,13 @@ Extends the import framework (Phase 61).
 
 **Sizing:** **L**.
 
-## Phase 96 — First-install setup wizard and interactive onboarding **(L · P0 · UX)** [planned]
+## Phase 96 — First-install setup wizard and interactive onboarding **(L · P0 · UX)** [in progress]
 
 Priority P0. A Setup Assistant for new installs and guided tours of the live interface. The wizard writes the
 existing settings; it is not a second settings system. Spec:
 [docs/plans/phases-96-100/96-setup-wizard-and-tours.md](plans/phases-96-100/96-setup-wizard-and-tours.md).
 
-- **96.1 Default password and install readiness** *(planned)* — flag the installer's default administrator
+- **96.1 Default password and install readiness** *(shipped v3.17.730 — banner, system warning, readiness card; last-backup age follows the scheduled backups work)* — flag the installer's default administrator
   password until it is changed; one readiness check (2FA, site URL, mail, backups, scheduler, disk, pending
   migrations) with fix links, built on the upgrade preflight and system warnings.
 - **96.2 First-install detection** *(planned)* — the wizard is offered automatically only on a fresh install,

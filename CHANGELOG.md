@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.730] - 2026-11-20
+
+### Added
+- **Default administrator password warning.** While an administrator still signs in with the installer's
+  password, every page shows a red banner with a "Change it now" link, and the security dashboard and the
+  daily warning digest list it as a high-severity item. The check is remembered per password, so it costs
+  one password hash only after a password changes, not on each page view. Nothing about the password is
+  stored.
+- **Install readiness check.** A card at the top of Administration (administrators only) checks the
+  installer's password, two-factor sign-in for each administrator, the site address, outgoing e-mail, the
+  backup destination, the scheduler, pending database migrations, disk space and the application version.
+  Each item that needs attention has a link to the page that fixes it. The check runs when you click "Run the
+  check" and the last result is kept with its time. It only reads settings and changes nothing.
+
 ## [3.17.729] - 2026-11-20
 
 ### Fixed

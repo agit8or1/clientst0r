@@ -144,6 +144,7 @@ urlpatterns = [
 
     # Settings center: the Administration landing (core/navigation.py).
     path('settings/', settings_home_views.settings_home, name='settings_home'),
+    path('settings/readiness/run/', settings_home_views.readiness_run, name='readiness_run'),
 
     # Fail2ban (superuser only)
     path('settings/fail2ban/', fail2ban_views.fail2ban_status, name='fail2ban_status'),

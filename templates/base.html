@@ -209,6 +209,15 @@
             {% endfor %}
         {% endif %}
 
+        {% if default_password_warning %}
+        <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert" data-default-password-warning>
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            <span><strong>{% trans "The default administrator password is still in use." %}</strong>
+            {% trans "Anyone who knows the installer's password can sign in as you." %}</span>
+            <a class="btn btn-sm btn-light ms-auto" href="{% url 'accounts:password_change' %}">{% trans "Change it now" %}</a>
+        </div>
+        {% endif %}
+
         {% if user.is_authenticated %}
         {% comment %}
         The page frame row (core.navigation): where you are — Section › Workspace
