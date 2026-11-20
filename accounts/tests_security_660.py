@@ -200,6 +200,14 @@ class PortalRevealGateTests(TestCase):
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class AuditPurgeBoundsTests(TestCase):
     def setUp(self):
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        patcher = mock.patch('audit.chain.archive_dir', return_value=Path(tmp.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.su = User.objects.create_superuser('purge-su', 'p@x.example.com', 'pw-purge-660!')
         self.client.force_login(self.su)
         self.old = AuditLog.log(user=self.su, action='update', description='old entry')
@@ -212,7 +220,9 @@ class AuditPurgeBoundsTests(TestCase):
                 self.assertTrue(AuditLog.objects.filter(pk=self.old.pk).exists())
 
     def test_allowed_age_still_cleans_up(self):
-        AuditLog.objects.filter(pk=self.old.pk).update(timestamp=timezone.now() - timedelta(days=40))
+        # Cleanup removes the oldest run of entries (the audit chain keeps a
+        # contiguous start), so everything written before this entry ages too.
+        AuditLog.objects.filter(pk__lte=self.old.pk).update(timestamp=timezone.now() - timedelta(days=40))
         self.client.post(reverse('core:maintenance'), {'action': 'cleanup_audit_logs', 'days': '30'})
         self.assertFalse(AuditLog.objects.filter(pk=self.old.pk).exists())
 

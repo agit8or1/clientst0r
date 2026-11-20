@@ -174,6 +174,8 @@ confirms that the code path exists, not that it is exploitable.
 
 ### SR-07 — Audit log has no tamper evidence, retention or export
 
+> **Status (v3.17.736):** addressed — hash chain, verification, sealed pruning with an archive, export command; external append-only shipping remains (roadmap 94.1).
+
 - **Finding.** `AuditLog` is an ordinary table. Admin add/change are disabled; superusers can delete, and the
   deletion is recorded in the same table. ORM and SQL access can alter history silently. No scheduler task
   prunes or exports audit records.

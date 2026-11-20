@@ -964,13 +964,27 @@ def maintenance(request):
                                         f'{AUDIT_PURGE_MIN_DAYS} to {AUDIT_PURGE_MAX_DAYS} days. Nothing was deleted.')
                 return redirect(request.path)
             cutoff_date = timezone.now() - timedelta(days=days)
-            deleted_count = AuditLog.objects.filter(timestamp__lt=cutoff_date).delete()[0]
+            # Through the tamper-evident chain (SR-07): the entries are
+            # archived first, only the start of the chain is removed, and
+            # nothing is removed while the chain does not verify.
+            from audit import chain as audit_chain
+            try:
+                deleted_count, archive = audit_chain.prune_before(cutoff_date)
+            except audit_chain.PruneRefused as e:
+                messages.error(request, str(e))
+                return redirect(request.path)
+            except OSError as e:
+                messages.error(request, f'The audit archive could not be written ({e.__class__.__name__}); '
+                                        'nothing was deleted.')
+                return redirect(request.path)
             # The clean-up itself stays on record (v3.17.652).
             AuditLog.log(user=request.user, action='delete', object_type='audit_log',
                          description=f'Deleted {deleted_count} audit log entries older than {days} days',
                          ip_address=request.META.get('REMOTE_ADDR'),
-                         extra_data={'event': 'audit_log_cleanup', 'days': days, 'deleted': deleted_count})
-            messages.success(request, f'Deleted {deleted_count} audit log entries older than {days} days.')
+                         extra_data={'event': 'audit_log_cleanup', 'days': days, 'deleted': deleted_count,
+                                     'archive': archive.name if archive else ''})
+            messages.success(request, f'Deleted {deleted_count} audit log entries older than {days} days'
+                                      + (f'; they were archived to {archive}.' if archive else '.'))
 
         elif action == 'optimize_database':
             # Optimize database tables

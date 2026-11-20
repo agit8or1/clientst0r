@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.736] - 2026-11-20
+
+Tamper-evident audit log.
+
+### Added
+
+- **Audit log hash chain.**
+  - Every audit row is sealed into an HMAC-SHA256 chain keyed from the installation's master key.
+  - The scheduler seals new rows and verifies the chain every five minutes, under the new scheduled task "Audit
+    Log Seal and Tamper Check".
+  - If verification fails, a critical system warning appears and the audit log page shows the chain's status to
+    superusers.
+- **`manage.py audit_chain`** has `seal`, `verify` and `export` actions for checking the log independently and
+  exporting it off the host.
+
+### Changed
+
+- **Audit log cleanup** in Settings → Maintenance now removes only the oldest rows that are already sealed. It
+  writes them to an archive in the backup directory first, and refuses to delete anything if the archive cannot
+  be written.
+- **Audit rows can no longer be deleted** from the Django admin.
+- **Rows recorded before this release** are sealed on the first scheduler run after the update. The chain proves
+  rows were not altered after sealing, not before.
+
+### Documentation
+
+- Roadmap 94.1 and 94.2 are marked partial, and security review SR-07 is addressed. Shipping the log to an
+  external append-only destination is still planned.
+- The Rem0te coordination note of 2026-11-20 is copied to `docs/plans/coordination/`.
+
 ## [3.17.735] - 2026-11-20
 
 Roadmap redesigned as a dashboard. Documentation and tooling only; no product behaviour changes.

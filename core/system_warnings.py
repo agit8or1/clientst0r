@@ -63,6 +63,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_domain_expiry())
     warnings.extend(_warnings_from_api_access())
     warnings.extend(_warnings_from_default_password())
+    warnings.extend(_warnings_from_audit_chain())
 
     # Filter by min severity, then sort.
     filtered = [w for w in warnings if SEVERITY_RANK.get(w['severity'], 9) <= threshold]
@@ -234,6 +235,28 @@ def _warnings_from_default_password():
         'action_url': _safe_reverse('accounts:password_change'),
         'action_label': 'Change password',
         'source_date': timezone.now(),
+    }]
+
+
+def _warnings_from_audit_chain():
+    """The audit log failed its tamper check (audit.chain, SR-07)."""
+    try:
+        from audit.models import AuditChainState
+        state = AuditChainState.objects.filter(pk=1).first()
+    except Exception:
+        return []
+    if not state or state.verify_ok is not False:
+        return []
+    first = (state.verify_detail or '').split('\n')[0]
+    return [{
+        'id': f'audit_chain_broken:{state.verified_at:%Y%m%d}' if state.verified_at else 'audit_chain_broken',
+        'severity': 'critical',
+        'category': 'audit_chain',
+        'title': 'The audit log failed its tamper check',
+        'detail': first[:300],
+        'action_url': _safe_reverse('audit:audit_log_list'),
+        'action_label': 'Open audit log',
+        'source_date': state.verified_at,
     }]
 
 

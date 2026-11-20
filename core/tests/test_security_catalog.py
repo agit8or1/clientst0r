@@ -168,13 +168,21 @@ class AuditCleanupIsRecordedTests(TestCase):
         from audit.models import AuditLog
         su = User.objects.create_user('sf_purge', 'p@msp.test', 'pw-sf-123!', is_superuser=True, is_staff=True)
         old = AuditLog.log(user=su, action='read', description='old entry')
-        AuditLog.objects.filter(pk=old.pk).update(timestamp=timezone.now() - timedelta(days=400))
+        # Everything up to this entry ages: the chain's cleanup removes the oldest run.
+        AuditLog.objects.filter(pk__lte=old.pk).update(timestamp=timezone.now() - timedelta(days=400))
         self.client.force_login(su)
-        self.client.post(reverse('core:maintenance'), {'action': 'cleanup_audit_logs', 'days': '90'})
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch('audit.chain.archive_dir', return_value=Path(tmp)):
+            self.client.post(reverse('core:maintenance'), {'action': 'cleanup_audit_logs', 'days': '90'})
+            self.assertEqual(len(list(Path(tmp).glob('audit-*.jsonl.gz'))), 1)
         self.assertFalse(AuditLog.objects.filter(pk=old.pk).exists())
         rec = AuditLog.objects.get(extra_data__event='audit_log_cleanup')
-        self.assertEqual(rec.extra_data['deleted'], 1)
+        self.assertGreaterEqual(rec.extra_data['deleted'], 1)
+        # The admin can no longer delete entries at all (SR-07, v3.17.733).
         victim = AuditLog.log(user=su, action='read', description='to delete')
-        self.client.post(reverse('admin:audit_auditlog_delete', args=[victim.pk]), {'post': 'yes'})
-        self.assertFalse(AuditLog.objects.filter(pk=victim.pk).exists())
-        self.assertTrue(AuditLog.objects.filter(extra_data__event='audit_log_admin_delete').exists())
+        r = self.client.post(reverse('admin:audit_auditlog_delete', args=[victim.pk]), {'post': 'yes'})
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(AuditLog.objects.filter(pk=victim.pk).exists())

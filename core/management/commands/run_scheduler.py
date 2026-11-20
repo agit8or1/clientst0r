@@ -73,6 +73,7 @@ COMMAND_TASKS = {
     'run_advisor': ('run_advisor', []),
     'api_access_tick': ('api_access_tick', []),
     'events_tick': ('events_tick', []),
+    'audit_chain': ('audit_chain', ['tick']),
     'run_autopay': ('run_autopay', []),
     'connect_deliver_events': ('connect_deliver_events', []),
     'connect_rotate_keys': ('connect_rotate_keys', []),

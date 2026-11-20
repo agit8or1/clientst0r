@@ -21,8 +21,10 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        # Only superusers can delete audit logs
-        return request.user.is_superuser
+        # Not even superusers (SR-07): entries leave only through the
+        # archived, chain-preserving clean-up under Settings -> Maintenance
+        # or `manage.py audit_chain prune`.
+        return False
 
     def _record_deletion(self, request, count):
         # Deleting audit entries is itself recorded (v3.17.652).

@@ -23,9 +23,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **108** in total |
 | ✅ Complete | 51 (of which 2 marked for verification) |
-| 🔵 In progress | 25 |
+| 🔵 In progress | 26 |
 | 🟡 Partial | 4 |
-| ⬜ Planned | 27 |
+| ⬜ Planned | 26 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
 | ⏸️ Deferred | 1 |
 
@@ -113,7 +113,7 @@ Work being implemented now or approved as the next P0 task.
 
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
-| 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | ⬜ Planned | 94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups | — |
+| 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | 94.3 scheduled off-host backups; external append-only shipping (94.1) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Ship 51.20–51.23 (in development) | — |
 | 3 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.20 drop files on the composer (in development); then 52.21–52.24 | 51 |
 
@@ -293,7 +293,7 @@ unchanged. Click a feature for its details.
 | 57 | [Technician security levels and abuse prevention](#phase-57) | — | 🔵 In progress | — | Confirm remaining items against 64 roles |
 | 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
 | 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
-| 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | ⬜ Planned | — | 94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups |
+| 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | — | 94.3 scheduled off-host backups; external append-only shipping (94.1) |
 | 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | ⬜ Planned | 57, 64, 80 | 111.1 passkeys |
 
 <details markdown="1">
@@ -3218,17 +3218,17 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 
 <a id="phase-94"></a>
 
-## Phase 94 — Evidence integrity and routine backups **(M · security)** [planned]
-<!-- phase: ws=F stage=1 view=now order=1 deps="—" next="94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups" -->
-**Status:** ⬜ Planned · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
-**Next:** 94.1 tamper-evident audit log (release testing); 94.3 scheduled off-host backups
+## Phase 94 — Evidence integrity and routine backups **(M · security)** [in progress]
+<!-- phase: ws=F stage=1 view=now order=1 deps="—" next="94.3 scheduled off-host backups; external append-only shipping (94.1)" -->
+**Status:** 🔵 In progress · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
+**Next:** 94.3 scheduled off-host backups; external append-only shipping (94.1)
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
 
-- **94.1 Tamper-evident audit log** *(planned)* — hash-chained audit rows with a verification command and
+- **94.1 Tamper-evident audit log** *(partial — shipped v3.17.736: HMAC hash chain sealed every 5 minutes by the scheduler, `audit_chain verify`/`export` commands, a critical system warning and an audit-page status when verification fails; shipping to an external append-only destination planned)* — hash-chained audit rows with a verification command and
   optional shipping to an external append-only destination.
-- **94.2 Audit retention** *(planned)* — retention with export before pruning; deleting audit rows goes
+- **94.2 Audit retention** *(partial — shipped v3.17.736: cleanup prunes only the oldest sealed rows and archives them first, refuses when the archive cannot be written, and the admin site cannot delete audit rows; a protected-change approval for pruning planned)* — retention with export before pruning; deleting audit rows goes
   through a protected change.
 - **94.3 Scheduled off-host backups** *(planned)* — encrypted backups to an off-host destination with
   periodic restore verification and key-escrow guidance.

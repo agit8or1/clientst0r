@@ -81,7 +81,11 @@ def audit_log_list(request):
     actions = AuditLog.objects.filter(organization=org).values_list('action', flat=True).distinct()
     object_types = AuditLog.objects.filter(organization=org).values_list('object_type', flat=True).distinct()
 
+    from audit.models import AuditChainState
+    chain_state = AuditChainState.objects.filter(pk=1).first() if request.user.is_superuser else None
+
     return render(request, 'audit/audit_log_list.html', {
+        'chain_state': chain_state,
         'logs': logs,
         'total_count': total_count,
         'today_count': today_count,

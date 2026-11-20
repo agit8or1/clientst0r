@@ -1308,6 +1308,7 @@ class ScheduledTask(models.Model):
         # refusals and expired webhook replay records (v3.17.717).
         ('api_access_tick', 'API Access Control Maintenance'),
         ('events_tick', 'Shared Event Layer Ingestion'),
+        ('audit_chain', 'Audit Log Seal and Tamper Check'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1998,6 +1999,13 @@ class ScheduledTask(models.Model):
             'description': 'Copy security, RMM, Rem0te, backup and website-monitor alerts into the shared event '
                            'layer; apply event retention and the storage quota',
             'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'audit_chain',
+            'description': 'Seal new audit log entries into the tamper-evident chain; verify the whole chain '
+                           'once a day',
+            'interval_minutes': 5,
             'enabled': True,
         },
     ]

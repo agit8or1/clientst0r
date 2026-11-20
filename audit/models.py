@@ -49,6 +49,14 @@ class AuditLog(models.Model):
     extra_data = models.JSONField(default=dict, blank=True)
     success = models.BooleanField(default=True)
 
+    # Tamper evidence (audit.chain, SR-07): set when the row is sealed into
+    # the keyed hash chain, a few minutes after it is written. chain_mac is
+    # HMAC(previous mac + canonical row) under a key derived from
+    # APP_MASTER_KEY; chain_kid names that key.
+    chain_seq = models.BigIntegerField(null=True, blank=True, unique=True)
+    chain_mac = models.CharField(max_length=64, blank=True)
+    chain_kid = models.CharField(max_length=16, blank=True)
+
     class Meta:
         db_table = 'audit_logs'
         ordering = ['-timestamp']
@@ -115,3 +123,28 @@ class AuditLog(models.Model):
             extra_data=extra_data or {},
             success=success
         )
+
+
+class AuditChainState(models.Model):
+    """The audit chain's bookkeeping (a single row, pk=1).
+
+    ``base_*`` is where the chain starts: the last row removed by a
+    retention clean-up (0 / '' before any). ``head_*`` is the last sealed
+    row. Verification walks base -> head and must find every sequence number
+    and every MAC."""
+    base_seq = models.BigIntegerField(default=0)
+    base_mac = models.CharField(max_length=64, blank=True)
+    head_seq = models.BigIntegerField(default=0)
+    head_mac = models.CharField(max_length=64, blank=True)
+    sealed_at = models.DateTimeField(null=True, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verify_ok = models.BooleanField(null=True)
+    verify_detail = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'audit_chain_state'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
