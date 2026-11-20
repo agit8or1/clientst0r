@@ -46,7 +46,7 @@
                     <td>{{ r.fire_count|default:0 }}</td>
                     <td>{% if r.last_fired_at %}<span data-utc="{{ r.last_fired_at|date:'c' }}">{{ r.last_fired_at|date:'Y-m-d H:i' }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                     <td class="text-nowrap">
-                        {% if can_manage %}<a href="{% url 'psa:workflow_rule_flow' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Show the flow"><i class="fas fa-project-diagram"></i></a>{% endif %}
+                        {% if can_manage %}<a href="{% url 'psa:workflow_rule_flow' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Show the flow"><i class="fas fa-project-diagram"></i></a> <a href="{% url 'psa:workflow_rule_dry_run' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Dry run on a ticket"><i class="fas fa-vial"></i></a>{% endif %}
                         {% if r.pk in editable_ids %}
                         <a href="{% url 'psa:workflow_rule_edit' r.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                         <form method="post" action="{% url 'psa:workflow_rule_delete' r.pk %}" class="d-inline">

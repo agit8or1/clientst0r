@@ -132,7 +132,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 2 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
 | 3 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
-| 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.3 dry run, 91.6–91.9 | 14 |
+| 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
 | 6 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording | 51 |
 | 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.6 access groups (in development); 111.1 passkeys | 57, 64, 80 |
 | 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
@@ -156,7 +156,7 @@ unchanged. Click a feature for its details.
 |---|---|---|---|---|---|
 | 14 | [Visual Workflow Automation Engine](#phase-14) | — | 🟡 Partial | — | Time-based triggers, delays and escalation logic (91.6) |
 | 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording |
-| 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.3 dry run, 91.6–91.9 |
+| 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.6–91.9; approval or cap on charge amounts (91.4) |
 | 93 | [Business-hours SLA calendars](#phase-93) | — | ⬜ Planned | — | 93.1 calendars |
 
 <details markdown="1">
@@ -3143,9 +3143,9 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 <a id="phase-91"></a>
 
 ## Phase 91 — Workflow automation safety **(M · P1 · PSA)** [in progress]
-<!-- phase: ws=A stage=1 view=next order=5 deps=14 next="91.3 dry run, 91.6–91.9" -->
+<!-- phase: ws=A stage=1 view=next order=5 deps=14 next="91.6–91.9; approval or cap on charge amounts (91.4)" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 14  
-**Next:** 91.3 dry run, 91.6–91.9
+**Next:** 91.6–91.9; approval or cap on charge amounts (91.4)
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3159,7 +3159,7 @@ Automation that can be inspected, tested before it runs and cannot run away. Ext
   per-ticket rate limits with a cut-off that is recorded and shown.
 - **91.2 Execution log** *(shipped v3.17.739 — runs and per-action results on the rule's flow page, scoped to the viewer's customers; kept 30 days, at most 500 per rule)* — every firing recorded with trigger, rule version, each action and its
   result, actor and duration, visible on the rule page.
-- **91.3 Dry run** *(planned)* — evaluate rules against a chosen ticket with no side effects.
+- **91.3 Dry run** *(shipped v3.17.741 — conditions with the ticket's values and each planned action, through read-only planners; no writes, messages or calls; audited)* — evaluate rules against a chosen ticket with no side effects.
 - **91.4 Permission checks for high-impact actions** *(partial — charge once per rule and ticket shipped v3.17.732, assignment customer checks v3.17.727; approval or cap on charge amounts planned)* — charges behind approval or a cap with
   fire-once protection; assignment and watchers limited to technicians allowed at that customer.
 

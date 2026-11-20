@@ -133,6 +133,7 @@ urlpatterns = [
     path('rules/<int:pk>/delete/', views.workflow_rule_delete, name='workflow_rule_delete'),
     # Phase 14: visual flow of one rule / of every rule with its chains
     path('rules/<int:pk>/flow/', views.workflow_rule_flow, name='workflow_rule_flow'),
+    path('rules/<int:pk>/dry-run/', views.workflow_rule_dry_run, name='workflow_rule_dry_run'),
     path('rules/flow/', views.workflow_rule_flow, name='workflow_rule_map'),
     # Phase 14 v9 (v3.17.288): workflow rule templates
     path('rules/templates/', views.workflow_template_list,

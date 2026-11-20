@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.741] - 2026-11-20
+
+Dry run for workflow rules.
+
+### Added
+
+- **Workflow rule dry run (roadmap 91.3).** Each rule's flow page has a **Dry run**, and the rule list has a dry-run
+  icon.
+  - **Inputs:** a ticket and the event to simulate.
+  - **Result:**
+    - Whether the rule would run, or why it wouldn't.
+    - Each condition, with the ticket's actual value and pass or fail.
+    - Every action in order, with its settings filled in, for example "would assign to jdoe" or "would add charge
+      125.00 — skipped: already charged once by this rule". Chained rules are indented under the step that runs
+      them.
+  - **Same limits as the real engine:** the loop, depth and 50-action limits apply.
+  - **No side effects:** nothing on the ticket changes and no message or outside call is made. The only record is
+    an audit entry noting the dry run.
+  - **Who can use it:** someone who manages workflow rules at the ticket's customer, on tickets they can open.
+
+### Changed
+
+- **Workflow engine refactor:** the assignee pickers (round robin, skill match, least loaded), charge parsing and
+  chained-rule lookup are now shared helpers. The dry run uses the same choices as a real run. Rule behaviour is
+  unchanged.
+
 ## [3.17.740] - 2026-11-20
 
 Secure HTTPS Quick Connect: audit, design and roadmap. Documentation only; no behaviour changes.

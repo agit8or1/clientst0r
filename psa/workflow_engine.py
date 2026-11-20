@@ -197,10 +197,108 @@ def _create_charge_row(Charge, ticket, client, description, amount, action, is_c
     )
 
 
+# ---- Pool assignment pickers (read-only; shared with the dry run) -----------
+
+def pick_round_robin(ticket, action) -> User:
+    """The active staff user (optionally in `group`) who may be given this
+    ticket and was assigned least recently; never-assigned users first, then
+    lowest pk. Raises ActionSkipped when nobody qualifies. Reads only."""
+    from .models import Ticket as _T
+    from django.db.models import Max
+    candidates = User.objects.filter(is_active=True, is_staff=True)
+    grp = action.get('group')
+    if grp:
+        candidates = candidates.filter(groups__name=grp)
+    candidates = _assignable(ticket, candidates)
+    if not candidates:
+        raise ActionSkipped('assign_round_robin: no technician in the pool may be given this customer\'s tickets')
+    last_assigned = (_T.objects
+                     .filter(assigned_to__in=candidates)
+                     .values('assigned_to_id')
+                     .annotate(latest=Max('updated_at')))
+    latest_by_user = {r['assigned_to_id']: r['latest'] for r in last_assigned}
+    return sorted(
+        candidates,
+        key=lambda u: (
+            latest_by_user.get(u.id) is not None,
+            latest_by_user.get(u.id),
+            u.id,
+        ),
+    )[0]
+
+
+def _least_loaded(candidates, allowed):
+    from django.db.models import Count, Q as _Q
+    return candidates.filter(pk__in=allowed).annotate(
+        open_count=Count('psa_assigned_tickets',
+                         filter=~_Q(psa_assigned_tickets__status__is_terminal=True)),
+    ).order_by('open_count', 'id').first()
+
+
+def pick_skill_match(ticket, action) -> User:
+    """A member of the action's `skill_group` who may be given this ticket,
+    fewest open tickets first. Reads only."""
+    skill = (action.get('skill_group') or '').strip()
+    if not skill:
+        raise ValueError('assign_skill_match requires "skill_group"')
+    candidates = User.objects.filter(is_active=True, is_staff=True, groups__name=skill)
+    allowed = [u.pk for u in _assignable(ticket, candidates)]
+    if not allowed:
+        raise ActionSkipped('assign_skill_match: no technician in the group may be given this customer\'s tickets')
+    return _least_loaded(candidates, allowed)
+
+
+def pick_load_balanced(ticket, action) -> User:
+    """The active staff user (optionally in `group`) with the fewest open
+    tickets who may be given this ticket. Reads only."""
+    candidates = User.objects.filter(is_active=True, is_staff=True)
+    grp = action.get('group')
+    if grp:
+        candidates = candidates.filter(groups__name=grp)
+    allowed = [u.pk for u in _assignable(ticket, candidates)]
+    if not allowed:
+        raise ActionSkipped('assign_load_balanced: no technician in the pool may be given this customer\'s tickets')
+    return _least_loaded(candidates, allowed)
+
+
+def parse_charge_amount(action):
+    """The create_charge amount as a positive Decimal (ValueError otherwise)."""
+    from decimal import Decimal as _D
+    try:
+        amount = _D(str(action.get('amount') or '0'))
+    except Exception:
+        raise ValueError('create_charge: invalid "amount"')
+    if amount <= 0:
+        raise ValueError('create_charge: "amount" must be positive')
+    return amount
+
+
+def find_chained_rule(ticket, name):
+    """The active rule `name` a fire_rule step on this ticket runs: MSP-wide
+    or the ticket's own customer's (None when there is none)."""
+    from .models import WorkflowRule
+    from django.db.models import Q
+    return WorkflowRule.objects.filter(
+        Q(organization__isnull=True) | Q(organization_id=ticket.organization_id),
+        name=name, is_active=True,
+    ).first()
+
+
+def in_dry_run() -> bool:
+    """True while psa.workflow_dry_run is planning on this thread."""
+    return bool(getattr(_chain_state, 'dry_run', False))
+
+
+class DryRunViolation(RuntimeError):
+    """Something tried to run a workflow action during a dry run."""
+
+
 def run_action(ticket, action: Dict[str, Any]) -> None:
     """Run a single action dict against a ticket. Raises on bad input.
     Inside a rule firing, the step and its result go to the run log
     (psa.workflow_runs, roadmap 91.2)."""
+    if in_dry_run():
+        raise DryRunViolation('workflow actions cannot run during a dry run')
     from . import workflow_runs
     entry = workflow_runs.action_started(action, len(_chain()))
     try:
@@ -215,6 +313,9 @@ def run_action(ticket, action: Dict[str, Any]) -> None:
 
 
 def _run_action(ticket, action: Dict[str, Any]) -> None:
+    if in_dry_run():
+        # Roadmap 91.3: a dry run plans actions, it never carries them out.
+        raise DryRunViolation('workflow actions cannot run during a dry run')
     used = 0
     if _chain():  # inside a rule firing: count against the event's budget
         used = getattr(_chain_state, 'actions', 0) + 1
@@ -273,77 +374,19 @@ def _run_action(ticket, action: Dict[str, Any]) -> None:
                 ticket.save(update_fields=['tags', 'updated_at'])
 
     elif atype == 'assign_round_robin':
-        # Phase 14 v8 (v3.17.287): pick the active staff user with the
-        # oldest "last assigned ticket" (= who hasn't been assigned in
-        # the longest). When no one has ever been assigned, falls back
-        # to the lowest-pk active staffer for stable behavior.
-        from .models import Ticket as _T
-        from django.db.models import Max
-        candidates = User.objects.filter(is_active=True, is_staff=True)
-        # Optional `group` filter: e.g. {"type": "...", "group": "techs"}
-        grp = action.get('group')
-        if grp:
-            candidates = candidates.filter(groups__name=grp)
-        candidates = _assignable(ticket, candidates)
-        if not candidates:
-            raise ActionSkipped('assign_round_robin: no technician in the pool may be given this customer\'s tickets')
-        last_assigned = (_T.objects
-                         .filter(assigned_to__in=candidates)
-                         .values('assigned_to_id')
-                         .annotate(latest=Max('updated_at')))
-        latest_by_user = {r['assigned_to_id']: r['latest'] for r in last_assigned}
-        chosen = sorted(
-            candidates,
-            key=lambda u: (
-                latest_by_user.get(u.id) is not None,
-                latest_by_user.get(u.id),
-                u.id,
-            ),
-        )[0]
-        ticket.assigned_to = chosen
+        # Phase 14 v8 (v3.17.287): the pool member assigned least recently.
+        ticket.assigned_to = pick_round_robin(ticket, action)
         ticket.save(update_fields=['assigned_to', 'updated_at'])
 
     elif atype == 'assign_skill_match':
-        # Phase 14 v8 (v3.17.287): assign to a user whose Group
-        # membership matches the action's `skill_group`. When multiple
-        # users match, falls through to load-balanced selection
-        # (lowest open-ticket count).
-        from .models import Ticket as _T
-        from django.db.models import Count, Q as _Q
-        skill = (action.get('skill_group') or '').strip()
-        if not skill:
-            raise ValueError('assign_skill_match requires "skill_group"')
-        candidates = User.objects.filter(
-            is_active=True, is_staff=True,
-            groups__name=skill,
-        )
-        allowed = [u.pk for u in _assignable(ticket, candidates)]
-        if not allowed:
-            raise ActionSkipped('assign_skill_match: no technician in the group may be given this customer\'s tickets')
-        # Tie-break by current open-ticket count (low first)
-        ranked = candidates.filter(pk__in=allowed).annotate(
-            open_count=Count('psa_assigned_tickets',
-                              filter=~_Q(psa_assigned_tickets__status__is_terminal=True)),
-        ).order_by('open_count', 'id')
-        ticket.assigned_to = ranked.first()
+        # Phase 14 v8 (v3.17.287): a member of `skill_group`, fewest open
+        # tickets first.
+        ticket.assigned_to = pick_skill_match(ticket, action)
         ticket.save(update_fields=['assigned_to', 'updated_at'])
 
     elif atype == 'assign_load_balanced':
-        # Phase 14 v8 (v3.17.287): pick the active staff user with the
-        # fewest currently-open assigned tickets.
-        from django.db.models import Count, Q as _Q
-        candidates = User.objects.filter(is_active=True, is_staff=True)
-        grp = action.get('group')
-        if grp:
-            candidates = candidates.filter(groups__name=grp)
-        allowed = [u.pk for u in _assignable(ticket, candidates)]
-        if not allowed:
-            raise ActionSkipped('assign_load_balanced: no technician in the pool may be given this customer\'s tickets')
-        ranked = candidates.filter(pk__in=allowed).annotate(
-            open_count=Count('psa_assigned_tickets',
-                              filter=~_Q(psa_assigned_tickets__status__is_terminal=True)),
-        ).order_by('open_count', 'id')
-        ticket.assigned_to = ranked.first()
+        # Phase 14 v8 (v3.17.287): fewest currently-open assigned tickets.
+        ticket.assigned_to = pick_load_balanced(ticket, action)
         ticket.save(update_fields=['assigned_to', 'updated_at'])
 
     elif atype == 'create_charge':
@@ -351,14 +394,8 @@ def _run_action(ticket, action: Dict[str, Any]) -> None:
         # decides to bill the client (e.g. after-hours emergency, expedited
         # part), record a one-off Charge against the ticket's organization.
         from datetime import date as _d
-        from decimal import Decimal as _D
         from .models import Charge as _C
-        try:
-            amount = _D(str(action.get('amount') or '0'))
-        except Exception:
-            raise ValueError('create_charge: invalid "amount"')
-        if amount <= 0:
-            raise ValueError('create_charge: "amount" must be positive')
+        amount = parse_charge_amount(action)
         description = (action.get('description') or
                         f'Auto-charge for ticket {ticket.ticket_number}')[:300]
         is_credit = bool(action.get('is_credit'))
@@ -395,15 +432,10 @@ def _run_action(ticket, action: Dict[str, Any]) -> None:
         # Phase 14 v4 (v3.17.285): multi-step orchestration. Chain
         # to another WorkflowRule by name within the same org.
         # Loop / depth protection: the per-thread chain (_chain) below.
-        from .models import WorkflowRule
-        from django.db.models import Q
         name = (action.get('name') or '').strip()
         if not name:
             raise ValueError('fire_rule requires "name"')
-        nxt = WorkflowRule.objects.filter(
-            Q(organization__isnull=True) | Q(organization_id=ticket.organization_id),
-            name=name, is_active=True,
-        ).first()
+        nxt = find_chained_rule(ticket, name)
         if nxt is None:
             raise ValueError(f'fire_rule: no active rule named {name!r}')
         chain = _chain()
@@ -441,6 +473,8 @@ def fire(trigger: str, ticket, *, prior_status=None) -> int:
     from .models import WorkflowRule
 
     if ticket is None or not ticket.organization_id:
+        return 0
+    if in_dry_run():
         return 0
 
     chain = _chain()

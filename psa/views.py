@@ -4970,6 +4970,75 @@ def workflow_rule_flow(request, pk=None):
 RULE_RUNS_SHOWN = 25
 
 
+def _dry_run_tickets(request, rule):
+    """Tickets the caller may dry-run `rule` on: visible to them (the ticket
+    pages' rule), inside their client scope, at a customer where they hold
+    psa_manage_workflow_rules, and the rule's own customer when it has one."""
+    from . import workflow_access
+    qs = _scoped_ticket_qs(request)
+    scope = workflow_access.client_scope(request.user)
+    if scope is not None:
+        qs = qs.filter(organization_id__in=scope)
+    if rule.organization_id is not None:
+        qs = qs.filter(organization_id=rule.organization_id)
+    return qs
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['GET', 'POST'])
+def workflow_rule_dry_run(request, pk):
+    """Roadmap 91.3: what a rule would do to a chosen ticket, with no side
+    effects (psa.workflow_dry_run). GET shows the form and finds tickets by
+    number or subject; POST runs the preview.
+
+    Access: the flow page's checks (MSP staff, psa_manage_workflow_rules, the
+    rule visible to the caller - other customers' rules are a 404), plus
+    psa_manage_workflow_rules held at the ticket's customer: a dry run shows
+    what the rule would do there, which is a rule manager's question for
+    that customer. A ticket outside the caller's reach is a 404."""
+    _staff_or_403(request)
+    _workflow_manager_or_403(request)
+    from .models import WorkflowRule
+    from . import workflow_access, workflow_dry_run
+    from django.db.models import Q
+    rule = get_object_or_404(
+        workflow_access.visible_rules(WorkflowRule.objects.select_related('organization'), request.user), pk=pk)
+    triggers = workflow_dry_run.triggers_for(rule)
+    labels = dict(WorkflowRule.TRIGGER_CHOICES)
+    tickets = _dry_run_tickets(request, rule)
+    ctx = {'rule': rule, 'trigger_options': [(t, labels.get(t, t)) for t in triggers],
+           'query': '', 'matches': [], 'result': None, 'ticket_number': '', 'chosen_trigger': rule.trigger}
+
+    if request.method == 'GET':
+        q = (request.GET.get('q') or '').strip()[:100]
+        ctx['query'] = q
+        if q:
+            ctx['matches'] = list(tickets.filter(Q(ticket_number__icontains=q) | Q(subject__icontains=q))
+                                  .order_by('-created_at')[:10])
+        ctx['ticket_number'] = (request.GET.get('ticket') or '').strip()[:32]
+        return render(request, 'psa/workflow_rule_dry_run.html', ctx)
+
+    number = (request.POST.get('ticket') or '').strip()[:32]
+    trigger = (request.POST.get('trigger') or rule.trigger or '').strip()
+    ctx['ticket_number'], ctx['chosen_trigger'] = number, trigger
+    if trigger not in triggers:
+        messages.error(request, 'Choose an event this rule listens to.')
+        return render(request, 'psa/workflow_rule_dry_run.html', ctx, status=400)
+    ticket = get_object_or_404(tickets, ticket_number=number)
+    if not workflow_access.can_edit_org(request.user, ticket.organization_id):
+        raise PermissionDenied("You don't have the 'psa_manage_workflow_rules' permission for this customer.")
+    ctx['result'] = workflow_dry_run.dry_run(rule, ticket, trigger, user=request.user)
+    AuditLog.log(
+        user=request.user, action='read', organization=ticket.organization,
+        object_type='psa.WorkflowRule', object_id=rule.pk, object_repr=rule.name[:255],
+        description=f'Workflow rule dry run on ticket {ticket.ticket_number} ({trigger}); nothing was changed',
+        ip_address=_client_ip(request), path=request.path,
+        extra_data={'dry_run': True, 'ticket': ticket.ticket_number, 'trigger': trigger},
+    )
+    return render(request, 'psa/workflow_rule_dry_run.html', ctx)
+
+
 @login_required
 @require_psa_enabled
 @require_http_methods(['POST'])

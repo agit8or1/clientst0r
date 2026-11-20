@@ -1,0 +1,11 @@
+{# One node of a dry-run condition tree (psa.workflow_dry_run.explain). Recursive. Context: node #}
+<li>
+    {% if node.passed %}<span class="badge text-bg-success">pass</span>{% else %}<span class="badge text-bg-danger">fail</span>{% endif %}
+    <strong>{{ node.label }}</strong>{% if 'expected' in node %} <code>{{ node.expected }}</code>{% endif %}
+    {% if 'actual' in node %}<span class="text-muted">- ticket has <code>{{ node.actual }}</code></span>{% endif %}
+    {% if node.children %}
+    <ul class="list-unstyled ms-3 mb-0">
+        {% for child in node.children %}{% include "psa/_workflow_dry_run_condition.html" with node=child %}{% endfor %}
+    </ul>
+    {% endif %}
+</li>

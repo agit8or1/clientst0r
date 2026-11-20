@@ -14,7 +14,10 @@
         <h4 class="mb-0"><i class="fas fa-project-diagram me-2"></i>{% if single %}Flow: {{ flows.0.flow.rule.name }}{% else %}Workflow flow map{% endif %}</h4>
         <small class="text-muted">Trigger → condition → then / otherwise. A "Run another rule" step shows the rule it runs, with that rule's own branches.</small>
     </div>
-    {% if single and flows.0.can_edit %}<a href="{% url 'psa:workflow_rule_edit' flows.0.flow.rule.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit in builder</a>{% endif %}
+    {% if single %}<div class="d-flex gap-2">
+        <a href="{% url 'psa:workflow_rule_dry_run' flows.0.flow.rule.pk %}" class="btn btn-outline-primary"><i class="fas fa-vial"></i> Dry run</a>
+        {% if flows.0.can_edit %}<a href="{% url 'psa:workflow_rule_edit' flows.0.flow.rule.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit in builder</a>{% endif %}
+    </div>{% endif %}
 </div>
 
 {% for f in flows %}
@@ -45,6 +48,25 @@
 {% endfor %}
 
 {% if single %}
+<div class="card mb-3" id="rule-dry-run">
+    <div class="card-header"><strong><i class="fas fa-vial me-1"></i>Dry run</strong> <small class="text-muted">see what this rule would do to a ticket; nothing is changed</small></div>
+    <div class="card-body">
+        <form method="post" action="{% url 'psa:workflow_rule_dry_run' flows.0.flow.rule.pk %}" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label small mb-1" for="fdr-ticket">Ticket number</label>
+                <input type="text" class="form-control form-control-sm" id="fdr-ticket" name="ticket" maxlength="32" required placeholder="PSA-2026-000123">
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label small mb-1" for="fdr-trigger">Event</label>
+                <select class="form-select form-select-sm" id="fdr-trigger" name="trigger"><option value="{{ flows.0.flow.rule.trigger }}">{{ flows.0.flow.rule.get_trigger_display }}</option></select>
+            </div>
+            <div class="col-auto"><button class="btn btn-sm btn-primary" type="submit">Dry run</button>
+                <a class="btn btn-sm btn-link" href="{% url 'psa:workflow_rule_dry_run' flows.0.flow.rule.pk %}">Find a ticket</a></div>
+        </form>
+    </div>
+</div>
+
 <div class="card mb-3" id="rule-runs">
     <div class="card-header d-flex justify-content-between align-items-center">
         <strong><i class="fas fa-history me-1"></i>Recent runs</strong>

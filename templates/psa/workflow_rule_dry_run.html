@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Dry run: {{ rule.name }} — PSA{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:workflow_rule_list' %}">Workflow Rules</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:workflow_rule_flow' rule.pk %}">{{ rule.name }}</a></li>
+        <li class="breadcrumb-item active">Dry run</li>
+    </ol>
+</nav>
+
+<div class="mb-3">
+    <h4 class="mb-0"><i class="fas fa-vial me-2"></i>Dry run: {{ rule.name }}</h4>
+    <small class="text-muted">See what this rule would do to a ticket. Nothing is changed, sent or recorded on the ticket.</small>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end mb-3" role="search">
+            <div class="col-sm-8 col-md-6">
+                <label class="form-label small mb-1" for="dr-q">Find a ticket (number or subject)</label>
+                <input type="search" class="form-control form-control-sm" id="dr-q" name="q" value="{{ query }}" maxlength="100">
+            </div>
+            <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Search</button></div>
+        </form>
+        {% if query %}
+        <div class="mb-3">
+            {% for t in matches %}
+            <a class="btn btn-sm btn-outline-primary mb-1" href="?ticket={{ t.ticket_number|urlencode }}">{{ t.ticket_number }} - {{ t.subject|truncatechars:50 }}</a>
+            {% empty %}<span class="text-muted small">No tickets you can dry-run this rule on match "{{ query }}".</span>{% endfor %}
+        </div>
+        {% endif %}
+        <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label small mb-1" for="dr-ticket">Ticket number</label>
+                <input type="text" class="form-control form-control-sm" id="dr-ticket" name="ticket" value="{{ ticket_number }}" maxlength="32" required placeholder="PSA-2026-000123">
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label small mb-1" for="dr-trigger">Event</label>
+                <select class="form-select form-select-sm" id="dr-trigger" name="trigger">
+                    {% for value, label in trigger_options %}<option value="{{ value }}"{% if value == chosen_trigger %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-auto"><button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-vial"></i> Dry run</button></div>
+        </form>
+    </div>
+</div>
+
+{% if result %}
+<div class="card mb-3" id="dry-run-result">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <strong>{{ result.ticket.ticket_number }}</strong> <span class="text-muted">{{ result.ticket.subject|truncatechars:80 }}</span>
+            <span class="badge text-bg-info ms-1">{{ result.trigger_label }}</span>
+        </div>
+        {% if result.would_run %}<span class="badge text-bg-success">Would run ({% if result.branch == 'else' %}otherwise branch{% else %}then branch{% endif %})</span>
+        {% else %}<span class="badge text-bg-secondary">Would not run</span>{% endif %}
+    </div>
+    <div class="card-body">
+        {% if result.blockers %}
+        <div class="alert alert-warning py-2 small">
+            {% for b in result.blockers %}<div><i class="fas fa-ban me-1"></i>{{ b }}</div>{% endfor %}
+            {% if result.branch %}<div class="mt-1">The steps below show what it would do otherwise.</div>{% endif %}
+        </div>
+        {% endif %}
+
+        <h6>Conditions: {% if result.matched %}<span class="text-success">match</span>{% else %}<span class="text-danger">do not match</span>{% endif %}</h6>
+        <ul class="list-unstyled small mb-3">
+            {% include "psa/_workflow_dry_run_condition.html" with node=result.conditions %}
+        </ul>
+
+        <h6>{% if result.branch == 'else' %}Otherwise actions{% else %}Actions{% endif %}, in order</h6>
+        {% if not result.branch %}
+        <p class="text-muted small">The conditions do not match and the rule has no otherwise actions: nothing would happen.</p>
+        {% else %}
+        <ol class="small">
+        {% for step in result.steps %}
+            <li class="mb-1" style="margin-left: {% widthratio step.depth 1 24 %}px">
+                {% if step.status == 'would' %}<span class="badge text-bg-primary">would</span>
+                {% elif step.status == 'noop' %}<span class="badge text-bg-light">no change</span>
+                {% elif step.status == 'skipped' %}<span class="badge text-bg-warning">skipped</span>
+                {% elif step.status == 'error' %}<span class="badge text-bg-danger">error</span>
+                {% elif step.status == 'cannot' %}<span class="badge text-bg-secondary">cannot preview</span>
+                {% else %}<span class="badge text-bg-secondary">not run</span>{% endif %}
+                <strong>{{ step.label }}</strong>{% if step.params %} <code>{{ step.params }}</code>{% endif %}
+                <div>{{ step.message }}</div>
+                {% if step.conditions %}
+                <ul class="list-unstyled mb-0 ms-3">{% include "psa/_workflow_dry_run_condition.html" with node=step.conditions %}</ul>
+                {% endif %}
+            </li>
+        {% empty %}<li class="text-muted">No actions.</li>{% endfor %}
+        </ol>
+        {% if result.stopped %}<div class="alert alert-danger py-2 small">{{ result.stopped|capfirst }}.</div>{% endif %}
+        {% endif %}
+        <p class="text-muted small mb-0">Not included: other rules on the same event (they may run first) and rules this rule's changes would set off (for example on "Ticket updated").</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
