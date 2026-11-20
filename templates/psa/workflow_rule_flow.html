@@ -14,7 +14,7 @@
         <h4 class="mb-0"><i class="fas fa-project-diagram me-2"></i>{% if single %}Flow: {{ flows.0.flow.rule.name }}{% else %}Workflow flow map{% endif %}</h4>
         <small class="text-muted">Trigger → condition → then / otherwise. A "Run another rule" step shows the rule it runs, with that rule's own branches.</small>
     </div>
-    {% if single %}<a href="{% url 'psa:workflow_rule_edit' flows.0.flow.rule.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit in builder</a>{% endif %}
+    {% if single and flows.0.can_edit %}<a href="{% url 'psa:workflow_rule_edit' flows.0.flow.rule.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit in builder</a>{% endif %}
 </div>
 
 {% for f in flows %}
@@ -28,7 +28,7 @@
             {% if f.flow.rule.fire_once_per_ticket %}<span class="badge text-bg-light ms-1">Once per ticket</span>{% endif %}
             {% if f.only_chained %}<span class="badge text-bg-light ms-1">Also run by other rules</span>{% endif %}
         </div>
-        {% if not single %}<a href="{% url 'psa:workflow_rule_edit' f.flow.rule.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
+        {% if not single and f.can_edit %}<a href="{% url 'psa:workflow_rule_edit' f.flow.rule.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
     </div>
     <div class="card-body">
         {% if f.problems %}

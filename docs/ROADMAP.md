@@ -114,7 +114,7 @@ Work being implemented now or approved as the next P0 task.
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | 94.3 scheduled off-host backups; external append-only shipping (94.1) | — |
-| 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | 51.23 workflow rules by customer scope (in development) | — |
+| 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
 
 <!-- /generated:now -->
 
@@ -289,7 +289,7 @@ unchanged. Click a feature for its details.
 
 | ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
 |---|---|---|---|---|---|
-| 51 | [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | — | 51.23 workflow rules by customer scope (in development) |
+| 51 | [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | — | Per-customer integration ownership (remaining part of the platform-integrations item) |
 | 57 | [Technician security levels and abuse prevention](#phase-57) | — | 🔵 In progress | — | Confirm remaining items against 64 roles |
 | 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
 | 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
@@ -1121,9 +1121,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 5
 <a id="phase-51"></a>
 
 ## Phase 51 — Reliability and customer-boundary hardening **(M · quality)** [in progress]
-<!-- phase: ws=F stage=1 view=now order=2 deps="—" next="51.23 workflow rules by customer scope (in development)" -->
+<!-- phase: ws=F stage=1 view=now order=2 deps="—" next="Per-customer integration ownership (remaining part of the platform-integrations item)" -->
 **Status:** 🔵 In progress · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
-**Next:** 51.23 workflow rules by customer scope (in development)
+**Next:** Per-customer integration ownership (remaining part of the platform-integrations item)
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -1468,7 +1468,7 @@ are built on top of them.
   refused.
 - **51.21 Remove the dead GraphQL module (SR-20)** *(shipped v3.17.737, with SR-35/SR-36 comments and an unsigned-webhook test)* — with a URL-resolver test.
 - **51.22 Throttling on public quote-signing and satisfaction-survey endpoints** *(shipped v3.17.737)*.
-- **51.23 Workflow rule visibility by customer scope** *(planned)* — technicians restricted to some customers
+- **51.23 Workflow rule visibility by customer scope** *(shipped v3.17.738 — rules and the flow pages follow the technician's customer scope; editing needs `psa_manage_workflow_rules`; rules for every customer are read-only to restricted technicians)* — technicians restricted to some customers
   see and edit only those customers' rules; rule editing checks the roles registry (64.8).
 
 </details>

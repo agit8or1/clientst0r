@@ -4756,8 +4756,11 @@ def workflow_performance_report(request):
         from django.http import Http404
         raise Http404('Workflow analytics is staff-only')
 
-    qs = (WorkflowRule.objects.filter(is_active=True)
-          .select_related('organization'))
+    from psa.workflow_access import visible_rules
+    # A technician with a narrowed client scope sees only their customers'
+    # rules and the MSP-wide ones (roadmap 51.23).
+    qs = visible_rules(WorkflowRule.objects.filter(is_active=True)
+                       .select_related('organization'), request.user)
 
     rows = []
     by_trigger = defaultdict(lambda: {'count': 0, 'fires': 0, 'errors': 0})

@@ -4600,13 +4600,20 @@ def project_task_delete(request, task_pk):
 @login_required
 @require_psa_enabled
 def workflow_rule_list(request):
-    """Workflow rules are MSP-level config — they apply to ANY ticket. No
-    client filter, even when a client is currently in scope."""
+    """Workflow rules are MSP-level config — they apply to ANY ticket, so the
+    list ignores the client switcher. A technician with a narrowed client
+    scope sees the rules of their customers plus the MSP-wide ones
+    (read-only); see psa.workflow_access."""
     _staff_or_403(request)  # MSP-wide automation: technicians only
     from .models import WorkflowRule
-    qs = WorkflowRule.objects.select_related('organization').order_by('sort_order', 'name')
+    from . import workflow_access
+    qs = workflow_access.visible_rules(
+        WorkflowRule.objects.select_related('organization').order_by('sort_order', 'name'), request.user)
+    rules = list(qs[:200])
     return render(request, 'psa/workflow_rule_list.html', {
-        'rules': qs[:200],
+        'rules': rules,
+        'editable_ids': workflow_access.editable_rule_ids(request.user, rules),
+        'can_manage': workflow_access.can_manage(request.user),
     })
 
 
@@ -4615,20 +4622,20 @@ def workflow_rule_list(request):
 def workflow_template_list(request):
     """Phase 14 v9 (v3.17.288): list workflow rule templates and offer
     one-click instantiation against the active org."""
-    # Lists every customer by name and creates MSP-wide rules.
+    # Offers only the customers the caller may write rules for.
     _staff_or_403(request)
     from .models import WorkflowRuleTemplate
-    from core.models import Organization
+    from . import workflow_access
     qs = WorkflowRuleTemplate.objects.order_by('category', 'name')
     return render(request, 'psa/workflow_template_list.html', {
         'templates': qs,
-        'organizations': Organization.objects.filter(is_active=True)
-                          .order_by('name')[:500],
+        'organizations': workflow_access.editable_organizations(request.user)[:500],
+        'can_manage': workflow_access.can_manage(request.user),
+        'can_msp_wide': workflow_access.can_edit_org(request.user, None),
     })
 
 
 @login_required
-@require_admin
 @require_psa_enabled
 @require_http_methods(['POST'])
 def workflow_template_instantiate(request, pk):
@@ -4637,15 +4644,25 @@ def workflow_template_instantiate(request, pk):
     specific client; blank = MSP-wide."""
     from .models import WorkflowRuleTemplate
     from core.models import Organization
-    # @require_admin alone let a customer's Owner/Admin (admin of their own
-    # selected organization) create a rule for every customer's tickets.
+    from . import workflow_access
+    # Customer users never qualify (a customer Owner/Admin once could create
+    # a rule for every customer's tickets).
     _staff_or_403(request)
+    _workflow_manager_or_403(request)
     template = get_object_or_404(WorkflowRuleTemplate, pk=pk)
 
     org = None
-    org_id = request.POST.get('organization')
+    org_id = (request.POST.get('organization') or '').strip()
     if org_id:
-        org = Organization.objects.filter(pk=org_id).first()
+        try:
+            org = Organization.objects.get(pk=int(org_id), is_active=True)
+        except (Organization.DoesNotExist, ValueError):
+            raise Http404()
+    if not workflow_access.can_edit_org(request.user, org.pk if org else None):
+        scope = workflow_access.client_scope(request.user)
+        if org is not None and scope is not None and org.pk not in scope:
+            raise Http404()
+        raise PermissionDenied("You don't have the 'psa_manage_workflow_rules' permission for this scope.")
 
     name_override = (request.POST.get('name') or '').strip() or None
     rule = template.instantiate(
@@ -4732,8 +4749,29 @@ def workflow_suggestion_decide(request, pk):
     return redirect('psa:workflow_suggestion_list')
 
 
+def _workflow_manager_or_403(request):
+    """Roles registry permission psa_manage_workflow_rules (Phase 64.8),
+    replacing @require_admin on the workflow rule pages."""
+    from . import workflow_access
+    if not workflow_access.can_manage(request.user):
+        from accounts.role_audit import record_denied
+        record_denied(request, workflow_access.PERM)
+        raise PermissionDenied("You don't have the 'psa_manage_workflow_rules' permission.")
+
+
+def _workflow_rule_for_edit(request, pk):
+    """The rule `pk` if the caller may change it: 404 when it is another
+    customer's (outside the client scope), 403 when visible but read-only
+    (MSP-wide rules for a restricted technician)."""
+    from .models import WorkflowRule
+    from . import workflow_access
+    item = get_object_or_404(workflow_access.visible_rules(WorkflowRule.objects.all(), request.user), pk=pk)
+    if not workflow_access.can_edit_rule(request.user, item):
+        raise PermissionDenied('You may not change this workflow rule.')
+    return item
+
+
 @login_required
-@require_admin
 @require_psa_enabled
 @require_http_methods(['GET', 'POST'])
 def workflow_rule_form(request, pk=None):
@@ -4750,10 +4788,11 @@ def workflow_rule_form(request, pk=None):
     from core.models import Organization
     from . import workflow_graph
     import json as _json
-    # Rules run on every customer's tickets; a customer admin (who passes
-    # @require_admin for their own organization) must not write them.
+    from . import workflow_access
+    # Rules run on customers' tickets; customer users never write them.
     _staff_or_403(request)
-    item = get_object_or_404(WorkflowRule, pk=pk) if pk else None
+    _workflow_manager_or_403(request)
+    item = _workflow_rule_for_edit(request, pk) if pk else None
 
     if request.method == 'POST':
         errors = []
@@ -4777,9 +4816,19 @@ def workflow_rule_form(request, pk=None):
                 scoped_org = Organization.objects.get(pk=int(org_id))
             except (Organization.DoesNotExist, ValueError):
                 scoped_org = None
+                errors.append('Pick a customer from the list.')
+        # Server-side scope check (the dropdown only offers allowed ones):
+        # a restricted technician cannot pick another customer, nor MSP-wide.
+        if not errors and not workflow_access.can_edit_org(request.user, scoped_org.pk if scoped_org else None):
+            errors.append('You may not create rules for every customer; pick one of your customers.'
+                          if scoped_org is None else 'Pick a customer from the list.')
+            scoped_org = None
         if not errors:
             errors = workflow_graph.validate(name, parsed['conditions'], parsed['actions'],
                                              parsed['else_actions'], rule=item, organization=scoped_org)
+        if not errors:
+            errors = workflow_access.reference_problems(request.user, scoped_org, parsed['actions'],
+                                                        parsed['else_actions'])
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -4821,8 +4870,7 @@ def workflow_rule_form(request, pk=None):
 def _workflow_rule_form_render(request, item, posted=None):
     from django.contrib.auth.models import Group
     from .models import WorkflowRule
-    from core.models import Organization
-    from . import workflow_graph
+    from . import workflow_access
     import json as _json
 
     def pretty(raw, fallback):
@@ -4855,54 +4903,57 @@ def _workflow_rule_form_render(request, item, posted=None):
         'conditions_pretty': conditions_pretty,
         'actions_pretty': actions_pretty,
         'else_actions_pretty': else_pretty,
-        'client_orgs': Organization.objects.filter(is_active=True).order_by('name'),
+        'client_orgs': workflow_access.editable_organizations(request.user),
+        'can_msp_wide': workflow_access.can_edit_org(request.user, None),
         'priorities': TicketPriority.objects.all().order_by('sort_order'),
         'queues': Queue.objects.filter(is_active=True).order_by('name'),
         'statuses': TicketStatus.objects.all().order_by('sort_order'),
         # Group names offered to the round-robin / skill / least-loaded actions.
         'groups': list(Group.objects.order_by('name').values_list('name', flat=True)),
         # Rules a "Run another rule" step can chain to.
-        'rule_names': list(workflow_graph.rule_choices(exclude_pk=item.pk if item else None)),
+        'rule_names': workflow_access.rule_names_for(request.user, state.get('organization_id'),
+                                                     exclude_pk=item.pk if item else None),
     }, status=400 if posted is not None else 200)
 
 
 @login_required
-@require_admin
 @require_psa_enabled
 def workflow_rule_flow(request, pk=None):
     """Phase 14: the visual flow of one rule (pk) or of every rule, with
     the rules each one chains to drawn inline and problems (missing
     targets, loops) flagged."""
     _staff_or_403(request)
+    _workflow_manager_or_403(request)
     from .models import WorkflowRule
-    from . import workflow_graph
+    from . import workflow_access, workflow_graph
+    visible = workflow_access.visible_rules(WorkflowRule.objects.select_related('organization'), request.user)
     if pk:
-        rules = [get_object_or_404(WorkflowRule, pk=pk)]
+        rules = [get_object_or_404(visible, pk=pk)]
     else:
-        rules = list(WorkflowRule.objects.select_related('organization').order_by('trigger', 'sort_order', 'name'))
+        rules = list(visible.order_by('trigger', 'sort_order', 'name'))
     chained = workflow_graph.chained_into(rules) if not pk else set()
     flows = []
     for rule in rules:
         flow = workflow_graph.build_flow(rule)
-        flows.append({'flow': flow, 'problems': workflow_graph.problems(flow),
-                      'only_chained': rule.name in chained})
+        # An MSP-wide rule can chain into any customer's rule: cut those
+        # branches before listing problems, so neither names them.
+        workflow_access.redact_flow(flow, request.user)
+        problems = workflow_graph.problems(flow)
+        flows.append({'flow': flow, 'problems': problems,
+                      'only_chained': rule.name in chained,
+                      'can_edit': workflow_access.can_edit_rule(request.user, rule)})
     return render(request, 'psa/workflow_rule_flow.html', {
         'flows': flows, 'single': bool(pk), 'trigger_labels': dict(WorkflowRule.TRIGGER_CHOICES),
     })
 
 
 @login_required
-@require_admin
 @require_psa_enabled
 @require_http_methods(['POST'])
 def workflow_rule_delete(request, pk):
-    from .models import WorkflowRule
     _staff_or_403(request)
-    org = get_request_organization(request)
-    qs = WorkflowRule.objects.all()
-    if org is not None:
-        qs = qs.filter(organization=org)
-    item = get_object_or_404(qs, pk=pk)
+    _workflow_manager_or_403(request)
+    item = _workflow_rule_for_edit(request, pk)
     name = item.name
     item.delete()
     messages.success(request, f'Deleted "{name}".')

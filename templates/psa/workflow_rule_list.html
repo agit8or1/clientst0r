@@ -14,8 +14,10 @@
         <small class="text-muted">When a ticket event fires, evaluate conditions and run actions automatically.</small>
     </div>
     <div>
+        {% if can_manage %}
         <a href="{% url 'psa:workflow_rule_map' %}" class="btn btn-outline-secondary"><i class="fas fa-project-diagram"></i> Flow map</a>
         <a href="{% url 'psa:workflow_rule_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Rule</a>
+        {% endif %}
     </div>
 </div>
 
@@ -44,12 +46,14 @@
                     <td>{{ r.fire_count|default:0 }}</td>
                     <td>{% if r.last_fired_at %}<span data-utc="{{ r.last_fired_at|date:'c' }}">{{ r.last_fired_at|date:'Y-m-d H:i' }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                     <td class="text-nowrap">
-                        <a href="{% url 'psa:workflow_rule_flow' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Show the flow"><i class="fas fa-project-diagram"></i></a>
+                        {% if can_manage %}<a href="{% url 'psa:workflow_rule_flow' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Show the flow"><i class="fas fa-project-diagram"></i></a>{% endif %}
+                        {% if r.pk in editable_ids %}
                         <a href="{% url 'psa:workflow_rule_edit' r.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                         <form method="post" action="{% url 'psa:workflow_rule_delete' r.pk %}" class="d-inline">
                             {% csrf_token %}
                             <button class="btn btn-sm btn-outline-danger" data-confirm="Delete rule?">Delete</button>
                         </form>
+                        {% else %}<span class="badge text-bg-light" title="You can view this rule but not change it">Read-only</span>{% endif %}
                     </td>
                 </tr>
                 {% empty %}

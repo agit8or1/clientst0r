@@ -47,12 +47,12 @@
             <div class="col-md-6">
                 <label class="form-label">Applies to</label>
                 <select name="organization" class="form-select">
-                    <option value="" {% if not state.organization_id %}selected{% endif %}>All clients (every ticket)</option>
+                    {% if can_msp_wide %}<option value="" {% if not state.organization_id %}selected{% endif %}>All clients (every ticket)</option>{% endif %}
                     {% for o in client_orgs %}
                     <option value="{{ o.pk }}" {% if state.organization_id == o.pk %}selected{% endif %}>{{ o.name }}</option>
                     {% endfor %}
                 </select>
-                <small class="text-muted d-block">Leave on "All clients" for an MSP-wide rule.</small>
+                <small class="text-muted d-block">{% if can_msp_wide %}Leave on "All clients" for an MSP-wide rule.{% else %}Rules for every client need an administrator with access to all clients.{% endif %}</small>
             </div>
             <div class="col-md-6 form-check mt-4 ps-5">
                 <input type="checkbox" id="fire_once_per_ticket" name="fire_once_per_ticket" class="form-check-input"

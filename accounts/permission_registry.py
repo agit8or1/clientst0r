@@ -397,7 +397,8 @@ PERMISSIONS: List[Permission] = [
     _p('scheduling_manage_wallboard', 'operations', 'settings', E, False,
        'Configure the public scheduling wallboard', PENDING, staff_only=True),
     _p('psa_manage_workflow_rules', 'operations', 'settings', E, False,
-       'Manage ticket workflow rules and workflow templates', PENDING, staff_only=True),
+       'Manage ticket workflow rules and workflow templates (at the customers in the client scope; '
+       'rules for every customer need an unrestricted client scope)', staff_only=True),
     _p('timesheets_approve', 'operations', 'approve', E, False, 'Review and approve timesheets', PENDING,
        staff_only=True),
     _p('resourcing_view_payroll', 'operations', 'export', X, False,

@@ -162,6 +162,12 @@ def _check_routing_manager(u, ctx):
     return can_manage(u)
 
 
+def _check_workflow_manager(u, ctx):
+    """psa.workflow_access.can_manage: psa_manage_workflow_rules."""
+    from psa.workflow_access import can_manage
+    return can_manage(u)
+
+
 def _check_org_admin(u, ctx):
     """core.decorators.require_admin: superuser, Django staff, or an
     Owner/Admin membership of the current customer."""
@@ -324,6 +330,7 @@ _shift_manager = _view_check(_check_shift_manager)
 _geo_admin = _view_check(_check_geo_admin)
 _routing_manager = _view_check(_check_routing_manager)
 _org_admin = _view_check(_check_org_admin)
+_workflow_manager = _view_check(_check_workflow_manager)
 _billing_reviewer = _view_check(_check_billing_reviewer)
 _digest_reader = _perm('security_alerts_view')
 _security_reader = _perm('security_alerts_view')
@@ -448,9 +455,8 @@ SECTIONS = (
         # MSP-wide automation; the views are MSP staff only.
         Tab(_('Workflow Rules'), 'psa:workflow_rule_list', 'fa-bolt', gate=_msp_staff),
         Tab(_('Workflow Flow Map'), 'psa:workflow_rule_map', 'fa-project-diagram',
-            # require_admin lets a customer's Owner in too; the map of every
-            # rule is an MSP tool, so the link is offered to MSP staff only.
-            gate=_all(_org_admin, _msp_staff)),
+            # psa_manage_workflow_rules (psa.workflow_access.can_manage).
+            gate=_all(_workflow_manager, _msp_staff)),
     )),
     Section('psa_dispatch', 'psa', _('Dispatch Board'), gate=_all(_msp_staff, _psa), tabs=(
         Tab(_('Dispatch Board'), 'psa:dispatch_board', 'fa-table-list'),

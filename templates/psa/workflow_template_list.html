@@ -33,10 +33,11 @@
                 <td><code>{{ tpl.get_trigger_display }}</code></td>
                 <td class="text-muted">{{ tpl.description|truncatechars:80 }}</td>
                 <td class="text-nowrap">
+                    {% if can_manage %}
                     <form method="post" action="{% url 'psa:workflow_template_instantiate' tpl.pk %}" class="d-inline-block">
                         {% csrf_token %}
                         <select name="organization" class="form-select form-select-sm d-inline-block" style="width:auto">
-                            <option value="">— MSP-wide —</option>
+                            {% if can_msp_wide %}<option value="">— MSP-wide —</option>{% endif %}
                             {% for org in organizations %}
                                 <option value="{{ org.pk }}">{{ org.name }}</option>
                             {% endfor %}
@@ -45,6 +46,7 @@
                             <i class="fas fa-clone"></i> Use Template
                         </button>
                     </form>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}

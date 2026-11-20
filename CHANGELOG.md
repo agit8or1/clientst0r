@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.738] - 2026-11-20
+
+Workflow rules follow each technician's customer scope.
+
+### Changed
+
+- **Who can see workflow rules:** a technician limited to some customers sees only the rules for those customers
+  and the rules that apply to every customer. This applies to the rule list, the flow pages, the flow map and the
+  workflow performance report.
+  - A rule belonging to another customer returns "not found".
+  - In the flow view, a rule that applies to every customer can chain into another customer's rule. That rule's
+    name and steps are hidden from technicians who can't access it.
+- **Editing workflow rules** now needs the role permission **Manage workflow rules**
+  (`psa_manage_workflow_rules`) at that customer. Before, it needed administrator access. This covers creating,
+  editing and deleting rules, creating a rule from a template, and the flow pages.
+  - **Roles that keep access:** superusers, the built-in Owner, Organization Admin and Service Manager roles, and any
+    role that already had "manage organization settings".
+  - **Accounts that lose access:** staff accounts whose role lacks the permission. They used to be let in
+    automatically. To restore their access, add the permission to their role.
+- **Rules for every customer** are read-only to restricted technicians. Changing them needs the permission and
+  access to all customers.
+- **Server-side checks on the rule form:**
+  - A restricted technician can only choose customers they may write rules for, and can't move a rule to another
+    customer.
+  - Anyone named in an assign or add-watcher step must be within the technician's scope. The same check runs when
+    the rule fires. Unknown and out-of-scope usernames get the same error.
+- **Deleting a rule for every customer** now works while a customer is selected. It used to fail.
+- **Creating from a template:** an unknown customer now returns "not found". Before, it quietly created a rule for
+  every customer.
+- Roadmap 51.23. `docs/ROLES_AND_ACCESS.md` is regenerated.
+
 ## [3.17.737] - 2026-11-20
 
 Security playbooks run only after approval; rate limits on public signing and survey pages; drop files onto a

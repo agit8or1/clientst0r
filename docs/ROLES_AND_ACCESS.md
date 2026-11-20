@@ -738,7 +738,7 @@ Fleet vehicles, scheduling wallboard, workflow rules, timesheets, payroll.
 | `vehicles_view` | View / list | standard | staff only | pending | View fleet vehicles, receipts and vehicle inventory |
 | `vehicles_manage` | Edit | elevated | staff only | pending | Create, edit and delete vehicles, receipts and vehicle inventory |
 | `scheduling_manage_wallboard` | Manage settings | elevated | staff only | pending | Configure the public scheduling wallboard |
-| `psa_manage_workflow_rules` | Manage settings | elevated | staff only | pending | Manage ticket workflow rules and workflow templates |
+| `psa_manage_workflow_rules` | Manage settings | elevated | staff only | enforced | Manage ticket workflow rules and workflow templates (at the customers in the client scope; rules for every customer need an unrestricted client scope) |
 | `timesheets_approve` | Approve | elevated | staff only | pending | Review and approve timesheets |
 | `resourcing_view_payroll` | Export / bulk export | sensitive | staff only | pending | Timeclock dashboard and payroll export |
 
