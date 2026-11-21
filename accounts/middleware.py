@@ -21,6 +21,8 @@ class SessionIdleTimeoutMiddleware:
     60 min / 8 h. On expiry the user is logged out and sent to the login page.
     """
 
+    ACTIVITY_WRITE_INTERVAL = 60  # seconds
+
     EXEMPT_PATHS = ['/account/login/', '/account/logout/', '/static/', '/media/', '/csp-report/',
                     '/portal/login/', '/portal/logout/']
 
@@ -44,7 +46,12 @@ class SessionIdleTimeoutMiddleware:
                 from django.contrib.auth.views import redirect_to_login
                 return redirect_to_login(request.path)
 
-            request.session['_last_activity'] = now
+            # Refresh the activity stamp at most once a minute: every change
+            # marks the session modified and costs a database write per page.
+            # The idle limit can therefore end a session up to a minute early,
+            # never late.
+            if not last_activity or (now - last_activity) >= self.ACTIVITY_WRITE_INTERVAL:
+                request.session['_last_activity'] = now
             if not started:
                 request.session['_auth_started'] = now
 

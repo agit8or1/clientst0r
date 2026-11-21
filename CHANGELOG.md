@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.759] - 2026-11-21
+
+### Changed
+
+- **One less database write per page.** The sign-in session's activity time is now saved at most once a minute
+  instead of on every page view (roadmap 67.25). The idle timeout can therefore sign someone out up to a minute
+  earlier than the configured time, never later; the maximum session length is unchanged.
+
 ## [3.17.758] - 2026-11-21
 
 ### Changed

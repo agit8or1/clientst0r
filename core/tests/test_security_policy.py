@@ -140,6 +140,18 @@ class SessionTimeoutTests(TestCase):
         self._get()
         self.assertIn('_auth_started', self.client.session)
 
+    def test_activity_stamp_written_at_most_once_a_minute(self):
+        now = time.time()
+        self._set(_last_activity=now - 20, _auth_started=now - 300)
+        self.assertEqual(self._get().status_code, 200)
+        self.assertAlmostEqual(self.client.session['_last_activity'], now - 20, delta=1)
+
+    def test_activity_stamp_refreshed_after_a_minute(self):
+        now = time.time()
+        self._set(_last_activity=now - 90, _auth_started=now - 300)
+        self.assertEqual(self._get().status_code, 200)
+        self.assertGreaterEqual(self.client.session['_last_activity'], now - 1)
+
 
 @override_settings(MIDDLEWARE=NO_AXES, SECURE_SSL_REDIRECT=False, **ENV_UNSET)
 class Require2FATests(TestCase):
