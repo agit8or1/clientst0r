@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.760] - 2026-11-21
+
+### Added
+
+- **Customer follow-up and confirm-or-close** (roadmap 52.24). Tickets waiting on the customer can be followed up
+  automatically:
+  - a follow-up email to the requester after a set number of days;
+  - an optional second reminder;
+  - after a further silence, the ticket is closed, with the reason on the ticket timeline, a closure notice to the
+    customer and an audit log entry.
+
+  A customer reply, or a new waiting period, restarts the clock.
+  - **Settings:** in PSA settings → "Customer follow-up and confirm-or-close", with editable messages.
+  - **Defaults:** first follow-up after 3 days, second reminder 2 days later, close after 7 days in total.
+  - **Customers:** each customer can follow the install-wide setting, always follow up, or never follow up.
+  - **Tickets:** staff can pause and resume follow-up on a ticket; the ticket page shows the next follow-up and close
+    dates.
+  - **Off by default:** nothing is emailed until you switch it on.
+  - **Never contacts:** staff requesters, people who turned off email notifications, or customers opted out of the
+    PSA.
+  - **No duplicates:** each reminder is sent once per waiting period, even if the scheduler runs twice.
+
 ## [3.17.759] - 2026-11-21
 
 ### Changed

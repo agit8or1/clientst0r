@@ -47,6 +47,17 @@ class ClientPSASettings(models.Model):
     # form, desktop channel or ingest gate.)
     portal_enabled = models.BooleanField(default=False, help_text='Allow this client to use the customer portal')
 
+    # Customer follow-up and confirm-or-close (roadmap 52.24): per-customer
+    # override of the install-wide policy (FollowUpPolicy).
+    FOLLOWUP_INHERIT, FOLLOWUP_ON, FOLLOWUP_OFF = 'inherit', 'on', 'off'
+    FOLLOWUP_CHOICES = [
+        (FOLLOWUP_INHERIT, 'Follow the install-wide setting'),
+        (FOLLOWUP_ON, 'Always follow up and close'),
+        (FOLLOWUP_OFF, 'Never follow up or close'),
+    ]
+    followup_override = models.CharField(
+        max_length=8, choices=FOLLOWUP_CHOICES, default=FOLLOWUP_INHERIT)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -57,6 +68,56 @@ class ClientPSASettings(models.Model):
 
     def __str__(self):
         return f'PSA settings for {self.organization} (enabled={self.enabled})'
+
+
+class FollowUpPolicy(models.Model):
+    """Install-wide customer follow-up and confirm-or-close policy (52.24).
+
+    Single row (pk=1). Off by default so an upgrade never starts emailing
+    customers on its own. Day counts run from the moment the ticket entered
+    its waiting-on-customer status (or the customer's last reply, if later).
+    """
+    DEFAULT_FOLLOWUP = (
+        'Hello,\n\nWe are still waiting to hear back from you about ticket '
+        '{ticket_number} ({subject}). Please reply to this message when you '
+        'have a moment so we can keep working on it.\n\nIf we do not hear '
+        'from you, the ticket will be closed automatically after {close_days} '
+        'days without a reply. You can reply at any time to reopen it.')
+    DEFAULT_CLOSURE = (
+        'Hello,\n\nWe have not heard back about ticket {ticket_number} '
+        '({subject}) for {days} days, so we have closed it. If you still need '
+        'help, just reply to this message and it will be reopened.')
+
+    enabled = models.BooleanField(default=False)
+    business_days = models.BooleanField(
+        default=False, help_text='Count weekdays only (Saturday and Sunday are skipped).')
+    first_after_days = models.PositiveSmallIntegerField(
+        default=3, help_text='Send the first follow-up after this many days waiting on the customer.')
+    second_after_days = models.PositiveSmallIntegerField(
+        default=2, help_text='Send a second reminder this many days after the first. 0 = no second reminder.')
+    close_after_days = models.PositiveSmallIntegerField(
+        default=7, help_text='Close after this many days in total without a reply. 0 = never close.')
+    followup_message = models.TextField(blank=True, default=DEFAULT_FOLLOWUP)
+    closure_message = models.TextField(blank=True, default=DEFAULT_CLOSURE)
+    closing_status = models.ForeignKey(
+        'psa.TicketStatus', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', help_text='Status used to close. Blank = the Closed status.')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_followup_policy'
+
+    def __str__(self):
+        return 'Customer follow-up policy'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -346,6 +407,14 @@ class Ticket(models.Model):
     # `psa.sla.refresh_breach_flags`, called on save and from the SLA tick.
     sla_breached_response = models.BooleanField(default=False)
     sla_breached_resolution = models.BooleanField(default=False)
+
+    # Customer follow-up cycle (roadmap 52.24). ``followup_wait_since`` is the
+    # start of the waiting period the stamps below belong to; a new waiting
+    # period resets them, so each stage happens once per period.
+    followup_paused = models.BooleanField(default=False)
+    followup_wait_since = models.DateTimeField(null=True, blank=True)
+    followup_first_at = models.DateTimeField(null=True, blank=True)
+    followup_second_at = models.DateTimeField(null=True, blank=True)
 
     # Vendor handoff
     waiting_on_vendor = models.BooleanField(default=False)

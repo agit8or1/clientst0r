@@ -93,6 +93,15 @@ class Command(BaseCommand):
                     self.stdout.write(f'Support workflows updated: {n}')
             except Exception as exc:  # pragma: no cover
                 self.stdout.write(self.style.ERROR(f'support workflows: {exc}'))
+            # Customer follow-up and confirm-or-close (roadmap 52.24). A no-op
+            # until switched on in PSA settings.
+            try:
+                from psa.followup import run as followup_run
+                stats = followup_run()
+                if any(stats.values()):
+                    self.stdout.write(f'Customer follow-up: {stats}')
+            except Exception as exc:  # pragma: no cover
+                self.stdout.write(self.style.ERROR(f'customer follow-up: {exc}'))
             # Workflow rule execution log retention (roadmap 91.2): runs older
             # than PSA_WORKFLOW_RUN_RETENTION_DAYS (30) and beyond
             # PSA_WORKFLOW_RUNS_PER_RULE (500) per rule; at most hourly.

@@ -403,6 +403,27 @@
 
     <div class="col-lg-4">
         {% if is_msp_staff %}
+        {# 52.24 — customer follow-up cycle #}
+        {% if followup %}
+        <div class="card mb-3" id="ticketFollowup">
+            <div class="card-header py-2"><strong class="small"><i class="fas fa-bell me-1"></i>Customer follow-up</strong></div>
+            <div class="card-body py-2 small">
+                {% if followup.paused %}
+                <p class="mb-2"><span class="badge bg-warning text-dark">Paused</span> No follow-up or automatic close for this ticket.</p>
+                {% else %}
+                <p class="mb-1">Waiting on the customer.
+                    {% if followup.first_sent %}Follow-up sent.{% elif followup.first_due %}First follow-up {{ followup.first_due|date:"D j M" }}.{% endif %}
+                    {% if followup.second_due and followup.first_sent %}{% if followup.second_sent %}Reminder sent.{% else %}Reminder {{ followup.second_due|date:"D j M" }}.{% endif %}{% endif %}</p>
+                {% if followup.close_due %}<p class="mb-2">Closes automatically {{ followup.close_due|date:"D j M" }} unless the customer replies.</p>{% endif %}
+                {% endif %}
+                <form method="post" action="{% url 'psa:followup_pause' ticket.ticket_number %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="pause" value="{% if followup.paused %}0{% else %}1{% endif %}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">{% if followup.paused %}Resume follow-up{% else %}Pause follow-up{% endif %}</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
         {# 52.21 — my private reminders on this ticket #}
         <div class="card mb-3" id="ticketReminders">
             <div class="card-header py-2"><strong class="small"><i class="fas fa-clock me-1"></i>My reminders</strong></div>

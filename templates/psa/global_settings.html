@@ -32,6 +32,38 @@
 
                     <hr>
 
+                    <hr>
+                    <h6 class="text-muted mt-2 mb-3">Customer follow-up and confirm-or-close</h6>
+                    <p class="small text-muted">Emails the customer when a ticket has waited on them for a while, then closes it after a stretch of silence. Off by default. Customers can be forced on or off under Per-customer PSA settings. Placeholders: {ticket_number} {subject} {requester} {days} {close_days}.</p>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="followup_enabled" name="followup_enabled" {% if followup.enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="followup_enabled"><strong>Follow up with customers and close after silence</strong></label>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="followup_business_days" name="followup_business_days" {% if followup.business_days %}checked{% endif %}>
+                        <label class="form-check-label" for="followup_business_days">Count weekdays only</label>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4"><label class="form-label small" for="followup_first_after_days">First follow-up after (days)</label>
+                            <input type="number" min="1" max="90" class="form-control form-control-sm" id="followup_first_after_days" name="followup_first_after_days" value="{{ followup.first_after_days }}"></div>
+                        <div class="col-md-4"><label class="form-label small" for="followup_second_after_days">Second reminder, days later (0 = none)</label>
+                            <input type="number" min="0" max="90" class="form-control form-control-sm" id="followup_second_after_days" name="followup_second_after_days" value="{{ followup.second_after_days }}"></div>
+                        <div class="col-md-4"><label class="form-label small" for="followup_close_after_days">Close after (days in total, 0 = never)</label>
+                            <input type="number" min="0" max="365" class="form-control form-control-sm" id="followup_close_after_days" name="followup_close_after_days" value="{{ followup.close_after_days }}"></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label small" for="followup_closing_status">Closing status</label>
+                        <select class="form-select form-select-sm w-auto" id="followup_closing_status" name="followup_closing_status">
+                            <option value="">Closed (default)</option>
+                            {% for st in terminal_statuses %}<option value="{{ st.pk }}"{% if followup.closing_status_id == st.pk %} selected{% endif %}>{{ st.name }}</option>{% endfor %}
+                        </select></div>
+                    <div class="mb-3"><label class="form-label small" for="followup_message">Follow-up message</label>
+                        <textarea class="form-control form-control-sm" rows="5" id="followup_message" name="followup_message">{{ followup.followup_message }}</textarea></div>
+                    <div class="mb-3"><label class="form-label small" for="closure_message">Closure message</label>
+                        <textarea class="form-control form-control-sm" rows="4" id="closure_message" name="closure_message">{{ followup.closure_message }}</textarea></div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary mb-2" name="action" value="save_followup">Save follow-up settings</button>
+
+                    <hr>
+
                     <h6 class="text-muted mt-2 mb-3">AI Assist <small>— configure the API key under <a href="{% url 'core:settings_ai' %}">Settings → AI &amp; LLM</a></small></h6>
 
                     <div class="form-check form-switch mb-3">

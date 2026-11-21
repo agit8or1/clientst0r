@@ -69,6 +69,7 @@ urlpatterns = [
     path('t/<str:ticket_number>/watch/', views.ticket_watch_toggle, name='ticket_watch_toggle'),
     path('t/<str:ticket_number>/cc/', views.ticket_cc_update, name='ticket_cc_update'),
     path('t/<str:ticket_number>/reminders/add/', reminders.reminder_create, name='reminder_create'),
+    path('t/<str:ticket_number>/followup/pause/', views.ticket_followup_pause, name='followup_pause'),
     path('reminders/<int:pk>/complete/', reminders.reminder_complete, name='reminder_complete'),
     path('reminders/<int:pk>/delete/', reminders.reminder_delete, name='reminder_delete'),
     path('t/<str:ticket_number>/merge/', views.ticket_merge, name='ticket_merge'),

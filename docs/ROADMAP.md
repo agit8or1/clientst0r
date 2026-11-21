@@ -132,7 +132,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 2 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 3 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
 | 4 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
-| 5 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording | 51 |
+| 5 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.22 OPTIONAL AI wording | 51 |
 | 6 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
 | 7 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 8 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
@@ -154,7 +154,7 @@ unchanged. Click a feature for its details.
 | ID | Feature / deliverable | Priority | Status | Dependencies | Next action |
 |---|---|---|---|---|---|
 | 14 | [Visual Workflow Automation Engine](#phase-14) | — | 🟡 Partial | — | Time-based triggers, delays and escalation logic (91.6) |
-| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording |
+| 52 | [Technician workspace](#phase-52) | P1 | 🔵 In progress | 51 | 52.22 OPTIONAL AI wording |
 | 91 | [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 14 | 91.6–91.9; approval or cap on charge amounts (91.4) |
 | 93 | [Business-hours SLA calendars](#phase-93) | — | ⬜ Planned | — | 93.1 calendars |
 
@@ -1478,9 +1478,9 @@ are built on top of them.
 <a id="phase-52"></a>
 
 ## Phase 52 — Technician workspace **(L · P1)** [in progress]
-<!-- phase: ws=A stage=1 view=next order=6 deps=51 next="52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording" -->
+<!-- phase: ws=A stage=1 view=next order=6 deps=51 next="52.22 OPTIONAL AI wording" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** A. Core PSA & Ticketing · **Depends on:** 51  
-**Next:** 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording
+**Next:** 52.22 OPTIONAL AI wording
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -1583,7 +1583,7 @@ someone else.
   devices) for shift or technician changes; an AI wording is OPTIONAL AI behind `psa_ai_enabled`.
 - **52.23 Knowledge suggestions without AI** *(shipped v3.17.739 — matched by alert kind, ticket tags and asset type with a reason for each; documents have no asset-type or alert-kind field, so matches use tags and category names)* — articles and runbooks matched by category, alert kind
   or asset type.
-- **52.24 Customer follow-up and confirm-or-close** *(planned)* — automatic follow-up when a ticket waits on the
+- **52.24 Customer follow-up and confirm-or-close** *(shipped v3.17.760)* — automatic follow-up when a ticket waits on the
   customer, closing after a configurable silence with a recorded reason.
 
 </details>

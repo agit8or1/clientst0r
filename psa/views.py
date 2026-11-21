@@ -638,6 +638,8 @@ def ticket_detail(request, ticket_number):
         # Roadmap 52.21: the technician's own reminders on this ticket.
         context['ticket_reminders'] = list(ticket.reminders.filter(
             user=request.user, completed_at__isnull=True))
+        from .followup import schedule_for
+        context['followup'] = schedule_for(ticket)
         from .handoff import build_handoff, render_text
         _handoff = build_handoff(ticket, request.user)
         context['handoff'] = _handoff
@@ -1079,6 +1081,10 @@ def psa_global_settings_view(request):
     if request.method == 'POST':
         action = request.POST.get('action') or 'save_globals'
 
+        if action == 'save_followup':
+            _save_followup_policy(request)
+            return redirect('psa:settings')
+
         if action == 'remove_opt_out':
             org_id = request.POST.get('organization_id') or ''
             cps = ClientPSASettings.objects.filter(organization_id=org_id, enabled=False).first()
@@ -1150,10 +1156,76 @@ def psa_global_settings_view(request):
         messages.success(request, 'PSA global settings saved.')
         return redirect('psa:settings')
 
+    from .models import FollowUpPolicy, TicketStatus
     return render(request, 'psa/global_settings.html', {
         'settings': settings,
+        'followup': FollowUpPolicy.get(),
+        'terminal_statuses': TicketStatus.objects.filter(is_terminal=True),
         'opt_outs': opt_outs,
     })
+
+
+_FOLLOWUP_INT_FIELDS = {'first_after_days': (1, 90), 'second_after_days': (0, 90),
+                        'close_after_days': (0, 365)}
+
+
+def _save_followup_policy(request):
+    """Superuser POST from the global settings page (action=save_followup)."""
+    from .models import FollowUpPolicy, TicketStatus
+    policy = FollowUpPolicy.get()
+    before = {f: getattr(policy, f) for f in (
+        'enabled', 'business_days', 'first_after_days', 'second_after_days',
+        'close_after_days', 'closing_status_id')}
+    policy.enabled = request.POST.get('followup_enabled') == 'on'
+    policy.business_days = request.POST.get('followup_business_days') == 'on'
+    for name, (lo, hi) in _FOLLOWUP_INT_FIELDS.items():
+        try:
+            val = int(request.POST.get(f'followup_{name}', getattr(policy, name)))
+        except (TypeError, ValueError):
+            continue
+        setattr(policy, name, max(lo, min(hi, val)))
+    policy.followup_message = (request.POST.get('followup_message') or '').strip()[:5000] \
+        or FollowUpPolicy.DEFAULT_FOLLOWUP
+    policy.closure_message = (request.POST.get('closure_message') or '').strip()[:5000] \
+        or FollowUpPolicy.DEFAULT_CLOSURE
+    status = TicketStatus.objects.filter(
+        pk=request.POST.get('followup_closing_status') or 0, is_terminal=True).first()
+    policy.closing_status = status
+    policy.save()
+    after = {f: getattr(policy, f) for f in before}
+    changed = {k: {'from': before[k], 'to': after[k]} for k in before if before[k] != after[k]}
+    AuditLog.log(
+        user=request.user, action='update', object_type='psa.FollowUpPolicy',
+        object_id=policy.pk, object_repr='Customer follow-up policy',
+        description=f'Updated customer follow-up settings ({len(changed)} change(s))',
+        ip_address=_client_ip(request), path=request.path,
+        extra_data={'changed_fields': changed})
+    messages.success(request, 'Customer follow-up settings saved.')
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_followup_pause(request, ticket_number):
+    """Pause or resume the customer follow-up cycle for one ticket."""
+    _staff_or_403(request)
+    ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
+    pause = request.POST.get('pause') != '0'
+    if ticket.followup_paused != pause:
+        Ticket.objects.filter(pk=ticket.pk).update(followup_paused=pause)
+        AuditLog.log(
+            user=request.user, action='update', organization=ticket.organization,
+            object_type='psa.Ticket', object_id=ticket.pk,
+            object_repr=f'{ticket.ticket_number} customer follow-up'[:255],
+            description=f'{"Paused" if pause else "Resumed"} customer follow-up on {ticket.ticket_number}',
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'event': 'followup_pause', 'paused': pause})
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user, is_internal=True, is_system=True,
+            body=f'Customer follow-up {"paused" if pause else "resumed"}.')
+    messages.success(request, 'Customer follow-up paused.' if pause else 'Customer follow-up resumed.')
+    return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
 
 
 @login_required
@@ -1181,14 +1253,21 @@ def client_settings_view(request):
 
     if request.method == 'POST':
         row = cps or ClientPSASettings(organization=org)
-        before = {'enabled': row.enabled, 'portal_enabled': row.portal_enabled} if cps else {}
+        before = ({'enabled': row.enabled, 'portal_enabled': row.portal_enabled,
+                   'followup_override': row.followup_override} if cps else {})
+        before_followup = row.followup_override
+        choices = dict(ClientPSASettings.FOLLOWUP_CHOICES)
+        posted = request.POST.get('followup_override')
+        if posted in choices:
+            row.followup_override = posted
         if request.POST.get('reset_to_auto'):
             row.enabled = True  # a row with enabled=True is the auto-detect default
         else:
             row.enabled = (request.POST.get('enabled') == 'on') if not has_external else row.enabled
             row.portal_enabled = request.POST.get('portal_enabled') == 'on'
         row.save()
-        after = {'enabled': row.enabled, 'portal_enabled': row.portal_enabled}
+        after = {'enabled': row.enabled, 'portal_enabled': row.portal_enabled,
+                 'followup_override': row.followup_override}
         changed = {k: {'from': before.get(k), 'to': v} for k, v in after.items() if before.get(k) != v}
         if changed:
             AuditLog.log(
