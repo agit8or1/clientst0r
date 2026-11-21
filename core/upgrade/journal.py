@@ -44,6 +44,35 @@ CODE_TOUCHED_FROM = STAGES.index('code_checked_out')
 
 FINISHED = ('complete', 'aborted', 'rolled_back', 'recovered')
 
+# What each stage means once it has been reached (the page shows the last
+# stage reached as the current one, and the one after it as what is next).
+STAGE_LABELS = {
+    'started': 'Upgrade started',
+    'revision_verified': 'Revision verified',
+    'preflight_ok': 'Preflight checks passed',
+    'backup_verified': 'Pre-upgrade backup verified',
+    'code_checked_out': 'New code checked out',
+    'deps_installed': 'Dependencies installed',
+    'migrating': 'Migrating the database',
+    'migrated': 'Database migrated',
+    'static_collected': 'Static files collected',
+    'reloading': 'Reloading the app',
+    'complete': 'Complete',
+}
+# What happens while a stage is the last one reached.
+NEXT_STEP = {
+    'started': 'verifying the revision',
+    'revision_verified': 'running the preflight checks',
+    'preflight_ok': 'taking and verifying the pre-upgrade backup',
+    'backup_verified': 'checking out the new code',
+    'code_checked_out': 'installing dependencies',
+    'deps_installed': 'migrating the database',
+    'migrating': 'migrating the database',
+    'migrated': 'collecting static files',
+    'static_collected': 'reloading the app',
+    'reloading': 'finishing',
+}
+
 
 def backup_root() -> Path:
     return Path(getattr(settings, 'UPGRADE_BACKUP_DIR', None)
@@ -185,8 +214,9 @@ def assess(data: dict | None = None) -> dict:
     if status == 'running':
         alive = _pid_alive(data.get('script_pid')) or _pid_alive(data.get('pid'))
         if alive:
+            label = STAGE_LABELS.get(data.get('stage'), data.get('stage'))
             return {'state': 'running', 'needs_recovery': False, 'db_touched': db_touched,
-                    'message': f"An upgrade is running (stage: {data.get('stage')}).",
+                    'message': f"An upgrade is in progress (current stage: {label}).",
                     'journal': data}
         state = 'interrupted'
     elif status == 'failed':
@@ -209,3 +239,55 @@ def assess(data: dict | None = None) -> dict:
         message = f"Last upgrade: {state} (stage: {data.get('stage')})."
     return {'state': state, 'needs_recovery': needs, 'db_touched': db_touched,
             'message': message, 'journal': data}
+
+
+def progress(data: dict | None) -> dict:
+    """The stages of a running upgrade as a checklist for the Updates page:
+    {number, total, stage, label, next, steps: [{stage, label, state}]} with
+    state done / current / pending. The stage the journal records is the
+    last one reached, so it is shown as the current stage (never as where
+    the upgrade "stopped": it has not)."""
+    data = data or {}
+    stage_name = data.get('stage')
+    idx = stage_index(data)
+    known = idx < len(STAGES)
+    steps = []
+    for i, name in enumerate(STAGES):
+        if known and i < idx:
+            st = 'done'
+        elif known and i == idx:
+            st = 'current'
+        else:
+            st = 'pending'
+        steps.append({'stage': name, 'label': STAGE_LABELS[name], 'state': st})
+    return {
+        'number': idx + 1 if known else None,
+        'total': len(STAGES),
+        'stage': stage_name,
+        'label': STAGE_LABELS.get(stage_name, stage_name or 'unknown'),
+        'next': NEXT_STEP.get(stage_name, ''),
+        'steps': steps,
+    }
+
+
+def completed_at() -> float | None:
+    """When the last upgrade finished successfully (the journal's updated_at
+    while its status is complete), else None. channels.resolve() uses it to
+    drop an update check made before the upgrade."""
+    data = read()
+    if not data or data.get('status') != 'complete':
+        return None
+    try:
+        return float(data.get('updated_at'))
+    except (TypeError, ValueError):
+        return None
+
+
+def is_running() -> bool:
+    """True while an upgrade is in progress (a live process holds a running
+    journal). Banners that offer an update are hidden then: the page shows
+    the one status of the upgrade instead. Never raises."""
+    try:
+        return assess()['state'] == 'running'
+    except Exception:
+        return False

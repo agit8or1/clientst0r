@@ -148,3 +148,41 @@ def get_request_organization(request):
     if hasattr(request, 'current_organization'):
         return request.current_organization
     return None
+
+
+class SignedOutJsonMiddleware:
+    """JSON status endpoints polled by an open page answer 401
+    {"error": "signed_out"} instead of a redirect to the login page.
+
+    Those endpoints are fetched by script (Settings -> Updates polls the update
+    status and progress). When the tab's session has expired, the sign-in
+    checks further down (idle timeout, session epoch, 2FA) redirect to the
+    login page; fetch() follows that silently and hands the page HTML, so it
+    looked stuck. Placed before AuthenticationMiddleware so it sees every one
+    of those redirects. The views themselves still require a signed-in
+    superuser (core.views._json_superuser_required); nothing about the status
+    reaches anyone who is not one: the 401 body carries no status at all."""
+
+    URL_NAMES = ('core:update_status_api', 'core:update_progress_api')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self._paths = None
+
+    def paths(self):
+        if self._paths is None:
+            out = set()
+            for name in self.URL_NAMES:
+                try:
+                    out.add(reverse(name))
+                except Exception:
+                    pass
+            self._paths = frozenset(out)
+        return self._paths
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.path in self.paths() and response.status_code in (301, 302, 303, 307, 308):
+            from django.http import JsonResponse
+            return JsonResponse({'error': 'signed_out'}, status=401)
+        return response

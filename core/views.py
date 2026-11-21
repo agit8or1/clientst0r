@@ -376,9 +376,18 @@ def _parse_iso(value):
         return None
 
 
-def _update_status_line(state, rows, installed):
+def _update_status_line(state, rows, installed, upgrade_state=None):
     """One honest sentence about updates. Never "up to date" from a failed or
-    incomplete check, and never as if no other releases existed."""
+    incomplete check, and never as if no other releases existed. While an
+    upgrade runs it is the only status: nothing is "available" then."""
+    if upgrade_state and upgrade_state.get('state') == 'running':
+        from core.upgrade import journal as upgrade_journal
+        j = upgrade_state.get('journal') or {}
+        t = j.get('target') or {}
+        p = upgrade_journal.progress(j)
+        to = _describe_target(state, t)['label'] if t else 'a new version'
+        num = f"stage {p['number']} of {p['total']}: " if p['number'] else ''
+        return 'running', f"Updating to {to} \u2014 {num}{p['label']}."
     if state.get('error') and not state.get('stale'):
         return 'error', f"Could not check for updates: {state['error']}"
     target = state.get('target')
@@ -386,20 +395,31 @@ def _update_status_line(state, rows, installed):
     ch = state.get('channel') or 'stable'
     channel_label = CHANNEL_LABELS.get(LEGACY_CHANNELS.get(ch, ch), CHANNEL_LABELS['stable'])
     if target:
-        what = {'release': 'release', 'prerelease': 'testing build', 'preview': 'testing build'}.get(
-            target.get('kind'), 'build')
-        ref = target.get('ref') or ''
-        ver = target.get('version')
-        line = (f"Update available on your {channel_label} channel: {what} {ref}"
-                + (f" (v{ver})" if ver and ref != f'v{ver}' else ''))
+        line = (f"Update available on your {channel_label} channel: "
+                f"{_describe_target(state, target)['label']}")
         tone = 'update'
     else:
-        line = 'No newer updates on your selected channel.'
+        inst = state.get('installed') or {}
+        here = ''
+        if inst.get('version') or inst.get('sha'):
+            here = _describe_target(state, {'kind': 'preview', 'ref': 'main', 'sha': inst.get('sha'),
+                                            'version': inst.get('version')})
+            here = (f"v{inst['version']}" if here['is_release'] or not inst.get('sha')
+                    else here['short'])
+        line = (f"Up to date \u2014 {here}. " if here else '') + \
+            'No newer updates on your selected channel.'
         tone = 'ok'
     if state.get('error') and state.get('stale'):
         return 'stale', f"{line} The latest check failed: {state['error']}"
 
     return tone, line
+
+
+def _describe_target(state, t):
+    """core.upgrade.catalog.describe_build for a {kind, ref, sha, version}."""
+    from core.upgrade.catalog import describe_build
+    t = t or {}
+    return describe_build(state or {}, t.get('kind'), t.get('ref'), t.get('sha'), t.get('version') or '')
 
 
 @login_required
@@ -449,13 +469,29 @@ def system_updates(request):
     installed = upgrade_catalog.installed_summary(state, rows) if state else {
         'type': 'unknown', 'type_label': 'Unknown', 'ahead_of_stable': False}
     status_tone, status_line = _update_status_line(update_info.get('channels') or update_info, rows,
-                                                   installed)
+                                                   installed, upgrade_state)
+    upgrade_running = upgrade_state['state'] == 'running'
+    upgrade_progress = None
+    upgrade_to = upgrade_from = None
+    j = upgrade_state.get('journal') or {}
+    if upgrade_state['state'] in ('running', 'interrupted', 'failed') and j:
+        from core.upgrade import journal as _j
+        upgrade_progress = _j.progress(j) if upgrade_running else None
+        if j.get('target'):
+            upgrade_to = _describe_target(state, j['target'])
+        if j.get('prev_sha') or j.get('prev_version'):
+            upgrade_from = _describe_target(state, {'kind': 'preview', 'ref': 'main',
+                                                    'sha': j.get('prev_sha'),
+                                                    'version': j.get('prev_version')})
+    target_desc = _describe_target(state, update_info.get('target')) if update_info.get('target') else None
     try:
         restore_points = upgrade_catalog.restore_points(backups if backups.get('policy') else None)
     except Exception:
         logger.exception('could not list restore points')
         restore_points = []
     latest_dev = next((r for r in rows if r['type'] == 'development'), None)
+    latest_testing = next((r for r in rows if r.get('group') == 'testing'), None)
+    latest_testing_desc = (_describe_target(state, latest_testing) if latest_testing else None)
 
     from core.models import SystemPackageScan
     last_package_scan = SystemPackageScan.objects.order_by('-scan_date').first()
@@ -475,7 +511,14 @@ def system_updates(request):
         'channel_label': CHANNEL_LABELS.get(state.get('channel') or 'stable', CHANNEL_LABELS['stable']),
         'official_count': sum(1 for r in rows if r.get('group') == 'official'),
         'testing_count': sum(1 for r in rows if r.get('group') == 'testing'),
-        'latest_testing': next((r for r in rows if r.get('group') == 'testing'), None),
+        'latest_testing': latest_testing,
+        'latest_testing_desc': latest_testing_desc,
+        'upgrade_running': upgrade_running,
+        'upgrade_progress': upgrade_progress,
+        'upgrade_to': upgrade_to,
+        'upgrade_from': upgrade_from,
+        'target_desc': target_desc,
+        'unpublished_tag': (state.get('discovery') or {}).get('unpublished_tag'),
         'last_checked': (state.get('checked_at') or (update_info or {}).get('checked_at') or 'never'),
         'last_checked_dt': _parse_iso(state.get('checked_at') or (update_info or {}).get('checked_at')),
         'newer_count': sum(1 for r in rows if r.get('relation') == 'newer'),
@@ -800,18 +843,25 @@ def check_updates_now(request):
     if update_info.get('error'):
         messages.error(request, f"Failed to check for updates: {update_info['error']}"
                        + (' Showing the last successful check.' if update_info.get('stale') else ''))
+    elif _upgrade_running():
+        messages.info(request, 'An upgrade is in progress. Its progress is shown below; '
+                      'nothing else can be installed until it finishes.')
     elif update_info['update_available']:
-        t = update_info['target']
-        messages.success(
-            request,
-            f"{'Release' if t['kind'] == 'release' else 'Preview build'} available: "
-            f"{t['ref']} @ {t['sha'][:12]}"
-        )
+        d = _describe_target(update_info.get('channels') or {}, update_info['target'])
+        messages.success(request, f"Update available: {d['label']}")
     else:
         messages.info(request, 'No newer updates on your selected channel. Every discovered version '
                       'is listed under Available Versions.')
 
     return redirect('core:system_updates')
+
+
+def _upgrade_running():
+    try:
+        from core.upgrade import journal as upgrade_journal
+        return upgrade_journal.assess()['state'] == 'running'
+    except Exception:
+        return False
 
 
 def _repair_candidate(state, upgrade_state):
@@ -1073,19 +1123,39 @@ def apply_update(request):
         }, status=500)
 
 
-@login_required
-@user_passes_test(is_superuser)
+def _json_superuser_required(view):
+    """For JSON endpoints a page polls: 401 {"error": "signed_out"} when not
+    signed in, 403 {"error": "forbidden"} for a signed-in non-superuser, never
+    a redirect to the login page (fetch() would follow it and get HTML)."""
+    from functools import wraps
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        user = getattr(request, 'user', None)
+        if user is None or not user.is_authenticated:
+            return JsonResponse({'error': 'signed_out'}, status=401)
+        if not is_superuser(user):
+            return JsonResponse({'error': 'forbidden'}, status=403)
+        return view(request, *args, **kwargs)
+    return wrapped
+
+
+@_json_superuser_required
 def update_status_api(request):
     """
     API endpoint for checking update status (for AJAX polling).
     Staff-only access.
     """
     update_info = UpdateService().check_for_updates()
-    return JsonResponse({k: v for k, v in update_info.items() if k != 'channels'})
+    out = {k: v for k, v in update_info.items() if k != 'channels'}
+    out['upgrade_running'] = _upgrade_running()
+    if update_info.get('target'):
+        out['target_label'] = _describe_target(update_info.get('channels') or {},
+                                               update_info['target'])['label']
+    return JsonResponse(out)
 
 
-@login_required
-@user_passes_test(is_superuser)
+@_json_superuser_required
 def update_progress_api(request):
     """
     API endpoint for checking update progress (for AJAX polling).

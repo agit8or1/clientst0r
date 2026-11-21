@@ -33,6 +33,9 @@
     .upd-line--update { border-left-color: var(--primary-color, #0d6efd); }
     .upd-line--stale { border-left-color: var(--warning-color, #ffc107); }
     .upd-line--error { border-left-color: var(--danger-color, #dc3545); }
+    .upd-line--running { border-left-color: var(--primary-color, #0d6efd); }
+    .upd-stage { display: flex; gap: .5rem; align-items: baseline; padding: .1rem 0; }
+    .upd-stage i { width: 1rem; text-align: center; }
     .upd-line__text { flex: 1 1 260px; min-width: 0; }
     /* Versions */
     .upd-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; margin-bottom: .4rem; }
@@ -142,14 +145,50 @@
     </div>
     {% endif %}
 
+    <!-- An upgrade in progress (core/upgrade/journal.py): the one status while it runs -->
+    {% if upgrade_running %}
+    {% with j=upgrade_state.journal %}
+    <div class="row mb-4" id="upgrade-running">
+        <div class="col-12">
+            <div class="card update-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                        Updating to {% if upgrade_to %}{{ upgrade_to.short }}{% else %}{{ j.target.ref }} @ {{ j.target.sha|slice:":7" }}{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2" role="status" aria-live="polite">
+                        <strong>Current stage{% if upgrade_progress.number %} ({{ upgrade_progress.number }} of {{ upgrade_progress.total }}){% endif %}:</strong>
+                        {{ upgrade_progress.label }}{% if upgrade_progress.next %} &mdash; next: {{ upgrade_progress.next }}{% endif %}.
+                        <span class="upd-muted small">This page refreshes by itself until the upgrade finishes; the app reloads at the end.</span>
+                    </p>
+                    <table class="table table-sm mb-3">
+                        <tr><th style="width: 220px;">From</th><td>{% if upgrade_from %}{% if upgrade_from.is_release %}{{ upgrade_from.label }}{% else %}v{{ j.prev_version }} &middot; {{ upgrade_from.kind_label }}{% endif %}{% else %}v{{ j.prev_version }}{% endif %} <span class="git-status upd-muted">@ {{ j.prev_sha|slice:":12" }}</span></td></tr>
+                        <tr><th>To</th><td>{% if upgrade_to %}{{ upgrade_to.label }}{% else %}{{ j.target.ref }}{% endif %} <span class="git-status upd-muted">@ {{ j.target.sha|slice:":12" }}</span>{% if upgrade_to.detail and upgrade_to.is_release %} <span class="small upd-muted">({{ upgrade_to.detail }})</span>{% endif %}</td></tr>
+                    </table>
+                    <ol class="list-unstyled small mb-0" id="upgradeStages">
+                        {% for st in upgrade_progress.steps %}
+                        <li class="upd-stage upd-stage--{{ st.state }}">
+                            {% if st.state == 'done' %}<i class="fas fa-check upd-tone--success" aria-hidden="true"></i>{% elif st.state == 'current' %}<i class="fas fa-circle-notch fa-spin upd-tone--primary" aria-hidden="true"></i>{% else %}<i class="far fa-circle upd-muted" aria-hidden="true"></i>{% endif %}
+                            <span{% if st.state == 'current' %} class="fw-semibold"{% elif st.state == 'pending' %} class="upd-muted"{% endif %}>{{ st.label }}</span>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+
     <!-- Interrupted / failed upgrade (core/upgrade/journal.py) -->
-    {% if upgrade_state.needs_recovery or upgrade_state.state == 'running' %}
+    {% if upgrade_state.needs_recovery %}
     <div class="row mb-4" id="upgrade-recovery">
         <div class="col-12">
             <div class="card update-card danger">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-life-ring"></i>
-                        {% if upgrade_state.state == 'running' %}An upgrade is running{% else %}The last upgrade did not finish{% endif %}
+                        The last upgrade did not finish
                     </h5>
                 </div>
                 <div class="card-body">
@@ -157,7 +196,7 @@
                     {% with j=upgrade_state.journal %}
                     <table class="table table-sm mb-3">
                         <tr><th style="width: 220px;">From</th><td class="git-status">v{{ j.prev_version }} @ {{ j.prev_sha|slice:":12" }}</td></tr>
-                        <tr><th>To</th><td class="git-status">{{ j.target.ref }} @ {{ j.target.sha|slice:":12" }}</td></tr>
+                        <tr><th>To</th><td>{% if upgrade_to %}{{ upgrade_to.label }} {% endif %}<span class="git-status">{{ j.target.ref }} @ {{ j.target.sha|slice:":12" }}</span></td></tr>
                         <tr><th>Stopped at stage</th><td>{{ j.stage }} ({{ j.status }})</td></tr>
                         {% if j.error %}<tr><th>Error</th><td>{{ j.error }}</td></tr>{% endif %}
                         {% if j.backup %}<tr><th>Verified pre-upgrade backup</th><td class="git-status">{{ j.backup }}</td></tr>{% endif %}
@@ -227,16 +266,23 @@
                     </select>
                     <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                 </form>
-                <span class="upd-muted">Latest official <strong>{{ channels.stable.tag|default:"&mdash;" }}</strong></span>
-                {% if latest_testing %}<span class="upd-muted">Latest testing build <strong>{% if latest_testing.type == 'development' %}{% if latest_testing.version %}v{{ latest_testing.version }}{% else %}main{% endif %}{% else %}{{ latest_testing.tag }}{% endif %}</strong> <span class="git-status">@ {{ latest_testing.sha|slice:":7" }}</span></span>{% endif %}
+                <span class="upd-muted">Latest official <strong>{{ channels.stable.tag|default:"&mdash;" }}</strong>{% if unpublished_tag %} <span class="small">({{ unpublished_tag.tag }} is tagged and signed; its GitHub release is not published yet)</span>{% endif %}</span>
+                {% if latest_testing %}<span class="upd-muted" id="updLatestTesting">{% if latest_testing_desc.is_release %}Main is at <strong>{{ latest_testing_desc.short }}</strong> (no unreleased changes){% else %}Latest testing build <strong>{{ latest_testing_desc.short }}</strong>{% if latest_testing.type == 'development' and latest_testing_desc.detail %} <span class="small">({{ latest_testing_desc.detail }})</span>{% endif %}{% endif %}</span>{% endif %}
             </div>
-            <div class="small upd-muted mt-1" id="updChannelHelp">The channel only sets what is recommended and auto-installed; saving never installs and every version stays listed below.</div>
+            <div class="small mt-1" id="updChannelHelp">
+                {% if channels.channel == 'preview' %}
+                <strong>Your channel: Preview / testing.</strong> It installs the newest commit on main, including unreleased changes (pinned to the exact commit; not signed unless that commit is a release). For production, <strong>Official release</strong> is recommended.
+                {% else %}
+                <strong>Your channel: Official release</strong> (recommended for production). It installs signed, published releases only.
+                {% endif %}
+                <span class="upd-muted">The channel only sets what is recommended and auto-installed; saving never installs and every version stays listed below.</span>
+            </div>
 
             <div class="upd-line upd-line--{{ status_tone }}" id="updStatus" role="status">
                 <div class="upd-line__text">
                     <strong>{{ status_line }}</strong>
-                    {% if installed_summary.ahead_of_stable %}<span class="small"> You are running a testing build newer than the latest official release.</span>{% endif %}
-                    <span class="small upd-muted">&middot; Checked {% if last_checked_dt %}{{ last_checked_dt|timesince }} ago{% else %}{{ last_checked }}{% endif %}{% if channels.from_cache %} (cached){% endif %}</span>
+                    {% if installed_summary.ahead_of_stable and not upgrade_running %}<span class="small"> You are running a testing build newer than the latest official release.</span>{% endif %}
+                    {% if not upgrade_running %}<span class="small upd-muted">&middot; Checked {% if last_checked_dt %}{{ last_checked_dt|timesince }} ago{% else %}{{ last_checked }}{% endif %}{% if channels.from_cache %} (cached){% endif %}</span>{% endif %}
                 </div>
                 <form method="POST" action="{% url 'core:check_updates_now' %}" class="d-inline">
                     {% csrf_token %}
@@ -245,9 +291,12 @@
                 {% if update_info.target and not upgrade_state.needs_recovery and upgrade_state.state != 'running' %}
                 <button type="button" class="btn btn-sm btn-success" data-action="reviewVersion" data-args='["$this"]'
                         data-kind="{{ update_info.target.kind }}" data-ref="{{ update_info.target.ref }}" data-sha="{{ update_info.target.sha }}" data-recommended="1">
-                    <i class="fas fa-download"></i> Install {{ update_info.target.ref }}{% if update_info.target.kind == 'preview' %} (not a release){% endif %}&hellip;
+                    <i class="fas fa-download"></i> Install {% if target_desc %}{{ target_desc.short }}{% if not target_desc.is_release %} (not a release){% endif %}{% else %}{{ update_info.target.ref }}{% endif %}&hellip;
                 </button>
                 {% endif %}
+            </div>
+            <div id="updPollNotice" class="upd-line upd-line--stale" style="display:none;" role="alert">
+                <div class="upd-line__text" data-poll-text></div>
             </div>
             <div id="newerBuild" class="upd-line upd-line--stale" style="display:none;" role="status">
                 <div class="upd-line__text"><strong>A newer build is on offer:</strong> <span data-newer-desc></span>.</div>
@@ -543,6 +592,9 @@
                 <div id="updateMoved" style="display: none;" class="upd-line upd-line--stale">
                     <div class="upd-line__text"><strong>Nothing was installed:</strong> a newer build is on offer (<span data-newer-desc></span>). Review it first.</div>
                     <button type="button" class="btn btn-sm btn-warning" data-reload>Review this build</button>
+                </div>
+                <div id="updateSignedOut" style="display: none;" class="upd-line upd-line--stale" role="alert">
+                    <div class="upd-line__text" data-poll-text></div>
                 </div>
                 <div id="updateError" style="display: none;" class="upd-line upd-line--error">
                     <div class="upd-line__text"><strong>Update failed:</strong> <span id="updateErrorMessage"></span>
@@ -890,6 +942,7 @@ function pollProgress() {
     // its expected duration on top (v3.17.667).
     let pollCeilingMs = POLL_CEILING_MS;
 
+    let progressMisses = 0;
     const pollInterval = setInterval(function() {
         if (Date.now() - pollStartedAt > pollCeilingMs) {
             clearInterval(pollInterval);
@@ -897,13 +950,29 @@ function pollProgress() {
                 + 'expected. It may already have finished.');
             return;
         }
-        fetch('{% url "core:update_progress_api" %}')
+        if (UPD_SIGNED_OUT) { clearInterval(pollInterval); return; }
+        fetch('{% url "core:update_progress_api" %}', {credentials: 'same-origin', cache: 'no-store',
+                                                       headers: {'Accept': 'application/json'},
+                                                       redirect: 'manual'})
             .then(response => {
+                if (response.status === 401 || response.type === 'opaqueredirect') {
+                    UPD_SIGNED_OUT = true;
+                    clearInterval(pollInterval);
+                    showPollNotice('updateSignedOut', 'signed_out');
+                    return Promise.reject({signedOut: true});
+                }
+                hidePollNotice('updateSignedOut');
                 if (!response.ok) {
+                    // Expected for a moment while the app reloads; said if it lasts.
+                    progressMisses += 1;
+                    if (progressMisses >= 3) {
+                        showPollNotice('updateSignedOut', 'unreachable', 'HTTP ' + response.status);
+                    }
                     console.log('Service temporarily unavailable (restarting), keeping last progress');
                     // During gunicorn restart, keep showing last known progress
                     return lastKnownProgress;
                 }
+                progressMisses = 0;
                 return response.json();
             })
             .then(data => {
@@ -947,7 +1016,10 @@ function pollProgress() {
                 }
             })
             .catch(error => {
+                if (error && error.signedOut) return;
                 console.error('Error polling progress (service likely restarting):', error);
+                progressMisses += 1;
+                if (progressMisses >= 3) showPollNotice('updateSignedOut', 'unreachable', 'network error');
                 // During gunicorn restart, keep showing last known progress
                 if (lastKnownProgress.steps_completed.length > 0) {
                     console.log('Keeping last known progress during restart');
@@ -1133,6 +1205,14 @@ function waitForServerThenReload() {
         })
             .then(function(resp) {
                 clearTimeout(abortTimer);
+                if (resp.status === 401) {
+                    // The app is back, this tab's session is not: the reload
+                    // would land on the sign-in page anyway.
+                    clearInterval(tickInterval);
+                    UPD_SIGNED_OUT = true;
+                    showPollNotice('updateSignedOut', 'signed_out');
+                    return Promise.reject({signedOut: true});
+                }
                 if (resp.ok) return resp.json();
                 throw new Error('HTTP ' + resp.status);
             })
@@ -1156,8 +1236,9 @@ function waitForServerThenReload() {
                 // Faster cadence once we're seeing OKs — 400ms instead of 800.
                 setTimeout(probe, 400);
             })
-            .catch(function() {
+            .catch(function(err) {
                 clearTimeout(abortTimer);
+                if (err && err.signedOut) return;
                 consecutiveOk = 0;
                 const elapsed = Math.floor((Date.now() - startedAt) / 1000);
                 if (cd) cd.textContent =
@@ -1266,8 +1347,62 @@ function showError(message, beforeStart) {
 }
 
 
+// Polled status endpoints answer 401 {"error": "signed_out"} once this tab's
+// session has ended (core.middleware.SignedOutJsonMiddleware): say so, with a
+// sign-in link, and stop polling. A network error or a 5xx is said too,
+// instead of leaving the page spinning.
+const UPD_LOGIN_URL = '{% url "two_factor:login" %}?next=' + encodeURIComponent(location.pathname);
+let UPD_SIGNED_OUT = false;
+
+function showPollNotice(boxId, kind, detail) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    const text = box.querySelector('[data-poll-text]');
+    text.textContent = '';
+    if (kind === 'signed_out') {
+        const strong = document.createElement('strong');
+        strong.textContent = "You've been signed out";
+        text.appendChild(strong);
+        text.appendChild(document.createTextNode(' \u2014 '));
+        const a = document.createElement('a');
+        a.href = UPD_LOGIN_URL;
+        a.textContent = 'sign in again';
+        a.setAttribute('data-signin-link', '');
+        text.appendChild(a);
+        text.appendChild(document.createTextNode(' to see update status.'));
+    } else {
+        const strong = document.createElement('strong');
+        strong.textContent = 'Could not reach the server to refresh the update status';
+        text.appendChild(strong);
+        text.appendChild(document.createTextNode(' (' + detail + '). What is shown may be out of date; '
+            + 'it is retried automatically.'));
+    }
+    box.style.display = 'flex';
+}
+
+function hidePollNotice(boxId) {
+    const box = document.getElementById(boxId);
+    if (box && !UPD_SIGNED_OUT) box.style.display = 'none';
+}
+
+// fetch() wrapper for the polled JSON endpoints: resolves to the parsed JSON,
+// rejects with {signedOut: true} on a 401 and with {detail} on anything else.
+function pollJSON(url) {
+    return fetch(url, {credentials: 'same-origin', cache: 'no-store',
+                       headers: {'Accept': 'application/json'}, redirect: 'manual'})
+        .catch(function () { return Promise.reject({detail: 'network error'}); })
+        .then(function (r) {
+            if (r.status === 401 || r.type === 'opaqueredirect') {
+                return Promise.reject({signedOut: true});
+            }
+            if (!r.ok) return Promise.reject({detail: 'HTTP ' + r.status, status: r.status});
+            return r.json().catch(function () { return Promise.reject({detail: 'unreadable answer'}); });
+        });
+}
+
 function describeTarget(t) {
     if (!t || !t.sha) return 'nothing newer on this channel';
+    if (t.label) return t.label + ' at commit ' + String(t.sha).slice(0, 12);
     return (t.kind === 'release' ? 'official release ' : 'testing build ') + (t.ref || '')
         + (t.version ? ' (v' + t.version + ')' : '') + ' at commit ' + String(t.sha).slice(0, 12);
 }
@@ -1284,19 +1419,50 @@ function showMoved(target) {
     fillNewer(document.getElementById('updateMoved'), target);
 }
 
+// While an upgrade runs, the page shows its progress and refreshes itself:
+// every few seconds it asks whether the app answers (it reloads at the end
+// of the upgrade) and reloads the page when it does.
+const UPGRADE_RUNNING = {{ upgrade_running|yesno:"true,false" }};
+if (UPGRADE_RUNNING) {
+    let misses = 0;
+    const refreshWhenUp = function () {
+        const retry = function (detail) {
+            misses += 1;
+            // The app reloads at the end of an upgrade: a few misses are normal.
+            if (misses >= 3) showPollNotice('updPollNotice', 'unreachable', detail);
+            setTimeout(refreshWhenUp, 4000);
+        };
+        fetch('{% url "health" %}', {credentials: 'same-origin', cache: 'no-store'})
+            .then(function (r) { if (r.ok) { location.reload(); } else { retry('HTTP ' + r.status); } })
+            .catch(function () { retry('network error'); });
+    };
+    setTimeout(refreshWhenUp, 8000);
+}
+
 // Re-check every 5 minutes. When what the channel offers differs from what
-// this page shows, say so (never reload under the reader).
-setInterval(function() {
-    fetch('{% url "core:update_status_api" %}')
-        .then(response => response.json())
+// this page shows, say so (never reload under the reader). Not while an
+// upgrade runs: nothing else is on offer then.
+const statusPoll = setInterval(function() {
+    if (UPGRADE_RUNNING || UPD_SIGNED_OUT) return;
+    pollJSON('{% url "core:update_status_api" %}')
         .then(data => {
+            hidePollNotice('updPollNotice');
             const shown = REVIEWED_TARGET && REVIEWED_TARGET.sha;
             const now = data.target && data.target.sha;
-            if (now && now !== shown) {
+            if (now && now !== shown && !data.upgrade_running) {
+                if (data.target_label) data.target.label = data.target_label;
                 fillNewer(document.getElementById('newerBuild'), data.target);
             }
         })
-        .catch(error => console.error('Error checking update status:', error));
+        .catch(err => {
+            if (err && err.signedOut) {
+                UPD_SIGNED_OUT = true;
+                clearInterval(statusPoll);
+                showPollNotice('updPollNotice', 'signed_out');
+            } else {
+                showPollNotice('updPollNotice', 'unreachable', (err && err.detail) || 'error');
+            }
+        });
 }, 300000); // 5 minutes
 
 // ── OS Package Updates ──────────────────────────────────────────────────────

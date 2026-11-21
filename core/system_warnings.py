@@ -201,6 +201,12 @@ def _warnings_from_app_version():
 
     if not info or not info.get('update_available'):
         return out
+    try:
+        from core.upgrade.journal import is_running
+        if is_running():
+            return out     # the upgrade is installing it right now
+    except Exception:
+        pass
 
     current = info.get('current_version', '?')
     latest = info.get('latest_version', '?')

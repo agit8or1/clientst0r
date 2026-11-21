@@ -540,7 +540,12 @@ def build_system_status(request, org):
     current = get_version()
     latest = (getattr(s, 'latest_release_version', '') or '').strip()
     update = ''
-    if latest:
+    try:
+        from core.upgrade.journal import is_running
+        upgrading = is_running()
+    except Exception:
+        upgrading = False
+    if latest and not upgrading:
         try:
             from packaging import version
             if version.parse(latest) > version.parse(current):

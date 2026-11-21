@@ -43,6 +43,9 @@ OLD_MENU_URL_NAMES = [
     'integrations:rem0te_setup', 'core:settings_ai', 'psa_ai:profiles', 'core:settings_sms',
     'office:settings', 'core:mobile_apps_admin',
 ]
+# Old pages now reached through another menu entry that lights for them too
+# (Tab.also): Snyk configuration sits behind Vulnerability Scans.
+MENU_ENTRY_FOR = {'core:settings_snyk': 'core:snyk_scans'}
 # The one old settings entry that moved out: the client list is a work page.
 MOVED_OUT = {'accounts:organization_list': 'clients_all'}
 
@@ -127,7 +130,7 @@ class SettingsWorkspaceOnPagesTests(TestCase):
         hrefs = index_hrefs(self.get('core:settings_general'))
         for name in OLD_MENU_URL_NAMES:
             with self.subTest(name=name):
-                self.assertIn(reverse(name), hrefs)
+                self.assertIn(reverse(MENU_ENTRY_FOR.get(name, name)), hrefs)
 
     def test_each_page_lights_its_category_and_itself(self):
         self.login(User.objects.create_superuser('ws-su2', 'su2@x.com', 'x'))
@@ -147,7 +150,7 @@ class SettingsWorkspaceOnPagesTests(TestCase):
                                      r'aria-current="true"' % key)
                 self.assertEqual(len(re.findall(r'class="nav-link[^"]*\bactive\b', ws)), 2, name)
                 self.assertIn('class="nav-link settings-menu-item active" href="%s" '
-                              'aria-current="page"' % reverse(name), ws)
+                              'aria-current="page"' % reverse(MENU_ENTRY_FOR.get(name, name)), ws)
 
     def test_sub_pages_keep_their_category(self):
         self.login(User.objects.create_superuser('ws-su3', 'su3@x.com', 'x'))

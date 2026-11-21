@@ -189,6 +189,10 @@ def build(state, *, upgrade_state=None, check_compat=True):
                            'development': 'Latest testing build'}[r['type']])
         if r['recommended']:
             labels.append('Recommended')
+        if r['type'] == 'development':
+            same = release_for_sha(state, r['sha'])
+            if same:
+                labels.append(f"Same commit as {same['tag']}")
         r['labels'] = labels
         r['compat'] = None
         installable, reason = True, ''
@@ -257,15 +261,88 @@ def find(rows, kind, ref, sha):
     return None
 
 
+# ---------------------------------------------------------------------------
+# naming a build the same way everywhere
+# ---------------------------------------------------------------------------
+
+def release_for_sha(state, sha):
+    """The signed official release whose tag points at commit `sha`, or None:
+    {'tag', 'version', 'published'}. A published release counts when its tag
+    signature is verified or a signed-tag object (verified at install, the
+    rule the version table uses for "Official"); main's head also counts
+    when origin has a signed release tag for it whose GitHub release page is
+    not published yet (discovery marks it). Never an unsigned or untrusted
+    tag, never a pre-release."""
+    if not sha:
+        return None
+    best = None
+    for e in (state or {}).get('releases') or []:
+        if e.get('type') != 'stable' or e.get('sha') != sha:
+            continue
+        if e.get('signature') not in INSTALLABLE_SIGNATURES:
+            continue
+        v = parse_version(e.get('version'))
+        if best is None or (v is not None and best[0] is not None and v > best[0]):
+            best = (v, {'tag': e['tag'], 'version': e['version'], 'published': True})
+    if best:
+        return best[1]
+    p = (state or {}).get('preview') or {}
+    if p.get('sha') == sha and p.get('release_tag') \
+            and p.get('release_signature') in INSTALLABLE_SIGNATURES:
+        return {'tag': p['release_tag'], 'version': p.get('release_version') or p['release_tag'].lstrip('v'),
+                'published': bool(p.get('release_published'))}
+    return None
+
+
+def describe_build(state, kind, ref, sha, version=''):
+    """One name for a build, used by the status line, the banners, the
+    running-upgrade card and the Install button:
+
+        v3.17.754 · Official release            a commit that is a signed release
+        v3.18.0-rc.1 · Testing build (pre-release tag)
+        Testing build main @ 1c2b439 (unreleased, 3 commits after v3.17.753)
+
+    Returns {label, short, is_release, kind_label, detail}. Only the words
+    change: what gets installed (kind, ref, sha) is never touched."""
+    sha = sha or ''
+    rel = release_for_sha(state, sha)
+    if rel or kind == 'release':
+        tag = (rel or {}).get('tag') or ref or (f'v{version}' if version else '')
+        detail = '' if (rel is None or rel['published']) else \
+            'signed release tag; its GitHub release page is not published yet'
+        return {'label': f'{tag} \u00b7 Official release', 'short': tag, 'is_release': True,
+                'kind_label': 'Official release', 'detail': detail}
+    if kind == 'prerelease':
+        return {'label': f'{ref} \u00b7 Testing build (pre-release tag)', 'short': ref,
+                'is_release': False, 'kind_label': 'Testing build', 'detail': ''}
+    short = f'{ref or "main"} @ {sha[:7]}' if sha else (ref or 'main')
+    p = (state or {}).get('preview') or {}
+    since = p.get('since_tag') or ((state or {}).get('stable') or {}).get('tag') or ''
+    if p.get('sha') == sha and p.get('ahead_of_stable') is not None and since:
+        n = p['ahead_of_stable']
+        extra = f'unreleased, {n} commit{"s" if n != 1 else ""} after {since}'
+    else:
+        extra = 'unreleased'
+    return {'label': f'Testing build {short} ({extra})', 'short': short, 'is_release': False,
+            'kind_label': 'Testing build', 'detail': extra}
+
+
 def installed_summary(state, rows):
     """What the instance runs, in words that never call a development build
     a release or an older release an update."""
     inst = state.get('installed') or {}
     stable = state.get('stable') or {}
-    row = next((r for r in rows if r['relation'] == 'installed'), None)
+    matches = [r for r in rows if r['relation'] == 'installed']
+    # A commit that is both a release and main's head is the release.
+    row = next((r for r in matches if r['type'] != 'development'), None) or \
+        next(iter(matches), None)
     iv, sv = parse_version(inst.get('version')), parse_version(stable.get('version'))
     ahead = bool(iv and sv and iv > sv)
-    if row:
+    rel = release_for_sha(state, inst.get('sha'))
+    if rel:
+        kind = 'stable'
+        ahead = False
+    elif row:
         kind = row['type']
     elif ahead:
         kind = 'development'
@@ -278,6 +355,7 @@ def installed_summary(state, rows):
         'type_label': {'stable': 'Official release', 'prerelease': 'Testing build',
                        'development': 'Testing build'}.get(kind, 'Unrecognised build'),
         'matches_row': bool(row),
+        'release': rel,
         'ahead_of_stable': ahead,
         'behind_stable': bool(iv and sv and iv < sv),
     }

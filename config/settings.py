@@ -187,6 +187,7 @@ MIDDLEWARE = [
     'api_access.enforce.ApiAccessMiddleware',  # API / webhook network rules; web pages untouched
     'core.portal_surface.PortalHostMiddleware',  # optional dedicated portal host name
     'core.csrf_middleware.MultiDomainCsrfViewMiddleware',  # Custom CSRF for multi-domain support
+    'core.middleware.SignedOutJsonMiddleware',  # polled JSON status APIs: 401, never a login redirect
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'accounts.middleware.SessionEpochMiddleware',  # sign out everywhere (session epoch)
     'core.firewall_middleware.FirewallMiddleware',  # IP and GeoIP firewall (after auth for request.user)

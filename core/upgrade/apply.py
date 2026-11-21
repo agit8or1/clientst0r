@@ -404,6 +404,14 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     if data.get('status') != 'complete':
         journal.stage('complete')
     result['success'] = True
+    # The cached update check describes the build that was installed before:
+    # forget it, so every process asks again (channels.resolve also drops an
+    # answer fetched before the journal's completion time).
+    try:
+        from . import channels
+        channels.clear_cache()
+    except Exception:
+        logger.exception('could not clear the update-check cache')
 
 
 def _check_retarget(prev, stuck, new, say):

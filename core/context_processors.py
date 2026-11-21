@@ -180,6 +180,14 @@ def _update_badge(request, system_settings):
     if not latest:
         return None
     try:
+        # While an upgrade is installing it, "Update available" is noise: the
+        # Updates page shows the upgrade's progress instead.
+        from core.upgrade.journal import is_running
+        if is_running():
+            return None
+    except Exception:
+        pass
+    try:
         from packaging import version
         if version.parse(latest) <= version.parse(get_version()):
             return None

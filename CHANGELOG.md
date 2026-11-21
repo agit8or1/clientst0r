@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.756] - 2026-11-21
+
+### Changed
+
+- **Settings → System Updates names every build the same way.** A commit that is a signed release is shown as that
+  release ("v3.17.756 · Official release") on either channel, in the installed line, the update notice and the
+  banners. Only commits that aren't a release are called a testing build, with how many commits they are past the
+  last release.
+- **One status while an update runs.** The page shows "Updating to vX", the current stage, a checklist of the
+  stages and reloads itself when the update finishes. The "Update available" and "Preview build available" banners
+  are hidden until then, and a stage that is still running is labelled as the current stage.
+- **The selected channel is explained on the page.** Preview / testing installs the newest commit on main,
+  including unreleased changes; Official release installs signed releases only and is recommended for production.
+  Your channel setting is unchanged.
+- "Latest official" mentions a signed release tag whose GitHub release isn't published yet.
+
+### Fixed
+
+- After an update finishes, the page and badge show "Up to date" straight away instead of offering the version you
+  just installed.
+- A System Updates tab whose sign-in had expired looked stuck. The status checks now get a "signed out" answer
+  instead of the sign-in page, and the page says "You've been signed out — sign in again" with a link. If the server
+  can't be reached it says so instead of spinning.
+
 ## [3.17.755] - 2026-11-21
 
 ### Fixed

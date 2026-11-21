@@ -355,6 +355,11 @@ def resolve(*, force_refresh=False):
     state = _read_state()
     remote, error, stale, from_cache = None, None, False, False
     fetched = False
+    if not force_refresh and _upgraded_since(state):
+        # An upgrade finished after this answer was fetched: it describes the
+        # build that was installed before (it would still offer what is now
+        # installed), so ask again.
+        force_refresh = True
     if not force_refresh:
         if state.get('remote') and _fresh(state.get('fetched_at'), CACHE_TTL, now) \
                 and not _fresh(state.get('error_at'), CACHE_TTL_ERROR, now):
@@ -400,6 +405,19 @@ def resolve(*, force_refresh=False):
         'stale': stale,
         'from_cache': from_cache,
     }
+
+
+def _upgraded_since(state) -> bool:
+    """True when the last upgrade completed after the cached answer was
+    fetched (core.upgrade.journal records when it finished)."""
+    if not state.get('remote'):
+        return False
+    try:
+        from .journal import completed_at
+        done = completed_at()
+        return done is not None and done > float(state.get('fetched_at') or 0)
+    except (TypeError, ValueError, OSError):
+        return False
 
 
 def _record_stable(stable, *, recommended=None, channel='stable'):

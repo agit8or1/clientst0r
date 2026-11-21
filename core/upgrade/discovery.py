@@ -537,6 +537,10 @@ def discover(owner=None, name=None):
             preview['commits'] = cmp['commits']
             preview['since_tag'] = stable['tag']
 
+    unpublished = _release_tags_without_release(tags, entries, cache)
+    if preview:
+        _mark_release_commit(preview, entries, unpublished)
+
     save_http_cache(cache, used)
     entries = sort_newest_first(entries)
     return {
@@ -546,8 +550,72 @@ def discover(owner=None, name=None):
                  'ignored': ignored[:20], 'ignored_count': len(ignored),
                  'stable_count': sum(1 for e in entries if e['type'] == 'stable'),
                  'prerelease_count': sum(1 for e in entries if e['type'] == 'prerelease'),
-                 'tags_error': tags_error, 'complete': True},
+                 'tags_error': tags_error, 'complete': True,
+                 # The newest official-shaped release tag on origin that has no
+                 # published GitHub release yet (Official release recommends
+                 # published releases only; the page says it is coming).
+                 'unpublished_tag': _newest_unpublished(unpublished, stable)},
     }
+
+
+def _release_tags_without_release(tags, entries, cache):
+    """Official-shaped (vX.Y.Z) annotated tags on origin with no published
+    GitHub release, newest first, each with its signature state (the same
+    rule as a release: verified here when the tag is local, else verified at
+    install). Lightweight tags are left out: they cannot carry a signature."""
+    published = {e['tag'] for e in entries}
+    out = []
+    for tag, t in (tags or {}).items():
+        if tag in published or not TAG_RE.match(tag) or not t.get('annotated'):
+            continue
+        if not SHA_RE.match(t.get('commit') or ''):
+            continue
+        out.append({'tag': tag, 'version': tag.lstrip('v'), 'sha': t['commit'],
+                    'tag_object': t.get('object', ''), 'annotated': True})
+    out.sort(key=lambda e: parse_version(e['version']) or pversion.parse('0'), reverse=True)
+    out = out[:5]   # only the newest few can matter (main's head, "coming soon")
+    if out:
+        signature_states(out, cache)
+    return out
+
+
+def _newest_unpublished(unpublished, stable):
+    sv = parse_version((stable or {}).get('version'))
+    for e in unpublished:
+        if e.get('signature') not in INSTALLABLE_SIGNATURES:
+            continue
+        v = parse_version(e['version'])
+        if v is not None and (sv is None or v > sv):
+            return {'tag': e['tag'], 'version': e['version'], 'sha': e['sha'],
+                    'signature': e['signature']}
+        return None
+    return None
+
+
+def _mark_release_commit(preview, entries, unpublished):
+    """When main's head is exactly the commit of a signed official release
+    tag, say so on `preview` (release_tag / release_published /
+    release_signature), so the page names it as that release instead of a
+    testing build. What gets installed does not change."""
+    sha = preview.get('sha')
+    best = None
+    for e in entries:
+        if e.get('type') == 'stable' and e.get('sha') == sha \
+                and e.get('signature') in INSTALLABLE_SIGNATURES:
+            v = parse_version(e['version'])
+            if best is None or (v is not None and v > best[0]):
+                best = (v, e, True)
+    if best is None:
+        for e in unpublished:
+            if e['sha'] == sha and e.get('signature') in INSTALLABLE_SIGNATURES:
+                best = (parse_version(e['version']), e, False)
+                break
+    if best is not None:
+        e = best[1]
+        preview['release_tag'] = e['tag']
+        preview['release_version'] = e['version']
+        preview['release_published'] = best[2]
+        preview['release_signature'] = e.get('signature')
 
 
 def _is_security(rel) -> bool:
