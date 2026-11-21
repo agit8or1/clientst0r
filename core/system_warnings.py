@@ -65,6 +65,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_default_password())
     warnings.extend(_warnings_from_audit_chain())
     warnings.extend(_warnings_from_offhost_backup())
+    warnings.extend(_warnings_from_prepaid_balances())
 
     # Filter by min severity, then sort.
     filtered = [w for w in warnings if SEVERITY_RANK.get(w['severity'], 9) <= threshold]
@@ -213,6 +214,16 @@ def _warnings_from_app_version():
         'source_date': timezone.now(),
     })
     return out
+
+
+def _warnings_from_prepaid_balances():
+    """Active agreements whose prepaid hours are at or under their
+    low-balance threshold (Phase 101.2; psa.billing.ledger)."""
+    try:
+        from psa.billing.ledger import low_balance_warnings
+        return low_balance_warnings()
+    except Exception:
+        return []
 
 
 def _warnings_from_default_password():

@@ -23,9 +23,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **108** in total |
 | ✅ Complete | 51 (of which 2 marked for verification) |
-| 🔵 In progress | 27 |
+| 🔵 In progress | 28 |
 | 🟡 Partial | 4 |
-| ⬜ Planned | 25 |
+| ⬜ Planned | 24 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
 | ⏸️ Deferred | 1 |
 
@@ -128,7 +128,7 @@ Approved, in priority order, not started (or started only in parts already liste
 
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
-| 1 | 101 — [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | ⬜ Planned | 101.1 coverage resolver, 101.2 hour ledger | 1, 36, 69, 70, 73, 93 |
+| 1 | 101 — [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | 🔵 In progress | 101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary | 1, 36, 69, 70, 73, 93 |
 | 2 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
 | 3 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
@@ -192,7 +192,7 @@ unchanged. Click a feature for its details.
 | 71 | [Accounting sync completion](#phase-71) | — | 🔵 In progress | 44 | 71.4–71.8 accounting completion; 71.11 sandbox verification |
 | 72 | [Payment processing and sales tax](#phase-72) | — | 🔵 In progress | 71 | Provider verification; payment posting to accounting |
 | 92 | [Verified usage and recurring billing](#phase-92) | — | ⬜ Planned | 70; Rem0te counts (92.4) | 92.1 recurring charge generation |
-| 101 | [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | ⬜ Planned | 1, 36, 69, 70, 73, 93 | 101.1 coverage resolver, 101.2 hour ledger |
+| 101 | [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | 🔵 In progress | 1, 36, 69, 70, 73, 93 | 101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary |
 | 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 15, 36, 75, 92, 101 | 102.1 bundling lock, 102.2 unbilled list |
 | 104 | [Customer approvals, deposits, change orders and portal billing](#phase-104) | P1 | ⬜ Planned | 72, 101, 103 | 104.1 out-of-scope approval |
 
@@ -3540,10 +3540,10 @@ test route, update and restore rehearsals, load tests.
 
 <a id="phase-101"></a>
 
-## Phase 101 — Ticket Time & Charges and prepaid-hour ledger **(XL · P0 · billing)** [planned]
-<!-- phase: ws=B stage=1 view=next order=1 deps="1, 36, 69, 70, 73, 93" next="101.1 coverage resolver, 101.2 hour ledger" -->
-**Status:** ⬜ Planned · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 1, 36, 69, 70, 73, 93  
-**Next:** 101.1 coverage resolver, 101.2 hour ledger
+## Phase 101 — Ticket Time & Charges and prepaid-hour ledger **(XL · P0 · billing)** [in progress]
+<!-- phase: ws=B stage=1 view=next order=1 deps="1, 36, 69, 70, 73, 93" next="101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary" -->
+**Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 1, 36, 69, 70, 73, 93  
+**Next:** 101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3552,20 +3552,20 @@ Priority P0. The first phase of the [MSP billing program](plans/msp-billing-prog
 [capability audit](plans/msp-billing-program/CAPABILITY_AUDIT.md) of 2026-11-20. Extends the existing time
 entries, `psa.Contract` allowances, charges and rate cards; no second billing engine.
 
-- **101.1 Coverage resolver** *(planned)* — one function decides, for an approved time entry or charge, the
+- **101.1 Coverage resolver** *(shipped v3.17.749)* — one function decides, for an approved time entry or charge, the
   customer, the agreement (explicit precedence and effective dates when several apply; an ambiguous overlap needs
   a choice), coverage (service category, remote / onsite, business hours), rate and the covered / prepaid /
   chargeable split. Consumption follows the entry's own contract link instead of customer and date, so two
   overlapping contracts no longer count the same time.
-- **101.2 Prepaid-hour ledger** *(planned)* — immutable postings for purchases, consumption, expiry, reversals and
+- **101.2 Prepaid-hour ledger** *(shipped v3.17.749)* — immutable postings for purchases, consumption, expiry, reversals and
   authorized manual adjustments, with the source entry, agreement, date, quantity and status; several blocks per
   customer consumed earliest-expiry first; rollover and expiry; negative balance only when configured; low-balance
   alerts; idempotency keys and row locks against retries, scheduled jobs and concurrent approvals. A block
   purchase is not counted as revenue again on consumption.
-- **101.3 Approval-time consumption** *(planned)* — draft and rejected time consume nothing (today they do);
+- **101.3 Approval-time consumption** *(shipped v3.17.749)* — draft and rejected time consume nothing (today they do);
   approval posts, rejection or reversal releases; partial coverage splits into block and overage; retainer
   allowances reset each billing cycle.
-- **101.4 Rates and rules in invoicing** *(planned)* — ticket time is priced from the rate cards and the entry's
+- **101.4 Rates and rules in invoicing** *(shipped v3.17.749 — after-hours and weekend rate types wait for the business-hours calendar (Phase 93); holiday rates use the existing holiday calendar)* — ticket time is priced from the rate cards and the entry's
   rate snapshot (no more $0 for time-and-materials customers without a contract); minimum time, billing increments
   and trip fees from the existing billing rules; after-hours and holiday rate types set from the time worked and
   the SLA calendar (Phase 93).

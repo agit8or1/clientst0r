@@ -40,26 +40,32 @@
         <div class="card h-100">
             <div class="card-header py-2"><strong><i class="fas fa-clock me-1"></i>Hours</strong></div>
             <div class="card-body">
+                {% with p=item.prepaid %}
                 <div class="h3 mb-1">
-                    {{ item.hours_used|floatformat:2 }}
-                    {% if item.total_hours %}
-                        <small class="text-muted">/ {{ item.total_hours|floatformat:2 }}</small>
+                    {% if p.unlimited %}
+                        {{ item.hours_used|floatformat:2 }} <small class="text-muted">unlimited</small>
                     {% else %}
-                        <small class="text-muted">unlimited</small>
+                        {{ p.used_hours }}
+                        <small class="text-muted">/ {{ p.total_hours }}</small>
                     {% endif %}
                 </div>
-                {% if effective_hours_remaining is not None %}
+                {% if not p.unlimited %}
                 <div class="text-muted small">
-                    <strong>{{ effective_hours_remaining|floatformat:2 }}h</strong> remaining
-                    (after rollover)
+                    <strong>{{ p.remaining_hours }}h</strong> remaining
+                    {% if p.mode == 'cycle' %}this billing cycle{% else %}(including rollover){% endif %}
+                    {% if p.negative %}<span class="badge text-bg-danger ms-1">Below zero</span>
+                    {% elif p.depleted %}<span class="badge text-bg-warning ms-1">Used up</span>
+                    {% elif p.low %}<span class="badge text-bg-warning ms-1">Low balance</span>{% endif %}
                 </div>
-                {% endif %}
-                {% if item.total_hours %}
-                {% widthratio item.hours_used item.total_hours 100 as pct %}
+                {% if p.total_hours %}
+                {% widthratio p.used_hours p.total_hours 100 as pct %}
                 <div class="progress mt-2" style="height: 6px;">
                     <div class="progress-bar bg-info" role="progressbar" style="width: {{ pct }}%;"></div>
                 </div>
                 {% endif %}
+                {% if p.tracked %}<a class="small d-inline-block mt-2" href="{% url 'psa:contract_ledger' item.pk %}">Prepaid-hour ledger</a>{% endif %}
+                {% endif %}
+                {% endwith %}
             </div>
         </div>
     </div>

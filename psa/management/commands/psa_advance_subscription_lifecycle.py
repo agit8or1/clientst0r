@@ -9,6 +9,9 @@ Daily cron. Three jobs:
      transitioned to `status='cancelled'`.
   3. **Expire** — contracts whose `end_date` has passed and which are not
      going to renew get `status='expired'` (v3.17.581).
+  4. **Prepaid expiry** (Phase 101.2) — unused hours of prepaid blocks that
+     expired more than `psa.billing.ledger.EXPIRY_GRACE_DAYS` ago get an
+     expiry posting.
 
 All three are idempotent — already-resumed, already-cancelled and
 already-expired contracts are filtered out at the SQL level.
@@ -111,7 +114,18 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(
                     f'Expired {c.name} (ended {c.end_date})'))
 
+        # Phase 101.2: post the expiry of unused prepaid hours in blocks that
+        # expired more than the grace period ago (idempotent: one expiry
+        # posting per unused balance).
+        from psa.billing import ledger
+        if dry:
+            hours_expired = len(ledger.due_expiries())
+            for block, bal in ledger.due_expiries():
+                self.stdout.write(f'[dry] would expire {bal:.2f}h of {block}')
+        else:
+            hours_expired = ledger.expire_due()
+
         self.stdout.write(self.style.SUCCESS(
             f'{"[dry] " if dry else ""}{resumed} resumed; {cancelled} '
-            f'cancelled; {expired} expired.'
+            f'cancelled; {expired} expired; {hours_expired} prepaid block(s) expired.'
         ))

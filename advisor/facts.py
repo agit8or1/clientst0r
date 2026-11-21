@@ -484,9 +484,18 @@ class CustomerFacts:
                 if len(hourly_records) < RECORD_LIMIT:
                     hourly_records.append(self._ticket_record(e))
             overage = []
+            from psa.billing import ledger as _ledger
+            from psa.models import InvoiceLineItem as _ILI
             for c in allowance_contracts.values():
-                over_min = max(0, (c.hours_used_minutes or 0) - c.effective_total_minutes()
-                               - c.overage_minutes_invoiced())
+                # Phase 101.4: approved overage from the prepaid-hour ledger
+                # whose time is not on a live invoice yet.
+                held = [p for p in c.prepaid_postings.filter(kind='overage', reversed_by__isnull=True)]
+                if held or _ledger.totals(c) is not None:
+                    billed = _ILI.billed_source_ids('time', [p.time_entry_ref for p in held])
+                    over_min = sum(_ledger.minutes_of(p.hours) for p in held if p.time_entry_ref not in billed)
+                else:
+                    over_min = max(0, (c.hours_used_minutes or 0) - c.effective_total_minutes()
+                                   - c.overage_minutes_invoiced())
                 if over_min <= 0:
                     continue
                 rate = overage_rate(c)

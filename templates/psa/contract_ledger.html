@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Prepaid hours — {{ item.name }} — PSA{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:contract_list' %}">Contracts</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:contract_detail' item.pk %}">{{ item.name }}</a></li>
+        <li class="breadcrumb-item active">Prepaid hours</li>
+    </ol>
+</nav>
+
+<h1 class="h4 mb-1"><i class="fas fa-book me-1"></i>Prepaid hours: {{ item.name }}</h1>
+<p class="text-muted small mb-3">{{ item.client_org.name }} · {{ item.get_contract_type_display }}
+    · {{ item.start_date }} → {{ item.end_date|default:'open' }}
+    {% if summary.mode == 'cycle' %}· allowance resets every billing cycle{% endif %}</p>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Remaining{% if summary.as_of %} on {{ summary.as_of }}{% endif %}</div>
+        <div class="h3 mb-0">{% if summary.unlimited %}unlimited{% else %}{{ summary.remaining_hours }}h{% endif %}</div>
+        {% if summary.negative %}<span class="badge text-bg-danger">Below zero</span>
+        {% elif summary.depleted %}<span class="badge text-bg-warning">Used up — overage rate applies</span>
+        {% elif summary.low %}<span class="badge text-bg-warning">Low balance</span>{% endif %}
+    </div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Hours bought / adjusted</div>
+        <div class="h5 mb-0">{{ summary.purchased|floatformat:2 }}h / {{ summary.adjusted|floatformat:2 }}h</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Used (approved time)</div>
+        <div class="h5 mb-0">{{ summary.used_hours }}h</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Overage (all periods)</div>
+        <div class="h5 mb-0">{{ summary.overage|floatformat:2 }}h</div>
+    </div></div></div>
+</div>
+
+<div class="alert alert-light border small">
+    Only approved time uses prepaid hours; rejected or deleted time gives them back. Unused hours of an expired block
+    are written off {{ grace_days }} days after it expires. Invoices still bill ticket time as before.
+</div>
+
+{% if waiting %}
+<div class="card mb-3 border-warning">
+    <div class="card-header py-2"><strong>Approved time waiting for an agreement choice</strong></div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Entry</th><th>Ticket</th><th>Date</th><th>Minutes</th><th>Agreement</th></tr></thead>
+            <tbody>
+            {% for e in waiting %}
+            <tr>
+                <td>#{{ e.pk }} {{ e.user.username|default:'' }}</td>
+                <td>{{ e.ticket.ticket_number }}</td>
+                <td>{{ e.started_at|date:'Y-m-d' }}</td>
+                <td>{{ e.duration_minutes }}</td>
+                <td>
+                    {% if may_adjust %}
+                    <form method="post" action="{% url 'psa:time_entry_choose_agreement' e.pk %}" class="d-flex gap-1">
+                        {% csrf_token %}
+                        <select name="contract_id" class="form-select form-select-sm">
+                            {% for c in e.choices %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary">Use</button>
+                    </form>
+                    {% else %}<span class="text-muted">needs someone with the billing permission</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Blocks</strong> <small class="text-muted">used earliest expiry first</small></div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Block</th><th>Kind</th><th>Valid</th><th class="text-end">Balance</th></tr></thead>
+            <tbody>
+            {% for b in blocks %}
+            <tr><td>{{ b }}</td><td>{{ b.get_kind_display }}</td>
+                <td>{{ b.starts_on }} → {{ b.expires_on|default:'no expiry' }}</td>
+                <td class="text-end">{{ b.balance|floatformat:2 }}h</td></tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted">No prepaid blocks.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if may_adjust and blocks %}
+<div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card h-100"><div class="card-header py-2"><strong>Manual adjustment</strong></div>
+        <div class="card-body">
+        <form method="post" action="{% url 'psa:contract_ledger_adjust' item.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_key" value="{{ form_key }}">
+            <div class="row g-2">
+                <div class="col-4"><input type="number" step="0.01" name="hours" class="form-control form-control-sm" placeholder="+/- hours" required></div>
+                <div class="col-8"><select name="block_id" class="form-select form-select-sm">
+                    <option value="">Block valid today (earliest expiry)</option>
+                    {% for b in blocks %}<option value="{{ b.pk }}">{{ b }}</option>{% endfor %}
+                </select></div>
+                <div class="col-12"><input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason (required, recorded in the audit log)" required></div>
+                <div class="col-12"><button class="btn btn-sm btn-outline-primary">Post adjustment</button></div>
+            </div>
+        </form></div></div></div>
+    <div class="col-md-6"><div class="card h-100"><div class="card-header py-2"><strong>Record an extra block</strong></div>
+        <div class="card-body">
+        <form method="post" action="{% url 'psa:contract_ledger_block' item.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_key" value="{{ form_key }}">
+            <div class="row g-2">
+                <div class="col-4"><input type="number" step="0.01" min="0.01" name="hours" class="form-control form-control-sm" placeholder="Hours" required></div>
+                <div class="col-4"><input type="date" name="starts_on" class="form-control form-control-sm" title="Valid from"></div>
+                <div class="col-4"><input type="date" name="expires_on" class="form-control form-control-sm" title="Expires"></div>
+                <div class="col-12"><input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason, e.g. invoice number" required></div>
+                <div class="col-12"><button class="btn btn-sm btn-outline-primary">Record block</button>
+                    <small class="text-muted ms-1">Bill the block separately; using its hours is never billed again.</small></div>
+            </div>
+        </form></div></div></div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header py-2"><strong>Postings</strong> <small class="text-muted">newest first, never edited</small></div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0 small">
+            <thead><tr><th>When</th><th>Kind</th><th>Date</th><th class="text-end">Hours</th><th>Block</th><th>Time entry</th><th>By</th><th>Reason</th></tr></thead>
+            <tbody>
+            {% for p in postings %}
+            <tr>
+                <td>{{ p.created_at|date:'Y-m-d H:i' }}</td>
+                <td>{{ p.get_kind_display }}{% if p.status == 'migrated' %} <span class="badge text-bg-light border">opening</span>{% endif %}</td>
+                <td>{{ p.effective_date }}</td>
+                <td class="text-end">{{ p.hours|floatformat:2 }}</td>
+                <td>{{ p.block|default:'—' }}</td>
+                <td>{% if p.time_entry_ref %}#{{ p.time_entry_ref }}{% endif %}</td>
+                <td>{{ p.actor.username|default:'system' }}</td>
+                <td>{{ p.reason }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-muted">No postings.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

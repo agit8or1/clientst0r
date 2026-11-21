@@ -33,8 +33,10 @@
                     </td>
                     <td>
                         {% if c.total_hours %}
-                            {{ c.hours_used }} / {{ c.total_hours }}
-                            {% if c.hours_remaining is not None %}<small class="text-muted">({{ c.hours_remaining }} left)</small>{% endif %}
+                            {% with p=c.prepaid %}
+                            {{ p.used_hours }} / {{ p.total_hours }}
+                            <small class="text-muted">({{ p.remaining_hours }} left{% if p.mode == 'cycle' %} this cycle{% endif %})</small>
+                            {% endwith %}
                         {% else %}
                             {{ c.hours_used }} <small class="text-muted">(unlimited)</small>
                         {% endif %}

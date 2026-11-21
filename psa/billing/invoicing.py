@@ -1,0 +1,259 @@
+"""Phase 101.4: what a ticket invoice bills, from the ledger, rate cards and
+billing rules.
+
+`ticket_billing_lines(ticket)` returns `(lines, info)`: InvoiceLineItem field
+dicts for the ticket's billable work not yet on a live invoice (not void,
+not a credit memo), and a summary for the person invoicing. It only reads; a
+draft invoice is created by the explicit "Invoice ticket" action
+(psa.views.invoice_from_ticket) and nothing re-prices an existing invoice.
+
+Per time entry (billable, stopped, positive duration):
+
+* **Prepaid agreement.** The ledger decides. Only time the ledger holds is
+  billed: approved time (101.3) and time counted in the opening balance on
+  upgrade. The consumed hours go on as a zero-priced "covered" line, the
+  ledger's overage hours at the agreement's overage rate (or hourly rate),
+  rounded up to the billing rule's increment. Time not approved yet is left
+  off and reported (`info['awaiting_approval']`), as is approved time waiting
+  for an agreement choice (`info['needs_choice']`).
+* **Flat-fee agreement without an allowance** (managed services, retainer):
+  zero-priced covered line, as before.
+* **Chargeable** (another agreement, or none: time and materials): priced
+  per entry. Rate precedence: a customer or contract rate-card line in the
+  entry's rate snapshot > the agreement's hourly rate > the snapshot's
+  MSP-wide or role-default rate > the rate cards resolved now. No rate at
+  all: the entry is left off and reported (`info['no_rate']`), never billed
+  at $0. The billing rule (pricing.BillingRule, most specific for customer
+  and agreement on the work date) applies its minimum and increment to each
+  chargeable entry. Each day with chargeable onsite work (rate type
+  "onsite") gets the rule's dispatch and travel fees once per ticket
+  (source 'fee', so a fee is never billed twice).
+* **Before the upgrade cutoff** (psa.BillingEngineSettings.
+  ticket_pricing_from): chargeable time worked before it is billed exactly as
+  before 101.4 (agreement hourly rate, or $0 without an agreement; no rules,
+  no fees) unless `include_before_cutoff=True`, which someone invoicing
+  chooses on purpose. Prepaid time follows the ledger either way.
+
+Holiday rate type: new time entries worked on a resourcing.Holiday date are
+rated with the rate card's holiday line when one exists
+(pricing.services.snapshot_time_entry). After-hours and weekend rate types are
+not set automatically: there is no business-hours calendar yet (Phase 93).
+
+Expenses are billed as before.
+"""
+from __future__ import annotations
+
+from decimal import ROUND_HALF_UP, Decimal
+
+from django.utils import timezone
+
+from . import coverage, ledger
+
+ZERO = Decimal('0')
+CUSTOMER_SCOPES = ('customer_contract', 'customer', 'contract')
+
+
+def _hours2(minutes):
+    return (Decimal(int(minutes)) / Decimal(60)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def cutoff():
+    from psa.models import BillingEngineSettings
+    return BillingEngineSettings.get().ticket_pricing_from
+
+
+def before_cutoff(entry, cut=None):
+    cut = cut if cut is not None else cutoff()
+    return bool(cut and entry.started_at and entry.started_at < cut)
+
+
+def billing_rule(client, contract, on_date):
+    try:
+        from pricing.services import resolve_billing_rule
+        return resolve_billing_rule(client=client, contract=contract, on_date=on_date)
+    except Exception:  # pragma: no cover - pricing misconfiguration never blocks invoicing
+        return None
+
+
+def round_minutes(rule, minutes, *, minimum=True):
+    """Billing-rule minimum (optional) and increment rounding."""
+    m = int(minutes or 0)
+    if rule is None or m <= 0:
+        return m
+    if minimum:
+        return rule.billable_minutes(m)
+    inc = max(rule.increment_minutes or 1, 1)
+    if inc > 1 and rule.rounding_mode != 'none':
+        q, r = divmod(m, inc)
+        if r and (rule.rounding_mode == 'up' or (rule.rounding_mode == 'nearest' and r * 2 >= inc)):
+            q += 1
+        m = q * inc
+    return m
+
+
+def labor_rate(entry, agreement):
+    """(rate, source) for chargeable time, or (None, reason)."""
+    line = entry.rate_card_line
+    scope = getattr(getattr(line, 'rate_card', None), 'scope', '') if line is not None else ''
+    if entry.bill_rate_snapshot is not None and scope in CUSTOMER_SCOPES:
+        return Decimal(entry.bill_rate_snapshot), f'{scope.replace("_", " ")} rate card'
+    if agreement is not None and (agreement.hourly_rate or ZERO) > 0:
+        return Decimal(agreement.hourly_rate), 'agreement hourly rate'
+    if entry.bill_rate_snapshot is not None:
+        return Decimal(entry.bill_rate_snapshot), 'rate card' if scope else 'role default rate'
+    try:
+        from pricing.services import resolve_labor_rate
+        res = resolve_labor_rate(technician=entry.user, client=entry.ticket.organization, contract=agreement,
+                                 role=entry.labor_role, rate_type=entry.rate_type or 'standard',
+                                 on_date=coverage.work_date(entry))
+    except Exception:  # pragma: no cover
+        return None, 'rate lookup failed'
+    if res.missing or res.rate is None:
+        return None, res.reason or 'no rate'
+    return Decimal(res.rate), 'rate card (resolved at invoicing)'
+
+
+def _work(entry):
+    return (entry.notes or 'work').strip() or 'work'
+
+
+def _fee_billed(key):
+    from psa.models import InvoiceLineItem
+    return (InvoiceLineItem.objects.filter(source='fee', source_id=key)
+            .exclude(invoice__status='void').exclude(invoice__is_credit_memo=True).exists())
+
+
+def ticket_billing_lines(ticket, *, include_before_cutoff=False):
+    from psa.models import InvoiceLineItem
+
+    entries = [te for te in ticket.time_entries.filter(is_billable=True).exclude(ended_at__isnull=True)
+               .select_related('ticket', 'ticket__organization', 'ticket__ticket_type', 'user',
+                               'rate_card_line__rate_card', 'labor_role')
+               .order_by('started_at', 'pk') if (te.duration_minutes or 0) > 0]
+    billed = InvoiceLineItem.billed_source_ids('time', [te.pk for te in entries])
+    entries = [te for te in entries if te.pk not in billed]
+    expenses = list(ticket.expenses.filter(is_billable=True).order_by('incurred_on', 'pk'))
+    billed_exp = InvoiceLineItem.billed_source_ids('expense', [e.pk for e in expenses])
+    expenses = [e for e in expenses if e.pk not in billed_exp]
+
+    cut = cutoff()
+    client = ticket.organization
+    lines = []
+    info = {
+        'covered_minutes': 0, 'overage_minutes': 0, 'chargeable_minutes': 0, 'billed_minutes': 0,
+        'rate': ZERO, 'allowance': 0, 'agreements': set(),
+        'awaiting_approval': [], 'needs_choice': [], 'no_rate': [], 'before_cutoff': [],
+        'fees': ZERO, 'cutoff': cut,
+    }
+    visits = {}
+
+    for te in entries:
+        work = _work(te)
+        on = coverage.work_date(te)
+        held = ledger.active_entry_postings(te.pk)
+        if held:
+            c = held[0].contract
+            info['agreements'].add(c.pk)
+            consumed = sum(ledger.minutes_of(-p.hours) for p in held if p.kind == 'consumption')
+            over = sum(ledger.minutes_of(p.hours) for p in held if p.kind == 'overage')
+            if consumed > 0:
+                info['covered_minutes'] += consumed
+                lines.append({'description': f'Time (covered by {c.name} prepaid hours): {work}'[:300],
+                              'quantity': _hours2(consumed), 'unit_price': ZERO,
+                              'source': 'time', 'source_id': str(te.pk)})
+            if over > 0:
+                rate = Decimal(str(c.overage_rate or c.hourly_rate or 0))
+                info['rate'] = rate
+                pre = before_cutoff(te, cut) and not include_before_cutoff
+                rule = None if pre else billing_rule(client, c, on)
+                billed_over = round_minutes(rule, over, minimum=False)
+                info['overage_minutes'] += over
+                info['billed_minutes'] += billed_over
+                note = '' if billed_over == over else f' ({over} min worked, billed in {rule.increment_minutes}-min steps)'
+                lines.append({'description': f'Time (beyond prepaid hours): {work}{note}'[:300],
+                              'quantity': _hours2(billed_over), 'unit_price': rate,
+                              'source': 'time', 'source_id': str(te.pk)})
+                if te.rate_type == 'onsite' and not pre:
+                    visits.setdefault(on, c)
+            continue
+
+        res = coverage.resolve(te, plan=False)
+        agreement = res.agreement
+        if res.status == 'needs_choice':
+            info['needs_choice'].append(te)
+            continue
+        if res.treatment == 'prepaid':
+            info['awaiting_approval'].append(te)
+            continue
+        if agreement is not None:
+            info['agreements'].add(agreement.pk)
+        if res.treatment == 'covered':
+            info['covered_minutes'] += te.duration_minutes
+            lines.append({'description': f'Time (covered by {agreement.name}): {work}'[:300],
+                          'quantity': _hours2(te.duration_minutes), 'unit_price': ZERO,
+                          'source': 'time', 'source_id': str(te.pk)})
+            continue
+        # Chargeable: another agreement, or time and materials.
+        if before_cutoff(te, cut) and not include_before_cutoff:
+            # Exactly as before 101.4: no back-billing of old time.
+            info['before_cutoff'].append(te)
+            rate = Decimal(str(agreement.hourly_rate)) if agreement is not None else ZERO
+            lines.append({'description': f'Time: {work}'[:300], 'quantity': _hours2(te.duration_minutes),
+                          'unit_price': rate, 'source': 'time', 'source_id': str(te.pk)})
+            continue
+        rate, source = labor_rate(te, agreement)
+        if rate is None:
+            info['no_rate'].append((te, source))
+            continue
+        rule = billing_rule(client, agreement, on)
+        billed_min = round_minutes(rule, te.duration_minutes)
+        info['chargeable_minutes'] += te.duration_minutes
+        info['billed_minutes'] += billed_min
+        info['rate'] = rate
+        kind = '' if (te.rate_type or 'standard') == 'standard' else f' [{te.get_rate_type_display().lower()}]'
+        note = '' if billed_min == te.duration_minutes else f' ({te.duration_minutes} min worked)'
+        lines.append({'description': f'Time{kind}: {work}{note}'[:300], 'quantity': _hours2(billed_min),
+                      'unit_price': rate, 'source': 'time', 'source_id': str(te.pk),
+                      'price_source': f'101.4:{source}'[:40], 'price_resolved_at': timezone.now()})
+        if te.rate_type == 'onsite':
+            visits.setdefault(on, agreement)
+
+    for on, agreement in sorted(visits.items(), key=lambda kv: kv[0]):
+        rule = billing_rule(client, agreement, on)
+        if rule is None:
+            continue
+        for kind, amount in (('dispatch', rule.dispatch_fee), ('travel', rule.travel_fee)):
+            if not amount:
+                continue
+            key = f'{kind}:{ticket.pk}:{on.isoformat()}'
+            if _fee_billed(key):
+                continue
+            info['fees'] += Decimal(amount)
+            lines.append({'description': f'{kind.title()} fee: onsite visit {on.isoformat()}',
+                          'quantity': Decimal('1'), 'unit_price': Decimal(amount), 'source': 'fee',
+                          'source_id': key, 'is_taxable': True, 'price_source': f'billing rule {rule.pk}'})
+
+    for e in expenses:
+        lines.append({'description': f'Expense: {e.description}'[:300], 'quantity': Decimal('1'),
+                      'unit_price': Decimal(str(e.amount)), 'source': 'expense', 'source_id': str(e.pk)})
+    return lines, info
+
+
+def lines_total(lines):
+    total = ZERO
+    for ln in lines:
+        total += (Decimal(str(ln['quantity'])) * Decimal(str(ln['unit_price']))).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return total
+
+
+def single_agreement(info):
+    """The agreement for Invoice.source_contract when all time is under one."""
+    from psa.models import Contract
+    ids = info.get('agreements') or set()
+    if len(ids) == 1:
+        return Contract.objects.filter(pk=next(iter(ids))).first()
+    return None
+
+
+__all__ = ['ticket_billing_lines', 'labor_rate', 'round_minutes', 'cutoff', 'lines_total']

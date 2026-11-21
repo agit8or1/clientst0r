@@ -63,3 +63,38 @@ def _make_msp_tech(user):
     profile.user_type = UserType.STAFF
     profile.save()
     return user
+
+
+def _use_prepaid_hours(contract, minutes, *, user=None, days_ago=0):
+    """Phase 101.4: record `minutes` of approved billable time under
+    `contract`'s customer, so the prepaid-hour ledger consumes it (what used
+    to be faked by setting `Contract.hours_used_minutes`). The entry is dated
+    inside the contract's window. Returns the time entry."""
+    from datetime import datetime, time as _time
+
+    from psa.models import (Queue, Ticket, TicketPriority, TicketStatus, TicketTimeEntry, TicketType,
+                            TimesheetSubmission)
+    if not Queue.objects.exists():
+        _setup_seed()
+    if user is None:
+        user, _ = User.objects.get_or_create(username='prepaid-approver',
+                                             defaults={'is_superuser': True, 'is_staff': True})
+    on = timezone.localdate() - timedelta(days=days_ago)
+    if contract.end_date and on > contract.end_date:
+        on = contract.end_date
+    if on < contract.start_date:
+        on = contract.start_date
+    start = timezone.make_aware(datetime.combine(on, _time(9, 0)))
+    ticket = Ticket.objects.create(
+        organization=contract.client_org, subject='Prepaid work', queue=Queue.objects.first(),
+        priority=TicketPriority.objects.first(), ticket_type=TicketType.objects.first(),
+        status=TicketStatus.objects.first())
+    te = TicketTimeEntry.objects.create(
+        ticket=ticket, user=user, started_at=start, ended_at=start + timedelta(minutes=minutes),
+        duration_minutes=minutes, is_billable=True, billing_contract=contract, billing_contract_chosen=True)
+    sub = TimesheetSubmission.objects.create(
+        user=user, period_start=on, period_end=on,
+        revision=TimesheetSubmission.objects.filter(user=user).count() + 1, status='pending')
+    TicketTimeEntry.objects.filter(pk=te.pk).update(submission=sub)
+    sub.approve(user=user)
+    return te

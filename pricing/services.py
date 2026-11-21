@@ -439,7 +439,14 @@ def labor_role_for_code(client_org, role_code):
 
 
 def coverage_for(contract, entry, prior_minutes=None):
-    """included / overage / partial / flat_fee / no_contract / non_billable."""
+    """included / overage / partial / flat_fee / no_contract / non_billable.
+
+    A FORECAST label stored on a new time entry (`included_vs_overage`), from
+    the contract's old usage counter, which also counts unapproved time. It
+    never deducts or bills anything and shows no balance: prepaid hours are
+    used when the timesheet is approved and invoices read the prepaid-hour
+    ledger (Phase 101.3/101.4). Balances shown anywhere come from the ledger
+    (`Contract.prepaid`)."""
     if not entry.is_billable:
         return 'non_billable'
     if contract is None:
@@ -454,6 +461,14 @@ def coverage_for(contract, entry, prior_minutes=None):
     if used + minutes <= allowance:
         return 'included'
     return 'partial'
+
+
+def _is_holiday(on, client):
+    try:
+        from resourcing.models import Holiday
+        return Holiday.is_holiday(_as_date(on), organization=client)
+    except Exception:  # pragma: no cover - resourcing app unavailable
+        return False
 
 
 def snapshot_time_entry(entry):
@@ -471,6 +486,15 @@ def snapshot_time_entry(entry):
         entry.labor_role = labor_role_for_code(client, entry.role_code)
     if not entry.rate_type:
         entry.rate_type = 'standard'
+        # Phase 101.4: time worked on a holiday (resourcing.Holiday, the
+        # customer's or install-wide) is rated with the rate card's holiday
+        # line when there is one. After-hours / weekend are not inferred:
+        # there is no business-hours calendar yet (Phase 93).
+        if entry.bill_rate_snapshot is None and _is_holiday(on, client):
+            hol = resolve_labor_rate(technician=entry.user, client=client, contract=contract,
+                                     role=entry.labor_role, rate_type='holiday', on_date=on)
+            if not hol.missing and hol.rate_card_line is not None:  # a real holiday line
+                entry.rate_type = 'holiday'
     if entry.bill_rate_snapshot is None:
         res = resolve_labor_rate(technician=entry.user, client=client, contract=contract,
                                  role=entry.labor_role, rate_type=entry.rate_type, on_date=on)

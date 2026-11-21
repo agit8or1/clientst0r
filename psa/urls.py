@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import reminders, requester_site_views, views
+from . import ledger_views, reminders, requester_site_views, views
 from . import request_builder_views as _rb
 
 app_name = 'psa'
@@ -107,6 +107,11 @@ urlpatterns = [
     path('contracts/new/', views.contract_form, name='contract_create'),
     path('contracts/<int:pk>/', views.contract_detail, name='contract_detail'),
     path('contracts/<int:pk>/edit/', views.contract_form, name='contract_edit'),
+    path('contracts/<int:pk>/ledger/', ledger_views.contract_ledger, name='contract_ledger'),
+    path('contracts/<int:pk>/ledger/adjust/', ledger_views.contract_ledger_adjust, name='contract_ledger_adjust'),
+    path('contracts/<int:pk>/ledger/block/', ledger_views.contract_ledger_block, name='contract_ledger_block'),
+    path('time/<int:entry_id>/agreement/', ledger_views.time_entry_choose_agreement,
+         name='time_entry_choose_agreement'),
     # Email ingestion
     path('email-configs/', views.email_config_list, name='email_config_list'),
     path('email-configs/new/', views.email_config_form, name='email_config_create'),

@@ -12,7 +12,7 @@ from audit.models import AuditLog
 from core.models import Organization, SystemSetting
 from psa import billing_review as br
 from psa.models import (Contract, Invoice, InvoiceLineItem, Queue, Ticket, TicketPriority, TicketStatus,
-                        TicketTimeEntry, TicketType)
+                        TicketTimeEntry, TicketType, TimesheetSubmission)
 from psa.tests._base import TEST_MIDDLEWARE, _make_msp_tech, _setup_seed
 
 
@@ -53,8 +53,14 @@ class BillingReviewTests(TestCase):
         self.invoice.recompute_totals()
 
     def _time(self, d, minutes, billable=True):
-        TicketTimeEntry.objects.create(ticket=self.ticket, user=self.admin, started_at=_at(d),
-                                       ended_at=_at(d) + timedelta(minutes=minutes), is_billable=billable)
+        te = TicketTimeEntry.objects.create(ticket=self.ticket, user=self.admin, started_at=_at(d),
+                                            ended_at=_at(d) + timedelta(minutes=minutes), is_billable=billable)
+        # Phase 101.4: the review reads the prepaid-hour ledger (approved time).
+        sub = TimesheetSubmission.objects.create(
+            user=self.admin, period_start=d, period_end=d,
+            revision=TimesheetSubmission.objects.count() + 1, status='pending')
+        TicketTimeEntry.objects.filter(pk=te.pk).update(submission=sub)
+        sub.approve(user=self.admin)
 
     def _login(self, user, org=None):
         c = Client()

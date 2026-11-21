@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.749] - 2026-11-21
+
+Prepaid-hour ledger and ticket invoicing from the ledger and rate cards.
+
+### Added
+
+- **Prepaid-hour ledger (roadmap 101.1, 101.2)**
+  - **What it is:** each contract with prepaid or rollover hours now has a ledger of postings that can never be
+    edited or deleted: purchases, use, overage, expiry, reversals and manual adjustments.
+  - **Contract page:** a new **Prepaid-hour ledger** page shows blocks, balances, postings and time waiting for an
+    agreement choice. It also takes audited manual adjustments and extra blocks; both need **Manage charges** for
+    that customer and a reason.
+  - **Which hours are used first:** blocks are used earliest expiry first. Unused hours expire 45 days after a block
+    ends, so late approvals still count.
+  - **Retainer cycles:** retainers billed monthly, quarterly or yearly get a fresh allowance each cycle.
+  - **Low balances** raise a system warning.
+  - **Choosing between agreements:** one resolver picks the agreement for each time entry by effective dates and a
+    new **Billing priority**. When two agreements tie, nothing is used until someone with billing permission
+    chooses.
+  - **New contract options:** billing priority, allow negative balance, and a low-balance warning threshold.
+  - **Checking it:** `manage.py prepaid_ledger_reconcile --dry-run` compares every block with the old counter.
+
+### Changed
+
+- **Only approved time uses prepaid hours (101.3).**
+  - Draft and pending time uses nothing.
+  - Rejecting or returning approved time gives its hours back, and approving twice never deducts twice.
+  - Time logged before the upgrade but not yet approved stays counted until it is approved (no change) or rejected
+    (hours come back).
+  - Overlapping agreements for one customer no longer count the same time twice.
+- **Remaining hours come from the ledger.** The contract list, contract page, ticket banner and mobile app all read
+  it. Balances open on upgrade at what was shown before, except for corrections:
+  - retainers now show the current cycle;
+  - used rolled-over hours are no longer lost when the rollover expires.
+- **Ticket invoices come from the ledger and rate cards (101.4).**
+  - **Prepaid time:** "Invoice this ticket" bills only approved prepaid time and overage from the ledger. Time left
+    off, and why, is listed.
+  - **Time-and-materials time** (no covering agreement) worked after the upgrade is priced from the rate cards
+    instead of $0, applying the existing billing rules: minimum time, billing increments, and trip fees once per
+    onsite day.
+  - **Holiday rates** apply on dates in the holiday calendar when a rate card has a holiday line. After-hours and
+    weekend rates are not set automatically yet.
+  - **Time worked before the upgrade** is billed as before unless you tick **Include earlier unbilled time**.
+  - **Missing rates:** time with no rate anywhere is left off with a warning, never billed at $0.
+- **Existing invoices are never repriced.** Invoices are drafted only when someone clicks **Invoice this ticket**,
+  and sent, paid or locked invoices are untouched.
+- **Billing review, the invoice approval threshold, auto-renew rollover and the agreement reconciliation pages**
+  (summary and drill-down) now read the ledger, so they agree with each other.
+
+### Notes
+
+- **Before relying on it:** run `manage.py billing_preview` to see, for each customer, the next ticket invoices under
+  the old and new logic.
+- **New migrations:** `psa.0091_prepaid_ledger`, `psa.0092_prepaid_ledger_opening` (opens each ledger at the current
+  balance), `psa.0093_billing_cutover` (records the upgrade time as the time-and-materials cutoff) and
+  `psa.0094_coverage_forecast_label`.
+
 ## [3.17.748] - 2026-11-21
 
 Quick Connect: browser-mediated pairing for Agit8or Connect (increment C2). It is off by default.

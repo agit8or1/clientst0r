@@ -2233,9 +2233,11 @@ class ContractAutoRenewalTests(TestCase):
         from django.core.management import call_command
         from psa.models import Contract
         old = self._make_contract(
-            total_hours=40, hours_used_minutes=20 * 60,  # 20h used
+            total_hours=40,
             rollover_percent=50, rollover_expiry_days=30,
         )
+        from psa.tests._base import _use_prepaid_hours
+        _use_prepaid_hours(old, 20 * 60, days_ago=5)  # 20h used (approved)
         call_command('psa_auto_renew_contracts')
         new = Contract.objects.filter(parent_contract=old).first()
         # 20h unused × 50% = 10h = 600 min

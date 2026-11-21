@@ -446,132 +446,20 @@ class Ticket(models.Model):
                                   'signoff_note', 'updated_at'])
         return True
 
-    def uninvoiced_billing_lines(self, contract=None):
+    def uninvoiced_billing_lines(self, contract=None, *, include_before_cutoff=False):
         """What a ticket invoice should bill right now, as line-item dicts.
 
-        Returns `(lines, info)`. Each line is a dict of InvoiceLineItem
-        fields. `info` summarises the split for the caller's message:
-        `{'covered_minutes', 'overage_minutes', 'rate', 'allowance'}`.
-
-        Two rules, both added after the ticket-invoice path was found billing
-        the same work twice and billing prepaid hours a second time:
-
-        1. Entries and expenses already on a live invoice are left out. "Live"
-           means not void and not a credit memo — see
-           `InvoiceLineItem.billed_source_ids`.
-
-        2. Under a contract with an hours allowance (block hours / retainer,
-           `effective_total_minutes() > 0`), time is already paid for by the
-           contract's recurring invoice (`Contract.generate_invoice` bills the
-           block; it never bills time). Only the minutes the contract has
-           consumed beyond its allowance — and not already billed as overage
-           on another invoice for this contract — are charged, at
-           `overage_rate` (or `hourly_rate` when no overage rate is set). The
-           covered remainder goes on the invoice as a zero-priced line, so the
-           customer sees the work and the entry is recorded as invoiced. When
-           only part of the work is overage, the latest entries are treated as
-           the overage — they are the ones logged after the allowance ran out.
-
-        3. Flat-fee contracts — `contract_type` in `Contract.FLAT_FEE_TYPES`
-           (managed services, retainer) with no allowance — cover all ticket
-           time: every entry goes on as a zero-priced covered line, recorded
-           as invoiced so it is never billed later. Expenses are still billed.
-
-        Other contracts without an allowance (block_hours with 0 hours,
-        per_incident) or no contract bill all time at `contract.hourly_rate`
-        (0 without a contract), as before.
+        Returns `(lines, info)`. Phase 101.4: prepaid usage and overage come
+        from the prepaid-hour ledger (approved time), chargeable time is
+        priced from the rate cards and billing rules, and time worked before
+        the upgrade cutoff is billed the old way unless
+        `include_before_cutoff`. See psa.billing.invoicing for the rules.
+        `contract` is accepted for compatibility and ignored: each entry
+        follows its own agreement. Entries and expenses already on a live
+        invoice are left out (InvoiceLineItem.billed_source_ids).
         """
-        from decimal import Decimal
-
-        def _hours(minutes):
-            return (Decimal(minutes) / Decimal(60)).quantize(Decimal('0.01'))
-
-        entries = [
-            te for te in self.time_entries.filter(is_billable=True)
-            .exclude(ended_at__isnull=True).order_by('started_at', 'pk')
-            if (te.duration_minutes or 0) > 0
-        ]
-        billed_time = InvoiceLineItem.billed_source_ids(
-            'time', [te.pk for te in entries])
-        entries = [te for te in entries if te.pk not in billed_time]
-        expenses = list(self.expenses.filter(is_billable=True)
-                        .order_by('incurred_on', 'pk'))
-        billed_exp = InvoiceLineItem.billed_source_ids(
-            'expense', [e.pk for e in expenses])
-        expenses = [e for e in expenses if e.pk not in billed_exp]
-
-        allowance = contract.effective_total_minutes() if contract else 0
-        overage_by_entry = {}
-        if contract and allowance > 0:
-            rate = Decimal(str(contract.overage_rate or contract.hourly_rate or 0))
-            over_total = max(0, (contract.hours_used_minutes or 0) - allowance)
-            over_left = max(0, over_total - contract.overage_minutes_invoiced())
-            for te in reversed(entries):
-                if over_left <= 0:
-                    break
-                take = min(over_left, te.duration_minutes)
-                overage_by_entry[te.pk] = take
-                over_left -= take
-        else:
-            rate = Decimal(str(contract.hourly_rate)) if contract else Decimal('0')
-        # Flat-fee contracts (managed services / retainer with no hours
-        # allowance) cover all ticket time: the recurring fee is the price.
-        # Product decision 2026-10-15. Expenses are still billed.
-        flat_fee = bool(contract and allowance <= 0
-                        and contract.contract_type in Contract.FLAT_FEE_TYPES)
-
-        lines = []
-        covered_total = 0
-        over_total_now = 0
-        for te in entries:
-            work = (te.notes or 'work').strip() or 'work'
-            if flat_fee:
-                covered_total += te.duration_minutes
-                lines.append({
-                    'description': f'Time (covered by {contract.name}): {work}'[:300],
-                    'quantity': _hours(te.duration_minutes),
-                    'unit_price': Decimal('0'),
-                    'source': 'time', 'source_id': str(te.pk),
-                })
-            elif contract and allowance > 0:
-                over = overage_by_entry.get(te.pk, 0)
-                covered = te.duration_minutes - over
-                if covered > 0:
-                    covered_total += covered
-                    lines.append({
-                        'description': f'Time (covered by {contract.name} prepaid hours): {work}'[:300],
-                        'quantity': _hours(covered),
-                        'unit_price': Decimal('0'),
-                        'source': 'time', 'source_id': str(te.pk),
-                    })
-                if over > 0:
-                    over_total_now += over
-                    lines.append({
-                        'description': f'Time (beyond prepaid hours): {work}'[:300],
-                        'quantity': _hours(over),
-                        'unit_price': rate,
-                        'source': 'time', 'source_id': str(te.pk),
-                    })
-            else:
-                lines.append({
-                    'description': f'Time: {work}'[:300],
-                    'quantity': _hours(te.duration_minutes),
-                    'unit_price': rate,
-                    'source': 'time', 'source_id': str(te.pk),
-                })
-        for e in expenses:
-            lines.append({
-                'description': f'Expense: {e.description}'[:300],
-                'quantity': Decimal('1'),
-                'unit_price': Decimal(str(e.amount)),
-                'source': 'expense', 'source_id': str(e.pk),
-            })
-        return lines, {
-            'covered_minutes': covered_total,
-            'overage_minutes': over_total_now,
-            'rate': rate,
-            'allowance': allowance,
-        }
+        from psa.billing.invoicing import ticket_billing_lines
+        return ticket_billing_lines(self, include_before_cutoff=include_before_cutoff)
 
     @staticmethod
     def _generate_ticket_number():
@@ -968,9 +856,12 @@ class TicketTimeEntry(models.Model):
         ('remote', 'Remote'), ('travel', 'Travel'), ('project', 'Project'),
         ('consulting', 'Consulting'), ('fixed', 'Fixed'), ('minimum_charge', 'Minimum charge'),
     ]
+    # Forecast labels, set once when the entry is created (pricing.services.
+    # coverage_for). Not a deduction: prepaid hours are used only when the
+    # timesheet is approved (the prepaid-hour ledger, billing_resolution).
     COVERAGE_CHOICES = [
-        ('', 'Not evaluated'), ('included', 'Included in allowance'), ('overage', 'Overage'),
-        ('partial', 'Partly included'), ('flat_fee', 'Covered by flat fee'),
+        ('', 'Not evaluated'), ('included', 'Forecast: within allowance'), ('overage', 'Forecast: overage'),
+        ('partial', 'Forecast: partly within allowance'), ('flat_fee', 'Covered by flat fee'),
         ('no_contract', 'No contract'), ('non_billable', 'Non-billable'),
     ]
     bill_rate_snapshot = models.DecimalField(
@@ -991,11 +882,42 @@ class TicketTimeEntry(models.Model):
         related_name='rated_time_entries',
         help_text='Contract in force when the entry was created (snapshot).')
     included_vs_overage = models.CharField(
-        max_length=20, choices=COVERAGE_CHOICES, blank=True, default='')
+        max_length=20, choices=COVERAGE_CHOICES, blank=True, default='',
+        help_text='Forecast when the entry was created, not a deduction: prepaid hours are used on '
+                  'approval (see the prepaid-hour ledger).')
     rate_missing = models.BooleanField(
         null=True, blank=True,
         help_text='True = billable time with no resolvable bill rate. NULL = not rated.')
     rate_missing_reason = models.CharField(max_length=300, blank=True, default='')
+
+    # Phase 101 (coverage resolver + prepaid-hour ledger, psa/billing/).
+    # `billing_contract` is the agreement the entry was billed against,
+    # stored when it is approved (or when someone with the billing permission
+    # chooses it). `billing_contract_chosen` = a person chose it, so the
+    # resolver uses it instead of working it out. Written with queryset
+    # updates only: approved entries are locked against save().
+    BILLING_RESOLUTION_CHOICES = [
+        ('', 'Not evaluated'),
+        ('prepaid', 'Prepaid hours'),
+        ('partial', 'Partly prepaid, rest overage'),
+        ('overage', 'Overage (no prepaid hours left)'),
+        ('covered', 'Covered by the agreement fee'),
+        ('chargeable', 'Chargeable'),
+        ('non_billable', 'Non-billable'),
+        ('needs_choice', 'Needs an agreement choice'),
+        ('no_agreement', 'No agreement'),
+        ('released', 'Released (not approved)'),
+    ]
+    billing_contract = models.ForeignKey(
+        'psa.Contract', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='billed_time_entries',
+        help_text='Agreement this entry is billed against (set on approval).')
+    billing_contract_chosen = models.BooleanField(
+        default=False,
+        help_text='True when a person chose billing_contract; the resolver then uses it.')
+    billing_resolution = models.CharField(
+        max_length=20, choices=BILLING_RESOLUTION_CHOICES, blank=True, default='')
+    billing_resolved_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1077,6 +999,11 @@ class TicketTimeEntry(models.Model):
                     entry_id=self.pk, entry_ref=self.pk, submission=sub,
                     action='changed_after_approval', actor=audit_user,
                     note=(audit_note or '')[:5000], changes=changes)
+                # Phase 101.3: re-allocate the prepaid hours of an approved
+                # entry changed through the admin override (reverses the old
+                # allocation and posts the new one; no change, no posting).
+                from psa.billing import ledger
+                ledger.post_entry(self, actor=audit_user, event='changed after approval')
 
         # Contract hour accounting (v3.17.600). This used to add
         # `duration_minutes` to the active contract's `hours_used_minutes` on
@@ -2429,6 +2356,24 @@ class Contract(models.Model):
         help_text='Previous-period contract this one rolled forward from.',
     )
 
+    # --- Phase 101: agreement precedence and prepaid-hour ledger -----------
+    billing_priority = models.SmallIntegerField(
+        default=0,
+        help_text='When several agreements of a customer cover the same time, '
+                  'the highest priority wins. Equal priorities need a person '
+                  'to choose (the time is not counted until then).',
+    )
+    allow_negative_balance = models.BooleanField(
+        default=False,
+        help_text='Let approved time take the prepaid balance below zero '
+                  'instead of becoming overage.',
+    )
+    low_balance_threshold_hours = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Warn when the prepaid balance falls to this many hours. '
+                  'Blank = 20% of the hours purchased.',
+    )
+
     # Per-priority SLA matrix overrides queue defaults.
     # Schema: {"priority_slug": {"response_minutes": int, "resolution_minutes": int}, ...}
     sla_matrix = models.JSONField(default=dict, blank=True)
@@ -2774,6 +2719,22 @@ class Contract(models.Model):
         avail = self.effective_total_minutes() - (self.hours_used_minutes or 0)
         return round(max(0, avail) / 60.0, 2)
 
+    @property
+    def prepaid(self):
+        """Prepaid-hour balance from the ledger (Phase 101), for display.
+
+        `psa.billing.ledger.PrepaidSummary`: purchased / used / remaining
+        hours of the blocks valid today (the current cycle for a retainer
+        billed per cycle), `unlimited` when the contract has no allowance,
+        `tracked=False` when the contract has no ledger yet (the figures then
+        come from the old counter). Invoicing does not read this yet."""
+        cached = getattr(self, '_prepaid_summary', None)
+        if cached is None:
+            from psa.billing import ledger
+            cached = ledger.summary(self)
+            self._prepaid_summary = cached
+        return cached
+
     def is_role_billable(self, role_code: str) -> bool:
         """
         Decide whether a time entry from a tech with `role_code` should count
@@ -2909,7 +2870,14 @@ class Contract(models.Model):
         from reports.costing import LaborTally, RateBook, entry_hours, margin_fields
 
         bundled = self.bundled_subtotal()
-        hours_used = Decimal(str(self.hours_used or 0))
+        # Phase 101.4: allowance contracts count approved time from the
+        # prepaid-hour ledger (covered + overage); others the old counter.
+        from psa.billing.ledger import totals as _ledger_totals
+        lt = _ledger_totals(self)
+        if lt is not None:
+            hours_used = (lt['consumed'] + lt['overage']).quantize(Decimal('0.01'))
+        else:
+            hours_used = Decimal(str(self.hours_used or 0))
         billed_hours = min(hours_used, self.total_hours or hours_used)
         overage_hours = max(Decimal('0'), hours_used - (self.total_hours or hours_used))
         revenue = (
@@ -3056,6 +3024,182 @@ class ContractBundleItem(models.Model):
 # ---------------------------------------------------------------------------
 # Email ingestion — Workstream 1 queued: email-to-ticket
 # ---------------------------------------------------------------------------
+
+class BillingEngineSettings(models.Model):
+    """Phase 101.4: install-wide switches of the ticket billing engine (one row, pk=1).
+
+    `ticket_pricing_from` is the upgrade cutoff: ticket time worked before it
+    is invoiced exactly as before 101.4 (time without an agreement at $0, no
+    billing rules), so upgrading never back-bills old time. Time worked from
+    the cutoff on is priced from the rate cards and billing rules. Someone
+    invoicing a ticket can include earlier unbilled time on purpose.
+    """
+    ticket_pricing_from = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Ticket time worked before this is invoiced the old way (no back-billing).')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_billing_engine_settings'
+
+    def __str__(self):
+        return f'billing engine settings (pricing from {self.ticket_pricing_from})'
+
+    @classmethod
+    def get(cls):
+        obj = cls.objects.filter(pk=1).first()
+        if obj is None:
+            obj, _ = cls.objects.get_or_create(pk=1, defaults={'ticket_pricing_from': timezone.now()})
+        return obj
+
+
+class LedgerImmutable(ValueError):
+    """A prepaid ledger posting was edited or deleted. Postings are
+    append-only: corrections are reversals or adjustments."""
+
+
+class PrepaidLedgerAccount(models.Model):
+    """Phase 101.2: one per contract that holds prepaid hours.
+
+    The row every ledger write for the contract locks first
+    (psa.billing.ledger.lock_account), so concurrent approvals, retries and
+    scheduled jobs post one at a time. `cached_remaining_hours` is a cache of
+    the balance derived from the postings (recomputable:
+    `manage.py prepaid_ledger_reconcile`). `mode` is fixed when the account
+    is opened: 'window' = one allowance for the contract window, 'cycle' = a
+    retainer allowance that resets every billing cycle.
+    """
+    MODE_CHOICES = [('window', 'Contract window'), ('cycle', 'Each billing cycle')]
+
+    contract = models.OneToOneField('psa.Contract', on_delete=models.CASCADE,
+                                    related_name='prepaid_account')
+    mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='window')
+    revision = models.PositiveIntegerField(default=0)
+    cached_remaining_hours = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True)
+    low_since = models.DateField(null=True, blank=True,
+                                 help_text='When the balance fell to the low-balance threshold.')
+    migrated_at = models.DateTimeField(null=True, blank=True,
+                                       help_text='Opened from the pre-ledger hour counter (upgrade).')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_prepaid_ledger_accounts'
+
+    def __str__(self):
+        return f'ledger for contract {self.contract_id}'
+
+
+class PrepaidBlock(models.Model):
+    """Phase 101.2: a lot of prepaid hours belonging to one agreement.
+
+    Its balance is the sum of its postings (never stored here). Blocks valid
+    on a work date are consumed earliest expiry first. Kinds: the contract's
+    own allowance, one per billing cycle for a retainer billed per cycle,
+    rolled-over hours from the previous period, and extra blocks bought.
+    """
+    KIND_CHOICES = [
+        ('allowance', 'Contract allowance'),
+        ('cycle', 'Billing-cycle allowance'),
+        ('rollover', 'Rolled-over hours'),
+        ('purchase', 'Additional block'),
+    ]
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    client_org = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    contract = models.ForeignKey('psa.Contract', on_delete=models.CASCADE, related_name='prepaid_blocks')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    label = models.CharField(max_length=200, blank=True)
+    starts_on = models.DateField()
+    expires_on = models.DateField(null=True, blank=True, help_text='Blank = does not expire.')
+    source_invoice = models.ForeignKey(
+        'psa.Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        help_text='Invoice that billed this block (the purchase is the revenue, once).')
+    key = models.CharField(max_length=160, unique=True, help_text='Idempotency key.')
+    created_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_prepaid_blocks'
+        ordering = ['contract_id', 'starts_on', 'pk']
+        indexes = [models.Index(fields=['contract', 'starts_on'])]
+
+    def __str__(self):
+        return self.label or f'{self.get_kind_display()} from {self.starts_on}'
+
+    def covers(self, on_date):
+        return self.starts_on <= on_date and (self.expires_on is None or on_date <= self.expires_on)
+
+
+class PrepaidPosting(models.Model):
+    """Phase 101.2: one immutable line of the prepaid-hour ledger.
+
+    `hours` is signed and is the effect on the block's balance: purchase +,
+    consumption -, expiry -, reversal = minus the posting it reverses,
+    adjustment +/-. `overage` postings record approved time beyond the
+    prepaid hours (block blank, positive chargeable hours); they never move
+    a balance. Consumption is not revenue: a block is revenue once, when it
+    is bought and invoiced.
+
+    Rows are never edited or deleted (save/delete refuse); a correction is a
+    reversal (`reverses`, at most one per posting) or an adjustment.
+    `idempotency_key` is unique, so a retried approval, a scheduled job run
+    twice or two concurrent workers cannot post the same thing twice.
+    """
+    KIND_CHOICES = [
+        ('purchase', 'Purchase'),
+        ('consumption', 'Consumption'),
+        ('overage', 'Overage'),
+        ('expiry', 'Expiry'),
+        ('reversal', 'Reversal'),
+        ('adjustment', 'Manual adjustment'),
+    ]
+    STATUS_CHOICES = [
+        ('posted', 'Posted'),
+        ('migrated', 'Opening balance from the upgrade'),
+    ]
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    client_org = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    contract = models.ForeignKey('psa.Contract', on_delete=models.CASCADE, related_name='prepaid_postings')
+    block = models.ForeignKey(PrepaidBlock, on_delete=models.CASCADE, null=True, blank=True,
+                              related_name='postings')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='posted')
+    hours = models.DecimalField(max_digits=14, decimal_places=6)
+    effective_date = models.DateField(help_text='Work date for time; posting date otherwise.')
+    time_entry = models.ForeignKey(TicketTimeEntry, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='prepaid_postings')
+    time_entry_ref = models.PositiveIntegerField(null=True, blank=True, db_index=True,
+                                                 help_text='Time entry id, kept after the entry is deleted.')
+    allocation = models.PositiveIntegerField(
+        default=0, help_text='Which allocation of the time entry (1, 2, ... after each re-allocation).')
+    reverses = models.OneToOneField('self', on_delete=models.CASCADE, null=True, blank=True,
+                                    related_name='reversed_by')
+    actor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                              null=True, blank=True, related_name='+')
+    reason = models.TextField(blank=True)
+    idempotency_key = models.CharField(max_length=160, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_prepaid_postings'
+        ordering = ['created_at', 'pk']
+        indexes = [
+            models.Index(fields=['contract', 'block']),
+            models.Index(fields=['time_entry_ref', 'allocation']),
+        ]
+
+    def __str__(self):
+        return f'{self.kind} {self.hours}h on contract {self.contract_id}'
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise LedgerImmutable('Prepaid ledger postings cannot be changed; post a reversal or adjustment.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise LedgerImmutable('Prepaid ledger postings cannot be deleted; post a reversal or adjustment.')
+
 
 class EmailIngestionConfig(models.Model):
     """
@@ -3675,28 +3819,40 @@ class TimesheetSubmission(models.Model):
                    for e in self.entries.all() if e.is_billable)
 
     def approve(self, *, user, notes=''):
-        self.status = 'approved'
-        self.decided_by = user
-        self.decided_at = timezone.now()
-        self.decision_notes = (notes or '')[:5000]
-        self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
-        TimeEntryAuditEvent.record_for_entries(
-            self.entries.all(), action='approved', actor=user, submission=self,
-            note=self.decision_notes)
+        # Phase 101.3: approval is when time consumes prepaid hours. The
+        # status change and the ledger postings commit together; the
+        # ledger is idempotent, so approving twice never deducts twice.
+        from psa.billing import ledger
+        with transaction.atomic():
+            self.status = 'approved'
+            self.decided_by = user
+            self.decided_at = timezone.now()
+            self.decision_notes = (notes or '')[:5000]
+            self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
+            TimeEntryAuditEvent.record_for_entries(
+                self.entries.all(), action='approved', actor=user, submission=self,
+                note=self.decision_notes)
+            ledger.post_entries(list(self.entries.all()), actor=user, event='approved')
 
     def reject(self, *, user, notes=''):
-        self.status = 'rejected'
-        self.decided_by = user
-        self.decided_at = timezone.now()
-        self.decision_notes = (notes or '')[:5000]
-        self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
-        # Recorded per entry before they are detached, so each entry keeps
-        # who rejected it, when and why after it leaves the submission.
-        TimeEntryAuditEvent.record_for_entries(
-            self.entries.all(), action='rejected', actor=user, submission=self,
-            note=self.decision_notes)
-        # Detach entries so the tech can re-submit after fixes.
-        self.entries.update(submission=None)
+        from psa.billing import ledger
+        with transaction.atomic():
+            self.status = 'rejected'
+            self.decided_by = user
+            self.decided_at = timezone.now()
+            self.decision_notes = (notes or '')[:5000]
+            self.save(update_fields=['status', 'decided_by', 'decided_at', 'decision_notes'])
+            # Recorded per entry before they are detached, so each entry keeps
+            # who rejected it, when and why after it leaves the submission.
+            entries = list(self.entries.all())
+            TimeEntryAuditEvent.record_for_entries(
+                entries, action='rejected', actor=user, submission=self,
+                note=self.decision_notes)
+            # Rejected time consumes nothing (Phase 101.3): give back anything
+            # it held, e.g. the opening balance counted before the ledger.
+            ledger.release_entries(entries, actor=user, reason='Timesheet rejected.')
+            # Detach entries so the tech can re-submit after fixes.
+            self.entries.update(submission=None)
 
     def return_entries(self, reasons, *, user):
         """Send individual entries back to the technician with a reason each.
@@ -3717,6 +3873,8 @@ class TimesheetSubmission(models.Model):
             TicketTimeEntry.objects.filter(pk=entry.pk).update(
                 submission=None, rejection_reason=reason,
                 rejected_at=now, rejected_by=user)
+            from psa.billing import ledger
+            ledger.release_entry(entry, actor=user, reason='Time entry returned to the technician.')
             returned += 1
         return returned
 
@@ -4760,8 +4918,15 @@ class Invoice(models.Model):
         if (overage_pct_threshold is not None
                 and self.source_contract_id
                 and self.source_contract.total_hours):
-            consumed_min = self.source_contract.hours_used_minutes or 0
-            allowance_min = float(self.source_contract.total_hours) * 60
+            # Phase 101.4: the prepaid-hour ledger (approved time), not the
+            # old counter that also counted unapproved time.
+            p = self.source_contract.prepaid
+            if p.tracked and not p.unlimited:
+                consumed_min = float(p.used + p.overage) * 60  # covered + beyond
+                allowance_min = float(p.purchased + p.adjusted) * 60
+            else:
+                consumed_min = self.source_contract.hours_used_minutes or 0
+                allowance_min = float(self.source_contract.total_hours) * 60
             if allowance_min > 0:
                 pct = 100 * consumed_min / allowance_min
                 if pct >= float(overage_pct_threshold):
@@ -4994,6 +5159,7 @@ class InvoiceLineItem(models.Model):
         ('expense', 'Expense'),
         ('quote_line', 'Quote Line'),
         ('contract', 'Contract Period'),
+        ('fee', 'Billing-rule fee'),
     ]
 
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='line_items')

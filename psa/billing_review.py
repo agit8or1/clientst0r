@@ -6,6 +6,11 @@ for it. Approve and hold act on the invoice's existing pre-invoice approval
 gate (`Invoice.requires_approval` / `approve()`, v3.17.228), so a held invoice
 cannot be sent or pushed to accounting until someone approves it.
 
+Phase 101.4: for a contract with prepaid hours the cycle's included and
+overage hours come from the prepaid-hour ledger (approved time only; a
+retainer billed per cycle has its own allowance each cycle). Contracts
+without an allowance keep the rule below.
+
 Consumption follows the contract's own rules — `Contract.qualifying_time_entries`
 (billable, stopped, in the contract window, role gates). The allowance is the
 contract's (`effective_total_minutes`, i.e. hours plus unexpired rollover),
@@ -50,6 +55,7 @@ class ReviewRow:
     included_minutes: int = 0
     overage_minutes: int = 0
     to_date_minutes: int = 0
+    remaining_override: object = None   # Decimal hours from the ledger (Phase 101.4)
     invoice: object = None
     other_invoices: list = field(default_factory=list)
 
@@ -77,6 +83,8 @@ class ReviewRow:
     def remaining_hours(self):
         if self.unlimited:
             return None
+        if self.remaining_override is not None:
+            return Decimal(self.remaining_override).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         return _hours(max(0, self.allowance_minutes - self.to_date_minutes))
 
     @property
@@ -114,11 +122,29 @@ def contracts_for_cycle(contracts, start, end):
 
 
 def build_rows(contracts, start, end):
-    from .models import Invoice
+    from datetime import timedelta
+
+    from .billing import ledger
 
     rows = []
     for c in contracts:
         row = ReviewRow(contract=c, allowance_minutes=c.effective_total_minutes())
+        cycle = ledger.totals(c, start=start, end=end)
+        if cycle is not None:
+            # Phase 101.4: the prepaid-hour ledger (approved time; postings
+            # dated by work date, reversals net out in the same cycle).
+            row.included_minutes = ledger.minutes_of(cycle['consumed'])
+            row.overage_minutes = ledger.minutes_of(cycle['overage'])
+            row.cycle_minutes = row.included_minutes + row.overage_minutes
+            s = ledger.summary(c, as_of=max(c.start_date, min(end - timedelta(days=1),
+                                                             c.end_date or end)))
+            row.allowance_minutes = ledger.minutes_of(s.purchased + s.adjusted)
+            row.remaining_override = s.remaining
+            whole = ledger.totals(c, end=end)
+            row.to_date_minutes = ledger.minutes_of(whole['consumed'] + whole['overage'])
+            _attach_invoices(row, c, start, end)
+            rows.append(row)
+            continue
         running = 0
         entries = (c.qualifying_time_entries()
                    .filter(started_at__date__lt=end)
@@ -138,20 +164,24 @@ def build_rows(contracts, start, end):
                 row.included_minutes += covered
                 row.overage_minutes += minutes - covered
         row.to_date_minutes = running
-
-        invoices = list(Invoice.objects.filter(source_contract=c, is_credit_memo=False)
-                        .exclude(status='void')
-                        .filter(Q(billing_period_start__gte=start, billing_period_start__lt=end)
-                                | Q(billing_period_start__isnull=True,
-                                    invoice_date__gte=start, invoice_date__lt=end))
-                        .select_related('approved_by')
-                        .order_by('-invoice_date', '-pk'))
-        if invoices:
-            drafts = [i for i in invoices if i.status == 'draft']
-            row.invoice = drafts[0] if drafts else invoices[0]
-            row.other_invoices = [i for i in invoices if i.pk != row.invoice.pk]
+        _attach_invoices(row, c, start, end)
         rows.append(row)
     return rows
+
+
+def _attach_invoices(row, c, start, end):
+    from .models import Invoice
+    invoices = list(Invoice.objects.filter(source_contract=c, is_credit_memo=False)
+                    .exclude(status='void')
+                    .filter(Q(billing_period_start__gte=start, billing_period_start__lt=end)
+                            | Q(billing_period_start__isnull=True,
+                                invoice_date__gte=start, invoice_date__lt=end))
+                    .select_related('approved_by')
+                    .order_by('-invoice_date', '-pk'))
+    if invoices:
+        drafts = [i for i in invoices if i.status == 'draft']
+        row.invoice = drafts[0] if drafts else invoices[0]
+        row.other_invoices = [i for i in invoices if i.pk != row.invoice.pk]
 
 
 def summary(rows):

@@ -886,10 +886,20 @@ def revenue_leakage(start_date, end_date, organization=None,
     expired_qs = Contract.objects.filter(status='expired').select_related('client_org')
     expired_qs = scope_to_organizations(expired_qs, 'client_org', organization)
     expired_out = []
+    from psa.billing.ledger import totals as _ledger_totals
     for c in expired_qs:
-        if not c.total_hours or c.hours_used >= float(c.total_hours):
+        # Phase 101.4: unused hours from the prepaid-hour ledger (approved
+        # time; expired postings already written off count as unused here
+        # too, since the customer paid for them).
+        lt = _ledger_totals(c)
+        if lt is not None:
+            bought = float(lt['purchased'] + lt['adjusted'])
+            used = float(lt['consumed'])
+        else:
+            bought, used = float(c.total_hours or 0), c.hours_used
+        if not bought or used >= bought:
             continue
-        unused = float(c.total_hours) - c.hours_used
+        unused = bought - used
         rate = book.contract_bill_rate(c)
         expired_out.append({
             'client_id': c.client_org_id,

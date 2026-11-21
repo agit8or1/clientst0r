@@ -448,16 +448,18 @@
             <strong><i class="fas fa-file-contract me-1"></i>Active contract: {{ contract.name }}</strong>
             <small class="text-muted ms-2">{{ contract.get_contract_type_display }}</small>
             <div class="small mt-1">
-                Hours used: <strong>{{ contract.hours_used }}</strong>
-                {% if contract.total_hours %}
-                    / {{ contract.total_hours }}
-                    {% if contract.hours_remaining is not None %}
-                        ({{ contract.hours_remaining }} remaining)
-                        {% if contract.hours_remaining == 0 %}<span class="badge text-bg-warning ms-1">Depleted — overage rate applies</span>{% endif %}
-                    {% endif %}
+                {% with p=contract.prepaid %}
+                {% if not p.unlimited %}
+                Hours used: <strong>{{ p.used_hours }}</strong>
+                    / {{ p.total_hours }}
+                        ({{ p.remaining_hours }} remaining{% if p.mode == 'cycle' %} this cycle{% endif %})
+                        {% if p.depleted %}<span class="badge text-bg-warning ms-1">Depleted — overage rate applies</span>
+                        {% elif p.low %}<span class="badge text-bg-warning ms-1">Low balance</span>{% endif %}
                 {% else %}
+                Hours used: <strong>{{ contract.hours_used }}</strong>
                     <small class="text-muted">(unlimited)</small>
                 {% endif %}
+                {% endwith %}
                 · Period: {{ contract.start_date }} → {{ contract.end_date|default:'open' }}
             </div>
         </div>
@@ -932,6 +934,10 @@
                 <span><i class="fas fa-file-invoice me-1"></i>Generate invoice from billable time + expenses</span>
                 <form method="post" action="{% url 'psa:invoice_from_ticket' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
+                    <label class="form-check-label me-2 text-muted" title="Time worked before the billing upgrade is invoiced the old way unless ticked">
+                        <input type="checkbox" class="form-check-input" name="include_before_cutoff" value="1">
+                        include earlier unbilled time
+                    </label>
                     <button class="btn btn-sm btn-outline-primary"
                             data-confirm="Create a draft invoice from this ticket's billable time + expenses?">
                         <i class="fas fa-plus"></i> Invoice this ticket

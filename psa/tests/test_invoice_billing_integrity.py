@@ -22,7 +22,7 @@ from audit.models import AuditLog
 from core.models import Organization, SystemSetting
 from psa.models import (
     Charge, Contract, Invoice, InvoiceLineItem, Queue, Ticket, TicketExpense,
-    TicketPriority, TicketStatus, TicketTimeEntry, TicketType,
+    TicketPriority, TicketStatus, TicketTimeEntry, TicketType, TimesheetSubmission,
 )
 from psa.tests._base import TEST_MIDDLEWARE, _enable_psa_for, _enable_psa_global, _setup_seed
 
@@ -58,6 +58,15 @@ class _Base(TestCase):
             ticket=self.ticket, user=self.admin, started_at=start,
             ended_at=start + timedelta(minutes=minutes),
             duration_minutes=minutes, notes=notes, is_billable=billable)
+
+    def _approve(self, *entries):
+        # Phase 101.4: prepaid hours are used by approved time (the ledger).
+        sub = TimesheetSubmission.objects.create(
+            user=self.admin, period_start=date.today() - timedelta(days=400),
+            period_end=date.today() + timedelta(days=1),
+            revision=TimesheetSubmission.objects.count() + 1, status='pending')
+        TicketTimeEntry.objects.filter(pk__in=[e.pk for e in entries]).update(submission=sub)
+        sub.approve(user=self.admin)
 
     def _invoice_ticket(self):
         before = set(Invoice.objects.values_list('pk', flat=True))
@@ -95,6 +104,10 @@ class TicketInvoiceDoubleBillingTests(_Base):
         self.assertTrue(first.line_items.filter(source_id=str(te.pk)).exists())
 
     def test_voided_invoice_releases_its_entries(self):
+        Contract.objects.create(
+            organization=self.client_org, client_org=self.client_org, name='T&M',
+            contract_type='per_incident', status='active',
+            start_date=date.today() - timedelta(days=10), hourly_rate=Decimal('100'))
         te = self._entry(60)
         first = self._invoice_ticket()
         Invoice.objects.filter(pk=first.pk).update(status='void')
@@ -124,15 +137,11 @@ class TicketInvoiceBlockHoursTests(_Base):
         defaults.update(kw)
         return Contract.objects.create(**defaults)
 
-    def _set_used(self, contract, minutes):
-        # Set explicitly: the counter is maintained by TicketTimeEntry.save(),
-        # which is not what these tests are about.
-        Contract.objects.filter(pk=contract.pk).update(hours_used_minutes=minutes)
 
     def test_time_within_allowance_is_covered_not_charged(self):
-        c = self._contract()
+        self._contract()
         te = self._entry(120)
-        self._set_used(c, 120)
+        self._approve(te)
         inv = self._invoice_ticket()
         lines = list(inv.line_items.all())
         self.assertEqual(len(lines), 1)
@@ -143,10 +152,10 @@ class TicketInvoiceBlockHoursTests(_Base):
         self.assertEqual(inv.total, Decimal('0'))
 
     def test_only_overage_billed_at_overage_rate(self):
-        c = self._contract()
+        self._contract()
         early = self._entry(9 * 60, days_ago=2)
         late = self._entry(120, days_ago=1)
-        self._set_used(c, 11 * 60)  # 1h over the 10h block
+        self._approve(early, late)  # 1h over the 10h block
         inv = self._invoice_ticket()
         priced = list(inv.line_items.filter(unit_price__gt=0))
         self.assertEqual(len(priced), 1)
@@ -160,24 +169,21 @@ class TicketInvoiceBlockHoursTests(_Base):
         self.assertTrue(covered.filter(source_id=str(early.pk)).exists())
 
     def test_overage_falls_back_to_hourly_rate(self):
-        c = self._contract(overage_rate=Decimal('0'))
-        self._entry(11 * 60)
-        self._set_used(c, 11 * 60)
+        self._contract(overage_rate=Decimal('0'))
+        self._approve(self._entry(11 * 60))
         inv = self._invoice_ticket()
         self.assertEqual(inv.subtotal, Decimal('100.00'))
 
     def test_overage_billed_once_across_tickets(self):
-        c = self._contract()
-        self._entry(11 * 60)
-        self._set_used(c, 11 * 60)
+        self._contract()
+        self._approve(self._entry(11 * 60))
         self._invoice_ticket()  # bills 1h overage
         other = Ticket.objects.create(
             organization=self.client_org, subject='Other',
             queue=Queue.objects.first(), priority=TicketPriority.objects.first(),
             ticket_type=TicketType.objects.first(), status=TicketStatus.objects.first())
         self.ticket = other
-        self._entry(30)
-        self._set_used(c, 11 * 60 + 30)
+        self._approve(self._entry(30))
         inv = self._invoice_ticket()
         # Only the new 30 minutes are overage; the earlier hour is not re-billed.
         self.assertEqual(inv.subtotal, Decimal('75.00'))
@@ -212,9 +218,8 @@ class TicketInvoiceContractTypeTests(_Base):
         self.assertIsNone(self._invoice_ticket())
 
     def test_retainer_with_allowance_keeps_overage_logic(self):
-        c = self._contract('retainer', total_hours='10', overage_rate=Decimal('150'))
-        self._entry(11 * 60)
-        Contract.objects.filter(pk=c.pk).update(hours_used_minutes=11 * 60)
+        self._contract('retainer', total_hours='10', overage_rate=Decimal('150'))
+        self._approve(self._entry(11 * 60))
         inv = self._invoice_ticket()
         self.assertEqual(inv.subtotal, Decimal('150.00'))
         self.assertEqual(

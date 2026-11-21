@@ -55,3 +55,37 @@ class EmailMessageAdmin(admin.ModelAdmin):
     date_hierarchy = 'received_at'
     raw_id_fields = ('ticket', 'ingestion_config')
     readonly_fields = ('received_at',)
+
+
+# Phase 101.2: the prepaid-hour ledger is read-only in the admin. Postings
+# are changed only by reversals / adjustments through psa.billing.ledger.
+from .models import PrepaidBlock, PrepaidLedgerAccount, PrepaidPosting  # noqa: E402
+
+
+class _ReadOnlyLedgerAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PrepaidLedgerAccount)
+class PrepaidLedgerAccountAdmin(_ReadOnlyLedgerAdmin):
+    list_display = ('contract', 'mode', 'cached_remaining_hours', 'low_since', 'migrated_at')
+
+
+@admin.register(PrepaidBlock)
+class PrepaidBlockAdmin(_ReadOnlyLedgerAdmin):
+    list_display = ('contract', 'kind', 'starts_on', 'expires_on', 'label')
+    list_filter = ('kind',)
+
+
+@admin.register(PrepaidPosting)
+class PrepaidPostingAdmin(_ReadOnlyLedgerAdmin):
+    list_display = ('created_at', 'contract', 'kind', 'status', 'hours', 'block', 'time_entry_ref', 'actor')
+    list_filter = ('kind', 'status')
+    search_fields = ('idempotency_key', 'reason')

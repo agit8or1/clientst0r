@@ -44,5 +44,10 @@ class RoadmapDashboardTests(SimpleTestCase):
         self.assertEqual(data['phase_count'], expected)
         self.assertTrue({p['status'] for p in data['phases']} <= {'planned', 'in_progress', 'shipped', 'complete'})
         by_num = {p['number']: p for p in data['phases']}
-        self.assertEqual(by_num[101]['status'], 'planned')
+        # Any phase whose header says [planned] / [in progress] is reported that way
+        # (picked from the file, so the test doesn't pin a phase that moves on).
+        planned = re.search(r'^## Phase (\d+) — .*\[planned\]\s*$', text, re.M)
+        running = re.search(r'^## Phase (\d+) — .*\[in progress\]\s*$', text, re.M)
+        self.assertEqual(by_num[int(planned.group(1))]['status'], 'planned')
+        self.assertEqual(by_num[int(running.group(1))]['status'], 'in_progress')
         self.assertEqual(by_num[1]['status'], 'complete')

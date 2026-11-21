@@ -69,14 +69,17 @@ def _serialize_ticket(t, *, detail=False, viewer=None):
             from psa.models import Contract
             c = Contract.for_ticket(t)
             if c is not None:
-                total_alw = c.effective_total_minutes()
-                used = c.hours_used_minutes or 0
-                # Unlimited contracts (total_hours == 0) get remaining=None.
-                if total_alw:
-                    remaining = max(0, total_alw - used)
-                else:
+                # Phase 101.2: figures come from the prepaid-hour ledger
+                # (approved time only; current cycle for per-cycle retainers).
+                p = c.prepaid
+                if p.unlimited:
                     total_alw = None
                     remaining = None
+                    used = c.hours_used_minutes or 0
+                else:
+                    total_alw = int(((p.purchased + p.adjusted) * 60).to_integral_value())
+                    used = int((p.used * 60).to_integral_value())
+                    remaining = max(0, int((p.remaining * 60).to_integral_value()))
                 contract_obj = {
                     'id': c.id,
                     'name': c.name,

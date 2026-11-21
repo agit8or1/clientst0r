@@ -1460,6 +1460,11 @@ class AgreementReconciliationTests(TestCase):
             end_date=today - _td(days=30),
             total_hours=_D('100'), hours_used_minutes=200 * 60,
         )  # excluded — status != active
+        # Phase 101.4: the report reads approved time from the prepaid-hour
+        # ledger, not the counter above.
+        from psa.tests._base import _use_prepaid_hours
+        for c, hours in ((cls.under_served, 10), (cls.on_track, 60), (cls.over_served, 130)):
+            _use_prepaid_hours(c, hours * 60, user=cls.staff, days_ago=5)
 
     def _login(self, c, user, org=None):
         c.force_login(user)
@@ -1545,17 +1550,21 @@ class AgreementReconciliationTests(TestCase):
         from decimal import Decimal as _D
         from django.core.management import call_command
         call_command('psa_seed_defaults', verbosity=0)
+        # Own customer: the fixture's approved prepaid time (Phase 101.4)
+        # belongs to client A's other agreements.
+        from core.models import Organization
+        cust = Organization.objects.create(name='AR-Detail', slug='ar-detail')
         # Build a contract with a 60-min allowance and three entries:
         # 30 (covered), 40 (split: 30 covered + 10 overage), 20 (overage).
         contract = Contract.objects.create(
-            organization=self.msp, client_org=self.client_a,
+            organization=self.msp, client_org=cust,
             name='Detail-test', contract_type='block_hours',
-            status='active', start_date=datetime.now().date(),
+            status='active', start_date=datetime.now().date() - _td(days=2),
             total_hours=_D('1'),  # = 60 min
             hourly_rate=_D('100'),
         )
         ticket = Ticket.objects.create(
-            organization=self.client_a, subject='det-test',
+            organization=cust, subject='det-test',
             queue=Queue.objects.first(),
             priority=TicketPriority.objects.first(),
             ticket_type=TicketType.objects.first(),
@@ -1563,13 +1572,22 @@ class AgreementReconciliationTests(TestCase):
         )
         from django.utils import timezone as _tz
         base = _tz.now() - _td(days=1)
+        made = []
         for offset, dur in enumerate([30, 40, 20]):
             started = base + _td(minutes=offset * 60)
-            TicketTimeEntry.objects.create(
+            made.append(TicketTimeEntry.objects.create(
                 ticket=ticket, user=self.staff,
                 started_at=started, ended_at=started + _td(minutes=dur),
                 duration_minutes=dur,
-            )
+            ))
+        # Phase 101.4: the drill-down reads the prepaid-hour ledger, which
+        # holds approved time (used oldest work first).
+        from psa.models import TimesheetSubmission
+        sub = TimesheetSubmission.objects.create(
+            user=self.staff, period_start=base.date() - _td(days=1), period_end=base.date() + _td(days=1),
+            revision=1, status='pending')
+        TicketTimeEntry.objects.filter(pk__in=[e.pk for e in made]).update(submission=sub)
+        sub.approve(user=self.staff)
 
         c = Client()
         self._login(c, self.staff)

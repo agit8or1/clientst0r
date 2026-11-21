@@ -65,6 +65,14 @@ class _Fixture(TestCase):
             duration_minutes=minutes, is_billable=billable,
         )
 
+    def approve(self, *entries):
+        from psa.models import TimesheetSubmission
+        sub = TimesheetSubmission.objects.create(
+            user=entries[0].user, period_start=self.today - timedelta(days=400), period_end=self.today,
+            revision=TimesheetSubmission.objects.count() + 1, status='pending')
+        TicketTimeEntry.objects.filter(pk__in=[e.pk for e in entries]).update(submission=sub)
+        sub.approve(user=entries[0].user)
+
     def rate(self, amount, days_ago=365, user=None):
         return TechCostRate.objects.create(
             user=user or self.tech, rate_per_hour=Decimal(str(amount)),
@@ -170,7 +178,7 @@ class PlaceholdersRemovedTests(_Fixture):
 
     def test_contract_snapshot_without_rates_is_unknown_not_60_percent(self):
         c = self.contract(hourly_rate=Decimal('150'), total_hours=Decimal('10'))
-        self.entry(120)
+        self.approve(self.entry(120))  # Phase 101.4: prepaid hours = approved time
         c.recompute_hours_used()
         snap = c.profitability_snapshot()
         self.assertEqual(snap['revenue'], 300.0)
@@ -184,7 +192,7 @@ class PlaceholdersRemovedTests(_Fixture):
     def test_contract_snapshot_with_rate_uses_tech_cost(self):
         c = self.contract(hourly_rate=Decimal('150'), total_hours=Decimal('10'))
         self.rate(55)
-        self.entry(120)
+        self.approve(self.entry(120))  # Phase 101.4: prepaid hours = approved time
         c.recompute_hours_used()
         snap = c.profitability_snapshot()
         self.assertEqual(snap['cost'], 110.0)

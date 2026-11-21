@@ -814,8 +814,10 @@ class InvoiceApprovalGateTests(TestCase):
             organization=self.org, client_org=self.client_org,
             name='Block-overage', contract_type='block_hours',
             status='active', start_date=date.today(),
-            total_hours=_D('100'), hours_used_minutes=130 * 60,  # 130% used
+            total_hours=_D('100'),
         )
+        from psa.tests._base import _use_prepaid_hours
+        _use_prepaid_hours(contract, 130 * 60)  # 130% used (approved)
         inv = Invoice.objects.create(
             organization=self.org, client_org=self.client_org,
             title='Inv with overage', invoice_date=date.today(),

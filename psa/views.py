@@ -3652,6 +3652,13 @@ def contract_form(request, pk=None):
         item.proration_enabled = f.flag('proration_enabled', item.proration_enabled, 'contract_flags')
         item.auto_renew_period_months = f.integer('auto_renew_period_months', item.auto_renew_period_months,
                                                   blank=12, minimum=1) or 12
+        # Phase 101: agreement precedence and prepaid-balance policy.
+        item.billing_priority = f.integer('billing_priority', item.billing_priority, blank=0, minimum=0)
+        item.allow_negative_balance = f.flag('allow_negative_balance', item.allow_negative_balance,
+                                             'contract_flags')
+        item.low_balance_threshold_hours = f.decimal('low_balance_threshold_hours',
+                                                     item.low_balance_threshold_hours, blank=None,
+                                                     minimum=Decimal('0'))
         item.billable_role_codes = f.csv_list('billable_role_codes', item.billable_role_codes or [])
         item.excluded_role_codes = f.csv_list('excluded_role_codes', item.excluded_role_codes or [])
 
@@ -5876,6 +5883,29 @@ def invoice_form(request, pk=None):
     return _render()
 
 
+def _ticket_billing_notes(request, info):
+    """Tell the person invoicing what was left off and why (Phase 101.4)."""
+    if info.get('awaiting_approval'):
+        n = len(info['awaiting_approval'])
+        messages.warning(request, f'{n} time entr{"y is" if n == 1 else "ies are"} under prepaid hours and '
+                                  f'not approved yet; approve the timesheet to invoice '
+                                  f'{"it" if n == 1 else "them"}.')
+    if info.get('needs_choice'):
+        n = len(info['needs_choice'])
+        messages.warning(request, f'{n} time entr{"y needs" if n == 1 else "ies need"} an agreement choice '
+                                  f'(several agreements cover the date) before invoicing.')
+    if info.get('no_rate'):
+        n = len(info['no_rate'])
+        messages.warning(request, f'{n} time entr{"y has" if n == 1 else "ies have"} no labor rate (no rate '
+                                  f'card line and no agreement rate) and {"was" if n == 1 else "were"} left off; '
+                                  f'add a rate card line to bill {"it" if n == 1 else "them"}.')
+    if info.get('before_cutoff'):
+        n = len(info['before_cutoff'])
+        messages.info(request, f'{n} time entr{"y" if n == 1 else "ies"} worked before the billing upgrade '
+                               f'{"was" if n == 1 else "were"} invoiced the old way (no agreement: no charge). '
+                               f'Tick "include earlier unbilled time" to price them from the rate cards.')
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -5905,13 +5935,18 @@ def invoice_from_ticket(request, ticket_number):
         # Serialise concurrent clicks on the same ticket so both cannot read
         # the same entries as unbilled.
         Ticket.objects.select_for_update().filter(pk=ticket.pk).first()
-        contract = Contract.for_ticket(ticket)
-        lines, info = ticket.uninvoiced_billing_lines(contract)
+        # Phase 101.4: time worked before the upgrade cutoff is billed the
+        # old way unless the person invoicing asks for it on purpose.
+        include_earlier = request.POST.get('include_before_cutoff') in ('1', 'on', 'true')
+        lines, info = ticket.uninvoiced_billing_lines(include_before_cutoff=include_earlier)
+        from .billing.invoicing import single_agreement
+        contract = single_agreement(info) or Contract.for_ticket(ticket)
+        _ticket_billing_notes(request, info)
         if not lines:
             messages.info(
                 request,
                 f'Nothing to invoice on {ticket.ticket_number}: all billable '
-                f'time and expenses are already on an invoice.')
+                f'time and expenses are already on an invoice or waiting (see above).')
             return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
 
         invoice = Invoice.objects.create(
@@ -5930,10 +5965,11 @@ def invoice_from_ticket(request, ticket_number):
     if info['covered_minutes']:
         messages.info(
             request,
-            f'{info["covered_minutes"] / 60:.2f}h covered by {contract.name} '
-            f'(shown at no charge); '
+            f'{info["covered_minutes"] / 60:.2f}h covered'
+            + (f' by {contract.name}' if contract else '') + ' (shown at no charge); '
             f'{info["overage_minutes"] / 60:.2f}h billed as overage.')
-    messages.success(request, f'Draft invoice {invoice.invoice_number} created from {ticket.ticket_number}.')
+    messages.success(request, f'Draft invoice {invoice.invoice_number} created from {ticket.ticket_number}. '
+                              f'Review it before sending.')
     return redirect('psa:invoice_detail', pk=invoice.pk)
 
 

@@ -45,13 +45,22 @@ class Command(BaseCommand):
 
         renewed = 0
         for c in candidates:
-            # Compute rollover. `hours_used_minutes` is kept current by the
-            # time-entry save/delete hooks (and was corrected once by
-            # migration psa.0070), so it is read as stored.
+            # Compute rollover. Phase 101.4: the unused allowance comes from
+            # the prepaid-hour ledger (approved time only): the balance of
+            # the contract's own allowance block(s) valid on the last day
+            # (for a retainer billed per cycle, the last cycle). Contracts
+            # without a ledger fall back to the old counter.
             rolled_minutes = 0
             if c.rollover_percent and c.total_hours:
-                base_minutes = int(float(c.total_hours) * 60)
-                unused = max(0, base_minutes - (c.hours_used_minutes or 0))
+                from psa.billing import ledger as _ledger
+                balances = _ledger.block_balances(c)
+                blocks = [b for b in c.prepaid_blocks.filter(kind__in=['allowance', 'cycle'])
+                          if b.covers(c.end_date)]
+                if blocks:
+                    unused = max(0, sum(_ledger.minutes_of(balances.get(b.pk, 0)) for b in blocks))
+                else:
+                    base_minutes = int(float(c.total_hours) * 60)
+                    unused = max(0, base_minutes - (c.hours_used_minutes or 0))
                 rolled_minutes = int(unused * float(c.rollover_percent) / 100)
 
             new_start = c.end_date + timedelta(days=1)

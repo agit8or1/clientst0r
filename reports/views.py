@@ -2377,8 +2377,8 @@ def agreement_reconciliation(request):
     """
     List every active MSP contract with its included-vs-consumed hours
     and an over/under-served alert. Sourced entirely from data already
-    in the system — `Contract.total_hours` (allowance), `hours_used_minutes`
-    (consumption tracker incremented by `TicketTimeEntry.save()`), and
+    in the system — the prepaid-hour ledger's hours bought and approved time
+    consumed (Phase 101.4; `hours_used_minutes` only without a ledger), and
     `overage_rate` for the cost-of-overage estimate.
 
     URL: /reports/agreement-reconciliation/
@@ -2404,9 +2404,13 @@ def agreement_reconciliation(request):
 
     rows = []
     summary = {'under_served': 0, 'on_track': 0, 'over_served': 0, 'unlimited': 0}
+    from psa.billing.reconciliation import summary_figures
     for c in qs:
-        consumed_h = D(c.hours_used_minutes or 0) / D(60)
-        allowance = D(c.total_hours or 0)
+        # Phase 101.4: approved time from the prepaid-hour ledger (covered +
+        # overage) against the hours bought; the old counter when the
+        # contract has no ledger (no allowance). Same figures as the
+        # drill-down (psa.billing.reconciliation).
+        consumed_h, allowance, ledger_overage = summary_figures(c)
         if allowance <= 0:
             pct = None
             flag = 'unlimited'
@@ -2420,7 +2424,7 @@ def agreement_reconciliation(request):
                 flag = 'on_track'
         summary[flag] += 1
 
-        overage_h = max(consumed_h - allowance, D(0)) if allowance > 0 else D(0)
+        overage_h = ledger_overage if allowance > 0 else D(0)
         rate = c.overage_rate if c.overage_rate else c.hourly_rate
         overage_cost = overage_h * (rate or D(0))
 
@@ -2673,14 +2677,15 @@ def agreement_reconciliation_detail(request, pk):
     """
     Phase 36 v3 (v3.17.248): drill-down view that classifies a contract's
     time entries as `covered` (fit within the allowance) vs `overage`
-    (past the allowance), in chronological order. Surfaces who logged
+    (past the allowance). Phase 101.4: read from the prepaid-hour ledger
+    (psa.billing.reconciliation), the same figures as the summary row. Surfaces who logged
     the overage minutes so account managers know which tech to talk to.
 
     URL: /reports/agreement-reconciliation/<contract_pk>/
     Tenant ACL: same as the list view — staff sees all, members see
     only their org's contracts.
     """
-    from psa.models import Contract, TicketTimeEntry
+    from psa.models import Contract
     from decimal import Decimal as D
 
     qs = Contract.objects.select_related('client_org', 'organization')
@@ -2692,52 +2697,22 @@ def agreement_reconciliation_detail(request, pk):
         qs = qs.filter(client_org_id__in=ids)
     contract = get_object_or_404(qs, pk=pk)
 
-    allowance_min = int(D(contract.total_hours or 0) * 60)
-    entries = (TicketTimeEntry.objects
-               .filter(ticket__organization=contract.client_org,
-                       duration_minutes__gt=0,
-                       ended_at__isnull=False)
-               .select_related('ticket', 'user').order_by('started_at'))
-
-    rows = []
-    cumulative = 0
-    covered_total = 0
-    overage_total = 0
+    # Phase 101.4: the prepaid-hour ledger decides (approved postings, in
+    # the order hours were used); unapproved time is listed separately and
+    # uses nothing. Same source as the summary row.
+    from psa.billing.reconciliation import build as _build_reconciliation
+    rec = _build_reconciliation(contract)
+    rows = rec.rows
+    allowance_min = rec.allowance_minutes
+    covered_total = rec.covered_minutes
+    overage_total = rec.overage_minutes
+    cumulative = rec.used_minutes
     overage_by_user = {}
-    for e in entries:
-        dur = int(e.duration_minutes or 0)
-        if not dur:
-            continue
-        prev_cum = cumulative
-        cumulative += dur
-        if allowance_min <= 0:
-            covered = dur
-            overage = 0
-            classification = 'unlimited'
-        elif cumulative <= allowance_min:
-            covered = dur
-            overage = 0
-            classification = 'covered'
-        elif prev_cum >= allowance_min:
-            covered = 0
-            overage = dur
-            classification = 'overage'
-        else:
-            covered = max(allowance_min - prev_cum, 0)
-            overage = dur - covered
-            classification = 'split'
-        covered_total += covered
-        overage_total += overage
-        if overage:
-            uname = (e.user.username if e.user_id else 'unknown')
-            overage_by_user[uname] = overage_by_user.get(uname, 0) + overage
-        rows.append({
-            'entry': e,
-            'cumulative_minutes': cumulative,
-            'covered_minutes': covered,
-            'overage_minutes': overage,
-            'classification': classification,
-        })
+    for r in rows:
+        if r['overage_minutes']:
+            e = r['entry']
+            uname = e.user.username if (e is not None and e.user_id) else 'unknown'
+            overage_by_user[uname] = overage_by_user.get(uname, 0) + r['overage_minutes']
 
     rate = contract.overage_rate if contract.overage_rate else contract.hourly_rate
     overage_cost = float(D(overage_total) / D(60) * (rate or D(0)))
@@ -2753,20 +2728,26 @@ def agreement_reconciliation_detail(request, pk):
         )
         w = csv_safe.writer(resp)
         w.writerow(['Started', 'User', 'Ticket', 'Notes', 'Duration (min)',
-                    'Cumulative (min)', 'Covered', 'Overage', 'Classification'])
+                    'Cumulative (min)', 'Covered', 'Overage', 'Classification', 'Status'])
         for r in rows:
             e = r['entry']
             w.writerow([
-                e.started_at.isoformat(),
-                e.user.username if e.user_id else '',
-                e.ticket.ticket_number if e.ticket_id else '',
-                (e.notes or '')[:200],
-                e.duration_minutes,
+                e.started_at.isoformat() if e is not None else '',
+                e.user.username if e is not None and e.user_id else '',
+                e.ticket.ticket_number if e is not None and e.ticket_id else '',
+                (e.notes or '')[:200] if e is not None else f'deleted entry #{r["entry_ref"] or ""}',
+                r['duration_minutes'],
                 r['cumulative_minutes'],
                 r['covered_minutes'],
                 r['overage_minutes'],
                 r['classification'],
+                r['status'],
             ])
+        for p in rec.pending:
+            e = p['entry']
+            w.writerow([e.started_at.isoformat(), e.user.username if e.user_id else '',
+                        e.ticket.ticket_number if e.ticket_id else '', (e.notes or '')[:200],
+                        p['minutes'], '', 0, 0, 'pending', p['reason']])
         return resp
 
     return render(request, 'reports/agreement_reconciliation_detail.html', {
@@ -2778,6 +2759,9 @@ def agreement_reconciliation_detail(request, pk):
         'allowance_minutes': allowance_min,
         'cumulative_minutes': cumulative,
         'overage_cost': overage_cost,
+        'tracked': rec.tracked,
+        'pending': rec.pending,
+        'pending_minutes': rec.pending_minutes,
         'overage_by_user': sorted(
             overage_by_user.items(), key=lambda x: -x[1],
         ),

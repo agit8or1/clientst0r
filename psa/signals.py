@@ -488,3 +488,31 @@ def _audit_delete_of_approved_time_entry(sender, instance, **kwargs):
                                     None]})
     except Exception:
         logger.exception('time entry audit failed after deleting entry %s', instance.pk)
+
+
+@receiver(post_save, sender=Contract)
+def _open_prepaid_ledger(sender, instance, raw=False, **kwargs):
+    """Phase 101.2: keep the contract's prepaid blocks in line with its
+    allowance (opening the ledger when it first has hours). A ledger failure
+    never stops the contract from saving; `prepaid_ledger_reconcile` reports
+    and repairs a contract whose ledger is missing or out of line."""
+    if raw:
+        return
+    from .billing import ledger
+    if ledger.is_suspended():
+        return
+    try:
+        ledger.open_ledger(instance)
+    except Exception:
+        logger.exception('prepaid ledger sync failed for contract %s', instance.pk)
+
+
+@receiver(post_delete, sender=TicketTimeEntry)
+def _release_prepaid_hours_on_time_entry_delete(sender, instance, **kwargs):
+    """Phase 101.3: a deleted entry gives back the prepaid hours it held."""
+    from .billing import ledger
+    try:
+        ledger.release_entry(entry_ref=instance.pk, actor=getattr(instance, '_audit_user', None),
+                             reason='Time entry deleted.', mark=False)
+    except Exception:
+        logger.exception('prepaid ledger release failed after deleting time entry %s', instance.pk)

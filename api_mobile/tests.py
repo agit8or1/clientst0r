@@ -2997,10 +2997,21 @@ class MobileTicketBillingRollupTests(TestCase):
         self.assertEqual(c['type'], 'block_hours')
         # 5h allowance = 300 minutes.
         self.assertEqual(c['total_minutes'], 300)
-        # Only the two billable entries (45 + 30) consume the bucket. Until
-        # v3.17.600 this asserted 90: the save hook counted the 15m
-        # non-billable entry too, which over-consumed the allowance (and
-        # brought overage billing forward) for time the MSP chose not to bill.
+        # Phase 101.3: time consumes the prepaid hours when it is approved,
+        # so these unapproved entries use nothing yet.
+        self.assertEqual(c['used_minutes'], 0)
+        self.assertEqual(c['remaining_minutes'], 300)
+
+        # Once approved, only the two billable entries (45 + 30) consume the
+        # bucket (until v3.17.600 the 15m non-billable entry counted too).
+        from datetime import date as _d, timedelta
+        from psa.models import TimesheetSubmission
+        sub = TimesheetSubmission.objects.create(
+            user=self.user, period_start=_d.today() - timedelta(days=7),
+            period_end=_d.today(), status='pending')
+        self.ticket.time_entries.update(submission=sub)
+        sub.approve(user=self.user)
+        c = _auth_get(self.client, f'/api/mobile/v1/tickets/{self.ticket.id}/', self.token).json()['contract']
         self.assertEqual(c['used_minutes'], 75)
         self.assertEqual(c['remaining_minutes'], 225)
 

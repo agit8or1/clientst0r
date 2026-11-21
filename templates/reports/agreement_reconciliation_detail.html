@@ -69,7 +69,7 @@
 {% endif %}
 
 <div class="card">
-    <div class="card-header"><strong>Time entries</strong>{% if truncated %} <span class="text-muted small ms-2">(showing the last 500; export CSV for the full list)</span>{% endif %}</div>
+    <div class="card-header"><strong>{% if tracked %}Approved time (prepaid-hour ledger){% else %}Time entries{% endif %}</strong>{% if truncated %} <span class="text-muted small ms-2">(showing the last 500; export CSV for the full list)</span>{% endif %}</div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover small mb-0">
@@ -88,15 +88,15 @@
                 <tbody>
                 {% for r in rows %}
                     <tr class="{% if r.classification == 'overage' %}table-danger{% elif r.classification == 'split' %}table-warning{% endif %}">
-                        <td>{{ r.entry.started_at|date:'Y-m-d H:i' }}</td>
+                        <td>{% if r.entry %}{{ r.entry.started_at|date:'Y-m-d H:i' }}{% else %}{{ r.effective_date|date:'Y-m-d' }}{% endif %}</td>
                         <td>{{ r.entry.user.username|default:'—' }}</td>
                         <td>
-                            {% if r.entry.ticket_id %}
+                            {% if r.entry and r.entry.ticket_id %}
                             <a href="{% url 'psa:ticket_detail' r.entry.ticket.ticket_number %}">{{ r.entry.ticket.ticket_number }}</a>
                             {% else %}—{% endif %}
                         </td>
-                        <td class="text-muted">{{ r.entry.notes|truncatechars:60 }}</td>
-                        <td class="text-end">{{ r.entry.duration_minutes }}</td>
+                        <td class="text-muted">{% if r.entry %}{{ r.entry.notes|truncatechars:60 }}{% else %}deleted entry{% endif %}{% if r.status == 'opening balance' %} <span class="badge bg-secondary">opening balance</span>{% endif %}</td>
+                        <td class="text-end">{{ r.duration_minutes }}</td>
                         <td class="text-end">{{ r.cumulative_minutes }}</td>
                         <td class="text-end">{{ r.covered_minutes }}</td>
                         <td class="text-end">
@@ -104,7 +104,7 @@
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="8" class="text-muted text-center py-4">No time entries logged.</td></tr>
+                    <tr><td colspan="8" class="text-muted text-center py-4">No approved time has used this agreement yet.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
@@ -112,8 +112,46 @@
     </div>
 </div>
 
+{% if pending %}
+<div class="card mt-3">
+    <div class="card-header"><strong>Not yet approved — uses nothing</strong>
+        <span class="text-muted small ms-2">{{ pending_minutes }} min; counted only once the timesheet is approved</span></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm small mb-0">
+                <thead class="table-light"><tr><th>Started</th><th>User</th><th>Ticket</th><th>Notes</th>
+                    <th class="text-end">Duration</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for p in pending %}
+                    <tr class="text-muted">
+                        <td>{{ p.entry.started_at|date:'Y-m-d H:i' }}</td>
+                        <td>{{ p.entry.user.username|default:'—' }}</td>
+                        <td>{% if p.entry.ticket_id %}<a href="{% url 'psa:ticket_detail' p.entry.ticket.ticket_number %}">{{ p.entry.ticket.ticket_number }}</a>{% else %}—{% endif %}</td>
+                        <td>{{ p.entry.notes|truncatechars:60 }}</td>
+                        <td class="text-end">{{ p.minutes }}</td>
+                        <td>{{ p.reason }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if tracked %}
+<p class="text-muted small mt-3">
+    <strong>Methodology:</strong> figures come from the prepaid-hour ledger, the same source as the summary
+    report, ticket invoices and billing review. Allowance is the hours bought (purchases and adjustments).
+    Each row is approved time (or time counted in the opening balance at upgrade), in the order its hours were
+    used: minutes within the balance are "covered", minutes past it are "overage", billable at the contract's
+    <code>overage_rate</code> (or <code>hourly_rate</code>). Time that is not approved yet uses nothing and is
+    listed separately.
+</p>
+{% else %}
 <p class="text-muted small mt-3">
     <strong>Methodology:</strong> entries are walked chronologically by `started_at`. Each minute that brings cumulative consumption ≤ the contract's allowance is "covered" by the agreement; minutes past that are "overage" and billable at the contract's <code>overage_rate</code> (or <code>hourly_rate</code> when overage_rate is 0). Rows that span the boundary are split — covered minutes counted up to the allowance, the remainder as overage.
 </p>
+{% endif %}
 
 {% endblock %}
