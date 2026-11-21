@@ -3,7 +3,7 @@ server / authorization server for the connections other apps hold here).
 
 Every API call: DPoP-bound access token issued here (signed by our key for
 that connection), a fresh DPoP proof by the connection key the token is
-bound to, connection ACTIVE, token not older than tokens_not_before, kill
+bound to, connection ACTIVE (TESTING only for the test endpoints), token not older than tokens_not_before, kill
 switch off, and the scopes used = token scopes ∩ what is granted NOW (so a
 revocation or narrowing applies to tokens already issued). Tenant-scoped
 calls then resolve Agit8or-Tenant through THIS connection's grants only.
@@ -88,7 +88,9 @@ def token_request(request):
         conn = _connection(form.get('client_id', ''))
         if conn is None:
             raise ConnectError('invalid_client', 'unknown client', 401)
-        if conn.state != Connection.ACTIVE:
+        # testing (C3): the other side's commit-gate test needs a token; what
+        # a testing connection may call is limited in authenticate().
+        if conn.state not in (Connection.ACTIVE, Connection.TESTING):
             raise ConnectError('invalid_client', 'this connection is not active', 401)
         endpoint = identity.token_endpoint(request)
 
@@ -140,22 +142,26 @@ class Authenticated:
         return g.local_tenant
 
 
-def authenticate(request, *, require_scope=None) -> Authenticated:
+def authenticate(request, *, require_scope=None, testing_ok=False) -> Authenticated:
+    """``testing_ok``: the endpoint is part of the other side's connection
+    test (capabilities, test, health) and answers a connection that is in
+    ``testing`` too. Every other endpoint (customer data) needs ``active``."""
     from .models import Connection
     if identity.kill_switch_engaged():
         raise ConnectError('kill_switch', 'connected applications are stopped', 503)
     url = identity.public_base(request) + request.path
+    usable = (Connection.ACTIVE, Connection.TESTING) if testing_ok else (Connection.ACTIVE,)
 
     def keys_for(client_id):
         c = _connection(client_id)
-        return store.verifying_keys(c) if c and c.state == Connection.ACTIVE else {}
+        return store.verifying_keys(c) if c and c.state in usable else {}
 
     claims, client_id = sdk_tokens.authenticate_resource_request(
         authorization=request.headers.get('Authorization', ''), dpop=request.headers.get('DPoP', ''),
         method=request.method, url=url, issuer=identity.installation_id(), token_keys_for=keys_for,
         replay=store.replay_store)
     conn = _connection(client_id)
-    if conn is None or conn.state != Connection.ACTIVE:
+    if conn is None or conn.state not in usable:
         raise ConnectError('invalid_token', 'connection is not active', 401)
     if conn.tokens_not_before and datetime.fromtimestamp(claims['iat'], tz=dt_tz.utc) < conn.tokens_not_before:
         raise ConnectError('invalid_token', 'token issued before the connection was re-keyed', 401)

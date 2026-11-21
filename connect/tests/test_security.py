@@ -292,7 +292,8 @@ class Pairing(ConnectTestCase):
             protected.confirm(change, Req(self.admin))
             protected.approve(change, Req(self.admin2))
             preq.refresh_from_db()
-            self.assertEqual(preq.connection.state, Connection.ACTIVE)
+            # C3: approved is not active; the connection test commits it.
+            self.assertEqual(preq.connection.state, Connection.TESTING)
             self.assertIn('lab_actions:execute', preq.connection.inbound_scopes)
             self.assertEqual(self.peer.poll(pconn.id), 'approved')
 
@@ -376,7 +377,9 @@ class Webhooks(ConnectTestCase):
         self.net.down.clear()
         OutboundEvent.objects.filter(pk=ev.pk).update(next_attempt_at=ev.created_at)
         self.assertEqual(events.deliver_due()['delivered'], 1)
-        self.assertEqual(len(self.pconn.received_events), 1)
+        # (the connect.test event of the commit-gate test arrived earlier)
+        self.assertEqual([e['type'] for e in self.pconn.received_events if e['type'] != 'connect.test'],
+                         ['alert.raised'])
 
     def test_dead_letter_after_max_attempts(self):
         from connect import events

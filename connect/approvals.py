@@ -8,6 +8,13 @@ confirmed by them with a fresh password, approved by a different approver
 after re-authenticating, and applied in the same transaction. If the
 connection's keys, scopes or grants changed after the proposal, applying it
 is refused (fingerprint check).
+
+Since increment C3 the same kind also carries: a widening approval of the
+other application's address for a new connection (applied as approved
+``staged`` rules, active only after a passing test), and a permission change
+of an active connection that adds a high-risk or admin scope
+(connect/permissions.py). Approving a pairing never activates it: the
+connection goes to ``awaiting_network`` / ``testing`` (connect/activation.py).
 """
 from __future__ import annotations
 

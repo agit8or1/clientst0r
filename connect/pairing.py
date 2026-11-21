@@ -11,6 +11,11 @@ Inbound — another app connects to Clientst0r ("we are the responder"):
 Granting a high_risk or admin scope is a protected change: it is applied only
 when a second administrator approves it (tech_access.protected, kind
 "app_connection"; applier in connect/approvals.py).
+
+Approval no longer activates (increment C3, fixes QC-07): an approved
+connection goes to ``awaiting_network``; the other side's source addresses
+are approved as a staged change, a connection test runs in ``testing``, and
+only ``activation.commit_connection`` makes it active (connect/activation.py).
 """
 from __future__ import annotations
 
@@ -111,7 +116,7 @@ def duplicate_connections(conn):
     from django.db.models import Q
     from .models import Connection
     connected = (Connection.ACTIVE, Connection.SUSPENDED, Connection.SECURITY_BLOCKED, Connection.AWAITING_REMOTE,
-                 Connection.AWAITING_SECOND)
+                 Connection.AWAITING_SECOND, Connection.AWAITING_NETWORK, Connection.TESTING)
     return Connection.objects.filter(
         Q(state__in=connected) | Q(state=Connection.AWAITING_LOCAL, direction=Connection.OUTBOUND),
         remote_installation_id=conn.remote_installation_id).exclude(pk=conn.pk)
@@ -185,7 +190,8 @@ def start_outbound(info: sdk_discovery.DiscoveryInfo, code: str, *, requested_sc
         raise PairingFailed('Choose at least one permission the other application offers.', 'invalid_scope')
     if Connection.objects.filter(remote_installation_id=info.installation_id,
                                  state__in=(Connection.ACTIVE, Connection.AWAITING_REMOTE,
-                                            Connection.AWAITING_LOCAL, Connection.AWAITING_SECOND)).exists():
+                                            Connection.AWAITING_LOCAL, Connection.AWAITING_SECOND,
+                                            Connection.AWAITING_NETWORK, Connection.TESTING)).exists():
         raise PairingFailed('This Clientst0r already has a connection to that installation. Disconnect it '
                             'first to pair again.', 'duplicate')
     orgs = list(organizations)
@@ -373,6 +379,8 @@ def approve_local(conn, *, scopes: Sequence[str], grants, user, request=None):
                          detail={'protected_change': change.pk})
         return change
     finalize_local(conn, scopes, grants, user)
+    from . import activation
+    activation.after_approval(conn, user)
     return None
 
 
@@ -383,9 +391,9 @@ def finalize_local(conn, scopes, grants, user):
         conn.inbound_scopes = sorted(set(scopes))
         conn.inbound_event_types = _event_types(scopes)
         _apply_grants(conn, grants, user)
-        _activate(conn, user)
-    audit_log.record('pairing.activated', 'ok', connection=conn, user=user, scopes=conn.inbound_scopes,
-                     detail={'direction': Connection.OUTBOUND, 'grants': len(grants)})
+        _approved(conn, user)
+    audit_log.record('pairing.approved', 'ok', connection=conn, user=user, scopes=conn.inbound_scopes,
+                     detail={'direction': Connection.OUTBOUND, 'grants': len(grants), 'next': conn.state})
 
 
 def _event_types(scopes) -> List[str]:
@@ -397,18 +405,16 @@ def _event_types(scopes) -> List[str]:
     return sorted(out)
 
 
-def _activate(conn, user=None):
-    from .models import Connection
-    from . import source_policy
+def _approved(conn, user=None):
+    """Both administrators' approval of permissions and customers is
+    complete here: ``awaiting_network`` (never ``active``; C3). For a v1
+    code-flow connection the addresses the administrator typed for the
+    pairing are staged as its source rules in the same step (DESIGN §4.1:
+    it passes straight through); a Quick Connect connection waits for the
+    separate approval of the other side's addresses. Caller's transaction."""
+    from . import activation
     _refuse_if_stopped()   # inside the caller's transaction: raising rolls the approval back
-    conn.state = Connection.ACTIVE
-    conn.next_rotation_at = timezone.now() + timedelta(days=conn.rotation_interval_days or 90)
-    conn.save()
-    # The pairing addresses become the connection's source rules, in the same
-    # transaction and policy version bump as the activation.
-    source_policy.promote_on_activate(conn, user)
-    from . import destinations
-    destinations.activate(conn)
+    activation.enter_awaiting_network(conn, user)
 
 
 # --- inbound ----------------------------------------------------------------------
@@ -593,6 +599,8 @@ def approve_inbound(preq, *, scopes, grants, requested_scopes=(), user, request=
                          detail={'protected_change': change.pk, 'duplicate_installation': bool(duplicates)})
         return change
     finalize_inbound(preq, scopes, grants, conn.requested_outbound_scopes, user)
+    from . import activation
+    activation.after_approval(conn, user)
     return None
 
 
@@ -616,9 +624,9 @@ def finalize_inbound(preq, scopes, grants, requested_scopes, user):
             requested_scopes=requested_scopes, endpoints=identity.endpoints())
         preq.status, preq.decided_at, preq.decided_by = PairingRequest.APPROVED, timezone.now(), user
         preq.save()
-        _activate(conn, user)
-    audit_log.record('pairing.activated', 'ok', connection=conn, user=user, scopes=conn.inbound_scopes,
-                     detail={'direction': 'inbound', 'grants': len(grants)})
+        _approved(conn, user)
+    audit_log.record('pairing.approved', 'ok', connection=conn, user=user, scopes=conn.inbound_scopes,
+                     detail={'direction': 'inbound', 'grants': len(grants), 'next': conn.state})
 
 
 def _reject(preq, user, expired=False):

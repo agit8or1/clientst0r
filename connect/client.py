@@ -23,7 +23,8 @@ _retest = threading.local()
 @contextlib.contextmanager
 def retesting(conn):
     """Inside this block a Security Blocked connection may be called, for
-    the retest after an administrator approved a new destination (B2)."""
+    the retest after an administrator approved a new destination (B2), and
+    a connection in ``testing`` for its commit-gate test (C3). Nowhere else."""
     prev = getattr(_retest, 'pk', None)
     _retest.pk = str(conn.pk)
     try:
@@ -34,7 +35,7 @@ def retesting(conn):
 
 def usable_state(conn, state) -> bool:
     from .models import Connection
-    return state == Connection.ACTIVE or (state == Connection.SECURITY_BLOCKED
+    return state == Connection.ACTIVE or (state in (Connection.SECURITY_BLOCKED, Connection.TESTING)
                                           and getattr(_retest, 'pk', None) == str(conn.pk))
 
 

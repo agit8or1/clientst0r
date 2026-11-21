@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.750] - 2026-11-21
+
+Agit8or Connect: two-sided authorization and a test before a connection goes live (Quick Connect increment C3).
+These changes apply only where an administrator has enabled Agit8or Connect.
+
+### Changed
+
+- **A connection goes live only after a full connection test passes (roadmap 79.13, 79.25).**
+  - **Approval steps:**
+    1. You approve permissions and customers.
+    2. You approve the other application's address on the connection page. A different address, a range or a
+       private address needs a second administrator.
+    3. A full connection test then runs.
+  - **Before the test passes:** the connection shows **Connected** only after the test passes. If it fails, the page
+    names the failed step and what to do next.
+  - **While testing:** the other application can only reach its test, capability and health endpoints. Customer data
+    and events wait.
+  - **Applies to every new connection,** including connections paired with a code. For those, the pairing address is
+    approved automatically because nothing widens.
+- **Changing a connection's permissions or customers (79.14)** shows a preview and needs approval. Adding a high-risk
+  or administrative scope needs a second administrator, and undoing a change can only remove access.
+- **Permissions don't carry over between directions or connections.** A permission granted in one direction never
+  grants the reverse, and one connection never grants access through another.
+
+### Notes
+
+- **Connections that are already active,** including the Rem0te link, keep working as before and are not retested.
+- **New migration:** `connect.0005_c3_activation_states` (choices only; existing rows unchanged).
+- **Compatibility:** version 1 messages and test vectors are unchanged.
+
 ## [3.17.749] - 2026-11-21
 
 Prepaid-hour ledger and ticket invoicing from the ledger and rate cards.

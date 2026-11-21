@@ -120,7 +120,19 @@ class ConnectTestCase(TestCase):
                     tenant_grants=[{'remote_tenant': self.org_id(org), 'local_tenant': tenant,
                                     'scopes': ['customers:read', 'events:publish']}])
         preq.refresh_from_db()
+        # C3: approval leads to testing; active only after a passing test.
+        self.assertEqual(preq.connection.state, 'testing')
+        self.commit(preq.connection)
+        preq.refresh_from_db()
         return pconn, preq.connection
+
+    def commit(self, conn):
+        """Run the commit-gate test of a connection in testing; it must pass."""
+        from connect import activation
+        report = activation.run_commit_test(conn, self.admin)
+        conn.refresh_from_db()
+        self.assertEqual(conn.state, 'active', (conn.last_error, [c for c in report['checks'] if not c['ok']]))
+        return report
 
     def pair_outbound(self, peer=None, *, tenant='cust-1', org=None):
         """Clientst0r connects to the peer (Clientst0r is the initiator)."""

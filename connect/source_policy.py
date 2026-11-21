@@ -148,6 +148,8 @@ def _purposes(route: str) -> frozenset:
     from .models import SourceRule as SR
     if route in UNION_ROUTES:
         return frozenset({SR.PAIRING, SR.DISCOVERY, SR.ALL})
+    if route == 'pairing_status':
+        return frozenset({SR.PAIRING, SR.POLL, SR.ALL})
     if route in PAIRING_ROUTES:
         return frozenset({SR.PAIRING, SR.ALL})
     if route == QC_EXCHANGE_ROUTE:
@@ -638,32 +640,26 @@ def link_invitation(invitation, conn, expires_at):
         _bump()
 
 
-def promote_on_activate(conn, user):
-    """At activation (caller's transaction): the connection's temporary
-    pairing rules become its active rules for every Connect endpoint. The
-    administrator approving the connection approved these addresses with the
-    pairing; nothing else is added."""
-    from .models import ConnectChange, SourceRule as SR
-    temp = list(SR.objects.filter(connection=conn, layer=SR.CONNECTION, status=SR.TEMPORARY,
+def narrow_to_poll(conn, expires_at, user=None):
+    """After a Quick Connect exchange (responder): the attempt's temporary
+    pairing rule (every pairing endpoint, at most 15 minutes) is replaced by
+    a rule for the v1 pairing-status poll only, until the attempt deadline,
+    so the other side can still learn a later approval (C3). Caller holds
+    the transaction. Removed on commit, rollback or expiry."""
+    from .models import SourceRule as SR
+    rows = list(SR.objects.filter(connection=conn, layer=SR.CONNECTION, status=SR.TEMPORARY, purpose=SR.PAIRING,
                                   action=SR.ALLOW))
-    if not temp:
+    if not rows:
         return []
-    change = ConnectChange.objects.create(
-        connection=conn, kind=ConnectChange.SOURCE_RULES, status=ConnectChange.APPLIED, widening=True,
-        payload={'add': [{'layer': SR.CONNECTION, 'connection': str(conn.pk), 'network': r.network,
-                          'action': SR.ALLOW, 'private': r.private, 'purpose': SR.ALL} for r in temp],
-                 'remove': [r.pk for r in temp], 'via': 'pairing approval'},
-        proposed_by=user if getattr(user, 'pk', None) else None, approved_by=user if getattr(user, 'pk', None)
-        else None, applied_at=timezone.now(), note='Addresses approved with the pairing')
-    now = timezone.now()
-    SR.objects.filter(pk__in=[r.pk for r in temp]).update(status=SR.REMOVED, removed_at=now)
-    create_rules([{'layer': SR.CONNECTION, 'connection': conn.pk, 'network': r.network, 'private': r.private,
-                   'action': SR.ALLOW, 'purpose': SR.ALL, 'description': 'Approved with the pairing'}
-                  for r in temp], user=temp[0].created_by, approver=user, change=change)
+    # Narrowed in place (purpose and deadline only): the row keeps who
+    # approved it and when the exchange was first seen from it.
+    SR.objects.filter(pk__in=[r.pk for r in rows]).update(purpose=SR.POLL, expires_at=expires_at,
+                                                          description='Pairing status poll (Quick Connect)')
     _bump()
-    _audit('source_rules.applied', user=user, connection=conn,
-           detail={'change': change.pk, 'added': [r.network for r in temp], 'via': 'pairing approval'})
-    return temp
+    _audit('source_rules.narrowed', user=user, connection=conn,
+           detail={'sources': [r.network for r in rows], 'purpose': SR.POLL,
+                   'expires': expires_at.isoformat() if expires_at else None})
+    return rows
 
 
 RESULT_POLL_WINDOW = 3600
@@ -785,10 +781,18 @@ def compute_preview(payload) -> dict:
             'before': ser(before), 'after': ser(after)}
 
 
-def propose(*, add=(), remove=(), user, connection=None, note='') -> 'ConnectChange':
+def propose(*, add=(), remove=(), user, connection=None, note='', on_commit=False,
+            widening=None) -> 'ConnectChange':
     """Stage a source-rule change. ``add``: dicts with layer, connection (for
     the connection layer), network, action, private, purpose, expires_at,
-    description. ``remove``: SourceRule ids (active or temporary)."""
+    description. ``remove``: SourceRule ids (active or temporary).
+
+    ``on_commit`` (C3, connect/activation.py): the rules of a connection that
+    is not active yet. Approving such a change writes them as ``staged`` rows
+    (never evaluated); they are tried in the test window and become active
+    only in commit_connection(). ``widening`` overrides the preview's
+    verdict for that case (activation decides what needs a second
+    administrator)."""
     from .models import Connection, ConnectChange, SourceRule as SR
     entries = []
     for e in add:
@@ -819,7 +823,11 @@ def propose(*, add=(), remove=(), user, connection=None, note='') -> 'ConnectCha
     if not entries and not rm:
         raise ValidationError('Nothing to change.')
     payload = {'add': entries, 'remove': rm}
+    if on_commit:
+        payload['on_commit'] = True
     preview = compute_preview(payload)
+    if widening is not None:
+        preview['widening'] = bool(widening)
     from . import identity
     ident = identity.get()
     conn = connection or (Connection.objects.filter(pk=entries[0]['connection']).first()
@@ -852,6 +860,9 @@ def approve(change, request):
         raise ChangeRefused('Re-enter your password to approve a network change.')
     if fingerprint(change.payload) != change.fingerprint:
         raise ChangeRefused('The rules changed since this was proposed. Propose it again.')
+    if change.payload.get('on_commit'):
+        from . import activation
+        return activation.approve_change(change, request)
     if change.widening:
         from tech_access.protected import can_widen_at_all, propose as tp
         if not can_widen_at_all(user):
@@ -916,6 +927,12 @@ def apply_protected(protected_change, reviewer):
         if change.kind == ConnectChange.DESTINATION:
             from . import destinations
             destinations.apply_change(change, reviewer, protected=True)
+        elif change.kind == ConnectChange.PERMISSIONS:
+            from . import permissions
+            permissions.apply_change(change, reviewer, protected=True)
+        elif change.payload.get('on_commit'):
+            from . import activation
+            activation.approve_staged(change, reviewer, protected=True)
         else:
             apply_change(change, reviewer, protected=True)
     except ChangeRefused as e:

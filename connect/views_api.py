@@ -92,7 +92,7 @@ def health(request):
     out = {'status': 'stopped' if identity.kill_switch_engaged() else 'ok', 'protocol': PROTOCOL_ID,
            'installation_id': identity.installation_id()}
     if request.headers.get('Authorization'):
-        a = auth.authenticate(request)
+        a = auth.authenticate(request, testing_ok=True)
         out['connection'] = {'id': str(a.connection.pk), 'state': a.connection.state}
     import time
     out['time'] = int(time.time())
@@ -155,7 +155,7 @@ def jwks(request, connection_id):
 
 @endpoint(['GET'])
 def capabilities(request):
-    a = auth.authenticate(request, require_scope='connection:read')
+    a = auth.authenticate(request, require_scope='connection:read', testing_ok=True)
     grants = [{'tenant': g.remote_tenant_id, 'scopes': g.scopes}
               for g in a.connection.tenant_grants.filter(active=True)]
     return _json(200, {'connection_id': str(a.connection.pk), 'scopes': a.scopes,
@@ -165,7 +165,7 @@ def capabilities(request):
 
 @endpoint(['POST'])
 def test(request):
-    a = auth.authenticate(request)
+    a = auth.authenticate(request, testing_ok=True)
     import time
     out = {'ok': True, 'connection_id': str(a.connection.pk), 'scopes': a.scopes, 'protocol': PROTOCOL_ID,
            'time': int(time.time())}

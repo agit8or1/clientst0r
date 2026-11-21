@@ -7,7 +7,9 @@ Administration → Integrations → Connected Applications.
   request_review   inbound: compare the code, approve permissions, select customers
   detail           status, approve (outbound), customers, test, keys, activity,
                    rotate, suspend / resume, disconnect, revoke, Network section
-                   (this connection's source rules, observed sources, refusals)
+                   (this connection's source rules, observed sources, refusals);
+                   network authorization (approve the other application's
+                   address), the commit-gate test, staged permission changes (C3)
   network          installation-level source allowlist, staged changes, test
                    an address, observe period (Quick Connect B1)
   change           approve / reject / roll back one staged network change
@@ -37,7 +39,7 @@ from . import catalog, identity, lifecycle, pairing
 RISK_LABELS = {'read': 'Read', 'write': 'Change', 'high_risk': 'High risk — needs a second administrator',
                'admin': 'Administration — needs a second administrator'}
 STEPS = ['Select application', 'Connect application', 'Verify identity', 'Pair', 'Approve permissions',
-         'Select customers', 'Test connection', 'Complete']
+         'Select customers', 'Allow network access', 'Test connection', 'Complete']
 
 
 def page(manage=False):
@@ -255,7 +257,10 @@ def request_review(request, pk):
                                           'or an installation id that is already connected here). Confirm the '
                                           'protected change, then another approver approves it.')
                 return redirect('tech_access:change_detail', pk=change.pk)
-            messages.success(request, 'Approved. The other application completes the pairing on its next check.')
+            messages.success(request, 'Approved. The other application completes the pairing on its next check. '
+                                      'The connection becomes active only after the connection test on this '
+                                      'page passed' + (' (first allow its address for the connection).'
+                                                       if conn.qc_revision else '.'))
             return redirect('connect:detail', pk=conn.pk)
         except pairing.PairingFailed as e:
             ctx['error'] = e.message
@@ -294,8 +299,26 @@ def detail(request, pk):
         qc_grant=getattr(conn, 'qc_grant', None) if conn.qc_revision else None,
         qc_invitation=getattr(conn, 'qc_invitation', None) if conn.qc_revision else None,
         step={Connection.AWAITING_REMOTE: 3, Connection.AWAITING_LOCAL: 4, Connection.AWAITING_SECOND: 4,
-              Connection.ACTIVE: 7}.get(conn.state, 0), **_network_ctx(conn), **_destination_ctx(conn))
+              Connection.AWAITING_NETWORK: 6, Connection.TESTING: 7,
+              Connection.ACTIVE: 8}.get(conn.state, 0), **_network_ctx(conn), **_destination_ctx(conn),
+        **_activation_ctx(conn))
     return render(request, 'connect/detail.html', ctx)
+
+
+def _activation_ctx(conn):
+    from .models import ConnectChange, Connection
+    from . import activation
+    out = {'activation_hint': activation.status_hint(conn)}
+    if conn.state == Connection.AWAITING_NETWORK:
+        out['peer_networks'] = activation.suggested_networks(conn)
+        out['peer_networks_text'] = '\n'.join(n['net'] for n in out['peer_networks'])
+    out['approved_network_changes'] = ConnectChange.objects.filter(connection=conn, status=ConnectChange.APPROVED)
+    if conn.state == Connection.ACTIVE:
+        out['permission_groups'] = _grouped(catalog.CATALOG, [s for s in conn.peer_requested_scopes
+                                                              if catalog.CATALOG.get(s)])
+        out['permission_rows'] = [{'id': g.remote_tenant_id, 'label': g.organization.name, 'org_pk': g.organization_id}
+                                  for g in conn.tenant_grants.filter(active=True).select_related('organization')]
+    return out
 
 
 def _detail_post(request, conn):
@@ -318,6 +341,45 @@ def _detail_post(request, conn):
                 messages.warning(request, 'High-risk permissions need a second administrator.')
                 return redirect('tech_access:change_detail', pk=change.pk)
             messages.success(request, 'Connected. Run Test connection to check every part of the link.')
+        elif op == 'approve_network':
+            from django.core.exceptions import ValidationError
+            from . import activation, source_policy
+            try:
+                _reauth(request)
+                from tech_access.protected import has_fresh_auth
+                if not has_fresh_auth(request):
+                    raise _Refused('Re-enter your password to approve the other application\'s address.')
+                change = activation.propose_peer_sources(
+                    conn, request.POST.get('networks', ''), request.user,
+                    purpose=request.POST.get('purpose', 'all'), private=request.POST.get('private') == 'on')
+                pc = activation.approve_change(change, request)
+            except (_Refused, ValidationError, source_policy.ChangeRefused) as e:
+                messages.error(request, ' '.join(e.messages) if isinstance(e, ValidationError) else
+                               getattr(e, 'message', str(e)))
+                return back
+            except activation.ActivationRefused as e:
+                messages.error(request, e.message)
+                return back
+            if pc is not None:
+                messages.warning(request, 'This address widens access (another address, a range or a private '
+                                          'address): confirm the protected change, then a second administrator '
+                                          'approves it. The connection test runs after that.')
+                return redirect('tech_access:change_detail', pk=pc.pk)
+            _commit_test(request, conn)
+        elif op == 'commit_test':
+            _commit_test(request, conn)
+        elif op == 'propose_permissions':
+            from . import permissions
+            scopes = request.POST.getlist('scopes')
+            try:
+                ch = permissions.propose(conn, scopes=scopes, grants=_parse_grants(request, scopes), user=request.user,
+                                         note=request.POST.get('note', ''))
+            except permissions.PermissionChangeRefused as e:
+                messages.error(request, e.message)
+                return back
+            messages.info(request, f'Permission change #{ch.pk} staged. Review what it gains and loses below, then '
+                                   'approve it' + (' (a second administrator approves high-risk permissions).'
+                                                   if ch.preview.get('second_admin') else '.'))
         elif op == 'test':
             report = lifecycle.test_connection(conn, request.user)
             (messages.success if report['ok'] else messages.warning)(
@@ -351,11 +413,20 @@ def _detail_post(request, conn):
             lifecycle.revoke_grant(g, request.user)
             messages.info(request, f'{g.organization.name} is no longer reachable through this connection.')
         elif op == 'add_grant':
-            grants = pairing._validate_grants(conn.inbound_scopes, _parse_grants(request, conn.inbound_scopes))
+            # A new customer is a permission change: staged, previewed and
+            # approved like any other (C3), never applied directly.
+            from . import permissions
             if conn.state != conn.ACTIVE:
                 raise pairing.PairingFailed('Customers can be added only to an active connection.')
-            pairing._apply_grants(conn, grants, request.user)
-            messages.success(request, 'Customer granted.')
+            current = [(g.organization_id, g.remote_tenant_id, list(g.scopes or []))
+                       for g in conn.tenant_grants.filter(active=True)]
+            try:
+                ch = permissions.propose(conn, scopes=conn.inbound_scopes,
+                                         grants=current + _parse_grants(request, conn.inbound_scopes),
+                                         user=request.user, note='Add a customer')
+            except permissions.PermissionChangeRefused as e:
+                raise pairing.PairingFailed(e.message)
+            messages.info(request, f'Change #{ch.pk} staged: approve it below to grant the customer.')
         else:
             raise Http404
     except pairing.PairingFailed as e:
@@ -484,6 +555,21 @@ def _network_post(request, connection=None):
     return None
 
 
+def _commit_test(request, conn):
+    from . import activation
+    try:
+        report = activation.run_commit_test(conn, request.user)
+    except activation.ActivationRefused as e:
+        messages.error(request, e.message)
+        return
+    conn.refresh_from_db()
+    if conn.state == conn.ACTIVE:
+        messages.success(request, 'Every check passed. The connection is active.')
+    else:
+        messages.warning(request, report.get('commit_error') or conn.last_error or
+                         'Some checks failed — see the report below. Nothing was activated.')
+
+
 def _destination_ctx(conn):
     from . import destinations
     d = destinations.get(conn)
@@ -544,6 +630,9 @@ def change(request, pk):
         if ch.kind == ConnectChange.DESTINATION:
             from . import destinations
             mod = destinations
+        elif ch.kind == ConnectChange.PERMISSIONS:
+            from . import permissions
+            mod = permissions
         else:
             mod = source_policy
         if op == 'approve':
@@ -552,7 +641,11 @@ def change(request, pk):
                 messages.warning(request, 'This change widens access: confirm the protected change, then a second '
                                           'administrator approves it.')
                 return redirect('tech_access:change_detail', pk=pc.pk)
-            messages.success(request, f'Change #{ch.pk} applied.')
+            ch.refresh_from_db()
+            messages.success(request, f'Change #{ch.pk} ' + ('approved.' if ch.status == ConnectChange.APPROVED
+                                                                else 'applied.'))
+            if ch.status == ConnectChange.APPROVED and ch.connection_id:
+                _commit_test(request, ch.connection)
             if ch.kind == ConnectChange.DESTINATION and ch.connection_id:
                 from . import destinations
                 if destinations.retest(ch.connection, request.user):
@@ -560,8 +653,8 @@ def change(request, pk):
         elif op == 'reject':
             mod.reject(ch, request.user)
             messages.info(request, f'Change #{ch.pk} rejected.')
-        elif op == 'rollback' and mod is source_policy:
-            rb = source_policy.rollback(ch, request)
+        elif op == 'rollback' and ch.kind in (ConnectChange.SOURCE_RULES, ConnectChange.PERMISSIONS):
+            rb = mod.rollback(ch, request)
             messages.info(request, f'Rolled back (change #{rb.pk}). Rollback only ever narrows access.')
         else:
             raise Http404

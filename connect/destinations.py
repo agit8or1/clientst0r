@@ -128,6 +128,10 @@ class Preview:
     cert_names: List[str] = field(default_factory=list)
     spki: str = ''
     error: str = ''
+    # Which step failed (connection test, C3): blocked_destination,
+    # dns_nxdomain, tcp_refused, tcp_timeout, tls_handshake,
+    # certificate_invalid, certificate_name_mismatch.
+    code: str = ''
 
 
 def host_port(url: str):
@@ -150,11 +154,20 @@ def probe(url: str, *, allow_private=False, ca_pem='', timeout=5.0) -> Preview:
     except (UnsafeURLError, OSError) as e:
         pv.error = 'The address is not allowed or does not resolve.' if isinstance(e, UnsafeURLError) else \
             'The host name did not resolve.'
+        pv.code = 'blocked_destination' if isinstance(e, UnsafeURLError) else 'dns_nxdomain'
         return pv
     ctx = ssl.create_default_context(cadata=ca_pem) if ca_pem else ssl.create_default_context()
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     try:
-        with socket.create_connection((pv.addresses[0], port), timeout) as raw:
+        raw = socket.create_connection((pv.addresses[0], port), timeout)
+    except socket.timeout:
+        pv.error, pv.code = f'Port {port} did not answer within {int(timeout)} s.', 'tcp_timeout'
+        return pv
+    except OSError:
+        pv.error, pv.code = f'The connection to port {port} was refused.', 'tcp_refused'
+        return pv
+    try:
+        with raw:
             with ctx.wrap_socket(raw, server_hostname=host) as tls:
                 der = tls.getpeercert(binary_form=True)
         pv.spki = spki_sha256(der)
@@ -167,9 +180,11 @@ def probe(url: str, *, allow_private=False, ca_pem='', timeout=5.0) -> Preview:
         except x509.ExtensionNotFound:
             pv.cert_names = []
     except ssl.SSLCertVerificationError as e:
-        pv.error = f'TLS certificate not accepted ({getattr(e, "verify_message", "") or "verification failed"}).'
+        msg = getattr(e, 'verify_message', '') or 'verification failed'
+        pv.error = f'TLS certificate not accepted ({msg}).'
+        pv.code = 'certificate_name_mismatch' if 'mismatch' in msg.lower() else 'certificate_invalid'
     except (OSError, ssl.SSLError, ValueError):
-        pv.error = 'TLS handshake failed.'
+        pv.error, pv.code = 'TLS handshake failed.', 'tls_handshake'
     return pv
 
 

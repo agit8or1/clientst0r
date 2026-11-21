@@ -36,6 +36,11 @@ Responder (B, "they connect to us"):
 Nothing is approved automatically: B's administrator approves the
 temporary rule, A's administrator approves B's egress, and both still
 approve the connection itself through the v1 flow after comparing the SAS.
+After the exchange B keeps only a pairing-status poll rule for A (until the
+attempt deadline). Steps 5-8 (permissions and customers, each side's
+approval of the other side's addresses, the connection test, commit) are
+in connect/activation.py (increment C3): a Quick Connect connection is
+active only after its test passed.
 A browser's address is never used for any rule. ``reap`` rolls back
 attempts past their deadline (temporary rules removed, keys retired,
 state failed, policy version bumped).
@@ -123,6 +128,9 @@ FRIENDLY = {
     'kill_switch': 'Connected applications are stopped by the emergency kill switch.',
     'self': 'That address is this Clientst0r installation itself.',
     'cancelled': 'Cancelled by an administrator.',
+    'identity_changed': 'The connection test reached a different installation at the other application\'s address '
+                        'than the one that paired. Nothing was activated and everything this pairing allowed was '
+                        'removed. Pair again once you know why.',
 }
 
 
@@ -246,7 +254,7 @@ def _refuse_if_stopped():
 def _pre_active():
     from .models import Connection
     return (Connection.PENDING_PAIRING, Connection.AWAITING_REMOTE, Connection.AWAITING_LOCAL,
-            Connection.AWAITING_SECOND)
+            Connection.AWAITING_SECOND, Connection.AWAITING_NETWORK, Connection.TESTING)
 
 
 def _existing(installation_id, exclude=None):
@@ -254,7 +262,7 @@ def _existing(installation_id, exclude=None):
     from .models import Connection
     qs = Connection.objects.filter(remote_installation_id=installation_id, state__in=(
         Connection.ACTIVE, Connection.SUSPENDED, Connection.SECURITY_BLOCKED, Connection.AWAITING_REMOTE,
-        Connection.AWAITING_LOCAL, Connection.AWAITING_SECOND))
+        Connection.AWAITING_LOCAL, Connection.AWAITING_SECOND, Connection.AWAITING_NETWORK, Connection.TESTING))
     return qs.exclude(pk=exclude.pk) if exclude is not None else qs
 
 
@@ -792,6 +800,9 @@ def receive_exchange(request, token: str, dpop: str) -> dict:
             g.save(update_fields=['used_at', 'observed_source'])
             SourceRule.objects.filter(connection=conn, status=SourceRule.TEMPORARY, observed_first_at=None).update(
                 observed_first_at=timezone.now())
+            # The 15-minute pairing rule would expire before a later approval
+            # could be polled: keep only the status poll, until the deadline.
+            source_policy.narrow_to_poll(conn, conn.qc_attempt_expires_at)
             _, priv = store.active_key(conn)
             ack = sdk_pairing.build_ack(priv, responder_app=identity.app_info(), initiator_installation=claims['iss'],
                                         request_id=str(preq.pk), request_jti=claims['jti'],

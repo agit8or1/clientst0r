@@ -6,7 +6,10 @@ Quick Connect pages (protocol 1.1, increment C2). DESIGN.md §13.1, §14.
                 and customers to offer)
   qc_attempt    initiator screens 3-5: authorise on the other application
                 (link to ITS admin UI), approve its egress after the answer
-                came back, compare codes
+                came back, compare codes; screens 6-9 (permissions and
+                customers, the other application's address for the
+                connection, the test, connected) continue on the connection
+                page (connect/activation.py, increment C3)
   qc_callback   initiator: where the other application sends the browser
                 back (redirect_uri); the administrator's own session
   qc_authorize  responder: /agit8or-connect/qc-authorize, the invitation
@@ -38,7 +41,8 @@ from . import catalog, identity, quick_connect as qcm
 from .views_ui import _ctx, _orgs, page
 
 QC_STEPS = ['Address', 'Network check', 'Authorise on the other application', 'Approve the other application',
-            'Compare codes']
+            'Compare codes', 'Permissions and customers', 'Allow the other application to reach us', 'Test',
+            'Connected']
 
 
 def _qc_ctx(request, **extra):
@@ -138,7 +142,9 @@ def qc_attempt(request, pk):
         step = 3
     else:
         step = 4
-    ctx = _qc_ctx(request, step=step, conn=conn, inv=inv, screen=step,
+    progress = {Connection.AWAITING_LOCAL: 5, Connection.AWAITING_SECOND: 5, Connection.AWAITING_NETWORK: 6,
+                Connection.TESTING: 7, Connection.ACTIVE: 8}.get(conn.state, step)
+    ctx = _qc_ctx(request, step=progress, conn=conn, inv=inv, screen=step,
                   authorize_link=qcm.authorization_url(request, conn) if step == 2 else '',
                   peer_egress=qcm.peer_egress_rows(conn) if step == 3 else [])
     return render(request, 'connect/quick_connect.html', ctx)

@@ -31,6 +31,27 @@ The other application's administrator sees a code for this request. It must be i
 {% endif %}
 {% if conn.state == 'awaiting_second_approval' %}<div class="alert alert-warning">A second administrator must approve the high-risk permissions (Settings → Security → Technician Access → protected changes).</div>{% endif %}
 
+{% if conn.state == 'awaiting_network' or conn.state == 'testing' %}
+<div class="card mb-3 border-primary" data-connect-activation="{{ conn.state }}"><div class="card-header"><strong>{% if conn.state == 'awaiting_network' %}Allow the other application to reach this one{% else %}Connection test{% endif %}</strong> — not connected yet</div><div class="card-body small">
+<p>{{ activation_hint }}</p>
+{% for ch in approved_network_changes %}<div data-connect-approved-network>Approved here (change #{{ ch.pk }}): {% for e in ch.payload.add %}<code class="me-1">{{ e.network }}</code>{% endfor %}— {% if ch.payload.add.0.purpose == 'discovery' %}discovery only (one-directional){% else %}every Connect endpoint{% endif %}, active only when the test passes.</div>{% endfor %}
+{% if conn.state == 'awaiting_network' and can_manage %}
+<form method="post" class="mt-2" data-connect-approve-network>{% csrf_token %}
+<label class="form-label" for="networks">Address(es) the other application connects from</label>
+<textarea class="form-control form-control-sm font-monospace" id="networks" name="networks" rows="2" maxlength="600">{{ peer_networks_text }}</textarea>
+<div class="form-text">{% if peer_networks %}Pre-filled with the address(es) approved for this pairing{% if conn.qc_revision %} (from the other application's signed answer){% endif %}. Exactly these need your approval only; another address, a range or a private address needs a second administrator.{% else %}No address was approved for this pairing; any address you enter needs a second administrator.{% endif %}
+{% for n in peer_networks %}{% if not n.installation_ok %}<br><span class="text-danger" data-qc-installation-missing>{{ n.net }} is not allowed by this installation's Network list; the test fails until it is.</span>{% endif %}{% endfor %}</div>
+<div class="mt-1"><label class="me-3"><input type="radio" name="purpose" value="all" checked> Every Connect endpoint (both directions)</label>
+<label><input type="radio" name="purpose" value="discovery"> Discovery only (one-directional: it cannot call this application)</label></div>
+<label class="d-block"><input type="checkbox" name="private"> The address is private (LAN or VPN)</label>
+<div class="d-flex flex-wrap gap-2 mt-2"><input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password">
+<input class="form-control form-control-sm w-auto" name="otp" placeholder="Authenticator code" autocomplete="one-time-code" aria-label="Authenticator code">
+<button class="btn btn-sm btn-primary" name="op" value="approve_network">Approve and test</button></div></form>
+{% endif %}
+{% if can_manage and approved_network_changes %}<form method="post" class="mt-2">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" name="op" value="commit_test" data-connect-commit-test>Run the connection test</button></form>{% endif %}
+</div></div>
+{% endif %}
+
 <div class="row">
 <div class="col-lg-6">
 <div class="card mb-3"><div class="card-header"><strong>Status</strong></div><div class="card-body small">
@@ -59,11 +80,16 @@ The other application's administrator sees a code for this request. It must be i
 {% for g in grants %}<tr class="{% if not g.active %}text-muted{% endif %}"><td>{{ g.organization.name }}</td><td><code>{{ g.remote_tenant_id }}</code></td><td>{{ g.scopes|join:", " }}</td>
 <td>{% if g.active and can_manage %}<form method="post">{% csrf_token %}<input type="hidden" name="grant" value="{{ g.pk }}"><button class="btn btn-sm btn-outline-danger" name="op" value="revoke_grant" data-confirm="Stop {{ g.organization.name }} being reachable through this connection?">Revoke</button></form>{% elif not g.active %}revoked {{ g.revoked_at|date:"Y-m-d" }}{% endif %}</td></tr>
 {% empty %}<tr><td colspan="4" class="text-muted">No customers granted.</td></tr>{% endfor %}</tbody></table>
-{% if conn.state == 'active' and can_manage %}<details><summary>Add a customer</summary><form method="post" class="mt-2">{% csrf_token %}
+{% if conn.state == 'active' and can_manage %}<details data-connect-permission-change><summary>Change permissions and customers</summary><form method="post" class="mt-2">{% csrf_token %}
+<p class="text-muted">Staged first: the preview shows what the other application gains and loses; nothing changes until it is approved. High-risk permissions need a second administrator. A rollback only ever narrows.</p>
+{% include "connect/_scopes.html" with name="scopes" groups=permission_groups checked=conn.inbound_scopes %}
+{% include "connect/_grant_rows.html" with rows=permission_rows scopes=conn.peer_requested_scopes %}
+<button class="btn btn-sm btn-primary" name="op" value="propose_permissions">Stage and preview</button></form></details>
+<details><summary>Add a customer</summary><form method="post" class="mt-2">{% csrf_token %}
 {% include "connect/_grant_rows.html" with rows=None scopes=conn.inbound_scopes %}<button class="btn btn-sm btn-primary" name="op" value="add_grant">Grant</button></form></details>{% endif %}
 </div></div>
 {% if conn.last_test.checks %}<div class="card mb-3"><div class="card-header"><strong>Last test</strong> {{ conn.last_test.at|slice:":19" }} — {% if conn.last_test.ok %}<span class="text-success">passed</span>{% else %}<span class="text-danger">failed</span>{% endif %}</div>
-<ul class="list-group list-group-flush small">{% for c in conn.last_test.checks %}<li class="list-group-item">{% if c.ok %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-xmark text-danger"></i>{% endif %} <strong>{{ c.name }}</strong> — {{ c.message }}</li>{% endfor %}</ul></div>{% endif %}
+<ul class="list-group list-group-flush small">{% for c in conn.last_test.checks %}<li class="list-group-item" data-connect-check="{{ c.id }}" data-status="{{ c.status|default:'' }}">{% if c.status == 'skipped' or c.status == 'not_tested' %}<i class="fas fa-minus text-muted"></i>{% elif c.ok %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-xmark text-danger"></i>{% endif %} <strong>{{ c.name }}</strong> — {{ c.message }}{% if c.code %} <code>{{ c.code }}</code>{% endif %}{% if c.next_action %}<div class="text-muted">{{ c.next_action }}</div>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
 {% if can_manage %}<div class="card mb-3"><div class="card-body"><form method="post" class="d-flex flex-wrap gap-2">{% csrf_token %}
 {% if conn.state == 'active' %}<button class="btn btn-sm btn-primary" name="op" value="test">Test connection</button>
 <button class="btn btn-sm btn-outline-primary" name="op" value="rotate">Rotate key now</button>

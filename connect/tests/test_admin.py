@@ -105,7 +105,11 @@ class AdminPages(ConnectTestCase):
         self.assertEqual(self.peer.poll(pconn.id), 'approved')
         self.peer.accept(pconn.id)
         conn.refresh_from_db()
-        self.assertEqual(conn.state, Connection.ACTIVE)
+        self.assertEqual(conn.state, Connection.TESTING)       # C3: active only after the test
+        r = _post(self.ui, UI + f'{conn.pk}/', {'op': 'commit_test'})
+        self.assertEqual(r.status_code, 302)
+        conn.refresh_from_db()
+        self.assertEqual(conn.state, Connection.ACTIVE, conn.last_error)
         # detail ops
         r = _post(self.ui, UI + f'{conn.pk}/', {'op': 'test'})
         self.assertEqual(r.status_code, 302)

@@ -202,6 +202,23 @@ Acceptance tests:
   allows only discovery.
 - Commit is atomic: inject a DB error after the rule activation and before the state change → nothing active.
 
+Implementation notes (`connect/activation.py`, `connect/permissions.py`, tests in
+`connect/tests/test_increment_c3.py`):
+
+- Approved reverse rules are written as `staged` rows of a `ConnectChange` in status `approved`. Entering `testing`
+  turns them `temporary` for a test window of at most 15 minutes (re-armed by each run); the commit makes them
+  `active`. A network or local-source failure returns them to `staged` (`awaiting_network`).
+- One administrator approves exactly the address(es) already approved for the pairing; another address, a range or
+  a newly private address needs a second administrator (`app_connection`).
+- After a Quick Connect exchange the responder narrows the 15-minute pairing rule to a `poll` rule (pairing status
+  only) until the attempt deadline, so a later approval can still be learnt.
+- A refusal by the other side (not approved yet, our source refused, token refused) keeps `testing`: falling back
+  to `awaiting_network` would close our window while the other side tests, and two Clientst0r installations would
+  never commit.
+- A `testing` connection gets tokens and may call `capabilities`, `test` and `health` and send `connect.test`;
+  customer endpoints and other events need `active`.
+- The automatic retest of `testing` connections and `resume` through `testing` are left to increment D's monitor.
+
 ---
 
 ## D. Health states, monitor job, auto-reconnect, event-queue recovery (one release, 79.16–79.18)

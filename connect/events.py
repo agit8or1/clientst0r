@@ -123,7 +123,7 @@ def receive(request) -> tuple:
     cid = request.headers.get(webhooks.H_CONNECTION, '')
     from .auth import _connection
     conn = _connection(cid)
-    if conn is None or conn.state != Connection.ACTIVE:
+    if conn is None or conn.state not in (Connection.ACTIVE, Connection.TESTING):
         raise ConnectError('invalid_signature', 'unknown or inactive connection', 401)
     ring = store.remote_keyring(conn)
     if request.headers.get(webhooks.H_KEY_ID, '') not in ring:
@@ -139,6 +139,10 @@ def receive(request) -> tuple:
                                          receiver=identity.installation_id())
     except ValueError:
         raise ConnectError('invalid_request', 'event body is not JSON')
+    if conn.state == Connection.TESTING and env['type'] != 'connect.test':
+        # A connection under test (C3) accepts only the test event.
+        raise ConnectError('connection_inactive', 'the connection is being tested; only connect.test is accepted',
+                           409)
     if InboundEvent.objects.filter(connection=conn, event_id=eid).exists():
         return 200, {'status': 'duplicate', 'id': eid}
     if env['loop']:

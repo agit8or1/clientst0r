@@ -208,7 +208,15 @@ class ResponderHappyPath(QcTestCase):
                           tenant_grants=[{'remote_tenant': self.org_id(self.org_a), 'local_tenant': 'cust-1',
                                           'scopes': ['customers:read', 'events:publish']}])
         conn.refresh_from_db()
-        self.assertEqual(conn.state, 'active')
+        # C3: the other side's address is approved separately, and the
+        # connection is active only after a passing test.
+        self.assertEqual(conn.state, 'awaiting_network')
+        from connect import activation
+        from tech_access import protected
+        req = type('Req', (), {})()
+        req.user, req.session, req.META, req.path = self.admin, {protected.SESSION_KEY: int(time.time())}, {}, '/'
+        activation.approve_change(activation.propose_peer_sources(conn, [PEER_IP], self.admin), req)
+        self.commit(conn)
         r = self.qpeer.call(pconn.id, 'GET', f'{CS_BASE}/connect/v1/customers/current', tenant='cust-1')
         self.assertEqual(json.loads(r.body), {'tenant': 'cust-1', 'name': 'Acme Customer'})
         # Cross-organization isolation: a customer that was not granted is unreachable.
@@ -274,7 +282,9 @@ class InitiatorHappyPath(QcTestCase):
         pairing.approve_local(conn, scopes=self.SCOPES, grants=[(self.org_a.pk, 'cust-1', ['customers:read'])],
                               user=self.admin)
         conn.refresh_from_db()
-        self.assertEqual(conn.state, Connection.ACTIVE)
+        # C3: next, this side approves the other side's address; active only
+        # after the connection test (test_increment_c3).
+        self.assertEqual(conn.state, Connection.AWAITING_NETWORK)
 
     def test_callback_state_must_match_session_and_runs_once(self):
         from connect.models import Connection
@@ -451,11 +461,16 @@ class ExchangeRefusals(QcTestCase):
         # Valid now.
         url, exch, key = self.craft_exchange(location)
         self.assertEqual(self.post_exchange(url, exch, key)[0], 202)
-        # The same code again (new exchange, new jti): code_used.
+        # The same code again (new exchange, new jti), or the same exchange
+        # again: after the exchange the attempt keeps only a status-poll rule
+        # (C3), so the source layer refuses both before any verification.
         url, exch2, key = self.craft_exchange(location)
-        self.assertEqual(self.post_exchange(url, exch2, key)[1]['error']['code'], 'code_used')
-        # The same exchange again: replayed.
-        self.assertEqual(self.post_exchange(url, exch, key)[1]['error']['code'], 'replayed')
+        self.assertEqual(self.post_exchange(url, exch2, key)[1]['error']['code'], 'source_not_authorised')
+        self.assertEqual(self.post_exchange(url, exch, key)[1]['error']['code'], 'source_not_authorised')
+        from connect.models import QuickConnectGrant
+        g = QuickConnectGrant.objects.get()
+        g.refresh_from_db()
+        self.assertIsNotNone(g.used_at)
 
     def test_code_expired(self):
         from connect.models import QuickConnectGrant

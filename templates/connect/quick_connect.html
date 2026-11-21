@@ -44,9 +44,11 @@
 {# Screen 5: compare codes (v1 from here on) #}
 <div data-qc-screen="compare">
 {% if conn.state == 'failed' %}<div class="alert alert-warning">{{ conn.last_error }}</div>
+{% elif conn.state == 'active' %}<div class="alert alert-success" data-qc-connected>Connected: every check of the connection test passed.</div>
+<a class="btn btn-primary" href="{% url 'connect:detail' conn.pk %}">Open the connection</a>
 {% else %}
 <div class="alert alert-primary"><strong>Comparison code: <span class="font-monospace fs-4" data-connect-sas>{{ conn.sas }}</span></strong><br>
-The other application's administrator sees a code for this request too. Continue only if both are identical — a different code means something is in the middle. Then they approve on their side, and you approve here.</div>
+The other application's administrator sees a code for this request too. Continue only if both are identical — a different code means something is in the middle. Then they approve on their side, and you approve here: the permissions and customers, then the other application's address for this connection. The connection is shown as connected only after a connection test passed on this side.</div>
 <a class="btn btn-primary" href="{% url 'connect:detail' conn.pk %}">Continue: check status and approve</a>
 {% endif %}
 </div>

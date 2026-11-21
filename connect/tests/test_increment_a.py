@@ -397,12 +397,16 @@ class KillSwitchBlocksApprovals(ConnectTestCase):
         self.assertEqual(self.peer.poll(pconn.id), 'pending')
 
     def test_activate_itself_refuses(self):
-        from connect import lifecycle, pairing
+        from connect import activation, lifecycle, pairing
         _, conn = self.pair_inbound()
         conn.state = conn.AWAITING_LOCAL
         lifecycle.engage_kill_switch(self.admin)
         with self.assertRaises(pairing.PairingFailed):
-            pairing._activate(conn)
+            pairing._approved(conn)
+        conn.state = conn.TESTING
+        type(conn).objects.filter(pk=conn.pk).update(state=conn.TESTING)
+        with self.assertRaises(activation.ActivationRefused):     # the commit itself refuses too
+            activation.commit_connection(conn, conn.last_test.get('run_id'), self.admin)
 
 
 # --- QC-10 ---------------------------------------------------------------------------
@@ -570,7 +574,7 @@ class DuplicateInstallationId(ConnectTestCase):
         protected.confirm(change, _Req(self.admin))
         protected.approve(change, _Req(self.admin2))
         preq.refresh_from_db()
-        self.assertEqual(preq.connection.state, Connection.ACTIVE)
+        self.assertEqual(preq.connection.state, Connection.TESTING)     # active only after the test (C3)
 
     def test_ui_approval_redirects_to_protected_change(self):
         from connect import pairing

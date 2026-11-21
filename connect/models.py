@@ -66,11 +66,19 @@ class Connection(models.Model):
     REVOKED = 'revoked'
     FAILED = 'failed'
     SECURITY_BLOCKED = 'security_blocked'
+    # Increment C3 (DESIGN.md §4.1): after both sides approved permissions and
+    # customers, each side approves the other side's source addresses
+    # (awaiting_network), then a connection test must pass (testing) before
+    # commit_connection() makes it active. Nothing becomes active otherwise.
+    AWAITING_NETWORK = 'awaiting_network'
+    TESTING = 'testing'
     STATES = [
         (PENDING_PAIRING, 'Pairing'),
         (AWAITING_REMOTE, 'Waiting for the other application to approve'),
         (AWAITING_LOCAL, 'Waiting for approval here'),
         (AWAITING_SECOND, 'Waiting for a second administrator'),
+        (AWAITING_NETWORK, 'Awaiting network authorization'),
+        (TESTING, 'Testing'),
         (ACTIVE, 'Connected'),
         (SUSPENDED, 'Suspended'),
         (REVOKED, 'Disconnected'),
@@ -441,11 +449,16 @@ class ConnectChange(models.Model):
     a server-side preview, approved (a second administrator through
     tech_access when it widens access), then applied in one transaction that
     bumps InstallationIdentity.connect_policy_version."""
-    SOURCE_RULES, DESTINATION = 'source_rules', 'destination'
-    KINDS = [(SOURCE_RULES, 'Source rules'), (DESTINATION, 'Approved destination')]
+    SOURCE_RULES, DESTINATION, PERMISSIONS = 'source_rules', 'destination', 'permissions'
+    KINDS = [(SOURCE_RULES, 'Source rules'), (DESTINATION, 'Approved destination'),
+             (PERMISSIONS, 'Permissions and customers')]
     STAGED, AWAITING_SECOND, APPLIED, REJECTED, EXPIRED, ROLLED_BACK = (
         'staged', 'awaiting_second', 'applied', 'rejected', 'expired', 'rolled_back')
-    STATUSES = [(STAGED, 'Staged'), (AWAITING_SECOND, 'Waiting for a second administrator'), (APPLIED, 'Applied'),
+    # Approved, applied only by commit_connection() after a passing test (a
+    # new connection's source rules for the other side, C3).
+    APPROVED = 'approved'
+    STATUSES = [(STAGED, 'Staged'), (AWAITING_SECOND, 'Waiting for a second administrator'),
+                (APPROVED, 'Approved — applied when the connection test passes'), (APPLIED, 'Applied'),
                 (REJECTED, 'Rejected'), (EXPIRED, 'Expired'), (ROLLED_BACK, 'Rolled back')]
 
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE, null=True, blank=True,
@@ -492,7 +505,11 @@ class SourceRule(models.Model):
     STATUSES = [(STAGED, 'Staged'), (TEMPORARY, 'Temporary'), (ACTIVE, 'Active'), (REMOVED, 'Removed'),
                 (OBSERVED, 'Observed (not allowed)')]
     PAIRING, DISCOVERY, ALL = 'pairing', 'discovery', 'all'
-    PURPOSES = [(PAIRING, 'Pairing only'), (DISCOVERY, 'Discovery only'), (ALL, 'Every Connect endpoint')]
+    # After a Quick Connect exchange: only the v1 pairing-status poll, until
+    # the attempt's deadline (the other side learns the outcome; C3).
+    POLL = 'poll'
+    PURPOSES = [(PAIRING, 'Pairing only'), (POLL, 'Pairing status only'), (DISCOVERY, 'Discovery only'),
+                (ALL, 'Every Connect endpoint')]
 
     layer = models.CharField(max_length=15, choices=LAYERS)
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE, null=True, blank=True,
