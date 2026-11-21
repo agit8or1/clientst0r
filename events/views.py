@@ -80,6 +80,10 @@ def source_url(event):
             return reverse('backup_monitoring:alert_list')
         if event.source == M.SOURCE_RMM:
             return reverse('integrations:rmm_alerts')
+        if event.source == M.SOURCE_CONNECT:
+            from connect.models import ConnectIncident
+            conn_id = ConnectIncident.objects.filter(pk=event.source_id).values_list('connection_id', flat=True).first()
+            return reverse('connect:detail', args=[conn_id]) if conn_id else ''
     except NoReverseMatch:
         return ''
     return ''

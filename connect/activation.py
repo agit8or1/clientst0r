@@ -28,9 +28,14 @@ Lifecycle after both administrators approved permissions and customers
                     The connection test (lifecycle.test_connection(full=True):
                     DNS, approved destination, TCP, TLS, certificate,
                     discovery + identity, protocol, source address, token,
-                    permissions, customer mapping, signed event) runs here.
+                    permissions, customer mapping, signed event) runs here,
+                    then the full diagnostics (connect/diagnostics.py,
+                    increment E): steps 1-13 must pass, and step 14
+                    (reverse connectivity) too for a Quick Connect
+                    connection (DESIGN §9.1); step 15 is informational.
   active            only through ``commit_connection`` with the id of a
-                    passing run, in ONE transaction: approved rows active,
+                    passing run and of its passing diagnostics run, in ONE
+                    transaction: approved rows active,
                     pairing / poll rules removed, destination active, state
                     active, policy version bumped. If anything fails nothing
                     is active.
@@ -377,6 +382,8 @@ def run_commit_test(conn, user=None) -> dict:
     with client.retesting(conn):
         report = lifecycle.test_connection(conn, user, full=True)
     if report['ok']:
+        report = _with_diagnostics(conn, report, user)
+    if report['ok']:
         try:
             commit_connection(conn, report['run_id'], user)
         except ActivationRefused as e:
@@ -384,6 +391,48 @@ def run_commit_test(conn, user=None) -> dict:
     else:
         _after_failure(conn, report, user)
     return report
+
+
+DIAGNOSTICS_MAX_AGE = timedelta(minutes=15)
+
+
+def _with_diagnostics(conn, report, user):
+    """The commit gate's second half (DESIGN §9.1, §11.3): the fifteen
+    diagnostic steps, of which every required one must pass. The run id is
+    kept in the report (``last_test``), and commit_connection() checks it."""
+    from .models import Connection, DiagnosticRun
+    from . import diagnostics
+    try:
+        row = diagnostics.run(conn, user, trigger=DiagnosticRun.RETEST)
+    except diagnostics.DiagnosticsRefused as e:
+        checks = report['checks'] + [{'id': 'diagnostics', 'name': 'Diagnostics', 'ok': False, 'status': 'fail',
+                                      'code': e.code, 'message': e.message, 'next_action': ''}]
+        report = {**report, 'ok': False, 'checks': checks, 'diagnostic_run': None, 'diagnostics_ok': False}
+    else:
+        ok, failures = diagnostics.gate(row, conn)
+        checks = list(report['checks'])
+        if not ok:
+            checks += [{'id': f.get('id', ''), 'name': f'Diagnostics: {f.get("name", "")}', 'ok': False,
+                        'status': 'fail', 'code': f.get('code') or 'diagnostics_failed',
+                        'message': f.get('explanation', ''), 'next_action': f.get('next_action', '')}
+                       for f in failures]
+        report = {**report, 'ok': bool(report['ok'] and ok), 'checks': checks, 'diagnostic_run': row.pk,
+                  'diagnostics_ok': ok}
+    conn.last_test = report
+    Connection.objects.filter(pk=conn.pk).update(last_test=report, updated_at=timezone.now())
+    return report
+
+
+def _diagnostics_passed(conn, last) -> bool:
+    from .models import DiagnosticRun
+    from . import diagnostics
+    run_pk = last.get('diagnostic_run')
+    if not run_pk or not last.get('diagnostics_ok'):
+        return False
+    row = DiagnosticRun.objects.filter(pk=run_pk, connection=conn).first()
+    if row is None or row.finished_at is None or timezone.now() - row.finished_at > DIAGNOSTICS_MAX_AGE:
+        return False
+    return diagnostics.gate(row, conn)[0]
 
 
 def _after_failure(conn, report, user):
@@ -440,6 +489,8 @@ def commit_connection(conn, run_id: str, user=None):
         last = locked.last_test or {}
         if not run_id or last.get('run_id') != run_id or not last.get('ok') or not last.get('full'):
             raise ActivationRefused('no_passing_test')
+        if not _diagnostics_passed(locked, last):
+            raise ActivationRefused('no_passing_test')
         now = timezone.now()
         approved = list(ConnectChange.objects.filter(connection=locked, status=ConnectChange.APPROVED))
         activated = list(_approved_rows(locked).values_list('network', flat=True))
@@ -463,7 +514,8 @@ def commit_connection(conn, run_id: str, user=None):
     alerts.observe(conn, user=user)
     audit_log.record('connection.committed', 'ok', connection=conn, user=user, app=conn.remote_installation_id,
                      scopes=conn.inbound_scopes,
-                     detail={'run_id': run_id, 'sources': activated, 'pairing_rules_removed': removed,
+                     detail={'run_id': run_id, 'diagnostic_run': (conn.last_test or {}).get('diagnostic_run'),
+                             'sources': activated, 'pairing_rules_removed': removed,
                              'changes': [c.pk for c in approved]})
     source_policy._audit_admin(user, f'Agit8or Connect connection {conn.pk} committed after a passing test',
                                {'run_id': run_id, 'sources': activated})

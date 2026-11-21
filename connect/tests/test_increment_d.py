@@ -985,6 +985,8 @@ class Diagnostics(DTestCase):
         viewer = User.objects.create_user('viewer2', 'v2@example.test', 'pw-Viewer-2!x')
         c = Client()
         c.force_login(viewer)
+        # The commit gate's own run (trigger retest, increment E) is not counted.
+        DiagnosticRun.objects.filter(trigger=DiagnosticRun.RETEST).delete()
         r = c.post(UI + f'{conn.pk}/', {'op': 'diagnose'}, secure=True, HTTP_HOST='clientst0r.test')
         self.assertEqual(r.status_code, 403)
         self.assertFalse(DiagnosticRun.objects.exists())

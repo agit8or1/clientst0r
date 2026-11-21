@@ -2663,6 +2663,7 @@ class Webhook(models.Model):
     # Integrations
     EVENT_INTEGRATION_SYNCED = 'integration.synced'
     EVENT_INTEGRATION_FAILED = 'integration.failed'
+    EVENT_CONNECTED_APP_STATUS = 'connected_app.status_changed'
 
     # Tickets, contacts, invoices
     EVENT_TICKET_CREATED = 'ticket.created'
@@ -2734,6 +2735,7 @@ class Webhook(models.Model):
         # Integrations
         (EVENT_INTEGRATION_SYNCED, 'Integration Synced'),
         (EVENT_INTEGRATION_FAILED, 'Integration Failed'),
+        (EVENT_CONNECTED_APP_STATUS, 'Connected Application Status Changed'),
 
         # Tickets (shared with the customer), contacts, invoices (issued)
         (EVENT_TICKET_CREATED, 'Ticket Created'),

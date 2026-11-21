@@ -12,6 +12,7 @@ _SENDERS = (
     ('psa_ai', 'Rem0teAlertTicket', M.SOURCE_REM0TE),
     ('backup_monitoring', 'BackupAlert', M.SOURCE_BACKUP),
     ('monitoring', 'WebsiteMonitor', M.SOURCE_MONITOR),
+    ('connect', 'ConnectIncident', M.SOURCE_CONNECT),
 )
 
 

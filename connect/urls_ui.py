@@ -20,4 +20,6 @@ urlpatterns = [
     path('quick-connect/<uuid:pk>/', q.qc_attempt, name='qc_attempt'),
     path('confirm/', q.reauth, name='reauth'),
     path('<uuid:pk>/', v.detail, name='detail'),
+    path('<uuid:pk>/diagnostics/', v.diagnostics_page, name='diagnostics'),
+    path('<uuid:pk>/diagnostics/<int:run_pk>/export/', v.diagnostics_export, name='diagnostics_export'),
 ]

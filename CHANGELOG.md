@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.754] - 2026-11-21
+
+Agit8or Connect: incidents, muting, diagnostics history and export, and audit anchoring (Quick Connect increment E).
+These changes apply only where an administrator has enabled Agit8or Connect.
+
+### Added
+
+- **Connection incidents (roadmap 79.19)**
+  - **Operations Center events:** status changes appear there under the source **Connected applications**, as one
+    event per incident. A connection that recovers and fails again within 30 minutes stays one incident.
+  - **Webhook:** a new event, `connected_app.status_changed`, goes to the webhook subscriptions of the customer
+    record chosen on the connection.
+  - **Alerts card** on each connection:
+    - **Mute** for 1 hour to 7 days, audit-logged. **Security Blocked always notifies** and cannot be muted.
+    - **Optional ticket per incident,** filed under the chosen customer record. It is opened on the first Offline or
+      Security Blocked status, later changes are added as notes, and it is resolved only after 30 minutes connected
+      if nobody has worked on it.
+- **Diagnostics tab (79.20)**
+  - **What it shows:** run history, a step-by-step comparison with the previous run, and whether the activation
+    check passes.
+  - **Redacted export:** JSON or text. Tokens, keys, signatures, authorization values and pairing codes are removed.
+  - **Permissions:** viewing needs the view permission. Running and exporting need **Manage connected
+    applications**.
+- **Audit anchoring:** the Connect audit chain head is recorded in the main tamper-evident audit log hourly and on
+  every Security Block. `manage.py connect_verify_audit_chain` now checks the Connect chain, every anchor and the
+  main chain.
+
+### Changed
+
+- **Activation needs diagnostics:** a connection becomes **Connected** only when the connection test and a full
+  diagnostics run both pass, including the reverse-reachability step for Quick Connect.
+- **Monitor:**
+  - It runs full diagnostics every 15 minutes for each healthy active connection, and once after recovering from
+    Offline. A security failure found this way blocks the connection.
+  - Its light check uses the other application's diagnostics probe when that is offered, and falls back to the
+    version 1 test call otherwise.
+
+### Notes
+
+- **New migrations:** `connect.0007_e_alerts_incidents` and `events.0003_connect_source`.
+- **Compatibility:** version 1 messages and test vectors are unchanged.
+
 ## [3.17.753] - 2026-11-21
 
 Ready for Billing queue; account charges can no longer be billed twice.

@@ -8,6 +8,7 @@
 {% if step %}{% include "connect/_steps.html" %}{% endif %}
 {% if conn.last_error and display.key != 'connected' %}<div class="alert alert-warning">{{ conn.last_error }}</div>{% endif %}
 {% include "connect/_health.html" %}
+{% include "connect/_alerts.html" %}
 
 {% if qc_grant %}<div class="card mb-3" data-qc-attempt><div class="card-header"><strong>Quick Connect</strong></div><div class="card-body small">
   <div>Address approved for this request: {% for e in qc_grant.egress %}<code class="me-1">{{ e.net }}</code>{% endfor %}(temporary, until {{ qc_grant.rule_expires_at|date:"H:i" }})</div>

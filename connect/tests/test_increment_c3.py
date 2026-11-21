@@ -58,6 +58,25 @@ class C3Mixin:
         conn.refresh_from_db()
         return change, pc
 
+    def peer_tests_us(self, conn):
+        """The other side runs its own connection test against this one
+        (its qc-diagnostics probe), which is what lets this side's
+        diagnostics step 14 (reverse connectivity) pass (increment E)."""
+        pconn = self.qpeer.connections[self.qpeer.requests[conn.pairing_request_id]]
+        pconn.remote_endpoints.setdefault('api_base', CS_BASE + '/connect/v1')
+        self.qpeer.qc_probe(pconn.id)
+
+    def commit(self, conn):
+        from connect import activation, diagnostics
+        conn.refresh_from_db()
+        if conn.qc_revision == '1.1' and conn.direction == 'outbound':
+            if conn.state == 'awaiting_network':
+                activation.maybe_start_testing(conn, self.admin)     # re-open the test window first
+                conn.refresh_from_db()
+            if conn.state == 'testing' and 'reverse' in diagnostics.required_steps(conn):
+                self.peer_tests_us(conn)
+        return super().commit(conn)
+
     # Initiator (Clientst0r = A): the 1.1 reference peer is B.
     def initiator_until_approved(self, scopes=None):
         from connect import pairing
@@ -218,6 +237,14 @@ class InitiatorFullFlow(C3Mixin, QcTestCase):
                                                    'purpose': 'all', 'password': 'pw-Admin-1!x'})
         self.assertEqual(r.status_code, 302)
         conn.refresh_from_db()
+        # E: a Quick Connect connection also needs diagnostics step 14 -- the
+        # other side has to have reached this one -- so it keeps testing
+        # until the other side ran its own test, then the retest commits.
+        self.assertEqual(conn.state, Connection.TESTING, conn.last_error)
+        self.assertIn('Reverse connectivity', conn.last_error)
+        self.peer_tests_us(conn)
+        self.browser_post(UI + f'{conn.pk}/', {'op': 'commit_test'})
+        conn.refresh_from_db()
         self.assertEqual(conn.state, Connection.ACTIVE, conn.last_error)
         self.assertTrue(conn.last_test['ok'])
         self.assertEqual(_active_rules(conn), [(f'{PEER_IP}/32', 'all')])
@@ -287,6 +314,7 @@ class InitiatorFullFlow(C3Mixin, QcTestCase):
             self.approve_peer(conn)          # testing, test not run yet
         conn.refresh_from_db()
         self.assertEqual(conn.state, Connection.TESTING)
+        self.peer_tests_us(conn)
         with mock.patch('connect.destinations.activate', side_effect=DatabaseError('disk full')):
             with self.assertRaises(DatabaseError):
                 activation.run_commit_test(conn, self.admin)

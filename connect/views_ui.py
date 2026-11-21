@@ -10,7 +10,12 @@ Administration → Integrations → Connected Applications.
                    health and diagnostics, failed events (requeue), Network section
                    (this connection's source rules, observed sources, refusals);
                    network authorization (approve the other application's
-                   address), the commit-gate test, staged permission changes (C3)
+                   address), the commit-gate test, staged permission changes (C3);
+                   alerts: mute (time limited, never Security Blocked), one
+                   ticket per incident, current incident (E)
+  diagnostics      the diagnostics tab: a run step by step against the one
+                   before it, run history, run now (E)
+  diagnostics_export  redacted JSON / text of one run (manage, audited) (E)
   network          installation-level source allowlist, staged changes, test
                    an address, observe period (Quick Connect B1)
   change           approve / reject / roll back one staged network change
@@ -305,8 +310,69 @@ def detail(request, pk):
         step={Connection.AWAITING_REMOTE: 3, Connection.AWAITING_LOCAL: 4, Connection.AWAITING_SECOND: 4,
               Connection.AWAITING_NETWORK: 6, Connection.TESTING: 7,
               Connection.ACTIVE: 8}.get(conn.state, 0), **_network_ctx(conn), **_destination_ctx(conn),
-        **_activation_ctx(conn), **_health_ctx(conn))
+        **_activation_ctx(conn), **_health_ctx(conn), **_alerts_ctx(conn))
     return render(request, 'connect/detail.html', ctx)
+
+
+@page()
+def diagnostics_page(request, pk):
+    """Diagnostics tab: the selected run step by step (latest by default),
+    compared with the run before it, the run history, run now and the
+    redacted export. GET needs view_app_connections; running and exporting
+    need manage_app_connections."""
+    from .models import Connection
+    from . import diagnostics, status
+    conn = get_object_or_404(Connection, pk=pk)
+    if request.method == 'POST':
+        if request.POST.get('op') == 'diagnose':
+            try:
+                row = diagnostics.run(conn, request.user)
+            except diagnostics.DiagnosticsRefused as e:
+                messages.error(request, e.message)
+                return redirect('connect:diagnostics', pk=conn.pk)
+            (messages.success if row.result == 'pass' else messages.warning)(
+                request, 'Diagnostics passed.' if row.result == 'pass' else
+                'Diagnostics found a problem — see the steps below.')
+            return redirect(f'{request.path}?run={row.pk}')
+        return redirect('connect:diagnostics', pk=conn.pk)
+    history = list(conn.diagnostic_runs.select_related('run_by')[:50])
+    selected = None
+    run_pk = request.GET.get('run', '')
+    if run_pk.isdigit():
+        selected = conn.diagnostic_runs.filter(pk=int(run_pk)).first()
+    if selected is None and history:
+        selected = history[0]
+    previous = (conn.diagnostic_runs.filter(started_at__lt=selected.started_at).first()
+                if selected is not None else None)
+    rows = []
+    if selected is not None:
+        before = {s.get('id'): s for s in (previous.steps if previous else [])}
+        for s in selected.steps or []:
+            p = before.get(s.get('id'))
+            rows.append({**s, 'previous_status': p.get('status') if p else None,
+                         'changed': bool(p and p.get('status') != s.get('status'))})
+    gate_ok, gate_fail = diagnostics.gate(selected, conn) if selected is not None else (None, [])
+    return render(request, 'connect/diagnostics.html', _ctx(
+        request, conn=conn, display=status.display(conn), history=history, selected=selected, previous=previous,
+        rows=rows, gate_ok=gate_ok, gate_failing=[f.get('id') for f in gate_fail],
+        required=diagnostics.required_steps(conn)))
+
+
+@page(manage=True)
+def diagnostics_export(request, pk, run_pk):
+    """Redacted JSON / text download of one run (audited)."""
+    from django.http import HttpResponse
+    from .models import Connection, DiagnosticRun
+    from . import diagnostics
+    conn = get_object_or_404(Connection, pk=pk)
+    row = get_object_or_404(DiagnosticRun, pk=run_pk, connection=conn)
+    fmt = 'text' if request.GET.get('format') == 'text' else 'json'
+    name, ctype, body = diagnostics.export(row, request.user, fmt=fmt)
+    resp = HttpResponse(body, content_type=ctype)
+    resp['Content-Disposition'] = f'attachment; filename="{name}"'
+    resp['Cache-Control'] = 'no-store'
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 def _health_ctx(conn):
@@ -323,6 +389,15 @@ def _health_ctx(conn):
             'dead_letters': conn.outbound_events.filter(status=OutboundEvent.DEAD).order_by('-next_attempt_at')[:20],
             'queued_count': conn.outbound_events.filter(status=OutboundEvent.QUEUED).count(),
             'cancelled_count': conn.outbound_events.filter(status=OutboundEvent.CANCELLED).count()}
+
+
+def _alerts_ctx(conn):
+    from django.utils import timezone
+    from . import alerts, incidents
+    return {'alert_mute_choices': alerts.MUTE_CHOICES,
+            'alert_muted': bool(conn.alert_mute_until and conn.alert_mute_until > timezone.now()),
+            'incident': incidents.current(conn),
+            'recent_incidents': conn.incidents.all()[:5]}
 
 
 def _activation_ctx(conn):
@@ -433,6 +508,25 @@ def _detail_post(request, conn):
             (messages.success if row.result == 'pass' else messages.warning)(
                 request, 'Diagnostics passed.' if row.result == 'pass' else
                 'Diagnostics found a problem — see the steps below.')
+        elif op in ('mute', 'unmute', 'alert_ticket'):
+            from core.models import Organization
+            from . import alerts
+            try:
+                if op == 'mute':
+                    until = alerts.mute(conn, request.POST.get('hours'), request.user, request.POST.get('reason', ''))
+                    messages.info(request, f'Alerts muted until {until:%Y-%m-%d %H:%M} UTC. Security Blocked is '
+                                           'never muted: it still e-mails and raises a system warning.')
+                elif op == 'unmute':
+                    alerts.unmute(conn, request.user)
+                    messages.info(request, 'Alerts are no longer muted.')
+                else:
+                    org_pk = request.POST.get('organization', '')
+                    org = Organization.objects.filter(pk=org_pk).first() if org_pk.isdigit() else None
+                    alerts.set_ticket_option(conn, request.POST.get('enabled') == 'on', org, request.user)
+                    messages.info(request, 'Alert settings saved.')
+            except alerts.MuteRefused as e:
+                messages.error(request, str(e))
+            return back
         elif op == 'requeue':
             from .models import OutboundEvent
             from . import events

@@ -210,8 +210,57 @@ class MonitorAdapter(Adapter):
         return []
 
 
+class ConnectAdapter(Adapter):
+    """Agit8or Connect connection incidents (connect.ConnectIncident; Quick
+    Connect increment E). One event per incident: every status change of the
+    connection while the incident lasts updates it (severity, title,
+    occurrences = status changes), recovery resolves it. MSP-wide (no
+    customer): a connection belongs to the installation. Names, statuses and
+    failure codes only."""
+    source = M.SOURCE_CONNECT
+    select = ('connection',)
+    SEVERITY = {'security_blocked': 'critical', 'offline': 'high', 'suspended': 'high', 'degraded': 'medium',
+                'revoked': 'medium', 'connected': 'info'}
+
+    @property
+    def model(self):
+        from connect.models import ConnectIncident
+        return ConnectIncident
+
+    def envelope(self, i):
+        from connect import status as st
+        conn = i.connection
+        name = (conn.remote_display_name or conn.remote_app_type or str(conn.pk))[:120]
+        label = st.LABELS.get(i.status, i.status)
+        return {
+            'organization_id': None,
+            'connection_label': name[:160],
+            'vendor_event_id': f'{conn.pk}:{i.pk}'[:200],
+            'event_type': f'connected application {label.lower()}'[:120],
+            'title': (f'Connected application "{name}" is {label}' if i.is_open else
+                      f'Connected application "{name}" recovered')[:300],
+            'severity': self.SEVERITY.get(i.worst_status if i.is_open else 'connected', 'medium'),
+            'source_severity': i.status,
+            'status': M.STATUS_OPEN if i.is_open else M.STATUS_RESOLVED,
+            'source_status': i.status if i.is_open else (i.resolution or 'resolved'),
+            'first_seen_at': i.opened_at,
+            'last_seen_at': i.resolved_at or i.updated_at,
+            'resolved_at': i.resolved_at,
+            'occurrences': max(i.transition_count, 1),
+            'asset_hint': '',
+            'raw': _cap_raw({'connection': str(conn.pk), 'app_type': conn.remote_app_type, 'status': i.status,
+                             'worst_status': i.worst_status, 'code': i.code, 'muted': i.muted,
+                             'transitions': list(i.transitions or [])[-20:]}),
+            'dedup_key': f'connect:{conn.pk}:{i.pk}',
+            'correlation_group': '',
+        }
+
+    def links(self, i):
+        return ({i.ticket_id} if i.ticket_id else set()), set()
+
+
 ADAPTERS = {a.source: a for a in (SecurityAlertAdapter(), RMMAlertAdapter(), Rem0teAdapter(),
-                                  BackupAlertAdapter(), MonitorAdapter())}
+                                  BackupAlertAdapter(), MonitorAdapter(), ConnectAdapter())}
 
 
 def _list(value):

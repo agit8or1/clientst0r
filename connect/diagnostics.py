@@ -1,5 +1,7 @@
-"""Connection diagnostics: fifteen independent steps (DESIGN.md §9.1;
-roadmap 79.20 — run history and the redacted export finish with increment E).
+"""Connection diagnostics: fifteen independent steps (DESIGN.md §9.1, §9.2;
+roadmap 79.20; increment D, completed in increment E with the commit gate
+``gate()``, the periodic full run ``periodic_due()`` and the redacted export
+``export()``).
 
 Every step returns ``{n, id, name, status, code, explanation, next_action,
 at, duration_ms, data}`` with status ``pass`` / ``fail`` / ``skipped`` /
@@ -18,7 +20,10 @@ Read-only by rule:
   * the one message sent is the protocol's own ``connect.test`` event (no
     customer data); if it is not accepted it is cancelled, not retried;
   * administrators only (manage_app_connections) and rate limited per
-    connection and per administrator, counted in the database.
+    connection and per administrator, counted in the database;
+  * the one thing a run remembers is where the other side's qc-diagnostics
+    probe is (``Connection.remote_probe_url``, advertised in its discovery
+    on the same origin), so the light health check can use it.
 """
 from __future__ import annotations
 
@@ -52,6 +57,8 @@ STEPS = (
 )
 NAMES = {sid: (n, name) for n, sid, name in STEPS}
 REQUIRED = tuple(sid for n, sid, _ in STEPS if n <= 13)
+# Full diagnostics of an active connection by the monitor (DESIGN §8.2).
+PERIODIC_EVERY = timedelta(minutes=15)
 
 RATE_PER_CONNECTION = (6, timedelta(minutes=10))
 RATE_PER_USER = (20, timedelta(hours=1))
@@ -334,6 +341,7 @@ def _credentialed(run: _Run, disc: dict):
     raw_eps = disc['raw'].get('endpoints') if isinstance(disc['raw'].get('endpoints'), dict) else {}
     probe_url = str(raw_eps.get('qc_probe') or '') if qc.EXT_DIAGNOSTICS in disc['extensions'] else ''
     uses_probe = bool(probe_url)
+    _remember_probe(conn, probe_url)
     usable = conn.state in (Connection.ACTIVE, Connection.TESTING)
     one_way = not (conn.requested_outbound_scopes or conn.outbound_scopes)
     if not usable:
@@ -461,7 +469,11 @@ def _credentialed(run: _Run, disc: dict):
             run.ok('tenants', f'{here} customer(s) granted here; the other application reports {len(remote)} '
                    f'customer grant(s) for this installation.', {'remote_tenants': remote, 'granted_here': here})
     elif 'tenants' not in run.steps:
-        run.skip('tenants', 'operation')
+        if run.steps.get('operation', {}).get('status') == 'not_tested':
+            run.put('tenants', 'not_tested', 'Not tested: the other application does not list a capabilities '
+                                             'endpoint, which reports its customer grants.')
+        else:
+            run.skip('tenants', 'operation')
     # 13. signed event
     t = time.monotonic()
     try:
@@ -478,6 +490,17 @@ def _credentialed(run: _Run, disc: dict):
     except ConnectError as e:
         run.fail('event', e.code, e.message, started=t)
     _reverse(run, probe, uses_probe)
+
+
+def _remember_probe(conn, probe_url):
+    """Where the light check finds the other side's probe (or that it has
+    none any more). Learnt only from a discovery document that passed the
+    identity step; the URL is on the discovery origin (advertised_extensions)."""
+    from .models import Connection
+    url = (probe_url or '')[:500]
+    if (conn.remote_probe_url or '') != url:
+        Connection.objects.filter(pk=conn.pk).update(remote_probe_url=url)
+        conn.remote_probe_url = url
 
 
 def _covered(ip, nets) -> bool:
@@ -608,3 +631,153 @@ class _null:
 
     def __exit__(self, *a):
         return False
+
+
+# --- the commit gate (DESIGN §9.1, §11.3) -------------------------------------------------------
+
+def required_steps(conn) -> tuple:
+    """Steps 1-13; for a Quick Connect connection (both sides protocol 1.1)
+    step 14, reverse connectivity, too -- unless this side let the other
+    one reach only discovery (one-directional: it cannot authenticate here,
+    so it can never prove it reached us). Step 15 is informational."""
+    return REQUIRED + (('reverse',) if conn.qc_revision == '1.1' and _reverse_allowed(conn) else ())
+
+
+def _reverse_allowed(conn) -> bool:
+    from .models import SourceRule as SR
+    return SR.objects.filter(connection=conn, layer=SR.CONNECTION, action=SR.ALLOW, purpose=SR.ALL,
+                             status__in=(SR.STAGED, SR.TEMPORARY, SR.ACTIVE)).exists()
+
+
+def gate(row, conn=None):
+    """(ok, failures) for a finished DiagnosticRun: every required step
+    passed. ``not_tested`` counts only for steps 1-13 that the protocol lets
+    a peer leave out (a one-directional connection, no capabilities
+    endpoint); for step 14 of a Quick Connect connection it is a failure."""
+    conn = conn or row.connection
+    steps = {s.get('id'): s for s in (row.steps or [])}
+    failures = []
+    for sid in required_steps(conn):
+        s = steps.get(sid)
+        status = (s or {}).get('status')
+        if status == 'pass' or (status == 'not_tested' and sid != 'reverse'):
+            continue
+        failures.append(s or {'id': sid, 'n': NAMES[sid][0], 'name': NAMES[sid][1], 'status': 'missing',
+                              'code': 'not_run', 'explanation': 'The step did not run.', 'next_action': ''})
+    return (row.finished_at is not None and not failures), failures
+
+
+# --- periodic full run (monitor, DESIGN §8.2) ---------------------------------------------------
+
+def periodic_due(conn, now=None) -> bool:
+    """An active, healthy connection gets a full run every 15 minutes."""
+    from .models import Connection, DiagnosticRun
+    now = now or timezone.now()
+    if conn.state != Connection.ACTIVE or conn.health not in ('', Connection.HEALTH_CONNECTED):
+        return False
+    return not DiagnosticRun.objects.filter(connection=conn, trigger=DiagnosticRun.MONITOR,
+                                            started_at__gt=now - PERIODIC_EVERY).exists()
+
+
+# --- redacted export (DESIGN §9.2) --------------------------------------------------------------
+
+import re as _re
+
+_SECRET_PATTERNS = (
+    # name=value first, so the name goes with the value
+    _re.compile(r'(?i)\b(code|code_verifier|access_token|refresh_token|token|assertion|client_assertion|secret|'
+                r'password|signature|sig|private_key)\s*[=:]\s*["\']?[^\s"\',;]{6,}'),
+    _re.compile(r'-----BEGIN [A-Z ]+-----[\s\S]*?(-----END [A-Z ]+-----|$)'),       # PEM
+    _re.compile(r'eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.?[A-Za-z0-9_-]*'),      # JWS / JWT / DPoP proof
+    _re.compile(r'(?i)\b(bearer|dpop)\s+[A-Za-z0-9._~+/=-]{8,}'),                  # an Authorization value
+    _re.compile(r'\b[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}\b'),               # a pairing code
+)
+# The only keys an export carries; every value is scrubbed again.
+_EXPORT_STEP_KEYS = ('n', 'id', 'name', 'status', 'code', 'explanation', 'next_action', 'at', 'duration_ms', 'data')
+
+
+def scrub(text) -> str:
+    out = str(text if text is not None else '')
+    for p in _SECRET_PATTERNS:
+        out = p.sub('[redacted]', out)
+    return out[:1000]
+
+
+def _scrub_value(v):
+    if isinstance(v, (int, float, bool)) or v is None:
+        return v
+    if isinstance(v, (list, tuple)):
+        return [_scrub_value(x) for x in list(v)[:20]]
+    return scrub(v)
+
+
+def _export_step(step) -> dict:
+    out = {}
+    for k in _EXPORT_STEP_KEYS:
+        if k not in step:
+            continue
+        v = step[k]
+        if k == 'data':
+            # The run's own allowlist (addresses, certificate names, expiry,
+            # SPKI hash, status, counts), applied again, then scrubbed.
+            v = {dk: _scrub_value(dv) for dk, dv in _clean(v if isinstance(v, dict) else {}).items()}
+        else:
+            v = _scrub_value(v)
+        out[k] = v
+    return out
+
+
+def export(row, user=None, *, fmt='json'):
+    """A redacted copy of one run for a support case: no token, assertion,
+    DPoP proof, code, signature, private key, pairing secret or customer
+    data. Addresses, certificate names / expiry / SPKI hash and statuses
+    stay. Audited. Returns (filename, content_type, bytes)."""
+    from . import audit_log, status as st
+    conn = row.connection
+    ok, failures = gate(row, conn)
+    doc = {
+        'format': 'agit8or-connect-diagnostics/1',
+        'exported_at': timezone.now().isoformat(),
+        'connection': {
+            'id': str(conn.pk), 'name': scrub(conn.remote_display_name), 'app_type': scrub(conn.remote_app_type),
+            'remote_installation_id': scrub(conn.remote_installation_id), 'direction': conn.direction,
+            'base_url': scrub(conn.base_url), 'protocol': conn.remote_protocol_version,
+            'quick_connect': conn.qc_revision == '1.1', 'status': st.display(conn).key,
+            'health': {d: {'ok': (v or {}).get('ok'), 'code': scrub((v or {}).get('code', ''))}
+                       for d, v in (conn.health_dims or {}).items() if isinstance(v, dict)},
+        },
+        'run': {'id': row.pk, 'trigger': row.trigger, 'started_at': row.started_at.isoformat(),
+                'finished_at': row.finished_at.isoformat() if row.finished_at else None, 'result': row.result,
+                'commit_gate': {'passes': ok, 'required': list(required_steps(conn)),
+                                'failing': [f.get('id') for f in failures]},
+                'steps': [_export_step(s) for s in (row.steps or []) if isinstance(s, dict)]},
+    }
+    audit_log.record('diagnostics.export', fmt, connection=conn, user=user, app=conn.remote_installation_id,
+                     detail={'run': row.pk, 'format': fmt})
+    stamp = row.started_at.strftime('%Y%m%dT%H%M%S')
+    name = f'connect-diagnostics-{str(conn.pk)[:8]}-{stamp}'
+    if fmt == 'text':
+        return f'{name}.txt', 'text/plain; charset=utf-8', _as_text(doc).encode()
+    return f'{name}.json', 'application/json', json.dumps(doc, indent=2, sort_keys=True).encode()
+
+
+def _as_text(doc) -> str:
+    c, r = doc['connection'], doc['run']
+    lines = [f'Agit8or Connect diagnostics — {c["name"] or c["app_type"]} ({c["id"]})',
+             f'Status: {c["status"]}   Direction: {c["direction"]}   Protocol: {c["protocol"]}'
+             f'{"   Quick Connect" if c["quick_connect"] else ""}',
+             f'Address: {c["base_url"]}   Installation: {c["remote_installation_id"]}',
+             f'Run {r["id"]} ({r["trigger"]}) {r["started_at"]} -> {r["result"] or "running"}; commit gate '
+             + ('passes' if r['commit_gate']['passes'] else 'fails: ' + ', '.join(r['commit_gate']['failing'])),
+             f'Exported {doc["exported_at"]}', '']
+    for s in r['steps']:
+        lines.append(f'{s.get("n", "?"):>2}. [{s.get("status", "")}] {s.get("name", "")}'
+                     + (f' ({s["code"]})' if s.get('code') else ''))
+        if s.get('explanation'):
+            lines.append(f'    {s["explanation"]}')
+        if s.get('next_action'):
+            lines.append(f'    Next: {s["next_action"]}')
+        for k, v in (s.get('data') or {}).items():
+            lines.append(f'    {k}: {", ".join(map(str, v)) if isinstance(v, list) else v}')
+    lines += ['', 'Redacted: no token, assertion, proof, code, signature or key is included.']
+    return '\n'.join(lines) + '\n'

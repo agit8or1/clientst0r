@@ -299,7 +299,8 @@ def security_block(conn, code, evidence=None, user=None):
         audit_log.record('connection.security_blocked', code, connection=conn, user=user,
                          app=conn.remote_installation_id, detail={k: v for k, v in ev.items()
                                                                   if k != 'cert_names'})
-        from . import alerts
+        from . import alerts, audit_anchor
+        audit_anchor.anchor('security_block', connection=conn)     # C-05: the evidence is pinned at once
         alerts.observe(conn, code=code, user=user)
     return bool(blocked)
 

@@ -176,6 +176,25 @@ class Connection(models.Model):
     # problem status an alert was sent for (cleared by the recovery notice).
     status_key = models.CharField(max_length=30, blank=True)
     alerted_status = models.CharField(max_length=30, blank=True)
+    # Alerts (Quick Connect increment E; DESIGN.md §10). A mute is time
+    # limited and audited; it silences Degraded / Offline / Suspended /
+    # Revoked notices and their tickets, never Security Blocked (that still
+    # e-mails, raises the system warning and counts on the bell).
+    alert_mute_until = models.DateTimeField(null=True, blank=True)
+    alert_mute_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='+')
+    alert_mute_reason = models.CharField(max_length=200, blank=True)
+    # Opt-in: one PSA ticket per incident (opened on the first transition to
+    # Offline or Security Blocked, noted on later transitions and on
+    # recovery), filed under this customer record, which is also the
+    # organization whose webhooks receive connected_app.status_changed.
+    alert_ticket = models.BooleanField(default=False)
+    alert_organization = models.ForeignKey('core.Organization', on_delete=models.SET_NULL, null=True, blank=True,
+                                           related_name='+')
+    # qc-diagnostics/1 probe of the other application, learnt from its
+    # discovery document by a diagnostics run (same origin, advertised).
+    # When set, the light health check calls it instead of v1 POST test.
+    remote_probe_url = models.CharField(max_length=500, blank=True)
 
     # Rotation.
     rotation_interval_days = models.PositiveIntegerField(default=90)
@@ -745,3 +764,44 @@ class DiagnosticRun(models.Model):
 
     def __str__(self):
         return f'Diagnostics {self.started_at:%Y-%m-%d %H:%M} ({self.result or "running"})'
+
+
+class ConnectIncident(models.Model):
+    """One problem period of a connection (Quick Connect increment E;
+    DESIGN.md §10): from the first alerting status (Degraded, Offline,
+    Security Blocked, Suspended by the kill switch, Revoked by the other
+    side) until it is Connected again or ends. This row is the source of
+    the shared event layer's OperationalEvent (events/sources.py, source
+    ``connect``; an integer key there) and carries the one optional ticket
+    of the incident. Status changes update it; heartbeats never touch it.
+    Names, statuses and failure codes only: no address, token or key."""
+    connection = models.ForeignKey(Connection, on_delete=models.CASCADE, related_name='incidents')
+    status = models.CharField(max_length=30, help_text='Current displayed status (connect.status key).')
+    worst_status = models.CharField(max_length=30, blank=True)
+    code = models.CharField(max_length=40, blank=True)
+    transitions = models.JSONField(default=list, blank=True, help_text='[{from, to, code, at}], the latest 50.')
+    transition_count = models.PositiveIntegerField(default=1)
+    opened_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution = models.CharField(max_length=30, blank=True)
+    muted = models.BooleanField(default=False, help_text='Opened while the connection\'s alerts were muted.')
+    ticket_id = models.PositiveIntegerField(null=True, blank=True, help_text='psa.Ticket opened for it (opt-in).')
+    ticket_error = models.CharField(max_length=200, blank=True)
+    # The ticket's recovery is settled (resolved when untouched, or left for
+    # a person) only after the incident stayed resolved for REOPEN_WINDOW,
+    # so a flapping connection keeps one incident and one ticket.
+    ticket_settled = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'connect_incidents'
+        ordering = ['-opened_at']
+        constraints = [models.UniqueConstraint(fields=['connection'], condition=models.Q(resolved_at__isnull=True),
+                                               name='connect_one_open_incident')]
+
+    def __str__(self):
+        return f'Incident {self.pk} ({self.status})'
+
+    @property
+    def is_open(self):
+        return self.resolved_at is None

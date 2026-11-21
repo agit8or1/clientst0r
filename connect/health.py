@@ -9,8 +9,11 @@ default 60 s, ±10 % jitter), five separate dimensions:
   tls            TLS handshake                         (availability)
                  certificate valid / name / SPKI pin   (security)
   authenticated  token issued with the active key      (peer_revoked, key_revoked: security)
-  authorised     one harmless authorised call (v1 POST test, which every peer
-                 answers; the qc-diagnostics probe is used by diagnostics)
+  authorised     one harmless authorised call: the other side's
+                 qc-diagnostics probe when it advertises one (learnt by a
+                 diagnostics run, Connection.remote_probe_url; it also says
+                 whether that side still authorises our source address),
+                 otherwise v1 POST test, which every peer answers
   operational    events are accepted (no dead letter in the last hour)
 
 Hysteresis: two failures -> Degraded; three transport / TLS failures (or no
@@ -179,11 +182,49 @@ def _call_failure(dim, e: ConnectError, dims) -> CheckResult:
     return CheckResult.fail(dim, code, e.message or code, dims, status=e.status)
 
 
-def _operation(conn, dims) -> Optional[CheckResult]:
-    """v1 ``POST test``: answered by every peer (v1 and 1.1 alike), so the
-    check is the same for a Rem0te link and a Quick Connect one. The 1.1
-    probe is used by diagnostics (step 8 / 14), where its answer matters."""
+def _probe(conn, dims):
+    """qc-diagnostics/1 probe (PROTOCOL-1.1.md §8). Returns a CheckResult
+    on failure, True on success, None to fall back to v1 POST test (the
+    other side no longer serves it: 404, or an answer that is not a probe
+    response)."""
+    import json
+    from agit8or_connect import quick_connect as qc
+    from .models import Connection as C
     from . import client
+    nonce = qc.generate_nonce()
+    try:
+        r = client.call(conn, 'POST', conn.remote_probe_url, body=json.dumps(qc.probe_request_body(nonce)).encode())
+    except ConnectError as e:
+        return _call_failure('authorised', e, dims)
+    if r.status in (404, 405):
+        C.objects.filter(pk=conn.pk).update(remote_probe_url='')
+        conn.remote_probe_url = ''
+        return None
+    if r.status != 200:
+        return _status_failure(r, dims)
+    try:
+        out = qc.validate_probe_response(json.loads(r.body or b'{}'), nonce=nonce)
+    except (ConnectError, ValueError):
+        return None
+    if out['checks']['source'] == 'not_authorised':
+        return CheckResult.fail('authorised', 'source_not_authorised', 'The other application sees this server at '
+                                f'{out["observed_source"]} and no longer authorises that address.', dims,
+                                {'observed_source': out['observed_source']})
+    dims['authorised'] = (True, '')
+    return True
+
+
+def _operation(conn, dims) -> Optional[CheckResult]:
+    """The other side's probe when advertised, else v1 ``POST test``:
+    answered by every peer (v1 and 1.1 alike), so a Rem0te link and a
+    Quick Connect one are checked the same way."""
+    from . import client
+    if conn.remote_probe_url:
+        res = _probe(conn, dims)
+        if res is True:
+            return None
+        if res is not None:
+            return res
     url = conn.endpoint('test')
     if not url:
         dims['authorised'] = (True, '')

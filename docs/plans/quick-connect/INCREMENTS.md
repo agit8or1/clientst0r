@@ -273,6 +273,31 @@ Acceptance tests:
 - `qc_probe` requires a valid DPoP token and source authorisation, and returns the observed address.
 - Anchor rows appear hourly; truncating `connect_audit` makes `connect_verify_audit_chain` fail.
 
+Implementation notes (`connect/alerts.py`, `connect/incidents.py`, `connect/audit_anchor.py`,
+`connect/diagnostics.py`, `connect/monitor.py`, `events/sources.py`, tests in `connect/tests/test_increment_e.py`):
+
+- The event-layer source row is `ConnectIncident` (one problem period of a connection; the layer keys sources by
+  an integer id, a connection has a UUID). One `OperationalEvent` per incident (`connect:<connection>:<incident>`);
+  each status change updates it. A problem within 30 minutes of the recovery reopens the same incident, so a
+  flapping connection keeps one incident, one event and one ticket.
+- Webhooks: `connected_app.status_changed`, sent to the webhooks of the connection's alert organization (webhooks
+  always belong to one organization). The same organization files the optional ticket.
+- Ticket per incident: opened on the first transition to Offline or Security Blocked; notes on later transitions
+  and on recovery; resolved only after the incident stayed resolved for 30 minutes and nobody worked on it.
+  Queue, priority and type come from the alert policy's helpers (`psa/routing/alert_policy.py`); no
+  `AlertTicketLink` (C-08).
+- Mute: 1 h – 7 days, audited (Connect chain and `AuditLog`), never Security Blocked. "Mute including security"
+  with a second administrator (DESIGN §10) is not offered.
+- Commit gate: after the connection test, a diagnostics run (trigger `retest`) must pass steps 1–13
+  (`not_tested` accepted where the protocol allows it: one-directional, no capabilities endpoint) and step 14 for
+  a Quick Connect connection; its id is in `last_test.diagnostic_run`, and `commit_connection()` refuses without a
+  passing run finished in the last 15 minutes.
+- Monitor: one full run per pass at most (`FULL_PER_PASS`), only with 20 s of the budget left, every 15 minutes
+  per active connection and once on recovery from Offline; a security code it finds blocks the connection.
+- The light check uses the peer's `qc_probe` when a diagnostics run saw it advertised
+  (`Connection.remote_probe_url`), falls back to v1 `POST test` on 404, and treats `not_authorised` as
+  `source_not_authorised` (Security Blocked).
+
 ---
 
 ## F. Public standard repository (one release of this repo + the new repository, 79.21–79.22)

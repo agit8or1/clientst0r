@@ -16,12 +16,14 @@ SOURCE_RMM = 'rmm'
 SOURCE_REM0TE = 'rem0te'
 SOURCE_BACKUP = 'backup'
 SOURCE_MONITOR = 'monitor'
+SOURCE_CONNECT = 'connect'
 SOURCES = (
     (SOURCE_SECURITY, 'Security alerts (vendors and SIEM)'),
     (SOURCE_RMM, 'RMM alerts'),
     (SOURCE_REM0TE, 'Rem0te alerts'),
     (SOURCE_BACKUP, 'Backup alerts'),
     (SOURCE_MONITOR, 'Website monitors'),
+    (SOURCE_CONNECT, 'Connected applications'),
 )
 
 SEVERITIES = (('critical', 'Critical'), ('high', 'High'), ('medium', 'Medium'), ('low', 'Low'), ('info', 'Info'))

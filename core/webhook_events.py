@@ -50,6 +50,7 @@ SUPPORTED_EVENTS = frozenset({
     'wan.up', 'wan.down', 'wan.check_failed',
     'workflow.started', 'workflow.completed', 'workflow.failed',
     'integration.synced', 'integration.failed',
+    'connected_app.status_changed',
     'ticket.created', 'ticket.updated', 'ticket.status_changed',
     'contact.created', 'contact.updated',
     'invoice.created', 'invoice.updated', 'invoice.status_changed',

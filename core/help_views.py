@@ -2025,6 +2025,7 @@ def help_api(request):
         <li><code>wan.down</code> / <code>wan.up</code> / <code>wan.check_failed</code></li>
         <li><code>workflow.started</code> / <code>workflow.completed</code> / <code>workflow.failed</code></li>
         <li><code>integration.synced</code> / <code>integration.failed</code></li>
+        <li><code>connected_app.status_changed</code> &mdash; a Connected Application changed status (Degraded, Offline, Security Blocked, recovered); sent to the organization chosen under that connection's Alerts. Name, status and failure code only</li>
     </ul>
     <p>Each POST body is <code>{"event", "timestamp", "organization", "webhook_id", "data"}</code>. When a secret is set, the raw body is signed with HMAC-SHA256 in the <code>X-Webhook-Signature</code> header (<code>sha256=&lt;hex&gt;</code>). Deliveries are sent after the change is saved and are logged under the webhook's delivery history. Use <strong>Test</strong> on a webhook to send a sample payload.</p>
 
