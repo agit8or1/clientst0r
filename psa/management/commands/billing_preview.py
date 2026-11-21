@@ -19,7 +19,7 @@ from django.core.management.base import BaseCommand
 
 from psa.billing.invoicing import lines_total
 from psa.billing.legacy import legacy_ticket_billing_lines
-from psa.models import Contract, InvoiceLineItem, Ticket
+from psa.models import Contract, Ticket
 
 
 def _m(v):
@@ -37,14 +37,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         from psa.billing.invoicing import cutoff
-        billed_time = InvoiceLineItem.billed_source_ids('time')
-        billed_exp = InvoiceLineItem.billed_source_ids('expense')
+        from psa.billing.billed import unbilled_expenses, unbilled_time
         from psa.models import TicketExpense, TicketTimeEntry
-        t_ids = set(TicketTimeEntry.objects.filter(is_billable=True, ended_at__isnull=False,
-                                                   duration_minutes__gt=0)
-                    .exclude(pk__in=billed_time).values_list('ticket_id', flat=True))
-        t_ids |= set(TicketExpense.objects.filter(is_billable=True).exclude(pk__in=billed_exp)
-                     .values_list('ticket_id', flat=True))
+        # Phase 102.2: the same "is it billed" rule as invoicing.
+        t_ids = set(unbilled_time(TicketTimeEntry.objects.all()).values_list('ticket_id', flat=True))
+        t_ids |= set(unbilled_expenses(TicketExpense.objects.all()).values_list('ticket_id', flat=True))
         tickets = (Ticket.objects.filter(pk__in=t_ids).select_related('organization')
                    .order_by('organization__name', 'pk'))
         if opts.get('customer'):
@@ -78,6 +75,10 @@ class Command(BaseCommand):
                 notes.append(f'{len(info["before_cutoff"])} entr(ies) before the cutoff billed the old way')
             if info['fees']:
                 notes.append(f'trip fees {_m(info["fees"])}')
+            if info.get('held'):
+                notes.append(f'{len(info["held"])} line(s) on hold at the Ready for Billing queue (left off)')
+            if info.get('excluded'):
+                notes.append(f'{len(info["excluded"])} line(s) excluded at the Ready for Billing queue (left off)')
             if info['billed_minutes'] and info['billed_minutes'] != (info['chargeable_minutes']
                                                                      + info['overage_minutes']):
                 notes.append(f'rounding: {info["chargeable_minutes"] + info["overage_minutes"]} min worked, '

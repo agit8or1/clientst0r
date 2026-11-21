@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.753] - 2026-11-21
+
+Ready for Billing queue; account charges can no longer be billed twice.
+
+### Added
+
+- **Ready for Billing (roadmap 102.3)**
+  - **Where:** a new section on **Billing Review**.
+  - **What it lists, per customer:** the exact lines each ticket sent to billing would invoice, plus unbilled account
+    charges, adjustments and completed project milestones.
+  - **Approving:** **Approve** marks lines reviewed and creates nothing.
+  - **Hold** takes a reason and an optional until-date. A hold lapses on its own.
+  - **Exclude** takes a reason. Held and excluded work is never billed, by any invoicing path, until it is included
+    again.
+  - **Adjustments:** add a charge or credit with a reason. Source records are never edited.
+  - **Drafts:** **Create draft invoices for selected** makes drafts only; nothing is sent.
+  - **Permissions:** viewing needs **View invoices**, decisions need **Manage charges** and drafts need **Send
+    invoices**, each for that customer.
+  - **Audit:** every action is audit-logged with its reason.
+
+### Fixed
+
+- **Billing account charges twice (102.1):** bundling a customer's account charges (**Invoice now** on the client
+  account) could bill the same charges twice on two quick clicks or a retry. It now runs under a per-customer lock,
+  and each charge is billed once. **Invoice this ticket** uses the same lock.
+- **Unbilled work list (102.2):** the client account's list no longer shows time and items already on an invoice. It
+  uses the same "is it billed" rule as invoicing.
+
+### Changed
+
+- **Voiding an invoice** now releases its account charges to be billed again, as it already did for ticket time.
+  The account balance counts them as uninvoiced.
+
+### Notes
+
+- **New migration:** `psa.0096_billing_queue_102`.
+
 ## [3.17.752] - 2026-11-21
 
 Agit8or Connect: connection health, automatic reconnection and diagnostics (Quick Connect increment D). These

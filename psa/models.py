@@ -1752,13 +1752,18 @@ class Project(models.Model):
 
     def billable_milestones(self):
         """Completed, priced milestones that have not been billed."""
-        return list(
+        from psa.billing.billed import withheld
+        tasks = list(
             self.tasks.filter(
                 is_milestone=True, status='done',
                 billed_on_invoice__isnull=True,
                 billing_amount__isnull=False,
             ).order_by('sort_order', 'id')
         )
+        # Phase 102.3: a milestone held or excluded at the Ready for Billing
+        # queue is not billed while that lasts.
+        held = withheld('milestone', [t.pk for t in tasks])
+        return [t for t in tasks if str(t.pk) not in held]
 
     def already_fixed_fee_invoiced(self) -> bool:
         """A fixed fee bills once. Asked before generating so the second
@@ -5248,6 +5253,8 @@ class InvoiceLineItem(models.Model):
         ('quote_line', 'Quote Line'),
         ('contract', 'Contract Period'),
         ('fee', 'Billing-rule fee'),
+        # Phase 102.1: an account charge (psa.Charge) bundled into an invoice.
+        ('charge', 'Account charge'),
     ]
 
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='line_items')
@@ -5288,6 +5295,14 @@ class InvoiceLineItem(models.Model):
     class Meta:
         db_table = 'psa_invoice_line_items'
         ordering = ['sort_order', 'pk']
+        constraints = [
+            # Phase 102.1: a charge appears at most once on an invoice. Across
+            # invoices the charge's own `invoice` link is the single record
+            # (one invoice per charge); a void invoice releases it.
+            models.UniqueConstraint(fields=['invoice', 'source', 'source_id'],
+                                    condition=models.Q(source='charge'),
+                                    name='psa_invoice_line_charge_once'),
+        ]
 
     @classmethod
     def billed_source_ids(cls, source, ids=None):
@@ -5299,13 +5314,11 @@ class InvoiceLineItem(models.Model):
         `Project.invoiced_time_entry_ids` made). Voiding an invoice releases
         its entries to be billed again. Pass `ids` to check only those rows.
         """
-        qs = cls.objects.filter(source=source)
+        from psa.billing.billed import live_lines
+        qs = live_lines(source)
         if ids is not None:
             qs = qs.filter(source_id__in=[str(i) for i in ids])
-        ids = (qs.exclude(source_id='')
-               .exclude(invoice__status='void')
-               .exclude(invoice__is_credit_memo=True)
-               .values_list('source_id', flat=True))
+        ids = qs.exclude(source_id='').values_list('source_id', flat=True)
         out = set()
         for raw in ids:
             try:
@@ -5537,6 +5550,13 @@ class Charge(models.Model):
                                 null=True, blank=True, related_name='charges_consumed')
 
     notes = models.TextField(blank=True)
+    # Phase 102.3: an adjustment made at the Ready for Billing queue is an
+    # account charge (or credit) with the reason it was made, optionally for
+    # one ticket. It bills like any other charge and never edits the work it
+    # adjusts.
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='billing_adjustments')
+    adjustment_reason = models.CharField(max_length=500, blank=True, default='')
     created_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='created_psa_charges',
@@ -5562,6 +5582,69 @@ class Charge(models.Model):
         from decimal import Decimal
         a = Decimal(str(self.amount or '0'))
         return -a if self.is_credit else a
+
+
+class CustomerBillingLock(models.Model):
+    """Phase 102.1: one row per customer. Every write that turns a customer's
+    unbilled work or account charges into an invoice locks it first
+    (psa.billing.billed.lock_customer), so two clicks, a retry or two staff
+    members bill the same work one after the other, never twice."""
+    client_org = models.OneToOneField('core.Organization', on_delete=models.CASCADE,
+                                      related_name='psa_billing_lock')
+    revision = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_customer_billing_locks'
+
+    def __str__(self):
+        return f'billing lock for customer {self.client_org_id}'
+
+
+class BillingQueueDecision(models.Model):
+    """Phase 102.3: a decision about one billable source in the Ready for
+    Billing queue. `source`/`source_id` are the invoice line's own pointer
+    (InvoiceLineItem.source / source_id; 'milestone' is a project milestone).
+
+    approved: reviewed and ready (still billed only by an explicit draft).
+    held:     not billed while the hold lasts (until `hold_until`, or until
+              released).
+    excluded: never billed until someone includes it again.
+    Removing the decision ("include again") is audited like setting it.
+    """
+    STATE_CHOICES = [('approved', 'Approved'), ('held', 'On hold'), ('excluded', 'Excluded')]
+    SOURCE_CHOICES = [('time', 'Time entry'), ('expense', 'Item / expense'), ('fee', 'Billing-rule fee'),
+                      ('charge', 'Account charge'), ('milestone', 'Project milestone')]
+
+    client_org = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                   related_name='psa_billing_decisions')
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='billing_decisions')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES)
+    source_id = models.CharField(max_length=80)
+    state = models.CharField(max_length=10, choices=STATE_CHOICES)
+    reason = models.CharField(max_length=500, blank=True, default='')
+    hold_until = models.DateField(null=True, blank=True)
+    decided_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    decided_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'psa_billing_queue_decisions'
+        constraints = [models.UniqueConstraint(fields=['source', 'source_id'], name='psa_billing_decision_once')]
+        indexes = [models.Index(fields=['client_org', 'state'])]
+
+    def __str__(self):
+        return f'{self.source}:{self.source_id} {self.state}'
+
+    def withholds(self, today=None):
+        """True while this decision keeps the source off invoices."""
+        if self.state == 'excluded':
+            return True
+        if self.state == 'held':
+            today = today or timezone.localdate()
+            return self.hold_until is None or self.hold_until > today
+        return False
 
 
 def get_psa_balance(client_org, *, msp_org=None):
@@ -5633,12 +5716,15 @@ def get_psa_balance(client_org, *, msp_org=None):
         else:
             aging['90_plus'] += bal
 
+    # Phase 102.2: the same "is it billed" rule as invoicing (a charge on a
+    # void invoice is unbilled again).
+    from psa.billing.billed import unbilled_charges
     credit_total = sum(
-        (Decimal(str(c.amount or '0')) for c in chg_qs.filter(is_credit=True, invoiced=False)),
+        (Decimal(str(c.amount or '0')) for c in unbilled_charges(chg_qs.filter(is_credit=True))),
         Decimal('0'),
     )
     uninvoiced_charges = sum(
-        (Decimal(str(c.amount or '0')) for c in chg_qs.filter(is_credit=False, invoiced=False)),
+        (Decimal(str(c.amount or '0')) for c in unbilled_charges(chg_qs.filter(is_credit=False))),
         Decimal('0'),
     )
     net = outstanding + uninvoiced_charges - credit_total - invoice_credits

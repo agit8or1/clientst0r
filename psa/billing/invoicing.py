@@ -125,23 +125,43 @@ def _work(entry):
 
 
 def _fee_billed(key):
-    from psa.models import InvoiceLineItem
-    return (InvoiceLineItem.objects.filter(source='fee', source_id=key)
-            .exclude(invoice__status='void').exclude(invoice__is_credit_memo=True).exists())
+    from .billed import live_lines
+    return live_lines('fee').filter(source_id=key).exists()
 
 
-def ticket_billing_lines(ticket, *, include_before_cutoff=False):
-    from psa.models import InvoiceLineItem
+def ticket_billing_lines(ticket, *, include_before_cutoff=False, apply_decisions=True):
+    """Lines and info (see the module docstring). With `apply_decisions`
+    (the default, used by every invoice writer) lines held or excluded at the
+    Ready for Billing queue (Phase 102.3) are taken off and listed in
+    `info['held']` / `info['excluded']` as (line, decision)."""
+    lines, info = _ticket_billing_lines(ticket, include_before_cutoff=include_before_cutoff)
+    info['held'], info['excluded'] = [], []
+    if not apply_decisions or not lines:
+        return lines, info
+    from .billed import withheld
+    by_source = {}
+    for ln in lines:
+        by_source.setdefault(ln['source'], set()).add(str(ln['source_id']))
+    out = {src: withheld(src, ids) for src, ids in by_source.items()}
+    kept = []
+    for ln in lines:
+        d = out.get(ln['source'], {}).get(str(ln['source_id']))
+        if d is None:
+            kept.append(ln)
+        else:
+            info['excluded' if d.state == 'excluded' else 'held'].append((ln, d))
+    return kept, info
 
-    entries = [te for te in ticket.time_entries.filter(is_billable=True).exclude(ended_at__isnull=True)
-               .select_related('ticket', 'ticket__organization', 'ticket__ticket_type', 'user',
-                               'rate_card_line__rate_card', 'labor_role')
-               .order_by('started_at', 'pk') if (te.duration_minutes or 0) > 0]
-    billed = InvoiceLineItem.billed_source_ids('time', [te.pk for te in entries])
-    entries = [te for te in entries if te.pk not in billed]
-    expenses = list(ticket.expenses.filter(is_billable=True).order_by('incurred_on', 'pk'))
-    billed_exp = InvoiceLineItem.billed_source_ids('expense', [e.pk for e in expenses])
-    expenses = [e for e in expenses if e.pk not in billed_exp]
+
+def _ticket_billing_lines(ticket, *, include_before_cutoff=False):
+    from .billed import unbilled_expenses, unbilled_time
+
+    # Phase 102.2: the one "is it billed" rule (psa.billing.billed).
+    entries = list(unbilled_time(ticket.time_entries.all())
+                   .select_related('ticket', 'ticket__organization', 'ticket__ticket_type', 'user',
+                                   'rate_card_line__rate_card', 'labor_role')
+                   .order_by('started_at', 'pk'))
+    expenses = list(unbilled_expenses(ticket.expenses.all()).order_by('incurred_on', 'pk'))
 
     cut = cutoff()
     client = ticket.organization

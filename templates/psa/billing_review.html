@@ -122,4 +122,105 @@
 </table>
 </div>
 </div>
+
+{# Phase 102.3: Ready for Billing — per customer, the exact lines "Invoice this ticket" would write for the tickets above, unbilled account charges and adjustments, and completed milestones. Approve / hold / exclude never edit the work; drafts are only created by "Create draft invoices" and are never sent from here. #}
+<h2 class="h5 mt-4" id="ready-for-billing">Ready for billing</h2>
+<p class="text-muted small mb-2">
+    Ready {{ ready_summary.ready_total }} · on hold {{ ready_summary.held_total }} · excluded {{ ready_summary.excluded_total }}
+    (before tax, {{ ready_summary.customers }} customer{{ ready_summary.customers|pluralize }}).
+    <strong>Approve</strong> marks lines reviewed; <strong>Hold</strong> keeps them off invoices until the date or until released;
+    <strong>Exclude</strong> keeps them off until included again. Holding or excluding needs a reason. Everything is audited.
+    {% if customer_filter %}<a href="?period={{ period }}#ready-for-billing">Show all customers</a>{% endif %}
+</p>
+{% for g in ready_queue %}
+<div class="card mb-3" id="ready-{{ g.client.pk }}">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <strong><a href="{% url 'psa:client_account' g.client.pk %}">{{ g.client.name }}</a></strong>
+        <span class="small">Ready <strong>{{ g.ready_total }}</strong>{% if g.held_total %} · on hold {{ g.held_total }}{% endif %}{% if g.excluded_total %} · excluded {{ g.excluded_total }}{% endif %}
+            {% if not customer_filter %}· <a href="?period={{ period }}&customer={{ g.client.pk }}#ready-for-billing">only this customer</a>{% endif %}</span>
+    </div>
+    <form method="post" action="{% url 'psa:billing_queue_decide' g.client.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="period" value="{{ period }}">
+    {% if customer_filter %}<input type="hidden" name="customer_filter" value="1">{% endif %}
+    <div class="table-responsive">
+    <table class="table table-sm small mb-0 align-middle">
+        <caption class="visually-hidden">Lines ready to bill for {{ g.client.name }}</caption>
+        <thead><tr>
+            <th scope="col"><span class="visually-hidden">Select</span></th>
+            <th scope="col">Source</th><th scope="col">Description</th>
+            <th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Unit price</th>
+            <th scope="col" class="text-end">Amount</th><th scope="col">Status</th>
+        </tr></thead>
+        <tbody>
+        {% for t in g.tickets %}
+            <tr class="table-light">
+                <td>{% if g.can_draft %}<input type="checkbox" name="ticket" value="{{ t.ticket.pk }}" class="form-check-input" aria-label="Draft an invoice for {{ t.ticket.ticket_number }}">{% endif %}</td>
+                <td colspan="4"><a href="{% url 'psa:ticket_charges_review' t.ticket.ticket_number %}">{{ t.ticket.ticket_number }}</a> {{ t.ticket.subject|truncatechars:60 }}
+                    <span class="badge {% if t.ticket.billing_status == 'review' %}text-bg-warning{% else %}text-bg-info{% endif %}">{{ t.ticket.get_billing_status_display }}</span>
+                    {% for b in t.blockers %}<div class="text-danger">{{ b }}</div>{% endfor %}</td>
+                <td class="text-end"><strong>{{ t.total }}</strong></td><td>ticket invoice</td>
+            </tr>
+            {% for ln in t.lines %}{% include "psa/_ready_line.html" %}{% endfor %}
+            {% for ln in t.withheld %}{% include "psa/_ready_line.html" %}{% endfor %}
+        {% endfor %}
+        {% if g.charges %}
+            <tr class="table-light">
+                <td>{% if g.can_draft %}<input type="checkbox" name="include_charges" value="1" class="form-check-input" aria-label="Draft an invoice for the account charges of {{ g.client.name }}">{% endif %}</td>
+                <td colspan="6">Account charges and adjustments</td>
+            </tr>
+            {% for ln in g.charges %}{% include "psa/_ready_line.html" %}{% endfor %}
+        {% endif %}
+        {% if g.milestones %}
+            <tr class="table-light"><td></td><td colspan="6">Project milestones <span class="text-muted">(invoiced from the project page)</span></td></tr>
+            {% for ln in g.milestones %}{% include "psa/_ready_line.html" %}{% endfor %}
+        {% endif %}
+        </tbody>
+    </table>
+    </div>
+    {% if g.can_manage or g.can_draft %}
+    <div class="card-body border-top d-flex flex-wrap gap-2 align-items-end">
+        {% if g.can_manage %}
+        <div><label class="form-label small mb-0" for="reason-{{ g.client.pk }}">Reason</label>
+            <input type="text" id="reason-{{ g.client.pk }}" name="reason" maxlength="500" class="form-control form-control-sm" style="min-width: 220px;"></div>
+        <div><label class="form-label small mb-0" for="until-{{ g.client.pk }}">Hold until (optional)</label>
+            <input type="date" id="until-{{ g.client.pk }}" name="hold_until" class="form-control form-control-sm"></div>
+        <button type="submit" name="decision" value="approve" class="btn btn-sm btn-success">Approve</button>
+        <button type="submit" name="decision" value="hold" class="btn btn-sm btn-outline-warning">Hold</button>
+        <button type="submit" name="decision" value="exclude" class="btn btn-sm btn-outline-danger">Exclude</button>
+        <button type="submit" name="decision" value="include" class="btn btn-sm btn-outline-secondary">Include again</button>
+        {% endif %}
+        {% if g.can_draft %}
+        <button type="submit" formaction="{% url 'psa:billing_queue_draft' g.client.pk %}" class="btn btn-sm btn-primary ms-auto"
+                data-confirm="Create draft invoices for the selected tickets / account charges? Nothing is sent.">Create draft invoices for selected</button>
+        {% endif %}
+    </div>
+    {% endif %}
+    </form>
+    {% if g.can_manage %}
+    <details class="card-body border-top small">
+        <summary>Add an adjustment</summary>
+        <form method="post" action="{% url 'psa:billing_queue_adjust' g.client.pk %}" class="row g-2 mt-1">
+            {% csrf_token %}
+            <input type="hidden" name="period" value="{{ period }}">
+            <div class="col-md-4"><label class="form-label small mb-0" for="adj-desc-{{ g.client.pk }}">Description</label>
+                <input type="text" id="adj-desc-{{ g.client.pk }}" name="description" maxlength="300" required class="form-control form-control-sm"></div>
+            <div class="col-md-2"><label class="form-label small mb-0" for="adj-amt-{{ g.client.pk }}">Amount</label>
+                <input type="number" step="0.01" min="0.01" id="adj-amt-{{ g.client.pk }}" name="amount" required class="form-control form-control-sm"></div>
+            <div class="col-md-2"><label class="form-label small mb-0" for="adj-t-{{ g.client.pk }}">Ticket (optional)</label>
+                <input type="text" id="adj-t-{{ g.client.pk }}" name="ticket_number" maxlength="40" class="form-control form-control-sm"></div>
+            <div class="col-md-4"><label class="form-label small mb-0" for="adj-r-{{ g.client.pk }}">Reason</label>
+                <input type="text" id="adj-r-{{ g.client.pk }}" name="reason" maxlength="500" required class="form-control form-control-sm"></div>
+            <div class="col-12 d-flex gap-3 align-items-center">
+                <div class="form-check"><input type="checkbox" id="adj-c-{{ g.client.pk }}" name="is_credit" class="form-check-input">
+                    <label class="form-check-label" for="adj-c-{{ g.client.pk }}">Credit (reduces the bill)</label></div>
+                <button type="submit" class="btn btn-sm btn-outline-primary">Add adjustment</button>
+            </div>
+        </form>
+    </details>
+    {% endif %}
+</div>
+{% empty %}
+<p class="text-muted small">Nothing is waiting to be billed{% if customer_filter %} for this customer{% endif %}.</p>
+{% endfor %}
 {% endblock %}

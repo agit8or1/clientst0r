@@ -6000,9 +6000,6 @@ def invoice_from_ticket(request, ticket_number):
     an hours allowance bills only the overage — see
     `Ticket.uninvoiced_billing_lines` for the rules.
     """
-    from .models import Invoice, InvoiceLineItem
-    from datetime import date as _date
-    from django.db import transaction
     org = get_request_organization(request)
     qs = Ticket.objects.select_related('organization')
     if org is not None:
@@ -6014,40 +6011,25 @@ def invoice_from_ticket(request, ticket_number):
     if org is not None and org.pk != ticket.organization_id:
         _require_org_perm(request, org, 'billing_send_invoices')
 
-    with transaction.atomic():
-        # Serialise concurrent clicks on the same ticket so both cannot read
-        # the same entries as unbilled.
-        Ticket.objects.select_for_update().filter(pk=ticket.pk).first()
-        # Phase 101.4: time worked before the upgrade cutoff is billed the
-        # old way unless the person invoicing asks for it on purpose.
-        include_earlier = request.POST.get('include_before_cutoff') in ('1', 'on', 'true')
-        lines, info = ticket.uninvoiced_billing_lines(include_before_cutoff=include_earlier)
-        from .billing.invoicing import single_agreement
-        contract = single_agreement(info) or Contract.for_ticket(ticket)
-        _ticket_billing_notes(request, info)
-        if not lines:
-            messages.info(
-                request,
-                f'Nothing to invoice on {ticket.ticket_number}: all billable '
-                f'time and expenses are already on an invoice or waiting (see above).')
-            return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
-
-        invoice = Invoice.objects.create(
-            organization=org or ticket.organization,
-            client_org=ticket.organization,
-            title=f'Invoice for {ticket.ticket_number} — {ticket.subject}'[:300],
-            description=f'Billable time + expenses for ticket {ticket.ticket_number}',
-            invoice_date=_date.today(),
-            source_ticket=ticket,
-            source_contract=contract,
-            created_by=request.user,
-        )
-        for sort_order, line in enumerate(lines):
-            InvoiceLineItem.objects.create(invoice=invoice, sort_order=sort_order, **line)
-        invoice.recompute_totals()
-        # Phase 101.7: invoiced when nothing is left, else back to review.
-        from .billing.ticket_charges import after_invoice
-        after_invoice(ticket)
+    # Phase 102.1: one transaction under the customer's billing lock (and the
+    # ticket row), re-reading what is unbilled after taking it; a concurrent
+    # writer that billed a line first rolls this one back.
+    from .billing.billed import DoubleBilling, draft_ticket_invoice
+    include_earlier = request.POST.get('include_before_cutoff') in ('1', 'on', 'true')
+    try:
+        invoice, info, contract = draft_ticket_invoice(
+            ticket, actor=request.user, msp_org=org, include_before_cutoff=include_earlier)
+    except DoubleBilling:
+        messages.error(request, f'{ticket.ticket_number} was being invoiced at the same time; nothing was added. '
+                                'Check its invoices.')
+        return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
+    _ticket_billing_notes(request, info)
+    if invoice is None:
+        messages.info(
+            request,
+            f'Nothing to invoice on {ticket.ticket_number}: all billable '
+            f'time and expenses are already on an invoice or waiting (see above).')
+        return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
     if info['covered_minutes']:
         messages.info(
             request,
@@ -6179,6 +6161,10 @@ def billing_review(request):
     _require_org_perm(request, get_request_organization(request), 'billing_view_invoices')
     start, end = br.parse_cycle(request.GET.get('period'))
     rows = br.build_rows(br.contracts_for_cycle(_billing_review_contracts(request), start, end), start, end)
+    from .billing import queue as bq
+    customer = request.GET.get('customer') or ''
+    customer = int(customer) if customer.isdigit() else None
+    ready_queue = bq.build_queue(request.user, customer=customer)
     state = request.GET.get('state') or ''
     shown = [r for r in rows if not state or r.state == state
              or (state == 'overage' and r.overage_minutes)
@@ -6190,6 +6176,10 @@ def billing_review(request):
         'next_period': f'{end:%Y-%m}', 'state': state,
         # Phase 101.7: tickets sent to billing / flagged on close (per-customer billing_view_invoices).
         'ticket_queue': list(_tc_queue(request.user)[:200]),
+        # Phase 102.3: Ready for Billing — the lines of those tickets, account
+        # charges and milestones per customer, with approve / hold / exclude / adjust.
+        'ready_queue': ready_queue, 'ready_summary': bq.summary(ready_queue),
+        'customer_filter': customer,
     })
 
 
@@ -6713,14 +6703,14 @@ def client_account(request, org_id):
     if org is not None:
         payments = payments.filter(invoice__organization=org)
 
-    # Unbilled work — time entries on this client's tickets that are
-    # billable AND don't have an invoice line linked to them yet.
-    unbilled_time = TicketTimeEntry.objects.filter(
-        ticket__organization=client, is_billable=True,
-    ).exclude(duration_minutes=0).select_related('ticket', 'user').order_by('-started_at')[:50]
-    unbilled_expenses = TicketExpense.objects.filter(
-        ticket__organization=client, is_billable=True,
-    ).select_related('ticket', 'user').order_by('-incurred_on')[:50]
+    # Unbilled work — billable time and items on this client's tickets that
+    # are not on a live invoice. Phase 102.2: the same rule invoicing uses
+    # (psa.billing.billed); this list used to show invoiced time too.
+    from .billing.billed import unbilled_expenses as _unbilled_exp, unbilled_time as _unbilled_time
+    unbilled_time = (_unbilled_time(TicketTimeEntry.objects.filter(ticket__organization=client))
+                     .select_related('ticket', 'user').order_by('-started_at')[:50])
+    unbilled_expenses = (_unbilled_exp(TicketExpense.objects.filter(ticket__organization=client))
+                         .select_related('ticket', 'user').order_by('-incurred_on')[:50])
 
     return render(request, 'psa/client_account.html', {
         'client': client,
@@ -6792,44 +6782,21 @@ def charge_add(request, org_id):
 def charge_invoice(request, org_id):
     """Roll all uninvoiced charges + credits for this client into a new
     draft invoice. Marks each charge invoiced=True with invoice FK set."""
-    from .models import Charge, Invoice, InvoiceLineItem
-    from core.models import Organization
-    from datetime import date as _date
     org = get_request_organization(request)
     client = get_object_or_404(_customer_orgs(request), pk=org_id)
     _require_org_perm(request, client, 'billing_send_invoices')
-    qs = Charge.objects.filter(client_org=client, invoiced=False)
-    if org is not None:
-        qs = qs.filter(organization=org)
-    if not qs.exists():
+    # Phase 102.1: one transaction under the customer's billing lock; each
+    # charge is claimed only while still unbilled, so a double click or retry
+    # bills nothing twice (psa.billing.billed.bundle_charges).
+    from .billing.billed import DoubleBilling, bundle_charges
+    try:
+        invoice, bundled = bundle_charges(client, actor=request.user, msp_org=org)
+    except DoubleBilling:
+        messages.error(request, 'These charges were being invoiced at the same time; nothing was added.')
+        return redirect('psa:client_account', org_id=org_id)
+    if invoice is None:
         messages.info(request, 'No uninvoiced charges or credits to bill.')
         return redirect('psa:client_account', org_id=org_id)
-
-    invoice = Invoice.objects.create(
-        organization=org or client,
-        client_org=client,
-        title=f'Account charges through {_date.today():%Y-%m-%d}',
-        invoice_date=_date.today(),
-        created_by=request.user,
-    )
-    # Materialise the charges once: the queryset filters on invoiced=False,
-    # so re-evaluating it after the update below matches nothing (the
-    # success message used to report "Bundled 0 item(s)" every time).
-    charges = list(qs.order_by('charge_date'))
-    for i, c in enumerate(charges):
-        # Credits come through as negative-priced line items.
-        sign = -1 if c.is_credit else 1
-        InvoiceLineItem.objects.create(
-            invoice=invoice, sort_order=i,
-            description=c.description[:300],
-            quantity=1,
-            unit_price=sign * float(c.amount),
-            source='manual',
-            source_id=str(c.pk),
-        )
-    bundled = Charge.objects.filter(pk__in=[c.pk for c in charges]).update(
-        invoiced=True, invoice=invoice)
-    invoice.recompute_totals()
     messages.success(request, f'Bundled {bundled} item(s) into invoice {invoice.invoice_number}.')
     return redirect('psa:invoice_detail', pk=invoice.pk)
 

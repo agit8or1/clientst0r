@@ -75,6 +75,8 @@ STATE_LABELS = {
     'no_charge': 'No charge',
     'unused_stock': 'Reserved - mark used to bill',
     'not_billable': 'Not billable',
+    'held': 'On hold at billing',
+    'excluded': 'Excluded from billing',
     '': '',
 }
 
@@ -215,6 +217,11 @@ def ticket_estimate(ticket, *, show_costs=False, include_before_cutoff=False):
     sets = {k: {e.pk for e in info.get(k, [])}
             for k in ('awaiting_approval', 'needs_choice', 'needs_classification', 'before_cutoff')}
     no_rate = {e.pk: why for e, why in info.get('no_rate', [])}
+    # Phase 102.3: held / excluded at the Ready for Billing queue.
+    withheld = {}
+    for kind in ('held', 'excluded'):
+        for ln, d in info.get(kind, []):
+            withheld[(ln['source'], str(ln['source_id']))] = (kind, d)
     fc = forecast(ticket, info.get('awaiting_approval', []), include_before_cutoff=include_before_cutoff,
                   cut=info.get('cutoff'))
     cost_total = ZERO
@@ -251,6 +258,10 @@ def ticket_estimate(ticket, *, show_costs=False, include_before_cutoff=False):
                 row['charge'] += _line_total(ln)
             row['billed_hours'] = row['covered_hours'] + row['charged_hours']
             row['note'] = mine[0]['description']
+        elif ('time', str(te.pk)) in withheld:
+            kind, d = withheld[('time', str(te.pk))]
+            row['state'] = kind
+            row['note'] = d.reason
         elif te.pk in fc:
             f = fc[te.pk]
             row.update(state='forecast', agreement=f['agreement'], covered_hours=f['covered_hours'],
@@ -294,6 +305,9 @@ def ticket_estimate(ticket, *, show_costs=False, include_before_cutoff=False):
             row['state'] = 'ready'
             row['total'] = sum((_line_total(ln) for ln in mine), ZERO)
             est.items_total += row['total']
+        elif ('expense', str(e.pk)) in withheld:
+            kind, d = withheld[('expense', str(e.pk))]
+            row['state'] = kind
         elif e.pk in unused:
             row['state'] = 'unused_stock'
         elif not e.is_billable:
@@ -705,10 +719,11 @@ def send_to_billing(ticket, actor, note=''):
 
 
 def unbilled(ticket):
-    """(has unbilled work, blockers)."""
+    """(has unbilled work, blockers). Work on hold at the Ready for Billing
+    queue is still unbilled; excluded work is not."""
     lines, info = invoicing.ticket_billing_lines(ticket)
     problems = blockers(ticket, info)
-    return bool(lines or problems), problems
+    return bool(lines or problems or info.get('held')), problems
 
 
 def flag_on_close(ticket):

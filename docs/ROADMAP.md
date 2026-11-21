@@ -23,9 +23,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **108** in total |
 | ✅ Complete | 52 (of which 2 marked for verification) |
-| 🔵 In progress | 27 |
+| 🔵 In progress | 28 |
 | 🟡 Partial | 4 |
-| ⬜ Planned | 24 |
+| ⬜ Planned | 23 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
 | ⏸️ Deferred | 1 |
 
@@ -128,7 +128,7 @@ Approved, in priority order, not started (or started only in parts already liste
 
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
-| 1 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
+| 1 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | 🔵 In progress | 102.4 consolidated invoices; 102.8 Settings → Billing | 15, 36, 75, 92, 101 |
 | 2 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 3 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
 | 4 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
@@ -191,7 +191,7 @@ unchanged. Click a feature for its details.
 | 71 | [Accounting sync completion](#phase-71) | — | 🔵 In progress | 44 | 71.4–71.8 accounting completion; 71.11 sandbox verification |
 | 72 | [Payment processing and sales tax](#phase-72) | — | 🔵 In progress | 71 | Provider verification; payment posting to accounting |
 | 92 | [Verified usage and recurring billing](#phase-92) | — | ⬜ Planned | 70; Rem0te counts (92.4) | 92.1 recurring charge generation |
-| 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 15, 36, 75, 92, 101 | 102.1 bundling lock, 102.2 unbilled list |
+| 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | 🔵 In progress | 15, 36, 75, 92, 101 | 102.4 consolidated invoices; 102.8 Settings → Billing |
 | 104 | [Customer approvals, deposits, change orders and portal billing](#phase-104) | P1 | ⬜ Planned | 72, 101, 103 | 104.1 out-of-scope approval |
 
 <details markdown="1">
@@ -3549,21 +3549,21 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 1
 
 <a id="phase-102"></a>
 
-## Phase 102 — Ready for Billing queue and invoice integrity **(L · P0 · billing)** [planned]
-<!-- phase: ws=B stage=1 view=next order=2 deps="15, 36, 75, 92, 101" next="102.1 bundling lock, 102.2 unbilled list" -->
-**Status:** ⬜ Planned · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 15, 36, 75, 92, 101  
-**Next:** 102.1 bundling lock, 102.2 unbilled list
+## Phase 102 — Ready for Billing queue and invoice integrity **(L · P0 · billing)** [in progress]
+<!-- phase: ws=B stage=1 view=next order=2 deps="15, 36, 75, 92, 101" next="102.4 consolidated invoices; 102.8 Settings → Billing" -->
+**Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 15, 36, 75, 92, 101  
+**Next:** 102.4 consolidated invoices; 102.8 Settings → Billing
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
 
 Priority P0 (§D, §E). Extends Phase 36 pre-invoice approval and the existing invoices.
 
-- **102.1 Account charge bundling under a lock** *(planned)* — bundling a customer's account charges into an
+- **102.1 Account charge bundling under a lock** *(shipped v3.17.753)* — bundling a customer's account charges into an
   invoice runs in one transaction with a row lock; today two quick clicks can bill the same charges twice.
-- **102.2 Accurate unbilled list** *(planned)* — the client-account "Unbilled work" list excludes time already
+- **102.2 Accurate unbilled list** *(shipped v3.17.753)* — the client-account "Unbilled work" list excludes time already
   invoiced.
-- **102.3 Ready for Billing queue** *(planned)* — approved unbilled time, items, expenses, overages, recurring
+- **102.3 Ready for Billing queue** *(partial — time, items, fees, account charges, adjustments and project milestones with approve, hold, exclude and adjust shipped v3.17.753; recurring charges wait for a charge generator (70.4, 92.1), customer-approved work for 102.9)* — approved unbilled time, items, expenses, overages, recurring
   charges, milestones and customer-approved work across tickets; review, approve, hold, exclude, adjust.
 - **102.4 Consolidated invoices** *(planned)* — several tickets, charges and the contract fee on one invoice;
   every line keeps its source; retries never double bill; finalized invoices corrected only by credit notes.

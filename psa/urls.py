@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import ledger_views, reminders, requester_site_views, ticket_charges_views, views
+from . import billing_queue_views, ledger_views, reminders, requester_site_views, ticket_charges_views, views
 from . import request_builder_views as _rb
 
 app_name = 'psa'
@@ -176,6 +176,13 @@ urlpatterns = [
     path('billing-review/', views.billing_review, name='billing_review'),
     path('billing-review/invoices/<int:pk>/decide/', views.billing_review_decide,
          name='billing_review_decide'),
+    # Phase 102.3: Ready for Billing queue actions (the queue is on the billing review page).
+    path('billing-review/queue/<int:org_id>/decide/', billing_queue_views.queue_decide,
+         name='billing_queue_decide'),
+    path('billing-review/queue/<int:org_id>/adjust/', billing_queue_views.queue_adjust,
+         name='billing_queue_adjust'),
+    path('billing-review/queue/<int:org_id>/draft/', billing_queue_views.queue_draft,
+         name='billing_queue_draft'),
     path('invoices/', views.invoice_list, name='invoice_list'),
     path('invoices/new/', views.invoice_form, name='invoice_create'),
     path('invoices/<int:pk>/', views.invoice_detail, name='invoice_detail'),

@@ -1,0 +1,16 @@
+{# Phase 102.3: one line of the Ready for Billing queue (psa.billing.queue.QueueLine). #}
+<tr{% if ln.kind == 'excluded' %} class="text-muted"{% endif %}>
+    <td>{% if g.can_manage %}<input type="checkbox" name="item" value="{{ ln.key }}" class="form-check-input" aria-label="Select {{ ln.description }}">{% endif %}</td>
+    <td>{{ ln.source_label }}{% if ln.ticket and ln.source == 'charge' %} · {{ ln.ticket.ticket_number }}{% endif %}</td>
+    <td class="text-break">{% if ln.link %}<a href="{{ ln.link }}">{{ ln.description }}</a>{% else %}{{ ln.description }}{% endif %}</td>
+    <td class="text-end">{{ ln.quantity }}</td>
+    <td class="text-end">{{ ln.unit_price }}</td>
+    <td class="text-end">{% if ln.kind == 'excluded' %}<s>{{ ln.total }}</s>{% else %}{{ ln.total }}{% endif %}</td>
+    <td>
+        {% if ln.kind == 'approved' %}<span class="badge text-bg-success">Approved</span>
+        {% elif ln.kind == 'held' %}<span class="badge text-bg-warning">On hold{% if ln.decision.hold_until %} until {{ ln.decision.hold_until|date:'Y-m-d' }}{% endif %}</span>
+        {% elif ln.kind == 'excluded' %}<span class="badge text-bg-secondary">Excluded</span>
+        {% else %}<span class="badge text-bg-light border">Ready</span>{% endif %}
+        {% if ln.decision and ln.decision.reason %}<div class="text-muted">{{ ln.decision.reason|truncatechars:120 }}</div>{% endif %}
+    </td>
+</tr>
