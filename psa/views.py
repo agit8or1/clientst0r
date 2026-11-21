@@ -388,11 +388,12 @@ def _filter_ticket_list(request, qs, p, user):
 def _ticket_list_clients(request):
     """Client filter options — for org-bound users only their member orgs."""
     from core.models import Organization
+    # The filter menus read only id and name; the organization rows are wide.
     if request.user.is_superuser or getattr(request, 'is_staff_user', False):
-        return Organization.objects.filter(is_active=True).order_by('name')
+        return Organization.objects.filter(is_active=True).order_by('name').only('id', 'name')
     if hasattr(request.user, 'memberships'):
         ids = request.user.memberships.filter(is_active=True).values_list('organization_id', flat=True)
-        return Organization.objects.filter(id__in=list(ids), is_active=True).order_by('name')
+        return Organization.objects.filter(id__in=list(ids), is_active=True).order_by('name').only('id', 'name')
     return Organization.objects.none()
 
 
@@ -483,7 +484,7 @@ def ticket_detail(request, ticket_number):
         from psa_ai.models import AISuggestion
         from psa.visibility import is_msp_staff
         from psa_ai.permissions import has_capability
-        ss = SystemSetting.get_settings()
+        ss = SystemSetting.get_settings_for_request()
         # AI output is internal working material: technicians only.
         ai_enabled = (bool(ss.psa_ai_enabled) and is_msp_staff(request.user)
                       and has_capability(request.user, ticket.organization, 'view_output', ticket=ticket))

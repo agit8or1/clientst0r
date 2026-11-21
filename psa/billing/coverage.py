@@ -52,6 +52,8 @@ No coverage exclusion is applied on them yet.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -134,17 +136,43 @@ def role_allows(contract, role_code):
     return True
 
 
-def candidate_agreements(client_org_id, on_date, role_code=None):
-    """Agreements of this customer that can cover work on `on_date`."""
+_agreement_memo = contextvars.ContextVar('psa_coverage_agreement_memo', default=None)
+
+
+@contextlib.contextmanager
+def agreements_read_once():
+    """Within the block, candidate_agreements reads a customer's agreements
+    for a date once: for a read-only pass over many entries (the ticket's
+    billing lines), which changes no agreement while it runs."""
+    token = _agreement_memo.set({})
+    try:
+        yield
+    finally:
+        _agreement_memo.reset(token)
+
+
+def _agreements_on(client_org_id, on_date):
     from psa.models import Contract
-    if not client_org_id or on_date is None:
-        return []
     qs = (Contract.objects.filter(client_org_id=client_org_id, start_date__lte=on_date)
           .filter(Q(end_date__isnull=True) | Q(end_date__gte=on_date))
           .exclude(status='draft')
           .exclude(status='cancelled', end_date__isnull=True)
           .order_by('-billing_priority', 'start_date', 'pk'))
-    out = list(qs)
+    return list(qs)
+
+
+def candidate_agreements(client_org_id, on_date, role_code=None):
+    """Agreements of this customer that can cover work on `on_date`."""
+    if not client_org_id or on_date is None:
+        return []
+    memo = _agreement_memo.get()
+    if memo is None:
+        out = _agreements_on(client_org_id, on_date)
+    else:
+        key = (client_org_id, on_date)
+        if key not in memo:
+            memo[key] = _agreements_on(client_org_id, on_date)
+        out = list(memo[key])
     if role_code is not None:
         out = [c for c in out if role_allows(c, role_code)]
     return out

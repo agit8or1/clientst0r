@@ -12,7 +12,7 @@ def requires_time():
     """True when Settings → PSA requires logged time before closing."""
     try:
         from core.models import SystemSetting
-        return bool(SystemSetting.get_settings().psa_closeout_require_time)
+        return bool(SystemSetting.get_settings_for_request().psa_closeout_require_time)
     except Exception:
         return False
 

@@ -1,4 +1,4 @@
-{% load i18n workspace_tags %}{% comment %}
+{% load i18n navigation workspace_tags %}{% comment %}
 Above every page's content, after base.html's page frame row (the
 breadcrumb trail and the section's tabs / Configure menu, drawn in base.html
 itself so pages can add a crumb through {% block breadcrumb_tail %}):
@@ -10,7 +10,7 @@ itself so pages can add a crumb through {% block breadcrumb_tail %}):
   4. the saved-views bar on registered dense lists (core.workspace
      SAVED_VIEW_LISTS).
 {% endcomment %}
-{% if pnav.workspace.current %}{% include "core/_settings_menu.html" with settings_frame=True %}{% endif %}
+{% if pnav.workspace.current %}{% settings_menu %}{% endif %}
 
 {% work_context_trail as trail %}
 {% if trail %}

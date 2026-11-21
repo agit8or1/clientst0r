@@ -149,6 +149,7 @@ def _on_setting_changed(**_kw):
     # override_settings in tests, or anything else that swaps settings at
     # run time: gates read django settings too.
     clear()
+    clear_html()
 
 
 try:
@@ -156,3 +157,124 @@ try:
     setting_changed.connect(_on_setting_changed, dispatch_uid='core_nav_cache_settings')
 except Exception:  # pragma: no cover
     pass
+
+
+# --- Rendered sidebar sections ---------------------------------------------
+#
+# Drawing the sidebar's sections (core/_primary_nav_group.html) cost about
+# half of a typical page's render. A section's HTML depends only on the
+# section data core.navigation.primary_nav built for this request (labels,
+# links, icons, active flags, children), on whether the current path is one
+# of its links (aria-current), on the active language and, for the
+# Overview section, on its "Edit pinned pages" link and the current URL.
+# `group_html` keys the rendered HTML on exactly those values, so a hit is
+# the HTML the template would draw for this request, never another user's
+# or another page's. Decisions about who may see what are not made here:
+# they are already in the section data.
+
+HTML_MAX_ENTRIES = 512
+_html_store: "OrderedDict[tuple, str]" = OrderedDict()
+_html_lock = threading.Lock()
+
+
+# The fields core/_primary_nav_group.html reads from a section (g), its
+# entries (e) and their nested pages (c). core.tests.test_page_budgets checks
+# the template against these lists, so a field added to the template without
+# adding it here fails a test instead of drawing stale HTML.
+GROUP_FIELDS = ('key', 'label', 'icon', 'shortcut', 'href', 'active')
+ENTRY_FIELDS = ('pin', 'label', 'keywords', 'shortcut', 'active', 'href', 'icon', 'children')
+CHILD_FIELDS = ('label', 'keywords', 'href', 'active')
+
+
+def html_enabled():
+    return getattr(settings, 'NAV_HTML_CACHE', True)
+
+
+def clear_html():
+    with _html_lock:
+        _html_store.clear()
+
+
+def _v(value):
+    # Type and text: the template prints str(value) and tests truthiness, and
+    # two values with the same type and text draw the same.
+    return (type(value).__name__, str(value))
+
+
+def group_key(group, pnav, request):
+    """The cache key for one sidebar section: every value the template reads
+    for it, or None when it cannot be keyed (the section is then drawn
+    normally)."""
+    from django.utils import translation
+    path = getattr(request, 'path', None)
+    try:
+        entries = []
+        hrefs = set()
+        for e in group.get('entries') or ():
+            hrefs.add(e.get('href'))
+            children = tuple(tuple(_v(c.get(f)) for f in CHILD_FIELDS) for c in e.get('children') or ())
+            entries.append(tuple(_v(e.get(f)) for f in ENTRY_FIELDS[:-1]) + (children,))
+        overview = None
+        if group.get('key') == 'dashboard':
+            pin_edit = (pnav or {}).get('pin_edit') or ''
+            overview = (str(pin_edit), request.get_full_path() if pin_edit else None)
+        return (tuple(_v(group.get(f)) for f in GROUP_FIELDS), tuple(entries),
+                path if path in hrefs else None, translation.get_language(), overview)
+    except (AttributeError, TypeError):
+        return None
+
+
+def _cached_html(key, render):
+    if key is None:
+        return render()
+    with _html_lock:
+        hit = _html_store.get(key)
+        if hit is not None:
+            _html_store.move_to_end(key)
+            return hit
+    html = render()
+    with _html_lock:
+        _html_store[key] = html
+        _html_store.move_to_end(key)
+        while len(_html_store) > HTML_MAX_ENTRIES:
+            _html_store.popitem(last=False)
+    return html
+
+
+def group_html(group, pnav, request, render):
+    """The section's HTML: from the per-process cache when this exact key was
+    drawn before, else `render()` (and kept)."""
+    if not html_enabled() or request is None:
+        return render()
+    return _cached_html(group_key(group, pnav, request), render)
+
+
+# The fields core/_settings_menu.html reads from the settings workspace: its
+# categories (c, and `cur`, the current one) and their pages (t).
+CATEGORY_FIELDS = ('key', 'label', 'icon', 'href', 'active', 'tabs')
+TAB_FIELDS = ('label', 'keywords', 'href', 'active', 'icon')
+
+
+def settings_menu_key(workspace):
+    """The cache key for the settings workspace header: every value
+    core/_settings_menu.html reads, or None when it cannot be keyed."""
+    from django.utils import translation
+    try:
+        cats = []
+        current = None
+        for i, c in enumerate(workspace.get('categories') or ()):
+            tabs = tuple(tuple(_v(t.get(f)) for f in TAB_FIELDS) for t in c.get('tabs') or ())
+            cats.append(tuple(_v(c.get(f)) for f in CATEGORY_FIELDS[:-1]) + (tabs,))
+            if c is workspace.get('current'):
+                current = i
+        if workspace.get('current') is not None and current is None:
+            return None   # a current category that is not one of the list: draw it normally
+        return ('settings_menu', tuple(cats), current, translation.get_language())
+    except (AttributeError, TypeError):
+        return None
+
+
+def settings_menu_html(workspace, render):
+    if not html_enabled() or not workspace:
+        return render()
+    return _cached_html(settings_menu_key(workspace), render)

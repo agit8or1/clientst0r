@@ -382,6 +382,20 @@ def active_entry_postings(entry_ref):
                                               reversed_by__isnull=True).select_related('contract', 'block'))
 
 
+def active_postings_by_entry(entry_refs):
+    """{entry ref: active_entry_postings(ref)} for many entries in one read,
+    each list in the same order active_entry_postings returns."""
+    from psa.models import PrepaidPosting
+    refs = [r for r in entry_refs if r is not None]
+    out = {r: [] for r in refs}
+    if not refs:
+        return out
+    for p in (PrepaidPosting.objects.filter(time_entry_ref__in=refs, kind__in=ENTRY_KINDS,
+                                            reversed_by__isnull=True).select_related('contract', 'block')):
+        out[p.time_entry_ref].append(p)
+    return out
+
+
 def _reverse(posting, *, actor=None, reason=''):
     key = f'rev:{posting.pk}'
     existing = _existing(key)

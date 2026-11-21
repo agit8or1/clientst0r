@@ -65,6 +65,41 @@ def primary_nav(context):
 
 
 @register.simple_tag(takes_context=True)
+def primary_nav_group(context, group):
+    """One sidebar section (core/_primary_nav_group.html), drawn once per
+    distinct section content and kept (core.nav_cache.group_html)."""
+    from django.template.loader import get_template
+    from django.utils.safestring import mark_safe
+
+    from core import nav_cache
+    request = context.get('request')
+    pnav = context.get('pnav')
+
+    def render():
+        return get_template('core/_primary_nav_group.html').render(
+            {'g': group, 'pnav': pnav, 'request': request})
+    return mark_safe(nav_cache.group_html(group, pnav, request, render))
+
+
+@register.simple_tag(takes_context=True)
+def settings_menu(context):
+    """The settings workspace header (core/_settings_menu.html with
+    settings_frame), drawn once per distinct workspace content and kept
+    (core.nav_cache.settings_menu_html)."""
+    from django.template.loader import get_template
+    from django.utils.safestring import mark_safe
+
+    from core import nav_cache
+    pnav = context.get('pnav') or {}
+    workspace = pnav.get('workspace') if isinstance(pnav, dict) else None
+
+    def render():
+        return get_template('core/_settings_menu.html').render(
+            {'settings_frame': True, 'pnav': pnav})
+    return mark_safe(nav_cache.settings_menu_html(workspace, render))
+
+
+@register.simple_tag(takes_context=True)
 def nav_notifications(context):
     """`{% nav_notifications as notes %}` — the top bar's bell
     (core.notifications.for_context)."""

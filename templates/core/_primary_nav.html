@@ -1,4 +1,4 @@
-{% load i18n %}{% comment %}
+{% load i18n navigation %}{% comment %}
 Primary navigation sidebar. Built by core.navigation.primary_nav() — every
 section, entry and nested page here already passed the same gates the server
 applies, so nothing is drawn that would answer 403.
@@ -45,7 +45,7 @@ Behaviour lives in static/js/app_nav.js:
 
     <nav id="appNavList" class="app-nav__body" aria-label="{% trans 'Main menu' %}">
         <ul class="app-nav__groups">
-            {% for g in pnav.groups %}{% include "core/_primary_nav_group.html" with g=g %}{% endfor %}
+            {% for g in pnav.groups %}{% primary_nav_group g %}{% endfor %}
         </ul>
         {% if pnav.extra %}
         {# Filter-only: pages reached from a section's tabs, Configure menu or the settings center. #}

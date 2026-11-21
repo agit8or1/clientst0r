@@ -15,7 +15,7 @@ def is_psa_enabled():
     """True if the PSA feature is globally enabled in SystemSetting."""
     try:
         from core.models import SystemSetting
-        settings = SystemSetting.get_settings()
+        settings = SystemSetting.get_settings_for_request()
         return bool(getattr(settings, 'psa_enabled', False))
     except Exception:
         # If settings can't be loaded for any reason, fail closed.

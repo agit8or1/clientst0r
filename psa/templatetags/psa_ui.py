@@ -30,6 +30,37 @@ def status_tone(status):
     return 'open'
 
 
+_PRIORITY_ORDER_KEY = ('psa_priority_order',)
+
+
+def _read_priority_order():
+    from psa.models import TicketPriority
+    return list(TicketPriority.objects.order_by('sort_order', 'id').values_list('id', flat=True))
+
+
+def _priority_order():
+    """Priority ids by rank, read once per request (a ticket list asks for
+    every row); a priority save or delete drops it (_forget_priority_order)."""
+    from accounts import authz_cache
+    return authz_cache.memo(_PRIORITY_ORDER_KEY, _read_priority_order)
+
+
+def _forget_priority_order(*_args, **_kwargs):
+    from accounts import authz_cache
+    authz_cache.forget(_PRIORITY_ORDER_KEY)
+
+
+def _connect_priority_signals():
+    from django.db.models.signals import post_delete, post_save
+
+    from psa.models import TicketPriority
+    post_save.connect(_forget_priority_order, sender=TicketPriority, dispatch_uid='psa_ui_priority_order_save')
+    post_delete.connect(_forget_priority_order, sender=TicketPriority, dispatch_uid='psa_ui_priority_order_delete')
+
+
+_connect_priority_signals()
+
+
 @register.filter
 def priority_tone(priority):
     """Tone for a TicketPriority, from where it sits in the operator's own set.
@@ -42,11 +73,7 @@ def priority_tone(priority):
     """
     if priority is None:
         return 'neutral'
-    from psa.models import TicketPriority
-
-    order = list(
-        TicketPriority.objects.order_by('sort_order', 'id').values_list('id', flat=True)
-    )
+    order = _priority_order()
     try:
         rank = order.index(priority.id)
     except (ValueError, AttributeError):

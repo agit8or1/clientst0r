@@ -134,7 +134,9 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False, apply_decisions
     (the default, used by every invoice writer) lines held or excluded at the
     Ready for Billing queue (Phase 102.3) are taken off and listed in
     `info['held']` / `info['excluded']` as (line, decision)."""
-    lines, info = _ticket_billing_lines(ticket, include_before_cutoff=include_before_cutoff)
+    # Read-only pass: each customer's agreements for a date are read once.
+    with coverage.agreements_read_once():
+        lines, info = _ticket_billing_lines(ticket, include_before_cutoff=include_before_cutoff)
     info['held'], info['excluded'] = [], []
     if not apply_decisions or not lines:
         return lines, info
@@ -174,11 +176,12 @@ def _ticket_billing_lines(ticket, *, include_before_cutoff=False):
         'fees': ZERO, 'cutoff': cut,
     }
     visits = {}
+    postings = ledger.active_postings_by_entry([te.pk for te in entries])
 
     for te in entries:
         work = _work(te)
         on = coverage.work_date(te)
-        held = ledger.active_entry_postings(te.pk)
+        held = postings.get(te.pk, [])
         if held:
             c = held[0].contract
             info['agreements'].add(c.pk)

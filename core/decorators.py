@@ -9,6 +9,23 @@ from django.http import Http404
 from accounts.models import Membership
 
 
+def _request_membership(user, org_id):
+    import copy
+
+    from accounts import authz_cache
+    if authz_cache.current_context() is None:
+        return None
+    try:
+        org_pk = int(org_id)
+    except (TypeError, ValueError):
+        return None
+    from accounts.permission_utils import _membership_rows
+    for membership in _membership_rows(user):
+        if membership.organization_id == org_pk:
+            return copy.copy(membership)
+    return None
+
+
 def get_user_membership(request, org_id=None):
     """
     Get the current user's membership for the active organization - or, when
@@ -25,6 +42,15 @@ def get_user_membership(request, org_id=None):
     if not org_id:
         return None
 
+    # Inside a request the user's active memberships are already read once
+    # (accounts.permission_utils._membership_rows, dropped on any membership
+    # or role change); a dashboard asks for the same membership several
+    # times. A copy is returned, so a caller changing it never touches the
+    # shared row. A membership of an inactive organization is not in that
+    # list and is read below as before.
+    found = _request_membership(request.user, org_id)
+    if found is not None:
+        return found
     try:
         return Membership.objects.select_related('organization').get(
             user=request.user,

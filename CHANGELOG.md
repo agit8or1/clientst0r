@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.758] - 2026-11-21
+
+### Changed
+
+- **Faster pages, second pass** (roadmap 67.25). Measured on a copy of a production database, before → after:
+
+  | Page | Server time |
+  |---|---|
+  | Tickets | 238 → 153 ms |
+  | Assets | 116 → 68 ms |
+  | Integrations | 116 → 58 ms |
+  | Billing Review | 124 → 62 ms |
+  | Connected Applications | 103 → 54 ms |
+  | Ticket page | 299 → 231 ms |
+
+  For technicians, pages run 40–60% fewer database queries.
+  - The sidebar and the settings header are drawn once and reused while their content is the same.
+  - The customer tree, memberships and ticket priority colours are read once per request instead of once per check
+    or per row.
+  - On the ticket page, billing lines read prepaid hours and agreements once rather than once per time entry.
+
+  Pages look exactly the same as before. New tests set a query ceiling for each of these pages so later features
+  can't quietly slow them down.
+
 ## [3.17.757] - 2026-11-21
 
 ### Added

@@ -23,6 +23,22 @@ def ancestor_org_ids(organization):
     return seen
 
 
+def _org_children_map():
+    from .models import Organization
+    children = {}
+    for pk, parent_id in Organization.objects.filter(parent_id__isnull=False).values_list('pk', 'parent_id'):
+        children.setdefault(parent_id, []).append(pk)
+    return children
+
+
+def _request_org_children():
+    """{parent id: [child ids]} for the current request, or None outside one."""
+    from accounts import authz_cache
+    if authz_cache.current_context() is None:
+        return None
+    return authz_cache.memo(('org_children',), _org_children_map)
+
+
 def descendant_org_ids(organization):
     """
     Phase 18 (v3.17.240): return the set of organization IDs visible
@@ -43,13 +59,22 @@ def descendant_org_ids(organization):
     # hold an id (core.tenancy) do not have to re-fetch the row just to walk
     # the tree.
     root_pk = organization.pk if hasattr(organization, 'pk') else organization
+    # Inside a request the whole parent -> children map is read once
+    # (accounts.authz_cache's request memo, dropped by any Organization save
+    # or delete) and the walk below runs over it; permission checks ask this
+    # for every membership on every page. Outside a request each level is
+    # read from the database as before.
+    children_of = _request_org_children()
     seen = {root_pk}
     frontier = [root_pk]
     for _ in range(5):
-        children = list(
-            Organization.objects.filter(parent_id__in=frontier)
-                                 .values_list('pk', flat=True)
-        )
+        if children_of is not None:
+            children = [pk for parent in frontier for pk in children_of.get(parent, ())]
+        else:
+            children = list(
+                Organization.objects.filter(parent_id__in=frontier)
+                                     .values_list('pk', flat=True)
+            )
         new = [pk for pk in children if pk not in seen]
         if not new:
             break
