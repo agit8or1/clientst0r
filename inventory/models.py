@@ -142,6 +142,10 @@ class InventoryTransaction(models.Model):
         ('stock_out', 'Stock Out'),
         ('adjustment', 'Adjustment'),
         ('transfer', 'Transfer'),
+        # Phase 101.6: a ticket item holding stock (no quantity change) and
+        # letting it go again. Using it is a stock_out, returning a stock_in.
+        ('reserve', 'Reserved for a ticket'),
+        ('release', 'Reservation released'),
     ]
 
     item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='transactions')

@@ -22,8 +22,8 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Last roadmap audit | 2026-11-20 |
 | Active stage | Stage 1 — core completion (P0) |
 | Phases | **108** in total |
-| ✅ Complete | 51 (of which 2 marked for verification) |
-| 🔵 In progress | 28 |
+| ✅ Complete | 52 (of which 2 marked for verification) |
+| 🔵 In progress | 27 |
 | 🟡 Partial | 4 |
 | ⬜ Planned | 24 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
@@ -128,16 +128,15 @@ Approved, in priority order, not started (or started only in parts already liste
 
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
-| 1 | 101 — [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | 🔵 In progress | 101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary | 1, 36, 69, 70, 73, 93 |
-| 2 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
-| 3 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
-| 4 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
-| 5 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
-| 6 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording | 51 |
-| 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
-| 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
-| 9 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
-| 10 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.16 health states, 79.17 automatic reconnection, 79.18 diagnostics (Quick Connect increment D) | Rem0te contract |
+| 1 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 102.1 bundling lock, 102.2 unbilled list | 15, 36, 75, 92, 101 |
+| 2 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
+| 3 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
+| 4 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
+| 5 | 52 — [Technician workspace](#phase-52) | P1 | 🔵 In progress | 52.24 customer follow-up and confirm-or-close; 52.22 OPTIONAL AI wording | 51 |
+| 6 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
+| 7 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
+| 8 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
+| 9 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.16 health states, 79.17 automatic reconnection, 79.18 diagnostics (Quick Connect increment D) | Rem0te contract |
 
 <!-- /generated:next -->
 
@@ -192,12 +191,11 @@ unchanged. Click a feature for its details.
 | 71 | [Accounting sync completion](#phase-71) | — | 🔵 In progress | 44 | 71.4–71.8 accounting completion; 71.11 sandbox verification |
 | 72 | [Payment processing and sales tax](#phase-72) | — | 🔵 In progress | 71 | Provider verification; payment posting to accounting |
 | 92 | [Verified usage and recurring billing](#phase-92) | — | ⬜ Planned | 70; Rem0te counts (92.4) | 92.1 recurring charge generation |
-| 101 | [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | P0 | 🔵 In progress | 1, 36, 69, 70, 73, 93 | 101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary |
 | 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | ⬜ Planned | 15, 36, 75, 92, 101 | 102.1 bundling lock, 102.2 unbilled list |
 | 104 | [Customer approvals, deposits, change orders and portal billing](#phase-104) | P1 | ⬜ Planned | 72, 101, 103 | 104.1 out-of-scope approval |
 
 <details markdown="1">
-<summary>5 completed phases</summary>
+<summary>6 completed phases</summary>
 
 | ID | Feature | Status | Released | Note |
 |---|---|---|---|---|
@@ -206,6 +204,7 @@ unchanged. Click a feature for its details.
 | 27 | [Advanced Accounting Reconciliation](#phase-27) | ✅ Complete | v3.17.281 | — |
 | 36 | [Agreement Reconciliation & Pre-Invoice Approval](#phase-36) | ✅ Complete — verify | — | Agreement profitability reports and revenue-leakage expansion have no shipped marker (audit 2026-11-20) |
 | 44 | [Full Two-Way Accounting Sync](#phase-44) | ✅ Complete | v3.17.531 | — |
+| 101 | [Ticket Time & Charges and prepaid-hour ledger](#phase-101) | ✅ Complete | v3.17.751 | — |
 
 </details>
 
@@ -3540,50 +3539,11 @@ test route, update and restore rehearsals, load tests.
 
 <a id="phase-101"></a>
 
-## Phase 101 — Ticket Time & Charges and prepaid-hour ledger **(XL · P0 · billing)** [in progress]
-<!-- phase: ws=B stage=1 view=next order=1 deps="1, 36, 69, 70, 73, 93" next="101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary" -->
-**Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 1, 36, 69, 70, 73, 93  
-**Next:** 101.5 Time & Charges on the ticket; 101.6 Add Item on tickets; 101.7 ticket billing summary
+## Phase 101 — Ticket Time & Charges and prepaid-hour ledger **(XL · P0 · billing)** [shipped — v3.17.751]
+<!-- phase: ws=B stage=1 deps="1, 36, 69, 70, 73, 93" -->
+**Status:** ✅ Complete · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 1, 36, 69, 70, 73, 93
 
-<details markdown="1">
-<summary>Details, completed work and acceptance criteria</summary>
-
-Priority P0. The first phase of the [MSP billing program](plans/msp-billing-program/README.md) (§B, §C), from the
-[capability audit](plans/msp-billing-program/CAPABILITY_AUDIT.md) of 2026-11-20. Extends the existing time
-entries, `psa.Contract` allowances, charges and rate cards; no second billing engine.
-
-- **101.1 Coverage resolver** *(shipped v3.17.749)* — one function decides, for an approved time entry or charge, the
-  customer, the agreement (explicit precedence and effective dates when several apply; an ambiguous overlap needs
-  a choice), coverage (service category, remote / onsite, business hours), rate and the covered / prepaid /
-  chargeable split. Consumption follows the entry's own contract link instead of customer and date, so two
-  overlapping contracts no longer count the same time.
-- **101.2 Prepaid-hour ledger** *(shipped v3.17.749)* — immutable postings for purchases, consumption, expiry, reversals and
-  authorized manual adjustments, with the source entry, agreement, date, quantity and status; several blocks per
-  customer consumed earliest-expiry first; rollover and expiry; negative balance only when configured; low-balance
-  alerts; idempotency keys and row locks against retries, scheduled jobs and concurrent approvals. A block
-  purchase is not counted as revenue again on consumption.
-- **101.3 Approval-time consumption** *(shipped v3.17.749)* — draft and rejected time consume nothing (today they do);
-  approval posts, rejection or reversal releases; partial coverage splits into block and overage; retainer
-  allowances reset each billing cycle.
-- **101.4 Rates and rules in invoicing** *(shipped v3.17.749 — after-hours and weekend rate types wait for the business-hours calendar (Phase 93); holiday rates use the existing holiday calendar)* — ticket time is priced from the rate cards and the entry's
-  rate snapshot (no more $0 for time-and-materials customers without a contract); minimum time, billing increments
-  and trip fees from the existing billing rules; after-hours and holiday rate types set from the time worked and
-  the SLA calendar (Phase 93).
-- **101.5 Time & Charges on the ticket** *(planned)* — timer, manual time, work type and classification (billable,
-  covered, non-billable, warranty, goodwill, awaiting classification), agreement picker when permitted, and the
-  calculated treatment: actual and rounded time, rate, covered hours, remaining block hours, overage, estimated
-  charge. Uses the existing time-entry screens.
-- **101.6 Add Item on tickets** *(planned)* — catalog search or a one-off line for parts, hardware, software,
-  licenses, materials, travel, shipping, third-party services and permissioned credits; cost and margin visible only
-  with permission; inventory reserved and consumed as separate events and deducted once (Phase 73).
-- **101.7 Ticket billing summary** *(planned)* — agreement, hours before and after, items, unbilled total before
-  tax; Review Charges and Send to Billing; closing a ticket never hides unbilled items, which are flagged for review.
-
-Acceptance: block deduction, partial overage split, unlimited coverage produces no labor charge, break/fix labor
-and parts reach the invoice, concurrent approvals cannot deduct twice, existing contracts and invoices unchanged on
-upgrade.
-
-</details>
+Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 101](https://github.com/agit8or1/clientst0r/blob/main/docs/ROADMAP_HISTORY.md#phase-101).
 
 ---
 
@@ -3617,6 +3577,7 @@ Priority P0 (§D, §E). Extends Phase 36 pre-invoice approval and the existing i
 - **102.8 Settings → Billing** *(planned)* — a page for the billing settings that exist but cannot be changed
   anywhere (invoice approval threshold, late fees, automatic accounting push), with per-customer and per-contract
   overrides showing where each value comes from.
+- **102.9 Ticket billing follow-ups from Phase 101** *(planned)* — out-of-scope work charged under a flat-fee agreement (billable overriding covered), customer approval of extra work and an approval step for item lines from the ticket, an MSP-wide or per-location stock picker for ticket items, and items and the billing summary in the mobile API.
 
 </details>
 

@@ -368,6 +368,25 @@ class Ticket(models.Model):
     )
     escalation_reason = models.CharField(max_length=500, blank=True)
 
+    # Phase 101.7: where the ticket stands for billing. "Send to Billing"
+    # sets `ready`; closing a ticket with unbilled work (or Send to Billing
+    # with something still to sort out) sets `review`. Neither creates an
+    # invoice: "Invoice this ticket" stays the only way a ticket invoice is
+    # made, and it sets `invoiced` once nothing is left to bill.
+    BILLING_STATUS_CHOICES = [
+        ('', 'Not sent to billing'),
+        ('ready', 'Sent to billing'),
+        ('review', 'Needs billing review'),
+        ('invoiced', 'Invoiced'),
+    ]
+    billing_status = models.CharField(max_length=20, choices=BILLING_STATUS_CHOICES, blank=True, default='',
+                                      db_index=True)
+    billing_status_note = models.CharField(max_length=500, blank=True, default='')
+    billing_status_at = models.DateTimeField(null=True, blank=True)
+    billing_status_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+')
+
     # Closure
     CLOSURE_CATEGORIES = [
         ('fixed', 'Fixed'),
@@ -814,6 +833,25 @@ class TicketTimeEntry(models.Model):
                   'and excluded role codes. Blank = untagged.',
     )
     notes = models.TextField(blank=True)
+    # Phase 101.5: the technician's classification. Blank on entries made
+    # before it existed (or by clients that do not send one): `is_billable`
+    # alone decides, as before. Set, it keeps `is_billable` in step on save
+    # (non-billable, warranty and goodwill are not billable). "Covered" is
+    # billable work the technician expects an agreement to cover: with no
+    # agreement covering it, it is held for review instead of billed as time
+    # and materials. "Awaiting classification" is never invoiced and never
+    # uses prepaid hours until someone classifies it.
+    CLASSIFICATION_CHOICES = [
+        ('', 'Not classified (billable flag decides)'),
+        ('billable', 'Billable'),
+        ('covered', 'Covered by agreement'),
+        ('non_billable', 'Non-billable'),
+        ('warranty', 'Warranty'),
+        ('goodwill', 'Goodwill'),
+        ('awaiting', 'Awaiting classification'),
+    ]
+    NO_CHARGE_CLASSIFICATIONS = ('non_billable', 'warranty', 'goodwill')
+    classification = models.CharField(max_length=20, choices=CLASSIFICATION_CHOICES, blank=True, default='')
 
     # Phase 21 v6 (v3.17.315): GPS time tracking — coords captured by
     # the PWA at start/stop. Lets the dispatcher see "tech started this
@@ -905,6 +943,7 @@ class TicketTimeEntry(models.Model):
         ('chargeable', 'Chargeable'),
         ('non_billable', 'Non-billable'),
         ('needs_choice', 'Needs an agreement choice'),
+        ('needs_classification', 'Needs classification'),
         ('no_agreement', 'No agreement'),
         ('released', 'Released (not approved)'),
     ]
@@ -976,6 +1015,8 @@ class TicketTimeEntry(models.Model):
                             return
                         approved_prior = (sub, changes)
 
+        if self.classification:
+            self.is_billable = self.classification not in self.NO_CHARGE_CLASSIFICATIONS
         if self.ended_at and self.started_at and not self.duration_minutes:
             delta = self.ended_at - self.started_at
             self.duration_minutes = max(0, int(delta.total_seconds() // 60))
@@ -3912,7 +3953,7 @@ class TimeEntryAuditEvent(models.Model):
     ]
     # Fields whose change after approval is worth recording.
     TRACKED_FIELDS = ('ticket_id', 'started_at', 'ended_at', 'duration_minutes',
-                      'is_billable', 'role_code', 'notes')
+                      'is_billable', 'classification', 'role_code', 'notes')
 
     entry = models.ForeignKey(
         'psa.TicketTimeEntry', on_delete=models.SET_NULL, null=True, blank=True,
@@ -4050,10 +4091,21 @@ class TicketExpense(models.Model):
     CATEGORY_CHOICES = [
         ('mileage', 'Mileage / Travel'),
         ('parts', 'Parts'),
+        ('hardware', 'Hardware'),
         ('software', 'Software / License'),
-        ('subcontractor', 'Subcontractor'),
+        ('license', 'License'),
+        ('materials', 'Materials'),
+        ('subcontractor', 'Third-party service / subcontractor'),
         ('shipping', 'Shipping'),
+        ('credit', 'Credit'),
         ('other', 'Other'),
+    ]
+    INVENTORY_STATES = [
+        ('', 'No stock'),
+        ('reserved', 'Reserved'),
+        ('consumed', 'Used (deducted from stock)'),
+        ('released', 'Reservation released'),
+        ('returned', 'Returned to stock'),
     ]
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='expenses')
@@ -4069,6 +4121,32 @@ class TicketExpense(models.Model):
     is_billable = models.BooleanField(default=True)
     is_reimbursable = models.BooleanField(default=True)
     receipt_file = models.FileField(upload_to=expense_receipt_upload_to, blank=True, null=True)
+
+    # Phase 101.6: "Add Item" lines use this same row (it is what ticket
+    # invoices already bill, once, through InvoiceLineItem source 'expense').
+    # `unit_price` set = an item line: billed as quantity x unit price, and
+    # `amount` holds that total. NULL = an expense as before (amount, once).
+    # `unit_cost` is internal (pricing_view_internal_cost_rates only).
+    price_book_item = models.ForeignKey(
+        'pricing.PriceBookItem', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ticket_items')
+    sku = models.CharField(max_length=80, blank=True, default='')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text='Sell price per unit. Blank = an expense billed at its amount.')
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+                                    help_text='Internal cost per unit when added. Blank = unknown.')
+    price_source = models.CharField(max_length=40, blank=True, default='')
+    is_credit = models.BooleanField(default=False,
+                                    help_text='A credit to the customer: billed as a negative line.')
+    is_taxable = models.BooleanField(default=True)
+    serial_number = models.CharField(max_length=120, blank=True, default='')
+    inventory_item = models.ForeignKey(
+        'inventory.InventoryItem', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ticket_items')
+    inventory_state = models.CharField(max_length=20, choices=INVENTORY_STATES, blank=True, default='')
+    inventory_reserved_at = models.DateTimeField(null=True, blank=True)
+    inventory_consumed_at = models.DateTimeField(null=True, blank=True)
 
     approval = models.ForeignKey(
         'PSAApproval', on_delete=models.SET_NULL,
@@ -4088,6 +4166,16 @@ class TicketExpense(models.Model):
 
     def __str__(self):
         return f'{self.description} — {self.amount} {self.currency}'
+
+    @property
+    def is_item(self):
+        return self.unit_price is not None
+
+    @property
+    def signed_total(self):
+        from decimal import Decimal
+        total = Decimal(str(self.amount or 0))
+        return -total if self.is_credit else total
 
 
 # ---------------------------------------------------------------------------

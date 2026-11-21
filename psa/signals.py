@@ -516,3 +516,37 @@ def _release_prepaid_hours_on_time_entry_delete(sender, instance, **kwargs):
                              reason='Time entry deleted.', mark=False)
     except Exception:
         logger.exception('prepaid ledger release failed after deleting time entry %s', instance.pk)
+
+
+# Phase 101.7: closing a ticket never hides unbilled work. A ticket that
+# moves to closed (closed_at set, or a terminal status) with anything left to
+# bill is flagged for billing review (Ticket.billing_status). Nothing is
+# invoiced; the flag is set with a queryset update, so no signal re-fires.
+_PRIOR_CLOSED = {}
+
+
+def _is_closed(ticket):
+    if ticket.closed_at:
+        return True
+    status = getattr(ticket, 'status', None) if ticket.status_id else None
+    return bool(status is not None and status.is_terminal)
+
+
+@receiver(pre_save, sender=Ticket)
+def _capture_prior_closed(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+    prev = Ticket.objects.filter(pk=instance.pk).select_related('status').first()
+    _PRIOR_CLOSED[instance.pk] = bool(prev and _is_closed(prev))
+
+
+@receiver(post_save, sender=Ticket)
+def _flag_unbilled_on_close(sender, instance, created, **kwargs):
+    was_closed = _PRIOR_CLOSED.pop(instance.pk, True)
+    if created or was_closed or not _is_closed(instance):
+        return
+    try:
+        from .billing.ticket_charges import flag_on_close
+        flag_on_close(instance)
+    except Exception:
+        logger.exception('flagging unbilled work on closing %s failed', instance.ticket_number)

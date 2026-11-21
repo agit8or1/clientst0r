@@ -586,6 +586,10 @@ def ticket_time_view(request, pk: int):
     is_billable = bool(data.get('is_billable', True))
     notes = (data.get('notes') or '').strip()[:2000]
     role_code = str(data.get('role_code') or '').strip()[:40]
+    # Phase 101.5: optional; older clients send none and keep is_billable.
+    classification = str(data.get('classification') or '').strip()
+    if classification and classification not in {c for c, _ in TicketTimeEntry.CLASSIFICATION_CHOICES}:
+        return Response({'detail': 'invalid classification'}, status=400)
 
     entry = TicketTimeEntry.objects.create(
         ticket=ticket,
@@ -596,6 +600,7 @@ def ticket_time_view(request, pk: int):
         is_billable=is_billable,
         notes=notes,
         role_code=role_code,
+        classification=classification,
     )
     return Response(_serialize_time_entry(entry), status=201)
 
@@ -609,6 +614,8 @@ def _serialize_time_entry(t):
         'ended_at': t.ended_at.isoformat() if t.ended_at else None,
         'duration_minutes': t.duration_minutes,
         'is_billable': t.is_billable,
+        # Phase 101.5: blank = not classified (is_billable decides).
+        'classification': t.classification,
         'role_code': t.role_code,
         'notes': t.notes,
     }

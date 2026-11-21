@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.751] - 2026-11-21
+
+Time & Charges, Add Item and the billing summary on tickets. Phase 101 is complete.
+
+### Added
+
+- **Time & Charges on the ticket (roadmap 101.5)**
+  - **Logging time:** the timer and manual time ask for a classification (billable, covered, non-billable, warranty,
+    goodwill, awaiting classification), a work type (standard, remote, onsite, travel) and a role.
+  - **Choosing the agreement:** people with **Manage charges** can pick it, from agreements valid for that customer
+    and date.
+  - **Per-entry breakdown:** each entry shows actual and rounded time, covered and charged hours, rate, estimate and
+    status. The figures come from the same lines **Invoice this ticket** uses, so the ticket shows what the invoice
+    will bill.
+- **Add Item on tickets (101.6)**
+  - **Lines:** a catalog item (priced for the customer), stock, or a one-off line for parts, hardware, licenses,
+    travel, shipping or services.
+  - **Credits** need **Manage charges**, and a price below the catalog minimum needs discount approval.
+  - **Cost and margin** are visible only with the internal-cost permission, and they are left out of the data, not
+    just hidden on the page.
+  - **Stock** is reserved when added, deducted once when marked used, and released when removed.
+- **Ticket billing summary (101.7)**
+  - **What it shows:** the agreement, prepaid hours now and after approval, labor, items, fees, the unbilled total
+    before tax, and anything blocking clean billing.
+  - **Review charges** shows the exact invoice lines.
+  - **Send to billing** marks the ticket for invoicing and never creates an invoice.
+  - **Closing a ticket with unbilled work** flags it **Needs billing review**, and it is listed on **Billing Review**
+    under **Tickets for billing**.
+
+### Changed
+
+- **Time that bills nothing:** non-billable, warranty and goodwill time bills nothing and uses no prepaid hours.
+- **Left off the invoice, with a warning:** time awaiting classification, and stock that is reserved but not yet
+  used.
+- **Corrections:** approved time is corrected only through the existing correction page, which reverses its
+  prepaid-hour postings. Time or items already invoiced can't be changed from the ticket.
+- **Customer and portal users** see none of the internal time, item or billing fields.
+
+### Notes
+
+- **Existing data:** existing time entries and expenses bill exactly as before.
+- **New migrations:** `psa.0095_ticket_time_charges` and `inventory.0004_ticket_time_charges`, both additive.
+- **Roadmap:** Phase 101 is complete. Follow-ups are recorded as roadmap 102.9.
+
 ## [3.17.750] - 2026-11-21
 
 Agit8or Connect: two-sided authorization and a test before a connection goes live (Quick Connect increment C3).

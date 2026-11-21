@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import ledger_views, reminders, requester_site_views, views
+from . import ledger_views, reminders, requester_site_views, ticket_charges_views, views
 from . import request_builder_views as _rb
 
 app_name = 'psa'
@@ -44,6 +44,20 @@ urlpatterns = [
     path('t/<str:ticket_number>/timer/start/', views.timer_start, name='timer_start'),
     path('t/<str:ticket_number>/timer/stop/', views.timer_stop, name='timer_stop'),
     path('t/<str:ticket_number>/time/manual/', views.time_entry_manual, name='time_entry_manual'),
+    # Phase 101.5-101.7: Time & Charges, Add Item and the ticket billing summary.
+    path('t/<str:ticket_number>/time/<int:entry_id>/update/', ticket_charges_views.time_entry_update,
+         name='ticket_time_update'),
+    path('t/<str:ticket_number>/time/<int:entry_id>/agreement/', ticket_charges_views.time_entry_agreement,
+         name='ticket_time_agreement'),
+    path('t/<str:ticket_number>/items/add/', ticket_charges_views.item_add, name='ticket_item_add'),
+    path('t/<str:ticket_number>/items/<int:pk>/used/', ticket_charges_views.item_used, name='ticket_item_used'),
+    path('t/<str:ticket_number>/items/<int:pk>/remove/', ticket_charges_views.item_remove,
+         name='ticket_item_remove'),
+    path('t/<str:ticket_number>/billing/send/', ticket_charges_views.send_to_billing,
+         name='ticket_send_to_billing'),
+    path('t/<str:ticket_number>/charges/', ticket_charges_views.charges_review, name='ticket_charges_review'),
+    path('t/<str:ticket_number>/charges.json', ticket_charges_views.charges_json, name='ticket_charges_json'),
+    path('t/<str:ticket_number>/catalog.json', ticket_charges_views.catalog_json, name='ticket_catalog_json'),
     # Per-ticket
     path('t/<str:ticket_number>/context/', views.ticket_vault_context, name='ticket_vault_context'),
     path('t/<str:ticket_number>/comment/', views.ticket_post_comment, name='ticket_post_comment'),

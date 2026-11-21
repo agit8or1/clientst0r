@@ -631,6 +631,7 @@ def ticket_detail(request, ticket_number):
             ticket.organization),
     }
     if workspace['is_msp_staff']:
+        context.update(_ticket_charges_context(request, ticket))
         from .ticket_secure import thread_for_ticket
         context['secure_thread'] = thread_for_ticket(ticket)
         # Roadmap 52.21: the technician's own reminders on this ticket.
@@ -651,6 +652,37 @@ def ticket_detail(request, ticket_number):
     return render(request, 'psa/ticket_detail.html', context)
 
 
+def _ticket_charges_context(request, ticket):
+    """Phase 101.5-101.7: Time & Charges, items and the billing summary.
+    Cost and margin are computed only with pricing_view_internal_cost_rates
+    at the ticket's customer; the agreement picker only with
+    billing_manage_charges, listing agreements valid for the customer today."""
+    from .billing import ticket_charges as tc
+    org = ticket.organization
+    show_costs = tc.can_view_costs(request.user, org)
+    try:
+        charges = tc.ticket_estimate(ticket, show_costs=show_costs)
+    except Exception:
+        logger.exception('ticket billing estimate failed for %s', ticket.ticket_number)
+        charges = None
+    can_choose = tc.can_choose_agreement(request.user, org)
+    stock = list(InventoryItem.objects.for_organization(org).order_by('name')[:200])
+    for s_ in stock:
+        s_.available = tc.available_quantity(s_)
+    return {
+        'charges': charges,
+        'show_costs': show_costs,
+        'can_choose_agreement': can_choose,
+        'agreement_options': tc.agreements_for_ticket(ticket) if can_choose else [],
+        'can_add_credit': tc.can_add_credit(request.user, org),
+        'classification_choices': tc.CLASSIFICATION_FORM_CHOICES,
+        'work_types': tc.WORK_TYPES,
+        'item_categories': TicketExpense.CATEGORY_CHOICES,
+        'catalog_items': tc.catalog_items(ticket),
+        'stock_items': stock,
+    }
+
+
 # ticket_detail context keys a customer user never receives (see above).
 STAFF_ONLY_TICKET_CONTEXT = {
     'workflow_executions': [], 'canned_replies': [], 'time_entries': [], 'running_timer': None,
@@ -658,6 +690,8 @@ STAFF_ONLY_TICKET_CONTEXT = {
     'expenses': [], 'total_expense_billable': 0, 'problems': [], 'problem_can_create': False,
     'kit_items': [], 'kit_packed_count': 0, 'kit_tools': [], 'kit_inventory': [],
     'can_assign': False, 'eligible_assignees': [], 'hygiene': [], 'secure_thread': [],
+    'charges': None, 'show_costs': False, 'can_choose_agreement': False, 'agreement_options': [],
+    'can_add_credit': False, 'catalog_items': [], 'stock_items': [],
 }
 
 
@@ -2480,6 +2514,40 @@ def canned_reply_edit(request, pk):
 # Phase 2c — time tracking endpoints + service catalog
 # ---------------------------------------------------------------------------
 
+def _time_form_billing(request, ticket, on_date=None, role_code=''):
+    """Phase 101.5: classification, work type and (with billing_manage_charges)
+    agreement from the timer / manual time forms. Returns (classification,
+    rate_type, agreement or None). Blank classification keeps the billable
+    tick box deciding, as before."""
+    from .billing import ticket_charges as tc
+    cls = (request.POST.get('classification') or '').strip()
+    if cls and cls not in tc.CLASSIFICATION_CODES:
+        cls = ''
+    work = (request.POST.get('work_type') or '').strip()
+    if work not in dict(tc.WORK_TYPES):
+        work = ''
+    agreement = None
+    raw = (request.POST.get('contract_id') or '').strip()
+    if raw:
+        if not tc.can_choose_agreement(request.user, ticket.organization):
+            raise PermissionDenied(f"Your role does not include '{tc.CHOOSE_AGREEMENT}' for this customer.")
+        ok = {c.pk: c for c in tc.agreements_for_ticket(ticket, on_date, role_code)}
+        agreement = ok.get(int(raw)) if raw.isdigit() else None
+        if agreement is None:
+            raise PermissionDenied('That agreement does not cover this customer on this date.')
+    return cls, work, agreement
+
+
+def _choose_time_agreement(request, entry, agreement):
+    if agreement is None:
+        return
+    from .billing import ledger as _ledger
+    try:
+        _ledger.choose_agreement(entry, agreement, actor=request.user)
+    except _ledger.LedgerError as exc:
+        messages.warning(request, str(exc))
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -2500,11 +2568,13 @@ def timer_start(request, ticket_number):
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
     is_billable = (request.POST.get('is_billable') or '').lower() in ('1', 'true', 'on', 'yes')
     role_code = (request.POST.get('role_code') or '').strip()[:40]
+    classification, work_type, agreement = _time_form_billing(request, ticket, role_code=role_code)
     entry = TicketTimeEntry.objects.create(
         ticket=ticket, user=request.user,
         started_at=timezone.now(), is_billable=is_billable,
-        role_code=role_code,
+        role_code=role_code, classification=classification, rate_type=work_type,
     )
+    _choose_time_agreement(request, entry, agreement)
     AuditLog.log(
         user=request.user, action='create', organization=ticket.organization,
         object_type='psa.TicketTimeEntry', object_id=entry.pk,
@@ -2571,13 +2641,16 @@ def time_entry_manual(request, ticket_number):
     is_billable = (request.POST.get('is_billable') or '').lower() in ('1', 'true', 'on', 'yes')
     notes = (request.POST.get('notes') or '').strip()[:2000]
     role_code = (request.POST.get('role_code') or '').strip()[:40]
+    classification, work_type, agreement = _time_form_billing(request, ticket, role_code=role_code)
     now = timezone.now()
     entry = TicketTimeEntry.objects.create(
         ticket=ticket, user=request.user,
         started_at=now - timezone.timedelta(minutes=minutes),
         ended_at=now, duration_minutes=minutes,
         is_billable=is_billable, notes=notes, role_code=role_code,
+        classification=classification, rate_type=work_type,
     )
+    _choose_time_agreement(request, entry, agreement)
     AuditLog.log(
         user=request.user, action='create', organization=ticket.organization,
         object_type='psa.TicketTimeEntry', object_id=entry.pk,
@@ -5899,6 +5972,16 @@ def _ticket_billing_notes(request, info):
         messages.warning(request, f'{n} time entr{"y has" if n == 1 else "ies have"} no labor rate (no rate '
                                   f'card line and no agreement rate) and {"was" if n == 1 else "were"} left off; '
                                   f'add a rate card line to bill {"it" if n == 1 else "them"}.')
+    if info.get('needs_classification'):
+        n = len(info['needs_classification'])
+        messages.warning(request, f'{n} time entr{"y needs" if n == 1 else "ies need"} classification '
+                                  f'(awaiting classification, or "covered" with no agreement) and '
+                                  f'{"was" if n == 1 else "were"} left off.')
+    if info.get('unused_stock'):
+        n = len(info['unused_stock'])
+        messages.warning(request, f'{n} reserved stock item{"" if n == 1 else "s"} not marked used '
+                                  f'{"was" if n == 1 else "were"} left off; mark {"it" if n == 1 else "them"} '
+                                  f'used to bill.')
     if info.get('before_cutoff'):
         n = len(info['before_cutoff'])
         messages.info(request, f'{n} time entr{"y" if n == 1 else "ies"} worked before the billing upgrade '
@@ -5962,6 +6045,9 @@ def invoice_from_ticket(request, ticket_number):
         for sort_order, line in enumerate(lines):
             InvoiceLineItem.objects.create(invoice=invoice, sort_order=sort_order, **line)
         invoice.recompute_totals()
+        # Phase 101.7: invoiced when nothing is left, else back to review.
+        from .billing.ticket_charges import after_invoice
+        after_invoice(ticket)
     if info['covered_minutes']:
         messages.info(
             request,
@@ -6063,6 +6149,11 @@ def invoice_approve(request, pk):
     return redirect('psa:invoice_detail', pk=item.pk)
 
 
+def _tc_queue(user):
+    from .billing.ticket_charges import billing_queue
+    return billing_queue(user)
+
+
 def _billing_review_contracts(request):
     from .models import Contract
     org = get_request_organization(request)
@@ -6097,6 +6188,8 @@ def billing_review(request):
         'cycle_end': end - relativedelta(days=1), 'period': f'{start:%Y-%m}',
         'prev_period': f'{start - relativedelta(months=1):%Y-%m}',
         'next_period': f'{end:%Y-%m}', 'state': state,
+        # Phase 101.7: tickets sent to billing / flagged on close (per-customer billing_view_invoices).
+        'ticket_queue': list(_tc_queue(request.user)[:200]),
     })
 
 
@@ -10463,6 +10556,21 @@ def time_entry_correct(request, pk):
         return back
     entry.duration_minutes = minutes
     entry.is_billable = (request.POST.get('is_billable') or '') in ('1', 'on', 'true')
+    # Phase 101.5: a classification change on approved time goes through
+    # here (save re-allocates the prepaid hours through the ledger), never
+    # on time already on a live invoice.
+    from .billing import ticket_charges as _tc
+    cls = (request.POST.get('classification') or '').strip()
+    if cls and cls in _tc.CLASSIFICATION_CODES and cls != entry.classification:
+        if _tc.entry_on_invoice(entry):
+            messages.error(request, 'This time is on an invoice. Void or credit the invoice before '
+                                    'reclassifying it.')
+            return back
+        entry.classification = cls
+    elif entry.classification and entry.is_billable != (
+            entry.classification not in TicketTimeEntry.NO_CHARGE_CLASSIFICATIONS):
+        # Only the billable box changed: keep the classification in step.
+        entry.classification = 'billable' if entry.is_billable else 'non_billable'
     entry.notes = (request.POST.get('notes') if 'notes' in request.POST else entry.notes) or ''
     entry.save(_force_unlock=True, _audit_user=request.user, _audit_note=reason)
     AuditLog.log(

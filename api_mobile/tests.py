@@ -1204,6 +1204,18 @@ class MobileTicketTimeEntryTests(TestCase):
         body = resp.json()
         self.assertEqual(body['duration_minutes'], 90)
 
+    def test_log_time_with_classification(self):
+        """Phase 101.5: optional classification; older clients send none."""
+        url = f'/api/mobile/v1/tickets/{self.ticket.id}/time/'
+        resp = _auth_post(self.client, url, self.token, {
+            'duration_minutes': 20, 'is_billable': True, 'classification': 'warranty'})
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual((resp.json()['classification'], resp.json()['is_billable']), ('warranty', False))
+        resp = _auth_post(self.client, url, self.token, {'duration_minutes': 20})
+        self.assertEqual((resp.json()['classification'], resp.json()['is_billable']), ('', True))
+        resp = _auth_post(self.client, url, self.token, {'duration_minutes': 20, 'classification': 'bogus'})
+        self.assertEqual(resp.status_code, 400)
+
     def test_log_time_missing_inputs_400(self):
         url = f'/api/mobile/v1/tickets/{self.ticket.id}/time/'
         resp = _auth_post(self.client, url, self.token, {'notes': 'no data'})

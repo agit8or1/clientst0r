@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Review charges — {{ ticket.ticket_number }} — PSA{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Review charges</li>
+    </ol>
+</nav>
+
+<h1 class="h4 mb-1"><i class="fas fa-list-check me-1" aria-hidden="true"></i>Review charges: {{ ticket.ticket_number }}</h1>
+<p class="text-muted small mb-3">{{ ticket.organization.name }} · {{ ticket.subject }}
+    {% if ticket.billing_status %}· <span class="badge {% if ticket.billing_status == 'review' %}text-bg-warning{% else %}text-bg-info{% endif %}">{{ ticket.get_billing_status_display }}</span>{% endif %}</p>
+
+<p class="small">These are the lines "Invoice this ticket" would put on a draft invoice now, priced from the agreement, the prepaid-hour ledger, the rate cards and the billing rules. Nothing here creates or changes an invoice.</p>
+
+{% if est.blockers %}
+<div class="alert alert-warning small" role="status">
+    <strong>Left off until sorted out:</strong>
+    <ul class="mb-0">{% for b in est.blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="table-responsive">
+    <table class="table table-sm small mb-0 align-middle">
+        <caption class="visually-hidden">Invoice lines this ticket would bill</caption>
+        <thead><tr><th scope="col">Line</th><th scope="col" class="text-end">Quantity</th><th scope="col" class="text-end">Unit price</th><th scope="col" class="text-end">Total</th>{% if est.show_costs %}<th scope="col" class="text-end">Unit cost</th>{% endif %}<th scope="col">Taxable</th></tr></thead>
+        <tbody>
+        {% for ln in lines %}
+        <tr><td class="text-break">{{ ln.description }}</td><td class="text-end">{{ ln.quantity }}</td><td class="text-end">${{ ln.unit_price|floatformat:2 }}</td><td class="text-end">${{ ln.total|floatformat:2 }}</td>{% if est.show_costs %}<td class="text-end">{% if ln.unit_cost is not None %}${{ ln.unit_cost|floatformat:2 }}{% else %}—{% endif %}</td>{% endif %}<td>{% if ln.is_taxable %}Yes{% else %}No{% endif %}</td></tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-muted">Nothing ready to invoice.</td></tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr><th scope="row" colspan="3" class="text-end">Unbilled total before tax</th><td class="text-end"><strong>${{ est.ready_total|floatformat:2 }}</strong></td><td colspan="2">{% if est.forecast_total %}<small class="text-muted">+ ${{ est.forecast_total|floatformat:2 }} forecast after timesheet approval</small>{% endif %}</td></tr>
+        {% if est.show_costs and est.cost_total is not None %}<tr><th scope="row" colspan="3" class="text-end">Cost / margin</th><td class="text-end">${{ est.cost_total|floatformat:2 }} / ${{ est.margin_total|floatformat:2 }}</td><td colspan="2"></td></tr>{% endif %}
+        </tfoot>
+    </table>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:ticket_detail' ticket.ticket_number %}#billing-summary">Back to the ticket</a>
+    {% if can_send %}
+    <form method="post" action="{% url 'psa:ticket_send_to_billing' ticket.ticket_number %}">{% csrf_token %}
+        <button class="btn btn-sm btn-outline-primary">Send to billing</button></form>
+    {% endif %}
+    {% if can_invoice %}
+    <form method="post" action="{% url 'psa:invoice_from_ticket' ticket.ticket_number %}">{% csrf_token %}
+        <button class="btn btn-sm btn-primary" data-confirm="Create a draft invoice from these lines?">Invoice this ticket (draft)</button></form>
+    {% endif %}
+</div>
+{% endblock %}

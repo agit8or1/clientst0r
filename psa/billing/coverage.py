@@ -37,6 +37,13 @@ Treatment once the agreement is known:
   without an agreement at 0 until 101.4; `invoice_rate` says what the invoice
   uses today.
 
+Classification (Phase 101.5, TicketTimeEntry.classification): non-billable,
+warranty and goodwill -> non_billable (no charge, nothing consumed);
+"awaiting" -> status needs_classification (never billed, nothing consumed);
+"covered" with no agreement covering the date -> needs_classification instead
+of time and materials; "billable", "covered" with an agreement and blank
+(entries made before classification existed) -> as above.
+
 Coverage attributes are reported where the data exists: service category (the
 ticket type), work type (remote / onsite / travel from the entry's rate type)
 and business hours (False for after-hours, weekend, holiday and emergency rate
@@ -53,6 +60,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 ZERO = Decimal('0')
+NO_CHARGE = ('non_billable', 'warranty', 'goodwill')
 OUT_OF_HOURS_RATE_TYPES = ('after_hours', 'weekend', 'holiday', 'emergency')
 WORK_TYPES = ('remote', 'onsite', 'travel')
 
@@ -60,7 +68,7 @@ WORK_TYPES = ('remote', 'onsite', 'travel')
 @dataclass
 class Resolution:
     kind: str                       # 'time' | 'charge'
-    status: str                     # resolved | needs_choice | no_agreement | not_ready
+    status: str                     # resolved | needs_choice | needs_classification | no_agreement | not_ready
     reason: str = ''
     customer: object = None         # core.Organization
     agreement: object = None        # psa.Contract
@@ -86,6 +94,8 @@ class Resolution:
         """Value for TicketTimeEntry.billing_resolution."""
         if self.status == 'needs_choice':
             return 'needs_choice'
+        if self.status == 'needs_classification':
+            return 'needs_classification'
         if self.status == 'no_agreement':
             return 'no_agreement' if self.treatment != 'non_billable' else 'non_billable'
         if self.status != 'resolved':
@@ -206,10 +216,22 @@ def _resolve_entry(entry, *, plan=True):
     else:
         res.agreement, res.status, res.reason = pick_agreement(candidates)
 
-    if not entry.is_billable:
+    cls = getattr(entry, 'classification', '') or ''
+    res.coverage['classification'] = cls
+    if not entry.is_billable or cls in NO_CHARGE:
         res.treatment = 'non_billable'
         return res
+    if cls == 'awaiting':
+        # Phase 101.5: never invoiced, never consumes prepaid hours.
+        res.status = 'needs_classification'
+        res.reason = 'Awaiting classification: classify the entry before it is billed.'
+        return res
     if res.status == 'needs_choice':
+        return res
+    if cls == 'covered' and res.agreement is None:
+        res.status = 'needs_classification'
+        res.reason = ('Classified as covered, but no agreement of this customer covers the date; '
+                      'reclassify it or add the agreement.')
         return res
     if res.agreement is None:
         res.treatment = 'chargeable'

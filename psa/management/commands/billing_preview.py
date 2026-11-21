@@ -56,7 +56,8 @@ class Command(BaseCommand):
             old_lines, _old_info = legacy_ticket_billing_lines(t, Contract.for_ticket(t))
             new_lines, info = t.uninvoiced_billing_lines(include_before_cutoff=opts['include_earlier'])
             if not old_lines and not new_lines and not (info['awaiting_approval'] or info['needs_choice']
-                                                        or info['no_rate']):
+                                                        or info['no_rate'] or info.get('needs_classification')
+                                                        or info.get('unused_stock')):
                 continue
             old_total, new_total = lines_total(old_lines), lines_total(new_lines)
             cust = per_customer.setdefault(t.organization.name, [Decimal('0'), Decimal('0')])
@@ -69,6 +70,10 @@ class Command(BaseCommand):
                 notes.append(f'{len(info["needs_choice"])} entr(ies) need an agreement choice')
             if info['no_rate']:
                 notes.append(f'{len(info["no_rate"])} entr(ies) have no rate (left off)')
+            if info.get('needs_classification'):
+                notes.append(f'{len(info["needs_classification"])} entr(ies) need classification (left off)')
+            if info.get('unused_stock'):
+                notes.append(f'{len(info["unused_stock"])} reserved stock item(s) not marked used (left off)')
             if info['before_cutoff']:
                 notes.append(f'{len(info["before_cutoff"])} entr(ies) before the cutoff billed the old way')
             if info['fees']:

@@ -1838,6 +1838,47 @@ dashboards.
 
 <a id="planning-notes"></a>
 
+<a id="phase-101"></a>
+
+### Phase 101 — Ticket Time & Charges and prepaid-hour ledger
+
+Shipped v3.17.749 (101.1–101.4) and v3.17.751 (101.5–101.7).
+
+Priority P0. The first phase of the [MSP billing program](plans/msp-billing-program/README.md) (§B, §C), from the
+[capability audit](plans/msp-billing-program/CAPABILITY_AUDIT.md) of 2026-11-20. Extends the existing time
+entries, `psa.Contract` allowances, charges and rate cards; no second billing engine.
+
+- **101.1 Coverage resolver** *(shipped v3.17.749)* — one function decides, for an approved time entry or charge, the
+  customer, the agreement (explicit precedence and effective dates when several apply; an ambiguous overlap needs
+  a choice), coverage (service category, remote / onsite, business hours), rate and the covered / prepaid /
+  chargeable split. Consumption follows the entry's own contract link instead of customer and date, so two
+  overlapping contracts no longer count the same time.
+- **101.2 Prepaid-hour ledger** *(shipped v3.17.749)* — immutable postings for purchases, consumption, expiry, reversals and
+  authorized manual adjustments, with the source entry, agreement, date, quantity and status; several blocks per
+  customer consumed earliest-expiry first; rollover and expiry; negative balance only when configured; low-balance
+  alerts; idempotency keys and row locks against retries, scheduled jobs and concurrent approvals. A block
+  purchase is not counted as revenue again on consumption.
+- **101.3 Approval-time consumption** *(shipped v3.17.749)* — draft and rejected time consume nothing (today they do);
+  approval posts, rejection or reversal releases; partial coverage splits into block and overage; retainer
+  allowances reset each billing cycle.
+- **101.4 Rates and rules in invoicing** *(shipped v3.17.749 — after-hours and weekend rate types wait for the business-hours calendar (Phase 93); holiday rates use the existing holiday calendar)* — ticket time is priced from the rate cards and the entry's
+  rate snapshot (no more $0 for time-and-materials customers without a contract); minimum time, billing increments
+  and trip fees from the existing billing rules; after-hours and holiday rate types set from the time worked and
+  the SLA calendar (Phase 93).
+- **101.5 Time & Charges on the ticket** *(shipped v3.17.751)* — timer, manual time, work type and classification (billable,
+  covered, non-billable, warranty, goodwill, awaiting classification), agreement picker when permitted, and the
+  calculated treatment: actual and rounded time, rate, covered hours, remaining block hours, overage, estimated
+  charge. Uses the existing time-entry screens.
+- **101.6 Add Item on tickets** *(shipped v3.17.751 — stock comes from the customer's own inventory; an MSP-wide or per-location stock picker is not included)* — catalog search or a one-off line for parts, hardware, software,
+  licenses, materials, travel, shipping, third-party services and permissioned credits; cost and margin visible only
+  with permission; inventory reserved and consumed as separate events and deducted once (Phase 73).
+- **101.7 Ticket billing summary** *(shipped v3.17.751 — Send to Billing marks the ticket for review and never creates an invoice; a cross-ticket billing queue with hold and exclude is Phase 102)* — agreement, hours before and after, items, unbilled total before
+  tax; Review Charges and Send to Billing; closing a ticket never hides unbilled items, which are flagged for review.
+
+Acceptance: block deduction, partial overage split, unlimited coverage produces no labor charge, break/fix labor
+and parts reach the invoice, concurrent approvals cannot deduct twice, existing contracts and invoices unchanged on
+upgrade.
+
 ## Original planning notes
 
 ### Phasing principle

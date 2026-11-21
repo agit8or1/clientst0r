@@ -98,4 +98,28 @@
 </table>
 </div>
 </div>
+
+{# Phase 101.7: tickets sent to billing or flagged for review (closed with unbilled work). No invoice exists for them until someone uses "Invoice this ticket". #}
+<h2 class="h5 mt-4" id="tickets-for-billing">Tickets for billing</h2>
+<div class="card">
+<div class="table-responsive">
+<table class="table table-sm small mb-0 align-middle">
+    <caption class="visually-hidden">Tickets sent to billing or flagged for billing review</caption>
+    <thead><tr><th scope="col">Ticket</th><th scope="col">Customer</th><th scope="col">Billing status</th><th scope="col">Since</th><th scope="col">Note</th></tr></thead>
+    <tbody>
+    {% for t in ticket_queue %}
+    <tr>
+        <td><a href="{% url 'psa:ticket_charges_review' t.ticket_number %}">{{ t.ticket_number }}</a> <small class="text-muted">{{ t.subject|truncatechars:60 }}</small></td>
+        <td>{{ t.organization.name }}</td>
+        <td><span class="badge {% if t.billing_status == 'review' %}text-bg-warning{% else %}text-bg-info{% endif %}">{{ t.get_billing_status_display }}</span></td>
+        <td>{{ t.billing_status_at|date:"M j, Y" }}</td>
+        <td class="text-break">{{ t.billing_status_note|truncatechars:160 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-muted">No tickets waiting for billing.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
 {% endblock %}

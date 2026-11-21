@@ -17,7 +17,7 @@
         <div><strong>{{ entry.user.username|default:'—' }}</strong> on
             <a href="{% url 'psa:ticket_detail' entry.ticket.ticket_number %}">{{ entry.ticket.ticket_number }}</a>,
             started {{ entry.started_at|date:'Y-m-d H:i' }}</div>
-        <div>{{ entry.duration_minutes }} min · {% if entry.is_billable %}billable{% else %}not billable{% endif %}{% if entry.role_code %} · {{ entry.role_code }}{% endif %}</div>
+        <div>{{ entry.duration_minutes }} min · {% if entry.is_billable %}billable{% else %}not billable{% endif %}{% if entry.classification %} · {{ entry.get_classification_display }}{% endif %}{% if entry.role_code %} · {{ entry.role_code }}{% endif %}</div>
         {% if entry.notes %}<div class="text-muted mt-1" style="white-space: pre-wrap;">{{ entry.notes }}</div>{% endif %}
         <div class="mt-2">
             {% if locked %}<span class="badge bg-success">Locked — timesheet approved</span>
@@ -62,6 +62,10 @@
         <input type="checkbox" name="is_billable" value="1" id="te-billable" class="form-check-input" {% if entry.is_billable %}checked{% endif %}>
         <label for="te-billable" class="form-check-label">Billable</label>
     </div>
+    <label class="form-label" for="te-classification">Classification</label>
+    <select name="classification" id="te-classification" class="form-select form-select-sm mb-2">
+        {% for code, label in entry.CLASSIFICATION_CHOICES %}<option value="{{ code }}" {% if code == entry.classification %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
     <label class="form-label">Notes
         <textarea name="notes" rows="2" class="form-control form-control-sm">{{ entry.notes }}</textarea>
     </label>

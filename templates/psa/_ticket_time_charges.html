@@ -1,0 +1,330 @@
+{# Phase 101.5-101.7: Time & Charges, Items and the billing summary. MSP staff only (the view sends none of this to anyone else). Amounts come from psa.billing.ticket_charges.ticket_estimate, i.e. the lines "Invoice this ticket" would create. Cost and margin are only in the data when show_costs. #}
+{% with est=charges %}
+<div class="card mt-3" id="time-charges">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-1">
+        <h2 class="h6 mb-0"><i class="fas fa-stopwatch me-1" aria-hidden="true"></i>Time &amp; Charges</h2>
+        <small class="text-muted">{{ total_minutes }}m total · {{ billable_minutes }}m billable</small>
+    </div>
+    {% if not is_closed %}
+    <div class="card-body small">
+        {% if running_timer %}
+        <form method="post" action="{% url 'psa:timer_stop' ticket.ticket_number %}" class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            {% csrf_token %}
+            <span class="badge text-bg-success"><i class="fas fa-circle me-1" aria-hidden="true"></i>Running</span>
+            <small class="text-muted">started {{ running_timer.started_at|timesince }} ago{% if running_timer.classification %} · {{ running_timer.get_classification_display }}{% endif %}</small>
+            <input type="text" name="notes" class="form-control form-control-sm" style="max-width:260px;" placeholder="Notes (optional)" aria-label="Timer notes" maxlength="200">
+            <button type="submit" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-stop me-1" aria-hidden="true"></i>Stop &amp; log</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{% url 'psa:time_entry_manual' ticket.ticket_number %}" class="row g-1 align-items-end" id="timeEntryForm">
+            {% csrf_token %}
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-0" for="timeManualMinutes">Minutes</label>
+                <input type="number" name="minutes" id="timeManualMinutes" class="form-control form-control-sm" min="1" max="1440">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small mb-0" for="timeClassification">Classification</label>
+                <select name="classification" id="timeClassification" class="form-select form-select-sm">
+                    {% for code, label in classification_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-0" for="timeWorkType">Work type</label>
+                <select name="work_type" id="timeWorkType" class="form-select form-select-sm">
+                    <option value="">Default</option>
+                    {% for code, label in work_types %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-0" for="timeRole">Role</label>
+                <input type="text" name="role_code" id="timeRole" class="form-control form-control-sm" placeholder="e.g. T1" maxlength="40" title="Optional role / tier code, matched against the agreement's billable and excluded role codes">
+            </div>
+            {% if can_choose_agreement and agreement_options %}
+            <div class="col-12 col-md-3">
+                <label class="form-label small mb-0" for="timeAgreement">Agreement</label>
+                <select name="contract_id" id="timeAgreement" class="form-select form-select-sm">
+                    <option value="">Worked out automatically</option>
+                    {% for c in agreement_options %}<option value="{{ c.pk }}">{{ c.name }} ({{ c.get_contract_type_display }})</option>{% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-12">
+                <label class="visually-hidden" for="timeNotes">Notes</label>
+                <input type="text" name="notes" id="timeNotes" class="form-control form-control-sm" placeholder="Notes (what was done)" maxlength="200">
+            </div>
+            <input type="hidden" name="is_billable" value="1">
+            <div class="col-12 d-flex gap-2 justify-content-end">
+                {% if not running_timer %}
+                <button type="submit" class="btn btn-sm btn-outline-primary" formaction="{% url 'psa:timer_start' ticket.ticket_number %}" formnovalidate><i class="fas fa-play me-1" aria-hidden="true"></i>Start timer</button>
+                {% endif %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Log the minutes without a timer"><i class="fas fa-plus me-1" aria-hidden="true"></i>Log time</button>
+            </div>
+        </form>
+        <p class="text-muted mb-0 mt-1">Non-billable, warranty and goodwill time is never charged. Time awaiting classification is not invoiced until it is classified.</p>
+    </div>
+    {% endif %}
+    {% if est and est.entries %}
+    <div class="table-responsive">
+    <table class="table table-sm small mb-0 align-middle">
+        <caption class="visually-hidden">Time entries and how each one is billed</caption>
+        <thead><tr>
+            <th scope="col">Time</th><th scope="col">Classification</th><th scope="col" class="text-end">Actual</th>
+            <th scope="col" class="text-end">Rounded</th><th scope="col" class="text-end">Covered</th>
+            <th scope="col" class="text-end">Charged</th><th scope="col" class="text-end">Rate</th>
+            <th scope="col" class="text-end">Estimate</th>{% if est.show_costs %}<th scope="col" class="text-end">Cost</th><th scope="col" class="text-end">Margin</th>{% endif %}
+            <th scope="col">Status</th>
+        </tr></thead>
+        <tbody>
+        {% for r in est.entries %}{% with te=r.entry %}
+        <tr>
+            <td>
+                <a href="{% url 'psa:time_entry_history' te.pk %}">{{ te.user.username|default:"—" }}</a>
+                <small class="text-muted d-block">{{ te.started_at|date:"M j, H:i" }}{% if r.work_type %} · {{ r.work_type }}{% endif %}{% if te.role_code %} · {{ te.role_code }}{% endif %}</small>
+                {% if te.notes %}<small class="text-muted d-block text-break">{{ te.notes|truncatechars:80 }}</small>{% endif %}
+            </td>
+            <td>
+                {% if r.state != 'invoiced' and not is_closed and not te.submission_id %}
+                <form method="post" action="{% url 'psa:ticket_time_update' ticket.ticket_number te.pk %}" class="d-flex gap-1">
+                    {% csrf_token %}
+                    <label class="visually-hidden" for="cls{{ te.pk }}">Classification of entry {{ te.pk }}</label>
+                    <select name="classification" id="cls{{ te.pk }}" class="form-select form-select-sm" style="min-width:8rem;">
+                        {% for code, label in classification_choices %}<option value="{{ code }}" {% if code == r.classification_code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Save classification of entry {{ te.pk }}"><i class="fas fa-check" aria-hidden="true"></i></button>
+                </form>
+                {% else %}{{ r.classification }}{% endif %}
+                {% if r.agreement %}<small class="text-muted d-block">{{ r.agreement.name }}</small>{% endif %}
+                {% if can_choose_agreement and r.state != 'invoiced' and r.state != 'running' %}
+                <form method="post" action="{% url 'psa:ticket_time_agreement' ticket.ticket_number te.pk %}" class="d-flex gap-1 mt-1">
+                    {% csrf_token %}
+                    <label class="visually-hidden" for="agr{{ te.pk }}">Agreement for entry {{ te.pk }}</label>
+                    <select name="contract_id" id="agr{{ te.pk }}" class="form-select form-select-sm">
+                        {% for c in agreement_options %}<option value="{{ c.pk }}" {% if r.agreement and c.pk == r.agreement.pk %}selected{% endif %}>{{ c.name }}</option>{% empty %}<option value="">No agreement covers today</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Bill entry {{ te.pk }} against this agreement">Use</button>
+                </form>
+                {% endif %}
+            </td>
+            <td class="text-end">{{ r.actual_minutes }}m</td>
+            <td class="text-end">{% if r.billed_hours is not None %}{{ r.billed_hours }}h{% else %}—{% endif %}</td>
+            <td class="text-end">{% if r.covered_hours %}{{ r.covered_hours }}h{% else %}—{% endif %}</td>
+            <td class="text-end">{% if r.charged_hours %}{{ r.charged_hours }}h{% else %}—{% endif %}</td>
+            <td class="text-end">{% if r.rate is not None %}${{ r.rate|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="text-end">{% if r.state == 'ready' or r.state == 'forecast' %}${{ r.charge|floatformat:2 }}{% else %}—{% endif %}</td>
+            {% if est.show_costs %}<td class="text-end">{% if r.cost is not None %}${{ r.cost|floatformat:2 }}{% else %}—{% endif %}</td><td class="text-end">{% if r.margin is not None %}${{ r.margin|floatformat:2 }}{% else %}—{% endif %}</td>{% endif %}
+            <td>
+                {% if r.state %}<span class="badge {% if r.state == 'ready' %}text-bg-success{% elif r.state == 'invoiced' or r.state == 'no_charge' %}text-bg-secondary{% elif r.state == 'forecast' or r.state == 'running' %}text-bg-info{% else %}text-bg-warning{% endif %}">{{ r.state_label }}</span>{% endif %}
+                {% if r.invoice %}<a class="small d-block" href="{% url 'psa:invoice_detail' r.invoice.pk %}">{{ r.invoice.invoice_number }}</a>{% endif %}
+                {% if r.state == 'needs_classification' or r.state == 'no_rate' %}<small class="text-muted d-block">{{ r.note }}</small>{% endif %}
+            </td>
+        </tr>
+        {% endwith %}{% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% endif %}
+</div>
+
+{# Items (101.6): catalog, stock, one-off lines, credits; expenses as before. #}
+<div class="card mt-3" id="ticket-items">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0"><i class="fas fa-box-open me-1" aria-hidden="true"></i>Items &amp; expenses</h2>
+        {% if est %}<small class="text-muted">${{ est.items_total|floatformat:2 }} ready to bill</small>{% endif %}
+    </div>
+    <div class="card-body small">
+        {% if not is_closed %}
+        <details class="mb-2" {% if not est.items %}open{% endif %}>
+            <summary class="fw-semibold">Add item</summary>
+            <form method="post" action="{% url 'psa:ticket_item_add' ticket.ticket_number %}" class="row g-1 mt-1" id="addItemForm">
+                {% csrf_token %}
+                <div class="col-12 col-md-6">
+                    <label class="form-label small mb-0" for="itemCatalogSearch">Catalog search</label>
+                    <input type="search" id="itemCatalogSearch" class="form-control form-control-sm" placeholder="Name or SKU" data-url="{% url 'psa:ticket_catalog_json' ticket.ticket_number %}" autocomplete="off">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small mb-0" for="itemCatalog">Catalog item</label>
+                    <select name="price_book_item" id="itemCatalog" class="form-select form-select-sm">
+                        <option value="">One-off line (no catalog item)</option>
+                        {% for it in catalog_items %}<option value="{{ it.pk }}">{{ it.sku }} — {{ it.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0" for="itemCategory">Kind</label>
+                    <select name="category" id="itemCategory" class="form-select form-select-sm">
+                        {% for code, label in item_categories %}{% if code != 'credit' or can_add_credit %}<option value="{{ code }}" {% if code == 'parts' %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0" for="itemStock">From stock</label>
+                    <select name="inventory_item" id="itemStock" class="form-select form-select-sm">
+                        <option value="">Not from stock</option>
+                        {% for s in stock_items %}<option value="{{ s.pk }}">{{ s.name }} ({{ s.available|floatformat:0 }} available)</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small mb-0" for="itemDescription">Description</label>
+                    <input type="text" name="description" id="itemDescription" class="form-control form-control-sm" maxlength="300" placeholder="Blank = the catalog / stock name">
+                </div>
+                <div class="col-4 col-md-2">
+                    <label class="form-label small mb-0" for="itemQty">Quantity</label>
+                    <input type="number" name="quantity" id="itemQty" class="form-control form-control-sm" value="1" min="0.01" step="0.01" required>
+                </div>
+                <div class="col-4 col-md-2">
+                    <label class="form-label small mb-0" for="itemPrice">Unit price</label>
+                    <input type="number" name="unit_price" id="itemPrice" class="form-control form-control-sm" min="0" step="0.01" placeholder="Catalog">
+                </div>
+                {% if show_costs %}
+                <div class="col-4 col-md-2">
+                    <label class="form-label small mb-0" for="itemCost">Unit cost</label>
+                    <input type="number" name="unit_cost" id="itemCost" class="form-control form-control-sm" min="0" step="0.01" placeholder="Catalog">
+                </div>
+                {% endif %}
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-0" for="itemSerial">Serial number</label>
+                    <input type="text" name="serial_number" id="itemSerial" class="form-control form-control-sm" maxlength="120">
+                </div>
+                <div class="col-12 col-md-3 d-flex gap-3 align-items-end">
+                    <div class="form-check"><input type="checkbox" class="form-check-input" name="is_billable" value="1" id="itemBillable" checked><label class="form-check-label" for="itemBillable">Billable</label></div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" name="is_taxable" value="1" id="itemTaxable" checked><label class="form-check-label" for="itemTaxable">Taxable</label></div>
+                </div>
+                <div class="col-12 text-end"><button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add item</button></div>
+            </form>
+        </details>
+        <details class="mb-2">
+            <summary class="fw-semibold">Add expense (receipt, reimbursement)</summary>
+            <form method="post" action="{% url 'psa:ticket_expense_add' ticket.ticket_number %}" enctype="multipart/form-data" class="row g-2 mt-1">
+                {% csrf_token %}
+                <div class="col-12"><input type="text" name="description" class="form-control form-control-sm" required placeholder="What was bought / consumed" aria-label="Expense description"></div>
+                <div class="col-4"><input type="number" step="0.01" name="amount" class="form-control form-control-sm" required placeholder="Amount" aria-label="Expense amount"></div>
+                <div class="col-3"><input type="text" name="currency" class="form-control form-control-sm" value="USD" maxlength="8" aria-label="Currency"></div>
+                <div class="col-5">
+                    <select name="category" class="form-select form-select-sm" aria-label="Expense category">
+                        {% for code, label in expense_categories %}{% if code != 'credit' %}<option value="{{ code }}">{{ label }}</option>{% endif %}{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6"><input type="date" name="incurred_on" class="form-control form-control-sm" aria-label="Date incurred"></div>
+                <div class="col-3 form-check ms-2"><input type="checkbox" id="expense_billable" name="is_billable" class="form-check-input" checked><label class="form-check-label small" for="expense_billable">Billable</label></div>
+                <div class="col-3 form-check"><input type="checkbox" id="expense_reimbursable" name="is_reimbursable" class="form-check-input" checked><label class="form-check-label small" for="expense_reimbursable">Reimbursable</label></div>
+                <div class="col-12"><input type="file" name="receipt_file" class="form-control form-control-sm" accept="image/*,application/pdf" aria-label="Receipt (image or PDF)"></div>
+                <div class="col-12"><button type="submit" class="btn btn-sm btn-outline-secondary">Add expense</button></div>
+            </form>
+        </details>
+        {% endif %}
+        {% if est and est.items %}
+        <div class="table-responsive">
+        <table class="table table-sm small mb-0 align-middle">
+            <caption class="visually-hidden">Items and expenses on this ticket</caption>
+            <thead><tr><th scope="col">Item</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Unit price</th><th scope="col" class="text-end">Total</th>{% if est.show_costs %}<th scope="col" class="text-end">Unit cost</th><th scope="col" class="text-end">Margin</th>{% endif %}<th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody>
+            {% for r in est.items %}{% with e=r.item %}
+            <tr>
+                <td>
+                    {{ e.description }}{% if e.sku %} <small class="text-muted">{{ e.sku }}</small>{% endif %}
+                    <small class="text-muted d-block">{{ e.get_category_display }}{% if e.serial_number %} · S/N {{ e.serial_number }}{% endif %}{% if e.inventory_state %} · stock: {{ e.get_inventory_state_display|lower }}{% endif %}{% if e.receipt_file %} · <a href="{{ e.receipt_file.url }}">receipt</a>{% endif %}</small>
+                </td>
+                <td class="text-end">{{ r.quantity|floatformat:-2 }}</td>
+                <td class="text-end">{% if e.is_credit %}−{% endif %}${{ r.unit_price|floatformat:2 }}</td>
+                <td class="text-end">${{ r.total|floatformat:2 }}</td>
+                {% if est.show_costs %}<td class="text-end">{% if r.unit_cost is not None %}${{ r.unit_cost|floatformat:2 }}{% else %}—{% endif %}</td><td class="text-end">{% if r.margin is not None %}${{ r.margin|floatformat:2 }}{% if r.margin_pct is not None %} <small class="text-muted">({{ r.margin_pct }}%)</small>{% endif %}{% else %}—{% endif %}</td>{% endif %}
+                <td>{% if r.state %}<span class="badge {% if r.state == 'ready' %}text-bg-success{% elif r.state == 'invoiced' or r.state == 'not_billable' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ r.state_label }}</span>{% endif %}{% if r.invoice %} <a href="{% url 'psa:invoice_detail' r.invoice.pk %}">{{ r.invoice.invoice_number }}</a>{% endif %}</td>
+                <td class="text-end text-nowrap">
+                    {% if r.state != 'invoiced' %}
+                    {% if e.inventory_state == 'reserved' %}
+                    <form method="post" action="{% url 'psa:ticket_item_used' ticket.ticket_number e.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-success" aria-label="Mark {{ e.description }} used">Used</button></form>
+                    {% endif %}
+                    {% if not e.is_credit or can_add_credit %}
+                    <form method="post" action="{% url 'psa:ticket_item_remove' ticket.ticket_number e.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" aria-label="Remove {{ e.description }}" data-confirm="Remove this line?{% if e.inventory_state %} Its stock is released.{% endif %}"><i class="fas fa-times" aria-hidden="true"></i></button></form>
+                    {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endwith %}{% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% elif est %}
+        <p class="text-muted mb-0">No items or expenses.</p>
+        {% endif %}
+    </div>
+</div>
+
+{# Billing summary (101.7) #}
+{% if est %}
+<div class="card mt-3" id="billing-summary">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-1">
+        <h2 class="h6 mb-0"><i class="fas fa-file-invoice-dollar me-1" aria-hidden="true"></i>Billing summary</h2>
+        {% if ticket.billing_status %}<span class="badge {% if ticket.billing_status == 'review' %}text-bg-warning{% elif ticket.billing_status == 'ready' %}text-bg-info{% else %}text-bg-secondary{% endif %}">{{ ticket.get_billing_status_display }}</span>{% endif %}
+    </div>
+    <div class="card-body small">
+        <dl class="row mb-2">
+            <dt class="col-6 col-md-4">Agreement</dt>
+            <dd class="col-6 col-md-8">{% if est.agreement %}{{ est.agreement.name }} <small class="text-muted">({{ est.agreement.get_contract_type_display }})</small>{% else %}None — time and materials{% endif %}</dd>
+            {% if est.hours.prepaid %}
+            <dt class="col-6 col-md-4">Prepaid hours now</dt><dd class="col-6 col-md-8">{{ est.hours.remaining_now }}h{% if est.hours.low %} <span class="badge text-bg-warning">Low</span>{% endif %}</dd>
+            <dt class="col-6 col-md-4">After approval of this ticket's time</dt><dd class="col-6 col-md-8">{{ est.hours.remaining_after }}h <small class="text-muted">({{ est.hours.pending }}h pending approval)</small></dd>
+            {% elif est.hours.unlimited %}
+            <dt class="col-6 col-md-4">Hours</dt><dd class="col-6 col-md-8">Covered by the agreement fee (unlimited)</dd>
+            {% endif %}
+            <dt class="col-6 col-md-4">Labor ready to invoice</dt><dd class="col-6 col-md-8">${{ est.labor_total|floatformat:2 }}</dd>
+            <dt class="col-6 col-md-4">Items ready to invoice</dt><dd class="col-6 col-md-8">${{ est.items_total|floatformat:2 }}</dd>
+            {% if est.fees_total %}<dt class="col-6 col-md-4">Trip fees</dt><dd class="col-6 col-md-8">${{ est.fees_total|floatformat:2 }}</dd>{% endif %}
+            <dt class="col-6 col-md-4">Unbilled total before tax</dt><dd class="col-6 col-md-8"><strong>${{ est.ready_total|floatformat:2 }}</strong>{% if est.forecast_total %} <small class="text-muted">+ ${{ est.forecast_total|floatformat:2 }} forecast once the timesheet is approved</small>{% endif %}</dd>
+            {% if est.show_costs and est.cost_total is not None %}
+            <dt class="col-6 col-md-4">Cost / margin</dt><dd class="col-6 col-md-8">${{ est.cost_total|floatformat:2 }} / ${{ est.margin_total|floatformat:2 }}</dd>
+            {% endif %}
+        </dl>
+        {% if est.blockers %}
+        <div class="alert alert-warning py-2 mb-2" role="status">
+            <strong>Before this ticket can be billed cleanly:</strong>
+            <ul class="mb-0">{% for b in est.blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if ticket.billing_status_note %}<p class="text-muted mb-2">{{ ticket.billing_status_note }}</p>{% endif %}
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'psa:ticket_charges_review' ticket.ticket_number %}"><i class="fas fa-list-check me-1" aria-hidden="true"></i>Review charges</a>
+            <form method="post" action="{% url 'psa:ticket_send_to_billing' ticket.ticket_number %}" class="d-inline">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-primary" title="Marks the ticket ready for invoicing review. No invoice is created."><i class="fas fa-paper-plane me-1" aria-hidden="true"></i>Send to billing</button>
+            </form>
+            <form method="post" action="{% url 'psa:invoice_from_ticket' ticket.ticket_number %}" class="d-inline ms-md-auto">
+                {% csrf_token %}
+                <label class="form-check-label me-2 text-muted" title="Time worked before the billing upgrade is invoiced the old way unless ticked">
+                    <input type="checkbox" class="form-check-input" name="include_before_cutoff" value="1">
+                    include earlier unbilled time
+                </label>
+                <button class="btn btn-sm btn-outline-primary" data-confirm="Create a draft invoice from this ticket's billable time and items?">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Invoice this ticket
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endwith %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var box = document.getElementById('itemCatalogSearch');
+    var sel = document.getElementById('itemCatalog');
+    if (!box || !sel) return;
+    var timer = null;
+    box.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            fetch(box.dataset.url + '?q=' + encodeURIComponent(box.value), {credentials: 'same-origin'})
+                .then(function (r) { return r.ok ? r.json() : {results: []}; })
+                .then(function (data) {
+                    var keep = sel.options[0];
+                    sel.innerHTML = '';
+                    sel.appendChild(keep);
+                    (data.results || []).forEach(function (it) {
+                        var o = document.createElement('option');
+                        o.value = it.id;
+                        o.textContent = it.sku + ' — ' + it.name + (it.price ? ' ($' + it.price + ')' : '');
+                        sel.appendChild(o);
+                    });
+                    if (data.results && data.results.length === 1) sel.value = data.results[0].id;
+                });
+        }, 250);
+    });
+})();
+</script>

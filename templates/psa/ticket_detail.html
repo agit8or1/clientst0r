@@ -869,82 +869,8 @@
             {% endif %}
         </div>
 
-        {# Time tracking (Phase 2c) #}
-        <div class="card mt-3">
-            {% if is_msp_staff %}
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong><i class="fas fa-stopwatch me-1"></i>Time</strong>
-                <small class="text-muted">{{ total_minutes }}m total · {{ billable_minutes }}m billable</small>
-            </div>
-            {% endif %}
-            {% if not is_closed %}
-            <div class="card-body small">
-                {% if running_timer %}
-                <form method="post" action="{% url 'psa:timer_stop' ticket.ticket_number %}" class="d-flex gap-2 align-items-center mb-2">
-                    {% csrf_token %}
-                    <span class="badge bg-success"><i class="fas fa-circle me-1"></i>Running</span>
-                    <small class="text-muted">started {{ running_timer.started_at|timesince }} ago</small>
-                    <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)" maxlength="200">
-                    <button type="submit" class="btn btn-sm btn-outline-success ms-auto"><i class="fas fa-stop me-1"></i>Stop &amp; log</button>
-                </form>
-                {% else %}
-                <form method="post" action="{% url 'psa:timer_start' ticket.ticket_number %}" class="d-flex gap-2 align-items-center mb-2">
-                    {% csrf_token %}
-                    <div class="form-check">
-                        <input type="checkbox" id="timer_billable" name="is_billable" value="1" class="form-check-input" checked>
-                        <label class="form-check-label small" for="timer_billable">Billable</label>
-                    </div>
-                    <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role (e.g. T1)" aria-label="Timer role code (optional)" maxlength="40" style="width:110px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
-                    <button type="submit" class="btn btn-sm btn-outline-primary ms-auto"><i class="fas fa-play me-1"></i>Start timer</button>
-                </form>
-                {% endif %}
-                <form method="post" action="{% url 'psa:time_entry_manual' ticket.ticket_number %}" class="d-flex gap-1 align-items-center">
-                    {% csrf_token %}
-                    <input type="number" name="minutes" id="timeManualMinutes" class="form-control form-control-sm" placeholder="min" aria-label="Minutes worked" min="1" max="1440" style="width:80px;" required>
-                    <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (manual entry)" aria-label="Time entry notes" maxlength="200">
-                    <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role" aria-label="Time entry role code (optional)" maxlength="40" style="width:80px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
-                    <div class="form-check">
-                        <input type="checkbox" id="manual_billable" name="is_billable" value="1" class="form-check-input" checked>
-                        <label class="form-check-label small" for="manual_billable">Bill</label>
-                    </div>
-                    <button type="submit" class="btn btn-sm btn-outline-secondary ms-auto" title="Log time without using a timer">Log</button>
-                </form>
-            </div>
-            {% endif %}
-            {% if time_entries %}
-            <ul class="list-group list-group-flush small">
-                {% for te in time_entries %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>
-                        <strong>{{ te.duration_minutes }}m</strong>
-                        {% if te.is_billable %}<span class="badge bg-success ms-1">billable</span>{% else %}<span class="badge bg-secondary ms-1">non-billable</span>{% endif %}
-                        {% if te.is_running %}<span class="badge bg-warning text-dark ms-1">running</span>{% endif %}
-                        <small class="text-muted ms-2">{{ te.user.username|default:"—" }} · {{ te.started_at|timesince }} ago</small>
-                        {% if te.notes %}<div class="text-muted small mt-1">{{ te.notes }}</div>{% endif %}
-                    </span>
-                </li>
-                {% endfor %}
-            </ul>
-            {% endif %}
-        </div>
-
-        {# Invoice from this ticket #}
-        <div class="card mt-3">
-            <div class="card-body p-2 d-flex justify-content-between align-items-center small">
-                <span><i class="fas fa-file-invoice me-1"></i>Generate invoice from billable time + expenses</span>
-                <form method="post" action="{% url 'psa:invoice_from_ticket' ticket.ticket_number %}" class="d-inline">
-                    {% csrf_token %}
-                    <label class="form-check-label me-2 text-muted" title="Time worked before the billing upgrade is invoiced the old way unless ticked">
-                        <input type="checkbox" class="form-check-input" name="include_before_cutoff" value="1">
-                        include earlier unbilled time
-                    </label>
-                    <button class="btn btn-sm btn-outline-primary"
-                            data-confirm="Create a draft invoice from this ticket's billable time + expenses?">
-                        <i class="fas fa-plus"></i> Invoice this ticket
-                    </button>
-                </form>
-            </div>
-        </div>
+        {# Time & Charges, items and the billing summary (Phase 101.5-101.7; formerly Time, Expenses and Invoice from this ticket) #}
+        {% if is_msp_staff %}{% include "psa/_ticket_time_charges.html" %}{% endif %}
 
         {# Ticket routing history + suggestions (staff only, never in the portal) #}
         {% if is_msp_staff %}{% routing_ticket_panel ticket %}{% endif %}
@@ -1130,77 +1056,6 @@
                 No workflows applied yet. Launch one to attach a workflow checklist to this ticket.
             </div>
             {% endif %}
-        </div>
-
-        {# Expenses (Phase 5) #}
-        <div class="card mt-3">
-            {% if is_msp_staff %}
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong><i class="fas fa-receipt me-1"></i>Expenses</strong>
-                {% if total_expense_billable %}
-                <span class="text-muted small">${{ total_expense_billable|floatformat:2 }} billable</span>
-                {% endif %}
-            </div>
-            {% endif %}
-            <div class="card-body">
-                {% if not is_closed %}
-                <form method="post" action="{% url 'psa:ticket_expense_add' ticket.ticket_number %}"
-                      enctype="multipart/form-data" class="row g-2 small mb-2">
-                    {% csrf_token %}
-                    <div class="col-12">
-                        <input type="text" name="description" class="form-control form-control-sm" required placeholder="What was bought / consumed" aria-label="Expense description">
-                    </div>
-                    <div class="col-4">
-                        <input type="number" step="0.01" name="amount" class="form-control form-control-sm" required placeholder="Amount" aria-label="Expense amount">
-                    </div>
-                    <div class="col-3">
-                        <input type="text" name="currency" class="form-control form-control-sm" value="USD" maxlength="8" aria-label="Currency">
-                    </div>
-                    <div class="col-5">
-                        <select name="category" class="form-select form-select-sm" aria-label="Expense category">
-                            {% for code, label in expense_categories %}
-                            <option value="{{ code }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-6">
-                        <input type="date" name="incurred_on" class="form-control form-control-sm" aria-label="Date incurred">
-                    </div>
-                    <div class="col-3 form-check ms-2">
-                        <input type="checkbox" id="expense_billable" name="is_billable" class="form-check-input" checked>
-                        <label class="form-check-label small" for="expense_billable">Billable</label>
-                    </div>
-                    <div class="col-3 form-check">
-                        <input type="checkbox" id="expense_reimbursable" name="is_reimbursable" class="form-check-input" checked>
-                        <label class="form-check-label small" for="expense_reimbursable">Reimbursable</label>
-                    </div>
-                    <div class="col-12">
-                        <input type="file" name="receipt_file" class="form-control form-control-sm" accept="image/*,application/pdf" aria-label="Receipt (image or PDF)">
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">Add expense</button>
-                    </div>
-                </form>
-                {% endif %}
-                {% if expenses %}
-                <ul class="list-group list-group-flush small">
-                    {% for e in expenses %}
-                    <li class="list-group-item d-flex justify-content-between">
-                        <span>
-                            <strong>{{ e.amount }} {{ e.currency }}</strong>
-                            <span class="badge text-bg-secondary ms-1">{{ e.get_category_display }}</span>
-                            {% if e.is_billable %}<span class="badge text-bg-success ms-1">billable</span>{% endif %}
-                            <small class="text-muted ms-1">{{ e.user.username|default:"—" }} · {{ e.incurred_on }}</small>
-                            <div class="text-muted small">{{ e.description }}</div>
-                            {% if e.receipt_file %}<a href="{{ e.receipt_file.url }}" class="small">receipt</a>{% endif %}
-                        </span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted small mb-0">No expenses logged.</p>
-                {% endif %}
-            </div>
         </div>
 
         {# AI Assist (Phase 10a + 10b — generate + apply with guardrails) #}
@@ -1426,6 +1281,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                {% if charges and charges.has_unbilled %}
+                <div class="alert alert-info small py-2" role="status">
+                    This ticket has unbilled time or items (${{ charges.ready_total|floatformat:2 }} ready to invoice). Closing keeps them and flags the ticket for billing review; nothing is invoiced automatically.
+                </div>
+                {% endif %}
                 {% if checklist_outstanding or closeout_require_time and not has_time_logged %}
                 <div class="alert alert-warning small py-2">
                     <strong>Before this ticket can close:</strong>

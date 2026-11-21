@@ -39,7 +39,14 @@ rated with the rate card's holiday line when one exists
 (pricing.services.snapshot_time_entry). After-hours and weekend rate types are
 not set automatically: there is no business-hours calendar yet (Phase 93).
 
-Expenses are billed as before.
+Classification (Phase 101.5): non-billable, warranty and goodwill time is
+not billable; time awaiting classification (or classified "covered" with no
+agreement covering it) is left off and reported (`info['needs_classification']`).
+
+Expenses are billed as before. "Add Item" rows (Phase 101.6: a TicketExpense
+with a unit price) bill quantity x unit price with the catalog item, cost
+snapshot and taxability; a credit bills negative; stock only reserved for the
+ticket is left off until it is marked used (`info['unused_stock']`).
 """
 from __future__ import annotations
 
@@ -143,6 +150,7 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False):
         'covered_minutes': 0, 'overage_minutes': 0, 'chargeable_minutes': 0, 'billed_minutes': 0,
         'rate': ZERO, 'allowance': 0, 'agreements': set(),
         'awaiting_approval': [], 'needs_choice': [], 'no_rate': [], 'before_cutoff': [],
+        'needs_classification': [], 'unused_stock': [],
         'fees': ZERO, 'cutoff': cut,
     }
     visits = {}
@@ -162,11 +170,9 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False):
                               'quantity': _hours2(consumed), 'unit_price': ZERO,
                               'source': 'time', 'source_id': str(te.pk)})
             if over > 0:
-                rate = Decimal(str(c.overage_rate or c.hourly_rate or 0))
-                info['rate'] = rate
                 pre = before_cutoff(te, cut) and not include_before_cutoff
-                rule = None if pre else billing_rule(client, c, on)
-                billed_over = round_minutes(rule, over, minimum=False)
+                rate, rule, billed_over = overage_terms(c, client, on, over, pre=pre)
+                info['rate'] = rate
                 info['overage_minutes'] += over
                 info['billed_minutes'] += billed_over
                 note = '' if billed_over == over else f' ({over} min worked, billed in {rule.increment_minutes}-min steps)'
@@ -181,6 +187,11 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False):
         agreement = res.agreement
         if res.status == 'needs_choice':
             info['needs_choice'].append(te)
+            continue
+        if res.status == 'needs_classification':
+            # Phase 101.5: awaiting classification (or "covered" with no
+            # agreement): never billed until someone classifies it.
+            info['needs_classification'].append(te)
             continue
         if res.treatment == 'prepaid':
             info['awaiting_approval'].append(te)
@@ -234,9 +245,43 @@ def ticket_billing_lines(ticket, *, include_before_cutoff=False):
                           'source_id': key, 'is_taxable': True, 'price_source': f'billing rule {rule.pk}'})
 
     for e in expenses:
-        lines.append({'description': f'Expense: {e.description}'[:300], 'quantity': Decimal('1'),
-                      'unit_price': Decimal(str(e.amount)), 'source': 'expense', 'source_id': str(e.pk)})
+        if e.unit_price is None:
+            lines.append({'description': f'Expense: {e.description}'[:300], 'quantity': Decimal('1'),
+                          'unit_price': Decimal(str(e.amount)), 'source': 'expense', 'source_id': str(e.pk)})
+            continue
+        line = item_line(e)
+        if line is None:
+            # Stock reserved for the ticket but not marked used: billed once
+            # it is used (Phase 101.6), never while it may still go back.
+            info['unused_stock'].append(e)
+            continue
+        lines.append(line)
     return lines, info
+
+
+def item_line(e):
+    """Invoice line for an "Add Item" row (TicketExpense with a unit price),
+    or None while its stock is only reserved. A credit bills negative."""
+    if e.inventory_item_id and e.inventory_state == 'reserved':
+        return None
+    price = Decimal(str(e.unit_price))
+    label = 'Credit' if e.is_credit else 'Item'
+    serial = f' (S/N {e.serial_number})' if e.serial_number else ''
+    line = {'description': f'{label}: {e.description}{serial}'[:300], 'quantity': Decimal(str(e.quantity)),
+            'unit_price': -price if e.is_credit else price, 'source': 'expense', 'source_id': str(e.pk),
+            'is_taxable': bool(e.is_taxable), 'price_book_item_id': e.price_book_item_id,
+            'unit_cost': e.unit_cost, 'price_source': (e.price_source or 'ticket item')[:40]}
+    return line
+
+
+def overage_terms(contract, client, on, over_minutes, *, pre=False):
+    """(rate, rule, billed minutes) for prepaid overage: the agreement's
+    overage rate (or hourly rate), rounded up to the billing rule's increment
+    (no minimum); no rule before the upgrade cutoff. Shared by invoicing and
+    the ticket's forecast so both say the same."""
+    rate = Decimal(str(contract.overage_rate or contract.hourly_rate or 0))
+    rule = None if pre else billing_rule(client, contract, on)
+    return rate, rule, round_minutes(rule, over_minutes, minimum=False)
 
 
 def lines_total(lines):
