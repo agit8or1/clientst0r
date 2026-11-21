@@ -12,6 +12,13 @@ Clientst0r's Django tests as the "other application" — no other app
 implements Connect yet. It is also the most compact worked example of the
 protocol for an implementer (IMPLEMENTING.md).
 
+Protocol revision 1.1 (PROTOCOL-1.1.md): with `quick_connect=True` the peer
+advertises qc-bootstrap/1, qc-source-binding/1 and qc-diagnostics/1 and can
+pair through the browser-mediated flow (qc_start -> qc_review ->
+qc_authorize -> qc_callback), then continues with the unchanged v1 poll,
+result, tokens and events. Without it (the default) the peer is exactly the
+v1-only peer it always was, which is how 1.0 <-> 1.1 interop is tested.
+
 It is NOT production code: state lives in dicts, and requests are routed by a
 `Network` object instead of sockets.
 """
@@ -26,8 +33,11 @@ from typing import Callable, Dict, List, Optional
 from urllib.parse import urlsplit
 
 from . import PROTOCOL_ID, discovery, keys, pairing, rotation, tokens, webhooks
-from .errors import (ConnectError, CONNECTION_INACTIVE, INVALID_CLIENT, INVALID_PAIRING_CODE, INVALID_REQUEST,
-                     INVALID_SCOPE, PAIRING_LOCKED)
+from . import quick_connect as qc
+from .canonical import sha256_hex
+from .errors import (ConnectError, CONNECTION_INACTIVE, EXTENSION_NOT_NEGOTIATED, IDENTITY_MISMATCH, INVALID_CLIENT,
+                     INVALID_PAIRING_CODE, INVALID_REQUEST, INVALID_SCOPE, PAIRING_LOCKED,
+                     SOURCE_NOT_AUTHORISED)
 from .http import Response
 from .replay import MemoryReplayStore
 from .scopes import HIGH_RISK, READ, WRITE, ADMIN, Catalog, Scope, parse_scope_string, require_subset
@@ -54,11 +64,18 @@ class Network:
         self.handlers: Dict[str, Callable] = {}
         self.down: set = set()
         self.log: List[tuple] = []
+        # Source address a handler sees (PROTOCOL-1.1.md qc-source-binding/1):
+        # the `source` a sender passes, else `default_source`.
+        self.default_source: Optional[str] = None
+        self._sources: List[Optional[str]] = []
+
+    def current_source(self) -> Optional[str]:
+        return self._sources[-1] if self._sources else None
 
     def register(self, base_url: str, handler: Callable):
         self.handlers[discovery.origin(base_url)] = handler
 
-    def request(self, method, url, headers=None, body=None) -> Response:
+    def request(self, method, url, headers=None, body=None, source=None) -> Response:
         o = discovery.origin(url)
         self.log.append((method, url))
         if o in self.down:
@@ -66,7 +83,11 @@ class Network:
         h = self.handlers.get(o)
         if h is None:
             raise ConnectError('transport_error', 'host unreachable', 502)
-        return h(method, url, dict(headers or {}), body or b'')
+        self._sources.append(source if source is not None else self.default_source)
+        try:
+            return h(method, url, dict(headers or {}), body or b'')
+        finally:
+            self._sources.pop()
 
 
 @dataclass
@@ -110,7 +131,9 @@ class PeerConnection:
 class ReferencePeer:
     def __init__(self, base_url: str, network: Network, *, app_type: str = 'reference-peer',
                  display_name: str = 'Reference peer', catalog: Catalog = REFERENCE_CATALOG,
-                 clock: Callable[[], float] = time.time, tenants: Optional[Dict[str, str]] = None):
+                 clock: Callable[[], float] = time.time, tenants: Optional[Dict[str, str]] = None,
+                 quick_connect: bool = False, egress: Optional[List[str]] = None,
+                 source_address: Optional[str] = None):
         self.base = base_url.rstrip('/')
         self.network = network
         self.installation_id = str(uuid.uuid4())
@@ -126,6 +149,16 @@ class ReferencePeer:
         self.connections: Dict[str, PeerConnection] = {}
         self.requests: Dict[str, str] = {}   # request id -> connection id
         self.event_handlers: Dict[str, Callable] = {}
+        # Protocol 1.1 (Quick Connect). `egress` is what this installation
+        # declares (signed); `source_address` is where its requests come from.
+        self.quick_connect = quick_connect
+        self.qc_advertise = quick_connect        # tests flip it to simulate a stripped discovery document
+        self.egress = list(egress or [])
+        self.source_address = source_address
+        self.qc_attempts: Dict[str, dict] = {}   # initiator: state -> attempt
+        self.qc_reviews: Dict[str, dict] = {}    # responder: review id -> verified invitation
+        self.qc_grants: Dict[str, dict] = {}     # responder: sha256(code) -> grant + temporary rule
+        self.qc_last_reached: Dict[str, int] = {}
         network.register(self.base, self.handle)
 
     # --- helpers --------------------------------------------------------------------
@@ -145,10 +178,17 @@ class ReferencePeer:
                 'api_base': self.url(API)}
 
     def document(self) -> dict:
-        return discovery.build_document(app=self.app, endpoints=self.endpoints(), catalog=self.catalog,
-                                        events=['alert.raised', 'alert.resolved', 'connect.test'],
-                                        tenant_model={'name': 'customer', 'description': 'A business the '
-                                                      'operator serves'})
+        doc = discovery.build_document(app=self.app, endpoints=self.endpoints(), catalog=self.catalog,
+                                       events=['alert.raised', 'alert.resolved', 'connect.test'],
+                                       tenant_model={'name': 'customer', 'description': 'A business the '
+                                                     'operator serves'})
+        if self.qc_advertise:
+            doc = qc.extend_discovery_document(doc, self.base)
+        return doc
+
+    def _send(self, method, url, headers=None, body=None) -> Response:
+        """Outbound request from this installation's source address."""
+        return self.network.request(method, url, headers, body, source=self.source_address)
 
     def _new_key(self, conn: PeerConnection, state=rotation.ACTIVE):
         k = keys.generate_private_key()
@@ -190,6 +230,10 @@ class ReferencePeer:
                 return self._events(headers, body)
             if path in (f'{API}/capabilities', f'{API}/test', f'{API}/customers/current'):
                 return self._resource(method, url, path, headers)
+            if self.quick_connect and method == 'POST' and path == qc.EXCHANGE_PATH:
+                return self._qc_exchange(url, headers, body)
+            if self.quick_connect and method == 'POST' and path == qc.PROBE_PATH:
+                return self._qc_probe(method, url, headers, body)
             return self._json(404, {'error': {'code': 'not_found', 'message': 'not found'}})
         except ConnectError as e:
             return self._err(e)
@@ -499,3 +543,189 @@ class ReferencePeer:
         for g in self.grants.grants.values():
             if g.connection_id == conn_id:
                 g.active = False
+
+    # --- protocol 1.1: Quick Connect (qc-bootstrap/1) ----------------------------------
+    # Initiator (A) ------------------------------------------------------------------------
+    def qc_start(self, responder_base: str, *, requested_scopes: List[str],
+                 authorize_url: Optional[str] = None) -> str:
+        """Start an attempt; returns the URL the administrator's browser opens
+        at the responder. Raises extension_not_negotiated when the responder's
+        discovery is readable and does not offer qc-bootstrap/1 (use the v1
+        code flow instead)."""
+        if not self.quick_connect:
+            raise ConnectError(EXTENSION_NOT_NEGOTIATED, 'this installation does not speak qc-bootstrap/1')
+        if authorize_url is None:
+            try:
+                r = self._send('GET', discovery.discovery_url(responder_base), {'Accept': 'application/json'})
+                doc = json.loads(r.body) if r.status == 200 else None
+            except (ConnectError, ValueError):
+                doc = None
+            if doc is None:       # not readable (e.g. source policy): the conventional entry point
+                authorize_url = responder_base + qc.AUTHORIZE_ENTRY_PATH
+            else:
+                negotiated = qc.negotiate_extensions(
+                    qc.advertised_extensions(doc, discovery.discovery_url(responder_base)))
+                if qc.pairing_flow(negotiated) != qc.BOOTSTRAP_ID:
+                    raise ConnectError(EXTENSION_NOT_NEGOTIATED, 'the other application does not offer Quick '
+                                                                 'Connect: use a pairing code')
+                authorize_url = doc['endpoints']['qc_authorize']
+        conn = PeerConnection(id=str(uuid.uuid4()), role='initiator', state='pending')
+        my = self._new_key(conn)
+        self.connections[conn.id] = conn
+        verifier, state = qc.generate_pkce_verifier(), qc.generate_state()
+        inv, claims = qc.build_invitation(
+            my, initiator_app=self.app, responder_origin=qc.origin_of(responder_base), attempt=conn.id,
+            base=self.base, redirect_uri=self.base + '/agit8or-connect/qc-callback', egress=self.egress,
+            requested_scopes=requested_scopes, code_challenge=qc.pkce_challenge(verifier),
+            nonce=qc.generate_nonce(), now=self.now())
+        self.qc_attempts[state] = {'conn': conn.id, 'invitation': inv, 'claims': claims, 'verifier': verifier,
+                                   'scopes': list(requested_scopes), 'used': False}
+        return qc.authorization_url(authorize_url, inv, state)
+
+    def qc_callback(self, url: str, *, proposed_tenants: List[dict] = ()) -> PeerConnection:
+        """The browser arrives back with code + accept: verify, read the
+        responder's discovery, exchange, verify the v1 ack, compute the SAS."""
+        att = self.qc_attempts.get(qc.parse_query(url).get('state', ''))
+        if att is None or att['used']:
+            raise ConnectError('state_mismatch', 'unknown or finished attempt')
+        att['used'] = True
+        resp = qc.parse_authorization_response(url, expected_state=qc.parse_query(url)['state'])
+        conn = self.connections[att['conn']]
+        accept, bjwk = qc.verify_accept(resp['accept'], invitation=att['claims'], invitation_jws=att['invitation'],
+                                        code=resp['code'], now=self.now())
+        info = discovery.fetch(_Sourced(self), accept['base'])
+        qc.check_discovered_identity(accept, info.raw, info.url)
+        _, my = conn.active_key()
+        exch, eclaims = qc.build_exchange(
+            my, invitation=att['claims'], accept=accept, accept_jws=resp['accept'], code=resp['code'],
+            code_verifier=att['verifier'], initiator_app=self.app, discovery_url=self.url(discovery.WELL_KNOWN),
+            requested_scopes=att['scopes'], proposed_tenants=proposed_tenants, now=self.now())
+        ep = info.raw['endpoints']['qc_exchange']
+        r = self._send('POST', ep, {'Content-Type': 'application/json',
+                                    'DPoP': tokens.build_dpop_proof(my, 'POST', ep, now=self.now())},
+                       json.dumps({'exchange': exch}).encode())
+        data = json.loads(r.body or b'{}')
+        if r.status != 202:
+            conn.state = 'failed'
+            raise ConnectError(data.get('error', {}).get('code', 'pairing_failed'),
+                               data.get('error', {}).get('message', ''), r.status)
+        ack, ack_jwk = pairing.verify_ack(data['ack'], initiator_installation=self.installation_id,
+                                          responder_installation=accept['iss'], request_jti=eclaims['jti'],
+                                          now=self.now())
+        qc.check_ack_key(ack_jwk, bjwk)
+        conn.remote_installation = accept['iss']
+        conn.remote_app = dict(accept['app'])
+        conn.remote_endpoints = info.endpoints
+        conn.remote_keys = {ack_jwk['kid']: keys.public_key_from_jwk(ack_jwk)}
+        conn.remote_connection_id = ack['connection_id']
+        conn.request_id, conn.request_jti, conn.request_jws = data['request_id'], eclaims['jti'], exch
+        conn.sas = qc.sas(qc.transcript_from_messages(att['invitation'], resp['accept'], exch))
+        conn.state = 'awaiting_remote_approval'
+        att.update(accept=resp['accept'], code=resp['code'], exchange_url=ep)
+        return conn
+
+    # Responder (B) ------------------------------------------------------------------------
+    def qc_review(self, authorize_url: str) -> str:
+        """The administrator, signed in to B's own UI, opens the browser URL.
+        Returns a review id; nothing is reachable yet."""
+        if not self.quick_connect:
+            raise ConnectError('not_found', 'no such page', 404)
+        q = qc.parse_query(authorize_url)
+        claims, jwk = qc.verify_invitation(q.get('invitation', ''), responder_origin=qc.origin_of(self.base),
+                                           responder_installation=self.installation_id, replay=self.replay,
+                                           now=self.now())
+        rid = str(uuid.uuid4())
+        self.qc_reviews[rid] = {'claims': claims, 'jwk': jwk, 'jws': q['invitation'], 'state': q.get('state', '')}
+        return rid
+
+    def qc_authorize(self, review_id: str, *, approve: bool = True) -> str:
+        """Approve (temporary pairing rule for egress_A, one-time code, signed
+        accept) or deny. Returns the redirect back to the initiator."""
+        rv = self.qc_reviews.pop(review_id)
+        claims = rv['claims']
+        if not approve:
+            return qc.authorization_response_url(claims['redirect_uri'], state=rv['state'], error='access_denied')
+        conn = PeerConnection(id=str(uuid.uuid4()), role='responder', state='pending_pairing')
+        my = self._new_key(conn)
+        self.connections[conn.id] = conn
+        code = qc.generate_code()
+        accept = qc.build_accept(my, responder_app=self.app, invitation=claims, invitation_jws=rv['jws'],
+                                 connection_id=conn.id, base=self.base, egress=self.egress, code=code,
+                                 now=self.now())
+        self.qc_grants[sha256_hex(code)] = {
+            'conn': conn.id, 'invitation': claims, 'invitation_jws': rv['jws'], 'jwk': rv['jwk'], 'accept': accept,
+            'code_expires_at': self.now() + qc.CODE_TTL,
+            'rule': {'nets': qc.egress_nets(claims['egress']), 'expires_at': self.now() + qc.TEMPORARY_RULE_TTL,
+                     'purpose': 'pairing'}}
+        return qc.authorization_response_url(claims['redirect_uri'], state=rv['state'], code=code, accept=accept)
+
+    def _qc_exchange(self, url, headers, body) -> Response:
+        data = json.loads(body or b'{}')
+        token = data.get('exchange') if isinstance(data, dict) else None
+        grant = self.qc_grants.get(qc.exchange_code_sha256(token or ''))
+        source = self.network.current_source()
+        # Source layer first: only this attempt's temporary rule admits the exchange.
+        if grant is None or source is None or self.now() >= grant['rule']['expires_at'] or \
+                not qc.source_in_egress(source, [{'net': n} for n in grant['rule']['nets']]):
+            return self._json(403, {'error': {'code': SOURCE_NOT_AUTHORISED,
+                                              'message': 'This address is not authorised for Agit8or Connect.'}})
+        claims = qc.verify_exchange(token, dpop=headers.get('DPoP', ''), url=url, invitation=grant['invitation'],
+                                    invitation_jwk=grant['jwk'], accept_jws=grant['accept'],
+                                    code_sha256=qc.exchange_code_sha256(token),
+                                    code_expires_at=grant['code_expires_at'],
+                                    responder_installation=self.installation_id, replay=self.replay,
+                                    now=self.now())
+        conn = self.connections[grant['conn']]
+        info = discovery.fetch(_Sourced(self), grant['invitation']['base'])
+        if info.installation_id != claims['iss']:
+            raise ConnectError(IDENTITY_MISMATCH, 'initiator discovery identity mismatch', 403)
+        conn.remote_installation = claims['iss']
+        conn.remote_app = claims['app']
+        conn.remote_connection_id = claims['connection_id']
+        conn.remote_keys = {grant['jwk']['kid']: keys.public_key_from_jwk(grant['jwk'])}
+        conn.remote_endpoints = info.endpoints
+        conn.peer_requested_scopes = list(claims.get('requested_scopes') or [])
+        conn.proposed_tenants = pairing.tenant_list(claims.get('proposed_tenants'))
+        conn.request_id, conn.request_jti, conn.request_jws = str(uuid.uuid4()), claims['jti'], token
+        conn.sas = qc.sas(qc.transcript_from_messages(grant['invitation_jws'], grant['accept'], token))
+        conn.state = 'awaiting_local_approval'
+        self.requests[conn.request_id] = conn.id
+        _, my = conn.active_key()
+        ack = pairing.build_ack(my, responder_app=self.app, initiator_installation=claims['iss'],
+                                request_id=conn.request_id, request_jti=claims['jti'], connection_id=conn.id,
+                                now=self.now())
+        return self._json(202, {'status': 'pending_approval', 'request_id': conn.request_id, 'ack': ack})
+
+    # qc-diagnostics/1 ---------------------------------------------------------------------
+    def _qc_probe(self, method, url, headers, body) -> Response:
+        conn, _ = self._authenticate(method, url, headers)
+        data = json.loads(body or b'{}') if body else {}
+        source = self.network.current_source()
+        return self._json(200, qc.build_probe_response(
+            observed_source=source or '0.0.0.0', server_time=self.now(), connection_state=conn.state,
+            source_check='not_enforced', peer_reached_at=self.qc_last_reached.get(conn.id),
+            nonce=data.get('nonce') if isinstance(data, dict) else None))
+
+    def qc_probe(self, conn_id: str, nonce: Optional[str] = None) -> dict:
+        conn = self.connections[conn_id]
+        url = conn.remote_endpoints.get('api_base', '').rsplit('/connect/v1', 1)[0] + qc.PROBE_PATH
+        token = self.get_token(conn_id)['access_token']
+        _, key = conn.active_key()
+        h = {'Authorization': f'DPoP {token}', 'Content-Type': 'application/json',
+             'DPoP': tokens.build_dpop_proof(key, 'POST', url, now=self.now(), access_token=token)}
+        r = self._send('POST', url, h, json.dumps(qc.probe_request_body(nonce)).encode())
+        data = json.loads(r.body or b'{}')
+        if r.status != 200:
+            raise ConnectError(data.get('error', {}).get('code', 'probe_failed'), '', r.status)
+        self.qc_last_reached[conn_id] = self.now()
+        return qc.validate_probe_response(data, nonce=nonce)
+
+
+class _Sourced:
+    """A Transport that sends from a peer's source address."""
+
+    def __init__(self, peer: ReferencePeer):
+        self.peer = peer
+
+    def request(self, method, url, headers=None, body=None) -> Response:
+        return self.peer._send(method, url, headers, body)

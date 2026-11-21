@@ -91,6 +91,12 @@ What is **not** done or not proven yet. Keep this list current. Don't describe a
   cannot reach the pairing endpoint at all (QC-02, contained by B1).
 - **Event delivery is scheduled** (every minute through `connect_deliver_events`), apart from the connection
   test and disconnect notices, which are sent immediately.
+- **Protocol revision 1.1 (Quick Connect) is specified and in the SDKs only.** `PROTOCOL-1.1.md`, the
+  `qc-*.json` vectors, the Python and TypeScript functions and the in-memory reference peer implement it;
+  Clientst0r does not advertise or serve any 1.1 extension yet (bootstrap pages and `qc_exchange` come with
+  increment C2, `qc_probe` with E). The reference peer has no real source-address policy beyond the temporary
+  rule on `qc_exchange`, and the TypeScript SDK has no reference peer. Not tested against an independent
+  implementation.
 - **QR scanning** is not implemented on Clientst0r's side (it only shows a QR). The SDKs parse the QR payload.
 - **Phases 3–5** (other applications' catalogs, event forwarding between more than two apps, shared rate-limit
   store, signed audit exports, health alerting) are design notes only.

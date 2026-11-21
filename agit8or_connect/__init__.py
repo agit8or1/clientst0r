@@ -24,12 +24,15 @@ tenants     tenant-grant resolution interface
 discovery   /.well-known/agit8or-connect document build / parse / fetch
 http        transport interface and a minimal SSRF-guarded stdlib transport
 reference_peer  an in-memory implementation of both roles, for tests
+quick_connect   protocol revision 1.1 (PROTOCOL-1.1.md): optional, negotiated
+                extensions qc-bootstrap/1, qc-source-binding/1, qc-diagnostics/1
 """
 
 PROTOCOL = 'agit8or-connect'
 PROTOCOL_VERSION = '1'
 PROTOCOL_ID = f'{PROTOCOL}/{PROTOCOL_VERSION}'
 SUPPORTED_VERSIONS = ('1',)
-__version__ = '1.0.0'
+__version__ = '1.1.0'
+PROTOCOL_REVISION = '1.1'  # optional extensions; PROTOCOL_VERSION stays '1'
 
 from .errors import ConnectError  # noqa: E402,F401

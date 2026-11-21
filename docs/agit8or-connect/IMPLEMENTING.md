@@ -21,6 +21,16 @@ python -m agit8or_connect.tools.generate_vectors --check     # vectors unchanged
 cd sdk/typescript/agit8or-connect && npm test                  # TypeScript SDK
 ```
 
+### Protocol revision 1.1 (optional)
+
+[PROTOCOL-1.1.md](PROTOCOL-1.1.md) adds Quick Connect: browser-mediated pairing with a signed single-use
+invitation, an authorisation code bound with PKCE and DPoP, signed egress-address declarations and a diagnostics
+probe. It is optional and negotiated through discovery `extensions`; implement version 1 first. The SDK functions
+are in `agit8or_connect/quick_connect.py` and the "Protocol revision 1.1" section of the TypeScript SDK; the
+vectors are `test-vectors/qc-*.json`; `agit8or_connect/reference_peer.py` (`quick_connect=True`) is a complete
+worked example of both roles. Its §13 is a checklist. A 1.1 implementation still pairs with a 1.0 peer over the
+v1 code flow (PROTOCOL-1.1.md §2).
+
 ## 2. What your application stores
 
 | Model | Fields (minimum) |

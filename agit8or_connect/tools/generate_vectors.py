@@ -17,7 +17,9 @@ import os
 import sys
 
 from agit8or_connect import audit, keys, pairing, tokens, webhooks
+from agit8or_connect import quick_connect as qc
 from agit8or_connect.canonical import b64url, canonical_json, sha256_hex
+from agit8or_connect.jws import sign_compact, unverified_header, unverified_payload
 
 NOW = 1767225600  # 2026-01-01T00:00:00Z
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'docs', 'agit8or-connect', 'test-vectors')
@@ -187,6 +189,388 @@ def jwks_vectors():
                        'trusted_B_only': 'invalid_signature'}}
 
 
+# --- protocol revision 1.1 (PROTOCOL-1.1.md) -------------------------------------------
+# New files only; the v1 files above are never touched by this section.
+
+QC_NOTICE = 'TEST-ONLY KEYS AND NONCES (agit8or-connect/1.1). Never use outside conformance tests.'
+QC_A_BASE = 'https://initiator.example.test'
+QC_B_BASE = 'https://responder.example.test'
+QC_REDIRECT = QC_A_BASE + '/agit8or-connect/qc-callback'
+QC_ATTEMPT = '44444444-4444-4444-8444-444444444444'
+QC_B_CONN = '66666666-6666-4666-8666-666666666666'
+QC_REQUEST_ID = '55555555-5555-4555-8555-555555555555'
+QC_A_APP = {'type': 'clientst0r', 'version': '3.17.0', 'display_name': 'MSP A', 'installation_id': INSTALL['A']}
+QC_B_APP = {'type': 'reference-peer', 'version': '1.1.0', 'display_name': 'Responder B',
+            'installation_id': INSTALL['B']}
+QC_A_EGRESS = [{'net': '203.0.113.10/32', 'note': 'office NAT'}]
+QC_B_EGRESS = [{'net': '198.51.100.0/28', 'note': 'data centre'}, {'net': '2001:db8:10::/48', 'note': ''}]
+QC_SCOPES = ['customers:read', 'events:publish']
+
+
+def qc_value(name: str) -> str:
+    """A fixed 256-bit TEST-ONLY value, base64url (43 characters)."""
+    return b64url(hashlib.sha256(f'agit8or-connect/1.1 TEST-ONLY {name}'.encode()).digest())
+
+
+QC_VERIFIER = qc_value('pkce-verifier')
+QC_CODE = qc_value('authorization-code')
+QC_STATE = qc_value('state')
+QC_NONCE = qc_value('nonce')
+
+
+def resign(key, token: str, *, header=None, claims=None, drop=()):
+    """A negative case: the token's header/claims with changes, signed by `key`."""
+    h = dict(unverified_header(token), **(header or {}))
+    c = dict(unverified_payload(token), **(claims or {}))
+    for k in drop:
+        c.pop(k, None)
+    return sign_compact(key, h, c)
+
+
+def tamper(token: str) -> str:
+    return token[:-4] + ('AAAA' if not token.endswith('AAAA') else 'BBBB')
+
+
+def qc_messages():
+    a, b = KEYS['A'], KEYS['B']
+    inv, inv_claims = qc.build_invitation(
+        a, initiator_app=QC_A_APP, responder_origin=QC_B_BASE, attempt=QC_ATTEMPT, base=QC_A_BASE,
+        redirect_uri=QC_REDIRECT, egress=QC_A_EGRESS, requested_scopes=QC_SCOPES,
+        code_challenge=qc.pkce_challenge(QC_VERIFIER), nonce=QC_NONCE, now=NOW, jti='qc-invitation-jti-0001')
+    acc = qc.build_accept(b, responder_app=QC_B_APP, invitation=inv_claims, invitation_jws=inv,
+                          connection_id=QC_B_CONN, base=QC_B_BASE, egress=QC_B_EGRESS, code=QC_CODE, now=NOW + 30)
+    acc_claims = unverified_payload(acc)
+    exch_url = QC_B_BASE + qc.EXCHANGE_PATH
+    exch, exch_claims = qc.build_exchange(
+        a, invitation=inv_claims, accept=acc_claims, accept_jws=acc, code=QC_CODE, code_verifier=QC_VERIFIER,
+        initiator_app=QC_A_APP, discovery_url=QC_A_BASE + '/.well-known/agit8or-connect',
+        requested_scopes=QC_SCOPES, proposed_tenants=[{'id': 'org-1', 'label': 'Customer One'}], now=NOW + 40,
+        jti='qc-exchange-jti-0001')
+    dpop = tokens.build_dpop_proof(a, 'POST', exch_url, now=NOW + 40, jti='qc-dpop-exchange-0001')
+    ack = pairing.build_ack(b, responder_app=QC_B_APP, initiator_installation=INSTALL['A'],
+                            request_id=QC_REQUEST_ID, request_jti=exch_claims['jti'], connection_id=QC_B_CONN,
+                            now=NOW + 40)
+    return dict(inv=inv, inv_claims=inv_claims, acc=acc, acc_claims=acc_claims, exch=exch,
+                exch_claims=exch_claims, exch_url=exch_url, dpop=dpop, ack=ack)
+
+
+def qc_invitation_vectors():
+    a, c = KEYS['A'], KEYS['C']
+    m = qc_messages()
+    inv = m['inv']
+    v1_request = pairing_vectors()['request']['jws']
+    cases = [
+        {'name': 'valid', 'jws': inv, 'at': NOW + 10, 'expect': 'valid'},
+        {'name': 'valid_at_skew_edge', 'jws': inv, 'at': NOW + 600 + 119, 'expect': 'valid'},
+        {'name': 'expired', 'jws': inv, 'at': NOW + 600 + 120, 'expect': 'invitation_expired'},
+        {'name': 'replayed', 'jws': inv, 'at': NOW + 10, 'replay_twice': True, 'expect': 'invitation_used'},
+        {'name': 'wrong_audience', 'jws': inv, 'at': NOW + 10, 'responder_origin': 'https://other.example.test',
+         'expect': 'wrong_audience'},
+        {'name': 'wrong_responder_installation',
+         'jws': resign(a, inv, claims={'responder_installation': INSTALL['A']}), 'at': NOW + 10,
+         'expect': 'wrong_audience'},
+        {'name': 'bad_signature', 'jws': tamper(inv), 'at': NOW + 10, 'expect': 'invalid_signature'},
+        {'name': 'header_key_substituted', 'jws': resign(a, inv, header={'jwk': keys.public_jwk(c),
+                                                                        'kid': keys.thumbprint(c)}),
+         'at': NOW + 10, 'expect': 'invalid_signature'},
+        {'name': 'lifetime_too_long', 'jws': resign(a, inv, claims={'exp': NOW + 900}), 'at': NOW + 10,
+         'expect': 'invalid_request'},
+        {'name': 'downgrade_protocol_v1', 'jws': resign(a, inv, claims={'protocol': 'agit8or-connect/1'}),
+         'at': NOW + 10, 'expect': 'unsupported_version'},
+        {'name': 'downgrade_extensions_stripped', 'jws': resign(a, inv, claims={'extensions': {}}),
+         'at': NOW + 10, 'expect': 'invalid_request'},
+        {'name': 'redirect_other_origin',
+         'jws': resign(a, inv, claims={'redirect_uri': 'https://evil.example.test/agit8or-connect/qc-callback'}),
+         'at': NOW + 10, 'expect': 'invalid_redirect_uri'},
+        {'name': 'redirect_with_query', 'jws': resign(a, inv, claims={'redirect_uri': QC_REDIRECT + '?x=1'}),
+         'at': NOW + 10, 'expect': 'invalid_redirect_uri'},
+        {'name': 'base_loopback', 'jws': resign(a, inv, claims={'base': 'https://127.0.0.1',
+                                                               'redirect_uri': 'https://127.0.0.1/cb'}),
+         'at': NOW + 10, 'expect': 'invalid_base'},
+        {'name': 'egress_allow_all', 'jws': resign(a, inv, claims={'egress': [{'net': '0.0.0.0/0', 'note': ''}]}),
+         'at': NOW + 10, 'expect': 'invalid_egress'},
+        {'name': 'egress_loopback', 'jws': resign(a, inv, claims={'egress': [{'net': '127.0.0.1/32', 'note': ''}]}),
+         'at': NOW + 10, 'expect': 'invalid_egress'},
+        {'name': 'egress_not_canonical',
+         'jws': resign(a, inv, claims={'egress': [{'net': '2001:DB8::1/128', 'note': ''}]}),
+         'at': NOW + 10, 'expect': 'invalid_egress'},
+        {'name': 'egress_empty', 'jws': resign(a, inv, claims={'egress': []}), 'at': NOW + 10,
+         'expect': 'invalid_egress'},
+        {'name': 'plain_method', 'jws': resign(a, inv, claims={'code_challenge_method': 'plain'}), 'at': NOW + 10,
+         'expect': 'invalid_request'},
+        {'name': 'v1_pairing_request_presented', 'jws': v1_request, 'at': NOW + 10, 'expect': 'invalid_request'},
+    ]
+    return {
+        'notice': QC_NOTICE, 'now': NOW, 'signer': 'A', 'responder_origin': QC_B_BASE,
+        'responder_installation': INSTALL['B'],
+        'pkce': {'code_verifier': QC_VERIFIER, 'code_challenge': qc.pkce_challenge(QC_VERIFIER)},
+        'nonce': QC_NONCE, 'state': QC_STATE,
+        'invitation': {'jws': inv, 'claims': m['inv_claims'], 'length': len(inv)},
+        'authorization_url': qc.authorization_url(QC_B_BASE + qc.AUTHORIZE_ENTRY_PATH, inv, QC_STATE),
+        'cases': cases,
+        'v1_verifier_refuses_invitation': {'jws': inv, 'responder_installation': INSTALL['B'], 'at': NOW + 10,
+                                           'expect': 'invalid_request'},
+        'net_normalization': [{'in': i, 'out': qc.normalize_net(i)} for i in (
+            '203.0.113.10', '203.0.113.10/32', '198.51.100.0/28', '2001:DB8:0:0:0:0:0:1', '2001:db8:0:0:1:0:0:1',
+            '2001:0:0:1:0:0:0:1', '1:0:0:2:0:0:3:4', '2001:db8:0:1:1:1:1:1', '64:ff9b::1.2.3.4',
+            '2001:db8:10::/48', '1:2:3:4:5:6:7::', '::1:2:3:4:5:6:7', '01:2::3', '2001:db8::0:1', '0:0:0:0:0:0:0:2',
+            '2001:db8:0:0:1:1:0:0', '2001:db8:1::/64')],
+        'net_malformed': ['', ' 203.0.113.10', '203.0.113.010', '203.0.113.10/24', '203.0.113.256',
+                          'fe80::1%eth0', '::ffff:203.0.113.10', '2001:db8::/129', 'example.test',
+                          '203.0.113.0/255.255.255.0', '203.0.113.10/032', '1::2::3', '00001::', '1:2:3:4:5:6:7:8:9',
+                          '2001:db8::/64 ', '::ffff:cb00:710a', '1.2.3.4.5', '12345::', ':1::', '1:::2'],
+        'net_refused': ['0.0.0.0/0', '::/0', '10.0.0.0/8', '2001:db8::/31', '127.0.0.1/32', '169.254.169.254/32',
+                        '0.0.0.0/32', '224.0.0.1/32', '255.255.255.255/32', '::1/128', 'fe80::1/128', 'ff02::1/128',
+                        'fd00:ec2::254/128', '100.100.100.200/32', '2001:DB8::1/128'],
+        'net_private': [{'net': n, 'private': qc.is_private_net(n)} for n in (
+            '10.1.2.3/32', '172.16.0.0/16', '192.168.1.0/24', '100.64.0.1/32', 'fd12:3456::/48',
+            '203.0.113.10/32', '2001:db8::1/128', '172.32.0.1/32')],
+        'base_valid': ['https://initiator.example.test', 'https://initiator.example.test/psa',
+                       'https://203.0.113.10', 'https://[2001:db8::1]', 'https://10.0.0.5/app'],
+        'base_invalid': ['http://initiator.example.test', 'https://initiator.example.test/',
+                         'https://Initiator.example.test', 'https://initiator.example.test:443',
+                         'https://initiator.example.test:8443', 'https://u@initiator.example.test',
+                         'https://initiator.example.test?a=1', 'https://initiator.example.test#f',
+                         'https://initiator.example.test/a/../b', 'https://initiator.example.test/%41',
+                         'https://127.0.0.1', 'https://169.254.169.254', 'https://[::1]',
+                         'https://[2001:DB8::1]', 'https://localhost', 'https://app.localhost',
+                         'https://203.0.113.010', 'https://initiator.example.test:0443'],
+        'redirect_checks': [
+            {'redirect_uri': QC_REDIRECT, 'base': QC_A_BASE, 'expect': 'valid'},
+            {'redirect_uri': QC_A_BASE + '/psa/cb', 'base': QC_A_BASE + '/psa', 'expect': 'valid'},
+            {'redirect_uri': QC_A_BASE, 'base': QC_A_BASE, 'expect': 'invalid_redirect_uri'},
+            {'redirect_uri': 'https://initiator.example.test:8443/cb', 'base': QC_A_BASE,
+             'expect': 'invalid_redirect_uri'},
+            {'redirect_uri': 'http://initiator.example.test/cb', 'base': QC_A_BASE,
+             'expect': 'invalid_redirect_uri'},
+            {'redirect_uri': QC_A_BASE + '/cb#x', 'base': QC_A_BASE, 'expect': 'invalid_redirect_uri'}],
+    }
+
+
+def qc_exchange_vectors():
+    a, b, c = KEYS['A'], KEYS['B'], KEYS['C']
+    m = qc_messages()
+    inv, inv_claims, acc, exch = m['inv'], m['inv_claims'], m['acc'], m['exch']
+    url = m['exch_url']
+    code_expires = NOW + 30 + qc.CODE_TTL
+    second, _ = qc.build_exchange(
+        a, invitation=inv_claims, accept=m['acc_claims'], accept_jws=acc, code=QC_CODE, code_verifier=QC_VERIFIER,
+        initiator_app=QC_A_APP, discovery_url=QC_A_BASE + '/.well-known/agit8or-connect',
+        requested_scopes=QC_SCOPES, proposed_tenants=[{'id': 'org-1', 'label': 'Customer One'}], now=NOW + 45,
+        jti='qc-exchange-jti-0002')
+    second_dpop = tokens.build_dpop_proof(a, 'POST', url, now=NOW + 45, jti='qc-dpop-exchange-0002')
+    wrong_verifier = qc_value('another-pkce-verifier')
+    by_c, _ = qc.build_exchange(
+        c, invitation=inv_claims, accept=m['acc_claims'], accept_jws=acc, code=QC_CODE, code_verifier=QC_VERIFIER,
+        initiator_app=QC_A_APP, discovery_url=QC_A_BASE + '/.well-known/agit8or-connect',
+        requested_scopes=QC_SCOPES, now=NOW + 40, jti='qc-exchange-jti-0003')
+    d = {'dpop': m['dpop'], 'at': NOW + 41}
+    exchange_cases = [
+        dict(d, name='valid', jws=exch, expect='valid'),
+        dict(d, name='dpop_replayed', jws=exch, replay_twice=True, expect='replayed'),
+        {'name': 'code_reused', 'sequence': [{'jws': exch, 'dpop': m['dpop'], 'at': NOW + 41},
+                                             {'jws': second, 'dpop': second_dpop, 'at': NOW + 46}],
+         'expect': ['valid', 'code_used']},
+        dict(d, name='code_expired', jws=exch, at=code_expires, expect='code_expired'),
+        dict(d, name='exchange_expired', jws=exch, at=NOW + 40 + 60 + 120, code_expires_at=NOW + 10000,
+             expect='expired'),
+        dict(d, name='wrong_audience', jws=exch, responder_installation=INSTALL['A'], expect='wrong_audience'),
+        dict(d, name='wrong_verifier', jws=resign(a, exch, claims={'code_verifier': wrong_verifier}),
+             expect='pkce_mismatch'),
+        dict(d, name='unknown_code', jws=resign(a, exch, claims={'code': qc_value('other-code')}),
+             expect='invalid_grant'),
+        dict(d, name='signed_by_other_key', jws=by_c, expect='key_mismatch'),
+        dict(d, name='bad_signature', jws=tamper(exch), expect='invalid_signature'),
+        dict(d, name='accept_hash_mismatch', jws=resign(a, exch, claims={'accept_sha256': sha256_hex('x')}),
+             expect='wrong_attempt'),
+        dict(d, name='connection_key_substituted', jws=resign(a, exch, claims={'connection_key': keys.public_jwk(c)}),
+             expect='key_mismatch'),
+        dict(d, name='downgrade_protocol_v1', jws=resign(a, exch, claims={'protocol': 'agit8or-connect/1'}),
+             expect='unsupported_version'),
+        dict(d, name='dpop_signed_by_other_key',
+             dpop=tokens.build_dpop_proof(c, 'POST', url, now=NOW + 40, jti='qc-dpop-exchange-0003'),
+             jws=exch, expect='invalid_dpop_proof'),
+        dict(d, name='dpop_for_other_url',
+             dpop=tokens.build_dpop_proof(a, 'POST', QC_B_BASE + '/connect/v1/pairing/requests', now=NOW + 40,
+                                          jti='qc-dpop-exchange-0004'),
+             jws=exch, expect='invalid_dpop_proof'),
+        dict(d, name='dpop_missing', dpop='', jws=exch, expect='invalid_dpop_proof'),
+        dict(d, name='v1_pairing_request_presented', jws=pairing_vectors()['request']['jws'],
+             expect='invalid_request'),
+    ]
+    accept_cases = [
+        {'name': 'valid', 'jws': acc, 'at': NOW + 35, 'expect': 'valid'},
+        {'name': 'expired', 'jws': acc, 'at': NOW + 30 + 600 + 120, 'expect': 'expired'},
+        {'name': 'bad_signature', 'jws': tamper(acc), 'at': NOW + 35, 'expect': 'invalid_signature'},
+        {'name': 'wrong_audience', 'jws': resign(b, acc, claims={'aud': INSTALL['B']}), 'at': NOW + 35,
+         'expect': 'wrong_audience'},
+        {'name': 'other_invitation', 'jws': resign(b, acc, claims={'invitation_sha256': sha256_hex('x')}),
+         'at': NOW + 35, 'expect': 'wrong_attempt'},
+        {'name': 'code_swapped', 'jws': acc, 'code': qc_value('other-code'), 'at': NOW + 35,
+         'expect': 'invalid_grant'},
+        {'name': 'other_destination', 'jws': resign(b, acc, claims={'base': 'https://elsewhere.example.test'}),
+         'at': NOW + 35, 'expect': 'destination_mismatch'},
+        {'name': 'egress_allow_all', 'jws': resign(b, acc, claims={'egress': [{'net': '::/0', 'note': ''}]}),
+         'at': NOW + 35, 'expect': 'invalid_egress'},
+        {'name': 'downgrade_protocol_v1', 'jws': resign(b, acc, claims={'protocol': 'agit8or-connect/1'}),
+         'at': NOW + 35, 'expect': 'unsupported_version'},
+        {'name': 'v1_ack_presented', 'jws': m['ack'], 'at': NOW + 35, 'expect': 'invalid_request'},
+    ]
+    return {
+        'notice': QC_NOTICE, 'now': NOW, 'initiator_signer': 'A', 'responder_signer': 'B',
+        'invitation_jws': inv, 'code': QC_CODE, 'code_sha256': sha256_hex(QC_CODE), 'state': QC_STATE,
+        'code_verifier': QC_VERIFIER, 'code_expires_at': code_expires,
+        'responder_installation': INSTALL['B'], 'exchange_url': url,
+        'accept': {'jws': acc, 'claims': m['acc_claims'], 'connection_id': QC_B_CONN, 'base': QC_B_BASE,
+                   'egress': QC_B_EGRESS, 'built_at': NOW + 30},
+        'authorization_response_url': qc.authorization_response_url(QC_REDIRECT, state=QC_STATE, code=QC_CODE,
+                                                                    accept=acc),
+        'authorization_error_url': qc.authorization_response_url(QC_REDIRECT, state=QC_STATE, error='access_denied'),
+        'accept_cases': accept_cases,
+        'exchange': {'jws': exch, 'claims': m['exch_claims'], 'dpop': m['dpop'], 'built_at': NOW + 40,
+                     'dpop_jti': 'qc-dpop-exchange-0001',
+                     'request_body': {'exchange': exch}},
+        'exchange_cases': exchange_cases,
+        # The exchange header has no `jwk`, so a v1 pairing-request verifier refuses it before the typ check.
+        'v1_verifier_refuses_exchange': {'jws': exch, 'responder_installation': INSTALL['B'], 'at': NOW + 41,
+                                         'expect': 'invalid_signature'},
+        'ack': {'signer': 'B', 'jws': m['ack'], 'request_id': QC_REQUEST_ID,
+                'note': 'The unchanged v1 ack (typ agit8or-pairing-ack+jwt); request_jti = exchange jti.'},
+    }
+
+
+def qc_transcript_vectors():
+    m = qc_messages()
+    th = qc.transcript_from_messages(m['inv'], m['acc'], m['exch'])
+    base = dict(invitation_jws=m['inv'], accept_jws=m['acc'], exchange_jws=m['exch'],
+                initiator_installation=INSTALL['A'], initiator_jkt=keys.thumbprint(KEYS['A']),
+                initiator_egress=['203.0.113.10/32'], responder_installation=INSTALL['B'],
+                responder_jkt=keys.thumbprint(KEYS['B']), responder_egress=['198.51.100.0/28', '2001:db8:10::/48'],
+                destination_host='responder.example.test', destination_port=443)
+    assert qc.transcript_hash(**base) == th
+    mutations = []
+    for name, change in (('initiator_key_substituted', {'initiator_jkt': keys.thumbprint(KEYS['C'])}),
+                         ('responder_key_substituted', {'responder_jkt': keys.thumbprint(KEYS['C'])}),
+                         ('initiator_egress_changed', {'initiator_egress': ['203.0.113.11/32']}),
+                         ('responder_egress_changed', {'responder_egress': ['198.51.100.0/28']}),
+                         ('destination_host_changed', {'destination_host': 'responder2.example.test'}),
+                         ('destination_port_changed', {'destination_port': 8443})):
+        t = qc.transcript_hash(**dict(base, **change))
+        mutations.append({'name': name, 'change': change, 'transcript_hash': t, 'sas': qc.sas(t)})
+    canonical_input = canonical_json({
+        'v': 'agit8or-connect/1.1 qc-transcript', 'invitation_sha256': sha256_hex(m['inv']),
+        'accept_sha256': sha256_hex(m['acc']), 'exchange_sha256': sha256_hex(m['exch']),
+        'initiator': {'installation_id': INSTALL['A'], 'jkt': base['initiator_jkt'],
+                      'egress': base['initiator_egress']},
+        'responder': {'installation_id': INSTALL['B'], 'jkt': base['responder_jkt'],
+                      'egress': base['responder_egress']},
+        'destination': {'host': 'responder.example.test', 'port': 443}})
+    return {'notice': QC_NOTICE, 'inputs': {k: v for k, v in base.items() if not k.endswith('_jws')},
+            'invitation_jws': m['inv'], 'accept_jws': m['acc'], 'exchange_jws': m['exch'],
+            'canonical_input': canonical_input, 'transcript_hash': th, 'sas': qc.sas(th),
+            'v1_sas_of_same_hash_note': 'SAS uses the v1 function (prefix "agit8or-connect/1 sas\\n").',
+            'mutations': mutations}
+
+
+def qc_discovery_vectors():
+    url = QC_B_BASE + '/.well-known/agit8or-connect'
+    v11 = qc.extend_discovery_document({'protocol': 'agit8or-connect', 'versions': ['1'],
+                                        'app': {'type': 'reference-peer', 'installation_id': INSTALL['B']},
+                                        'endpoints': {}}, QC_B_BASE)
+    m = qc_messages()
+    signed = m['acc_claims']['extensions']
+    cases = [
+        {'name': 'v1_peer', 'discovery': {'versions': ['1'], 'endpoints': {}}, 'negotiated': {}, 'flow': 'code'},
+        {'name': 'v1_1_peer', 'discovery': v11, 'negotiated': {'qc-bootstrap': 1, 'qc-diagnostics': 1,
+                                                                'qc-source-binding': 1},
+         'flow': 'qc-bootstrap/1'},
+        {'name': 'bootstrap_without_source_binding',
+         'discovery': dict(v11, extensions={'qc-bootstrap': 1, 'qc-diagnostics': 1}),
+         'negotiated': {'qc-diagnostics': 1}, 'flow': 'code'},
+        {'name': 'future_versions_only', 'discovery': dict(v11, extensions={'qc-bootstrap': [2, 3],
+                                                                           'qc-source-binding': 2}),
+         'negotiated': {}, 'flow': 'code'},
+        {'name': 'list_form_and_unknown_extension',
+         'discovery': dict(v11, extensions={'qc-bootstrap': [1, 2], 'qc-source-binding': [1],
+                                            'qc-diagnostics': 1, 'x-future': 7}),
+         'negotiated': {'qc-bootstrap': 1, 'qc-diagnostics': 1, 'qc-source-binding': 1}, 'flow': 'qc-bootstrap/1'},
+        {'name': 'malformed_values_ignored',
+         'discovery': dict(v11, extensions={'qc-bootstrap': True, 'qc-source-binding': '1', 'qc-diagnostics': 0}),
+         'negotiated': {}, 'flow': 'code'},
+        {'name': 'endpoint_on_other_origin',
+         'discovery': dict(v11, endpoints=dict(v11['endpoints'], qc_exchange='https://evil.example.test/x')),
+         'negotiated': {'qc-diagnostics': 1, 'qc-source-binding': 1}, 'flow': 'code'},
+        {'name': 'endpoint_missing',
+         'discovery': dict(v11, endpoints={k: v for k, v in v11['endpoints'].items() if k != 'qc_probe'}),
+         'negotiated': {'qc-bootstrap': 1, 'qc-source-binding': 1}, 'flow': 'qc-bootstrap/1'},
+    ]
+    for cs in cases:
+        got = qc.negotiate_extensions(qc.advertised_extensions(cs['discovery'], url))
+        assert got == cs['negotiated'] and qc.pairing_flow(got) == cs['flow'], (cs['name'], got)
+    downgrade = [
+        {'name': 'same', 'signed': signed, 'discovered': v11, 'expect': 'valid'},
+        {'name': 'discovery_stripped_to_v1', 'signed': signed,
+         'discovered': {'versions': ['1'], 'endpoints': {}}, 'expect': 'downgrade_detected'},
+        {'name': 'discovery_dropped_diagnostics', 'signed': signed,
+         'discovered': dict(v11, extensions={'qc-bootstrap': 1, 'qc-source-binding': 1}),
+         'expect': 'downgrade_detected'},
+        {'name': 'unknown_signed_extension_ignored', 'signed': dict(signed, **{'x-future': [1]}),
+         'discovered': v11, 'expect': 'valid'},
+    ]
+    return {'notice': QC_NOTICE, 'discovery_url': url, 'ours': qc.signed_extensions(),
+            'v1_1_document_members': {k: v11[k] for k in ('revision', 'extensions')},
+            'v1_1_endpoints': qc.discovery_endpoints(QC_B_BASE), 'negotiation': cases,
+            'downgrade': downgrade}
+
+
+def qc_diagnostics_vectors():
+    a, b, c = KEYS['A'], KEYS['B'], KEYS['C']
+    url = QC_B_BASE + qc.PROBE_PATH
+    client_id = QC_B_CONN
+    at, at_claims = tokens.issue_access_token(b, issuer=INSTALL['B'], client_id=client_id, scopes=['connection:read'],
+                                              jkt=keys.thumbprint(a), now=NOW, jti='qc-probe-token-0001')
+    proof = tokens.build_dpop_proof(a, 'POST', url, now=NOW, jti='qc-dpop-probe-0001', access_token=at)
+    nonce = qc_value('probe-nonce')
+    resp = qc.build_probe_response(observed_source='203.0.113.10', server_time=NOW, connection_state='active',
+                                   source_check='ok', peer_reached_at=NOW - 60, nonce=nonce)
+    return {
+        'notice': QC_NOTICE, 'now': NOW, 'probe_url': url, 'issuer': INSTALL['B'],
+        'access_token': {'jws': at, 'claims': at_claims, 'signer': 'B'},
+        'request': {'method': 'POST', 'dpop': proof, 'body': qc.probe_request_body(nonce), 'signer': 'A'},
+        'verify': [
+            {'name': 'valid', 'dpop': proof, 'at': NOW + 5, 'expect': 'valid'},
+            {'name': 'dpop_replayed', 'dpop': proof, 'at': NOW + 5, 'replay_twice': True, 'expect': 'replayed'},
+            {'name': 'dpop_signed_by_other_key', 'at': NOW + 5, 'expect': 'invalid_dpop_proof',
+             'dpop': tokens.build_dpop_proof(c, 'POST', url, now=NOW, jti='qc-dpop-probe-0002', access_token=at)},
+            {'name': 'dpop_without_ath', 'at': NOW + 5, 'expect': 'invalid_dpop_proof',
+             'dpop': tokens.build_dpop_proof(a, 'POST', url, now=NOW, jti='qc-dpop-probe-0003')},
+            {'name': 'dpop_for_exchange_url', 'at': NOW + 5, 'expect': 'invalid_dpop_proof',
+             'dpop': tokens.build_dpop_proof(a, 'POST', QC_B_BASE + qc.EXCHANGE_PATH, now=NOW,
+                                             jti='qc-dpop-probe-0004', access_token=at)},
+            {'name': 'dpop_too_old', 'dpop': proof, 'at': NOW + 121, 'expect': 'invalid_dpop_proof'},
+        ],
+        'response': resp,
+        'response_invalid': [
+            dict(resp, observed_source='203.0.113.010'), dict(resp, observed_source='2001:DB8::1'),
+            dict(resp, checks={'source': 'maybe', 'token': 'ok'}), dict(resp, server_time='1767225600'),
+            dict(resp, nonce='other'),
+        ],
+        'source_not_authorised_error': {'status': 403, 'body': {'error': {
+            'code': 'source_not_authorised', 'message': 'This address is not authorised for Agit8or Connect.',
+            'correlation_id': '88888888-8888-4888-8888-888888888888'}}},
+    }
+
+
+def qc_files():
+    return {
+        'qc-invitation.json': qc_invitation_vectors(),
+        'qc-exchange.json': qc_exchange_vectors(),
+        'qc-transcript.json': qc_transcript_vectors(),
+        'qc-discovery.json': qc_discovery_vectors(),
+        'qc-diagnostics.json': qc_diagnostics_vectors(),
+    }
+
+
 def build():
     return {
         'keys.json': {'notice': NOTICE, 'keys': key_section(), 'installations': INSTALL},
@@ -196,6 +580,7 @@ def build():
         'webhooks.json': webhook_vectors(),
         'audit-chain.json': audit_vectors(),
         'jwks.json': jwks_vectors(),
+        **qc_files(),
     }
 
 

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.747] - 2026-11-21
+
+Agit8or Connect protocol revision 1.1: specification and SDKs (Quick Connect increment C1).
+
+### Added
+
+- **Protocol revision 1.1 specification** (`docs/agit8or-connect/PROTOCOL-1.1.md`, roadmap 79.22). It defines three
+  optional extensions:
+  - `qc-bootstrap/1`: browser-mediated pairing with signed single-use invitations, PKCE and DPoP.
+  - `qc-source-binding/1`: signed source-address declarations.
+  - `qc-diagnostics/1`: a connection probe.
+
+  The spec also covers extension negotiation with a signed downgrade check, a strict canonical form for addresses
+  and URLs, error codes, the state machine, a short authentication string, the threat model and an implementer
+  checklist.
+- **OpenAPI and test vectors:** OpenAPI additions for the exchange and probe endpoints. New deterministic test
+  vectors give about 10 positive and 63 negative cases, among them expired, replayed or wrong-audience invitations,
+  bad signatures, DPoP mismatches and downgrade attempts.
+- **SDK support:** the Python and TypeScript SDKs (1.1.0) build and verify every 1.1 message. The reference peer
+  can run Quick Connect with `quick_connect=True`.
+
+### Notes
+
+- **Clientst0r doesn't offer Quick Connect yet.** That comes with the browser-mediated bootstrap (79.9).
+- **Compatibility:**
+  - Version 1 messages and test vectors are byte-identical.
+  - The extensions are used only when both sides advertise them; otherwise pairing falls back to the existing code
+    flow.
+  - The Rem0te link is not affected.
+
 ## [3.17.746] - 2026-11-21
 
 Agit8or Connect: default-deny source addresses and approved destinations (Quick Connect increment B). Agit8or

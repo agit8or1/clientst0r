@@ -569,3 +569,624 @@ export function verifyEndorsedJwks(doc: { keys?: unknown; endorsement?: unknown 
   }
   return ring;
 }
+
+// =====================================================================================
+// Protocol revision 1.1: Quick Connect extensions (docs/agit8or-connect/PROTOCOL-1.1.md)
+// qc-bootstrap/1, qc-source-binding/1, qc-diagnostics/1. Additive and negotiated:
+// nothing above this line changes. Mirrors agit8or_connect/quick_connect.py and is
+// proven by test-vectors/qc-*.json.
+// =====================================================================================
+
+export const QC_REVISION = '1.1';
+export const PROTOCOL_ID_1_1 = 'agit8or-connect/1.1';
+export const EXT_BOOTSTRAP = 'qc-bootstrap';
+export const EXT_SOURCE_BINDING = 'qc-source-binding';
+export const EXT_DIAGNOSTICS = 'qc-diagnostics';
+export const BOOTSTRAP_ID = 'qc-bootstrap/1';
+export type Extensions = Record<string, number[]>;
+export const SUPPORTED_EXTENSIONS: Extensions = { [EXT_BOOTSTRAP]: [1], [EXT_SOURCE_BINDING]: [1], [EXT_DIAGNOSTICS]: [1] };
+export const EXTENSION_ENDPOINTS: Record<string, string[]> = { [EXT_BOOTSTRAP]: ['qc_authorize', 'qc_exchange'], [EXT_SOURCE_BINDING]: [], [EXT_DIAGNOSTICS]: ['qc_probe'] };
+export const EXTENSION_REQUIRES: Record<string, string[]> = { [EXT_BOOTSTRAP]: [EXT_SOURCE_BINDING] };
+export const TYP_QC_INVITATION = 'agit8or-qc-invitation+jwt';
+export const TYP_QC_ACCEPT = 'agit8or-qc-accept+jwt';
+export const TYP_QC_EXCHANGE = 'agit8or-qc-exchange+jwt';
+export const QC_INVITATION_MAX_LIFETIME = 600;
+export const QC_ACCEPT_MAX_LIFETIME = 600;
+export const QC_EXCHANGE_MAX_LIFETIME = 120;
+export const QC_CODE_TTL = 120;
+export const QC_TEMPORARY_RULE_TTL = 900;
+export const QC_MAX_INVITATION_LENGTH = 4096;
+export const QC_AUTHORIZE_ENTRY_PATH = '/agit8or-connect/qc-authorize';
+export const QC_EXCHANGE_PATH = '/connect/v1/qc/exchange';
+export const QC_PROBE_PATH = '/connect/v1/qc/probe';
+export const QC_NS_INVITATION = 'qc-inv';
+export const QC_NS_EXCHANGE = 'qc-exchange';
+export const QC_NS_CODE = 'qc-code';
+const QC_SKEW = 120;
+const MAX_EGRESS = 8, MAX_NOTE = 100, MAX_URL = 512;
+
+const B64URL_RE = /^[A-Za-z0-9_-]+$/;
+const JTI_RE = /^[A-Za-z0-9_-]{16,128}$/;
+const VERIFIER_RE = /^[A-Za-z0-9._~-]{43,128}$/;
+const NET_SYNTAX = /^(?:[0-9]{1,3}(?:\.[0-9]{1,3}){3}|[0-9A-Fa-f:.]{2,45})(?:\/(?:0|[1-9][0-9]{0,2}))?$/;
+const ce = (code: string, msg: string, status = 400) => new ConnectError(code, msg, status);
+
+// --- random values -----------------------------------------------------------------------
+
+export const qcGenerateCode = () => b64url(randomBytes(32));
+export const qcGenerateState = () => b64url(randomBytes(32));
+export const qcGenerateNonce = () => b64url(randomBytes(32));
+export const generatePkceVerifier = () => b64url(randomBytes(32));
+
+export function pkceChallenge(verifier: string): string {
+  if (typeof verifier !== 'string' || !VERIFIER_RE.test(verifier)) throw ce('invalid_request', 'code_verifier malformed');
+  return sha256B64url(Buffer.from(verifier, 'ascii'));
+}
+
+// --- IP addresses (no dependency: parse to BigInt, format per RFC 5952) -----------------
+
+interface Net { v: 4 | 6; addr: bigint; prefix: number }
+const bits = (v: 4 | 6) => (v === 4 ? 32 : 128);
+
+function parseV4(s: string): bigint | null {
+  const p = s.split('.');
+  if (p.length !== 4) return null;
+  let n = 0n;
+  for (const o of p) {
+    if (!/^(0|[1-9][0-9]{0,2})$/.test(o) || Number(o) > 255) return null;
+    n = (n << 8n) | BigInt(o);
+  }
+  return n;
+}
+
+function parseV6(s: string): bigint | null {
+  const dbl = s.indexOf('::');
+  if (dbl !== s.lastIndexOf('::')) return null;
+  const groups = (part: string, last: boolean): number[] | null => {
+    if (part === '') return [];
+    const out: number[] = [];
+    const items = part.split(':');
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (last && i === items.length - 1 && it.includes('.')) {
+        const v4 = parseV4(it);
+        if (v4 === null) return null;
+        out.push(Number(v4 >> 16n), Number(v4 & 0xffffn));
+      } else if (/^[0-9A-Fa-f]{1,4}$/.test(it)) out.push(parseInt(it, 16));
+      else return null;
+    }
+    return out;
+  };
+  let hextets: number[];
+  if (dbl < 0) {
+    const g = groups(s, true);
+    if (!g || g.length !== 8) return null;
+    hextets = g;
+  } else {
+    const left = groups(s.slice(0, dbl), false), right = groups(s.slice(dbl + 2), true);
+    if (!left || !right || left.length + right.length > 7) return null;
+    hextets = [...left, ...Array(8 - left.length - right.length).fill(0), ...right];
+  }
+  return hextets.reduce((n, h) => (n << 16n) | BigInt(h), 0n);
+}
+
+function formatV4(n: bigint): string {
+  return [24n, 16n, 8n, 0n].map((s) => String((n >> s) & 0xffn)).join('.');
+}
+
+function formatV6(n: bigint): string {
+  const h = [...Array(8).keys()].map((i) => Number((n >> BigInt(16 * (7 - i))) & 0xffffn));
+  let best = -1, bestLen = 0;
+  for (let i = 0; i < 8;) {
+    if (h[i] !== 0) { i++; continue; }
+    let j = i;
+    while (j < 8 && h[j] === 0) j++;
+    if (j - i > bestLen && j - i > 1) { best = i; bestLen = j - i; }
+    i = j;
+  }
+  const hex = (xs: number[]) => xs.map((x) => x.toString(16)).join(':');
+  if (best < 0) return hex(h);
+  return hex(h.slice(0, best)) + '::' + hex(h.slice(best + bestLen));
+}
+
+const formatNet = (n: Net) => `${n.v === 4 ? formatV4(n.addr) : formatV6(n.addr)}/${n.prefix}`;
+
+function netOf(text: string): Net {
+  const [a, p] = text.split('/');
+  const v = (a.includes(':') ? 6 : 4) as 4 | 6;
+  const addr = v === 4 ? parseV4(a) : parseV6(a);
+  if (addr === null) throw ce('invalid_egress', 'address malformed');
+  const prefix = p === undefined ? bits(v) : Number(p);
+  if (prefix > bits(v)) throw ce('invalid_egress', 'address malformed');
+  const hostMask = (1n << BigInt(bits(v) - prefix)) - 1n;
+  if ((addr & hostMask) !== 0n) throw ce('invalid_egress', 'address malformed');
+  return { v, addr, prefix };
+}
+
+function overlaps(a: Net, b: Net): boolean {
+  if (a.v !== b.v) return false;
+  const p = Math.min(a.prefix, b.prefix), shift = BigInt(bits(a.v) - p);
+  return (a.addr >> shift) === (b.addr >> shift);
+}
+
+const nets = (xs: string[]) => xs.map(netOf);
+const REFUSED_NETS = nets(['0.0.0.0/8', '127.0.0.0/8', '169.254.0.0/16', '224.0.0.0/4', '240.0.0.0/4', '100.100.100.200/32',
+  '192.0.0.192/32', '::/128', '::1/128', '::ffff:0:0/96', 'fe80::/10', 'ff00::/8', 'fd00:ec2::254/128']);
+const PRIVATE_NETS = nets(['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', 'fc00::/7']);
+const MAPPED = netOf('::ffff:0:0/96');
+const MIN_PREFIX = { 4: 16, 6: 32 };
+
+/** Canonical text of an address or network (exact address -> /32 or /128; RFC 5952 for IPv6). */
+export function normalizeNet(value: string): string {
+  if (typeof value !== 'string' || !NET_SYNTAX.test(value)) throw ce('invalid_egress', 'address malformed');
+  const n = netOf(value);
+  if (n.v === 6 && overlaps(n, MAPPED)) throw ce('invalid_egress', 'IPv4-mapped IPv6 addresses are not accepted');
+  return formatNet(n);
+}
+
+export function isPrivateNet(net: string): boolean {
+  const n = netOf(normalizeNet(net));
+  return PRIVATE_NETS.some((p) => overlaps(n, p));
+}
+
+export function checkNet(value: string): string {
+  const canon = normalizeNet(value);
+  if (canon !== value) throw ce('invalid_egress', 'address is not in canonical form');
+  const n = netOf(canon);
+  if (n.prefix < MIN_PREFIX[n.v]) throw ce('invalid_egress', 'address range too broad');
+  if (REFUSED_NETS.some((r) => overlaps(n, r))) throw ce('invalid_egress', 'loopback, link-local, multicast, unspecified, mapped or metadata address');
+  return canon;
+}
+
+export interface EgressEntry { net: string; note?: string }
+const cpLen = (s: string) => [...s].length;
+
+export function validateEgress(entries: unknown): EgressEntry[] {
+  if (!Array.isArray(entries) || entries.length < 1 || entries.length > MAX_EGRESS) throw ce('invalid_egress', 'egress must list 1 to 8 addresses');
+  const seen = new Set<string>();
+  for (const e of entries) {
+    if (!e || typeof e !== 'object' || typeof (e as EgressEntry).net !== 'string') throw ce('invalid_egress', 'egress entry malformed');
+    const note = (e as EgressEntry).note ?? '';
+    if (typeof note !== 'string' || cpLen(note) > MAX_NOTE) throw ce('invalid_egress', 'egress note malformed');
+    const net = checkNet((e as EgressEntry).net);
+    if (seen.has(net)) throw ce('invalid_egress', 'egress address listed twice');
+    seen.add(net);
+  }
+  return entries as EgressEntry[];
+}
+
+export function egressEntries(items: (string | EgressEntry)[]): { net: string; note: string }[] {
+  const out = items.map((it) => {
+    const [net, note] = typeof it === 'string' ? [it, ''] : [it.net, it.note ?? ''];
+    return { net: normalizeNet(net), note: [...String(note)].slice(0, MAX_NOTE).join('') };
+  });
+  validateEgress(out);
+  return out;
+}
+
+export const egressNets = (entries: EgressEntry[]) => entries.map((e) => e.net);
+
+function addrOf(s: string): Net | null {
+  if (typeof s !== 'string' || !/^[0-9A-Fa-f:.]{2,45}$/.test(s)) return null;
+  const v = (s.includes(':') ? 6 : 4) as 4 | 6;
+  const a = v === 4 ? parseV4(s) : parseV6(s);
+  return a === null ? null : { v, addr: a, prefix: bits(v) };
+}
+
+export function sourceInEgress(source: string, entries: EgressEntry[]): boolean {
+  const a = addrOf(source);
+  return !!a && entries.some((e) => { const n = netOf(e.net); return n.v === a.v && overlaps(n, a) && n.prefix <= a.prefix; });
+}
+
+// --- URLs (strict canonical grammar, PROTOCOL-1.1.md §4.3) ---------------------------------
+
+const LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+const URL_RE = new RegExp(`^https://(${LABEL}(?:\\.${LABEL})*|\\[[0-9a-f:.]+\\])(?::([1-9][0-9]{0,4}))?((?:/[A-Za-z0-9._~-]+)*)$`);
+const isAscii = (s: unknown): s is string => typeof s === 'string' && /^[\x21-\x7e]*$/.test(s) && s.length > 0;
+
+export function parseHttpsUrl(url: string, code = 'invalid_base'): { host: string; port: number; path: string } {
+  if (!isAscii(url) || url.length > MAX_URL) throw ce(code, 'URL malformed');
+  const m = URL_RE.exec(url);
+  if (!m) throw ce(code, 'URL is not in canonical form');
+  const [, host, portS, path] = m;
+  if (path.split('/').some((seg) => seg === '.' || seg === '..')) throw ce(code, 'URL path malformed');
+  const port = portS ? Number(portS) : 443;
+  if (port > 65535 || (port === 443 && portS)) throw ce(code, 'URL port malformed');
+  if (host.startsWith('[')) {
+    const inner = host.slice(1, -1);
+    const a = parseV6(inner);
+    if (a === null) throw ce(code, 'URL host malformed');
+    if (formatV6(a) !== inner || overlaps({ v: 6, addr: a, prefix: 128 }, MAPPED)) throw ce(code, 'URL host is not canonical');
+  } else if (/^[0-9.]+$/.test(host)) {
+    const a = parseV4(host);
+    if (a === null) throw ce(code, 'URL host malformed');
+    if (formatV4(a) !== host) throw ce(code, 'URL host is not canonical');
+  } else if (host.length > 253) throw ce(code, 'URL host too long');
+  return { host, port, path: path ?? '' };
+}
+
+export function qcOriginOf(url: string, code = 'invalid_base'): string {
+  const { host, port } = parseHttpsUrl(url, code);
+  return `https://${host}${port !== 443 ? ':' + port : ''}`;
+}
+
+export function originHostPort(origin: string): { host: string; port: number } {
+  const { host, port } = parseHttpsUrl(origin);
+  return { host: host.startsWith('[') ? host.slice(1, -1) : host, port };
+}
+
+export function checkBase(url: string, allowedPorts: number[] = [443]): string {
+  const { host, port } = parseHttpsUrl(url, 'invalid_base');
+  if (!allowedPorts.includes(port)) throw ce('invalid_base', 'base port not allowed');
+  if (host === 'localhost' || host.endsWith('.localhost')) throw ce('invalid_base', 'base host not allowed');
+  const a = addrOf(host.replace(/^\[|\]$/g, ''));
+  if (a && /^[\[0-9]/.test(host) && REFUSED_NETS.some((r) => overlaps(r, a) && r.prefix <= a.prefix)) throw ce('invalid_base', 'base host not allowed');
+  return url;
+}
+
+export function checkRedirectUri(redirectUri: string, base: string): string {
+  const { path } = parseHttpsUrl(redirectUri, 'invalid_redirect_uri');
+  if (!path) throw ce('invalid_redirect_uri', 'redirect_uri needs a path');
+  if (qcOriginOf(redirectUri, 'invalid_redirect_uri') !== qcOriginOf(base, 'invalid_redirect_uri')) throw ce('invalid_redirect_uri', 'redirect_uri is not on the initiator origin');
+  return redirectUri;
+}
+
+// --- extensions and negotiation --------------------------------------------------------
+
+function versionsOf(value: unknown): number[] {
+  const list = typeof value === 'number' ? [value] : Array.isArray(value) ? value : [];
+  return [...new Set(list.filter((v): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0 && v < 1000))].sort((a, b) => a - b);
+}
+
+export function normalizeExtensions(value: unknown): Extensions {
+  const out: Extensions = {};
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const [name, v] of Object.entries(value as Record<string, unknown>)) {
+      const vs = versionsOf(v);
+      if (vs.length && name.length <= 64) out[name] = vs;
+    }
+  }
+  return out;
+}
+
+export const signedExtensions = (supported: Extensions = SUPPORTED_EXTENSIONS) => normalizeExtensions(supported);
+
+function looseOrigin(url: string): string {
+  const u = new URL(url);
+  return `${u.protocol.toLowerCase()}//${u.hostname.toLowerCase()}:${u.port || (u.protocol === 'https:' ? '443' : '80')}`;
+}
+
+export function advertisedExtensions(doc: unknown, discoveryUrl: string): Extensions {
+  if (!doc || typeof doc !== 'object') return {};
+  const d = doc as Record<string, unknown>;
+  const ext = normalizeExtensions(d.extensions);
+  const eps = (d.endpoints && typeof d.endpoints === 'object' ? d.endpoints : {}) as Record<string, unknown>;
+  const want = looseOrigin(discoveryUrl);
+  for (const [name, needed] of Object.entries(EXTENSION_ENDPOINTS)) {
+    if (!(name in ext)) continue;
+    for (const ep of needed) {
+      const v = eps[ep];
+      let ok = isAscii(v);
+      try { ok = ok && looseOrigin(v as string) === want; } catch { ok = false; }
+      if (!ok) { delete ext[name]; break; }
+    }
+  }
+  return ext;
+}
+
+export function negotiateExtensions(theirs: Extensions, ours: Extensions = SUPPORTED_EXTENSIONS): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [name, mine] of Object.entries(ours)) {
+    const t = versionsOf(theirs[name] ?? []);
+    const common = mine.filter((v) => t.includes(v));
+    if (common.length) out[name] = Math.max(...common);
+  }
+  for (const [name, needs] of Object.entries(EXTENSION_REQUIRES)) {
+    if (name in out && needs.some((n) => !(n in out))) delete out[name];
+  }
+  return out;
+}
+
+export const pairingFlow = (negotiated: Record<string, number>) => (negotiated[EXT_BOOTSTRAP] === 1 ? BOOTSTRAP_ID : 'code');
+
+export function checkNoDowngrade(signed: unknown, discovered: unknown, ours: Extensions = SUPPORTED_EXTENSIONS): void {
+  const disc = normalizeExtensions(discovered);
+  for (const [name, versions] of Object.entries(normalizeExtensions(signed))) {
+    if (!(name in ours)) continue;
+    const mine = versions.filter((v) => ours[name].includes(v));
+    if (mine.some((v) => !(disc[name] ?? []).includes(v))) throw ce('downgrade_detected', `discovery no longer advertises ${name}`, 403);
+  }
+}
+
+export function qcDiscoveryEndpoints(base: string, authorizeUrl?: string, extensions: Extensions = SUPPORTED_EXTENSIONS): Record<string, string> {
+  const b = base.replace(/\/+$/, '');
+  const out: Record<string, string> = {};
+  if (EXT_BOOTSTRAP in extensions) { out.qc_authorize = authorizeUrl ?? b + QC_AUTHORIZE_ENTRY_PATH; out.qc_exchange = b + QC_EXCHANGE_PATH; }
+  if (EXT_DIAGNOSTICS in extensions) out.qc_probe = b + QC_PROBE_PATH;
+  return out;
+}
+
+export function extendDiscoveryDocument(doc: Record<string, unknown>, base: string, authorizeUrl?: string, extensions: Extensions = SUPPORTED_EXTENSIONS): Record<string, unknown> {
+  const ext: Record<string, number | number[]> = {};
+  for (const [k, v] of Object.entries(signedExtensions(extensions))) ext[k] = v.length === 1 ? v[0] : v;
+  return { ...doc, revision: QC_REVISION, extensions: ext,
+    endpoints: { ...((doc.endpoints as Record<string, string>) ?? {}), ...qcDiscoveryEndpoints(base, authorizeUrl, extensions) } };
+}
+
+// --- browser legs --------------------------------------------------------------------------
+
+export function parseQuery(urlOrQuery: string): Record<string, string> {
+  let q = urlOrQuery.includes('?') ? urlOrQuery.slice(urlOrQuery.indexOf('?') + 1) : urlOrQuery;
+  q = q.split('#')[0];
+  const out: Record<string, string> = {};
+  for (const [k, v] of new URLSearchParams(q)) {
+    if (k in out) throw ce('invalid_request', `parameter ${k} repeated`);
+    out[k] = v;
+  }
+  return out;
+}
+
+function checkState(state: string): string {
+  if (typeof state !== 'string' || !B64URL_RE.test(state) || state.length < 22 || state.length > 128) throw ce('invalid_request', 'state malformed');
+  return state;
+}
+
+const urlSafe = (s: string) => { if (!/^[A-Za-z0-9._-]*$/.test(s)) throw ce('invalid_request', 'value not URL-safe'); return s; };
+
+export function authorizationUrl(authorizeEndpoint: string, invitation: string, state: string): string {
+  checkState(state);
+  return `${authorizeEndpoint}${authorizeEndpoint.includes('?') ? '&' : '?'}invitation=${urlSafe(invitation)}&state=${state}`;
+}
+
+export function authorizationResponseUrl(redirectUri: string, o: { state: string; code?: string; accept?: string; error?: string }): string {
+  checkState(o.state);
+  if (o.error !== undefined) return `${redirectUri}?error=${urlSafe(o.error)}&state=${o.state}`;
+  if (!o.code || !o.accept) throw new Error('code and accept are required');
+  return `${redirectUri}?accept=${urlSafe(o.accept)}&code=${urlSafe(o.code)}&state=${o.state}`;
+}
+
+export function parseAuthorizationResponse(url: string, expectedState: string): { code: string; accept: string; state: string } {
+  const q = parseQuery(url);
+  const state = q.state ?? '';
+  const a = Buffer.from(state), b = Buffer.from(expectedState ?? '');
+  if (!state || a.length !== b.length || !timingSafeEqual(a, b)) throw ce('state_mismatch', 'state does not match this attempt');
+  if ('error' in q) throw ce(/^[a-z_]{1,64}$/.test(q.error) ? q.error : 'invalid_request', 'the other application refused the request');
+  const code = q.code ?? '', accept = q.accept ?? '';
+  if (!B64URL_RE.test(code) || code.length !== 43 || !accept) throw ce('invalid_request', 'authorisation response incomplete');
+  return { code, accept, state };
+}
+
+// --- shared checks --------------------------------------------------------------------------
+
+type Claims = Record<string, any>;
+const UUID_V = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function requireStr(c: Claims, name: string, re?: RegExp): string {
+  const v = c[name];
+  if (typeof v !== 'string' || !v || (re && !re.test(v))) throw ce('invalid_request', `${name} malformed`);
+  return v;
+}
+
+function checkExtensionClaims(c: Claims): void {
+  if (c.protocol !== PROTOCOL_ID_1_1 || c.ext !== BOOTSTRAP_ID) throw ce('unsupported_version', 'not an agit8or-connect/1.1 qc-bootstrap/1 message');
+}
+
+function checkSignedExtensions(c: Claims): Extensions {
+  const ext = normalizeExtensions(c.extensions);
+  if (!(ext[EXT_BOOTSTRAP] ?? []).includes(1) || !(ext[EXT_SOURCE_BINDING] ?? []).includes(1)) {
+    throw ce('invalid_request', 'extensions must include qc-bootstrap/1 and qc-source-binding/1');
+  }
+  return ext;
+}
+
+function headerKey(token: string, typ: string): KeyObject {
+  const h = unverifiedHeader(token);
+  if (h.typ !== typ) throw ce('invalid_request', `expected a ${typ} token`, 401);
+  const key = rewrap('invalid_signature', () => publicKeyFromJwk(h.jwk));
+  if (h.kid !== undefined && h.kid !== thumbprint(key)) throw ce('invalid_signature', 'kid does not match the header key', 401);
+  return key;
+}
+
+const safeEq = (x: string, y: string) => { const a = Buffer.from(String(x)), b = Buffer.from(String(y)); return a.length === b.length && timingSafeEqual(a, b); };
+
+// --- invitation ---------------------------------------------------------------------------
+
+export interface InvitationOptions {
+  initiatorApp: App; responderOrigin: string; attempt: string; base: string; redirectUri: string;
+  egress: (string | EgressEntry)[]; requestedScopes: string[]; codeChallenge: string; nonce: string;
+  responderInstallation?: string; extensions?: Extensions; now?: number; jti?: string; lifetime?: number;
+}
+
+export function buildInvitation(key: KeyObject, o: InvitationOptions): { jws: string; claims: Claims } {
+  const iat = nowS(o.now);
+  const jwk = publicJwk(key);
+  const claims: Claims = {
+    protocol: PROTOCOL_ID_1_1, ext: BOOTSTRAP_ID, extensions: signedExtensions(o.extensions ?? SUPPORTED_EXTENSIONS),
+    iss: o.initiatorApp.installation_id, aud: qcOriginOf(o.responderOrigin), iat, exp: iat + (o.lifetime ?? QC_INVITATION_MAX_LIFETIME),
+    jti: o.jti ?? b64url(randomBytes(18)), attempt: o.attempt, app: appOf(o.initiatorApp), base: o.base, redirect_uri: o.redirectUri,
+    egress: egressEntries(o.egress), requested_scopes: uniqSorted(o.requestedScopes), code_challenge: o.codeChallenge,
+    code_challenge_method: 'S256', nonce: o.nonce,
+  };
+  if (o.responderInstallation) claims.responder_installation = o.responderInstallation;
+  return { jws: signCompact(key, { alg: 'EdDSA', typ: TYP_QC_INVITATION, kid: jwk.kid, jwk }, claims), claims };
+}
+
+export function verifyInvitation(token: string, o: { responderOrigin: string; replay: ReplayStore; now?: number; responderInstallation?: string; allowedPorts?: number[] }): { claims: Claims; jwk: PublicJwk } {
+  if (typeof token === 'string' && token.length > QC_MAX_INVITATION_LENGTH) throw ce('too_large', 'invitation too large', 413);
+  const key = headerKey(token, TYP_QC_INVITATION);
+  let c: Claims;
+  try {
+    c = verifyCompact(token, key, { typ: TYP_QC_INVITATION, now: o.now, maxLifetime: QC_INVITATION_MAX_LIFETIME, skew: QC_SKEW,
+      required: ['protocol', 'ext', 'iss', 'aud', 'iat', 'exp', 'jti', 'attempt', 'app', 'base', 'redirect_uri', 'egress', 'code_challenge', 'code_challenge_method', 'nonce', 'extensions'] });
+  } catch (e) {
+    if (e instanceof ConnectError && e.code === 'expired') throw ce('invitation_expired', 'invitation expired');
+    throw e;
+  }
+  checkExtensionClaims(c);
+  if (c.aud !== qcOriginOf(o.responderOrigin)) throw ce('wrong_audience', 'invitation is for another application');
+  if ('responder_installation' in c && c.responder_installation !== o.responderInstallation) throw ce('wrong_audience', 'invitation is for another installation');
+  requireStr(c, 'iss', UUID_V); requireStr(c, 'jti', JTI_RE); requireStr(c, 'attempt', UUID_V);
+  if (!c.app || typeof c.app !== 'object' || c.app.installation_id !== c.iss) throw ce('invalid_request', 'app identity does not match the issuer');
+  if (c.code_challenge_method !== 'S256') throw ce('invalid_request', 'only S256 is accepted');
+  if (typeof c.code_challenge !== 'string' || c.code_challenge.length !== 43 || !B64URL_RE.test(c.code_challenge)) throw ce('invalid_request', 'code_challenge malformed');
+  if (typeof c.nonce !== 'string' || c.nonce.length < 22 || c.nonce.length > 128 || !B64URL_RE.test(c.nonce)) throw ce('invalid_request', 'nonce malformed');
+  const scopes = c.requested_scopes ?? [];
+  if (!Array.isArray(scopes) || !scopes.every((s: unknown) => typeof s === 'string')) throw ce('invalid_request', 'requested_scopes must be a list of strings');
+  checkBase(c.base, o.allowedPorts ?? [443]);
+  checkRedirectUri(c.redirect_uri, c.base);
+  validateEgress(c.egress);
+  checkSignedExtensions(c);
+  if (!o.replay.add(QC_NS_INVITATION, `${c.iss}:${c.jti}`, c.exp + QC_SKEW)) throw ce('invitation_used', 'invitation already used');
+  return { claims: c, jwk: publicJwk(key) };
+}
+
+// --- accept -------------------------------------------------------------------------------
+
+export function buildAccept(key: KeyObject, o: { responderApp: App; invitation: Claims; invitationJws: string; connectionId: string; base: string; egress: (string | EgressEntry)[]; code: string; extensions?: Extensions; now?: number; lifetime?: number }): string {
+  const iat = nowS(o.now);
+  const jwk = publicJwk(key);
+  return signCompact(key, { alg: 'EdDSA', typ: TYP_QC_ACCEPT, kid: jwk.kid, jwk }, {
+    protocol: PROTOCOL_ID_1_1, ext: BOOTSTRAP_ID, extensions: signedExtensions(o.extensions ?? SUPPORTED_EXTENSIONS),
+    iss: o.responderApp.installation_id, aud: o.invitation.iss, iat, exp: iat + (o.lifetime ?? QC_ACCEPT_MAX_LIFETIME),
+    attempt: o.invitation.attempt, invitation: o.invitation.jti, invitation_sha256: sha256Hex(o.invitationJws),
+    connection_id: o.connectionId, app: appOf(o.responderApp), base: o.base, egress: egressEntries(o.egress), code_sha256: sha256Hex(o.code),
+  });
+}
+
+export function verifyAccept(token: string, o: { invitation: Claims; invitationJws: string; code: string; now?: number; allowedPorts?: number[] }): { claims: Claims; jwk: PublicJwk } {
+  const key = headerKey(token, TYP_QC_ACCEPT);
+  const c: Claims = verifyCompact(token, key, { typ: TYP_QC_ACCEPT, now: o.now, maxLifetime: QC_ACCEPT_MAX_LIFETIME, skew: QC_SKEW,
+    required: ['protocol', 'ext', 'extensions', 'iss', 'aud', 'iat', 'exp', 'attempt', 'invitation', 'invitation_sha256', 'connection_id', 'app', 'base', 'egress', 'code_sha256'] });
+  checkExtensionClaims(c);
+  if (c.aud !== o.invitation.iss) throw ce('wrong_audience', 'acceptance is for another installation', 401);
+  if (c.invitation !== o.invitation.jti || c.attempt !== o.invitation.attempt || c.invitation_sha256 !== sha256Hex(o.invitationJws)) throw ce('wrong_attempt', 'acceptance is for another attempt', 401);
+  if (typeof o.code !== 'string' || !safeEq(c.code_sha256, sha256Hex(o.code))) throw ce('invalid_grant', 'code does not belong to this acceptance', 401);
+  requireStr(c, 'iss', UUID_V); requireStr(c, 'connection_id', UUID_V);
+  if (!c.app || typeof c.app !== 'object' || c.app.installation_id !== c.iss) throw ce('invalid_request', 'app identity does not match the issuer');
+  checkBase(c.base, o.allowedPorts ?? [443]);
+  if (qcOriginOf(c.base) !== o.invitation.aud) throw ce('destination_mismatch', 'the answering application is not the approved destination', 401);
+  validateEgress(c.egress);
+  checkSignedExtensions(c);
+  return { claims: c, jwk: publicJwk(key) };
+}
+
+export function checkDiscoveredIdentity(accept: Claims, discoveryDoc: Record<string, any>, discoveryUrl: string): Record<string, number> {
+  if (!discoveryDoc?.app || discoveryDoc.app.installation_id !== accept.iss) throw ce('identity_mismatch', 'discovery identity differs from the signed acceptance', 403);
+  const adv = advertisedExtensions(discoveryDoc, discoveryUrl);
+  checkNoDowngrade(accept.extensions ?? {}, adv);
+  const negotiated = negotiateExtensions(adv);
+  if (pairingFlow(negotiated) !== BOOTSTRAP_ID) throw ce('downgrade_detected', 'qc-bootstrap/1 not negotiated', 403);
+  return negotiated;
+}
+
+// --- exchange -----------------------------------------------------------------------------
+
+export function buildExchange(key: KeyObject, o: { invitation: Claims; accept: Claims; acceptJws: string; code: string; codeVerifier: string; initiatorApp: App; discoveryUrl: string; requestedScopes: string[]; proposedTenants?: { id: string; label?: string }[]; now?: number; jti?: string; lifetime?: number }): { jws: string; claims: Claims } {
+  const lifetime = o.lifetime ?? 60;
+  if (!(lifetime > 0 && lifetime <= QC_EXCHANGE_MAX_LIFETIME)) throw new Error('lifetime out of range');
+  const iat = nowS(o.now);
+  const jwk = publicJwk(key);
+  const claims: Claims = {
+    protocol: PROTOCOL_ID_1_1, ext: BOOTSTRAP_ID, iss: o.initiatorApp.installation_id, aud: o.accept.iss, iat, exp: iat + lifetime,
+    jti: o.jti ?? b64url(randomBytes(18)), code: o.code, code_verifier: o.codeVerifier, invitation: o.invitation.jti,
+    accept_sha256: sha256Hex(o.acceptJws), app: appOf(o.initiatorApp), connection_id: o.invitation.attempt,
+    discovery_url: o.discoveryUrl, connection_key: jwk, requested_scopes: uniqSorted(o.requestedScopes),
+    proposed_tenants: (o.proposedTenants ?? []).map((t) => ({ id: String(t.id), label: String(t.label ?? '').slice(0, 200) })),
+  };
+  return { jws: signCompact(key, { alg: 'EdDSA', typ: TYP_QC_EXCHANGE, kid: jwk.kid }, claims), claims };
+}
+
+export function exchangeCodeSha256(token: string): string {
+  try { const c = unverifiedPayload(token).code; return typeof c === 'string' && c ? sha256Hex(c) : ''; } catch { return ''; }
+}
+
+export function verifyExchange(token: string, o: { dpop: string; url: string; invitation: Claims; invitationJwk: unknown; acceptJws: string; codeSha256: string; codeExpiresAt: number; responderInstallation: string; replay: ReplayStore; now?: number }): Claims {
+  const now = nowS(o.now);
+  const h = unverifiedHeader(token);
+  if (h.typ !== TYP_QC_EXCHANGE) throw ce('invalid_request', `expected a ${TYP_QC_EXCHANGE} token`, 401);
+  const key = publicKeyFromJwk(o.invitationJwk);
+  const kid = thumbprint(key);
+  if (h.kid !== kid) throw ce('key_mismatch', 'exchange not signed by the invitation key', 401);
+  const c: Claims = verifyCompact(token, key, { typ: TYP_QC_EXCHANGE, now, maxLifetime: QC_EXCHANGE_MAX_LIFETIME, skew: QC_SKEW,
+    required: ['protocol', 'ext', 'iss', 'aud', 'iat', 'exp', 'jti', 'code', 'code_verifier', 'invitation', 'accept_sha256', 'app', 'connection_id', 'connection_key'] });
+  checkExtensionClaims(c);
+  if (c.aud !== o.responderInstallation) throw ce('wrong_audience', 'exchange is for another installation', 401);
+  if (c.iss !== o.invitation.iss || c.invitation !== o.invitation.jti || c.connection_id !== o.invitation.attempt || c.accept_sha256 !== sha256Hex(o.acceptJws)) {
+    throw ce('wrong_attempt', 'exchange is for another attempt', 401);
+  }
+  const announced = rewrap('key_mismatch', () => thumbprint(publicKeyFromJwk(c.connection_key)));
+  if (announced !== kid) throw ce('key_mismatch', 'connection_key is not the invitation key', 401);
+  if (!c.app || typeof c.app !== 'object' || c.app.installation_id !== c.iss) throw ce('invalid_request', 'app identity does not match the issuer');
+  requireStr(c, 'jti', JTI_RE);
+  if (!Array.isArray(c.requested_scopes ?? [])) throw ce('invalid_request', 'requested_scopes must be a list');
+  if (typeof c.code !== 'string' || !safeEq(sha256Hex(c.code), o.codeSha256 ?? '')) throw ce('invalid_grant', 'unknown authorisation code');
+  if (now >= o.codeExpiresAt) throw ce('code_expired', 'authorisation code expired');
+  if (typeof c.code_verifier !== 'string' || !VERIFIER_RE.test(c.code_verifier)) throw ce('invalid_request', 'code_verifier malformed');
+  if (!safeEq(pkceChallenge(c.code_verifier), String(o.invitation.code_challenge))) throw ce('pkce_mismatch', 'code_verifier does not match the challenge');
+  verifyDpopProof(o.dpop, { method: 'POST', url: o.url, replay: o.replay, now, expectedJkt: kid });
+  if (!o.replay.add(QC_NS_EXCHANGE, `${c.iss}:${c.jti}`, c.exp + QC_SKEW)) throw ce('replayed', 'exchange already submitted', 401);
+  if (!o.replay.add(QC_NS_CODE, o.codeSha256, o.codeExpiresAt + QC_SKEW)) throw ce('code_used', 'authorisation code already used');
+  return c;
+}
+
+// --- transcript and SAS -----------------------------------------------------------------
+
+export function qcTranscriptHash(o: { invitationJws: string; acceptJws: string; exchangeJws: string; initiatorInstallation: string; initiatorJkt: string; initiatorEgress: string[]; responderInstallation: string; responderJkt: string; responderEgress: string[]; destinationHost: string; destinationPort: number }): string {
+  return sha256Hex(canonicalJson({
+    v: `${PROTOCOL_ID_1_1} qc-transcript`,
+    invitation_sha256: sha256Hex(o.invitationJws), accept_sha256: sha256Hex(o.acceptJws), exchange_sha256: sha256Hex(o.exchangeJws),
+    initiator: { installation_id: o.initiatorInstallation, jkt: o.initiatorJkt, egress: o.initiatorEgress },
+    responder: { installation_id: o.responderInstallation, jkt: o.responderJkt, egress: o.responderEgress },
+    destination: { host: o.destinationHost, port: o.destinationPort },
+  }));
+}
+
+export function qcTranscriptFromMessages(invitationJws: string, acceptJws: string, exchangeJws: string): string {
+  const inv = unverifiedPayload(invitationJws) as Claims, acc = unverifiedPayload(acceptJws) as Claims;
+  const ka = publicKeyFromJwk(unverifiedHeader(invitationJws).jwk), kb = publicKeyFromJwk(unverifiedHeader(acceptJws).jwk);
+  const { host, port } = originHostPort(inv.aud);
+  return qcTranscriptHash({ invitationJws, acceptJws, exchangeJws, initiatorInstallation: inv.iss, initiatorJkt: thumbprint(ka),
+    initiatorEgress: egressNets(inv.egress), responderInstallation: acc.iss, responderJkt: thumbprint(kb), responderEgress: egressNets(acc.egress),
+    destinationHost: host, destinationPort: port });
+}
+
+/** The v1 SAS function applied to the 1.1 transcript. */
+export const qcSas = (transcript: string) => shortAuthenticationString(transcript);
+
+export function checkAckKey(ackJwk: unknown, acceptJwk: unknown): void {
+  if (thumbprint(publicKeyFromJwk(ackJwk)) !== thumbprint(publicKeyFromJwk(acceptJwk))) throw ce('key_mismatch', 'ack not signed by the acceptance key', 401);
+}
+
+// --- qc-diagnostics/1 ------------------------------------------------------------------
+
+export const PROBE_SOURCE_CHECKS = ['ok', 'not_authorised', 'not_enforced'];
+export const probeRequestBody = (nonce?: string) => (nonce ? { nonce } : {});
+
+function canonicalAddress(s: unknown): string | null {
+  const a = addrOf(s as string);
+  if (!a) return null;
+  return a.v === 4 ? formatV4(a.addr) : formatV6(a.addr);
+}
+
+export function validateProbeResponse(obj: unknown, nonce?: string): Record<string, unknown> {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw ce('invalid_request', 'probe response must be an object');
+  const r = obj as Record<string, any>;
+  const canon = canonicalAddress(r.observed_source);
+  if (canon === null) throw ce('invalid_request', 'observed_source malformed');
+  if (canon !== r.observed_source) throw ce('invalid_request', 'observed_source not canonical');
+  if (!isInt(r.server_time)) throw ce('invalid_request', 'server_time malformed');
+  if (!r.checks || typeof r.checks !== 'object' || !PROBE_SOURCE_CHECKS.includes(r.checks.source) || r.checks.token !== 'ok') throw ce('invalid_request', 'checks malformed');
+  if (typeof r.connection_state !== 'string') throw ce('invalid_request', 'connection_state malformed');
+  if (r.peer_reached_at !== null && r.peer_reached_at !== undefined && !isInt(r.peer_reached_at)) throw ce('invalid_request', 'peer_reached_at malformed');
+  if (nonce !== undefined && r.nonce !== nonce) throw ce('invalid_request', 'probe nonce not echoed');
+  return r;
+}
+
+export function buildProbeResponse(o: { observedSource: string; serverTime: number; connectionState: string; sourceCheck: string; tokenCheck?: string; peerReachedAt?: number | null; nonce?: string }): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    protocol: PROTOCOL_ID_1_1, observed_source: canonicalAddress(o.observedSource) ?? o.observedSource, server_time: o.serverTime,
+    connection_state: o.connectionState, checks: { source: o.sourceCheck, token: o.tokenCheck ?? 'ok' }, peer_reached_at: o.peerReachedAt ?? null,
+  };
+  if (o.nonce) out.nonce = o.nonce;
+  return validateProbeResponse(out, o.nonce);
+}

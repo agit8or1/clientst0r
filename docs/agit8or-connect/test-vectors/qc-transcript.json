@@ -1,0 +1,79 @@
+{
+  "accept_jws": "eyJhbGciOiJFZERTQSIsImp3ayI6eyJhbGciOiJFZERTQSIsImNydiI6IkVkMjU1MTkiLCJraWQiOiJrSTR5bjdXd3luOGtUdGVPZ0Rfd2JwZWV3UFBhSWdqTDFjaWh1QmtLQktJIiwia3R5IjoiT0tQIiwidXNlIjoic2lnIiwieCI6InhyMk9Ibm03WE5ueS1IQ210RGtNNElZMC1YZk1WbnloYWRZMDZIci1QeUEifSwia2lkIjoia0k0eW43V3d5bjhrVHRlT2dEX3dicGVld1BQYUlnakwxY2lodUJrS0JLSSIsInR5cCI6ImFnaXQ4b3ItcWMtYWNjZXB0K2p3dCJ9.eyJhcHAiOnsiZGlzcGxheV9uYW1lIjoiUmVzcG9uZGVyIEIiLCJpbnN0YWxsYXRpb25faWQiOiIyMjIyMjIyMi0yMjIyLTQyMjItODIyMi0yMjIyMjIyMjIyMjIiLCJ0eXBlIjoicmVmZXJlbmNlLXBlZXIiLCJ2ZXJzaW9uIjoiMS4xLjAifSwiYXR0ZW1wdCI6IjQ0NDQ0NDQ0LTQ0NDQtNDQ0NC04NDQ0LTQ0NDQ0NDQ0NDQ0NCIsImF1ZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsImJhc2UiOiJodHRwczovL3Jlc3BvbmRlci5leGFtcGxlLnRlc3QiLCJjb2RlX3NoYTI1NiI6ImYzMzY1OTdlYWMzZThlMTdkMDkyNzcwNzM3OTMwYjgzODUxODMyNjA3M2QyZmNjNDA1YTRkMWI3ZTdjOTcxMmMiLCJjb25uZWN0aW9uX2lkIjoiNjY2NjY2NjYtNjY2Ni00NjY2LTg2NjYtNjY2NjY2NjY2NjY2IiwiZWdyZXNzIjpbeyJuZXQiOiIxOTguNTEuMTAwLjAvMjgiLCJub3RlIjoiZGF0YSBjZW50cmUifSx7Im5ldCI6IjIwMDE6ZGI4OjEwOjovNDgiLCJub3RlIjoiIn1dLCJleHAiOjE3NjcyMjYyMzAsImV4dCI6InFjLWJvb3RzdHJhcC8xIiwiZXh0ZW5zaW9ucyI6eyJxYy1ib290c3RyYXAiOlsxXSwicWMtZGlhZ25vc3RpY3MiOlsxXSwicWMtc291cmNlLWJpbmRpbmciOlsxXX0sImlhdCI6MTc2NzIyNTYzMCwiaW52aXRhdGlvbiI6InFjLWludml0YXRpb24tanRpLTAwMDEiLCJpbnZpdGF0aW9uX3NoYTI1NiI6ImI0ZWQzMjM0YTUyMDg3ZDU5N2RmMWNhMWVkY2JmMGYxZGZmNTIzNzViYjk2ODgzMTY2NTJhZjNhZGQxMDU1ZjUiLCJpc3MiOiIyMjIyMjIyMi0yMjIyLTQyMjItODIyMi0yMjIyMjIyMjIyMjIiLCJwcm90b2NvbCI6ImFnaXQ4b3ItY29ubmVjdC8xLjEifQ.xi8h6BT5btoupaE1sa0aiU6c6GH14jNibxi8ojs5b2GscM2Yj6gyBnZcBj7-xhu9J2-6179MD2OlY4q6tB_aBw",
+  "canonical_input": "{\"accept_sha256\":\"b958c42570afdbe268cf524bcef247734ee346f4254a2b2f1e5552364d2f14f6\",\"destination\":{\"host\":\"responder.example.test\",\"port\":443},\"exchange_sha256\":\"afeaca2cf93241bb7b880db760e8bb1a8d48af3e31867b37ef7110d790197f60\",\"initiator\":{\"egress\":[\"203.0.113.10/32\"],\"installation_id\":\"11111111-1111-4111-8111-111111111111\",\"jkt\":\"PYaBr5K5adpRVgVznHunWEovRNbXMBZVAK-AKdqE1ys\"},\"invitation_sha256\":\"b4ed3234a52087d597df1ca1edcbf0f1dff52375bb9688316652af3add1055f5\",\"responder\":{\"egress\":[\"198.51.100.0/28\",\"2001:db8:10::/48\"],\"installation_id\":\"22222222-2222-4222-8222-222222222222\",\"jkt\":\"kI4yn7Wwyn8kTteOgD_wbpeewPPaIgjL1cihuBkKBKI\"},\"v\":\"agit8or-connect/1.1 qc-transcript\"}",
+  "exchange_jws": "eyJhbGciOiJFZERTQSIsImtpZCI6IlBZYUJyNUs1YWRwUlZnVnpuSHVuV0VvdlJOYlhNQlpWQUstQUtkcUUxeXMiLCJ0eXAiOiJhZ2l0OG9yLXFjLWV4Y2hhbmdlK2p3dCJ9.eyJhY2NlcHRfc2hhMjU2IjoiYjk1OGM0MjU3MGFmZGJlMjY4Y2Y1MjRiY2VmMjQ3NzM0ZWUzNDZmNDI1NGEyYjJmMWU1NTUyMzY0ZDJmMTRmNiIsImFwcCI6eyJkaXNwbGF5X25hbWUiOiJNU1AgQSIsImluc3RhbGxhdGlvbl9pZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsInR5cGUiOiJjbGllbnRzdDByIiwidmVyc2lvbiI6IjMuMTcuMCJ9LCJhdWQiOiIyMjIyMjIyMi0yMjIyLTQyMjItODIyMi0yMjIyMjIyMjIyMjIiLCJjb2RlIjoiTU5faW96OVF5dUEtT2VVUWU2b0k0bWtzNVJZMUpreVYxcTRlZW15TkRvMCIsImNvZGVfdmVyaWZpZXIiOiJiWDFxajllbGk0djhyS1hFaHdNdGloZHBGT0IyYUhiUXRTbUJoYVBTWll3IiwiY29ubmVjdGlvbl9pZCI6IjQ0NDQ0NDQ0LTQ0NDQtNDQ0NC04NDQ0LTQ0NDQ0NDQ0NDQ0NCIsImNvbm5lY3Rpb25fa2V5Ijp7ImFsZyI6IkVkRFNBIiwiY3J2IjoiRWQyNTUxOSIsImtpZCI6IlBZYUJyNUs1YWRwUlZnVnpuSHVuV0VvdlJOYlhNQlpWQUstQUtkcUUxeXMiLCJrdHkiOiJPS1AiLCJ1c2UiOiJzaWciLCJ4IjoiREdLZTFqWEp5bDdzOWNpOFFVYXNIZFhxaXdtMXFGREpmT1JQZi0zWFdlayJ9LCJkaXNjb3ZlcnlfdXJsIjoiaHR0cHM6Ly9pbml0aWF0b3IuZXhhbXBsZS50ZXN0Ly53ZWxsLWtub3duL2FnaXQ4b3ItY29ubmVjdCIsImV4cCI6MTc2NzIyNTcwMCwiZXh0IjoicWMtYm9vdHN0cmFwLzEiLCJpYXQiOjE3NjcyMjU2NDAsImludml0YXRpb24iOiJxYy1pbnZpdGF0aW9uLWp0aS0wMDAxIiwiaXNzIjoiMTExMTExMTEtMTExMS00MTExLTgxMTEtMTExMTExMTExMTExIiwianRpIjoicWMtZXhjaGFuZ2UtanRpLTAwMDEiLCJwcm9wb3NlZF90ZW5hbnRzIjpbeyJpZCI6Im9yZy0xIiwibGFiZWwiOiJDdXN0b21lciBPbmUifV0sInByb3RvY29sIjoiYWdpdDhvci1jb25uZWN0LzEuMSIsInJlcXVlc3RlZF9zY29wZXMiOlsiY3VzdG9tZXJzOnJlYWQiLCJldmVudHM6cHVibGlzaCJdfQ.FClLQv1O8MZLWjRegs2oDqOz0e0sQFcHNTGQaLq-RaLNtb72bbHpyq5zvLP5sNdTfHxKdmY6ho6IUiR-_we4AA",
+  "inputs": {
+    "destination_host": "responder.example.test",
+    "destination_port": 443,
+    "initiator_egress": [
+      "203.0.113.10/32"
+    ],
+    "initiator_installation": "11111111-1111-4111-8111-111111111111",
+    "initiator_jkt": "PYaBr5K5adpRVgVznHunWEovRNbXMBZVAK-AKdqE1ys",
+    "responder_egress": [
+      "198.51.100.0/28",
+      "2001:db8:10::/48"
+    ],
+    "responder_installation": "22222222-2222-4222-8222-222222222222",
+    "responder_jkt": "kI4yn7Wwyn8kTteOgD_wbpeewPPaIgjL1cihuBkKBKI"
+  },
+  "invitation_jws": "eyJhbGciOiJFZERTQSIsImp3ayI6eyJhbGciOiJFZERTQSIsImNydiI6IkVkMjU1MTkiLCJraWQiOiJQWWFCcjVLNWFkcFJWZ1Z6bkh1bldFb3ZSTmJYTUJaVkFLLUFLZHFFMXlzIiwia3R5IjoiT0tQIiwidXNlIjoic2lnIiwieCI6IkRHS2UxalhKeWw3czljaThRVWFzSGRYcWl3bTFxRkRKZk9SUGYtM1hXZWsifSwia2lkIjoiUFlhQnI1SzVhZHBSVmdWem5IdW5XRW92Uk5iWE1CWlZBSy1BS2RxRTF5cyIsInR5cCI6ImFnaXQ4b3ItcWMtaW52aXRhdGlvbitqd3QifQ.eyJhcHAiOnsiZGlzcGxheV9uYW1lIjoiTVNQIEEiLCJpbnN0YWxsYXRpb25faWQiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJ0eXBlIjoiY2xpZW50c3QwciIsInZlcnNpb24iOiIzLjE3LjAifSwiYXR0ZW1wdCI6IjQ0NDQ0NDQ0LTQ0NDQtNDQ0NC04NDQ0LTQ0NDQ0NDQ0NDQ0NCIsImF1ZCI6Imh0dHBzOi8vcmVzcG9uZGVyLmV4YW1wbGUudGVzdCIsImJhc2UiOiJodHRwczovL2luaXRpYXRvci5leGFtcGxlLnRlc3QiLCJjb2RlX2NoYWxsZW5nZSI6IjlDeUYySWttek5PSGhrZU12bTN0TnpBWVQwdDFOcUY1LXV5M3RDVWh0dTQiLCJjb2RlX2NoYWxsZW5nZV9tZXRob2QiOiJTMjU2IiwiZWdyZXNzIjpbeyJuZXQiOiIyMDMuMC4xMTMuMTAvMzIiLCJub3RlIjoib2ZmaWNlIE5BVCJ9XSwiZXhwIjoxNzY3MjI2MjAwLCJleHQiOiJxYy1ib290c3RyYXAvMSIsImV4dGVuc2lvbnMiOnsicWMtYm9vdHN0cmFwIjpbMV0sInFjLWRpYWdub3N0aWNzIjpbMV0sInFjLXNvdXJjZS1iaW5kaW5nIjpbMV19LCJpYXQiOjE3NjcyMjU2MDAsImlzcyI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsImp0aSI6InFjLWludml0YXRpb24tanRpLTAwMDEiLCJub25jZSI6ImI0ZmhNRjljRFc0NUhRV0RRNG12dll2RnNoWXlCT1U4elJjOUNrYXB4VWMiLCJwcm90b2NvbCI6ImFnaXQ4b3ItY29ubmVjdC8xLjEiLCJyZWRpcmVjdF91cmkiOiJodHRwczovL2luaXRpYXRvci5leGFtcGxlLnRlc3QvYWdpdDhvci1jb25uZWN0L3FjLWNhbGxiYWNrIiwicmVxdWVzdGVkX3Njb3BlcyI6WyJjdXN0b21lcnM6cmVhZCIsImV2ZW50czpwdWJsaXNoIl19.vyPd7EYtn2D8STslA7R6Ld8LCq8AApHbBEUCA0On1EImUEy5U2cl_-hKRjID3nPsbYPFozGgXv-aw6u1RPphCA",
+  "mutations": [
+    {
+      "change": {
+        "initiator_jkt": "JBN_p67eXaAvUsjGqiMmPdq39i2fDSwiK05DYPxY5NY"
+      },
+      "name": "initiator_key_substituted",
+      "sas": "0868-7955",
+      "transcript_hash": "388b1e6574cfe97db02d6a3acc7d37b11bef6b417cd70cf945e64c7cb1856df0"
+    },
+    {
+      "change": {
+        "responder_jkt": "JBN_p67eXaAvUsjGqiMmPdq39i2fDSwiK05DYPxY5NY"
+      },
+      "name": "responder_key_substituted",
+      "sas": "3238-2479",
+      "transcript_hash": "8ecf1103265d3504ded4a1dcc977bf02358927aa7d5d94d043affb2a35b7f49e"
+    },
+    {
+      "change": {
+        "initiator_egress": [
+          "203.0.113.11/32"
+        ]
+      },
+      "name": "initiator_egress_changed",
+      "sas": "4700-3948",
+      "transcript_hash": "7b79ac82030d77b44fb6f435d988244af0b0abb9a477f5d4c880d77487f65aa2"
+    },
+    {
+      "change": {
+        "responder_egress": [
+          "198.51.100.0/28"
+        ]
+      },
+      "name": "responder_egress_changed",
+      "sas": "1838-6499",
+      "transcript_hash": "6f782ef8580cf2f5d2a00b9553d67e028e7b1f42a7af484409ac3dddc24b37f8"
+    },
+    {
+      "change": {
+        "destination_host": "responder2.example.test"
+      },
+      "name": "destination_host_changed",
+      "sas": "2394-4493",
+      "transcript_hash": "8a66351c359d7560bf9d10b41e19968ce67115990b4569189ca5a138254e7353"
+    },
+    {
+      "change": {
+        "destination_port": 8443
+      },
+      "name": "destination_port_changed",
+      "sas": "3252-7202",
+      "transcript_hash": "d90e9ba794c14487d47913a899e8b43f8143e1c61b574d6f3cbafa49ff59eece"
+    }
+  ],
+  "notice": "TEST-ONLY KEYS AND NONCES (agit8or-connect/1.1). Never use outside conformance tests.",
+  "sas": "7835-0845",
+  "transcript_hash": "a8dd050e44dec42207df15a29908bf8c8c73e5e24cf2406efc57e21222d10986",
+  "v1_sas_of_same_hash_note": "SAS uses the v1 function (prefix \"agit8or-connect/1 sas\\n\")."
+}

@@ -11,6 +11,10 @@ administrators on both sides approve what each side may do and which customers i
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 
+Protocol revision **1.1** (optional Quick Connect extensions `qc-bootstrap/1`, `qc-source-binding/1`,
+`qc-diagnostics/1`) is specified separately in [PROTOCOL-1.1.md](PROTOCOL-1.1.md). It is additive and negotiated:
+nothing in this document changes, and a peer that implements only this document keeps working.
+
 ## 1. Terms
 
 | Term | Meaning |

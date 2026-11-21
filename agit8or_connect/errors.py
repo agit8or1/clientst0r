@@ -50,3 +50,23 @@ CERT_NAME_MISMATCH = 'certificate_name_mismatch'
 # (403). v1 receivers treat it as an opaque refusal.
 SOURCE_NOT_AUTHORISED = 'source_not_authorised'
 ACTION_APPROVAL_REQUIRED = 'action_approval_required'
+
+# Protocol revision 1.1 (PROTOCOL-1.1.md §9). Each Quick Connect refusal has
+# its own code so the administrator sees which check failed.
+INVITATION_EXPIRED = 'invitation_expired'
+INVITATION_USED = 'invitation_used'
+WRONG_AUDIENCE = 'wrong_audience'
+WRONG_ATTEMPT = 'wrong_attempt'
+INVALID_BASE = 'invalid_base'
+INVALID_REDIRECT_URI = 'invalid_redirect_uri'
+INVALID_EGRESS = 'invalid_egress'
+DESTINATION_MISMATCH = 'destination_mismatch'
+IDENTITY_MISMATCH = 'identity_mismatch'
+KEY_MISMATCH = 'key_mismatch'
+CODE_EXPIRED = 'code_expired'
+CODE_USED = 'code_used'
+PKCE_MISMATCH = 'pkce_mismatch'
+DOWNGRADE_DETECTED = 'downgrade_detected'
+EXTENSION_NOT_NEGOTIATED = 'extension_not_negotiated'
+ACCESS_DENIED = 'access_denied'
+STATE_MISMATCH = 'state_mismatch'

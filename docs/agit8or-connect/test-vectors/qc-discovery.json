@@ -1,0 +1,378 @@
+{
+  "discovery_url": "https://responder.example.test/.well-known/agit8or-connect",
+  "downgrade": [
+    {
+      "discovered": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-diagnostics": 1,
+          "qc-source-binding": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "expect": "valid",
+      "name": "same",
+      "signed": {
+        "qc-bootstrap": [
+          1
+        ],
+        "qc-diagnostics": [
+          1
+        ],
+        "qc-source-binding": [
+          1
+        ]
+      }
+    },
+    {
+      "discovered": {
+        "endpoints": {},
+        "versions": [
+          "1"
+        ]
+      },
+      "expect": "downgrade_detected",
+      "name": "discovery_stripped_to_v1",
+      "signed": {
+        "qc-bootstrap": [
+          1
+        ],
+        "qc-diagnostics": [
+          1
+        ],
+        "qc-source-binding": [
+          1
+        ]
+      }
+    },
+    {
+      "discovered": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-source-binding": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "expect": "downgrade_detected",
+      "name": "discovery_dropped_diagnostics",
+      "signed": {
+        "qc-bootstrap": [
+          1
+        ],
+        "qc-diagnostics": [
+          1
+        ],
+        "qc-source-binding": [
+          1
+        ]
+      }
+    },
+    {
+      "discovered": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-diagnostics": 1,
+          "qc-source-binding": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "expect": "valid",
+      "name": "unknown_signed_extension_ignored",
+      "signed": {
+        "qc-bootstrap": [
+          1
+        ],
+        "qc-diagnostics": [
+          1
+        ],
+        "qc-source-binding": [
+          1
+        ],
+        "x-future": [
+          1
+        ]
+      }
+    }
+  ],
+  "negotiation": [
+    {
+      "discovery": {
+        "endpoints": {},
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "code",
+      "name": "v1_peer",
+      "negotiated": {}
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-diagnostics": 1,
+          "qc-source-binding": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "qc-bootstrap/1",
+      "name": "v1_1_peer",
+      "negotiated": {
+        "qc-bootstrap": 1,
+        "qc-diagnostics": 1,
+        "qc-source-binding": 1
+      }
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-diagnostics": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "code",
+      "name": "bootstrap_without_source_binding",
+      "negotiated": {
+        "qc-diagnostics": 1
+      }
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": [
+            2,
+            3
+          ],
+          "qc-source-binding": 2
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "code",
+      "name": "future_versions_only",
+      "negotiated": {}
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": [
+            1,
+            2
+          ],
+          "qc-diagnostics": 1,
+          "qc-source-binding": [
+            1
+          ],
+          "x-future": 7
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "qc-bootstrap/1",
+      "name": "list_form_and_unknown_extension",
+      "negotiated": {
+        "qc-bootstrap": 1,
+        "qc-diagnostics": 1,
+        "qc-source-binding": 1
+      }
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": true,
+          "qc-diagnostics": 0,
+          "qc-source-binding": "1"
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "code",
+      "name": "malformed_values_ignored",
+      "negotiated": {}
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://evil.example.test/x",
+          "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-diagnostics": 1,
+          "qc-source-binding": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "code",
+      "name": "endpoint_on_other_origin",
+      "negotiated": {
+        "qc-diagnostics": 1,
+        "qc-source-binding": 1
+      }
+    },
+    {
+      "discovery": {
+        "app": {
+          "installation_id": "22222222-2222-4222-8222-222222222222",
+          "type": "reference-peer"
+        },
+        "endpoints": {
+          "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+          "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange"
+        },
+        "extensions": {
+          "qc-bootstrap": 1,
+          "qc-diagnostics": 1,
+          "qc-source-binding": 1
+        },
+        "protocol": "agit8or-connect",
+        "revision": "1.1",
+        "versions": [
+          "1"
+        ]
+      },
+      "flow": "qc-bootstrap/1",
+      "name": "endpoint_missing",
+      "negotiated": {
+        "qc-bootstrap": 1,
+        "qc-source-binding": 1
+      }
+    }
+  ],
+  "notice": "TEST-ONLY KEYS AND NONCES (agit8or-connect/1.1). Never use outside conformance tests.",
+  "ours": {
+    "qc-bootstrap": [
+      1
+    ],
+    "qc-diagnostics": [
+      1
+    ],
+    "qc-source-binding": [
+      1
+    ]
+  },
+  "v1_1_document_members": {
+    "extensions": {
+      "qc-bootstrap": 1,
+      "qc-diagnostics": 1,
+      "qc-source-binding": 1
+    },
+    "revision": "1.1"
+  },
+  "v1_1_endpoints": {
+    "qc_authorize": "https://responder.example.test/agit8or-connect/qc-authorize",
+    "qc_exchange": "https://responder.example.test/connect/v1/qc/exchange",
+    "qc_probe": "https://responder.example.test/connect/v1/qc/probe"
+  }
+}

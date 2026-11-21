@@ -7,6 +7,10 @@ info:
     Wire surface of agit8or-connect/1 as served by Clientst0r under `/connect/v1`.
     Normative text: PROTOCOL.md. Every operation answers 404 while the installation has
     Agit8or Connect switched off. Unknown fields in any object MUST be ignored (PROTOCOL.md §3).
+
+    Operations and schemas tagged `1.1` belong to protocol revision 1.1 (PROTOCOL-1.1.md): the optional,
+    negotiated extensions qc-bootstrap/1, qc-source-binding/1 and qc-diagnostics/1. A server serves them only
+    when its discovery document advertises the extension; a 1.0 server answers 404. Nothing tagged `1` changes.
 servers:
   - url: https://{host}
     variables:
@@ -17,6 +21,8 @@ tags:
   - name: auth
   - name: resources
   - name: events
+  - name: '1.1'
+    description: Protocol revision 1.1 (Quick Connect extensions, PROTOCOL-1.1.md). Optional and negotiated.
 paths:
   /.well-known/agit8or-connect:
     get:
@@ -291,6 +297,67 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '413': {$ref: '#/components/responses/Error'}
+  /connect/v1/qc/exchange:
+    post:
+      tags: ['1.1', pairing]
+      operationId: qcExchange
+      summary: Exchange the Quick Connect authorisation code (qc-bootstrap/1, PROTOCOL-1.1.md §5.6)
+      description: |
+        Admitted only from the attempt's temporary source rule (403 source_not_authorised otherwise, before
+        anything else). The exchange JWS is signed by the invitation key K_A; the DPoP proof is made with the
+        same key for this URL. Answered with the UNCHANGED v1 pairing ack; from then on the flow is v1.
+      security: []
+      parameters:
+        - {name: DPoP, in: header, required: true, schema: {type: string}, description: 'v1 DPoP proof (K_A), htm POST, htu = this URL, no ath'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exchange]
+              properties:
+                exchange: {type: string, description: 'Compact JWS typ agit8or-qc-exchange+jwt; payload QcExchangeClaims'}
+      responses:
+        '202':
+          description: Accepted, awaiting the responder administrator (v1 pairing answer)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request_id, ack]
+                properties:
+                  request_id: {type: string, format: uuid}
+                  ack: {type: string, description: 'Compact JWS typ agit8or-pairing-ack+jwt (v1), signed by K_B; request_jti = exchange jti'}
+                  status: {type: string, const: pending_approval}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Disabled'}
+        '429': {$ref: '#/components/responses/Error'}
+  /connect/v1/qc/probe:
+    post:
+      tags: ['1.1', resources]
+      operationId: qcProbe
+      summary: Observed source address and reverse-reachability for diagnostics (qc-diagnostics/1, PROTOCOL-1.1.md §8)
+      security: [{dpop: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nonce: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}
+      responses:
+        '200':
+          description: Probe answer
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QcProbeResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Disabled'}
 components:
   securitySchemes:
     dpop:
@@ -401,3 +468,125 @@ components:
         hops: {type: integer, minimum: 0}
         idempotency_key: {type: string}
         occurred_at: {type: integer}
+    EgressEntry:
+      description: 'qc-source-binding/1 (PROTOCOL-1.1.md §4.4). `net` in canonical form; verifiers refuse any other form.'
+      type: object
+      required: [net]
+      properties:
+        net: {type: string, maxLength: 49, examples: ['203.0.113.10/32', '2001:db8:10::/48']}
+        note: {type: string, maxLength: 100}
+    QcExtensions:
+      description: 'Extension name -> implemented versions. In discovery a single integer is also accepted.'
+      type: object
+      additionalProperties:
+        oneOf:
+          - {type: integer, minimum: 1, maximum: 999}
+          - {type: array, minItems: 1, items: {type: integer, minimum: 1, maximum: 999}}
+    QcApp:
+      type: object
+      required: [type, version, display_name, installation_id]
+      properties:
+        type: {type: string}
+        version: {type: string}
+        display_name: {type: string}
+        installation_id: {type: string, format: uuid}
+    QcDiscoveryAdditions:
+      description: 'Members a 1.1 installation adds to Discovery (ignored by 1.0 peers).'
+      type: object
+      properties:
+        revision: {type: string, const: '1.1'}
+        extensions: {$ref: '#/components/schemas/QcExtensions'}
+        endpoints:
+          type: object
+          properties:
+            qc_authorize: {type: string, format: uri, description: 'Browser page in the responder admin UI (same origin)'}
+            qc_exchange: {type: string, format: uri}
+            qc_probe: {type: string, format: uri}
+    QcInvitationClaims:
+      description: 'Payload of the invitation JWS (typ agit8or-qc-invitation+jwt, header jwk = K_A). Carried in the browser URL; whole JWS <= 4096 chars.'
+      type: object
+      required: [protocol, ext, extensions, iss, aud, iat, exp, jti, attempt, app, base, redirect_uri, egress, requested_scopes, code_challenge, code_challenge_method, nonce]
+      properties:
+        protocol: {type: string, const: agit8or-connect/1.1}
+        ext: {type: string, const: qc-bootstrap/1}
+        extensions: {$ref: '#/components/schemas/QcExtensions'}
+        iss: {type: string, format: uuid}
+        aud: {type: string, description: 'Canonical origin of the responder (approved destination)'}
+        responder_installation: {type: string, format: uuid}
+        iat: {type: integer}
+        exp: {type: integer, description: 'exp - iat <= 600'}
+        jti: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+        attempt: {type: string, format: uuid}
+        app: {$ref: '#/components/schemas/QcApp'}
+        base: {type: string, maxLength: 512}
+        redirect_uri: {type: string, maxLength: 512}
+        egress: {type: array, minItems: 1, maxItems: 8, items: {$ref: '#/components/schemas/EgressEntry'}}
+        requested_scopes: {type: array, items: {type: string}}
+        code_challenge: {type: string, pattern: '^[A-Za-z0-9_-]{43}$'}
+        code_challenge_method: {type: string, const: S256}
+        nonce: {type: string, pattern: '^[A-Za-z0-9_-]{22,128}$'}
+    QcAcceptClaims:
+      description: 'Payload of the accept JWS (typ agit8or-qc-accept+jwt, header jwk = K_B), returned through the browser redirect.'
+      type: object
+      required: [protocol, ext, extensions, iss, aud, iat, exp, attempt, invitation, invitation_sha256, connection_id, app, base, egress, code_sha256]
+      properties:
+        protocol: {type: string, const: agit8or-connect/1.1}
+        ext: {type: string, const: qc-bootstrap/1}
+        extensions: {$ref: '#/components/schemas/QcExtensions'}
+        iss: {type: string, format: uuid}
+        aud: {type: string, format: uuid}
+        iat: {type: integer}
+        exp: {type: integer, description: 'exp - iat <= 600'}
+        attempt: {type: string, format: uuid}
+        invitation: {type: string}
+        invitation_sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        connection_id: {type: string, format: uuid}
+        app: {$ref: '#/components/schemas/QcApp'}
+        base: {type: string, maxLength: 512}
+        egress: {type: array, minItems: 1, maxItems: 8, items: {$ref: '#/components/schemas/EgressEntry'}}
+        code_sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    QcExchangeClaims:
+      description: 'Payload of the exchange JWS (typ agit8or-qc-exchange+jwt, header kid = thumbprint(K_A), no jwk). The v1 pairing-request claims except pairing_code, plus the binding claims.'
+      type: object
+      required: [protocol, ext, iss, aud, iat, exp, jti, code, code_verifier, invitation, accept_sha256, app, connection_id, discovery_url, connection_key, requested_scopes, proposed_tenants]
+      properties:
+        protocol: {type: string, const: agit8or-connect/1.1}
+        ext: {type: string, const: qc-bootstrap/1}
+        iss: {type: string, format: uuid}
+        aud: {type: string, format: uuid}
+        iat: {type: integer}
+        exp: {type: integer, description: 'exp - iat <= 120'}
+        jti: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+        code: {type: string, pattern: '^[A-Za-z0-9_-]{43}$'}
+        code_verifier: {type: string, pattern: '^[A-Za-z0-9._~-]{43,128}$'}
+        invitation: {type: string}
+        accept_sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        app: {$ref: '#/components/schemas/QcApp'}
+        connection_id: {type: string, format: uuid}
+        discovery_url: {type: string, format: uri}
+        connection_key: {$ref: '#/components/schemas/OkpJwk'}
+        requested_scopes: {type: array, items: {type: string}}
+        proposed_tenants:
+          type: array
+          items:
+            type: object
+            required: [id]
+            properties:
+              id: {type: string}
+              label: {type: string, maxLength: 200}
+    QcProbeResponse:
+      type: object
+      required: [protocol, observed_source, server_time, connection_state, checks, peer_reached_at]
+      properties:
+        protocol: {type: string, const: agit8or-connect/1.1}
+        observed_source: {type: string, description: 'Canonical address text'}
+        server_time: {type: integer}
+        connection_state: {type: string}
+        checks:
+          type: object
+          required: [source, token]
+          properties:
+            source: {type: string, enum: [ok, not_authorised, not_enforced]}
+            token: {type: string, const: ok}
+        peer_reached_at: {type: [integer, 'null']}
+        nonce: {type: string}
