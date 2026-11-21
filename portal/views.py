@@ -740,12 +740,36 @@ def quote_sign(request, token):
             'just_signed': True,
         })
 
+    from psa import doc_views
     return render(request, 'portal/quote_sign.html', {
         'quote': quote,
         'organization': quote.client_org,
         'line_items': quote.line_items.all(),
         'content_hash': quote.content_hash(),
+        'view_nonce': doc_views.nonce('quote', quote.pk),
     })
+
+
+@require_http_methods(['POST'])
+def quote_seen(request, token):
+    """View beacon of the public sign page (psa.doc_views). Always 204:
+    it says nothing about the token, and records a view only for a likely
+    customer — never staff, scanners or a repeated page load."""
+    from django.http import HttpResponse
+    from core.public_throttle import limited
+    from psa import doc_views
+    from psa.models import Quote
+    if limited(request, 'portal.quote_seen', '30/m', token, '60/h'):
+        return HttpResponse(status=204)
+    if doc_views.ignore_reason(request):
+        return HttpResponse(status=204)
+    quote = Quote.lookup_by_customer_token(token).select_related('client_org', 'organization').first()
+    if quote is not None:
+        try:
+            doc_views.record(quote, 'quote', request)
+        except Exception:  # noqa: BLE001 — tracking never breaks the page
+            logger.exception('quote view tracking failed')
+    return HttpResponse(status=204)
 
 
 # ---------------------------------------------------------------------------

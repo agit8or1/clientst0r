@@ -399,10 +399,15 @@ def email_quote(quote, *, recipient: str, subject: str = '', body: str = '',
     return e.send(fail_silently=False) > 0
 
 
-def email_invoice(invoice, *, recipient: str, subject: str = '', body: str = '') -> bool:
-    """Email an invoice PDF to the recipient."""
+def email_invoice(invoice, *, recipient: str, subject: str = '', body: str = '', request=None) -> bool:
+    """Email an invoice PDF to the recipient, with a link to the invoice in
+    the customer portal (where opening it is recorded as viewed for the
+    customer's billing contacts; psa.doc_views)."""
     from django.core.mail import EmailMessage
+    from django.urls import reverse
+    from core.portal_surface import portal_absolute_url
     pdf_bytes = render_invoice_pdf(invoice)
+    view_url = portal_absolute_url(reverse('portal:billing_invoice', args=[invoice.pk]), request)
 
     subj = subject or f'Invoice {invoice.invoice_number} from {invoice.organization.name}'
     msg_body = body or (
@@ -411,6 +416,7 @@ def email_invoice(invoice, *, recipient: str, subject: str = '', body: str = '')
         f'Total: {invoice.total:,.2f} {invoice.currency}\n'
         f'Balance due: {invoice.balance:,.2f} {invoice.currency}\n'
         + (f'Due date: {invoice.due_date:%Y-%m-%d}\n' if invoice.due_date else '')
+        + (f'\nView it online (customer portal sign-in): {view_url}\n' if view_url.startswith('http') else '')
         + f'\nThank you,\n{invoice.organization.name}'
     )
 

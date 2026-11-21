@@ -1060,6 +1060,14 @@ class SystemSetting(models.Model):
         help_text='Auto-create a PSAApproval chain when a Quote\'s total '
                   '>= this dollar amount. 0 = disabled.',
     )
+    # E-signature rule (psa.contract_terms): contracts that are not
+    # month-to-month, and every quote, need the customer's e-signature before
+    # activation / conversion / billing. Month-to-month is exempt by default.
+    contracts_esign_exempt_month_to_month = models.BooleanField(
+        default=True,
+        help_text='Month-to-month contracts can be activated and billed without a customer e-signature. '
+                  'Off: every contract needs one.',
+    )
 
     # Phase 15 v7 (v3.17.294) — late fee automation. When both knobs
     # are non-zero, the `psa_apply_late_fees` cron applies a fee Charge
@@ -2746,6 +2754,9 @@ class Webhook(models.Model):
         (EVENT_INVOICE_CREATED, 'Invoice Issued'),
         (EVENT_INVOICE_UPDATED, 'Invoice Updated'),
         (EVENT_INVOICE_STATUS_CHANGED, 'Invoice Status Changed'),
+        ('quote.viewed', 'Quote Viewed by Customer'),
+        ('invoice.viewed', 'Invoice Viewed by Customer'),
+        ('contract.viewed', 'Contract Viewed by Customer'),
 
         # System
         (EVENT_SYSTEM_UPDATE_AVAILABLE, 'System Update Available'),

@@ -7,8 +7,12 @@ which blocks sending until someone replaces or deletes it.
 """
 from __future__ import annotations
 
-REVIEW_NOTE = ('<p>[[SAMPLE LANGUAGE — review every section of this template (ideally with your legal adviser), '
-               'adapt it to your services and jurisdiction, then delete this note.]]</p>')
+REVIEW_NOTE = ('<p>[[SAMPLE LANGUAGE — this is a starting point, not legal advice. Have your own legal counsel '
+               'review every section, adapt it to your services and jurisdiction, then delete this note.]]</p>')
+
+# Shown above every sample in the template library and on copies made from one.
+SAMPLE_NOTICE = ('Sample wording to start from — not legal advice. Replace it with your own terms and have your '
+                 'own legal counsel review the result before you send it to a customer.')
 
 
 def _s(title, body, type_='text', optional=False, include=True):
@@ -44,10 +48,10 @@ SIGNATURES = _s('Signatures', '<p>The parties sign this agreement electronically
 
 TEMPLATES = [
     {
-        'name': 'Managed IT services agreement (sample)', 'kind': 'managed_services',
+        'key': 'managed_services_12m', 'name': 'Managed IT services agreement (sample)', 'kind': 'managed_services',
         'description': 'Sample managed services agreement: scope, service levels, responsibilities, fees, term. '
                        'Sample language — review before use.',
-        'defaults': {'duration_months': 12, 'notice_period_days': 30, 'payment_terms': 'Net 30',
+        'defaults': {'term_type': 'annual', 'duration_months': 12, 'notice_period_days': 30, 'payment_terms': 'Net 30',
                      'billing_frequency': 'monthly',
                      'renewal_terms': 'It renews for further 12-month terms unless either party gives notice.'},
         'line_items': [{'description': 'Managed services — per user', 'kind': 'recurring', 'quantity': '25',
@@ -73,7 +77,7 @@ TEMPLATES = [
                      RESPONSIBILITIES, FEES, TERM, TERMINATION, CONFIDENTIALITY, LIABILITY, GENERAL, SIGNATURES],
     },
     {
-        'name': 'Statement of work / project agreement (sample)', 'kind': 'sow',
+        'key': 'sow', 'name': 'Statement of work / project agreement (sample)', 'kind': 'sow',
         'description': 'Sample statement of work for a fixed project: scope, deliverables, milestones, acceptance. '
                        'Sample language — review before use.',
         'defaults': {'payment_terms': '50% on signature, 50% on acceptance', 'billing_frequency': 'one_time'},
@@ -93,7 +97,7 @@ TEMPLATES = [
                      RESPONSIBILITIES, FEES, TERMINATION, GENERAL, SIGNATURES],
     },
     {
-        'name': 'Recurring support agreement (sample)', 'kind': 'recurring_support',
+        'key': 'recurring_support', 'name': 'Recurring support agreement (sample)', 'kind': 'recurring_support',
         'description': 'Sample block-of-hours / recurring support agreement. Sample language — review before use.',
         'defaults': {'duration_months': 12, 'notice_period_days': 30, 'billing_frequency': 'monthly',
                      'payment_terms': 'Net 15'},
@@ -108,7 +112,7 @@ TEMPLATES = [
                      FEES, TERM, TERMINATION, GENERAL, SIGNATURES],
     },
     {
-        'name': 'Backup and disaster recovery services (sample)', 'kind': 'backup_dr',
+        'key': 'backup_dr', 'name': 'Backup and disaster recovery services (sample)', 'kind': 'backup_dr',
         'description': 'Sample backup and disaster recovery services agreement. Sample language — review before use.',
         'defaults': {'duration_months': 12, 'notice_period_days': 60, 'billing_frequency': 'monthly'},
         'line_items': [{'description': 'Backup — per protected server', 'kind': 'recurring', 'quantity': '1',
@@ -129,7 +133,7 @@ TEMPLATES = [
                      FEES, TERM, TERMINATION, LIABILITY, GENERAL, SIGNATURES],
     },
     {
-        'name': 'Security services agreement (sample)', 'kind': 'security',
+        'key': 'security', 'name': 'Security services agreement (sample)', 'kind': 'security',
         'description': 'Sample managed security services agreement (EDR, monitoring, awareness training). '
                        'Sample language — review before use.',
         'defaults': {'duration_months': 12, 'notice_period_days': 30, 'billing_frequency': 'monthly'},
@@ -145,7 +149,7 @@ TEMPLATES = [
                      FEES, TERM, TERMINATION, CONFIDENTIALITY, LIABILITY, GENERAL, SIGNATURES],
     },
     {
-        'name': 'Contract renewal (sample)', 'kind': 'renewal',
+        'key': 'renewal', 'name': 'Contract renewal (sample)', 'kind': 'renewal',
         'description': 'Sample renewal of an existing agreement for a new term. Sample language — review before use.',
         'defaults': {'duration_months': 12},
         'line_items': [],
@@ -156,7 +160,7 @@ TEMPLATES = [
                      FEES, SIGNATURES],
     },
     {
-        'name': 'Contract amendment / addendum (sample)', 'kind': 'amendment',
+        'key': 'amendment', 'name': 'Contract amendment / addendum (sample)', 'kind': 'amendment',
         'description': 'Sample amendment changing an existing agreement. Sample language — review before use.',
         'defaults': {},
         'line_items': [],
@@ -164,6 +168,123 @@ TEMPLATES = [
                      _s('Amendment', '<p>This amendment changes the agreement between the parties identified '
                                      'above. Except as changed below, that agreement stays in effect.</p>'
                                      '<p>[[Describe each change.]]</p>'),
+                     SIGNATURES],
+    },
+]
+
+TERM_M2M = _s('Term and ending the agreement', (
+    '<p>This agreement starts on {{contract.effective_date}} and continues from month to month. Either party may '
+    'end it with {{contract.notice_period_days}} days\' written notice; it then ends at the close of the billing '
+    'month in which the notice period expires.</p>'))
+TERM_FIXED = _s('Term and renewal', (
+    '<p>This agreement starts on {{contract.effective_date}} and runs for an initial term of '
+    '{{contract.duration_months}} months, until {{contract.expiration_date}}. {{contract.renewal_terms}}</p>'
+    '<p>Ending the agreement early: [[Describe what happens if Client ends the agreement before the end of the '
+    'initial term — for example, the recurring fees for the rest of the term, or a stated early-termination '
+    'fee.]]</p>'))
+MANAGED_SCOPE = _s('Services and scope', (
+    '<p>Provider delivers the managed IT services listed in the fees table for the users, devices and sites of '
+    '{{client.name}}: monitoring, patching, help-desk support, and vendor coordination.</p>'
+    '<p><strong>Covered:</strong> [[List the users, devices, sites and applications covered.]]</p>'))
+EXCLUSIONS = _s('Exclusions', '<p>Not included unless agreed in writing: new projects, hardware, software '
+                              'licences, on-site work outside business hours, and recovery from events outside '
+                              'Provider\'s control. Excluded work is quoted separately.</p>')
+
+TEMPLATES += [
+    {
+        'key': 'msa_month_to_month', 'name': 'Managed services agreement — month-to-month (sample)',
+        'kind': 'managed_services',
+        'description': 'Sample managed services agreement that runs month to month and ends on notice. '
+                       'Sample language — not legal advice; have your counsel review it.',
+        'defaults': {'term_type': 'month_to_month', 'notice_period_days': 30, 'payment_terms': 'Net 15',
+                     'billing_frequency': 'monthly', 'auto_renew': False},
+        'line_items': [{'description': 'Managed services — per user, per month', 'kind': 'recurring',
+                        'quantity': '10', 'unit_price': '[[price]]'}],
+        'sections': [PARTIES, MANAGED_SCOPE, EXCLUSIONS, RESPONSIBILITIES, FEES, TERM_M2M, CONFIDENTIALITY,
+                     LIABILITY, GENERAL, SIGNATURES],
+    },
+    {
+        'key': 'msa_36_month', 'name': 'Managed services agreement — 36-month term (sample)',
+        'kind': 'managed_services',
+        'description': 'Sample multi-year managed services agreement with a 36-month initial term and renewal. '
+                       'Sample language — not legal advice; have your counsel review it.',
+        'defaults': {'term_type': 'multi_year', 'duration_months': 36, 'notice_period_days': 90,
+                     'payment_terms': 'Net 30', 'billing_frequency': 'monthly', 'auto_renew': True,
+                     'renewal_terms': 'After the initial term it renews for further 12-month terms unless either '
+                                      'party gives notice before the end of the current term.'},
+        'line_items': [{'description': 'Managed services — per user, per month', 'kind': 'recurring',
+                        'quantity': '25', 'unit_price': '[[price]]'},
+                       {'description': 'Onboarding and documentation', 'kind': 'one_time', 'quantity': '1',
+                        'unit_price': '0'}],
+        'sections': [PARTIES, MANAGED_SCOPE, EXCLUSIONS,
+                     _s('Price changes during the term', '<p>Recurring fees are fixed for the first 12 months. '
+                        'After that Provider may adjust them once a year with 60 days\' written notice, by no '
+                        'more than [[percent]]%.</p>'),
+                     RESPONSIBILITIES, FEES, TERM_FIXED, TERMINATION, CONFIDENTIALITY, LIABILITY, GENERAL,
+                     SIGNATURES],
+    },
+    {
+        'key': 'block_hours_prepaid', 'name': 'Block hours / prepaid support agreement (sample)',
+        'kind': 'recurring_support',
+        'description': 'Sample prepaid block of support hours drawn down as work is done. '
+                       'Sample language — not legal advice; have your counsel review it.',
+        'defaults': {'term_type': 'annual', 'duration_months': 12, 'notice_period_days': 30,
+                     'payment_terms': 'Due on signature', 'billing_frequency': 'one_time'},
+        'line_items': [{'description': 'Prepaid support block (hours)', 'kind': 'one_time',
+                        'quantity': '1', 'unit_price': '[[price]]'}],
+        'sections': [PARTIES,
+                     _s('Prepaid hours', '<p>Client buys a block of [[number]] support hours, paid in advance. '
+                                         'Provider deducts time worked in [[15]]-minute increments and reports '
+                                         'the remaining balance [[monthly]].</p>'),
+                     _s('Expiry and top-ups', '<p>Unused hours expire at the end of the term '
+                                              '({{contract.expiration_date}}) [[unless renewed]]. When the balance '
+                                              'falls below [[number]] hours Provider offers a new block; work '
+                                              'beyond the balance is billed at [[rate]] per hour.</p>'),
+                     _s('What the hours cover', '<p>[[List the kinds of work the hours may be used for and any '
+                                                'work billed separately.]]</p>'),
+                     FEES, TERM_FIXED, TERMINATION, GENERAL, SIGNATURES],
+    },
+    {
+        'key': 'break_fix_tm', 'name': 'Break-fix / time-and-materials terms (sample)', 'kind': 'other',
+        'description': 'Sample terms for work requested as needed and billed for the time and materials used. '
+                       'Sample language — not legal advice; have your counsel review it.',
+        'defaults': {'term_type': 'month_to_month', 'notice_period_days': 0, 'payment_terms': 'Net 15',
+                     'billing_frequency': 'one_time'},
+        'line_items': [],
+        'sections': [PARTIES,
+                     _s('Requesting work', '<p>Client requests work by [[phone, e-mail or the support portal]]. '
+                                           'Provider confirms the request and an estimate when the work is likely '
+                                           'to exceed [[number]] hours.</p>'),
+                     _s('Rates', '<p>Labour: [[rate]] per hour during business hours, [[rate]] per hour outside '
+                                 'them, billed in [[15]]-minute increments with a [[one]]-hour minimum for on-site '
+                                 'visits. Travel: [[describe]].</p>'),
+                     _s('Parts and materials', '<p>Parts, licences and materials are billed at cost plus '
+                                               '[[percent]]%. Manufacturer warranties pass through to Client.</p>'),
+                     _s('No ongoing obligation', '<p>There is no minimum commitment and no recurring fee. Either '
+                                                 'party may stop using these terms at any time; work already '
+                                                 'done remains payable.</p>'),
+                     LIABILITY, GENERAL, SIGNATURES],
+    },
+    {
+        'key': 'msa_with_schedule', 'name': 'Master services agreement with service schedule (sample)',
+        'kind': 'managed_services',
+        'description': 'Sample master services agreement holding the general terms, with Schedule A describing '
+                       'the services; add further schedules as services are added. Sample language — not legal '
+                       'advice; have your counsel review it.',
+        'defaults': {'term_type': 'annual', 'duration_months': 12, 'notice_period_days': 60,
+                     'payment_terms': 'Net 30', 'billing_frequency': 'monthly', 'auto_renew': True,
+                     'renewal_terms': 'It renews for further 12-month terms unless either party gives notice.'},
+        'line_items': [{'description': 'Schedule A services — per month', 'kind': 'recurring', 'quantity': '1',
+                        'unit_price': '[[price]]'}],
+        'sections': [PARTIES,
+                     _s('Structure of this agreement', '<p>This master services agreement sets the general terms. '
+                        'Each schedule signed under it describes particular services, their fees and service '
+                        'levels. If a schedule conflicts with these general terms, the schedule wins for its '
+                        'services.</p>'),
+                     RESPONSIBILITIES, FEES, TERM_FIXED, TERMINATION, CONFIDENTIALITY, LIABILITY, GENERAL,
+                     _s('Schedule A — services', '<p><strong>Services:</strong> [[Describe the services.]]</p>'
+                        '<p><strong>Service levels:</strong> [[Response and resolution targets.]]</p>'
+                        '<p><strong>Fees:</strong> as listed in the fees table above.</p>'),
                      SIGNATURES],
     },
 ]
@@ -187,20 +308,35 @@ CLAUSES = [
 
 
 def seed(apps=None, by=None):
-    """Create the starter templates and clauses if missing (idempotent by name)."""
+    """Create the starter templates and clauses that are missing.
+
+    Idempotent and never overwrites: a sample is identified by its
+    `sample_key` (kept when someone renames or edits it), or for rows made
+    before keys existed by its original name. One that exists in any form —
+    edited, renamed or deactivated — is left exactly as it is; only a sample
+    that was deleted is created again."""
     if apps is None:
         from .models import ContractClause, ContractTemplate, ContractTemplateVersion
     else:
         ContractTemplate = apps.get_model('contracts', 'ContractTemplate')
         ContractTemplateVersion = apps.get_model('contracts', 'ContractTemplateVersion')
         ContractClause = apps.get_model('contracts', 'ContractClause')
+    if not any(f.name == 'sample_key' for f in ContractTemplate._meta.get_fields()):
+        # Migration 0002 on a new install runs before sample_key exists;
+        # migration 0004 seeds everything once it does.
+        return 0
     from .content import normalize_line_items, normalize_sections
     made = 0
     for t in TEMPLATES:
-        if ContractTemplate.objects.filter(organization__isnull=True, name=t['name']).exists():
+        starters = ContractTemplate.objects.filter(organization__isnull=True)
+        if starters.filter(sample_key=t['key']).exists():
+            continue
+        legacy = starters.filter(name=t['name'], sample_key='').first()
+        if legacy is not None:
+            ContractTemplate.objects.filter(pk=legacy.pk).update(sample_key=t['key'])
             continue
         tpl = ContractTemplate.objects.create(organization=None, name=t['name'], kind=t['kind'],
-                                              description=t['description'], is_sample=True)
+                                              description=t['description'], is_sample=True, sample_key=t['key'])
         items = [dict(li, unit_price='0' if '[[' in str(li.get('unit_price')) else li['unit_price'])
                  for li in t['line_items']]
         ContractTemplateVersion.objects.create(

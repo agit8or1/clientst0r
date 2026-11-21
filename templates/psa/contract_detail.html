@@ -22,6 +22,8 @@
             &middot;
             {{ item.start_date }} &rarr; {{ item.end_date|default:'open' }}
         </div>
+        <div class="small mt-1"><i class="fas fa-hourglass-half me-1" aria-hidden="true"></i>Term: <strong>{{ item.term_label }}</strong>{% if item.auto_renew %} · renews automatically{% endif %}{% if item.notice_period_days %} · {{ item.notice_period_days }} days' notice{% endif %}</div>
+        <div class="small mt-1">{% if esign.satisfied %}<span class="badge text-bg-success"><i class="fas fa-signature me-1"></i>{% if esign.basis == 'not_required' %}No e-signature needed{% elif esign.basis == 'legacy' %}Accepted before e-signatures were required{% elif esign.basis == 'renewal' %}Renewal of a signed contract{% else %}Signed by the customer{% endif %}</span>{% if esign.document %} ({{ esign.document.reference }}){% endif %}{% else %}<span class="badge text-bg-warning text-dark"><i class="fas fa-signature me-1"></i>Waiting for the customer's e-signature</span> <span class="text-body-secondary">{{ esign.message }}</span>{% endif %}</div>
         {% if contract_doc_links %}<div class="small mt-1"><i class="fas fa-file-signature me-1" aria-hidden="true"></i>Contract document{{ contract_doc_links|length|pluralize }}: {% for label, href in contract_doc_links %}<a href="{{ href }}">{{ label|truncatechars:60 }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
     </div>
     <div>

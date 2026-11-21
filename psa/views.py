@@ -3716,6 +3716,7 @@ def contract_list(request):
 @require_http_methods(['GET', 'POST'])
 def contract_form(request, pk=None):
     from core.models import Organization
+    from .contract_terms import TERM_TYPES
     if pk:
         item = get_object_or_404(_for_customer(request, Contract.objects.all()), pk=pk)
         org = item.organization
@@ -3739,6 +3740,8 @@ def contract_form(request, pk=None):
             'client_orgs': client_orgs,
             'contract_types': Contract.CONTRACT_TYPES,
             'status_choices': Contract.STATUS_CHOICES,
+            'term_types': TERM_TYPES,
+            'esign': item.esign_status() if item and item.pk else None,
             'priorities': priorities,
             'selected_client_org_id': selected_org_id if selected_org_id is not None
                                        else (item.organization_id if item else (org.pk if org else None)),
@@ -3789,6 +3792,28 @@ def contract_form(request, pk=None):
         item.status = f.choice('status', item.status or 'draft', dict(Contract.STATUS_CHOICES))
         item.start_date = f.date('start_date', item.start_date, blank=item.start_date)
         item.end_date = f.date('end_date', item.end_date, blank=None)
+        # Term (psa.contract_terms). Anything but month-to-month is activated
+        # and billed only after the customer's e-signature.
+        from .contract_terms import normalize as _norm_term, term_errors as _term_errors
+        term = f.choice('term_type', item.term_type or 'month_to_month', dict(TERM_TYPES))
+        months = f.integer('term_months', item.term_months, blank=None, minimum=1)
+        bad_term = _term_errors(term, months)
+        if bad_term:
+            for e in bad_term:
+                messages.error(request, e)
+            return _render(selected_org_id=item_org.pk)
+        item.term_type, item.term_months = _norm_term(term, months)
+        item.notice_period_days = f.integer('notice_period_days', item.notice_period_days, blank=None, minimum=0)
+        if item.status == 'active' and (not item.pk or not Contract.objects.filter(pk=item.pk, status='active').exists()):
+            esign = item.esign_status()
+            if not esign['satisfied']:
+                messages.error(request, f'Not activated: {esign["message"]}')
+                item.status = (Contract.objects.filter(pk=item.pk).values_list('status', flat=True).first()
+                               if item.pk else 'draft') or 'draft'
+        elif item.status == 'active':
+            esign = item.esign_status(for_billing=True)
+            if not esign['satisfied']:
+                messages.warning(request, f'Recurring billing of this contract is held: {esign["message"]}')
         item.total_hours = f.decimal('total_hours', item.total_hours, minimum=Decimal('0'))
         item.hourly_rate = f.decimal('hourly_rate', item.hourly_rate, minimum=Decimal('0'))
         item.overage_rate = f.decimal('overage_rate', item.overage_rate, minimum=Decimal('0'))
@@ -3986,6 +4011,7 @@ def contract_detail(request, pk):
         'priorities': priorities,
         'effective_hours_remaining': item.effective_hours_remaining(),
         'renewal_history': item.renewals.all().order_by('-start_date') if hasattr(item, 'renewals') else [],
+        'esign': item.esign_status(for_billing=item.status == 'active'),
     })
 
 
@@ -4286,7 +4312,7 @@ def email_graph_test_send(request, pk):
 @require_psa_enabled
 def quote_list(request):
     org = get_request_organization(request)
-    qs = Quote.objects.select_related('client_org', 'created_by')
+    qs = Quote.objects.select_related('client_org', 'created_by', 'signature')
     if org is not None:
         qs = qs.filter(organization=org)
     elif not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
@@ -4386,6 +4412,14 @@ def quote_form(request, pk=None):
         requested_sent = item.status == 'sent' and status_before == 'draft'
         if requested_sent:
             item.status = 'draft'
+        if item.status == 'accepted' and status_before != 'accepted':
+            # Accepted only by the customer's e-signature (Quote.save refuses
+            # it too); keep the previous status and say why.
+            esign = item.esign_status() if item.pk else {'satisfied': False}
+            if not esign['satisfied']:
+                item.status = status_before if status_before != 'accepted' else 'draft'
+                messages.warning(request, 'A quote is accepted only when the customer e-signs it on the sign '
+                                          'page; the status was left unchanged.')
         item.valid_until = f.date('valid_until', item.valid_until, blank=None)
         if not pk:
             # Explicit, never a silent zero: tax.document_hooks reports
@@ -5670,10 +5704,13 @@ def invoice_detail(request, pk):
         qs = qs.filter(organization=org)
     item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
     _require_invoice_view(request, item)
+    from . import doc_views
+    from .visibility import is_msp_staff
     return render(request, 'psa/invoice_detail.html', {
         'item': item,
         'line_items': item.line_items.all(),
         'payments': item.payments.all(),
+        'doc_progress': doc_views.progress(item, 'invoice') if is_msp_staff(request.user) else None,
     })
 
 
@@ -6661,7 +6698,7 @@ def invoice_email(request, pk):
             return redirect('psa:invoice_detail', pk=invoice.pk)
         invoice.refresh_from_db()
     try:
-        ok = email_invoice(invoice, recipient=recipient, subject=subject, body=body)
+        ok = email_invoice(invoice, recipient=recipient, subject=subject, body=body, request=request)
     except Exception as exc:
         messages.error(request, f'Email failed: {exc}')
         return redirect('psa:invoice_detail', pk=invoice.pk)
@@ -6688,6 +6725,7 @@ def invoice_email(request, pk):
 @require_psa_enabled
 def quote_detail(request, pk):
     from accounts.permission_utils import user_has_perm
+    from . import doc_views
     org = get_request_organization(request)
     qs = Quote.objects.select_related('client_org', 'organization', 'created_by')
     if org is not None:
@@ -6703,6 +6741,8 @@ def quote_detail(request, pk):
         'can_create_po': user_has_perm(request.user, 'procurement_create_po'),
         'linked_pos': item.purchase_orders.all().order_by('-created_at'),
         'signature_checks': sig.verify() if sig else {},
+        'doc_progress': doc_views.progress(item, 'quote'),
+        'esign': item.esign_status(),
     })
 
 

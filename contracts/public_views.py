@@ -145,6 +145,13 @@ def seen(request, public_id):
         return HttpResponse(status=204)
     if tracking.classify(request, inv)['automated']:
         return HttpResponse(status=204)
+    user = getattr(request, 'user', None)
+    if inv.role == 'client' and user is not None and user.is_authenticated:
+        # MSP staff opening a customer's link (checking it, or a copied link)
+        # is not the customer viewing it.
+        from psa.visibility import is_msp_staff
+        if is_msp_staff(user):
+            return HttpResponse(status=204)
     if signing.page_state(inv) in ('superseded', 'revoked'):
         return HttpResponse(status=204)
     if not notify.raise_alert(inv.contract, f'view-nonce:{nonce}', 'nonce'):

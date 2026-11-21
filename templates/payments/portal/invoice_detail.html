@@ -1,6 +1,7 @@
-{% extends "portal/base.html" %}
+{% extends "portal/base.html" %}{% load static %}
 {% block title %}Invoice {{ invoice.invoice_number }}{% endblock %}
 {% block content %}
+{% if view_nonce %}<div hidden data-doc-view-url="{% url 'portal:billing_invoice_seen' invoice.pk %}" data-doc-view-nonce="{{ view_nonce }}" data-doc-view-csrf="{{ csrf_token }}"></div>{% endif %}
 <p><a href="{% url 'portal:billing_home' %}">&larr; Billing</a></p>
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
     <h4 class="mb-0 me-auto">Invoice {{ invoice.invoice_number }}</h4>
@@ -57,3 +58,4 @@
 </table></div></div>
 {% endif %}
 {% endblock %}
+{% block extra_js %}{% if view_nonce %}<script src="{% static 'js/doc-view-beacon.js' %}"></script>{% endif %}{% endblock %}

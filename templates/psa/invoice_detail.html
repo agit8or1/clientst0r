@@ -134,6 +134,7 @@ Re-push anyway?">
             </div>
         </div>
         {% load tax_tags %}{% tax_panel item 'invoice' %}
+        {% if doc_progress %}{% include "psa/_doc_progress.html" %}{% endif %}
         <div class="card">
             <div class="card-header"><strong>Record Payment</strong></div>
             <div class="card-body">

@@ -69,6 +69,8 @@ KINDS = [
     ('other', 'Other'),
 ]
 
+from psa.contract_terms import TERM_TYPES  # noqa: E402 — one vocabulary for documents and billing
+
 BILLING_FREQUENCIES = [
     ('one_time', 'One time'), ('monthly', 'Monthly'), ('quarterly', 'Quarterly'),
     ('annually', 'Annually'),
@@ -241,6 +243,9 @@ class ContractTemplate(models.Model):
     kind = models.CharField(max_length=30, choices=KINDS, default='other')
     description = models.TextField(blank=True)
     is_sample = models.BooleanField(default=False, help_text='Shipped sample language that needs review before use.')
+    sample_key = models.CharField(max_length=60, blank=True, db_index=True,
+                                  help_text='Which shipped sample this row is (kept when it is renamed or edited, '
+                                            'so re-seeding never adds it again or overwrites it).')
     is_active = models.BooleanField(default=True)
     cloned_from = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
@@ -362,6 +367,9 @@ class ContractDocument(models.Model):
     payment_terms = models.CharField(max_length=255, blank=True, default='Net 30')
     billing_frequency = models.CharField(max_length=12, choices=BILLING_FREQUENCIES, default='monthly')
     effective_date = models.DateField(null=True, blank=True)
+    term_type = models.CharField(max_length=20, choices=TERM_TYPES, default='month_to_month',
+                                 help_text='Month-to-month, annual, multi-year or a custom fixed term '
+                                           '(duration_months holds the length).')
     duration_months = models.PositiveSmallIntegerField(null=True, blank=True)
     expiration_date = models.DateField(null=True, blank=True)
     renewal_terms = models.TextField(blank=True)

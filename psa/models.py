@@ -2401,6 +2401,23 @@ class Contract(models.Model):
         default=12,
         help_text='Length of each auto-renewed period in months.',
     )
+    # --- Contract term and the e-signature rule (psa.contract_terms) ---------
+    term_type = models.CharField(
+        max_length=20, default='month_to_month',
+        choices=[('month_to_month', 'Month-to-month'), ('annual', 'Annual (12 months)'),
+                 ('multi_year', 'Multi-year'), ('fixed', 'Custom fixed term')],
+        help_text='Month-to-month, annual, multi-year or a custom fixed term. Anything but month-to-month '
+                  'needs the customer\'s e-signature before the contract is activated or billed.')
+    term_months = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text='Length of the term in months (blank for month-to-month).')
+    notice_period_days = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text='Days of written notice either party gives to end the contract.')
+    legacy_terms_hash = models.CharField(
+        max_length=64, blank=True, editable=False,
+        help_text='Set once by the upgrade for contracts that existed before e-signatures were required: '
+                  'a fingerprint of their commercial terms then. They keep billing as before while those '
+                  'terms are unchanged.')
+
     # Phase 15 v1 (v3.17.291) — recurring billing schedule. When the
     # cadence is non-`none`, `psa_generate_recurring_invoices` cron
     # auto-generates a draft Invoice for the period on `next_billing_date`.
@@ -2511,6 +2528,125 @@ class Contract(models.Model):
     def __str__(self):
         return f'{self.client_org.name} — {self.name} ({self.get_contract_type_display()})'
 
+    # --- e-signature (psa.contract_terms) -------------------------------------
+
+    @property
+    def term_label(self):
+        from .contract_terms import label
+        return label(self.term_type, self.term_months)
+
+    def signed_documents(self):
+        """Contract documents linked to this billing contract that every
+        party has signed (contracts.ContractDocument.billing_contract)."""
+        try:
+            from contracts.models import ContractDocument
+        except Exception:  # noqa: BLE001
+            return []
+        if not self.pk:
+            return []
+        return list(ContractDocument.objects.filter(
+            billing_contract_id=self.pk, status=ContractDocument.SIGNED,
+            current_version__completed_at__isnull=False).select_related('current_version')
+            .order_by('-signed_at', '-pk'))
+
+    def document_mismatch(self, document) -> str:
+        """'' when this billing contract carries the commercial terms the
+        customer signed in `document` (its frozen, signed version); otherwise
+        what differs. A change after signing needs a new signature."""
+        from decimal import Decimal as _D
+        from .contract_terms import DOC_TO_BILLING_FREQUENCY, normalize
+        v = document.current_version
+        content = (v.content if v is not None else None) or {}
+        terms = content.get('terms') or {}
+        signed_type, signed_months = normalize(terms.get('term_type') or 'month_to_month',
+                                               terms.get('duration_months'))
+        own_type, own_months = normalize(self.term_type, self.term_months)
+        diffs = []
+        if self.client_org_id != (content.get('client') or {}).get('id'):
+            diffs.append('customer')
+        if (signed_type, signed_months) != (own_type, own_months):
+            diffs.append('term')
+        freq = DOC_TO_BILLING_FREQUENCY.get(terms.get('billing_frequency'), 'none')
+        if freq != self.billing_frequency:
+            diffs.append('billing frequency')
+        try:
+            signed_recurring = _D(str(((content.get('totals') or {}).get('recurring') or {}).get('total') or '0'))
+        except Exception:  # noqa: BLE001
+            signed_recurring = _D('0')
+        if signed_recurring.quantize(_D('0.01')) != self.effective_recurring_amount.quantize(_D('0.01')):
+            diffs.append('recurring amount')
+        if bool(terms.get('auto_renew')) != bool(self.auto_renew):
+            diffs.append('auto-renewal')
+        return ', '.join(diffs)
+
+    def esign_status(self, _depth=0, for_billing=False) -> dict:
+        """Whether this contract may be activated and billed.
+
+        {required, satisfied, basis, document, message}. `basis` is one of
+        not_required (month-to-month and the exemption is on), signed (a
+        signed contract document with these exact commercial terms), renewal
+        (an automatic renewal of a contract that is itself satisfied, on the
+        same terms), legacy (existed before the rule, terms unchanged) or ''.
+
+        `for_billing`: billing an already-active month-to-month contract is
+        never blocked, so switching the month-to-month exemption off in
+        Settings → Billing gates new activations only and never stops
+        billing that was running.
+        """
+        from .contract_terms import MONTH_TO_MONTH, requires_signature, terms_hash
+        required = requires_signature(self.term_type)
+        if for_billing and self.term_type == MONTH_TO_MONTH:
+            required = False
+        out = {'required': required, 'satisfied': False, 'basis': '',
+               'document': None, 'message': ''}
+        if not out['required']:
+            out.update(satisfied=True, basis='not_required')
+            return out
+        if self.legacy_terms_hash and self.legacy_terms_hash == terms_hash(self):
+            out.update(satisfied=True, basis='legacy',
+                       message='Created before e-signatures were required; its terms are unchanged.')
+            return out
+        mismatches = []
+        for doc in self.signed_documents():
+            diff = self.document_mismatch(doc)
+            if not diff:
+                out.update(satisfied=True, basis='signed', document=doc,
+                           message=f'Signed by the customer ({doc.reference}).')
+                return out
+            mismatches.append(f'{doc.reference} differs in {diff}')
+        parent = self.parent_contract if self.parent_contract_id else None
+        if parent is not None and _depth < 50 and terms_hash(parent) == terms_hash(self):
+            ps = parent.esign_status(_depth + 1, for_billing=for_billing)
+            if ps['satisfied']:
+                out.update(satisfied=True, basis='renewal', document=ps['document'],
+                           message='Automatic renewal of an accepted contract on the same terms.')
+                return out
+        if mismatches:
+            out['message'] = ('The billing terms no longer match what the customer signed ('
+                              + '; '.join(mismatches) + '). Send an amendment for e-signature.')
+        else:
+            out['message'] = (f'A {self.term_label.lower()} contract needs the customer\'s e-signature before it '
+                              'is activated or billed. Send the agreement from Contracts and create or link '
+                              'this billing contract once it is signed.')
+        return out
+
+    def require_esign(self, action='activated'):
+        st = self.esign_status(for_billing=(action == 'billed'))
+        if not st['satisfied']:
+            from .contract_terms import ESignatureRequired
+            raise ESignatureRequired(f'Contract "{self.name}" cannot be {action}: {st["message"]}')
+        return st
+
+    def save(self, *args, **kwargs):
+        # Activation needs a completed e-signature unless the term is exempt
+        # (psa.contract_terms). Checked on every path that saves the model —
+        # forms, admin, management commands, services.
+        if self.status == 'active':
+            was_active = bool(self.pk) and type(self).objects.filter(pk=self.pk, status='active').exists()
+            if not was_active:
+                self.require_esign('activated')
+        super().save(*args, **kwargs)
+
     @property
     def hours_used(self):
         return round(self.hours_used_minutes / 60.0, 2)
@@ -2617,6 +2753,9 @@ class Contract(models.Model):
         if self.billing_frequency == 'none':
             return None
         on_date = on_date or _d.today()
+        # A contract that needs the customer's e-signature is never billed
+        # without one (psa.contract_terms). Raises ESignatureRequired.
+        self.require_esign('billed')
 
         # v3.17.564 — do not bill the same period twice.
         #
@@ -3519,6 +3658,12 @@ class Quote(models.Model):
     customer_token_hash = models.CharField(max_length=64, blank=True, db_index=True,
         editable=False, help_text='HMAC-SHA256 of customer_token, for lookups')
 
+    # Customer views of the sign link (psa.doc_views): recorded by the page's
+    # interaction beacon, never by the bare GET, and never for staff or bots.
+    first_viewed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    last_viewed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    view_count = models.PositiveIntegerField(default=0, editable=False)
+
     created_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='created_psa_quotes',
@@ -3548,7 +3693,36 @@ class Quote(models.Model):
                                            | {'customer_token', 'customer_token_hash'})
         if self.pk:
             self._refuse_signed_content_change()
+            # Every quote is accepted by the customer's e-signature
+            # (portal sign page); staff cannot move one to accepted without it.
+            # A quote created already accepted (an import of history) is left
+            # alone; mark_accepted / convert_to_project refuse it too.
+            if self.status == 'accepted' and not type(self).objects.filter(pk=self.pk, status='accepted').exists():
+                self.require_esign('accepted')
         super().save(*args, **kwargs)
+
+    # --- e-signature acceptance ---------------------------------------------
+
+    def esign_status(self) -> dict:
+        """{satisfied, signature, message}: accepted only by a customer
+        e-signature (QuoteSignature, made on the portal sign page) that is
+        bound to the current content (or predates binding)."""
+        sig = QuoteSignature.objects.filter(quote_id=self.pk).first() if self.pk else None
+        if sig is None:
+            return {'satisfied': False, 'signature': None,
+                    'message': 'The customer has not signed it. Every quote is accepted by the customer\'s '
+                               'e-signature: send them the quote\'s sign link.'}
+        if sig.content_hash and sig.content_hash != self.content_hash():
+            return {'satisfied': False, 'signature': sig,
+                    'message': 'The quote changed after it was signed; a new signature is required.'}
+        return {'satisfied': True, 'signature': sig, 'message': ''}
+
+    def require_esign(self, action='accepted'):
+        st = self.esign_status()
+        if not st['satisfied']:
+            from .contract_terms import ESignatureRequired
+            raise ESignatureRequired(f'Quote {self.quote_number} cannot be {action}: {st["message"]}')
+        return st
 
     # --- signed-revision binding ------------------------------------------
     # A signature records the hash of exactly what was signed (number,
@@ -3685,6 +3859,7 @@ class Quote(models.Model):
                 f'Quote {self.quote_number} has open approvals — '
                 f'resolve the chain first.'
             )
+        self.require_esign('accepted')
         self.status = 'accepted'
         self.accepted_at = timezone.now()
         if create_ticket and not self.converted_ticket and queue and priority and ticket_type and status:
@@ -3769,6 +3944,7 @@ class Quote(models.Model):
         """
         if self.converted_project_id:
             return self.converted_project
+        self.require_esign('converted')
         project = Project.objects.create(
             organization=self.organization,
             client_org=self.client_org,
@@ -4924,6 +5100,12 @@ class Invoice(models.Model):
                   '— required for orgs with multiple QBO/Xero books.',
     )
 
+    # Customer views in the portal (psa.doc_views): recorded by the page's
+    # interaction beacon for the customer's own users, never for staff.
+    first_viewed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    last_viewed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    view_count = models.PositiveIntegerField(default=0, editable=False)
+
     notes = models.TextField(blank=True)
     # Phase 36 v2 (v3.17.228): pre-invoice approval gate. When the invoice
     # exceeds a configured total threshold OR the source contract is over
@@ -5505,6 +5687,47 @@ class Payment(models.Model):
 # ---------------------------------------------------------------------------
 # Quote e-signature (Workstream 5)
 # ---------------------------------------------------------------------------
+
+class DocumentView(models.Model):
+    """Who opened a quote's sign link or an invoice in the portal, per
+    recipient: first / last view and how many times (psa.doc_views).
+
+    Written only by the page's interaction beacon (a same-origin POST after
+    a person scrolled, clicked or typed), never by the bare page load, so
+    link scanners and prefetchers are not counted; staff and automated
+    clients are ignored. A quote has one shared sign link, so its viewer is
+    "the link holder"; an invoice is opened by a signed-in portal user, so
+    each user is a recipient. Recording a view changes nothing else.
+    """
+    QUOTE, INVOICE = 'quote', 'invoice'
+    DOC_TYPES = [(QUOTE, 'Quote'), (INVOICE, 'Invoice')]
+
+    doc_type = models.CharField(max_length=10, choices=DOC_TYPES)
+    object_id = models.PositiveIntegerField()
+    client_org = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='+')
+    viewer_key = models.CharField(max_length=80, help_text='"link" or "user:<id>"')
+    viewer_user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                    blank=True, related_name='+')
+    viewer_label = models.CharField(max_length=255, blank=True)
+    first_viewed_at = models.DateTimeField(default=timezone.now)
+    last_viewed_at = models.DateTimeField(default=timezone.now)
+    view_count = models.PositiveIntegerField(default=1)
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_user_agent = models.CharField(max_length=400, blank=True)
+    last_nonce = models.CharField(max_length=32, blank=True, editable=False,
+                                  help_text='The last counted page load, so a repeated beacon counts once.')
+
+    class Meta:
+        db_table = 'psa_document_views'
+        ordering = ['-last_viewed_at']
+        constraints = [models.UniqueConstraint(fields=['doc_type', 'object_id', 'viewer_key'],
+                                               name='psa_docview_unique_viewer')]
+        indexes = [models.Index(fields=['doc_type', 'object_id'])]
+
+    def __str__(self):
+        return f'{self.doc_type} #{self.object_id} viewed by {self.viewer_label or self.viewer_key}'
+
 
 class QuoteSignature(models.Model):
     """Customer signature record for a Quote. Signature drawn on the

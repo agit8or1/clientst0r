@@ -44,6 +44,15 @@ def _emailed_csat_token():
     assert m, 'no CSAT link in the email'
     return m.group(1)
 
+def _customer_signs(q):
+    """Quotes are accepted only by the customer's e-signature (portal sign
+    page): record one bound to the quote's current content."""
+    from psa.models import QuoteSignature
+    QuoteSignature.objects.create(quote=q, signed_by_name='Pat', signed_by_email='pat@example.test',
+                                  signature_data='data:image/png;base64,AA', content_hash=q.content_hash(),
+                                  content_json=q.content_json().decode())
+
+
 class Phase3FeaturesTests(TestCase):
     """
     Phase 3: Projects, Recurring Tickets, Approvals, KB linking.
@@ -420,6 +429,7 @@ class Phase5QuotesExpensesTests(TestCase):
             title='Project Z', description='Big project',
         )
         before = Ticket.objects.filter(organization=self.client_org).count()
+        _customer_signs(q)
         q.mark_accepted(user=self.user, create_ticket=True,
                         queue=self.queue, priority=self.priority,
                         ticket_type=self.ttype, status=self.status)
@@ -436,6 +446,7 @@ class Phase5QuotesExpensesTests(TestCase):
             title='No-ticket quote',
         )
         before = Ticket.objects.filter(organization=self.client_org).count()
+        _customer_signs(q)
         q.mark_accepted(user=self.user, create_ticket=False)
         after = Ticket.objects.filter(organization=self.client_org).count()
         self.assertEqual(after, before)
@@ -453,6 +464,7 @@ class Phase5QuotesExpensesTests(TestCase):
         QuoteLineItem.objects.create(quote=q, description='Rack & cable', quantity=8, unit_price=150, sort_order=1)
         QuoteLineItem.objects.create(quote=q, description='Migrate workloads', quantity=16, unit_price=200, sort_order=2)
 
+        _customer_signs(q)
         q.mark_accepted(user=self.user, create_ticket=False, create_project=True)
 
         self.assertEqual(q.status, 'accepted')
@@ -474,6 +486,7 @@ class Phase5QuotesExpensesTests(TestCase):
             title='Idempotent test',
         )
         QuoteLineItem.objects.create(quote=q, description='Item', quantity=1, unit_price=10)
+        _customer_signs(q)
         first = q.convert_to_project(user=self.user)
         second = q.convert_to_project(user=self.user)
         self.assertEqual(first.pk, second.pk)
@@ -2183,6 +2196,7 @@ class WorkflowEnforcementTests(TestCase):
         )
         appr.decide(user=self.user, approved=True)
         # Now should accept
+        _customer_signs(q)
         q.mark_accepted(user=self.user, create_ticket=False)
         q.refresh_from_db()
         self.assertEqual(q.status, 'accepted')

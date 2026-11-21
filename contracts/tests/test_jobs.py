@@ -224,4 +224,7 @@ class SchedulerWiringTests(ContractTestCase):
         call_command('contracts_maintenance', verbosity=0)
         call_command('contracts_seed_templates', verbosity=0)
         from contracts.models import ContractTemplate
-        self.assertEqual(ContractTemplate.objects.filter(is_sample=True, organization__isnull=True).count(), 7)
+        from contracts.starter_templates import TEMPLATES
+        self.assertEqual(ContractTemplate.objects.filter(is_sample=True, organization__isnull=True).count(),
+                         len(TEMPLATES))
+        self.assertEqual(len(TEMPLATES), 12)

@@ -64,6 +64,11 @@ SPECS = (
     Spec('quote_approval_threshold_total', 'Quote approval threshold',
          'A quote whose total reaches this amount is routed for internal approval. 0 turns it off.',
          'money', 'Invoice approval', False, Decimal('9999999999.99'), '$'),
+    Spec('contracts_esign_exempt_month_to_month', 'Month-to-month contracts without e-signature',
+         'Contracts whose term is not month-to-month, and every quote, must be accepted by the customer\'s '
+         'e-signature before they are activated, converted or billed. On: month-to-month contracts are '
+         'exempt. Off: every new month-to-month activation needs the signature too; contracts already active keep billing.',
+         'bool', 'E-signature'),
     Spec('late_fee_pct', 'Late fee',
          'Percent of the overdue balance charged once per overdue invoice by the daily late-fee job, as a '
          'separate account charge. 0 turns late fees off.', 'percent', 'Late fees', True, Decimal('100'), '%'),

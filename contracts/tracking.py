@@ -141,6 +141,16 @@ def record_view(inv, request, level, now=None):
                   request=request, data={'verification': level},
                   message=view_message(inv, level))
     services.transition(contract, ContractDocument.VIEWED, only_from=(ContractDocument.SENT,))
+    if not ContractInvitation.objects.filter(pk=inv.pk, view_count__gt=1).exists():
+        # First view of this signer's invitation: the shared webhook event.
+        try:
+            from core import webhook_events as wh
+            wh.fire('contract.viewed', contract.organization_id, {
+                'contract_id': contract.pk, 'reference': contract.reference, 'status': contract.status,
+                'version': inv.version.version_number if inv.version_id else None,
+                'verified': verified, 'viewed_at': now.isoformat()})
+        except Exception:  # noqa: BLE001
+            pass
     settings = ContractSettings.for_organization(contract.organization)
     told = False
     if notify.raise_alert(contract, f'first-view:{inv.version_id}', 'first_view'):

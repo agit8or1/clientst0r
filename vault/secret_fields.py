@@ -636,7 +636,7 @@ RETIRED_SECRET_TABLES = {
 NOT_SECRET_FIELD_NAMES = {
     'password_type', 'p256dh_key', 'credential_id', 'idempotency_key',
     'notification_key', 'ssl_expiry_notified_key', 'domain_expiry_notified_key',
-    'key_prefix', 'token_prefix', 'otp_issuer', 'auth_source',
+    'key_prefix', 'api_key_prefix', 'token_prefix', 'otp_issuer', 'auth_source',
     'ticket_priority_code',
 }
 

@@ -149,10 +149,11 @@ class BuilderTests(ContractTestCase):
 
 class TemplateTests(ContractTestCase):
 
-    def test_seven_sample_templates(self):
+    def test_shipped_sample_templates(self):
+        from contracts.starter_templates import TEMPLATES
         names = set(ContractTemplate.objects.filter(is_sample=True, organization__isnull=True)
                     .values_list('name', flat=True))
-        self.assertEqual(len(names), 7)
+        self.assertEqual(len(names), len(TEMPLATES))
         for tpl in ContractTemplate.objects.filter(is_sample=True):
             data = tpl.latest_version.data
             self.assertTrue(any('[[' in s['body'] for s in data['sections']), tpl.name)

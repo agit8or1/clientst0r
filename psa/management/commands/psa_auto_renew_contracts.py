@@ -77,6 +77,12 @@ class Command(BaseCommand):
             )
             if opts['dry_run']:
                 continue
+            esign = c.esign_status()
+            if not esign['satisfied']:
+                # The renewal would start without the customer's acceptance of
+                # these terms; leave the contract for a person to resolve.
+                self.stdout.write(self.style.WARNING(f'Not renewing {c.id} {c.name}: {esign["message"]}'))
+                continue
 
             with transaction.atomic():
                 # Old contract: mark expired
@@ -115,6 +121,12 @@ class Command(BaseCommand):
                     rollover_expires_at=rollover_expires_at,
                     auto_renew=c.auto_renew,
                     auto_renew_period_months=c.auto_renew_period_months,
+                    # Same term on renewal; the renewal is accepted through its
+                    # parent's e-signature while the terms stay the same
+                    # (psa.Contract.esign_status, basis "renewal").
+                    term_type=c.term_type,
+                    term_months=c.term_months,
+                    notice_period_days=c.notice_period_days,
                     billing_frequency=c.billing_frequency,
                     next_billing_date=next_billing,
                     recurring_amount=c.recurring_amount,

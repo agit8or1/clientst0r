@@ -98,7 +98,43 @@ def invoice_detail(request, pk):
         'can_pay': bool(connection) and due > 0 and not processing
         and services.settings_for(connection).portal_payments_enabled,
         'processing': processing, 'provider': connection.provider_type if connection else '',
+        'view_nonce': _view_nonce(invoice),
     })
+
+
+def _view_nonce(invoice):
+    from psa import doc_views
+    return doc_views.nonce('invoice', invoice.pk)
+
+
+@require_POST
+def invoice_seen(request, pk):
+    """View beacon of the portal invoice page (psa.doc_views): records which
+    of the customer's users opened it. Always 204 — it reveals nothing about
+    invoices the user may not see and changes nothing but the view record."""
+    from core.public_throttle import limited
+    from psa import doc_views
+    if limited(request, 'portal.invoice_seen', '30/m'):
+        return HttpResponse(status=204)
+    if not request.user.is_authenticated or doc_views.ignore_reason(request):
+        return HttpResponse(status=204)
+    try:
+        resp = _record_invoice_view(request, pk)
+    except (Http404, PermissionDenied):
+        resp = None
+    return resp or HttpResponse(status=204)
+
+
+@billing_required
+def _record_invoice_view(request, pk):
+    from psa import doc_views
+    invoice = _invoice(request, pk)
+    try:
+        doc_views.record(invoice, 'invoice', request, user=request.user)
+    except Exception:  # noqa: BLE001 — tracking never breaks the page
+        import logging
+        logging.getLogger('payments').exception('invoice view tracking failed')
+    return HttpResponse(status=204)
 
 
 @billing_required

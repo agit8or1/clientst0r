@@ -1,0 +1,20 @@
+{# Sent → Viewed → Signed / Accepted / Paid for a quote or invoice (psa.doc_views.progress). #}
+<div class="card mb-3">
+    <div class="card-header"><strong><i class="fas fa-route me-1"></i>Customer progress</strong></div>
+    <ol class="list-group list-group-flush list-unstyled mb-0">
+        {% for s in doc_progress.steps %}
+        <li class="list-group-item d-flex gap-2 align-items-start small">
+            {% if s.done %}<i class="fas fa-circle-check text-success mt-1" aria-hidden="true"></i>{% else %}<i class="far fa-circle text-body-secondary mt-1" aria-hidden="true"></i>{% endif %}
+            <div><strong>{{ s.label }}</strong>{% if s.done and s.at %} <span class="text-body-secondary">{{ s.at|date:'Y-m-d H:i' }}</span>{% elif not s.done %} <span class="text-body-secondary">not yet</span>{% endif %}
+            {% if s.detail %}<div class="text-body-secondary">{{ s.detail }}</div>{% endif %}</div>
+        </li>
+        {% endfor %}
+    </ol>
+    {% if doc_progress.viewers|length > 1 %}
+    <div class="card-body small pt-2">
+        <div class="text-body-secondary mb-1">Viewed by</div>
+        <ul class="mb-0 ps-3">{% for v in doc_progress.viewers %}<li>{{ v.viewer_label }} — first {{ v.first_viewed_at|date:'Y-m-d H:i' }}, last {{ v.last_viewed_at|date:'Y-m-d H:i' }} ({{ v.view_count }})</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    <div class="card-footer small text-body-secondary">Views count only when a person interacts with the page the customer was sent; staff previews and e-mail link scanners are not counted.</div>
+</div>

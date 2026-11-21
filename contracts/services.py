@@ -145,6 +145,10 @@ def _apply_template_data(contract, data):
             setattr(contract, f, int(d[f]))
     if 'auto_renew' in d:
         contract.auto_renew = bool(d['auto_renew'])
+    from psa.contract_terms import TERM_LABELS, infer_from_months, normalize
+    term = d.get('term_type') if d.get('term_type') in TERM_LABELS else infer_from_months(contract.duration_months)
+    contract.term_type, months = normalize(term, contract.duration_months)
+    contract.duration_months = months
     _fill_expiration(contract)
 
 
@@ -273,7 +277,7 @@ def _recompute_totals(contract):
 
 
 DRAFT_FIELDS = ('title', 'kind', 'currency', 'tax_rate', 'payment_terms', 'billing_frequency', 'effective_date',
-                'duration_months', 'expiration_date', 'renewal_terms', 'auto_renew', 'notice_period_days',
+                'term_type', 'duration_months', 'expiration_date', 'renewal_terms', 'auto_renew', 'notice_period_days',
                 'acceptance_deadline', 'require_email_verification', 'require_countersignature', 'signing_order',
                 'require_internal_approval', 'invitation_expiry_days', 'reminders_enabled')
 
@@ -730,13 +734,20 @@ def create_billing_contract(contract, by, request=None):
         raise ContractError('Only a signed contract can create a billing contract.')
     if contract.billing_contract_id:
         return contract.billing_contract
-    freq = {'monthly': 'monthly', 'quarterly': 'quarterly', 'annually': 'yearly'}.get(contract.billing_frequency,
-                                                                                      'none')
+    # The billing contract carries the terms of the signed version (what the
+    # customer agreed to), so psa.Contract.esign_status can match them.
+    from psa.contract_terms import DOC_TO_BILLING_FREQUENCY, normalize
+    v = contract.current_version
+    terms = ((v.content if v is not None else None) or {}).get('terms') or {}
+    term_type, months = normalize(terms.get('term_type') or contract.term_type,
+                                  terms.get('duration_months', contract.duration_months))
+    freq = DOC_TO_BILLING_FREQUENCY.get(terms.get('billing_frequency') or contract.billing_frequency, 'none')
     bc = Contract.objects.create(
         organization=contract.organization, client_org=contract.organization, name=contract.title[:200],
         contract_type='managed_services', status='draft', start_date=contract.effective_date or timezone.localdate(),
         end_date=contract.expiration_date, billing_frequency=freq, recurring_amount=contract.recurring_total,
-        auto_renew=contract.auto_renew)
+        auto_renew=contract.auto_renew, term_type=term_type, term_months=months,
+        notice_period_days=terms.get('notice_period_days', contract.notice_period_days))
     ContractDocument.objects.filter(pk=contract.pk).update(billing_contract=bc)
     contract.billing_contract = bc
     events.record(contract, 'billing_linked', actor=by, request=request,

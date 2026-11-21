@@ -57,6 +57,31 @@
                 </select>
             </div>
             <div class="col-md-4">
+                <label class="form-label" for="c-term">Term</label>
+                <select name="term_type" id="c-term" class="form-select">
+                    {% for code, label in term_types %}
+                    <option value="{{ code }}" {% if item.term_type == code or not item and code == 'month_to_month' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Anything but month-to-month is activated and billed only after the customer e-signs the agreement.</div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="c-term-months">Term (months)</label>
+                <input type="number" min="1" name="term_months" id="c-term-months" class="form-control" value="{{ item.term_months|default_if_none:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="c-notice">Notice (days)</label>
+                <input type="number" min="0" name="notice_period_days" id="c-notice" class="form-control" value="{{ item.notice_period_days|default_if_none:'' }}">
+            </div>
+            {% if esign %}
+            <div class="col-12">
+                <div class="alert {% if esign.satisfied %}alert-success{% else %}alert-warning{% endif %} small py-2 mb-0">
+                    <i class="fas fa-signature me-1"></i><strong>E-signature:</strong>
+                    {% if esign.basis == 'not_required' %}not required for a month-to-month contract.{% elif esign.satisfied %}{{ esign.message }}{% else %}{{ esign.message }}{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-md-4">
                 <label class="form-label">Total hours (0 = unlimited)</label>
                 <input type="number" step="0.25" name="total_hours" class="form-control" value="{{ item.total_hours|default:0 }}">
             </div>

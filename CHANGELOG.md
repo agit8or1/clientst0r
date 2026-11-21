@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.761] - 2026-11-21
+
+### Added
+
+- **Sample contract library** (roadmap 65.11). Twelve starter agreements, including:
+  - managed services agreements: month-to-month, 12-month and 36-month;
+  - prepaid block hours;
+  - a project statement of work;
+  - break-fix / time and materials;
+  - a master services agreement with a service schedule.
+
+  Choose **Use this sample** to make your own editable copy and fill it in with your wording. Each sample is marked as
+  a starting point, not legal advice. Updates never overwrite a sample you have edited.
+- **Contract terms** (65.12). Contracts and billing contracts carry a term (month-to-month, annual, multi-year or a
+  custom fixed term) and a notice period. Existing contracts are given the term their dates imply and keep billing
+  exactly as before.
+- **E-signature before a quote or long-term contract takes effect** (65.13). Every quote, and every contract that
+  isn't month-to-month, needs the customer's e-signature before it can be accepted, converted, activated or billed.
+  Staff can't mark it accepted on the customer's behalf. Changing the signed terms needs a new signature. Whether
+  month-to-month contracts are exempt is a setting in Settings → Billing (exempt by default).
+- **Know when a customer has looked** (65.14). Quote, invoice and contract links record when the customer actually
+  opened them: first view, last view and how many times.
+  - **Where it shows:** quote and invoice pages show Sent → Viewed → Signed / Accepted / Paid, and lists show a
+    Viewed badge.
+  - **On the first view:** an audit entry, a `quote.viewed`, `invoice.viewed` or `contract.viewed` webhook and an
+    email to the person who created the document.
+  - **Not counted:** staff previews, email security scanners and bots.
+  - **Invoice emails** now include the link to view the invoice in the customer portal.
+
+### Fixed
+
+- The stored-secrets check no longer flags the API key display prefix kept on API access log entries; it is the
+  same non-secret prefix shown on the API keys page.
+
 ## [3.17.760] - 2026-11-21
 
 ### Added

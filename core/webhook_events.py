@@ -54,6 +54,9 @@ SUPPORTED_EVENTS = frozenset({
     'ticket.created', 'ticket.updated', 'ticket.status_changed',
     'contact.created', 'contact.updated',
     'invoice.created', 'invoice.updated', 'invoice.status_changed',
+    # Customer opened a document sent to them (psa.doc_views, contracts.tracking):
+    # the first likely-human view per recipient, never staff or scanners.
+    'quote.viewed', 'invoice.viewed', 'contract.viewed',
 })
 
 

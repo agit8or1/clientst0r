@@ -40,6 +40,7 @@
                         {% elif q.status == 'draft' %}<span class="badge text-bg-secondary">Draft</span>
                         {% elif q.status == 'rejected' %}<span class="badge text-bg-danger">Rejected</span>
                         {% else %}<span class="badge text-bg-warning">{{ q.get_status_display }}</span>{% endif %}
+                        {% if q.view_count %}<span class="badge text-bg-light border" title="First viewed {{ q.first_viewed_at|date:'Y-m-d H:i' }}, {{ q.view_count }} view{{ q.view_count|pluralize }}"><i class="fas fa-eye"></i> Viewed</span>{% endif %}
                     </td>
                     <td>{{ q.total }}</td>
                     <td>{{ q.created_at|date:'Y-m-d' }}</td>
@@ -56,7 +57,7 @@
                             <i class="fas fa-signature"></i>
                         </button>
                         {% endif %}
-                        {% if q.status != 'accepted' and q.status != 'rejected' %}
+                        {% if q.status != 'accepted' and q.status != 'rejected' and q.signature %}
                         <form method="post" action="{% url 'psa:quote_accept' q.pk %}" class="d-inline">
                             {% csrf_token %}
                             <input type="hidden" name="create_ticket" value="on">

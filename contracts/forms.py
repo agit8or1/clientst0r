@@ -115,6 +115,13 @@ def parse_contract(post, contract, *, pricing=True):
         BILLING_FREQUENCIES) else contract.billing_frequency
     data['effective_date'] = _date(post, 'effective_date', errors, 'Effective date')
     data['duration_months'] = _int(post, 'duration_months', errors, 'Duration', 1, 600)
+    from psa.contract_terms import TERM_LABELS, normalize, term_errors
+    term = post.get('term_type') if post.get('term_type') in TERM_LABELS else contract.term_type
+    if not post.get('term_type') and data['duration_months'] and term == 'month_to_month':
+        from psa.contract_terms import infer_from_months
+        term = infer_from_months(data['duration_months'])
+    errors += term_errors(term, data['duration_months'])
+    data['term_type'], data['duration_months'] = normalize(term, data['duration_months'])
     data['expiration_date'] = _date(post, 'expiration_date', errors, 'Expiration date')
     if data['expiration_date'] is None and data['effective_date'] and data['duration_months']:
         from dateutil.relativedelta import relativedelta
@@ -203,6 +210,10 @@ def parse_template(post):
         'notice_period_days': _int(post, 'notice_period_days', errors, 'Notice period', 0, 3650),
         'auto_renew': post.get('auto_renew') == 'on',
     }
+    from psa.contract_terms import TERM_LABELS, normalize, term_errors
+    term = post.get('term_type') if post.get('term_type') in TERM_LABELS else 'month_to_month'
+    errors += term_errors(term, defaults['duration_months'])
+    defaults['term_type'], defaults['duration_months'] = normalize(term, defaults['duration_months'])
     return {'name': name, 'kind': kind, 'description': plain_text(post.get('description'), 2000),
             'data': {'sections': sections, 'line_items': items, 'defaults': defaults}}, errors
 

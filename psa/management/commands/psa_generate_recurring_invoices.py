@@ -119,7 +119,19 @@ class Command(BaseCommand):
         spawned = 0
         behind = []  # (contract, periods due) skipped under --no-catch-up
         held = []  # invoices not auto-pushed because approval is pending
+        unsigned = []  # (contract, reason) waiting on the customer's e-signature
         for contract in qs:
+            # A contract whose term needs the customer's e-signature is not
+            # billed until it has one (psa.contract_terms). generate_invoice
+            # refuses too; checking here reports it instead of failing the run.
+            esign = contract.esign_status(for_billing=True)
+            if not esign['satisfied']:
+                unsigned.append((contract, esign['message']))
+                logger.warning('Recurring invoices: contract %s (%s) not billed: %s',
+                               contract.pk, contract.name, esign['message'])
+                self.stdout.write(self.style.WARNING(
+                    f'Skipped {contract.name}: needs the customer\'s e-signature — {esign["message"]}'))
+                continue
             if no_catch_up:
                 due = self._periods_due(contract, today)
                 if due > 1:
@@ -230,15 +242,29 @@ class Command(BaseCommand):
                 f'accounting: ' + ', '.join(i.invoice_number for i in held)
                 + '. Approve each, then push it from the invoice page.'))
 
+        unsigned_msg = ''
+        if unsigned:
+            unsigned_msg = (f'{len(unsigned)} contract(s) not billed until the customer signs: '
+                            + '; '.join(f'{c.name} (#{c.pk})' for c, _r in unsigned[:_REPORT_LIMIT])
+                            + (f'; and {len(unsigned) - _REPORT_LIMIT} more' if len(unsigned) > _REPORT_LIMIT
+                               else '') + '.')
+        if unsigned and dry:
+            self.stdout.write(self.style.WARNING('[dry] ' + unsigned_msg))
         if behind and dry:
             self.stdout.write(self.style.WARNING(
                 '[dry] ' + self._behind_message(behind, spawned)))
         elif behind:
+            if unsigned_msg:
+                raise CommandError(self._behind_message(behind, spawned) + ' ' + unsigned_msg)
             # Raised after every up-to-date contract has been billed (each in
             # its own transaction above), so the current period still goes
             # out. The error is what makes the skip visible: the scheduler
             # records it as the task's last_error.
             raise CommandError(self._behind_message(behind, spawned))
+        elif unsigned and not dry:
+            # Raised after everything billable was billed, so the scheduled
+            # task shows the contracts waiting on a signature.
+            raise CommandError(unsigned_msg)
 
     @staticmethod
     def _periods_due(contract, today, limit=1000):

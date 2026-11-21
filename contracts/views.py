@@ -19,7 +19,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from . import forms, jobs, notify, services, signing
 from . import permissions as perms
 from .content import MERGE_FIELDS, ContentError, LINE_KINDS, SECTION_TYPES, normalize_sections
-from .models import (BILLING_FREQUENCIES, KINDS, SIGNING_ORDERS, ContractAttachment, ContractClause,
+from .models import (BILLING_FREQUENCIES, KINDS, SIGNING_ORDERS, TERM_TYPES, ContractAttachment, ContractClause,
                      ContractDocument, ContractEvent, ContractInvitation, ContractNotification, ContractSettings,
                      ContractSigner, ContractTemplate, ContractTemplateVersion, ContractVersion)
 from .pdf import build_pdf, final_filename, issued_filename
@@ -271,6 +271,7 @@ def _builder_context(request, c, errors=None):
         'countersigners': countersigners, 'can_price': _pricing(request, c),
         'c': c, 'sections': normalize_sections(c.sections), 'line_items': c.line_items or [],
         'signers': list(c.signers.all()), 'staff': staff, 'kinds': KINDS, 'frequencies': BILLING_FREQUENCIES,
+        'term_types': TERM_TYPES,
         'orders': SIGNING_ORDERS, 'section_types': SECTION_TYPES, 'line_kinds': LINE_KINDS,
         'merge_fields': MERGE_FIELDS, 'clauses': clauses,
         'clause_data': {str(cl.pk): {'title': cl.title, 'body': cl.body} for cl in clauses},
@@ -706,23 +707,32 @@ def invitation_countersign(request, pk):
 def template_list(request):
     if not perms.has_any(request.user, perms.VIEW):
         raise PermissionDenied
-    qs = perms.template_scope(ContractTemplate.objects.select_related('organization'), request.user)
+    qs = perms.template_scope(ContractTemplate.objects.select_related('organization', 'cloned_from'), request.user)
     org = _current_org(request)
     if org is not None:
         qs = qs.filter(Q(organization__isnull=True) | Q(organization=org))
     show = request.GET.get('show', 'active')
     if show != 'all':
         qs = qs.filter(is_active=True)
+    from .starter_templates import SAMPLE_NOTICE
     return render(request, 'contracts/templates_list.html', {
-        'templates': qs.order_by('organization_id', 'name'), 'show': show,
+        'templates': qs.order_by('organization_id', 'name'), 'show': show, 'sample_notice': SAMPLE_NOTICE,
         'can_manage_global': perms.has_global(request.user, perms.TEMPLATES),
         'can_manage_any': perms.has_any(request.user, perms.TEMPLATES), 'org': org,
         'clients': [o for o in _client_choices(request) if perms.has(request.user, perms.TEMPLATES, o.pk)]})
 
 
 def _template_form_ctx(request, tpl, data, errors=None, org=None):
-    return {'tpl': tpl, 'data': data, 'sections': data.get('sections') or [], 'line_items': data.get('line_items') or [],
+    from psa.contract_terms import TERM_LABELS, infer_from_months
+    defaults = dict(data.get('defaults') or {})
+    if defaults.get('term_type') not in TERM_LABELS:
+        defaults['term_type'] = infer_from_months(defaults.get('duration_months'))
+    data = dict(data, defaults=defaults)
+    from .starter_templates import SAMPLE_NOTICE
+    based_on_sample = bool(tpl and (tpl.is_sample or (tpl.cloned_from_id and tpl.cloned_from.is_sample)))
+    return {'sample_notice': SAMPLE_NOTICE if based_on_sample else '','tpl': tpl, 'data': data, 'sections': data.get('sections') or [], 'line_items': data.get('line_items') or [],
             'defaults': data.get('defaults') or {}, 'kinds': KINDS, 'frequencies': BILLING_FREQUENCIES,
+            'term_types': TERM_TYPES,
             'section_types': SECTION_TYPES, 'line_kinds': LINE_KINDS, 'merge_fields': MERGE_FIELDS,
             'clauses': perms.template_scope(ContractClause.objects.filter(is_active=True), request.user),
             'clause_data': {str(cl.pk): {'title': cl.title, 'body': cl.body}
@@ -792,21 +802,36 @@ def template_version(request, pk, number):
 @staff_required
 @require_POST
 def template_clone(request, pk):
+    """Copy a template. "Use this sample" (organization blank / "all") makes
+    an install-wide copy the user then edits — needs template management for
+    every customer; otherwise the copy is private to the chosen customer.
+    The copy is the user's own template (not a sample): the shipped sample
+    stays untouched, and re-seeding never overwrites the copy."""
     from core.models import Organization
     tpl = get_object_or_404(perms.template_scope(ContractTemplate.objects.all(), request.user), pk=pk)
     raw = request.POST.get('organization', '')
     org = Organization.objects.filter(pk=int(raw)).first() if raw.isdigit() else None
-    if org is None:
+    if org is None and raw != 'all':
         messages.error(request, 'Choose the customer to copy the template to.')
         return redirect('contracts:template_list')
-    perms.require(request.user, perms.TEMPLATES, org.pk)
+    if org is None:
+        if not perms.has_global(request.user, perms.TEMPLATES):
+            raise PermissionDenied('Only staff who manage templates for every customer can add starters.')
+    else:
+        perms.require(request.user, perms.TEMPLATES, org.pk)
     src = tpl.latest_version
-    new = ContractTemplate.objects.create(organization=org, name=f'{tpl.name} — {org.name}'[:200], kind=tpl.kind,
-                                          description=tpl.description, is_sample=tpl.is_sample, cloned_from=tpl,
+    base = tpl.name.replace(' (sample)', '').strip() or tpl.name
+    name = f'{base} — {org.name}' if org is not None else (base if tpl.is_sample else f'{base} (copy)')
+    if org is None and ContractTemplate.objects.filter(organization__isnull=True, name=name).exists():
+        name = f'{base} (copy)'
+    new = ContractTemplate.objects.create(organization=org, name=name[:200], kind=tpl.kind,
+                                          description=tpl.description, is_sample=False, cloned_from=tpl,
                                           created_by=request.user)
     ContractTemplateVersion.objects.create(template=new, version_number=1, data=src.data if src else {},
                                            created_by=request.user, note=f'Copied from "{tpl.name}"')
-    messages.success(request, f'Copied to {org.name} as a private template.')
+    messages.success(request, (f'Copied to {org.name} as a private template.' if org is not None else
+                               f'"{new.name}" is your own copy — edit the wording and remove the review notes '
+                               'before using it.'))
     return redirect('contracts:template_edit', pk=new.pk)
 
 

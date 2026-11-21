@@ -3,7 +3,7 @@
 {% block extra_css %}<link href="{% static 'vendor/quill/2.0.3/quill.snow.css' %}" rel="stylesheet"><link href="{% static 'css/contracts.css' %}" rel="stylesheet">{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'contracts:dashboard' %}">Contracts</a></li><li class="breadcrumb-item"><a href="{% url 'contracts:template_list' %}">Templates</a></li><li class="breadcrumb-item active">{% if tpl %}{{ tpl.name }}{% else %}New{% endif %}</li></ol></nav>
-{% if tpl and tpl.is_sample %}<div class="alert alert-warning small py-2">This is a sample template. Review all wording before relying on it.</div>{% endif %}
+{% if sample_notice %}<div class="alert alert-warning small py-2"><strong>{% if tpl.is_sample %}Sample template — not legal advice.{% else %}Based on a sample — not legal advice.{% endif %}</strong> {{ sample_notice }}{% if tpl.is_sample %} Use <em>Use this sample</em> in the template library to make your own copy instead of editing the shipped sample.{% endif %}</div>{% endif %}
 {% if not can_edit %}<div class="alert alert-info small py-2">You can read this template but not change it. Copy it to a customer to make your own version.</div>{% endif %}
 <form method="post" id="cd-builder" data-unsaved-guard="off" data-template-editor novalidate>
     {% csrf_token %}
@@ -17,6 +17,7 @@
                 <div class="col-12"><label class="form-label small" for="t-desc">Description</label><input class="form-control" id="t-desc" name="description" value="{{ tpl.description|default:'' }}" maxlength="2000"></div>
                 <div class="col-6 col-md-3"><label class="form-label small" for="t-freq">Billing frequency</label><select class="form-select" id="t-freq" name="billing_frequency">{% for k, l in frequencies %}<option value="{{ k }}" {% if defaults.billing_frequency == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
                 <div class="col-6 col-md-3"><label class="form-label small" for="t-terms">Payment terms</label><input class="form-control" id="t-terms" name="payment_terms" value="{{ defaults.payment_terms|default:'' }}"></div>
+                <div class="col-6 col-md-3"><label class="form-label small" for="t-term">Term</label><select class="form-select" id="t-term" name="term_type">{% for k, l in term_types %}<option value="{{ k }}" {% if defaults.term_type == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
                 <div class="col-6 col-md-2"><label class="form-label small" for="t-dur">Months</label><input class="form-control" type="number" min="1" id="t-dur" name="duration_months" value="{{ defaults.duration_months|default_if_none:'' }}"></div>
                 <div class="col-6 col-md-2"><label class="form-label small" for="t-notice">Notice days</label><input class="form-control" type="number" min="0" id="t-notice" name="notice_period_days" value="{{ defaults.notice_period_days|default_if_none:'' }}"></div>
                 <div class="col-md-2 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="t-auto" name="auto_renew" {% if defaults.auto_renew %}checked{% endif %}><label class="form-check-label" for="t-auto">Auto-renew</label></div></div>

@@ -33,6 +33,7 @@ urlpatterns = [
     path('t/<str:ticket_number>/escalate/', views.ticket_escalate, name='ticket_escalate'),
     # Customer-facing quote signing — public, opaque token, no login required.
     path('quote/<str:token>/sign/', views.quote_sign, name='quote_sign'),
+    path('quote/<str:token>/seen/', views.quote_seen, name='quote_seen'),
     # Knowledge base for portal users
     path('kb/', views.kb_list, name='kb_list'),
     path('kb/<slug:slug>/', views.kb_detail, name='kb_detail'),
@@ -73,6 +74,7 @@ urlpatterns = [
     path('billing/', _billing_views.billing_home, name='billing_home'),
     path('billing/invoices/<int:pk>/', _billing_views.invoice_detail, name='billing_invoice'),
     path('billing/invoices/<int:pk>/pay/', _billing_views.invoice_pay, name='billing_invoice_pay'),
+    path('billing/invoices/<int:pk>/seen/', _billing_views.invoice_seen, name='billing_invoice_seen'),
     path('billing/payments/<int:pk>/return/', _billing_views.pay_return, name='billing_pay_return'),
     path('billing/payments/<int:pk>/cancel/', _billing_views.pay_cancel, name='billing_pay_cancel'),
     path('billing/receipts/<int:pk>/', _billing_views.receipt, name='billing_receipt'),

@@ -30,6 +30,7 @@
                         {% elif c.status == 'draft' %}<span class="badge text-bg-secondary">Draft</span>
                         {% elif c.status == 'expired' %}<span class="badge text-bg-warning">Expired</span>
                         {% else %}<span class="badge text-bg-danger">{{ c.get_status_display }}</span>{% endif %}
+                        <div class="small text-body-secondary">{{ c.term_label }}</div>
                     </td>
                     <td>
                         {% if c.total_hours %}

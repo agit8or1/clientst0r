@@ -137,10 +137,15 @@
             </ul>
         </div>
         {% endif %}
+        {% include "psa/_doc_progress.html" %}
         {% if item.status != 'accepted' and item.status != 'rejected' %}
         <div class="card">
             <div class="card-header"><strong>Accept</strong></div>
             <div class="card-body">
+                {% if not esign.satisfied %}
+                <p class="small mb-0"><i class="fas fa-signature me-1"></i>{{ esign.message }}
+                Accepting, and converting to a ticket or project, happen when the customer signs on the sign page.</p>
+                {% else %}
                 <form method="post" action="{% url 'psa:quote_accept' item.pk %}">
                     {% csrf_token %}
                     <div class="form-check mb-2">
@@ -153,10 +158,11 @@
                             Spin up a project (one task per line item)
                         </label>
                     </div>
-                    <button class="btn btn-sm btn-success" data-confirm="Accept this quote?">
+                    <button class="btn btn-sm btn-success" data-confirm="Accept this signed quote?">
                         <i class="fas fa-check"></i> Mark accepted
                     </button>
                 </form>
+                {% endif %}
             </div>
         </div>
         {% endif %}

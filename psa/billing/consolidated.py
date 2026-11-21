@@ -87,6 +87,8 @@ def contract_fee_status(contract, today=None):
         st.reason = f'{name} is not active.'
     elif contract.billing_frequency == 'none':
         st.reason = f'{name} has no recurring billing.'
+    elif not contract.esign_status(for_billing=True)['satisfied']:
+        st.reason = f'{name} needs the customer\'s e-signature before it is billed.'
     elif contract.paused_at:
         st.reason = f'{name} is paused.'
     elif contract.cancel_at_period_end:

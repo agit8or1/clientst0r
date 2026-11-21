@@ -40,6 +40,7 @@ MERGE_FIELDS = [
                  ('countersigner.name', 'Countersigner name'), ('countersigner.title', 'Countersigner title')]),
     ('Contract', [('contract.reference', 'Contract number'), ('contract.title', 'Contract title'),
                   ('contract.effective_date', 'Effective date'), ('contract.expiration_date', 'Expiration date'),
+                  ('contract.term', 'Term (month-to-month, annual…)'),
                   ('contract.duration_months', 'Duration (months)'), ('contract.renewal_terms', 'Renewal terms'),
                   ('contract.notice_period_days', 'Notice period (days)'),
                   ('contract.acceptance_deadline', 'Acceptance deadline'), ('today', "Today's date")]),
@@ -176,6 +177,11 @@ def _user_name(u):
     return (u.get_full_name() or u.username) if u is not None else ''
 
 
+def _term_label(contract):
+    from psa.contract_terms import label
+    return label(getattr(contract, 'term_type', 'month_to_month'), contract.duration_months)
+
+
 def merge_context(contract, settings, signers=None) -> dict:
     org = contract.organization
     signers = list(signers if signers is not None else contract.signers.all())
@@ -206,6 +212,7 @@ def merge_context(contract, settings, signers=None) -> dict:
         'contract.effective_date': fmt_date(contract.effective_date),
         'contract.expiration_date': fmt_date(contract.expiration_date),
         'contract.duration_months': str(contract.duration_months) if contract.duration_months else '',
+        'contract.term': _term_label(contract),
         'contract.renewal_terms': contract.renewal_terms,
         'contract.notice_period_days': str(contract.notice_period_days) if contract.notice_period_days else '',
         'contract.acceptance_deadline': fmt_date(contract.acceptance_deadline),
@@ -299,6 +306,7 @@ def build_content(contract, settings, signing, *, preview=False):
                      'website': settings.provider_website},
         'terms': {
             'effective_date': contract.effective_date.isoformat() if contract.effective_date else '',
+            'term_type': contract.term_type, 'term_label': _term_label(contract),
             'duration_months': contract.duration_months or None,
             'expiration_date': contract.expiration_date.isoformat() if contract.expiration_date else '',
             'renewal_terms': contract.renewal_terms, 'auto_renew': contract.auto_renew,
@@ -416,7 +424,9 @@ def key_terms(content) -> list[tuple[str, str]]:
     rows = []
     if t['effective_date']:
         rows.append(('Effective date', fmt_date(t['effective_date'])))
-    if t['duration_months']:
+    if t.get('term_label'):
+        rows.append(('Term', t['term_label']))
+    elif t['duration_months']:
         rows.append(('Term', f'{t["duration_months"]} months'))
     if t['expiration_date']:
         rows.append(('Expiration date', fmt_date(t['expiration_date'])))

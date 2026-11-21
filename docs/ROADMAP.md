@@ -2262,6 +2262,22 @@ agreements and quote acceptance. Items 65.1–65.9 **shipped v3.17.669**.
   `/sign/`.
 - **65.10 Reviewed legal wording** *(planned)* — the starter wording is sample
   text; per-jurisdiction reviewed templates are not included.
+- **65.11 Sample contract library** *(shipped v3.17.761)* — twelve starter agreements (month-to-month, 12-month and
+  36-month managed services, prepaid block hours, statement of work, time and materials, master services agreement
+  with a schedule, and more), each marked as not legal advice; **Use this sample** makes your own editable copy, and
+  re-seeding never overwrites your edits.
+- **65.12 Contract terms** *(shipped v3.17.761)* — month-to-month, annual, multi-year or custom fixed term with a
+  notice period, on contract documents and billing contracts; existing contracts are mapped from their dates and keep
+  billing as before.
+- **65.13 E-signature before activation, conversion or billing** *(shipped v3.17.761)* — every quote, and every
+  contract that is not month-to-month, needs the customer's e-signature before it is accepted, converted, activated
+  or billed; changing the signed terms needs a new signature; enforced in models, services, views and scheduled jobs.
+  The month-to-month exemption is a setting in Settings → Billing.
+- **65.14 Viewed tracking** *(shipped v3.17.761)* — quote, invoice and contract links record first view, last view and
+  view count per recipient (staff previews, email scanners and bots are not counted), shown as Sent → Viewed →
+  Signed / Accepted / Paid with an audit entry, a webhook and an email to the owner.
+- **65.15 Contract follow-ups** *(planned)* — link a signed amendment to an existing billing contract; a no-sign-in
+  invoice link for leads; separate links per recipient for quotes; in-app notifications for quote and invoice views.
 
 **Sizing:** **L** — a new app with its own models, background jobs, PDFs and
 public signing pages; integrates with PSA billing contracts, the scheduler,

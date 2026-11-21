@@ -63,6 +63,7 @@
                         {% elif inv.status == 'draft' %}<span class="badge text-bg-secondary">Draft</span>
                         {% elif inv.status == 'overdue' %}<span class="badge text-bg-danger">Overdue</span>
                         {% else %}<span class="badge text-bg-secondary">{{ inv.get_status_display }}</span>{% endif %}
+                        {% if inv.view_count %}<span class="badge text-bg-light border" title="First viewed {{ inv.first_viewed_at|date:'Y-m-d H:i' }}, {{ inv.view_count }} view{{ inv.view_count|pluralize }}"><i class="fas fa-eye"></i> Viewed</span>{% endif %}
                     </td>
                     <td>{{ inv.total }} {{ inv.currency }}</td>
                     <td>{{ inv.balance }} {{ inv.currency }}</td>

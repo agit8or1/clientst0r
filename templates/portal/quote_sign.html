@@ -1,6 +1,7 @@
-{% extends "portal/base.html" %}
+{% extends "portal/base.html" %}{% load static %}
 {% block title %}{{ quote.quote_number }} — Sign &amp; Accept{% endblock %}
 {% block content %}
+{% if view_nonce %}<div hidden data-doc-view-url="{% url 'portal:quote_seen' quote.customer_token %}" data-doc-view-nonce="{{ view_nonce }}" data-doc-view-csrf="{{ csrf_token }}"></div>{% endif %}
 <h1 class="mb-3">{{ quote.title }}</h1>
 <p class="text-muted">
     Quote <code>{{ quote.quote_number }}</code> for <strong>{{ quote.client_org.name }}</strong>
@@ -149,3 +150,4 @@
 
 {% endif %}
 {% endblock %}
+{% block extra_js %}{% if view_nonce %}<script src="{% static 'js/doc-view-beacon.js' %}"></script>{% endif %}{% endblock %}
