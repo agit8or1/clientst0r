@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ action }} Global KB Article - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<link href="{% static 'vendor/select2/4.1.0-rc.0/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'vendor/select2-bootstrap-5-theme/1.3.0/select2-bootstrap-5-theme.min.css' %}" rel="stylesheet" />
 <style>
     #markdown-editor-container {
         display: none;
@@ -296,7 +297,7 @@
 {% block extra_js %}
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'vendor/select2/4.1.0-rc.0/js/select2.min.js' %}"></script>
 
 <script nonce="{{ csp_nonce }}">
     const contentTypeSelect = document.getElementById('content-type-select');

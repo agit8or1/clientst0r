@@ -249,11 +249,39 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DB_ENGINE = os.getenv('DB_ENGINE', 'mysql')
 
 if DB_ENGINE == 'sqlite3':
-    # SQLite for local development/testing
+    # SQLite (small installs, development).
+    #
+    # SQLITE_JOURNAL_MODE (default WAL): readers never wait for a writer and
+    # a writer waits for readers no longer, which is what kept sign-ins
+    # failing while a long write ran. WAL needs the database on a local
+    # disk (not NFS/SMB); set SQLITE_JOURNAL_MODE=DELETE there. With WAL,
+    # recent commits live in db.sqlite3-wal until a checkpoint: copy the
+    # database only through SQLite's backup API (manage.py backup,
+    # upgrade_backup, core/upgrade/snapshot.py), never with cp.
+    # synchronous=NORMAL is the WAL setting that keeps the database
+    # consistent after a crash (a power cut may drop the last commits).
+    # Every atomic() block starts as BEGIN IMMEDIATE, so two writers queue
+    # for the lock (busy timeout) instead of one failing with "database is
+    # locked" when its read upgrades to a write.
+    _SQLITE_JOURNAL = os.getenv('SQLITE_JOURNAL_MODE', 'WAL').strip().upper() or 'WAL'
+    if _SQLITE_JOURNAL not in ('WAL', 'DELETE', 'TRUNCATE', 'PERSIST'):
+        _SQLITE_JOURNAL = 'WAL'
+    _SQLITE_INIT = [f'PRAGMA journal_mode={_SQLITE_JOURNAL}', 'PRAGMA busy_timeout=20000']
+    if _SQLITE_JOURNAL == 'WAL':
+        _SQLITE_INIT += ['PRAGMA synchronous=NORMAL', 'PRAGMA journal_size_limit=67108864']
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                'timeout': 20,
+                'transaction_mode': 'IMMEDIATE',
+                'init_command': ';'.join(_SQLITE_INIT),
+            },
+            # Keep a worker's connection for a minute instead of opening
+            # (and re-running the PRAGMAs) on every request.
+            'CONN_MAX_AGE': int(os.getenv('SQLITE_CONN_MAX_AGE', '60')),
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 else:
@@ -525,12 +553,14 @@ CSP_ENABLED = os.getenv('CSP_ENABLED', 'True').lower() == 'true'
 CSP_REPORT_ONLY = os.getenv('CSP_REPORT_ONLY', 'True').lower() == 'true'
 CSP_REPORT_URI = os.getenv('CSP_REPORT_URI', '/csp-report/')
 CSP_REPORT_RATE_LIMIT = int(os.getenv('CSP_REPORT_RATE_LIMIT', '30'))  # reports / minute / client IP
+# Hosts some pages still load a library from (Chart.js, Quill, SortableJS,
+# jsvectormap, html5-qrcode, older Font Awesome on the sign-in pages). What
+# every page loads (Font Awesome 6.5.1, DataTables, Select2, Leaflet, jQuery)
+# is served from static/vendor (core/tests/test_vendored_libraries.py).
 _CSP_CDNS = [
     'https://cdn.jsdelivr.net',
     'https://cdnjs.cloudflare.com',
     'https://unpkg.com',
-    'https://code.jquery.com',
-    'https://cdn.datatables.net',
 ]
 CSP_POLICY = {
     'default-src': [_CSP.SELF],

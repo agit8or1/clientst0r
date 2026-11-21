@@ -420,6 +420,7 @@ def _record_stable(stable, *, recommended=None, channel='stable'):
             latest_release_version=str(version)[:32],
             latest_security_release_version=str((stable or {}).get('security_version') or '')[:32],
             latest_release_checked_at=timezone.now())
+        SystemSetting.forget_request_copy()
     except Exception:
         pass
 

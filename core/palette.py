@@ -27,6 +27,7 @@ fields of any kind, query strings.
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
 from django.utils import timezone
@@ -40,6 +41,8 @@ MIN_QUERY = 2
 MAX_QUERY = 100
 RECENT_KEEP = 30
 RECENT_SHOW = 10
+# A reload of the newest recent page within this long is not written again.
+RECENT_REFRESH = timedelta(minutes=5)
 FAVORITES_KEEP = 50
 FAVORITES_SHOW = 20
 MAX_PATH = 255
@@ -710,7 +713,17 @@ def record_recent_page(user, path):
     path = clean_path(path)
     if not path or not user.is_authenticated:
         return
-    RecentPage.objects.update_or_create(user=user, path=path, defaults={'visited_at': timezone.now()})
+    now = timezone.now()
+    # Reloading the page that is already the newest entry changes nothing a
+    # reader sees (the order stays the same): skip the write, which on SQLite
+    # takes the database's write lock on every page view.
+    newest = (RecentPage.objects.filter(user=user).order_by('-visited_at')
+              .values_list('path', 'visited_at').first())
+    if newest is not None and newest[0] == path and now - newest[1] < RECENT_REFRESH:
+        return
+    _row, created = RecentPage.objects.update_or_create(user=user, path=path, defaults={'visited_at': now})
+    if not created:
+        return  # same number of rows: nothing to prune
     stale = list(RecentPage.objects.filter(user=user).order_by('-visited_at')
                  .values_list('id', flat=True)[RECENT_KEEP:])
     if stale:

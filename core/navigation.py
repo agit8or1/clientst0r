@@ -30,8 +30,11 @@ landing page has no link and no allow-list reason.
 """
 from dataclasses import dataclass, field
 
-from django.urls import NoReverseMatch, reverse
-from django.utils.translation import gettext_lazy as _
+from django.urls import NoReverseMatch, get_script_prefix, get_urlconf, reverse
+from django.utils.functional import Promise
+from django.utils.translation import get_language, gettext_lazy as _
+
+from core import nav_cache
 
 
 # -- gates (each takes the template context) ---------------------------------
@@ -112,14 +115,26 @@ def _can_manage_sso(user):
 
 
 def _view_check(fn):
+    # The answer depends on the user and the context, not on the page: it is
+    # kept between requests by core.nav_cache (dropped on any access change).
+    key = ('gate', id(fn))
+
     def gate(ctx):
         u = _user(ctx)
         if u is None or not getattr(u, 'is_authenticated', False):
             return False
+        memo = nav_cache.decisions(ctx)
+        if memo is not None:
+            hit = memo.get(key)
+            if hit is not None:
+                return hit
         try:
-            return bool(fn(u, ctx))
+            ok = bool(fn(u, ctx))
         except Exception:
-            return False
+            return False  # not kept: the failure may be passing
+        if memo is not None:
+            memo[key] = ok
+        return ok
     return gate
 
 
@@ -1032,15 +1047,45 @@ def _allowed(gate, ctx):
     return gate is None or gate(ctx)
 
 
+# reverse() of the registry's own links: their names and arguments are
+# constants, so the result only changes with the URLconf, the script prefix
+# or the language. Bounded by the size of the registry.
+_HREFS = {}
+
+
 def _href(tab):
-    try:
-        href = reverse(tab.url_name, args=tab.args)
-    except NoReverseMatch:
-        return ''
-    if tab.query:
-        from urllib.parse import urlencode
-        href = f'{href}?{urlencode(tab.query)}'
+    key = (tab.url_name, tab.args, tab.query, get_urlconf(), get_script_prefix(), get_language())
+    href = _HREFS.get(key)
+    if href is None:
+        try:
+            href = reverse(tab.url_name, args=tab.args)
+        except NoReverseMatch:
+            href = ''
+        if href and tab.query:
+            from urllib.parse import urlencode
+            href = f'{href}?{urlencode(tab.query)}'
+        if len(_HREFS) < 4096:
+            _HREFS[key] = href
     return href
+
+
+# The registry's labels are lazy translations, evaluated again each time a
+# template or str() reads them (several times per label per page). Each is
+# translated once per language instead; the text is the same.
+_LABELS = {}
+
+
+def _text(label):
+    if not isinstance(label, Promise):
+        return label
+    key = (id(label), get_language())
+    hit = _LABELS.get(key)
+    if hit is not None and hit[0] is label:
+        return hit[1]
+    text = str(label)
+    if len(_LABELS) < 16384:
+        _LABELS[key] = (label, text)  # holding `label` keeps its id unique
+    return text
 
 
 def _request_params(ctx):
@@ -1080,7 +1125,7 @@ def _resolve(tabs, ctx, match):
             continue
         out.append({
             'key': tab.url_name,
-            'label': tab.label,
+            'label': _text(tab.label),
             'href': href,
             'icon': _icon(tab.icon),
             'modal': tab.modal,
@@ -1552,6 +1597,7 @@ class _PermProbe:
         self.gate = SectionPermissionMiddleware(None)
         self._staff = None
         self._perm = {}
+        self._memo = nav_cache.decisions(ctx)
 
     def _is_staff(self):
         if self._staff is None:
@@ -1560,6 +1606,18 @@ class _PermProbe:
         return self._staff
 
     def allows(self, path):
+        # Kept between requests with the gate decisions (core.nav_cache).
+        memo = self._memo
+        if memo is not None:
+            hit = memo.get(('probe', path))
+            if hit is not None:
+                return hit
+        ok = self._allows(path)
+        if memo is not None:
+            memo[('probe', path)] = ok
+        return ok
+
+    def _allows(self, path):
         gate = self.gate
         if (path.startswith(gate.STAFF_ONLY_PREFIXES)
                 and not path.startswith(gate.STAFF_ONLY_EXEMPT) and not self._is_staff()):
@@ -1640,7 +1698,7 @@ def _resolve_entry(entry, ctx, match, probe, current_section):
             keywords = ' '.join([str(keywords)] + [str(c['label']) for c in tabs])
         return {
             'key': section.key,
-            'label': entry.label,
+            'label': _text(entry.label),
             'icon': f'fas {entry.icon}',
             'href': (own or tabs or configure)[0]['href'],
             'active': current_section is not None and current_section.key == section.key,
@@ -1668,7 +1726,7 @@ def _resolve_entry(entry, ctx, match, probe, current_section):
         return None
     return {
         'key': entry.url_name,
-        'label': entry.label,
+        'label': _text(entry.label),
         'icon': f'fas {entry.icon}',
         'href': href,
         'active': view_name == entry.url_name and (
@@ -1747,7 +1805,7 @@ def settings_workspace(ctx, probe=None, match=None):
             continue
         cats.append({
             'key': key,
-            'label': section.label,
+            'label': _text(section.label),
             'icon': f'fas {section.icon}',
             'href': tabs[0]['href'],
             'active': current_section is not None and current_section.key == key,
@@ -1865,7 +1923,7 @@ def primary_nav(ctx):
                 e['children'] = [dict(c, active=False) for c in e.get('children', [])]
         return {
             'key': group.key,
-            'label': group.label,
+            'label': _text(group.label),
             'icon': f'fas {group.icon}',
             'shortcut': group.shortcut,
             'href': entries[0]['href'],
@@ -2047,7 +2105,7 @@ def request_context(request):
     core.context_processors.organization_context supplies."""
     from core.models import SystemSetting
     try:
-        settings_row = SystemSetting.get_settings()
+        settings_row = SystemSetting.get_settings_for_request()
     except Exception:
         settings_row = None
     ctx = {

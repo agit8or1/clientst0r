@@ -13,7 +13,10 @@ their access sees the demotion.
 
 `generation()` is a process-wide counter bumped on every such change, for
 code that keeps longer-lived derived state (for example a per-session or
-per-token snapshot) and needs to know when to re-derive it. Background jobs
+per-token snapshot) and needs to know when to re-derive it.
+`shared_generation()` is its cross-process twin: a database row
+(accounts.AuthzGeneration) bumped by the same changes, so state one worker
+keeps between requests is dropped by a change made in another worker. Background jobs
 run outside any request and are never memoized: every check reads the
 current rows.
 
@@ -80,6 +83,14 @@ def memo(key, compute):
     return value
 
 
+def forget(key):
+    """Drop one memoized value of the current request (after a queryset
+    update that sends no signal)."""
+    ctx = _ctx.get()
+    if ctx is not None:
+        ctx.memo.pop(key, None)
+
+
 def invalidate(reason: str = ''):
     """Drop every memoized decision and bump the generation."""
     ctx = _ctx.get()
@@ -91,6 +102,64 @@ def invalidate(reason: str = ''):
         cache.set('authz:generation', _current_generation[0], None)
     except Exception:  # pragma: no cover - cache backend down never blocks a change
         pass
+    _bump_shared()
+
+
+def _bump_shared():
+    """Advance the database row every worker reads (shared_generation). It
+    runs inside the caller's transaction, so a change that rolls back takes
+    its bump with it; a missing table (before migrate) is skipped."""
+    try:
+        from django.db import transaction
+        from django.db.models import F
+
+        from .models import AuthzGeneration
+        with transaction.atomic():
+            if not AuthzGeneration.objects.filter(pk=1).update(value=F('value') + 1):
+                AuthzGeneration.objects.create(pk=1, value=1)
+    except Exception:  # pragma: no cover - never block the change itself
+        pass
+
+
+_SHARED_SQL = 'SELECT value FROM accounts_authz_generation WHERE id = 1'
+
+
+def shared_generation(request=None):
+    """The cross-process generation (accounts.AuthzGeneration), or None when
+    it cannot be read. With `request`, read once per request; a change made
+    later in the same request still shows through generation(), which this
+    process bumps at once."""
+    if request is not None:
+        value = getattr(request, '_authz_shared_generation', _UNSET)
+        if value is not _UNSET:
+            return value
+    try:
+        from django.db import connection, transaction
+
+        def read():
+            with connection.cursor() as cursor:
+                cursor.execute(_SHARED_SQL)
+                return cursor.fetchone()
+        if connection.in_atomic_block:
+            # A failed read must not poison the caller's transaction.
+            with transaction.atomic():
+                row = read()
+        else:
+            row = read()
+        value = int(row[0]) if row else 0
+    except Exception:
+        value = None
+    if request is not None:
+        try:
+            request._authz_shared_generation = value
+        except Exception:  # pragma: no cover - read-only request object
+            pass
+    return value
+
+
+def local_generation() -> int:
+    """This process's counter, bumped by invalidate() here (no cache read)."""
+    return _current_generation[0]
 
 
 def generation() -> int:

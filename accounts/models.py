@@ -2687,3 +2687,18 @@ class AzureADLinkRequest(models.Model):
 
     def __str__(self):
         return f'{self.user} <- {self.tenant_id}/{self.object_id} ({self.status})'
+
+
+class AuthzGeneration(models.Model):
+    """One row, bumped by accounts.authz_cache.invalidate() on every change
+    that alters what someone may reach (roles, memberships, profiles, access
+    groups, ...). Unlike authz_cache.generation(), which lives in one process,
+    every worker reads the same row, so state a worker keeps between requests
+    (core.nav_cache: the sidebar's gate decisions) is dropped by a change made
+    in any worker. Reading it is one primary-key lookup."""
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    value = models.BigIntegerField(default=0)
+
+    class Meta:
+        db_table = 'accounts_authz_generation'
+        verbose_name = 'Authorization generation'

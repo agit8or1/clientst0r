@@ -515,6 +515,7 @@ def set_update_channel(request):
     s = SystemSetting.get_settings()
     if s.update_channel != channel:
         SystemSetting.objects.filter(pk=1).update(update_channel=channel)
+        SystemSetting.forget_request_copy()
         AuditLog.objects.create(
             user=request.user, username=request.user.username, action='update',
             object_type='system_setting', object_repr='Release channel',
@@ -560,6 +561,7 @@ def upgrade_backup_settings(request):
     if before != (keep, max_age):
         SystemSetting.objects.filter(pk=1).update(upgrade_backups_keep=keep,
                                                   upgrade_backups_max_age_days=max_age)
+        SystemSetting.forget_request_copy()
         AuditLog.objects.create(
             user=request.user, username=request.user.username, action='update',
             object_type='system_setting', object_repr='Upgrade backup retention',

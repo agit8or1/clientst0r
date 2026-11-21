@@ -13,7 +13,7 @@ def organization_context(request):
     # Get system settings for feature toggles and branding
     from .models import SystemSetting
     try:
-        settings = SystemSetting.get_settings()
+        settings = SystemSetting.get_settings_for_request()
         feature_toggles = {
             'monitoring_enabled': settings.monitoring_enabled,
             'global_kb_enabled': settings.global_kb_enabled,

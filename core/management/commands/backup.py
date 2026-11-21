@@ -164,8 +164,10 @@ class Command(BaseCommand):
                 raise CommandError(f'Database backup failed: {result.stderr.decode()}')
 
         elif db_config['ENGINE'] == 'django.db.backends.sqlite3':
-            import shutil
-            shutil.copy2(db_config['NAME'], db_file)
+            # SQLite's backup API, not a file copy: in WAL mode recent
+            # commits are still in db.sqlite3-wal (core/sqlite_copy.py).
+            from core.sqlite_copy import copy_database
+            copy_database(db_config['NAME'], db_file)
 
         else:
             raise CommandError(f"Unsupported database engine: {db_config['ENGINE']}")

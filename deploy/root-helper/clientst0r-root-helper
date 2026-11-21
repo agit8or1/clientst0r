@@ -30,6 +30,7 @@ Usage (as root, normally via sudo from the app):
     clientst0r-root-helper office-setup ENGINE LAYOUTS CLIENTSTOR_HOST DEPLOYMENT_ID OFFICE_HOST|- tested|untested [docker|native]
     clientst0r-root-helper office-site-include on|off
     clientst0r-root-helper front-proxy status | on | off
+    clientst0r-root-helper web-workers status | N
 
 With the managed ONLYOFFICE service configured (/etc/clientst0r/office-service.conf),
 `apt upgrade` and `apt upgrade-packages` leave the container engine alone, and
@@ -636,6 +637,78 @@ def _dropin_path(conf):
     return os.path.join(SYSTEMD_DIR, conf['SERVICE'] + '.d', FRONT_DROPIN)
 
 
+WORKERS_MIN, WORKERS_MAX = 1, 64
+_WORKERS_RE = re.compile(r'(?<!\S)(--workers[ =]|-w )(\d+)(?!\S)')
+
+
+def _with_workers(text, n, path):
+    """The unit text with gunicorn's worker count set to n. Only the ExecStart
+    command is touched, and it must carry exactly one --workers option."""
+    out, collecting, hits = [], False, 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if not collecting and stripped.startswith('ExecStart=') and stripped != 'ExecStart=':
+            collecting = True
+        if collecting:
+            line, k = _WORKERS_RE.subn(lambda m: m.group(1) + str(n), line)
+            hits += k
+            if not stripped.endswith('\\'):
+                collecting = False
+        out.append(line)
+    if hits != 1:
+        raise HelperError(f'{path}: expected one --workers option in ExecStart, found {hits}')
+    return ''.join(out)
+
+
+def _workers_in(path):
+    with open(path, encoding='utf-8') as f:
+        m = _WORKERS_RE.search(f.read())
+    return int(m.group(2)) if m else None
+
+
+def cmd_web_workers(conf, args):
+    """web-workers status | N: gunicorn's worker count in the service unit and,
+    when front-proxy is on, in its drop-in. Takes effect on the next restart."""
+    unit, dropin = _unit_path(conf), _dropin_path(conf)
+    files = [unit] + ([dropin] if os.path.exists(dropin) else [])
+    for path in files:
+        _check_trusted_file(path)
+    if args == ['status']:
+        for path in files:
+            print(f'{path}: workers {_workers_in(path)}')
+        return 0
+    if len(args) != 1 or not args[0].isdigit():
+        raise HelperError('web-workers status | N')
+    n = int(args[0])
+    if not WORKERS_MIN <= n <= WORKERS_MAX:
+        raise HelperError(f'web-workers: N must be {WORKERS_MIN}..{WORKERS_MAX}')
+    if dropin in files:
+        with open(dropin, encoding='utf-8') as f:
+            if not f.read().startswith(FRONT_MARKER):
+                raise HelperError(f'{dropin} was not written by this helper; change it by hand')
+    old, new = {}, {}
+    for path in files:
+        with open(path, encoding='utf-8') as f:
+            old[path] = f.read()
+        new[path] = _with_workers(old[path], n, path)
+    if new == old:
+        print(f'workers already {n}')
+        return 0
+    try:
+        for path in files:
+            _write_atomic(path, new[path], 0o644)
+        gunicorn_exec(conf)                         # the unit still reads exactly
+        if _run(['systemctl', 'daemon-reload'], timeout=60).returncode != 0:
+            raise HelperError('systemctl daemon-reload failed')
+    except BaseException:
+        for path in files:
+            _write_atomic(path, old[path], 0o644)
+        _run(['systemctl', 'daemon-reload'], timeout=60)
+        raise
+    print(f'workers set to {n}; restart the service to apply (clientst0r-root-helper restart)')
+    return 0
+
+
 def gunicorn_exec(conf):
     """(tokens of the unit's ExecStart, unix socket path, (host, port) of the
     one TCP bind or None). Refuses anything it cannot read exactly."""
@@ -1136,6 +1209,8 @@ def main(argv):
                 return cmd_office_site_include(conf, args)
             if command == 'front-proxy':
                 return cmd_front_proxy(conf, args)
+            if command == 'web-workers':
+                return cmd_web_workers(conf, args)
         raise HelperError(f'unknown command: {command}')
     except HelperError as exc:
         print(f'clientst0r-root-helper: {exc}', file=sys.stderr)

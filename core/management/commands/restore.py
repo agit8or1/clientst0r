@@ -202,16 +202,25 @@ class Command(BaseCommand):
                 raise CommandError(f'Database restore failed: {result.stderr.decode()}')
 
         elif db_config['ENGINE'] == 'django.db.backends.sqlite3':
-            import shutil
-            # Backup current database
+            # Through SQLite's backup API both ways (core/sqlite_copy.py): a
+            # file copy would miss commits still in db.sqlite3-wal, and a
+            # file copied over the live database would have the old -wal
+            # replayed onto it.
+            from django.db import connections
+
+            from core.sqlite_copy import copy_database, restore_database
             current_db = Path(db_config['NAME'])
             if current_db.exists():
                 backup_db = current_db.with_suffix('.bak')
-                shutil.copy2(current_db, backup_db)
+                copy_database(current_db, backup_db)
                 self.stdout.write(f'Current database backed up to: {backup_db}')
 
             # Restore from backup
-            shutil.copy2(db_file, current_db)
+            connections.close_all()
+            if current_db.exists():
+                restore_database(db_file, current_db)
+            else:
+                copy_database(db_file, current_db)
 
         else:
             raise CommandError(f"Unsupported database engine: {db_config['ENGINE']}")

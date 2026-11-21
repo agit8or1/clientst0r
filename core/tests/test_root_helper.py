@@ -820,3 +820,76 @@ class FrontProxyTests(SimpleTestCase):
         for bad in ([], ['yes'], ['on', 'x']):
             with self.assertRaises(self.h.HelperError):
                 self.h.cmd_front_proxy(self.CONF, bad)
+
+
+class WebWorkersTests(SimpleTestCase):
+    """web-workers rewrites only the --workers value of the gunicorn unit (and
+    the front-proxy drop-in when present), and puts both back on failure."""
+
+    CONF = {'APP_USER': 'administrator', 'APP_DIR': '/home/administrator',
+            'SERVICE': 'clientst0r-gunicorn.service'}
+
+    def setUp(self):
+        self.h = load_helper()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        systemd = self.tmp / 'systemd'
+        systemd.mkdir()
+        self.unit = systemd / 'clientst0r-gunicorn.service'
+        self.unit.write_text(UNIT)
+        self.h.SYSTEMD_DIR = str(systemd)
+        self.dropin = systemd / 'clientst0r-gunicorn.service.d' / self.h.FRONT_DROPIN
+
+    def run_cmd(self, args, rc=0):
+        calls = []
+
+        def fake_run(argv, env=None, timeout=600, capture=False):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, rc, '', '')
+        with mock.patch.object(self.h, '_run', side_effect=fake_run):
+            return self.h.cmd_web_workers(self.CONF, args), calls
+
+    def test_sets_only_the_worker_count(self):
+        result, calls = self.run_cmd(['8'])
+        self.assertEqual(result, 0)
+        self.assertEqual(self.unit.read_text(), UNIT.replace('--workers 4', '--workers 8'))
+        self.assertIn(['systemctl', 'daemon-reload'], calls)
+        self.assertNotIn(['systemctl', 'restart', 'clientst0r-gunicorn.service'], calls)
+
+    def test_updates_the_front_proxy_dropin_too(self):
+        tokens, _, _ = self.h.gunicorn_exec(self.CONF)
+        self.dropin.parent.mkdir()
+        self.dropin.write_text(self.h.render_dropin(tokens))
+        self.run_cmd(['8'])
+        self.assertIn('--workers 8', self.dropin.read_text())
+        self.assertNotIn('--workers 4', self.dropin.read_text())
+        self.assertIn('--workers 8', self.unit.read_text())
+
+    def test_refuses_a_dropin_it_did_not_write(self):
+        self.dropin.parent.mkdir()
+        self.dropin.write_text('[Service]\nExecStart=\nExecStart=/x/gunicorn --workers 4 a:b\n')
+        with self.assertRaises(self.h.HelperError):
+            self.run_cmd(['8'])
+        self.assertIn('--workers 4', self.unit.read_text())
+
+    def test_bad_counts_are_refused(self):
+        for bad in ([], ['0'], ['65'], ['-1'], ['8', '9'], ['eight'], ['8;id']):
+            with self.assertRaises(self.h.HelperError):
+                self.run_cmd(bad)
+        self.assertEqual(self.unit.read_text(), UNIT)
+
+    def test_daemon_reload_failure_puts_the_unit_back(self):
+        with self.assertRaises(self.h.HelperError):
+            self.run_cmd(['8'], rc=1)
+        self.assertEqual(self.unit.read_text(), UNIT)
+
+    def test_a_unit_without_one_workers_option_is_refused(self):
+        self.unit.write_text(UNIT.replace('    --workers 4 \\\n', ''))
+        with self.assertRaises(self.h.HelperError):
+            self.run_cmd(['8'])
+
+    def test_status_and_unchanged(self):
+        self.assertEqual(self.run_cmd(['status'])[0], 0)
+        result, calls = self.run_cmd(['4'])
+        self.assertEqual(result, 0)
+        self.assertEqual(calls, [])

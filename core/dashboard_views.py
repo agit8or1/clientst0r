@@ -84,7 +84,7 @@ def dashboard(request):
 
 def classic_dashboard(request, org):
     """The dashboard as it was before Phase 67 (unchanged behaviour)."""
-    system_settings = SystemSetting.get_settings()
+    system_settings = SystemSetting.get_settings_for_request()
 
     # Monitors live under /monitoring/ and follow its role flag.
     monitors_qs = filter_by_org_perm(
@@ -266,8 +266,8 @@ def classic_global_dashboard(request):
         'process_stats': process_stats,
         'total_attachments': total_attachments,
         'total_storage': total_storage,
-        'map_default_zoom': SystemSetting.get_settings().map_default_zoom,
-        'map_dragging_enabled': SystemSetting.get_settings().map_dragging_enabled,
+        'map_default_zoom': SystemSetting.get_settings_for_request().map_default_zoom,
+        'map_dragging_enabled': SystemSetting.get_settings_for_request().map_dragging_enabled,
     })
 
 

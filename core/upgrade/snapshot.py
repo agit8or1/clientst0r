@@ -340,13 +340,9 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
         if engine == 'sqlite':
             src_path = str(_db()['NAME'])
             dst_path = snap / 'database.sqlite3'
-            src = sqlite3.connect(f'file:{src_path}?mode=ro', uri=True, timeout=60)
-            dst = sqlite3.connect(str(dst_path))
-            try:
-                src.backup(dst)
-            finally:
-                dst.close()
-                src.close()
+            # Backup API: WAL contents included, one self-contained file.
+            from core.sqlite_copy import copy_database
+            copy_database(src_path, dst_path)
             _private_file(dst_path)
             con = sqlite3.connect(f'file:{dst_path}?mode=ro', uri=True)
             try:
@@ -887,24 +883,16 @@ def _restore_sqlite(snap, manifest, stamp, out):
     live = Path(str(_db()['NAME']))
     if live.exists():
         aside = live.with_name(f'{live.name}.before-restore-{stamp}')
-        src = sqlite3.connect(f'file:{live}?mode=ro', uri=True, timeout=60)
-        dst = sqlite3.connect(str(aside))
-        try:
-            src.backup(dst)
-        finally:
-            dst.close()
-            src.close()
+        from core.sqlite_copy import copy_database
+        copy_database(live, aside)
         os.chmod(aside, 0o600)
         _out(out, f'Current database kept as {aside}')
     from django.db import connections
     connections.close_all()
-    src = sqlite3.connect(f"file:{snap / manifest['db']['file']}?mode=ro", uri=True)
-    dst = sqlite3.connect(str(live), timeout=60)
-    try:
-        src.backup(dst)   # page-level copy over the live file, safe with other readers
-    finally:
-        dst.close()
-        src.close()
+    # Page-level copy over the live file through SQLite, safe with other
+    # readers and with the live file's -wal / -shm (WAL mode).
+    from core.sqlite_copy import restore_database
+    restore_database(snap / manifest['db']['file'], live)
     _out(out, 'Database restored.')
 
 

@@ -153,7 +153,7 @@ def _setting(request, name, default=True):
     def compute():
         from core.models import SystemSetting
         try:
-            return bool(getattr(SystemSetting.get_settings(), name, default))
+            return bool(getattr(SystemSetting.get_settings_for_request(), name, default))
         except Exception:
             return default
     return _memo(request, ('setting', name), compute)
@@ -446,7 +446,7 @@ def build_monitors(request, org):
 
 def build_map(request, org):
     from core.models import SystemSetting
-    s = SystemSetting.get_settings()
+    s = SystemSetting.get_settings_for_request()
     devices = is_staff(request) and path_ok(
         request, url('integrations:rmm_device_map_data') or '/integrations/rmm/')
     return {
@@ -536,7 +536,7 @@ def build_system_status(request, org):
     from config.version import get_version
     from core.models import SystemSetting
 
-    s = SystemSetting.get_settings()
+    s = SystemSetting.get_settings_for_request()
     current = get_version()
     latest = (getattr(s, 'latest_release_version', '') or '').strip()
     update = ''
@@ -605,7 +605,7 @@ def build_quick_actions(request, org):
 def _qa_context(request):
     from core.models import SystemSetting
     try:
-        s = SystemSetting.get_settings()
+        s = SystemSetting.get_settings_for_request()
         flags = {
             'psa_enabled': bool(getattr(s, 'psa_enabled', False)),
             'vehicles_enabled': bool(getattr(s, 'vehicles_enabled', True)),

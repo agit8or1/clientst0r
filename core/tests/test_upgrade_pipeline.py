@@ -271,6 +271,56 @@ class SnapshotTests(_TmpMixin, SimpleTestCase):
         self.assertTrue(list(self.tmp.glob('db.sqlite3.before-restore-*')))
         self.assertTrue(list(self.tmp.glob('media.before-restore-*')))
 
+    def _wal_writer(self):
+        """The live database in WAL mode, held open by a writer whose last
+        commits are not checkpointed yet (they exist only in db.sqlite3-wal),
+        as with the running app."""
+        con = sqlite3.connect(str(self.db))
+        con.execute('PRAGMA journal_mode=WAL')
+        con.execute('PRAGMA wal_autocheckpoint=0')
+        con.execute("INSERT INTO tickets (subject) VALUES ('only in the wal')")
+        con.commit()
+        self.addCleanup(con.close)
+        self.assertGreater((self.tmp / 'db.sqlite3-wal').stat().st_size, 0)
+        return con
+
+    def test_backup_of_a_wal_database_holds_uncheckpointed_commits(self):
+        self._wal_writer()
+        snap, report = self._snap()
+        con = sqlite3.connect(f"file:{snap / 'database.sqlite3'}?mode=ro", uri=True)
+        try:
+            subjects = [r[0] for r in con.execute('SELECT subject FROM tickets ORDER BY id')]
+            self.assertEqual(con.execute('PRAGMA journal_mode').fetchone()[0], 'delete')
+        finally:
+            con.close()
+        self.assertEqual(subjects, ['before upgrade', 'only in the wal'])
+        # One self-contained file: no -wal / -shm in the backup.
+        self.assertEqual(sorted(p.name for p in snap.iterdir() if 'sqlite3' in p.name), ['database.sqlite3'])
+        failed = [c['name'] for c in report['checks'] if not c['ok']]
+        self.assertNotIn('database integrity', failed)
+        self.assertNotIn('row counts', failed)
+
+    def test_restore_into_a_wal_database_replaces_its_wal_contents(self):
+        snap, _ = self._snap()
+        writer = self._wal_writer()
+        with mock.patch('django.db.connections.close_all'):
+            snapshot.restore(snap, code=False)
+        # The open connection and a new one both see the restored rows, and
+        # the kept "before restore" copy has the WAL-only commit.
+        self.assertEqual(writer.execute('SELECT subject FROM tickets').fetchall(), [('before upgrade',)])
+        con = sqlite3.connect(str(self.db))
+        try:
+            self.assertEqual(con.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+            self.assertEqual(con.execute('SELECT subject FROM tickets').fetchall(), [('before upgrade',)])
+        finally:
+            con.close()
+        aside = next(self.tmp.glob('db.sqlite3.before-restore-*'))
+        con = sqlite3.connect(f'file:{aside}?mode=ro', uri=True)
+        try:
+            self.assertIn(('only in the wal',), con.execute('SELECT subject FROM tickets').fetchall())
+        finally:
+            con.close()
+
     def test_restore_refuses_when_the_instance_key_differs(self):
         snap, _ = self._snap()
         with override_settings(APP_MASTER_KEY=KEY_B):

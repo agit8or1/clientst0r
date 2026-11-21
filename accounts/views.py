@@ -1959,6 +1959,10 @@ def organization_merge(request):
                     # Move Memberships
                     from accounts.models import Membership
                     memberships_moved = Membership.objects.filter(organization=source_org).update(organization=target_org)
+                    # A queryset update sends no signals: drop the authorization
+                    # memo and the navigation's kept decisions by hand.
+                    from accounts import authz_cache
+                    authz_cache.invalidate('organization merge')
                     merge_stats['memberships'] += memberships_moved
                     
                     # Move RMM Connections

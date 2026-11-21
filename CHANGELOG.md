@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.745] - 2026-11-21
+
+Faster page loads.
+
+### Changed
+
+- **Pages render about twice as fast (roadmap 67.25).** Measured on the production dataset, typical pages went
+  from 150–225 ms to 55–115 ms of server time, with about 11 fewer database queries each.
+  - The sidebar's permission decisions are kept per worker for up to 30 seconds and dropped at once on every
+    worker when roles, memberships, access groups, technician restrictions or system settings change. Every page
+    still checks permissions itself.
+  - System settings are read once per request.
+  - Reloading a page no longer writes a "recent page" row.
+  - Long-lived startup objects are kept out of full garbage-collection passes. `CLIENTST0R_GC_FREEZE=0` turns
+    this off.
+- **No more outside hosts on first visit.** Font Awesome 6.5.1, DataTables 1.13.7, Select2 4.1.0-rc.0 and its
+  Bootstrap 5 theme, Leaflet 1.9.4 and jQuery 3.7.0 are now served from the app, byte-identical to the published
+  files and with their licences. The content security policy no longer allows `code.jquery.com` or
+  `cdn.datatables.net`.
+- **SQLite runs in WAL mode.**
+  - SQLite installs use WAL mode with a 20-second busy timeout, kept connections (60 seconds, health-checked) and
+    immediate write transactions. A long write no longer makes sign-ins fail with "database is locked".
+  - **Opting out:** set `SQLITE_JOURNAL_MODE=DELETE` in `.env`. This is required if the database is on NFS or SMB.
+  - **Connection lifetime:** `SQLITE_CONN_MAX_AGE` adjusts it.
+  - MySQL and MariaDB installs are unchanged.
+
+- **Root helper `web-workers status | N`** sets gunicorn's worker count (1–64) in the service unit and in the
+  front-proxy drop-in when that is on. A failed reload puts both files back. The change takes effect on the next
+  restart. This needs the helper itself updated first (`sudo clientst0r-root-helper self-update v3.17.745`).
+
+### Fixed
+
+- **Backups are taken through SQLite's backup API**, so they include recent commits held in the WAL file. This
+  covers upgrade snapshots and their restore, `manage.py backup`, `manage.py restore` and off-host backups. A plain
+  file copy would miss them.
+
+### Notes
+
+- **Do not copy `db.sqlite3` with `cp`, `rsync` or a file-level backup tool while the app is running.** Use
+  `manage.py backup`, off-host backups, or `sqlite3 db.sqlite3 ".backup copy.sqlite3"`. See
+  `docs/UPGRADE_AND_RECOVERY.md`.
+- **New migration:** `accounts.0066_authzgeneration`, a one-row counter that tells every worker when access
+  changed.
+
 ## [3.17.744] - 2026-11-20
 
 Scheduled, encrypted off-host backups with restore verification.

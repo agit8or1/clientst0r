@@ -257,12 +257,24 @@ The directory is mode 700 and every file in it is mode 600:
 
 | File | Contents |
 |---|---|
-| `database.sqlite3` / `database.sql` | SQLite online copy, or `mysqldump --single-transaction` |
+| `database.sqlite3` / `database.sql` | SQLite online copy (backup API, one self-contained file), or `mysqldump --single-transaction` |
 | `media.tar` | every uploaded file (attachments, pictures, documents) |
 | `keys.env` | `SECRET_KEY`, `APP_MASTER_KEY` (and previous keys), `API_KEY_SECRET`, `DB_*` |
 | `env.file` | a copy of `.env` (native installs) |
 | `manifest.json` | code revision, versions, row counts, applied migrations, checksums, key fingerprints |
 | `verification.json` | the result of the verification |
+
+**SQLite runs in WAL mode.** Recent commits sit in `db.sqlite3-wal` until
+SQLite checkpoints them into `db.sqlite3`, so copying `db.sqlite3` with `cp`,
+`rsync` or a file-level backup tool can miss them, and copying a file over
+the live database while an old `db.sqlite3-wal` sits beside it corrupts it.
+Copy the database only with `manage.py upgrade_backup`, `manage.py backup`
+or `sqlite3 db.sqlite3 ".backup /path/copy.sqlite3"`, and restore with
+`manage.py upgrade_restore` / `manage.py restore`. A file-level backup of
+the whole install directory must take `db.sqlite3`, `db.sqlite3-wal` and
+`db.sqlite3-shm` together from one filesystem snapshot. If the database is
+on a network filesystem (NFS, SMB), where WAL does not work, set
+`SQLITE_JOURNAL_MODE=DELETE` in `.env`.
 
 **The keys are in the backup on purpose.** Vault entries, secure notes, TOTP
 secrets and integration credentials are encrypted with `APP_MASTER_KEY`. A

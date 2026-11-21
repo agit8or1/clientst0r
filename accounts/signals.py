@@ -221,6 +221,20 @@ def connect_related():
                             dispatch_uid='access_group_staff_only')
     except Exception:  # pragma: no cover - app missing
         pass
+    # Rows the navigation's gates also read (core.nav_cache keeps their
+    # answers between requests on the generation these bump): technician
+    # denies, customer access policy and containment, RMM permission
+    # overrides, and the system settings (feature switches, OPTIONAL AI).
+    for label, model_name in (('tech_access', 'ExplicitDeny'), ('tech_access', 'CustomerAccessPolicy'),
+                              ('tech_access', 'Containment'), ('tech_access', 'AccessPreset'),
+                              ('rmm_permissions', 'RMMPermissionOverride'), ('core', 'SystemSetting')):
+        try:
+            from django.apps import apps
+            model = apps.get_model(label, model_name)
+        except Exception:  # pragma: no cover - app missing
+            continue
+        post_save.connect(_invalidate, sender=model, dispatch_uid=f'authz_{label}_{model_name}_save')
+        post_delete.connect(_invalidate, sender=model, dispatch_uid=f'authz_{label}_{model_name}_delete')
 
 
 def _staff_only_members(sender, instance, action, reverse, pk_set, **_kw):

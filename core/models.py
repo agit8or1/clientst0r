@@ -1176,6 +1176,26 @@ class SystemSetting(models.Model):
         settings, created = cls.objects.get_or_create(pk=1)
         return settings
 
+    @classmethod
+    def get_settings_for_request(cls):
+        """get_settings() read once per request (accounts.authz_cache's
+        request memo), for the code every page runs: the context processors
+        and the navigation. Each caller gets its own copy, so changing one
+        never shows in another; a save drops the memo (accounts.signals), so
+        the rest of the request reads the new row. Outside a request this is
+        get_settings()."""
+        import copy
+
+        from accounts import authz_cache
+        return copy.copy(authz_cache.memo(('system_settings',), cls.get_settings))
+
+    @classmethod
+    def forget_request_copy(cls):
+        """After SystemSetting.objects.filter(...).update(...): the rest of
+        this request reads the row again (get_settings_for_request)."""
+        from accounts import authz_cache
+        authz_cache.forget(('system_settings',))
+
     def save(self, *args, **kwargs):
         """Enforce singleton pattern."""
         self.pk = 1

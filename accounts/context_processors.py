@@ -127,7 +127,7 @@ def _background_policy():
     real error should still surface.
     """
     try:
-        settings_obj = SystemSetting.get_settings()
+        settings_obj = SystemSetting.get_settings_for_request()
     except (OperationalError, ProgrammingError, SystemSetting.DoesNotExist):
         return 'user', None
     return getattr(settings_obj, 'background_policy', 'user') or 'user', settings_obj

@@ -2412,6 +2412,7 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   chart and footer at the same height whatever each card contains.
 - **67.24 Dark-theme contrast for category headings** *(shipped v3.17.739)* — knowledge-base category rows
   and count badges no longer show a near-white bar in dark themes.
+- **67.25 Faster page loads** *(shipped v3.17.745)* — the sidebar's permission decisions are kept per worker and dropped the moment any access changes; system settings are read once per request; reloading a page no longer writes to the database; Font Awesome, DataTables, Select2, Leaflet and jQuery are served from the app; SQLite installs run in WAL mode with a busy timeout, and every backup and restore goes through SQLite's backup API. Server render time roughly halved (about 55–115 ms per page on the production dataset).
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
