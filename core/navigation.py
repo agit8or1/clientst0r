@@ -926,6 +926,8 @@ SECTIONS = (
     )),
     Section('settings_maintenance', 'settings', _('Maintenance'), icon='fa-tools', render_tabs=False, tabs=(
         Tab(_('Maintenance'), 'core:maintenance', 'fa-tools', gate=_superuser, keywords='cleanup backup'),
+        Tab(_('Off-host Backups'), 'core:offhost_backup', 'fa-cloud-arrow-up', gate=_superuser,
+            keywords='backup offsite off-site sftp restore verification disaster recovery escrow'),
         Tab(_('Data Import'), 'imports:import_list', 'fa-file-import', gate=_superuser,
             keywords='migrate import', also=('imports:rehearsal_list',)),
         Tab(_('Data Export'), 'core:settings_data_export', 'fa-file-export', gate=_superuser,

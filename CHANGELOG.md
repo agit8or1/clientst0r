@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.744] - 2026-11-20
+
+Scheduled, encrypted off-host backups with restore verification.
+
+### Added
+
+- **Off-host backups (roadmap 94.3, security review SR-17)**
+  - **Where to find it:** **Settings → Maintenance → Off-host Backups**, for superusers only. It is off until a
+    destination is set up.
+  - **Encryption:** every archive (database and uploads) is encrypted on this server with AES-256-GCM before it
+    leaves, using a separate backup key. The key is shown once for you to store safely, and is never the
+    application's master key.
+  - **What is never in the archive:** the `.env` keys (`APP_MASTER_KEY`, `SECRET_KEY`, `API_KEY_SECRET`) and the
+    backup key. Store those separately.
+  - **Destinations:**
+    - SFTP: the server's host key must be approved before any credential is sent. Sign-in uses a generated SSH key
+      pair, a pasted key or a password.
+    - A mounted directory (NFS, SMB, or a bucket mounted with rclone or s3fs).
+    - S3-compatible storage is planned.
+  - **Retention:** keeps the newest archive of each of the last 7 days and 4 weeks (adjustable). It never removes the
+    newest archive or the newest verified one.
+  - **Restore verification:** runs weekly and after the first backup. The newest archive is downloaded, its hash
+    checked, decrypted and unpacked in a private temporary directory, its files checked against the manifest, and
+    the database checked (SQLite integrity check and row counts; MariaDB/MySQL dump completeness). The live database
+    is never touched.
+  - **Warnings:** a system warning and a Readiness item appear when backups are on but none has succeeded recently,
+    a run cannot start, or verification failed.
+  - **Buttons:** **Back up now** and **Verify newest now** run at the next scheduler pass.
+  - **Scheduled task:** "Off-host Backup and Restore Verification" runs every 15 minutes and does nothing until set
+    up.
+  - **Command line:** `manage.py offhost_backup tick|run|verify|status|decrypt|check-archive`. The key is read from a
+    prompt or a file, never from the command line.
+  - **Audit:** every setting change, key event, host-key approval and run is audit-logged, without secrets.
+- **`docs/BACKUP_AND_RESTORE.md`:** setup, key escrow and a step-by-step restore procedure.
+
+### Fixed
+
+- **False upgrade warning:** during an update, the upgrade no longer logs "previous upgrade: fail — An upgrade is
+  running". The check was seeing the update that was asking and was already discarded; it is no longer run during
+  apply.
+
 ## [3.17.743] - 2026-11-20
 
 Agit8or Connect hardening (Quick Connect increment A). Agit8or Connect stays off by default; these changes matter

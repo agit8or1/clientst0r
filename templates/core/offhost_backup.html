@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Off-host Backups - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="row">
+<div class="col-12 col-xl-10">
+
+<h4 class="mb-3"><i class="fas fa-cloud-arrow-up"></i> Off-host Backups</h4>
+<p class="text-muted">
+    Scheduled, encrypted backups of this install's database and uploaded files to another host, with
+    regular restore verification. This backs up Client St0r itself — customer backups are watched under
+    Backup Monitoring. See <code>docs/BACKUP_AND_RESTORE.md</code> for the restore procedure.
+</p>
+
+{% if new_key %}
+<div class="card border-danger mb-3" id="new-backup-key">
+    <div class="card-header bg-danger text-white">
+        <strong><i class="fas fa-key"></i> Your backup key — shown once</strong>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">Copy this key now and store it <strong>off this host</strong>: a password manager the
+            whole team cannot lose, or printed and locked away. It is not shown again. Without it no archive
+            can be decrypted — not by you, not by support.</p>
+        <pre class="p-3 border rounded bg-body-tertiary user-select-all mb-2"><code>{{ new_key }}</code></pre>
+        <p class="small mb-2">Fingerprint: <code>{{ cfg.backup_key_fingerprint }}</code> (also recorded in each
+            archive's header, so you can tell which key an archive needs).</p>
+        {% if rotated_from %}
+        <p class="small text-warning mb-2">Archives already uploaded were encrypted with the previous key
+            <code>{{ rotated_from }}</code>. Keep that key until those archives have aged out of retention.</p>
+        {% endif %}
+        <p class="small mb-0">Also escrow <strong>.env</strong> (APP_MASTER_KEY, SECRET_KEY, API_KEY_SECRET)
+            separately. It is never put in the archive; without APP_MASTER_KEY the vault, secure notes and
+            integration credentials in a restored database stay unreadable.</p>
+    </div>
+</div>
+{% endif %}
+
+{# ---- status ---------------------------------------------------------- #}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-heart-pulse"></i> Status</h5>
+        {% if health.state == 'ok' %}<span class="badge bg-success">Healthy</span>
+        {% elif health.state == 'disabled' or health.state == 'not_configured' %}<span class="badge bg-secondary">Off</span>
+        {% else %}<span class="badge bg-danger">Needs attention</span>{% endif %}
+    </div>
+    <div class="card-body">
+        <p class="mb-2">{{ health.detail }}</p>
+        <dl class="row mb-2 small">
+            <dt class="col-sm-3">Destination</dt><dd class="col-sm-9"><code>{{ cfg.destination_label }}</code></dd>
+            <dt class="col-sm-3">Last backup</dt>
+            <dd class="col-sm-9">{% if cfg.last_backup_at %}{{ cfg.last_backup_at|date:"Y-m-d H:i" }} —
+                <span class="{% if cfg.last_backup_status == 'success' %}text-success{% else %}text-danger{% endif %}">{{ cfg.last_backup_status }}</span>:
+                {{ cfg.last_backup_detail }}{% else %}never{% endif %}</dd>
+            <dt class="col-sm-3">Last verification</dt>
+            <dd class="col-sm-9">{% if cfg.last_verify_at %}{{ cfg.last_verify_at|date:"Y-m-d H:i" }} —
+                <span class="{% if cfg.last_verify_status == 'success' %}text-success{% else %}text-danger{% endif %}">{{ cfg.last_verify_status }}</span>:
+                {{ cfg.last_verify_detail }}{% else %}never{% endif %}</dd>
+            <dt class="col-sm-3">Newest verified</dt><dd class="col-sm-9">{{ cfg.last_verified_name|default:"none" }} (never removed by retention)</dd>
+        </dl>
+        {% if problems %}
+        <div class="alert alert-warning py-2 small mb-2">Before backups can run: {{ problems|join:"; " }}.</div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-2">
+            <form method="post">{% csrf_token %}
+                <input type="hidden" name="action" value="set_enabled">
+                {% if cfg.enabled %}
+                <input type="hidden" name="enabled" value="0">
+                <button class="btn btn-outline-danger btn-sm" data-confirm="Switch off scheduled off-host backups?">Switch off</button>
+                {% else %}
+                <input type="hidden" name="enabled" value="1">
+                <button class="btn btn-success btn-sm" {% if problems %}disabled{% endif %}>Switch on</button>
+                {% endif %}
+            </form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="run_backup_now">
+                <button class="btn btn-primary btn-sm" {% if problems %}disabled{% endif %}><i class="fas fa-play"></i> Back up now</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="run_verify_now">
+                <button class="btn btn-outline-primary btn-sm" {% if problems %}disabled{% endif %}><i class="fas fa-vial-circle-check"></i> Verify newest now</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="test_connection">
+                <button class="btn btn-outline-secondary btn-sm">Test connection</button></form>
+        </div>
+    </div>
+</div>
+
+{# ---- key ------------------------------------------------------------- #}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-key"></i> 1. Backup encryption key</h5></div>
+    <div class="card-body">
+        <p class="small">Archives are encrypted on this host (AES-256-GCM) before they leave it, with a backup key
+            that is separate from the application's master key. The key is stored here only sealed with the
+            application's secret key, so scheduled runs can encrypt; it is never written into an archive.</p>
+        {% if cfg.backup_key %}
+        <p class="mb-2">Key fingerprint <code>{{ cfg.backup_key_fingerprint }}</code>, created
+            {{ cfg.backup_key_created_at|date:"Y-m-d H:i" }}.
+            {% if cfg.backup_key_acknowledged_at %}<span class="text-success">Confirmed escrowed
+            {{ cfg.backup_key_acknowledged_at|date:"Y-m-d" }}{% if cfg.backup_key_acknowledged_by %} by {{ cfg.backup_key_acknowledged_by.username }}{% endif %}.</span>
+            {% else %}<span class="text-danger">Not confirmed yet.</span>{% endif %}</p>
+        {% if not cfg.backup_key_acknowledged_at %}
+        <form method="post" class="row g-2 align-items-end mb-3">{% csrf_token %}
+            <input type="hidden" name="action" value="acknowledge_key">
+            <div class="col-auto"><label class="form-label small" for="key_tail">Type the last 6 characters of the key you saved</label>
+                <input class="form-control form-control-sm" id="key_tail" name="key_tail" maxlength="6" autocomplete="off" required></div>
+            <div class="col-auto"><button class="btn btn-primary btn-sm">Confirm I stored it</button></div>
+        </form>
+        {% endif %}
+        <form method="post" class="d-flex gap-2 align-items-center">{% csrf_token %}
+            <input type="hidden" name="action" value="generate_key">
+            <div class="form-check small"><input class="form-check-input" type="checkbox" name="confirm_rotate" id="confirm_rotate">
+                <label class="form-check-label" for="confirm_rotate">Replace the key (existing archives still need the old one)</label></div>
+            <button class="btn btn-outline-danger btn-sm" data-confirm="Generate a new backup key?">Generate new key</button>
+        </form>
+        {% else %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="generate_key">
+            <button class="btn btn-primary btn-sm">Generate backup key</button></form>
+        {% endif %}
+    </div>
+</div>
+
+{# ---- destination ----------------------------------------------------- #}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-server"></i> 2. Destination</h5></div>
+    <div class="card-body">
+        <form method="post">{% csrf_token %}
+            <input type="hidden" name="action" value="save_destination">
+            <div class="mb-3">
+                {% for value, label in destination_choices %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="destination_type" id="dt_{{ value }}" value="{{ value }}" {% if cfg.destination_type == value %}checked{% endif %}>
+                    <label class="form-check-label" for="dt_{{ value }}">{{ label }}</label>
+                </div>
+                {% endfor %}
+                <div class="form-text">S3-compatible storage is not built in (no S3 client library is installed);
+                    use an SFTP gateway or mount the bucket as a directory.</div>
+            </div>
+            <fieldset class="border rounded p-3 mb-3"><legend class="fs-6 w-auto px-1">SFTP</legend>
+                <div class="row g-2">
+                    <div class="col-md-6"><label class="form-label small" for="sftp_host">Server</label>
+                        <input class="form-control form-control-sm" id="sftp_host" name="sftp_host" value="{{ cfg.sftp_host }}"></div>
+                    <div class="col-md-2"><label class="form-label small" for="sftp_port">Port</label>
+                        <input class="form-control form-control-sm" id="sftp_port" name="sftp_port" type="number" value="{{ cfg.sftp_port }}"></div>
+                    <div class="col-md-4"><label class="form-label small" for="sftp_username">User</label>
+                        <input class="form-control form-control-sm" id="sftp_username" name="sftp_username" value="{{ cfg.sftp_username }}" autocomplete="off"></div>
+                    <div class="col-md-6"><label class="form-label small" for="sftp_path">Remote directory (must exist)</label>
+                        <input class="form-control form-control-sm" id="sftp_path" name="sftp_path" value="{{ cfg.sftp_path }}"></div>
+                    <div class="col-md-6"><label class="form-label small" for="sftp_password">Password</label>
+                        <input class="form-control form-control-sm" id="sftp_password" name="sftp_password" type="password" autocomplete="new-password"
+                               placeholder="{% if has_password %}Stored encrypted — leave blank to keep{% else %}Not set (key sign-in preferred){% endif %}">
+                        {% if has_password %}<div class="form-check small"><input class="form-check-input" type="checkbox" name="clear_password" id="clear_password"><label class="form-check-label" for="clear_password">Remove stored password</label></div>{% endif %}</div>
+                    <div class="col-12"><label class="form-label small" for="sftp_private_key">Private key (OpenSSH, unencrypted) — or generate one below</label>
+                        <textarea class="form-control form-control-sm font-monospace" id="sftp_private_key" name="sftp_private_key" rows="2" autocomplete="off"
+                                  placeholder="{% if cfg.sftp_private_key %}Stored encrypted — leave blank to keep{% else %}-----BEGIN OPENSSH PRIVATE KEY-----{% endif %}"></textarea></div>
+                    <div class="col-12 form-check ms-2"><input class="form-check-input" type="checkbox" name="allow_legacy_ssh_rsa" id="allow_legacy_ssh_rsa" {% if cfg.allow_legacy_ssh_rsa %}checked{% endif %}>
+                        <label class="form-check-label small" for="allow_legacy_ssh_rsa">Allow legacy SHA-1 ssh-rsa host keys (old servers only)</label></div>
+                </div>
+            </fieldset>
+            <fieldset class="border rounded p-3 mb-3"><legend class="fs-6 w-auto px-1">Mounted directory</legend>
+                <label class="form-label small" for="local_path">Directory on another disk or a network mount (NFS, SMB, rclone/s3fs)</label>
+                <input class="form-control form-control-sm" id="local_path" name="local_path" value="{{ cfg.local_path }}">
+                {% if dest_note %}<div class="form-text text-warning">{{ dest_note }}</div>{% endif %}
+            </fieldset>
+            <button class="btn btn-primary btn-sm">Save destination</button>
+        </form>
+
+        {% if cfg.destination_type == 'sftp' %}
+        <hr>
+        <h6>SSH sign-in key</h6>
+        {% if public_key %}
+        <p class="small mb-1">Add this line to <code>~/.ssh/authorized_keys</code> of <code>{{ cfg.sftp_username|default:"the backup user" }}</code> on the server:</p>
+        <pre class="p-2 border rounded small user-select-all"><code>{{ public_key }}</code></pre>
+        {% endif %}
+        <form method="post" class="d-flex gap-2 align-items-center mb-3">{% csrf_token %}
+            <input type="hidden" name="action" value="generate_ssh_key">
+            {% if cfg.sftp_private_key %}<div class="form-check small"><input class="form-check-input" type="checkbox" name="confirm_replace" id="confirm_replace"><label class="form-check-label" for="confirm_replace">Replace the stored key</label></div>{% endif %}
+            <button class="btn btn-outline-secondary btn-sm">Generate SSH key pair</button>
+        </form>
+
+        <h6>Server host key</h6>
+        <p class="small">The server must prove it holds the approved key before any credential is sent. Nothing is
+            trusted automatically, including the first key.</p>
+        {% if cfg.host_key %}
+        <p class="small">Approved: <code>{{ cfg.host_key_type }} {{ cfg.host_key_fingerprint }}</code>
+            {% if cfg.host_key_approved_at %}({{ cfg.host_key_approved_at|date:"Y-m-d" }}{% if cfg.host_key_approved_by %}, {{ cfg.host_key_approved_by.username }}{% endif %}){% endif %}</p>
+        {% endif %}
+        {% if cfg.pending_host_key %}
+        <div class="alert alert-warning small">
+            {% if cfg.host_key %}<strong>The server presented a different key.</strong>{% else %}Key presented by the server:{% endif %}
+            <code>{{ cfg.pending_host_key_type }} {{ cfg.pending_host_key_fingerprint }}</code>
+            (seen {{ cfg.pending_host_key_seen_at|date:"Y-m-d H:i" }}). Compare with
+            <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the server.
+            <form method="post" class="mt-2">{% csrf_token %}
+                <input type="hidden" name="action" value="approve_host_key">
+                <input type="hidden" name="expected_fingerprint" value="{{ cfg.pending_host_key_fingerprint }}">
+                <button class="btn btn-warning btn-sm" data-confirm="Approve {{ cfg.pending_host_key_fingerprint }}?">Approve this key</button>
+            </form>
+        </div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="fetch_host_key">
+                <button class="btn btn-outline-secondary btn-sm" {% if not cfg.sftp_host %}disabled{% endif %}>Fetch host key</button></form>
+            {% if cfg.host_key %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="clear_host_key">
+                <button class="btn btn-outline-danger btn-sm" data-confirm="Remove the approved host key?">Remove approved key</button></form>
+            {% endif %}
+        </div>
+        <form method="post" class="row g-2">{% csrf_token %}
+            <input type="hidden" name="action" value="paste_host_key">
+            <div class="col-md-9"><input class="form-control form-control-sm font-monospace" name="public_key" placeholder="Or paste the server's public key / known_hosts line" aria-label="Server public key"></div>
+            <div class="col-md-3"><button class="btn btn-outline-secondary btn-sm w-100">Approve pasted key</button></div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{# ---- schedule -------------------------------------------------------- #}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-clock"></i> 3. Schedule and retention</h5></div>
+    <div class="card-body">
+        <form method="post" class="row g-2">{% csrf_token %}
+            <input type="hidden" name="action" value="save_schedule">
+            <div class="col-md-4"><label class="form-label small" for="bih">Back up every (hours)</label>
+                <input class="form-control form-control-sm" id="bih" name="backup_interval_hours" type="number" min="1" value="{{ cfg.backup_interval_hours }}"></div>
+            <div class="col-md-4"><label class="form-label small" for="vid">Verify a restore every (days)</label>
+                <input class="form-control form-control-sm" id="vid" name="verify_interval_days" type="number" min="1" value="{{ cfg.verify_interval_days }}"></div>
+            <div class="col-md-4"><label class="form-label small" for="aad">Warn when no backup for (days)</label>
+                <input class="form-control form-control-sm" id="aad" name="alert_after_days" type="number" min="1" value="{{ cfg.alert_after_days }}"></div>
+            <div class="col-md-4"><label class="form-label small" for="kd">Keep daily archives</label>
+                <input class="form-control form-control-sm" id="kd" name="keep_daily" type="number" min="1" value="{{ cfg.keep_daily }}"></div>
+            <div class="col-md-4"><label class="form-label small" for="kw">Keep weekly archives</label>
+                <input class="form-control form-control-sm" id="kw" name="keep_weekly" type="number" min="0" value="{{ cfg.keep_weekly }}"></div>
+            <div class="col-12 form-text">Retention keeps the newest archive of each recent day and week, and never
+                removes the newest archive or the newest one that passed verification.</div>
+            <div class="col-12"><button class="btn btn-primary btn-sm">Save schedule</button></div>
+        </form>
+    </div>
+</div>
+
+{# ---- history --------------------------------------------------------- #}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-list"></i> Recent runs</h5></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-sm mb-0 small">
+            <thead><tr><th>Started</th><th>Kind</th><th>Trigger</th><th>Status</th><th>Archive</th><th>Detail</th></tr></thead>
+            <tbody>
+            {% for r in runs %}
+            <tr>
+                <td class="text-nowrap">{{ r.started_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ r.get_kind_display }}</td>
+                <td>{{ r.trigger }}</td>
+                <td><span class="badge {% if r.status == 'success' %}bg-success{% elif r.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">{{ r.status }}</span></td>
+                <td><code>{{ r.remote_name }}</code></td>
+                <td>{{ r.detail|truncatechars:240 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-muted p-3">No runs yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+</div>
+</div>
+{% endblock %}

@@ -64,6 +64,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_api_access())
     warnings.extend(_warnings_from_default_password())
     warnings.extend(_warnings_from_audit_chain())
+    warnings.extend(_warnings_from_offhost_backup())
 
     # Filter by min severity, then sort.
     filtered = [w for w in warnings if SEVERITY_RANK.get(w['severity'], 9) <= threshold]
@@ -257,6 +258,38 @@ def _warnings_from_audit_chain():
         'action_url': _safe_reverse('audit:audit_log_list'),
         'action_label': 'Open audit log',
         'source_date': state.verified_at,
+    }]
+
+
+def _warnings_from_offhost_backup():
+    """Off-host backups (Phase 94.3, SR-17) are switched on but have not
+    succeeded recently, cannot run, or the newest archive failed restore
+    verification. Silent while the feature is off (readiness covers that)."""
+    try:
+        from core.offhost_backup.service import health
+        h = health()
+    except Exception:
+        return []
+    state = h.get('state')
+    titles = {
+        'verify_failed': ('high', 'The newest off-host backup failed restore verification'),
+        'stale': ('high', 'No successful off-host backup recently'),
+        'not_ready': ('high', 'Off-host backups are switched on but cannot run'),
+        'unverified': ('medium', 'Off-host backups have not passed a restore verification recently'),
+    }
+    if state not in titles:
+        return []
+    severity, title = titles[state]
+    since = h.get('since')
+    return [{
+        'id': f'offhost_backup_{state}:{since:%Y%m%d}' if since else f'offhost_backup_{state}',
+        'severity': severity,
+        'category': 'offhost_backup',
+        'title': title,
+        'detail': (h.get('detail') or '')[:300],
+        'action_url': _safe_reverse('core:offhost_backup'),
+        'action_label': 'Open off-host backups',
+        'source_date': since,
     }]
 
 

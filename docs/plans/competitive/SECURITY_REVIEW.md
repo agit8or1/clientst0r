@@ -214,6 +214,8 @@ confirms that the code path exists, not that it is exploitable.
 
 ### SR-17 — No routine scheduled backup; keys stored beside data
 
+> **Status (v3.17.744):** addressed — scheduled, encrypted off-host backups with a separate backup key and weekly restore verification; the `.env` keys are never in the archive and must be escrowed separately.
+
 - **Finding.** Verified pre-upgrade snapshots exist, but full `manage.py backup` is not a scheduler task;
   snapshots keep `keys.env` on the same host as the data.
 - **Evidence.** `run_scheduler.py` `COMMAND_TASKS` (lines 20-82, only `upgrade_backup_prune`);

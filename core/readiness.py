@@ -109,6 +109,14 @@ def _from_preflight(cid, title, fn, url='', label=''):
     return row
 
 
+def _guarded(cid, title, fn):
+    try:
+        return fn()
+    except Exception as e:  # a broken check must not hide the others
+        logger.warning('readiness check %s failed: %s', cid, e)
+        return _check(cid, False, title, f'The check could not run: {e.__class__.__name__}')
+
+
 def _check_default_password():
     names = [u.get_username() for u in superusers_with_default_password()]
     if names:
@@ -185,6 +193,23 @@ def _check_app_version():
                   'Up to date, or no newer release is known yet.')
 
 
+def _check_offhost_backup():
+    """Phase 94.3 / SR-17: a copy of the data (and the keys) off this host."""
+    from core.offhost_backup.service import health
+    h = health()
+    url, label = _reverse('core:offhost_backup'), 'Set up off-host backups'
+    title = 'Off-host backups'
+    if h['state'] == 'ok':
+        return _check('offhost_backup', True, title, h['detail'])
+    severity = 'high' if h['state'] in ('stale', 'verify_failed', 'not_ready') else 'medium'
+    detail = h['detail']
+    if h['state'] in ('not_configured', 'disabled'):
+        detail += (' Pre-upgrade snapshots stay on this host together with keys.env, so losing the host '
+                   'loses the data and the keys together.')
+    return _check('offhost_backup', False, title, detail, severity=severity, url=url,
+                  label=label if h['state'] in ('not_configured', 'disabled') else 'Open off-host backups')
+
+
 def run_checks():
     """Run every readiness check, store the list, and return it."""
     from core.models import ReadinessResult, SystemSetting
@@ -200,6 +225,7 @@ def run_checks():
         _from_preflight('backup_destination', 'Backup destination', preflight.check_backup_destination,
                         updates_url, 'Open updates'),
         _check_scheduler(),
+        _guarded('offhost_backup', 'Off-host backups', _check_offhost_backup),
         _from_preflight('migrations', 'Database migrations',
                         lambda: preflight.check_pending_migrations(None, ''),
                         updates_url, 'Open updates'),

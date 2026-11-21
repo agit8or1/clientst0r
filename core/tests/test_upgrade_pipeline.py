@@ -689,6 +689,25 @@ class PreflightTests(_TmpMixin, TestCase):
         bad = preflight.failed(checks)
         self.assertTrue(any('boom' in c.detail for c in bad), [c.as_dict() for c in checks])
 
+    def test_apply_leaves_out_the_journal_check(self):
+        """upgrade_apply runs preflight after writing its own journal entry: the
+        "previous upgrade" check would only see that run and log a false fail."""
+        ok = preflight.Check('x', 'ok', '')
+        with mock.patch.object(preflight, 'check_journal',
+                               return_value=preflight.Check('previous upgrade', 'fail', 'An upgrade is running')) as cj, \
+                mock.patch.object(preflight, 'check_git', return_value=ok), \
+                mock.patch.object(preflight, 'check_disk', return_value=ok), \
+                mock.patch.object(preflight, 'check_database', return_value=ok), \
+                mock.patch.object(preflight, 'check_pending_migrations', return_value=ok), \
+                mock.patch.object(preflight, 'check_media', return_value=ok), \
+                mock.patch.object(preflight, 'check_keys', return_value=ok), \
+                mock.patch.object(preflight, 'check_backup_destination', return_value=ok), \
+                self.assertNoLogs('core', level='WARNING'):
+            checks = preflight.run(None, installed_sha='', deps=False, journal_check=False)
+        cj.assert_not_called()
+        self.assertNotIn('previous upgrade', [c.name for c in checks])
+        self.assertEqual(preflight.failed(checks), [])
+
 
 # ---------------------------------------------------------------------------
 # migration doctor

@@ -263,9 +263,16 @@ def check_dependencies(target: Target | None, timeout=300):
     return Check('python dependencies', 'ok', 'requirements resolve and are installable')
 
 
-def run(target: Target | None = None, *, installed_sha: str = '', deps=True) -> list[Check]:
+def run(target: Target | None = None, *, installed_sha: str = '', deps=True,
+        journal_check=True) -> list[Check]:
+    """Run the preflight checks.
+
+    journal_check=False leaves out "previous upgrade": upgrade_apply runs the
+    checks after it has written its own journal entry, so that check would
+    only ever describe the run that is asking (and log a misleading
+    "fail: An upgrade is running")."""
     checks = []
-    for fn in (check_journal,
+    for fn in ((check_journal,) if journal_check else ()) + (
                lambda: check_git(target),
                check_disk,
                check_database,

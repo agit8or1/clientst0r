@@ -1310,6 +1310,10 @@ class ScheduledTask(models.Model):
         ('events_tick', 'Shared Event Layer Ingestion'),
         ('audit_chain', 'Audit Log Seal and Tamper Check'),
         ('psa_ticket_reminders', 'PSA Ticket Reminders'),
+        # Phase 94.3 / SR-17: encrypted backups of this install to another
+        # host, plus weekly restore verification. Does nothing until a
+        # destination and backup key are set up in Settings -> Off-host Backups.
+        ('offhost_backup', 'Off-host Backup and Restore Verification'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -2013,6 +2017,17 @@ class ScheduledTask(models.Model):
             'task_type': 'psa_ticket_reminders',
             'description': 'Mark ticket reminders that have come due as fired, so they show in My Work and the bell',
             'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Checks every 15 minutes whether a backup or verification is due
+            # by the schedule set on Settings -> Off-host Backups (default:
+            # backup daily, verify weekly). Off until configured there.
+            'task_type': 'offhost_backup',
+            'description': 'Encrypted backup of the database and uploaded files to the off-host destination, '
+                           'and periodic restore verification (does nothing until set up in Settings -> '
+                           'Off-host Backups)',
+            'interval_minutes': 15,
             'enabled': True,
         },
     ]
@@ -3158,3 +3173,136 @@ class ReadinessResult(models.Model):
 
     def __str__(self):
         return f'{self.key} @ {self.checked_at:%Y-%m-%d %H:%M}'
+
+
+class OffhostBackupConfig(models.Model):
+    """Scheduled, encrypted backups of this install to another host
+    (Phase 94.3, SR-17). One row, pk=1; see core.offhost_backup.
+
+    Off until an administrator configures a destination, generates the backup
+    key, confirms it is escrowed and switches it on. The host-key fields use
+    the names netconfig.hostkeys expects, so SFTP destinations get the same
+    approve-before-use pinning as network device collection.
+    """
+    DEST_SFTP = 'sftp'
+    DEST_LOCAL = 'local'
+    DESTINATION_CHOICES = [
+        (DEST_SFTP, 'SFTP server'),
+        (DEST_LOCAL, 'Mounted directory (NFS / SMB / removable disk)'),
+    ]
+
+    enabled = models.BooleanField(default=False)
+    destination_type = models.CharField(max_length=10, choices=DESTINATION_CHOICES, default=DEST_SFTP)
+
+    sftp_host = models.CharField(max_length=255, blank=True)
+    sftp_port = models.PositiveIntegerField(default=22)
+    sftp_username = models.CharField(max_length=150, blank=True)
+    sftp_password = EncryptedTextField(blank=True)
+    sftp_private_key = EncryptedTextField(blank=True, help_text='OpenSSH private key (encrypted)')
+    sftp_path = models.CharField(max_length=500, blank=True, help_text='Remote directory')
+    allow_legacy_ssh_rsa = models.BooleanField(default=False)
+    host_key_type = models.CharField(max_length=40, blank=True)
+    host_key = models.TextField(blank=True)
+    host_key_fingerprint = models.CharField(max_length=80, blank=True)
+    host_key_approved_at = models.DateTimeField(null=True, blank=True)
+    host_key_approved_by = models.ForeignKey(
+        'auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    pending_host_key_type = models.CharField(max_length=40, blank=True)
+    pending_host_key = models.TextField(blank=True)
+    pending_host_key_fingerprint = models.CharField(max_length=80, blank=True)
+    pending_host_key_seen_at = models.DateTimeField(null=True, blank=True)
+
+    local_path = models.CharField(max_length=500, blank=True,
+                                  help_text='A directory on another disk or a network mount')
+
+    backup_interval_hours = models.PositiveIntegerField(default=24)
+    verify_interval_days = models.PositiveIntegerField(default=7)
+    keep_daily = models.PositiveIntegerField(default=7)
+    keep_weekly = models.PositiveIntegerField(default=4)
+    alert_after_days = models.PositiveIntegerField(default=2)
+
+    backup_key = EncryptedTextField(blank=True, help_text='Backup encryption key (sealed with the app secret key)')
+    backup_key_fingerprint = models.CharField(max_length=40, blank=True)
+    backup_key_created_at = models.DateTimeField(null=True, blank=True)
+    backup_key_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    backup_key_acknowledged_by = models.ForeignKey(
+        'auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+
+    last_backup_at = models.DateTimeField(null=True, blank=True)
+    last_backup_status = models.CharField(max_length=10, blank=True)
+    last_backup_detail = models.TextField(blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_success_name = models.CharField(max_length=255, blank=True)
+    last_verify_at = models.DateTimeField(null=True, blank=True)
+    last_verify_status = models.CharField(max_length=10, blank=True)
+    last_verify_detail = models.TextField(blank=True)
+    last_verified_name = models.CharField(max_length=255, blank=True,
+                                          help_text='Newest archive that passed verification; never pruned')
+    last_verified_ok_at = models.DateTimeField(null=True, blank=True)
+    backup_requested_at = models.DateTimeField(null=True, blank=True)
+    verify_requested_at = models.DateTimeField(null=True, blank=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # netconfig.hostkeys audit hooks
+    organization = None
+    audit_object_type = 'offhost_backup'
+
+    class Meta:
+        db_table = 'core_offhost_backup_config'
+
+    def __str__(self):
+        return f'Off-host backup ({self.destination_label()})'
+
+    @property
+    def host(self):
+        return self.sftp_host
+
+    @property
+    def port(self):
+        return self.sftp_port
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def destination_label(self):
+        if self.destination_type == self.DEST_SFTP:
+            if not self.sftp_host:
+                return 'SFTP, not configured'
+            return f'sftp://{self.sftp_username}@{self.sftp_host}:{self.sftp_port}/{self.sftp_path.lstrip("/")}'
+        return self.local_path or 'directory, not configured'
+
+    def destination_configured(self):
+        if self.destination_type == self.DEST_SFTP:
+            return bool(self.sftp_host and self.sftp_username and (self.sftp_password or self.sftp_private_key))
+        return bool(self.local_path)
+
+
+class OffhostBackupRun(models.Model):
+    """One off-host backup or restore-verification run. Never holds a secret."""
+    KIND_CHOICES = [('backup', 'Backup'), ('verify', 'Restore verification')]
+    STATUS_CHOICES = [('running', 'Running'), ('success', 'Success'), ('failed', 'Failed')]
+
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    trigger = models.CharField(max_length=20, default='scheduler')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='running')
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    remote_name = models.CharField(max_length=255, blank=True)
+    size_bytes = models.BigIntegerField(null=True, blank=True)
+    sha256 = models.CharField(max_length=64, blank=True)
+    key_fingerprint = models.CharField(max_length=40, blank=True)
+    destination = models.CharField(max_length=600, blank=True)
+    detail = models.TextField(blank=True)
+    checks = models.JSONField(default=list, blank=True)
+    requested_by = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='+')
+
+    class Meta:
+        db_table = 'core_offhost_backup_run'
+        ordering = ['-started_at', '-id']
+
+    def __str__(self):
+        return f'{self.get_kind_display()} {self.status} @ {self.started_at:%Y-%m-%d %H:%M}'

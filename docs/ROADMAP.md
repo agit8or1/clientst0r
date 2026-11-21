@@ -113,7 +113,7 @@ Work being implemented now or approved as the next P0 task.
 
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
-| 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | 94.3 scheduled off-host backups; external append-only shipping (94.1) | — |
+| 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
 
 <!-- /generated:now -->
@@ -294,7 +294,7 @@ unchanged. Click a feature for its details.
 | 57 | [Technician security levels and abuse prevention](#phase-57) | — | 🔵 In progress | — | Confirm remaining items against 64 roles |
 | 64 | [Roles, permission groups and access settings](#phase-64) | P0\* | 🔵 In progress | 57, 63 | 64.8 remaining enforcement call sites |
 | 80 | [Agit8or Identity: single sign-on for people](#phase-80) | — | 🔵 In progress | Keycloak | 80.4 Keycloak deployment; 80.5; 80.6 |
-| 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | — | 94.3 scheduled off-host backups; external append-only shipping (94.1) |
+| 94 | [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | — | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) |
 | 111 | [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 57, 64, 80 | 111.1 passkeys; 111.3 one-action offboarding |
 
 <details markdown="1">
@@ -3245,9 +3245,9 @@ Per-device and per-user billing that never bills an unverified count. Extends co
 <a id="phase-94"></a>
 
 ## Phase 94 — Evidence integrity and routine backups **(M · security)** [in progress]
-<!-- phase: ws=F stage=1 view=now order=1 deps="—" next="94.3 scheduled off-host backups; external append-only shipping (94.1)" -->
+<!-- phase: ws=F stage=1 view=now order=1 deps="—" next="External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3)" -->
 **Status:** 🔵 In progress · **Priority:** P0\* · **Workstream:** F. Security & Administration · **Depends on:** —  
-**Next:** 94.3 scheduled off-host backups; external append-only shipping (94.1)
+**Next:** External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3)
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3256,7 +3256,7 @@ Per-device and per-user billing that never bills an unverified count. Extends co
   optional shipping to an external append-only destination.
 - **94.2 Audit retention** *(partial — shipped v3.17.736: cleanup prunes only the oldest sealed rows and archives them first, refuses when the archive cannot be written, and the admin site cannot delete audit rows; a protected-change approval for pruning planned)* — retention with export before pruning; deleting audit rows goes
   through a protected change.
-- **94.3 Scheduled off-host backups** *(planned)* — encrypted backups to an off-host destination with
+- **94.3 Scheduled off-host backups** *(shipped v3.17.744 — SFTP with host-key approval or a mounted directory; AES-256-GCM with a separate backup key shown once; weekly restore verification; S3-compatible storage planned, needs an S3 client library)* — encrypted backups to an off-host destination with
   periodic restore verification and key-escrow guidance.
 
 **Sizing:** **M**.

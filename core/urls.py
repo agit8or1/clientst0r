@@ -21,6 +21,7 @@ from . import portal_settings_views
 from . import workspace
 from . import palette_views
 from . import settings_home_views
+from . import offhost_backup_views
 
 app_name = 'core'
 
@@ -214,6 +215,7 @@ urlpatterns = [
     path('settings/restart-app/', settings_views.restart_application, name='restart_application'),
     path('settings/system-status/', settings_views.system_status, name='system_status'),
     path('settings/maintenance/', settings_views.maintenance, name='maintenance'),
+    path('settings/maintenance/offhost-backups/', offhost_backup_views.offhost_backup_settings, name='offhost_backup'),
 
     # Demo Data Import (superuser only)
     path('settings/demo-data/import/', settings_views.import_demo_data, name='import_demo_data'),

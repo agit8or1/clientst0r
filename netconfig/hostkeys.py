@@ -86,8 +86,11 @@ def presented_key(transport):
 
 def _audit(user, target, action, description, extra):
     from audit.models import AuditLog
-    AuditLog.log(user=user, action=action, organization=target.organization,
-                 object_type='backuptarget', object_id=target.pk, object_repr=str(target)[:255],
+    # Also used for the off-host backup SFTP destination (core.OffhostBackupConfig),
+    # which is install-wide and names its own object type.
+    AuditLog.log(user=user, action=action, organization=getattr(target, 'organization', None),
+                 object_type=getattr(target, 'audit_object_type', 'backuptarget'), object_id=target.pk,
+                 object_repr=str(target)[:255],
                  description=description, extra_data=extra)
 
 
