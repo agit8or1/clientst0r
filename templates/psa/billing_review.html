@@ -191,8 +191,19 @@
         <button type="submit" name="decision" value="include" class="btn btn-sm btn-outline-secondary">Include again</button>
         {% endif %}
         {% if g.can_draft %}
-        <button type="submit" formaction="{% url 'psa:billing_queue_draft' g.client.pk %}" class="btn btn-sm btn-primary ms-auto"
-                data-confirm="Create draft invoices for the selected tickets / account charges? Nothing is sent.">Create draft invoices for selected</button>
+        <div class="ms-auto d-flex flex-wrap gap-2 align-items-end">
+        {% if g.fees %}
+        <div><label class="form-label small mb-0" for="fee-{{ g.client.pk }}">Agreement fee (consolidated only)</label>
+            <select id="fee-{{ g.client.pk }}" name="contract" class="form-select form-select-sm">
+                <option value="">No agreement fee</option>
+                {% for f in g.fees %}<option value="{{ f.contract.pk }}"{% if not f.ok %} disabled{% endif %}>{{ f.contract.name }}{% if f.ok %} — period {{ f.period|date:'Y-m-d' }}, {{ f.total }}{% else %} — not now: {{ f.reason|truncatechars:90 }}{% endif %}</option>{% endfor %}
+            </select></div>
+        {% endif %}
+        <button type="submit" formaction="{% url 'psa:billing_queue_draft' g.client.pk %}" class="btn btn-sm btn-outline-primary"
+                data-confirm="Create one draft invoice per selected ticket (and one for the account charges)? Nothing is sent.">Create draft invoices for selected</button>
+        <button type="submit" name="consolidated" value="1" formaction="{% url 'psa:billing_queue_draft' g.client.pk %}" class="btn btn-sm btn-primary"
+                data-confirm="Create ONE draft invoice with the selected tickets, the account charges (if ticked) and the chosen agreement fee? Nothing is sent.">Create one consolidated draft for selected</button>
+        </div>
         {% endif %}
     </div>
     {% endif %}

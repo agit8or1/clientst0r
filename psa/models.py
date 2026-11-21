@@ -2545,7 +2545,6 @@ class Contract(models.Model):
         for meters.
         """
         from datetime import date as _d
-        from decimal import Decimal as _D, ROUND_HALF_UP
         if self.billing_frequency == 'none':
             return None
         on_date = on_date or _d.today()
@@ -2578,15 +2577,9 @@ class Contract(models.Model):
                 and on_date >= self.next_billing_date):
             return None
 
-        amount = self.effective_recurring_amount
-        usage = self.usage_line_items()
-        if amount <= 0 and not usage:
+        lines = self.recurring_period_lines(on_date)
+        if not lines:
             return None
-
-        # Phase 15 v4: prorate the base amount when applicable
-        proration = self._proration_factor(on_date, self.billing_frequency)
-        prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(
-            _D('0.01'), rounding=ROUND_HALF_UP)
 
         # The lookup above is check-then-act; two concurrent runs can both
         # pass it. The unique contract_period_key (and, where supported, the
@@ -2612,34 +2605,48 @@ class Contract(models.Model):
             if existing is not None:
                 return existing
             raise
+        for line in lines:
+            InvoiceLineItem.objects.create(invoice=inv, **line)
+        inv.recompute_totals()
+        self.mark_period_billed(on_date)
+        return inv
+
+    def recurring_period_lines(self, on_date):
+        """InvoiceLineItem field dicts for the billing period starting
+        `on_date`: the base recurring line (prorated when applicable) and
+        one line per active meter with usage. [] when there is nothing to
+        bill. Read-only; shared by `generate_invoice` and the consolidated
+        invoice (psa.billing.consolidated, Phase 102.4) so the period fee is
+        priced one way."""
+        from decimal import Decimal as _D, ROUND_HALF_UP
+        amount = self.effective_recurring_amount
+        usage = self.usage_line_items()
+        if amount <= 0 and not usage:
+            return []
+        # Phase 15 v4: prorate the base amount when applicable
+        proration = self._proration_factor(on_date, self.billing_frequency)
+        prorated_amount = (_D(str(amount)) * _D(str(proration))).quantize(
+            _D('0.01'), rounding=ROUND_HALF_UP)
+        lines = []
         if prorated_amount > 0:
             descr = (f'{self.get_contract_type_display()} — '
                      f'{self.get_billing_frequency_display()} period '
                      f'{on_date:%Y-%m-%d}')
             if proration < 1.0:
                 descr += f' (prorated {proration:.2%})'
-            InvoiceLineItem.objects.create(
-                invoice=inv,
-                description=descr,
-                quantity=1,
-                unit_price=prorated_amount,
-                source='contract',
-                source_id=str(self.pk),
-            )
+            lines.append({'description': descr, 'quantity': 1, 'unit_price': prorated_amount,
+                          'source': 'contract', 'source_id': str(self.pk)})
         # Phase 15 v2: usage-based line items
         for u in usage:
-            InvoiceLineItem.objects.create(
-                invoice=inv,
-                description=u['description'][:300],
-                quantity=u['quantity'],
-                unit_price=u['unit_price'],
-                source='contract',
-                source_id=f'meter:{u["meter_id"]}',
-            )
-        inv.recompute_totals()
+            lines.append({'description': u['description'][:300], 'quantity': u['quantity'],
+                          'unit_price': u['unit_price'], 'source': 'contract',
+                          'source_id': f'meter:{u["meter_id"]}'})
+        return lines
 
+    def mark_period_billed(self, on_date):
+        """After the period's lines are on an invoice: reset the meters that
+        were billed and stamp `last_billed_at`."""
         # Reset meter counters after billing them
-        from datetime import datetime as _dt
         from django.utils import timezone as _tz
         for meter in self.meters.filter(is_active=True):
             if (meter.current_quantity or 0) > 0:
@@ -2649,8 +2656,8 @@ class Contract(models.Model):
                                             'last_billed_at', 'updated_at'])
 
         # Stamped here rather than left to the caller. Safe to do after the
-        # fact: `_proration_factor` above has already read the pre-billing
-        # value, so this cannot change the amount just invoiced.
+        # fact: `_proration_factor` has already read the pre-billing value,
+        # so this cannot change the amount just invoiced.
         #
         # `psa_generate_recurring_invoices` overwrites this with its run date
         # immediately afterwards in the same transaction, which differs from
@@ -2661,7 +2668,6 @@ class Contract(models.Model):
         # help_text calls it the generation date.
         self.last_billed_at = on_date
         self.save(update_fields=['last_billed_at', 'updated_at'])
-        return inv
 
     def pause(self, *, until=None):
         """Phase 15 v13 (v3.17.298): pause the contract. The recurring-
@@ -5268,6 +5274,12 @@ class InvoiceLineItem(models.Model):
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
     source_id = models.CharField(max_length=80, blank=True,
         help_text='Loose pointer to the source row id (e.g. time_entry pk)')
+    # Phase 102.4: the ticket a line bills work for on a consolidated invoice
+    # (several tickets on one invoice), so the lines can be grouped by ticket.
+    # Blank on single-ticket and older invoices (Invoice.source_ticket says it).
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='consolidated_invoice_lines',
+                               help_text='Ticket this line bills, on a consolidated invoice.')
 
     # Phase 27 v6 (v3.17.278): per-line GL account mapping. When set,
     # propagated to the accounting provider (QBO `AccountRef` / Xero
@@ -5599,6 +5611,69 @@ class CustomerBillingLock(models.Model):
 
     def __str__(self):
         return f'billing lock for customer {self.client_org_id}'
+
+
+class BillingSettingOverride(models.Model):
+    """Phase 102.8: a customer's or a contract's own value for a billing
+    setting whose install-wide default lives on core.SystemSetting. A blank
+    field inherits: contract > customer > Settings → Billing (resolved by
+    psa.billing.config.effective). Only the settings that are genuinely
+    per-customer / per-contract terms have a field here (approval thresholds
+    and late-fee terms); install behaviour (automatic accounting push,
+    defaults for new documents) stays global.
+
+    Values are read when an invoice is drafted (approval flag) or when the
+    late-fee job runs; changing one never rewrites an existing invoice."""
+    client_org = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                   related_name='psa_billing_overrides')
+    contract = models.ForeignKey('psa.Contract', on_delete=models.CASCADE, null=True, blank=True,
+                                 related_name='billing_overrides')
+    # "customer:<id>" or "contract:<id>"; unique on every backend (one row per
+    # customer and one per contract).
+    scope_key = models.CharField(max_length=40, unique=True, editable=False)
+    invoice_approval_threshold_total = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Blank inherits. 0 = no total threshold for this customer / contract.')
+    invoice_approval_overage_pct = models.PositiveIntegerField(
+        null=True, blank=True, help_text='Blank inherits. 0 = disabled.')
+    late_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True,
+                                       help_text='Blank inherits. 0 = no late fee.')
+    late_fee_min_days_overdue = models.PositiveIntegerField(null=True, blank=True, help_text='Blank inherits.')
+    note = models.CharField(max_length=300, blank=True, default='')
+    updated_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    FIELDS = ('invoice_approval_threshold_total', 'invoice_approval_overage_pct', 'late_fee_pct',
+              'late_fee_min_days_overdue')
+
+    class Meta:
+        db_table = 'psa_billing_setting_overrides'
+        ordering = ['client_org__name', 'contract__name', 'pk']
+
+    def __str__(self):
+        return self.scope_label
+
+    @property
+    def scope_label(self):
+        if self.contract_id:
+            return f'{self.client_org.name} — contract {self.contract.name}'
+        return f'{self.client_org.name} (customer)'
+
+    def values(self):
+        return {f: getattr(self, f) for f in self.FIELDS}
+
+    def save(self, *args, **kwargs):
+        if self.contract_id:
+            self.client_org_id = self.contract.client_org_id
+            self.scope_key = f'contract:{self.contract_id}'
+        else:
+            self.scope_key = f'customer:{self.client_org_id}'
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = list(set(update_fields) | {'scope_key', 'client_org'})
+        return super().save(*args, **kwargs)
 
 
 class BillingQueueDecision(models.Model):

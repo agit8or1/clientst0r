@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Billing Settings - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block content %}
+<div class="row"><div class="col-12">
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Billing settings</h5></div>
+    <div class="card-body">
+        <p class="small text-muted">These apply to every customer unless a customer or one of its contracts has its own value below
+            (contract &gt; customer &gt; these). A change applies to invoices drafted afterwards and to the next late-fee run;
+            it never changes an existing invoice. Every change is recorded in the audit log.
+            Sales tax is configured under <a href="{% url 'tax:settings' %}">Settings → Sales Tax</a>.</p>
+        {% for e in errors %}<div class="alert alert-danger" role="alert">{{ e }}</div>{% endfor %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_global">
+            {% for title, specs in sections %}
+            <h6 class="text-muted mt-3 mb-2">{{ title }}</h6>
+            {% for row in specs %}
+            {% with s=row.spec %}
+            {% if s.kind == 'bool' %}
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="f-{{ s.key }}" name="{{ s.key }}" value="1"
+                       {% if row.value is not None %}{% if row.value %}checked{% endif %}{% elif row.stored %}checked{% endif %}
+                       {% if not can_edit_global %}disabled{% endif %}>
+                <label class="form-check-label" for="f-{{ s.key }}"><strong>{{ s.label }}</strong>
+                    <small class="text-muted d-block">{{ s.help }}</small></label>
+            </div>
+            {% else %}
+            <div class="row g-2 align-items-center mb-2">
+                <div class="col-md-4"><label class="form-label mb-0" for="f-{{ s.key }}"><strong>{{ s.label }}</strong>
+                    {% if s.overridable %}<span class="badge text-bg-light border">per customer / contract</span>{% endif %}</label></div>
+                <div class="col-md-3"><div class="input-group input-group-sm">
+                    <input type="text" inputmode="{% if s.kind == 'currency' %}text{% else %}decimal{% endif %}" class="form-control"
+                           id="f-{{ s.key }}" name="{{ s.key }}" maxlength="16"
+                           value="{% if row.value is not None %}{{ row.value }}{% else %}{{ row.shown }}{% endif %}"
+                           {% if not can_edit_global %}readonly{% endif %}>
+                    {% if s.unit %}<span class="input-group-text">{{ s.unit }}</span>{% endif %}</div></div>
+                <div class="col-md-5"><small class="text-muted">{{ s.help }}</small></div>
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% endfor %}
+            {% endfor %}
+            {% if can_edit_global %}<button type="submit" class="btn btn-primary btn-sm mt-2">Save billing settings</button>
+            {% else %}<p class="small text-muted mt-2">Changing these needs the 'billing_approve_invoices' permission for every customer; you can manage overrides for your customers below.</p>{% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card mb-3" id="effective">
+    <div class="card-header"><h6 class="mb-0">Customer and contract overrides</h6></div>
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end mb-3">
+            <div class="col-md-4"><label class="form-label small mb-0" for="pick-customer">Customer</label>
+                <select id="pick-customer" name="customer" class="form-select form-select-sm">
+                    <option value="">Choose a customer…</option>
+                    {% for c in customers %}<option value="{{ c.pk }}"{% if customer and c.pk == customer.pk %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                </select></div>
+            {% if customer %}
+            <div class="col-md-4"><label class="form-label small mb-0" for="pick-contract">Contract (optional)</label>
+                <select id="pick-contract" name="contract" class="form-select form-select-sm">
+                    <option value="">The customer itself</option>
+                    {% for k in contracts %}<option value="{{ k.pk }}"{% if contract and k.pk == contract.pk %} selected{% endif %}>{{ k.name }} ({{ k.get_status_display }})</option>{% endfor %}
+                </select></div>
+            {% endif %}
+            <div class="col-auto"><button type="submit" class="btn btn-sm btn-outline-secondary">Show</button></div>
+        </form>
+
+        {% if customer %}
+        <h6>Effective values for {{ customer.name }}{% if contract %} — {{ contract.name }}{% endif %}</h6>
+        <div class="table-responsive">
+        <table class="table table-sm small align-middle">
+            <caption class="visually-hidden">Effective billing settings and where each comes from</caption>
+            <thead><tr><th scope="col">Setting</th><th scope="col">Effective value</th><th scope="col">Comes from</th>
+                <th scope="col">All customers</th><th scope="col">Customer</th><th scope="col">Contract</th></tr></thead>
+            <tbody>
+            {% for e in effective %}
+            <tr>
+                <td>{{ e.spec.label }}</td>
+                <td><strong>{{ e.shown }}</strong>{% if e.spec.unit and e.spec.kind != 'bool' %} {{ e.spec.unit }}{% endif %}</td>
+                <td><span class="badge {% if e.source == 'contract' %}text-bg-primary{% elif e.source == 'customer' %}text-bg-info{% else %}text-bg-light border{% endif %}">{{ e.source_label }}</span></td>
+                <td>{% if e.spec.kind == 'bool' %}{{ e.global_value|yesno:"On,Off" }}{% elif e.spec.kind == 'tax_rate' %}{{ e.shown }}{% else %}{{ e.global_value }}{% endif %}</td>
+                <td>{% if e.spec.overridable %}{{ e.customer_value|default_if_none:"inherit" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>{% if e.spec.overridable %}{% if contract %}{{ e.contract_value|default_if_none:"inherit" }}{% else %}<span class="text-muted">pick a contract</span>{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        <h6 class="mt-3">{% if contract %}Overrides for contract {{ contract.name }}{% else %}Overrides for {{ customer.name }}{% endif %}</h6>
+        <p class="small text-muted">Leave a field blank to inherit{% if contract %} from the customer, then from the settings above{% else %} from the settings above{% endif %}. 0 turns that check off for this {% if contract %}contract{% else %}customer{% endif %}.</p>
+        <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="customer" value="{{ customer.pk }}">
+            {% if contract %}<input type="hidden" name="contract" value="{{ contract.pk }}">{% endif %}
+            {% for s, v in override_fields %}
+            <div class="col-md-3"><label class="form-label small mb-0" for="o-{{ s.key }}">{{ s.label }}{% if s.unit %} ({{ s.unit }}){% endif %}</label>
+                <input type="text" inputmode="decimal" class="form-control form-control-sm" id="o-{{ s.key }}" name="{{ s.key }}" maxlength="16"
+                       value="{{ v }}" placeholder="inherit"></div>
+            {% endfor %}
+            <div class="col-md-9"><label class="form-label small mb-0" for="o-note">Note (why)</label>
+                <input type="text" class="form-control form-control-sm" id="o-note" name="note" maxlength="300" value="{{ current.note|default:'' }}"></div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" name="action" value="save_override" class="btn btn-sm btn-primary">Save overrides</button>
+                {% if current %}<button type="submit" name="action" value="delete_override" class="btn btn-sm btn-outline-danger"
+                        data-confirm="Remove these overrides? The inherited values apply from now on.">Remove</button>{% endif %}
+            </div>
+        </form>
+        {% endif %}
+
+        <h6 class="mt-4">All overrides</h6>
+        {% if override_rows %}
+        <div class="table-responsive">
+        <table class="table table-sm small align-middle">
+            <caption class="visually-hidden">Customer and contract billing overrides</caption>
+            <thead><tr><th scope="col">Customer / contract</th>{% for s in override_specs %}<th scope="col">{{ s.label }}</th>{% endfor %}<th scope="col">Note</th></tr></thead>
+            <tbody>
+            {% for o in override_rows %}
+            <tr>
+                <td><a href="?customer={{ o.row.client_org_id }}{% if o.row.contract_id %}&contract={{ o.row.contract_id }}{% endif %}#effective">{{ o.row.scope_label }}</a></td>
+                {% for s, v in o.values %}<td>{{ v|default:"inherit" }}</td>{% endfor %}
+                <td class="text-break">{{ o.row.note }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}<p class="small text-muted">No customer or contract has its own billing values.</p>{% endif %}
+    </div>
+</div>
+</div></div>
+{% endblock %}

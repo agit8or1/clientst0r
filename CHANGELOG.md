@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.757] - 2026-11-21
+
+### Added
+
+- **Consolidated invoices** (roadmap 102.4). In Billing Review → Ready for Billing, select several tickets and choose
+  **Create one consolidated draft for selected**. You get one draft per customer:
+  - the tickets' lines in ticket order, each labelled with its ticket;
+  - then the customer's account charges;
+  - then, if you pick it, the agreement fee for the current period. The picker says why an agreement can't be billed
+    now (paused, ending, not due yet, already invoiced, and so on).
+  Each line remains linked to the time entry, charge or agreement it bills. Everything is created under the customer's
+  billing lock, so a double click or a retry never bills anything twice, and the agreement period is claimed so the
+  recurring run won't bill it again. Nothing is sent from here; the draft opens for review. Sent invoices are still
+  changed only by credit notes.
+- **Settings → Billing** (roadmap 102.8), under Settings → General. One page for the billing settings that had no
+  screen: invoice approval threshold, agreement-usage approval percentage, late fee percentage and days overdue,
+  automatic accounting push for recurring invoices, quote approval threshold, default tax rate and default currency.
+  - Approval thresholds and late-fee terms can be overridden per customer and per contract, and the page shows each
+    value and which level it comes from.
+  - Every change is validated and recorded in the audit log.
+  - It is open to superusers and staff who can approve invoices.
+
+### Changed
+
+- The invoice approval threshold is checked on draft invoices only: an invoice that has been sent is never put back
+  on hold when settings change.
+- The late-fee run uses each customer's and contract's own late-fee terms. A late fee is added as a separate account
+  charge and never edits the invoice.
+
 ## [3.17.756] - 2026-11-21
 
 ### Changed

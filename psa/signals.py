@@ -395,13 +395,21 @@ from .models import Invoice
 def _auto_flag_invoice_approval(sender, instance, created, **kwargs):
     if instance.requires_approval or instance.approved_at:
         return  # already handled or already approved
-    try:
-        from core.models import SystemSetting
-        ss = SystemSetting.get_settings()
-    except Exception:
+    # Phase 102.8: only a draft is evaluated. An invoice that has left draft
+    # is a record: a later threshold change (or a payment re-saving it) never
+    # puts it back on hold.
+    if instance.status != 'draft' or instance.is_credit_memo:
         return
-    total_thresh = float(ss.invoice_approval_threshold_total or 0)
-    pct_thresh = int(ss.invoice_approval_overage_pct or 0)
+    # Effective thresholds: contract override > customer override > global
+    # (psa.billing.config).
+    try:
+        from psa.billing.config import for_invoice
+        values = for_invoice(instance, ('invoice_approval_threshold_total', 'invoice_approval_overage_pct'))
+    except Exception:
+        logger.exception('invoice approval thresholds could not be read')
+        return
+    total_thresh = float(values['invoice_approval_threshold_total'] or 0)
+    pct_thresh = int(values['invoice_approval_overage_pct'] or 0)
     if total_thresh <= 0 and pct_thresh <= 0:
         return  # both knobs disabled
     flagged = instance.flag_for_approval(

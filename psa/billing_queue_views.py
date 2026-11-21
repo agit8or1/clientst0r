@@ -4,6 +4,8 @@ billing review page, psa.views.billing_review; logic in psa.billing.queue).
 POST billing-review/queue/<customer>/decide/  approve / hold / exclude / include selected lines
 POST billing-review/queue/<customer>/adjust/  add an adjustment (charge or credit with a reason)
 POST billing-review/queue/<customer>/draft/   draft invoices for selected tickets / account charges
+                                              (one per ticket, or one consolidated draft when
+                                              `consolidated` is posted: Phase 102.4)
 
 MSP staff only. Decisions and adjustments need `billing_manage_charges` at
 the customer, drafts `billing_send_invoices`; customers outside the user's
@@ -102,6 +104,21 @@ def queue_adjust(request, org_id):
 @require_http_methods(['POST'])
 def queue_draft(request, org_id):
     client = _client(request, org_id)
+    if request.POST.get('consolidated') in ('1', 'on'):
+        invoice, notes = bq.draft_consolidated_from_queue(
+            client, actor=request.user, msp_org=get_request_organization(request),
+            ticket_ids=request.POST.getlist('ticket'),
+            include_charges=request.POST.get('include_charges') in ('1', 'on'),
+            contract_id=request.POST.get('contract') or None)
+        for n in notes:
+            messages.info(request, n)
+        if invoice is not None:
+            messages.success(request, f'Consolidated draft invoice {invoice.invoice_number} created — '
+                                      'review it before sending.')
+            return redirect('psa:invoice_detail', pk=invoice.pk)
+        if not notes:
+            messages.info(request, 'Select tickets, the account charges or an agreement fee to draft.')
+        return _back(request, client)
     invoices, notes = bq.draft_from_queue(
         client, actor=request.user, msp_org=get_request_organization(request),
         ticket_ids=request.POST.getlist('ticket'),

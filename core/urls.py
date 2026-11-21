@@ -175,6 +175,8 @@ urlpatterns = [
     # PSA settings — view lives in psa.views; aliased here so it appears
     # under the same /core/settings/ tree as the rest of admin settings.
     path('settings/psa/', __import__('psa.views', fromlist=['psa_global_settings_view']).psa_global_settings_view, name='settings_psa'),
+    # Phase 102.8: Settings → Billing (psa.billing_settings_views).
+    path('settings/billing/', __import__('psa.billing_settings_views', fromlist=['settings_billing']).settings_billing, name='settings_billing'),
     path('settings/smtp/', settings_views.settings_smtp, name='settings_smtp'),
     path('settings/smtp/test/', settings_views.test_smtp_email, name='test_smtp_email'),
     path('settings/sms/', settings_views.settings_sms, name='settings_sms'),

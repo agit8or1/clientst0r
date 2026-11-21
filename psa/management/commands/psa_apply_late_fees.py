@@ -5,6 +5,11 @@ Daily cron. For every Invoice that's been past due_date by at least
 `SystemSetting.late_fee_min_days_overdue` and isn't paid/void, apply
 a Charge equal to `late_fee_pct` * outstanding_balance. Idempotent —
 skips invoices that already have a "Late fee for INV-..." charge.
+
+Phase 102.8: the percent and the days are each invoice's effective values
+(contract override > customer override > Settings → Billing; see
+psa.billing.config). A late fee is a new account charge; the invoice itself
+is never changed.
 """
 from __future__ import annotations
 
@@ -27,22 +32,33 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry = options['dry_run']
         ss = SystemSetting.get_settings()
-        pct = Decimal(str(ss.late_fee_pct or 0))
-        min_days = int(ss.late_fee_min_days_overdue or 0)
-        if pct <= 0 or min_days <= 0:
+        from psa.billing.config import OVERRIDABLE, for_invoice
+        from psa.models import BillingSettingOverride
+        any_override = BillingSettingOverride.objects.filter(late_fee_pct__gt=0).exists()
+        g_pct = Decimal(str(ss.late_fee_pct or 0))
+        g_days = int(ss.late_fee_min_days_overdue or 0)
+        if not any_override and (g_pct <= 0 or g_days <= 0):
             self.stdout.write(self.style.WARNING(
                 'Late fees disabled (pct or min-days is 0).'))
             return
 
-        cutoff = date.today() - timedelta(days=min_days)
         invs = (Invoice.objects
-                .filter(due_date__lte=cutoff, is_credit_memo=False)
+                .filter(due_date__lt=date.today(), is_credit_memo=False)
                 .filter(~Q(status__in=['paid', 'void'])
                         & Q(amount_paid__lt=F('total')))
+                .select_related('client_org', 'source_contract')
                 .prefetch_related('credit_memos'))
+        keys = tuple(k for k in OVERRIDABLE if k.startswith('late_fee'))
 
         applied = 0
         for inv in invs:
+            terms = for_invoice(inv, keys, ss=ss)
+            pct = Decimal(str(terms['late_fee_pct'] or 0))
+            min_days = int(terms['late_fee_min_days_overdue'] or 0)
+            if pct <= 0 or min_days <= 0:
+                continue
+            if inv.due_date > date.today() - timedelta(days=min_days):
+                continue
             tag = f'Late fee for {inv.invoice_number}'
             if Charge.objects.filter(
                 client_org=inv.client_org,

@@ -427,6 +427,15 @@ class Section:
 
 
 _psa = _flag('psa_enabled')
+
+
+def _check_billing_settings(u, ctx):
+    """psa.billing_settings_views.settings_billing: psa.billing.config.can_view."""
+    from psa.billing.config import can_view
+    return can_view(u)
+
+
+_billing_settings = _view_check(_check_billing_settings)
 _workflows = _flag('workflows_enabled')
 _contracts = _view_check(_check_contracts)
 
@@ -807,6 +816,10 @@ SECTIONS = (
                      'hostname layout navigation theme colour color welcome support contact'),
         Tab(_('PSA'), 'core:settings_psa', 'fa-ticket-alt', gate=_all(_superuser, _psa),
             keywords='tickets portal surfaces ai optional', also=('psa:settings', 'psa:client_settings')),
+        # Phase 102.8: the page's own check (psa.billing.config.can_view).
+        Tab(_('Billing'), 'core:settings_billing', 'fa-file-invoice-dollar', gate=_billing_settings,
+            keywords='billing invoice approval threshold late fee accounting push quickbooks xero tax rate '
+                     'currency overrides customer contract'),
         Tab(_('Custom Fields & Types'), 'assets:custom_field_list', 'fa-sliders-h',
             gate=_catalog_manager, keywords='asset types fields setup'),
         Tab(_('Tags'), 'core:tag_list', 'fa-tags', gate=_superuser,

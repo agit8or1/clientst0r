@@ -22,6 +22,9 @@ Actions (all audited; `billing_manage_charges` at the customer):
 "Create draft invoices" (`billing_send_invoices`) drafts the selected tickets'
 invoices and bundles the selected customer's account charges through the
 existing draft code under the customer billing lock (psa.billing.billed).
+"Create one consolidated draft" (Phase 102.4, same permission) puts the
+selected tickets, the account charges and optionally one agreement's next
+recurring fee on a single draft (psa.billing.consolidated).
 Drafts are never sent from here.
 
 Viewing needs `billing_view_invoices` per customer.
@@ -114,6 +117,9 @@ class CustomerQueue:
     tickets: list = field(default_factory=list)
     charges: list = field(default_factory=list)
     milestones: list = field(default_factory=list)
+    # Phase 102.4: the customer's agreements and whether each one's next
+    # recurring fee can go on a consolidated draft now (FeeStatus).
+    fees: list = field(default_factory=list)
     can_manage: bool = False
     can_draft: bool = False
 
@@ -253,6 +259,11 @@ def build_queue(user, customer=None, limit=100):
     for task in tasks:
         org = task.project.client_org or task.project.organization
         group(org).milestones.append(_milestone_line(task, decided.get(('milestone', str(task.pk)))))
+
+    from .consolidated import fee_candidates
+    for g in groups.values():
+        if g.can_draft:
+            g.fees = fee_candidates(g.client)
 
     names = dict(Organization.objects.filter(pk__in=list(groups)).values_list('pk', 'name'))
     return sorted(groups.values(), key=lambda g: ((names.get(g.client.pk) or '').lower(), g.client.pk))
@@ -437,6 +448,24 @@ def draft_from_queue(client, *, actor, msp_org=None, ticket_ids=(), include_char
         elif not notes or 'account charges' not in notes[-1]:
             notes.append('No account charges left to invoice.')
     return invoices, notes
+
+
+def draft_consolidated_from_queue(client, *, actor, msp_org=None, ticket_ids=(), include_charges=False,
+                                  contract_id=None):
+    """Phase 102.4: one consolidated draft for `client` (see
+    psa.billing.consolidated). Returns (invoice or None, notes). A double
+    click or retry finds nothing left and creates nothing more."""
+    from .consolidated import draft_consolidated
+    if not can(actor, client, DRAFT):
+        raise PermissionDenied("You don't have the 'billing_send_invoices' permission for this customer.")
+    cid = int(contract_id) if str(contract_id or '').isdigit() else None
+    try:
+        res = draft_consolidated(client, actor=actor, msp_org=msp_org, ticket_ids=ticket_ids,
+                                 include_charges=include_charges, contract_id=cid)
+    except billed.DoubleBilling:
+        return None, ['Some of this work was being invoiced at the same time; nothing was created. '
+                      'Check the customer\'s invoices, then try again.']
+    return res.invoice, res.notes
 
 
 def _audit(actor, client, source, source_id, description, extra, action='update'):
