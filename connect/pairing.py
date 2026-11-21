@@ -110,7 +110,8 @@ def duplicate_connections(conn):
     administrator. Other unreviewed inbound requests do not count."""
     from django.db.models import Q
     from .models import Connection
-    connected = (Connection.ACTIVE, Connection.SUSPENDED, Connection.AWAITING_REMOTE, Connection.AWAITING_SECOND)
+    connected = (Connection.ACTIVE, Connection.SUSPENDED, Connection.SECURITY_BLOCKED, Connection.AWAITING_REMOTE,
+                 Connection.AWAITING_SECOND)
     return Connection.objects.filter(
         Q(state__in=connected) | Q(state=Connection.AWAITING_LOCAL, direction=Connection.OUTBOUND),
         remote_installation_id=conn.remote_installation_id).exclude(pk=conn.pk)

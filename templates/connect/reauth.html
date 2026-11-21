@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% comment %}Re-authentication for THIS installation's own account (tech_access fresh authentication, 5 minutes).{% endcomment %}
+{% block title %}Confirm it's you{% endblock %}
+{% block content %}
+<h1 class="h4">Confirm it's you</h1>
+<p class="small text-muted">Your password for this Clientst0r, {{ request.user.get_username }}. It is checked here and never sent to another application.</p>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<form method="post" class="w-auto" style="max-width:24rem">{% csrf_token %}
+<input type="hidden" name="next" value="{{ next }}">
+<label class="form-label" for="password">Password</label>
+<input class="form-control mb-2" type="password" id="password" name="password" autocomplete="current-password" required>
+<label class="form-label" for="otp">Authenticator code (if enabled)</label>
+<input class="form-control mb-2" id="otp" name="otp" autocomplete="one-time-code" inputmode="numeric" maxlength="12">
+<button class="btn btn-primary">Confirm</button> <a class="btn btn-link" href="{{ next }}">Back</a>
+</form>
+{% endblock %}

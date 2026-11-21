@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.748] - 2026-11-21
+
+Quick Connect: browser-mediated pairing for Agit8or Connect (increment C2). It is off by default.
+
+### Added
+
+- **Quick Connect (roadmap 79.9, Agit8or Connect protocol 1.1)**
+  - **Turning it on:** Agit8or Connect must be enabled and the new **Quick Connect** switch must be on, under
+    **Connected Applications → Network**. Turning the switch on needs you to confirm your password.
+  - **Starting a connection:** a five-step wizard (**Connected Applications → Quick Connect**) checks the other
+    application's address, certificate and addresses. You approve its destination addresses and pick the
+    permissions and customers. You are then sent to the other application's own admin page to authorise it there.
+  - **When another application connects to Clientst0r:**
+    - Its administrator is sent to `/agit8or-connect/qc-authorize`, which needs sign-in, two-factor authentication
+      and the **Manage connected applications** permission.
+    - Opening the page records nothing and contacts nothing.
+    - Approving needs your password again.
+  - **No passwords are exchanged between applications.**
+  - **Addresses are approved explicitly:** each side approves the other's signed source addresses, never an address
+    taken from the browser.
+  - **Invitations:** signed, single-use and short-lived, using PKCE and DPoP.
+  - **Comparison code:** both administrators compare an 8-digit code and approve permissions as before. A second
+    administrator is needed for elevated permissions or an already-connected installation.
+  - **Unfinished attempts** are removed after 30 minutes. Their temporary rules, keys and staged destinations are
+    removed with them.
+  - **Applications without Quick Connect** keep using pairing codes. The wizard offers that instead.
+- **Requirement:** `AGIT8OR_CONNECT_PUBLIC_URL` must be in canonical form, for example `https://psa.example.com`
+  (lower case, no path, no trailing slash, `:443` omitted).
+
+### Changed
+
+- **Pairing with a blocked installation:** a pairing request from an installation whose existing connection is
+  Security Blocked now needs a second administrator, as one that is already connected does.
+
+### Notes
+
+- **New migration:** `connect.0004_quick_connect_bootstrap` (additive only).
+- **Compatibility:** version 1 pairing, messages and test vectors are unchanged, and the Rem0te link is not affected.
+- **Coming next:** separately approved reverse-direction rules and a test-before-activation step (79.13, 79.25).
+
 ## [3.17.747] - 2026-11-21
 
 Agit8or Connect protocol revision 1.1: specification and SDKs (Quick Connect increment C1).

@@ -34,6 +34,7 @@
 
 {% if can_manage %}
 <h2 class="h5 mt-4">Connect an application</h2>
+{% if qc_enabled %}<p><a class="btn btn-primary" href="{% url 'connect:qc_start' %}" data-qc-start><i class="fas fa-bolt"></i> Quick Connect</a> <span class="small text-muted">— authorise in the other application's own admin UI; no pairing code to type.</span></p>{% endif %}
 <div class="row g-2">{% for a in applications %}
 <div class="col-md-4"><div class="card h-100"><div class="card-body">
 <h3 class="h6"><i class="fas {{ a.icon }}"></i> {{ a.name }} {% if a.status == 'planned' %}<span class="badge bg-secondary">Planned</span>{% else %}<span class="badge bg-info text-dark">Available</span>{% endif %}</h3>

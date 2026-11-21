@@ -41,6 +41,13 @@ class InstallationIdentity(models.Model):
     # (DESIGN.md §13.2). Set only by the migration; never extended.
     source_observe_until = models.DateTimeField(null=True, blank=True)
     source_observe_connections = models.JSONField(default=list, blank=True)
+    # Quick Connect (protocol 1.1, DESIGN.md §2.2, §6.1): this installation's
+    # own egress addresses as other applications see them ([{net, note}],
+    # canonical networks), declared by an administrator and never derived
+    # from a browser address; and whether the browser-mediated bootstrap is
+    # offered at all (off by default, on top of AGIT8OR_CONNECT_ENABLED).
+    egress_addresses = models.JSONField(default=list, blank=True)
+    qc_enabled = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'connect_installation'
@@ -143,6 +150,12 @@ class Connection(models.Model):
     tokens_not_before = models.DateTimeField(null=True, blank=True,
                                              help_text='Access tokens issued before this are refused.')
     suspended_reason = models.CharField(max_length=40, blank=True)
+    # '' = v1 code pairing; '1.1' = Quick Connect (qc-bootstrap/1). After the
+    # exchange a Quick Connect connection is an ordinary v1 connection.
+    qc_revision = models.CharField(max_length=8, blank=True)
+    # Hard deadline of a Quick Connect attempt: the reaper rolls it back after
+    # this (DESIGN.md §6.5), removing every rule it created.
+    qc_attempt_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -559,3 +572,100 @@ class ApprovedDestination(models.Model):
     @property
     def nets(self):
         return [e['net'] for e in self.addresses or []]
+
+
+class _SealedRowMixin:
+    """Values sealed with AES-256-GCM under APP_MASTER_KEY and bound to the
+    row (the uuid primary key exists before the value is sealed)."""
+
+    def _set_sealed(self, name, value):
+        aad = self._meta.get_field(name).row_aad(self.pk)
+        setattr(self, name, seal(value, aad) if value else '')
+
+    def _get_sealed(self, name) -> str:
+        v = getattr(self, name)
+        return unseal(v, self._meta.get_field(name).row_aad(self.pk)) if v else ''
+
+
+class QuickConnectInvitation(_SealedRowMixin, models.Model):
+    """Initiator side (A) of one Quick Connect attempt (DESIGN.md §2.2, §6.3,
+    PROTOCOL-1.1.md §5.3, §10). Not a credential: it lets an administrator
+    who is already signed in to the other application review the request.
+
+    The PKCE verifier and, between the callback and the exchange, the
+    authorisation code are sealed to this row and wiped once the exchange
+    ran. ``state`` is stored only as a SHA-256 and is additionally bound to
+    the administrator's session."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    connection = models.OneToOneField(Connection, on_delete=models.CASCADE, related_name='qc_invitation')
+    jti = models.CharField(max_length=128, unique=True)
+    invitation_jws = models.TextField()
+    state_hash = models.CharField(max_length=64, unique=True)
+    nonce_hash = models.CharField(max_length=64)
+    code_challenge = models.CharField(max_length=64)
+    code_verifier = SealedTextField(bind_row=True, blank=True)
+    responder_origin = models.CharField(max_length=512, help_text='Invitation aud: the approved destination.')
+    authorize_url = models.CharField(max_length=600)
+    redirect_uri = models.CharField(max_length=512)
+    egress = models.JSONField(default=list, blank=True, help_text='Our declared egress, as signed.')
+    requested_scopes = models.JSONField(default=list, blank=True)
+    expires_at = models.DateTimeField()
+    # Callback (browser leg 2), processed at most once.
+    callback_at = models.DateTimeField(null=True, blank=True)
+    accept_jws = models.TextField(blank=True)
+    pending_code = SealedTextField(bind_row=True, blank=True)
+    peer_egress = models.JSONField(default=list, blank=True, help_text='The other side\'s declared egress '
+                                                                         '(signed accept).')
+    exchanged_at = models.DateTimeField(null=True, blank=True)
+    burned_at = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=40, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'connect_qc_invitations'
+        ordering = ['-created_at']
+
+    def set_verifier(self, value):
+        self._set_sealed('code_verifier', value)
+
+    def verifier(self) -> str:
+        return self._get_sealed('code_verifier')
+
+    def set_code(self, value):
+        self._set_sealed('pending_code', value)
+
+    def code(self) -> str:
+        return self._get_sealed('pending_code')
+
+
+class QuickConnectGrant(models.Model):
+    """Responder side (B) of one Quick Connect attempt: the authorisation
+    code of the browser flow (DESIGN.md §2.2, PROTOCOL-1.1.md §5.4, §5.6,
+    §10). Only the code's SHA-256 is stored, never the code."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    connection = models.OneToOneField(Connection, on_delete=models.CASCADE, related_name='qc_grant')
+    code_hash = models.CharField(max_length=64, unique=True)
+    code_expires_at = models.DateTimeField()
+    invitation_jti = models.CharField(max_length=128)
+    invitation_iss = models.CharField(max_length=128)
+    invitation_jws = models.TextField()
+    initiator_jwk = models.JSONField()
+    accept_jws = models.TextField()
+    egress = models.JSONField(default=list, blank=True, help_text='Initiator\'s declared egress, approved here '
+                                                                    'as the temporary rule.')
+    rule_expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    observed_source = models.GenericIPAddressField(null=True, blank=True)
+    # The last exchange refused by the source layer for this attempt (shown to
+    # the administrator; nothing is ever added because of it).
+    refused_source = models.GenericIPAddressField(null=True, blank=True)
+    refused_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'connect_qc_grants'
+        ordering = ['-created_at']

@@ -85,7 +85,12 @@ def index(request):
         failed=Connection.objects.filter(state=Connection.FAILED)[:10],
         pending=PairingRequest.objects.filter(status__in=(PairingRequest.PENDING, PairingRequest.AWAITING_SECOND))
         .select_related('connection'),
-        invitations=PairingInvitation.objects.all()[:10]))
+        invitations=PairingInvitation.objects.all()[:10], qc_enabled=_qc_on()))
+
+
+def _qc_on():
+    from . import quick_connect
+    return quick_connect.enabled_here()
 
 
 def _advanced(request):
@@ -205,7 +210,8 @@ def request_review(request, pk):
                unknown=[s for s in conn.peer_requested_scopes if not catalog.CATALOG.get(s)],
                organizations=_orgs(request), proposed=conn.proposed_tenants, step=4,
                duplicates=list(pairing.duplicate_connections(conn)) if preq.status == PairingRequest.PENDING else [],
-               public_url_problem=identity.public_url_problem())
+               public_url_problem=identity.public_url_problem(),
+               qc_grant=getattr(conn, 'qc_grant', None) if conn.qc_revision else None)
     if request.method == 'POST':
         try:
             if request.POST.get('op') == 'lookup':
@@ -285,6 +291,8 @@ def detail(request, pk):
         outbound_groups=_grouped(cat, conn.outbound_scopes),
         approve_groups=_grouped(catalog.CATALOG, [s for s in conn.peer_requested_scopes if catalog.CATALOG.get(s)]),
         organizations=_orgs(request), remote_grants=_with_org_pk(conn.remote_tenant_grants),
+        qc_grant=getattr(conn, 'qc_grant', None) if conn.qc_revision else None,
+        qc_invitation=getattr(conn, 'qc_invitation', None) if conn.qc_revision else None,
         step={Connection.AWAITING_REMOTE: 3, Connection.AWAITING_LOCAL: 4, Connection.AWAITING_SECOND: 4,
               Connection.ACTIVE: 7}.get(conn.state, 0), **_network_ctx(conn), **_destination_ctx(conn))
     return render(request, 'connect/detail.html', ctx)
@@ -446,6 +454,20 @@ def _network_post(request, connection=None):
             messages.info(request, f'Destination change #{change.pk} staged. Review it below and approve it'
                                    + (' (a second administrator approves a private address or a range).'
                                       if change.widening else '.'))
+        elif op == 'set_egress' and connection is None:
+            from . import quick_connect
+            quick_connect.set_own_egress(quick_connect.parse_egress_text(request.POST.get('egress', '')),
+                                         request.user)
+            messages.success(request, 'Egress address saved.')
+        elif op in ('qc_on', 'qc_off') and connection is None:
+            from . import quick_connect
+            if op == 'qc_on':
+                _reauth(request)
+                from tech_access.protected import has_fresh_auth
+                if not has_fresh_auth(request):
+                    raise _Refused('Re-enter your password to turn Quick Connect on.')
+            quick_connect.set_enabled(op == 'qc_on', request.user)
+            messages.success(request, 'Quick Connect is ' + ('on.' if op == 'qc_on' else 'off.'))
         elif op == 'enforce' and connection is None:
             _reauth(request)
             from tech_access.protected import has_fresh_auth

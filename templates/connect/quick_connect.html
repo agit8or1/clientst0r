@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% comment %}Quick Connect wizard (initiator, protocol 1.1). No password field: the other application's administrator signs in to the other application, never here. No code, verifier or key is rendered.{% endcomment %}
+{% block title %}Quick Connect{% endblock %}
+{% block content %}
+<p><a href="{% url 'connect:index' %}">&larr; Connected Applications</a></p>
+<h1 class="h3"><i class="fas fa-bolt"></i> Quick Connect</h1>
+{% include "connect/_steps.html" %}
+{% if error %}<div class="alert alert-danger" data-qc-error="{{ error_code|default:'' }}" {% if not_configured %}data-connect-not-configured{% endif %}>{{ error }}</div>{% endif %}
+
+{% if not_configured or callback_error %}
+<a class="btn btn-link" href="{% url 'connect:index' %}">Back</a>
+
+{% elif screen == 2 %}
+{# Screen 3: authorise on the other application #}
+<div class="card mb-3" data-qc-screen="authorise"><div class="card-header"><strong>Authorise on the other application</strong></div><div class="card-body">
+  <p>Open <code>{{ inv.responder_origin }}</code> and sign in there with <strong>that application's own account</strong>. Its administrator reviews what this Clientst0r asks for and approves or denies it. Clientst0r never sees that password, and nothing here asks for one.</p>
+  <p class="small text-muted">The request is valid for 10 minutes and can be used once. The other application learns this installation's egress address{{ inv.egress|length|pluralize:"es" }}: {% for e in inv.egress %}<code class="me-1">{{ e.net }}</code>{% endfor %}. The whole attempt expires at {{ conn.qc_attempt_expires_at|date:"H:i" }}.</p>
+  {% if authorize_link %}<a class="btn btn-primary" href="{{ authorize_link }}" rel="noreferrer" data-qc-authorize-link>Open the other application to authorise</a>
+  {% else %}<div class="alert alert-warning">Open this page in the browser session that started the attempt (the link is bound to it), or cancel and start again.</div>{% endif %}
+  <form method="post" class="d-inline">{% csrf_token %}<button class="btn btn-link" name="op" value="cancel">Cancel</button></form>
+</div></div>
+
+{% elif screen == 3 %}
+{# Screen 4: the other application answered; approve its egress, then exchange #}
+<form method="post" data-qc-screen="confirm">{% csrf_token %}
+<div class="card mb-3 border-success"><div class="card-header"><strong>The other application approved</strong> — check it, then approve its address</div><div class="card-body small">
+  <table class="table table-sm mb-2">
+    <tr><th style="width:35%">Application</th><td>{{ conn.remote_display_name|default:"(no name)" }} — <code>{{ conn.remote_app_type }}</code> {{ conn.remote_app_version }}</td></tr>
+    <tr><th>Installation (signed)</th><td><code>{{ conn.remote_installation_id }}</code></td></tr>
+    <tr><th>Address</th><td><code>{{ inv.responder_origin }}</code> (the destination you approved)</td></tr>
+  </table>
+  <p class="mb-1">It declares that its requests to this Clientst0r come from:</p>
+  <ul>{% for e in peer_egress %}<li><code>{{ e.net }}</code>{% if e.note %} — {{ e.note }}{% endif %}{% if e.private %} <span class="badge bg-warning text-dark">private address</span>{% endif %}{% if not e.installation_ok %} <span class="badge bg-danger" data-qc-installation-missing>not allowed by this installation's Network list</span>{% endif %}</li>{% endfor %}</ul>
+  <p class="text-muted">This comes from its signed answer, not from any browser address. Approving lets only these addresses read this installation's discovery and poll this pairing until the attempt ends; nothing else is opened, and the connection itself still needs both administrators to compare codes and approve. An address the Network list does not allow stays refused.</p>
+  <div class="form-check"><input class="form-check-input" type="checkbox" name="approve_peer" id="approve_peer"><label class="form-check-label" for="approve_peer">I approve these addresses for this attempt</label></div>
+  {% for e in peer_egress %}{% if e.private %}<div class="form-check"><input class="form-check-input" type="checkbox" name="private_peer" id="private_peer"><label class="form-check-label" for="private_peer">The private address is correct (LAN or VPN)</label></div>{% endif %}{% endfor %}
+  <p class="text-muted mt-2 mb-0">The other application's one-time code is valid for 2 minutes from its approval: continue now.</p>
+</div></div>
+<button class="btn btn-primary" name="op" value="confirm">Continue</button>
+<button class="btn btn-link" name="op" value="cancel" formnovalidate>Cancel</button>
+</form>
+
+{% elif screen == 4 %}
+{# Screen 5: compare codes (v1 from here on) #}
+<div data-qc-screen="compare">
+{% if conn.state == 'failed' %}<div class="alert alert-warning">{{ conn.last_error }}</div>
+{% else %}
+<div class="alert alert-primary"><strong>Comparison code: <span class="font-monospace fs-4" data-connect-sas>{{ conn.sas }}</span></strong><br>
+The other application's administrator sees a code for this request too. Continue only if both are identical — a different code means something is in the middle. Then they approve on their side, and you approve here.</div>
+<a class="btn btn-primary" href="{% url 'connect:detail' conn.pk %}">Continue: check status and approve</a>
+{% endif %}
+</div>
+
+{% elif fallback %}
+<div class="alert alert-info" data-qc-fallback>{{ check.info.display_name|default:origin }} does not offer Quick Connect (it speaks Agit8or Connect without the 1.1 extensions). Use a pairing code from its administrator instead: the standard pairing works the same way it always has.</div>
+<a class="btn btn-primary" href="{% url 'connect:connect_app' 'other' %}" data-qc-code-flow>Connect with a pairing code</a>
+<a class="btn btn-link" href="{% url 'connect:index' %}">Cancel</a>
+
+{% else %}
+<form method="post">{% csrf_token %}
+<div class="card mb-3"><div class="card-header"><strong>Address</strong></div><div class="card-body">
+  <label class="form-label" for="url">Address of the other application</label>
+  <input class="form-control" id="url" name="url" required maxlength="500" value="{{ origin|default:url }}" placeholder="https://rem0te.example.com">
+  <div class="form-text">An https address (port 443 unless you type another). Clientst0r first checks DNS and TLS only; it sends no request to an address you have not approved.</div>
+</div></div>
+{% include "connect/_advanced.html" %}
+{% if not check %}<button class="btn btn-primary" name="op" value="check">Check the network</button>
+{% else %}
+<div class="card mb-3" data-qc-screen="network"><div class="card-header"><strong>Network check</strong></div><div class="card-body small">
+  {% if check.info %}<p class="mb-1">{{ check.info.display_name|default:"(no name)" }} — <code>{{ check.info.app_type }}</code>, installation <code>{{ check.info.installation_id }}</code> (read from its discovery).</p>
+  {% else %}<p class="mb-1 text-muted">Its discovery document is not readable from here yet. That is normal: it admits this server only after its administrator approves. The request goes to its standard Quick Connect page.</p>{% endif %}
+  <label class="form-label mt-2" for="own_egress">This installation's egress address (as the other application sees it)</label>
+  <input class="form-control w-auto" id="own_egress" name="own_egress" maxlength="300" value="{{ own_egress }}" placeholder="203.0.113.10">
+  <div class="form-text">The address this server's outbound requests come from after NAT. It is signed into the request; the other application admits only it. Never your browser's address.</div>
+  <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="egress_confirmed" id="egress_confirmed"><label class="form-check-label" for="egress_confirmed">This is this server's egress address</label></div>
+</div></div>
+{% include "connect/_destination.html" %}
+<div class="card mb-3"><div class="card-header"><strong>What to ask for</strong></div><div class="card-body">
+  <label class="form-label" for="requested_scopes">Permissions to ask the other application for</label>
+  <input class="form-control font-monospace" id="requested_scopes" name="requested_scopes" maxlength="1000" value="{{ scopes_text }}">
+  <div class="form-text">Names from the other application's catalog, separated by spaces. Its administrator sees them grouped by risk; unknown ones are never granted.</div>
+  <h3 class="h6 mt-3">Customers to offer</h3>
+  <div style="max-height:14rem;overflow:auto" class="border rounded p-2">{% for o in organizations %}
+    <div class="form-check"><input class="form-check-input" type="checkbox" name="orgs" value="{{ o.pk }}" id="org-{{ o.pk }}"><label class="form-check-label" for="org-{{ o.pk }}">{{ o.name }}</label></div>
+  {% empty %}<span class="text-muted">No customers.</span>{% endfor %}</div>
+</div></div>
+<button class="btn btn-primary" name="op" value="authorize">Continue to the other application</button>
+{% endif %}
+<a class="btn btn-link" href="{% url 'connect:index' %}">Cancel</a>
+</form>
+{% endif %}
+{% endblock %}

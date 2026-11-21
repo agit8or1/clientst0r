@@ -137,7 +137,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 7 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
 | 8 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 9 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
-| 10 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.9 browser-mediated bootstrap in Clientst0r (Quick Connect increment C2) | Rem0te contract |
+| 10 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.13 two-sided authorization and 79.25 commit gate (Quick Connect increment C3) | Rem0te contract |
 
 <!-- /generated:next -->
 
@@ -248,7 +248,7 @@ unchanged. Click a feature for its details.
 | 56 | [Ticket AI Assist and RMM handoff](#phase-56) | — | 🔵 In progress | 57; Rem0te ticket-rmm-v1 | Remaining Rem0te-side items move with 63.11–63.16 |
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
-| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.9 browser-mediated bootstrap in Clientst0r (Quick Connect increment C2) |
+| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.13 two-sided authorization and 79.25 commit gate (Quick Connect increment C3) |
 | 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.3 bounded ingestion; 82.6 permission keys; first consumers |
 | 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
 | 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
@@ -2762,9 +2762,9 @@ Depends on Phases 72, 73 and 74.
 <a id="phase-79"></a>
 
 ## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
-<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.9 browser-mediated bootstrap in Clientst0r (Quick Connect increment C2)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
+<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.13 two-sided authorization and 79.25 commit gate (Quick Connect increment C3)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
 **Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** Rem0te contract  
-**Next:** 79.9 browser-mediated bootstrap in Clientst0r (Quick Connect increment C2)  
+**Next:** 79.13 two-sided authorization and 79.25 commit gate (Quick Connect increment C3)  
 **Blocked:** 79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel — *unblocks when:* Decision on one Rem0te channel; Rem0te Stage 8
 
 <details markdown="1">
@@ -2791,7 +2791,7 @@ events with each other, starting with Clientst0r and Rem0te. It runs alongside t
 **Secure HTTPS Quick Connect** — guided, default-deny connection setup on top of this protocol; audit, design and increment plan in [docs/plans/quick-connect/](plans/quick-connect/AUDIT.md). Connect stays off by default; Quick Connect is not offered on production installations until 79.23 and 79.24 pass.
 
 - **79.8 Connect hardening from the Quick Connect audit** *(shipped v3.17.743 — findings QC-04, 08, 09, 10, 11, 12, 14 fixed and QC-03 in part; the SDK's fallback transport loopback gap moves to 79.12)* — outbound requests never reach loopback or link-local addresses and use only the approved port, approvals respect the kill switch, a public address is required before pairing, unauthenticated refusals no longer grow the audit log, and a request claiming an existing installation needs a second administrator.
-- **79.9 Browser-mediated bootstrap** *(planned)* — the administrator authorises the connection in the other application's own admin page; a short-lived, single-use, signed invitation and an authorization code with PKCE replace typed codes; no password ever passes between applications.
+- **79.9 Browser-mediated bootstrap** *(shipped v3.17.748 — off by default behind a per-installation Quick Connect switch; serves qc-bootstrap and qc-source-binding, the diagnostics probe follows with 79.18)* — the administrator authorises the connection in the other application's own admin page; a short-lived, single-use, signed invitation and an authorization code with PKCE replace typed codes; no password ever passes between applications.
 - **79.10 Default-deny source policy for Connect** *(shipped v3.17.746)* — Connect endpoints refuse every address until one is authorised, with IPv4 and IPv6 addresses and ranges, explicit deny winning, no allow-all and no implicit trust for private addresses, checked before any authentication and independent of the general API settings; reuses the API access policy engine.
 - **79.11 Per-connection inbound addresses** *(shipped v3.17.746)* — a second, per-connection allowlist that every request must also pass; a request is bound to the connection whose address rule it matched, so shared NAT addresses stay separated by key; unexpected sources are refused and shown, never added automatically.
 - **79.12 Approved outbound destinations** *(shipped v3.17.746 — includes the SDK fallback transport's loopback fix)* — per connection: host, port, approved addresses, trust anchor and expected identity; every resolved and connected address is checked against the approved set; an address change blocks the connection until an administrator approves it and it is retested.

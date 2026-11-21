@@ -8,6 +8,12 @@
 {% if step %}{% include "connect/_steps.html" %}{% endif %}
 {% if conn.last_error and conn.state != 'active' %}<div class="alert alert-warning">{{ conn.last_error }}</div>{% endif %}
 
+{% if qc_grant %}<div class="card mb-3" data-qc-attempt><div class="card-header"><strong>Quick Connect</strong></div><div class="card-body small">
+  <div>Address approved for this request: {% for e in qc_grant.egress %}<code class="me-1">{{ e.net }}</code>{% endfor %}(temporary, until {{ qc_grant.rule_expires_at|date:"H:i" }})</div>
+  {% if qc_grant.observed_source %}<div>The exchange came from <code>{{ qc_grant.observed_source }}</code>.</div>{% endif %}
+  {% if qc_grant.refused_source %}<div class="text-danger" data-qc-refused-source>A request for this attempt came from <code>{{ qc_grant.refused_source }}</code>, which is not the address you approved ({% for e in qc_grant.egress %}{{ e.net }}{% if not forloop.last %}, {% endif %}{% endfor %}). Nothing was added.</div>{% endif %}
+</div></div>{% endif %}
+{% if qc_invitation and conn.state == 'pending_pairing' %}<div class="alert alert-info">Quick Connect attempt in progress. <a href="{% url 'connect:qc_attempt' conn.pk %}">Continue it</a>.</div>{% endif %}
 {% if conn.state == 'awaiting_remote_approval' %}
 <div class="alert alert-primary"><strong>Comparison code: <span class="font-monospace fs-4" data-connect-sas>{{ conn.sas }}</span></strong><br>
 The other application's administrator sees a code for this request. It must be identical. Then they approve; click Check status afterwards.</div>

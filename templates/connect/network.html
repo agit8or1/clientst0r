@@ -16,5 +16,18 @@
 {% if test_error %}<div class="text-danger mt-2">{{ test_error }}</div>{% endif %}
 {% if test_result %}<div class="mt-2" data-connect-test-result="{{ test_result.allowed|yesno:'allowed,refused' }}">{{ test_result.ip }}: {% if test_result.allowed %}<span class="text-success">allowed</span>{% elif test_result.lenient %}<span class="text-warning">refused after the observe period ({{ test_result.detail }})</span>{% else %}<span class="text-danger">refused</span> — {{ test_result.detail }}{% endif %}</div>{% endif %}
 </div></div>
+<div class="card mb-3" data-qc-settings><div class="card-header"><strong>Quick Connect</strong> (Agit8or Connect 1.1) — {% if identity.qc_enabled %}<span class="badge bg-success">on</span>{% else %}<span class="badge bg-secondary">off</span>{% endif %}</div><div class="card-body small">
+<p>Pairing through the other application's own admin UI: each administrator signs in only to their own application, the one-time code is bound to this server's key and egress address, and both administrators still compare a code and approve. Peers that do not offer it keep using pairing codes.</p>
+{% if can_manage %}
+<form method="post" class="d-flex flex-wrap gap-2 align-items-end mb-2">{% csrf_token %}
+<div><label class="form-label" for="egress">This installation's egress address(es)</label>
+<input class="form-control form-control-sm" id="egress" name="egress" maxlength="300" value="{% for e in identity.egress_addresses %}{{ e.net }}{% if not forloop.last %}, {% endif %}{% endfor %}" placeholder="203.0.113.10"></div>
+<button class="btn btn-sm btn-outline-primary" name="op" value="set_egress">Save</button></form>
+<div class="form-text mb-2">Where this server's outbound requests come from, as other applications see them (after NAT). Declared by you and signed into Quick Connect requests; never taken from a browser address.</div>
+<form method="post" class="d-flex gap-2">{% csrf_token %}
+{% if identity.qc_enabled %}<button class="btn btn-sm btn-outline-secondary" name="op" value="qc_off">Turn Quick Connect off</button>
+{% else %}<input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password"><button class="btn btn-sm btn-primary" name="op" value="qc_on">Turn Quick Connect on</button>{% endif %}</form>
+{% endif %}
+</div></div>
 <p class="small text-muted">Server-side recovery if you locked yourself out: <code>manage.py connect_source_rules list|add|remove|enforce</code>.</p>
 {% endblock %}

@@ -133,6 +133,8 @@ urlpatterns = [
     # AGIT8OR_CONNECT_ENABLED is on.
     path('', include('connect.urls_api')),
     path('settings/integrations/connected-apps/', include('connect.urls_ui')),
+    # Quick Connect: the other application's administrator's browser lands here.
+    path('agit8or-connect/', include('connect.urls_qc')),
 
     # API
     path('api/', include('api.urls')),

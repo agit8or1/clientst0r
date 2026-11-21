@@ -115,9 +115,16 @@ def endpoints(request=None) -> dict:
 
 
 def document(request=None) -> dict:
-    return discovery.build_document(app=app_info(), endpoints=endpoints(request), catalog=catalog.CATALOG,
-                                    events=list(catalog.OUTBOUND_EVENT_TYPES), tenant_model=catalog.TENANT_MODEL,
-                                    extra={'msp': {'single_msp_installation': True}})
+    doc = discovery.build_document(app=app_info(), endpoints=endpoints(request), catalog=catalog.CATALOG,
+                                   events=list(catalog.OUTBOUND_EVENT_TYPES), tenant_model=catalog.TENANT_MODEL,
+                                   extra={'msp': {'single_msp_installation': True}})
+    # Protocol 1.1 members (ignored by v1 peers) only while Quick Connect is
+    # on and the public base is canonical: an extension is advertised only
+    # when it is actually served.
+    from . import quick_connect
+    if quick_connect.available():
+        doc = quick_connect.extend_document(doc)
+    return doc
 
 
 def pairing_pepper() -> bytes:

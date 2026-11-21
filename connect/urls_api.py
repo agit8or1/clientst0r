@@ -17,4 +17,6 @@ urlpatterns = [
     path('connect/v1/customers', v.customers, name='customers'),
     path('connect/v1/customers/current', v.customer_current, name='customer_current'),
     path('connect/v1/events', v.events_inbound, name='events'),
+    # Protocol 1.1 (Quick Connect): 404 unless Quick Connect is also on.
+    path('connect/v1/qc/exchange', v.qc_exchange, name='qc_exchange'),
 ]

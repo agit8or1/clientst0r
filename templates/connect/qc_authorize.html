@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% comment %}Quick Connect request review (responder, protocol 1.1). You are signed in to THIS application; nothing here asks for the other application's password, and nothing is approved until you press Approve.{% endcomment %}
+{% block title %}Quick Connect request{% endblock %}
+{% block content %}
+<h1 class="h3"><i class="fas fa-user-shield"></i> Quick Connect request</h1>
+{% include "connect/_steps.html" %}
+{% if error %}<div class="alert alert-danger" data-qc-error="{{ error_code }}">{{ error }} <span class="small text-muted">({{ error_code }})</span></div>{% endif %}
+{% if review %}
+<div class="row"><div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Requesting application</strong> (signed request; identity confirmed later by comparing codes)</div><div class="card-body small">
+  <div>{{ claims.app.display_name|default:"(no name)" }} — <code>{{ claims.app.type }}</code> {{ claims.app.version }}</div>
+  <div>Claims installation <code>{{ claims.iss }}</code></div>
+  <div>Address <code>{{ claims.base }}</code></div>
+</div></div></div>
+<div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>This application</strong></div><div class="card-body small">
+  <div>{{ identity.display_name }} — installation <code>{{ identity.installation_id }}</code></div>
+  <div>Its egress address (sent back, signed): {% for n in own_egress %}<code class="me-1">{{ n }}</code>{% empty %}<span class="text-danger">not set — set it under Network before approving</span>{% endfor %}</div>
+</div></div></div></div>
+{% if review.duplicates %}<div class="alert alert-warning" data-connect-duplicate>This request claims installation <code>{{ claims.iss }}</code>, which is already connected here. Anyone can claim an installation id; unless you expected a second connection, deny it. Approving the connection later needs a second administrator.</div>{% endif %}
+<div class="card mb-3" data-qc-temporary><div class="card-header"><strong>Temporary access</strong></div><div class="card-body small">
+  <p>Approving allows {% for e in review.egress %}<code class="me-1">{{ e.net }}</code>{% if e.private %}<span class="badge bg-warning text-dark me-1">private address</span>{% endif %}{% if not e.installation_ok %}<span class="badge bg-danger me-1" data-qc-installation-missing>not allowed by this installation's Network list</span>{% endif %}{% endfor %}
+  to reach this application's pairing endpoints <strong>for 15 minutes</strong>, for this request only. These addresses come from the signed request, never from a browser address. An address the Network list does not allow stays refused.</p>
+  <p class="mb-0">Nothing else is granted now: after the exchange both administrators compare an 8-digit code, and you approve permissions and customers in the normal review.</p>
+</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Permissions it asks for</strong></div><div class="card-body small">
+  <ul class="mb-1">{% for r in scope_rows %}<li><span class="{% if r.scope.risk == 'high_risk' or r.scope.risk == 'admin' %}text-danger{% endif %}">{{ r.scope.description }}</span> <code>{{ r.name }}</code> — {{ r.scope.risk }}</li>{% empty %}<li class="text-muted">None this application offers.</li>{% endfor %}</ul>
+  {% if review.unknown_scopes %}<p class="text-muted mb-0">Not offered here (never granted): {{ review.unknown_scopes|join:", " }}</p>{% endif %}
+</div></div>
+<form method="post" action="{% url 'connect_qc:authorize' %}">{% csrf_token %}
+<input type="hidden" name="invitation" value="{{ invitation }}"><input type="hidden" name="state" value="{{ state }}">
+{% if review.needs_private %}<div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="private_ok" id="private_ok"><label class="form-check-label" for="private_ok">The private address is correct (LAN or VPN)</label></div>{% endif %}
+{% if not fresh %}<div class="alert alert-info small">Approving needs you to confirm it is you. <a href="{{ reauth_url }}" data-qc-reauth>Confirm your identity</a>, then come back to this page.</div>{% endif %}
+<button class="btn btn-primary" name="op" value="approve" {% if not fresh %}disabled{% endif %}>Approve temporary access</button>
+<button class="btn btn-outline-danger" name="op" value="deny">Deny</button>
+</form>
+{% else %}<a class="btn btn-link" href="{% url 'connect:index' %}">Connected Applications</a>{% endif %}
+{% endblock %}

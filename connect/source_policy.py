@@ -75,6 +75,9 @@ R_BINDING = 'connect_binding_mismatch'
 
 UNION_ROUTES = frozenset({'discovery', 'health'})
 PAIRING_ROUTES = frozenset({'pairing_submit', 'pairing_status'})
+# Quick Connect exchange (PROTOCOL-1.1.md §5.6, §7.2): only the temporary
+# pairing rule of the attempt whose one-time code the request carries.
+QC_EXCHANGE_ROUTE = 'qc_exchange'
 TOKEN_ROUTES = frozenset({'capabilities', 'test', 'customers', 'customer_current'})
 
 
@@ -147,6 +150,8 @@ def _purposes(route: str) -> frozenset:
         return frozenset({SR.PAIRING, SR.DISCOVERY, SR.ALL})
     if route in PAIRING_ROUTES:
         return frozenset({SR.PAIRING, SR.ALL})
+    if route == QC_EXCHANGE_ROUTE:
+        return frozenset({SR.PAIRING})
     return frozenset({SR.ALL})
 
 
@@ -272,6 +277,19 @@ def named_connection(request, route: str) -> Optional[str]:
         return str(cid) if cid else None
     if route == 'jwks':
         return _uuid(resolve(request.path_info).kwargs.get('connection_id'))
+    if route == QC_EXCHANGE_ROUTE:
+        try:
+            length = int(request.META.get('CONTENT_LENGTH') or 0)
+        except ValueError:
+            return None
+        if length <= 0 or length > 64 * 1024:
+            return None
+        try:
+            data = json.loads(request.body or b'{}')
+        except Exception:   # not JSON, RequestDataTooBig, client disconnect
+            return None
+        from . import quick_connect
+        return quick_connect.named_attempt(data.get('exchange') if isinstance(data, dict) else None)
     if route == 'events':
         from agit8or_connect import webhooks
         return _uuid(request.headers.get(webhooks.H_CONNECTION, ''))
@@ -357,7 +375,7 @@ def evaluate_address(ip, route: str, named: Optional[str], compiled: Compiled, n
         return Result(True, ctx)
     # Observe period (DESIGN §13.2): connections that existed before source
     # rules shipped keep working until it ends; pairing is never lenient.
-    if compiled.observing(now) and route != 'pairing_submit' and (
+    if compiled.observing(now) and route not in ('pairing_submit', QC_EXCHANGE_ROUTE) and (
             route in UNION_ROUTES or (named and named in compiled.observe_connections)):
         ctx.lenient = True
         result.allowed = True
@@ -403,11 +421,19 @@ def middleware_check(request, route):
     from . import identity
     if not identity.enabled():
         return None      # step 0: every Connect view answers 404
+    if route_name(request) == QC_EXCHANGE_ROUTE:
+        from . import quick_connect
+        if not quick_connect.available():
+            return None  # Quick Connect off: the view answers 404, like any unserved route
     result = check(request)
     request.connect_source = result.ctx
     if result.allowed:
         return None
     _record_refusal(request, route, result)
+    if result.ctx.route == QC_EXCHANGE_ROUTE and result.ctx.named and result.ctx.ip is not None:
+        # Observed vs approved address, shown on the attempt; adds nothing.
+        from . import quick_connect
+        quick_connect.note_refused_source(result.ctx.named, result.ctx.ip)
     return refusal_response()
 
 

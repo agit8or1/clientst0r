@@ -19,6 +19,10 @@ class Command(BaseCommand):
             return
         c = events.deliver_due(limit=opts['limit'])
         self.stdout.write(f"delivered {c['delivered']}, retry later {c['retry']}, dead letter {c['dead']}")
+        from connect import quick_connect
+        reaped = quick_connect.reap()   # Quick Connect attempts past their deadline (moves to the monitor in D)
+        if reaped:
+            self.stdout.write(f'rolled back {reaped} expired Quick Connect attempt(s)')
         from connect import denials
         summary = denials.summarise()   # unauthenticated refusals: one chain record per minute at most
         if summary is not None:

@@ -15,6 +15,11 @@ Anyone holding a pairing code can claim any installation id. Unless you expected
   <div>Sent from {{ preq.source_ip|default:"—" }} at {{ preq.created_at|date:"Y-m-d H:i" }}</div></div></div></div>
 <div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>This Clientst0r</strong></div><div class="card-body small">
   <div>{{ identity.display_name }}</div><div>Installation <code>{{ identity.installation_id }}</code></div></div></div></div></div>
+{% if qc_grant %}<div class="card mb-3" data-qc-attempt><div class="card-header"><strong>Quick Connect</strong></div><div class="card-body small">
+  <div>Address approved for this request: {% for e in qc_grant.egress %}<code class="me-1">{{ e.net }}</code>{% endfor %}(temporary, until {{ qc_grant.rule_expires_at|date:"H:i" }})</div>
+  {% if qc_grant.observed_source %}<div>The exchange came from <code>{{ qc_grant.observed_source }}</code>.</div>{% endif %}
+  {% if qc_grant.refused_source %}<div class="text-danger" data-qc-refused-source>A request for this attempt came from <code>{{ qc_grant.refused_source }}</code>, which is not the address you approved ({% for e in qc_grant.egress %}{{ e.net }}{% if not forloop.last %}, {% endif %}{% endfor %}). Nothing was added.</div>{% endif %}
+</div></div>{% endif %}
 <div class="alert alert-primary"><strong>Comparison code: <span class="font-monospace fs-4" data-connect-sas>{{ conn.sas }}</span></strong><br>
 The other application shows a code too. Approve only if the two are identical — a different code means someone else is in the middle.</div>
 {% if preq.status == 'pending' and can_manage %}

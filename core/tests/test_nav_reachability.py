@@ -26,6 +26,8 @@ BASE_HTML = {
 }
 
 ALLOWED_UNLINKED = {
+    'connect:network': 'reached from connect:index (Network button) when Agit8or Connect is enabled',
+    'connect:reauth': 'password confirmation step; reached only by redirect from a protected Connect action',
     'advisor:settings': 'reached from advisor:finding_list (Thresholds button) and per customer from the advisor pages',
     'accounts:password_change': 'reached from accounts:profile',
     'accounts:quick_add_menu': 'legacy quick-add launcher (require_admin); only its own quick forms link back to it. Not linked on purpose',

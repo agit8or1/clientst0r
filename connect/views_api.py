@@ -199,3 +199,21 @@ def customer_current(request):
 def events_inbound(request):
     status, data = events.receive(request)
     return _json(status, data)
+
+
+@endpoint(['POST'], bucket='pairing_ip')
+def qc_exchange(request):
+    """PROTOCOL-1.1.md §5.6. The source layer (middleware) already admitted
+    the request from the temporary rule of the attempt whose one-time code
+    it carries; everything else is checked in quick_connect.receive_exchange."""
+    from . import quick_connect
+    if not quick_connect.available():
+        raise Http404
+    if identity.kill_switch_engaged():
+        raise ConnectError('kill_switch', 'connected applications are stopped', 503)
+    if not ratelimit.hit('pairing_global'):
+        raise ConnectError('rate_limited', 'too many pairing attempts', 429)
+    token = _body(request).get('exchange')
+    if not isinstance(token, str) or not token:
+        raise ConnectError('invalid_request', 'exchange must be a compact JWS')
+    return _json(202, quick_connect.receive_exchange(request, token, request.headers.get('DPoP', '')))
