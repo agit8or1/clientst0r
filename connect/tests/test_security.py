@@ -91,11 +91,16 @@ class Authentication(ConnectTestCase):
         return self.net.request(method, url, headers or {}, body)
 
     def test_unauthorized_calls(self):
-        self.assertEqual(self.raw('GET', CUSTOMER_URL).status, 401)
+        # Increment B1: a request that names no connection is refused by the
+        # source policy before authentication (403); one that names this
+        # connection from its address still needs valid credentials (401).
+        self.assertEqual(self.raw('GET', CUSTOMER_URL).status, 403)
         tok = self.peer.get_token(self.pconn.id)['access_token']
-        self.assertEqual(self.raw('GET', CUSTOMER_URL, {'Authorization': f'Bearer {tok}'}).status, 401)
+        self.assertEqual(self.raw('GET', CUSTOMER_URL, {'Authorization': f'Bearer {tok}'}).status, 403)
         self.assertEqual(self.raw('GET', CUSTOMER_URL, {'Authorization': f'DPoP {tok}'}).status, 401)
-        self.assertEqual(self.raw('POST', f'{CS_BASE}/connect/v1/events', {}, b'{}').status, 401)
+        self.assertEqual(self.raw('POST', f'{CS_BASE}/connect/v1/events', {}, b'{}').status, 403)
+        self.assertEqual(self.raw('POST', f'{CS_BASE}/connect/v1/events',
+                                  {'Agit8or-Connection': str(self.conn.pk)}, b'{}').status, 401)
 
     def test_expired_token(self):
         from connect import store
@@ -184,7 +189,8 @@ class Authentication(ConnectTestCase):
         lifecycle.revoke_grant(grant, self.admin)
         self.assertEqual(self.peer.call(self.pconn.id, 'GET', CUSTOMER_URL, tenant='cust-1', token=tok).status, 403)
         lifecycle.revoke(self.conn, self.admin)
-        self.assertEqual(self.peer.call(self.pconn.id, 'POST', f'{CS_BASE}/connect/v1/test', token=tok).status, 401)
+        # Revoking removes the connection's source rules too (B1): refused before authentication.
+        self.assertEqual(self.peer.call(self.pconn.id, 'POST', f'{CS_BASE}/connect/v1/test', token=tok).status, 403)
         with self.assertRaises(ConnectError):
             self.peer.get_token(self.pconn.id)
 
@@ -200,16 +206,17 @@ class Authentication(ConnectTestCase):
 class Pairing(ConnectTestCase):
     def test_code_reuse(self):
         from connect import pairing
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         with self.assertRaises(ConnectError) as e:
             self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
-        self.assertEqual(e.exception.code, 'invalid_pairing_code')
+        # A used invitation's source rule moved to its connection (B1): the code no longer opens pairing_submit.
+        self.assertEqual(e.exception.code, 'source_not_authorised')
 
     def test_brute_force_lockout_burns_open_invitations(self):
         from connect import pairing
         from connect.models import PairingInvitation
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         codes = []
         for i in range(5):
             with self.assertRaises(ConnectError) as e:
@@ -223,7 +230,7 @@ class Pairing(ConnectTestCase):
     def test_expired_code(self):
         from connect import pairing
         from connect.models import PairingInvitation
-        inv, code = pairing.create_invitation(self.admin)
+        inv, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         PairingInvitation.objects.filter(pk=inv.pk).update(expires_at=inv.created_at)
         with self.assertRaises(ConnectError) as e:
             self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
@@ -233,6 +240,8 @@ class Pairing(ConnectTestCase):
         from connect import ratelimit
         from django.core.cache import cache
         cache.clear()
+        from connect import pairing
+        pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         with mock.patch.dict(ratelimit.LIMITS, {'pairing_ip': (2, 600)}):
             for _ in range(2):
                 with self.assertRaises(ConnectError):
@@ -244,7 +253,7 @@ class Pairing(ConnectTestCase):
 
     def test_status_poll_needs_initiator_key(self):
         from connect import pairing
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         rogue = sdk_keys.generate_private_key()
         from agit8or_connect import pairing as sp
@@ -262,11 +271,11 @@ class Pairing(ConnectTestCase):
         from tech_access.models import ProtectedChange
         cat = Catalog(list(catalog.CATALOG.scopes) + [Scope('lab_actions:execute', 'Lab action', 'high_risk')])
         with mock.patch.object(catalog, 'CATALOG', cat):
-            _, code = pairing.create_invitation(self.admin)
+            _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
             pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read',
                                                                                'lab_actions:execute'])
             preq = PairingRequest.objects.get(pk=pconn.request_id)
-            change = pairing.approve_inbound(preq, scopes=['customers:read', 'lab_actions:execute'],
+            change = pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=['customers:read', 'lab_actions:execute'],
                                              grants=[(self.org_a.pk, 'cust-1', ['customers:read'])],
                                              user=self.admin)
             self.assertIsInstance(change, ProtectedChange)
@@ -290,11 +299,11 @@ class Pairing(ConnectTestCase):
     def test_unavailable_scope_cannot_be_granted(self):
         from connect import pairing
         from connect.models import PairingRequest
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['remote_actions:execute'])
         preq = PairingRequest.objects.get(pk=pconn.request_id)
         with self.assertRaises(pairing.PairingFailed):
-            pairing.approve_inbound(preq, scopes=['remote_actions:execute'], grants=[], user=self.admin)
+            pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=['remote_actions:execute'], grants=[], user=self.admin)
 
     def test_sas_mismatch_detectable(self):
         """A man in the middle substituting keys yields different codes."""
@@ -432,7 +441,8 @@ class KillSwitchAndDisconnect(ConnectTestCase):
         self.assertEqual(conn.state, Connection.SUSPENDED)
         with self.assertRaises(ConnectError):
             self.peer.get_token(pconn.id)
-        self.assertEqual(self.net.request('POST', f'{CS_BASE}/connect/v1/test', {}).status, 503)
+        tok_headers = {'Agit8or-Connection': str(conn.pk)}
+        self.assertEqual(self.net.request('POST', f'{CS_BASE}/connect/v1/events', tok_headers, b'{}').status, 503)
         self.assertEqual(events.deliver_due()['delivered'], 0)
         ev.refresh_from_db()
         self.assertEqual(ev.status, OutboundEvent.QUEUED)
@@ -576,12 +586,12 @@ class SecretLeakage(ConnectTestCase):
         root.addHandler(handler)
         root.setLevel(logging.DEBUG)
         try:
-            inv, code = pairing.create_invitation(self.admin)
+            inv, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
             pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=self.SCOPES,
                                             proposed_tenants=[{'id': 'cust-1'}])
             from connect.models import PairingRequest
             preq = PairingRequest.objects.get(pk=pconn.request_id)
-            pairing.approve_inbound(preq, scopes=self.SCOPES, grants=[(self.org_a.pk, 'cust-1', self.SCOPES)],
+            pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=self.SCOPES, grants=[(self.org_a.pk, 'cust-1', self.SCOPES)],
                                     user=self.admin)
             self.peer.poll(pconn.id)
             self.peer.accept(pconn.id)

@@ -42,4 +42,11 @@ UNSUPPORTED_VERSION = 'unsupported_version'
 TOO_LARGE = 'too_large'
 BLOCKED_DESTINATION = 'blocked_destination'
 TRANSPORT = 'transport_error'
+# Local transport outcomes for pinned destinations (never sent on the wire).
+DESTINATION_CHANGED = 'destination_changed'
+SPKI_MISMATCH = 'spki_mismatch'
+CERT_NAME_MISMATCH = 'certificate_name_mismatch'
+# Answered by an endpoint whose source-address policy refuses the caller
+# (403). v1 receivers treat it as an opaque refusal.
+SOURCE_NOT_AUTHORISED = 'source_not_authorised'
 ACTION_APPROVAL_REQUIRED = 'action_approval_required'

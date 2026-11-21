@@ -23,6 +23,11 @@ TEST_MIDDLEWARE = [
 ]
 CS_BASE = 'https://clientst0r.test'
 PEER_BASE = 'https://rmm.test'
+# Source address the in-memory peers' requests arrive from (a public address:
+# the Connect source policy trusts no private or loopback source implicitly).
+PEER_IP = '93.184.216.34'
+# Address the peer's host name is approved at (approved destination, B2).
+PEER_DEST_IP = '93.184.216.40'
 
 CONNECT_SETTINGS = dict(
     MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, AGIT8OR_CONNECT_ENABLED=True,
@@ -30,7 +35,7 @@ CONNECT_SETTINGS = dict(
 )
 
 
-def django_handler(client: Client):
+def django_handler(client: Client, source=lambda: PEER_IP):
     def handle(method, url, headers, body):
         p = urlsplit(url)
         path = p.path + (f'?{p.query}' if p.query else '')
@@ -41,7 +46,7 @@ def django_handler(client: Client):
                 continue
             extra['HTTP_' + k.upper().replace('-', '_')] = v
         r = client.generic(method, path, data=body or b'', content_type=ct, secure=True,
-                           HTTP_HOST='clientst0r.test', **extra)
+                           HTTP_HOST='clientst0r.test', REMOTE_ADDR=source(), **extra)
         return Response(r.status_code, {k: v for k, v in r.items()}, r.content)
     return handle
 
@@ -60,10 +65,28 @@ class ConnectTestCase(TestCase):
         cclient.clear_cache()
         self.net = Network()
         self.api = Client()
-        self.net.register(CS_BASE, django_handler(self.api))
+        self.peer_ip = PEER_IP
+        self.net.register(CS_BASE, django_handler(self.api, lambda: self.peer_ip))
+        from connect import source_policy
+        source_policy.reset_cache()
+        self.addCleanup(source_policy.reset_cache)
+        # The installation layer allows the peers' address; each connection
+        # gets its own rule through the pairing (create_invitation /
+        # start_outbound peer_sources).
+        self.install_rule = source_policy.apply_direct(
+            [{'layer': 'installation', 'network': PEER_IP}], via='test setup')[0]
         self.peer = ReferencePeer(PEER_BASE, self.net, app_type='rem0te', display_name='Rem0te lab',
                                   tenants={'cust-1': 'Peer Customer One', 'cust-2': 'Peer Customer Two'})
         p = mock.patch('connect.transport.factory', lambda **kw: self.net)
+        p.start()
+        self.addCleanup(p.stop)
+        # Destination preview (DNS + TLS handshake) answers the peers' public address.
+        from connect import destinations
+
+        def probe(url, **kw):
+            host, port = destinations.host_port(url)
+            return destinations.Preview(host=host, port=port, addresses=[PEER_DEST_IP], cert_names=[host])
+        p = mock.patch('connect.transport.probe', probe)
         p.start()
         self.addCleanup(p.stop)
         self.admin = User.objects.create_superuser('admin1', 'a1@example.test', 'pw-Admin-1!x')
@@ -84,12 +107,12 @@ class ConnectTestCase(TestCase):
         peer = peer or self.peer
         org = org or self.org_a
         scopes = scopes or self.SCOPES
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = peer.start_pairing(CS_BASE, code, requested_scopes=scopes,
                                    proposed_tenants=[{'id': tenant, 'label': 'Peer customer'}])
         preq = PairingRequest.objects.get(pk=pconn.request_id)
         self.assertEqual(preq.connection.sas, pconn.sas)
-        pairing.approve_inbound(preq, scopes=scopes, grants=[(org.pk, tenant, grant_scopes or
+        pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=scopes, grants=[(org.pk, tenant, grant_scopes or
                                                                ['customers:read', 'events:publish'])],
                                 requested_scopes=self.PEER_SCOPES, user=self.admin)
         self.assertEqual(peer.poll(pconn.id), 'approved')
@@ -106,8 +129,8 @@ class ConnectTestCase(TestCase):
         org = org or self.org_a
         code = peer.create_invitation()
         info = pairing.discover(peer.base)
-        conn = pairing.start_outbound(info, code, requested_scopes=self.PEER_SCOPES,
-                                      organizations=[org], user=self.admin)
+        conn = pairing.start_outbound(info, code, destination_addresses=['93.184.216.40'], requested_scopes=self.PEER_SCOPES,
+                                      organizations=[org], user=self.admin, peer_sources=[self.peer_ip])
         pconn = peer.connections[peer.requests[conn.pairing_request_id]]
         self.assertEqual(conn.sas, pconn.sas)
         peer.approve(conn.pairing_request_id, scopes=self.PEER_SCOPES,

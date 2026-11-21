@@ -20,6 +20,7 @@ import logging
 from datetime import timedelta
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -77,6 +78,25 @@ def _refuse_if_stopped():
         raise PairingFailed(FRIENDLY['kill_switch'], 'kill_switch')
 
 
+def _destination(values, allow_private, user):
+    from . import destinations
+    try:
+        return destinations.entries_for(values, private=allow_private, user=user)
+    except ValidationError as e:
+        raise PairingFailed(' '.join(e.messages), 'invalid_destination') from e
+
+
+def _sources(values, private=False):
+    """The other application's source addresses for the pairing (B1): the
+    Connect endpoints refuse every address that is not listed."""
+    from django.core.exceptions import ValidationError
+    from . import source_policy
+    try:
+        return source_policy.parse_pairing_sources(values, private=private)
+    except ValidationError as e:
+        raise PairingFailed(' '.join(e.messages), 'invalid_source') from e
+
+
 def _require_public_url():
     """Pairing messages carry our absolute URLs; never send relative ones."""
     problem = identity.public_url_problem()
@@ -124,10 +144,20 @@ def scope_fingerprint(connection, scopes, grants) -> str:
 
 # --- outbound ----------------------------------------------------------------------
 
-def discover(base_url: str, *, allow_private=False, ca_pem='') -> sdk_discovery.DiscoveryInfo:
+def preview_destination(base_url: str, *, allow_private=False, ca_pem=''):
+    """Resolve + TLS handshake (no request) for the administrator to approve
+    the destination (B2). Raises PairingFailed when it cannot be reached."""
+    pv = transport.probe(base_url, allow_private=allow_private, ca_pem=ca_pem)
+    if not pv.addresses:
+        raise PairingFailed(pv.error or 'The address did not resolve.', 'blocked_destination')
+    return pv
+
+
+def discover(base_url: str, *, allow_private=False, ca_pem='', addresses=None) -> sdk_discovery.DiscoveryInfo:
+    """Fetch discovery pinned to the addresses just shown to the administrator."""
     try:
         info = sdk_discovery.fetch(transport.for_settings(allow_private=allow_private, ca_pem=ca_pem,
-                                                          base_url=base_url), base_url)
+                                                          base_url=base_url, addresses=addresses), base_url)
     except ConnectError as e:
         raise PairingFailed(friendly(e), e.code) from e
     if info.installation_id == identity.installation_id():
@@ -137,10 +167,14 @@ def discover(base_url: str, *, allow_private=False, ca_pem='') -> sdk_discovery.
 
 def start_outbound(info: sdk_discovery.DiscoveryInfo, code: str, *, requested_scopes: Sequence[str],
                    organizations: Iterable = (), user=None, allow_private=False, ca_pem='',
-                   rotation_interval_days=90):
+                   rotation_interval_days=90, peer_sources=None, private_sources=False,
+                   destination_addresses=None, spki_pin=''):
     from .models import Connection
+    from . import destinations, source_policy
     _refuse_if_stopped()
     _require_public_url()
+    sources = _sources(peer_sources, private_sources)
+    dest_entries = _destination(destination_addresses, allow_private, user)
     try:
         sdk_pairing.normalize_code(code)
     except ConnectError as e:
@@ -162,6 +196,11 @@ def start_outbound(info: sdk_discovery.DiscoveryInfo, code: str, *, requested_sc
         requested_outbound_scopes=sorted(set(requested_scopes)), allow_private_network=allow_private,
         tls_ca_bundle=ca_pem or '', proposed_tenants=[org_tenant(o) for o in orgs],
         rotation_interval_days=rotation_interval_days, created_by=user)
+    # The other application reads our discovery while it handles the request,
+    # and reaches us from these addresses once approved (DESIGN §6.6).
+    source_policy.pairing_rules_for_connection(conn, sources, user, expires_at=timezone.now() + REQUEST_LIFETIME,
+                                               private=private_sources)
+    destinations.stage(conn, dest_entries, user, spki_pins=[spki_pin] if spki_pin else None)
     row, priv = store.new_key(conn)
     req, claims = sdk_pairing.build_request(
         priv, initiator_app=identity.app_info(), responder_installation=info.installation_id, pairing_code=code,
@@ -180,6 +219,7 @@ def start_outbound(info: sdk_discovery.DiscoveryInfo, code: str, *, requested_sc
     except ConnectError as e:
         conn.state, conn.last_error, conn.last_failure_at = Connection.FAILED, friendly(e)[:500], timezone.now()
         conn.save(update_fields=['state', 'last_error', 'last_failure_at', 'updated_at'])
+        source_policy.remove_connection_rules(conn, 'pairing failed')
         audit_log.record('pairing.outbound_submitted', e.code, connection=conn, user=user,
                          app=info.installation_id, scopes=requested_scopes)
         raise PairingFailed(friendly(e), e.code) from e
@@ -226,6 +266,8 @@ def poll(conn) -> str:
     if res['status'] == 'rejected':
         conn.state, conn.last_error = Connection.FAILED, 'The other application\'s administrator rejected the pairing.'
         conn.save()
+        from . import source_policy
+        source_policy.remove_connection_rules(conn, 'pairing rejected')
         audit_log.record('pairing.outbound_result', 'rejected', connection=conn, app=conn.remote_installation_id)
         return 'rejected'
     if res.get('connection_id') != conn.remote_connection_id:
@@ -340,7 +382,7 @@ def finalize_local(conn, scopes, grants, user):
         conn.inbound_scopes = sorted(set(scopes))
         conn.inbound_event_types = _event_types(scopes)
         _apply_grants(conn, grants, user)
-        _activate(conn)
+        _activate(conn, user)
     audit_log.record('pairing.activated', 'ok', connection=conn, user=user, scopes=conn.inbound_scopes,
                      detail={'direction': Connection.OUTBOUND, 'grants': len(grants)})
 
@@ -354,35 +396,55 @@ def _event_types(scopes) -> List[str]:
     return sorted(out)
 
 
-def _activate(conn):
+def _activate(conn, user=None):
     from .models import Connection
+    from . import source_policy
     _refuse_if_stopped()   # inside the caller's transaction: raising rolls the approval back
     conn.state = Connection.ACTIVE
     conn.next_rotation_at = timezone.now() + timedelta(days=conn.rotation_interval_days or 90)
     conn.save()
+    # The pairing addresses become the connection's source rules, in the same
+    # transaction and policy version bump as the activation.
+    source_policy.promote_on_activate(conn, user)
+    from . import destinations
+    destinations.activate(conn)
 
 
 # --- inbound ----------------------------------------------------------------------
 
-def create_invitation(user, label='', ttl_seconds=sdk_pairing.CODE_TTL):
+def create_invitation(user, label='', ttl_seconds=sdk_pairing.CODE_TTL, *, peer_sources=None,
+                      private_sources=False):
+    """A code plus the address(es) the other application will submit it
+    from. Only those addresses can reach the pairing endpoints with it, so a
+    wrong-code flood can come only from them (QC-02)."""
     from .models import PairingInvitation
+    from . import source_policy
     _refuse_if_stopped()
     _require_public_url()
+    sources = _sources(peer_sources, private_sources)
     code = sdk_pairing.generate_code()
-    inv = PairingInvitation.objects.create(code_hash=sdk_pairing.hash_code(code, identity.pairing_pepper()),
-                                           label=label[:200], expires_at=timezone.now() + timedelta(seconds=ttl_seconds),
-                                           created_by=user)
+    with transaction.atomic():
+        inv = PairingInvitation.objects.create(code_hash=sdk_pairing.hash_code(code, identity.pairing_pepper()),
+                                               label=label[:200],
+                                               expires_at=timezone.now() + timedelta(seconds=ttl_seconds),
+                                               created_by=user)
+        source_policy.pairing_rules_for_invitation(inv, sources, user, private=private_sources)
     audit_log.record('pairing.invitation_created', 'ok', user=user, detail={'invitation': str(inv.pk)})
     return inv, code
 
 
-def _burn_attempt():
-    """A wrong code counts against EVERY open invitation; at five they burn."""
+def _burn_attempt(only=None):
+    """A wrong code counts against every open invitation the source was
+    allowed for (all open ones when called without a request); at five
+    they burn. Since B1 only addresses attached to an invitation reach the
+    pairing endpoint at all, so a stranger cannot burn them (QC-02)."""
     from .models import PairingInvitation
     now = timezone.now()
     with transaction.atomic():
         open_qs = PairingInvitation.objects.select_for_update().filter(used_at=None, burned_at=None,
                                                                        expires_at__gt=now)
+        if only is not None:
+            open_qs = open_qs.filter(pk__in=list(only))
         rows = list(open_qs)
         for inv in rows:
             inv.attempts += 1
@@ -392,7 +454,7 @@ def _burn_attempt():
     return rows and all(r.burned_at for r in rows)
 
 
-def receive_request(token: str, source_ip: str = '') -> dict:
+def receive_request(token: str, source_ip: str = '', request=None) -> dict:
     """API: verify an inbound pairing request, consume the code, create the
     pending connection, answer with our signed ack."""
     from .models import Connection, PairingInvitation, PairingRequest
@@ -407,10 +469,15 @@ def receive_request(token: str, source_ip: str = '') -> dict:
             code_hash=code_hash, used_at=None, burned_at=None, expires_at__gt=timezone.now()).first() \
             if code_hash else None
         if inv is not None:
+            if request is not None:
+                from . import source_policy
+                source_policy.bind_invitation(request, inv)   # the code's own addresses only
             inv.used_at = timezone.now()
             inv.save(update_fields=['used_at'])
     if inv is None:
-        locked = _burn_attempt()
+        src = getattr(request, 'connect_source', None) if request is not None else None
+        only = [k[4:] for k in src.matched if k.startswith('inv:')] if src is not None else None
+        locked = _burn_attempt(only)
         if locked:   # once per burn of the open invitations: kept in the chain
             audit_log.record('pairing.code_rejected', 'locked', app=str(claims['iss'])[:128],
                              detail={'source_ip': source_ip})
@@ -442,6 +509,8 @@ def receive_request(token: str, source_ip: str = '') -> dict:
                                              expires_at=timezone.now() + REQUEST_LIFETIME)
         conn.pairing_request_id = str(preq.pk)
         conn.save(update_fields=['pairing_request_id'])
+        from . import source_policy
+        source_policy.link_invitation(inv, conn, preq.expires_at)
     ack = sdk_pairing.build_ack(priv, responder_app=identity.app_info(), initiator_installation=claims['iss'],
                                 request_id=str(preq.pk), request_jti=claims['jti'], connection_id=str(conn.pk))
     audit_log.record('pairing.inbound_received', 'pending', connection=conn, app=conn.remote_installation_id,
@@ -449,7 +518,7 @@ def receive_request(token: str, source_ip: str = '') -> dict:
     return {'status': 'pending_approval', 'request_id': str(preq.pk), 'ack': ack}
 
 
-def pairing_status(request_id: str, proof: str) -> dict:
+def pairing_status(request_id: str, proof: str, request=None) -> dict:
     from .models import PairingRequest
     preq = PairingRequest.objects.select_related('connection').filter(pk=request_id).first()
     if preq is None:
@@ -459,6 +528,9 @@ def pairing_status(request_id: str, proof: str) -> dict:
                             initiator_installation=conn.remote_installation_id,
                             responder_installation=identity.installation_id(), request_id=str(preq.pk),
                             replay=store.replay_store)
+    if request is not None:
+        from . import source_policy
+        source_policy.bind(request, conn)
     if preq.status in (PairingRequest.PENDING, PairingRequest.AWAITING_SECOND) and preq.expires_at <= timezone.now():
         _reject(preq, None, expired=True)
     if preq.result_jws:
@@ -466,8 +538,14 @@ def pairing_status(request_id: str, proof: str) -> dict:
     return {'status': 'pending_approval'}
 
 
-def refresh_remote_discovery(conn):
-    info = sdk_discovery.fetch(transport.for_connection(conn), conn.base_url)
+def refresh_remote_discovery(conn, *, addresses=None):
+    """Through the connection's approved destination, or (``addresses``, the
+    review page's look-up before anything is approved) pinned to the
+    addresses just resolved for the administrator."""
+    t = (transport.for_connection(conn) if addresses is None else
+         transport.for_settings(allow_private=conn.allow_private_network, ca_pem=conn.tls_ca_bundle,
+                                base_url=conn.base_url, addresses=addresses))
+    info = sdk_discovery.fetch(t, conn.base_url)
     if info.installation_id != conn.remote_installation_id:
         raise ConnectError('invalid_signature', 'the other application\'s address now leads to a different '
                                                 'installation')
@@ -479,7 +557,7 @@ def refresh_remote_discovery(conn):
 
 
 def approve_inbound(preq, *, scopes, grants, requested_scopes=(), user, request=None, allow_private=False,
-                    ca_pem=''):
+                    ca_pem='', destination_addresses=None, spki_pin=''):
     from .models import Connection, PairingRequest
     conn = preq.connection
     _refuse_if_stopped()
@@ -489,7 +567,10 @@ def approve_inbound(preq, *, scopes, grants, requested_scopes=(), user, request=
     scopes = sorted(set(scopes))
     _check_grantable(scopes, conn.peer_requested_scopes)
     grants = _validate_grants(scopes, grants)
+    dest_entries = _destination(destination_addresses, allow_private, user)
     conn.allow_private_network, conn.tls_ca_bundle = bool(allow_private), ca_pem or ''
+    from . import destinations
+    destinations.stage(conn, dest_entries, user, spki_pins=[spki_pin] if spki_pin else None)
     try:
         info = refresh_remote_discovery(conn)
     except ConnectError as e:
@@ -534,7 +615,7 @@ def finalize_inbound(preq, scopes, grants, requested_scopes, user):
             requested_scopes=requested_scopes, endpoints=identity.endpoints())
         preq.status, preq.decided_at, preq.decided_by = PairingRequest.APPROVED, timezone.now(), user
         preq.save()
-        _activate(conn)
+        _activate(conn, user)
     audit_log.record('pairing.activated', 'ok', connection=conn, user=user, scopes=conn.inbound_scopes,
                      detail={'direction': 'inbound', 'grants': len(grants)})
 
@@ -552,8 +633,10 @@ def _reject(preq, user, expired=False):
     conn.state = Connection.FAILED
     conn.last_error = 'Pairing request expired.' if expired else 'Pairing rejected here.'
     conn.save()
-    from . import lifecycle
+    from . import lifecycle, source_policy
     lifecycle.retire_keys(conn)
+    source_policy.remove_connection_rules(conn, 'pairing rejected' if not expired else 'pairing expired',
+                                          keep_result_poll=True)
     audit_log.record('pairing.rejected', 'expired' if expired else 'rejected', connection=conn, user=user,
                      app=conn.remote_installation_id)
 

@@ -10,5 +10,7 @@ urlpatterns = [
     path('invite/', v.invite, name='invite'),
     path('requests/<uuid:pk>/', v.request_review, name='request_review'),
     path('kill-switch/', v.kill_switch, name='kill_switch'),
+    path('network/', v.network, name='network'),
+    path('changes/<int:pk>/', v.change, name='change'),
     path('<uuid:pk>/', v.detail, name='detail'),
 ]

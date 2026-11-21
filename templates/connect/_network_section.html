@@ -1,0 +1,33 @@
+{% comment %}Source rules for one layer (installation, or one connection) with staged changes. Rendered on the Network page and the connection detail page.{% endcomment %}
+<table class="table table-sm small mb-2"><thead><tr><th>Rule</th><th>Status</th><th>Purpose</th><th>Expires</th><th>Matches</th><th></th></tr></thead><tbody>
+{% for r in source_rules %}<tr data-source-rule="{{ r.network }}"><td><span class="badge {% if r.action == 'deny' %}bg-danger{% else %}bg-success{% endif %}">{{ r.get_action_display }}</span> <code>{{ r.network }}</code>{% if r.private %} <span class="badge bg-secondary">private</span>{% endif %} <span class="text-muted">{{ r.description }}</span></td>
+<td>{{ r.get_status_display }}</td><td>{{ r.get_purpose_display }}</td><td>{{ r.expires_at|date:"Y-m-d H:i"|default:"—" }}</td><td>{{ r.match_count }}{% if r.last_matched_at %} · {{ r.last_matched_at|date:"m-d H:i" }}{% endif %}</td>
+<td>{% if can_manage and r.status == 'active' %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="rule" value="{{ r.pk }}"><button class="btn btn-sm btn-outline-danger" name="op" value="propose_remove">Stage removal</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted">No rules: every source address is refused{% if layer_label %} {{ layer_label }}{% endif %}.</td></tr>{% endfor %}</tbody></table>
+{% if observed %}<h3 class="h6">Observed sources (not allowed by a rule)</h3>
+<table class="table table-sm small mb-2"><tbody>{% for o in observed %}<tr><td><code>{{ o.network }}</code></td><td>first {{ o.observed_first_at|date:"Y-m-d H:i" }}, last {{ o.last_matched_at|date:"Y-m-d H:i" }}, {{ o.match_count }} request(s)</td>
+<td>{% if can_manage %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="rule" value="{{ o.pk }}"><label class="small me-1"><input type="checkbox" name="private"> private</label><button class="btn btn-sm btn-outline-primary" name="op" value="approve_observed">Approve observed address</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>{% endif %}
+{% if can_manage %}<details class="mb-2"><summary class="small">Stage a rule</summary>
+<form method="post" class="row g-2 mt-1 small">{% csrf_token %}
+<div class="col-md-4"><input class="form-control form-control-sm" name="network" required maxlength="64" placeholder="203.0.113.10 or 2001:db8:1::/48" aria-label="Address or range"></div>
+<div class="col-md-2"><select class="form-select form-select-sm" name="action" aria-label="Action"><option value="allow">Allow</option><option value="deny">Deny</option></select></div>
+<div class="col-md-2"><input class="form-control form-control-sm" name="expires_hours" type="number" min="1" placeholder="Expires (hours)" aria-label="Expires in hours"></div>
+<div class="col-md-4"><input class="form-control form-control-sm" name="description" maxlength="200" placeholder="Description" aria-label="Description"></div>
+<div class="col-12"><label><input type="checkbox" name="private"> This is a private, loopback or link-local address (single address only)</label></div>
+<div class="col-12"><button class="btn btn-sm btn-primary" name="op" value="propose_rule">Stage and preview</button>
+<span class="text-muted">Allow ranges: IPv4 /16 or narrower, IPv6 /32 or narrower. Nothing changes until the change is approved.</span></div></form></details>{% endif %}
+{% for ch in staged_changes %}<div class="card mb-2 border-warning" data-connect-change="{{ ch.pk }}"><div class="card-body small">
+<strong>Change #{{ ch.pk }}</strong> — {{ ch.get_kind_display }}, {{ ch.get_status_display }}, proposed by {{ ch.proposed_by|default:"system" }} {{ ch.created_at|date:"Y-m-d H:i" }}{% if ch.widening %} <span class="badge bg-warning text-dark">widens access — second administrator</span>{% endif %}
+{% if ch.preview.gains %}<div>Gains access: {{ ch.preview.gains|join:", " }}</div>{% endif %}
+{% if ch.preview.loses %}<div>Loses access: {{ ch.preview.loses|join:", " }}</div>{% endif %}
+{% if ch.preview.before_addresses %}<div>Addresses: {{ ch.preview.before_addresses|join:", "|default:"none" }} &rarr; {{ ch.preview.after_addresses|join:", " }}</div>{% endif %}
+{% for l in ch.preview.lockout %}<div class="text-danger">Would cut off {{ l.name }} (last seen from {{ l.source }}).</div>{% endfor %}
+{% if can_manage and ch.status == 'staged' %}<form method="post" action="{% url 'connect:change' ch.pk %}" class="d-flex flex-wrap gap-2 mt-2">{% csrf_token %}
+<input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password">
+<input class="form-control form-control-sm w-auto" name="otp" placeholder="Authenticator code" autocomplete="one-time-code" aria-label="Authenticator code">
+<button class="btn btn-sm btn-primary" name="op" value="approve">Approve</button><button class="btn btn-sm btn-outline-secondary" name="op" value="reject">Reject</button></form>
+{% elif ch.protected_change_id %}<div><a href="{% url 'tech_access:change_detail' ch.protected_change_id %}">Protected change #{{ ch.protected_change_id }}</a></div>{% endif %}
+</div></div>{% endfor %}
+{% if applied_changes %}<details class="small"><summary>Applied changes</summary><ul class="mb-0">{% for ch in applied_changes %}<li>#{{ ch.pk }} {{ ch.get_kind_display }} {{ ch.get_status_display|lower }} {{ ch.applied_at|date:"Y-m-d H:i" }}{% if ch.note %} — {{ ch.note }}{% endif %}
+{% if can_manage and ch.status == 'applied' and ch.kind == 'source_rules' and not ch.rollback_of_id %}<form method="post" action="{% url 'connect:change' ch.pk %}" class="d-inline">{% csrf_token %}<input type="password" class="form-control form-control-sm d-inline w-auto" name="password" placeholder="Password" aria-label="Your password"><button class="btn btn-sm btn-link" name="op" value="rollback">Roll back (narrows only)</button></form>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+{% if refusals %}<details class="small mt-2"><summary>Recent refusals ({{ refusals|length }})</summary><table class="table table-sm mb-0"><tbody>{% for d in refusals %}<tr><td>{{ d.created_at|date:"m-d H:i" }}</td><td><code>{{ d.source_ip|default:"—" }}</code></td><td>{{ d.path }}</td><td>{{ d.reason }}</td><td>{{ d.count }}×</td></tr>{% endfor %}</tbody></table></details>{% endif %}

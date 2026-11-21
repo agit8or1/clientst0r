@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.746] - 2026-11-21
+
+Agit8or Connect: default-deny source addresses and approved destinations (Quick Connect increment B). Agit8or
+Connect stays off by default; these changes apply only where an administrator has enabled it.
+
+### Changed
+
+- **Default-deny source addresses (roadmap 79.10, 79.11)**
+  - **Two lists, both required:** every Connect endpoint (pairing, discovery, token and API) refuses a request with
+    403 `source_not_authorised` until its address is allowed both installation-wide (**Connected Applications →
+    Network**) and on the connection it belongs to.
+  - **Rules:** exact addresses and ranges for IPv4 and IPv6; a deny always wins. Allow-all and over-broad ranges are
+    refused, and private addresses get no automatic trust.
+  - **Checked first:** the check runs before any authentication and uses only the trusted-proxy client address.
+    The REST API access policy no longer applies to Connect.
+  - **Binding:** a request must come from an address allowed for the connection whose credentials it presents.
+    Unexpected addresses are refused and shown, never added automatically.
+  - **Observe period (existing installs):** installs that already had Connect connections get a 14-day observe
+    period for those connections only (never for pairing). It is audited, cannot be extended and can be ended with
+    **Enforce now**. Addresses seen during it can be approved with one click, which stages a change.
+- **Staged network changes (79.14, in part)**
+  - Each change shows a preview of what it adds and removes, and which connections it would lock out.
+  - Approving needs your password, and widening access needs a second administrator.
+  - Changes apply on every worker at once. Rollback only ever narrows access.
+  - If the database cannot be read, the last policy is used for up to 60 seconds, then everything is refused.
+- **Approved outbound destinations (79.12, 79.15)**
+  - **What gets approved:** each connection sends only to an approved host and port, with approved addresses and a
+    trust anchor (the system CAs or the connection's own CA), plus an optional key pin.
+  - **Checks on every send:** every resolved address and the address actually connected to must be approved, so DNS
+    rebinding is refused. Certificates are always verified. There are no redirects or proxies, and loopback,
+    link-local and metadata addresses are always refused.
+  - **Security Blocked:** a changed address, key or certificate name moves the connection there, with the evidence.
+    Nothing retries until an administrator approves the new address and a retest passes.
+  - **Existing connections** send nothing until their destination addresses are approved. Queued events wait and
+    don't count as attempts.
+- **Pairing** asks for the other application's exact source address and shows its resolved destination addresses
+  for approval.
+- **Recovery from the server:** `manage.py connect_source_rules list|add|remove|enforce`.
+
+### Fixed
+
+- **SDK loopback gap:** the Python SDK's fallback transport no longer allows loopback, link-local or metadata
+  addresses when private networks are on. With private networks on, it allows only RFC 1918, CGNAT and ULA
+  addresses.
+
+### Notes
+
+- **Compatibility:** no protocol change. Version 1 messages and test vectors are unchanged, and the Rem0te link is
+  not affected.
+- **New migrations:** `api_access.0006_connect_decision_surface`, `connect.0002_source_policy` and
+  `connect.0003_approved_destinations`.
+
 ## [3.17.745] - 2026-11-21
 
 Faster page loads.

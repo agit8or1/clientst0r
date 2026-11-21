@@ -57,7 +57,9 @@ def endpoint(methods, max_body=MAX_BODY, bucket='api_ip'):
                 raise Http404
             cid = str(uuid.uuid4())
             try:
-                if not ratelimit.hit(bucket, ratelimit.client_ip(request)):
+                # Buckets keyed by source address AND the connection the request
+                # names (QC-13): one peer cannot use up another's budget.
+                if not ratelimit.hit(bucket, ratelimit.request_key(request)):
                     raise ConnectError('rate_limited', 'too many requests', 429)
                 length = int(request.META.get('CONTENT_LENGTH') or 0)
                 if length > max_body or len(request.body or b'') > max_body:
@@ -106,7 +108,7 @@ def pairing_submit(request):
     token = _body(request).get('request')
     if not isinstance(token, str):
         raise ConnectError('invalid_request', 'request must be a compact JWS')
-    return _json(202, pairing.receive_request(token, ratelimit.client_ip(request)))
+    return _json(202, pairing.receive_request(token, ratelimit.client_ip(request), request=request))
 
 
 @endpoint(['POST'], bucket='poll_ip')
@@ -118,7 +120,7 @@ def pairing_status(request, request_id):
     proof = _body(request).get('proof')
     if not isinstance(proof, str):
         raise ConnectError('invalid_request', 'proof must be a compact JWS')
-    return _json(200, pairing.pairing_status(str(request_id), proof))
+    return _json(200, pairing.pairing_status(str(request_id), proof, request=request))
 
 
 @endpoint(['POST'], bucket='token_ip')
@@ -138,6 +140,12 @@ def jwks(request, connection_id):
         state__in=(Connection.REVOKED, Connection.FAILED)).first()
     if conn is None:
         raise ConnectError('not_found', 'not found', 404)
+    # Unauthenticated, but the source must be one this connection allows
+    # (checked before the view; this keeps a union match from reaching it).
+    if str(conn.pk) not in getattr(getattr(request, 'connect_source', None), 'matched', ()) and not getattr(
+            getattr(request, 'connect_source', None), 'lenient', False):
+        raise ConnectError('source_not_authorised', 'This source address is not authorised for Agit8or Connect.',
+                           403)
     row, priv = store.active_key(conn)
     doc = sdk_keys.endorsed_jwks(priv, store.published_jwks(conn), identity.installation_id(), str(conn.pk))
     r = _json(200, doc)

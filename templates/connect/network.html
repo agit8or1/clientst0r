@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Network — Connected Applications{% endblock %}
+{% block content %}
+<p><a href="{% url 'connect:index' %}">&larr; Connected Applications</a></p>
+<h1 class="h3"><i class="fas fa-network-wired"></i> Network</h1>
+<p class="text-muted">Which source addresses may reach this Clientst0r's Agit8or Connect endpoints (<code>/.well-known/agit8or-connect</code> and <code>/connect/v1/</code>). Every request has to pass this installation-wide list <strong>and</strong> the list of the connection it is for; a deny in either wins, an empty list refuses everything, and a valid token never skips the check. The REST API access policy and the site firewall do not apply here, and private addresses get no special trust.</p>
+{% if observe %}<div class="alert alert-warning" data-connect-observe>Observe period until <strong>{{ observe.until|date:"Y-m-d H:i" }}</strong>: {{ observe.connections|length }} connection(s) that existed before source rules were added keep working from addresses not listed, and those addresses are recorded on each connection for you to approve. From that date Connect refuses every unapproved source.
+{% if can_manage %}<form method="post" class="d-flex gap-2 mt-2">{% csrf_token %}<input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password"><button class="btn btn-sm btn-warning" name="op" value="enforce" data-confirm="Enforce source rules now? Unapproved sources are refused at once.">Enforce now</button></form>{% endif %}</div>{% endif %}
+<div class="card mb-3"><div class="card-header"><strong>Installation layer</strong></div><div class="card-body">
+{% include "connect/_network_section.html" with layer_label="by Connect" %}
+</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Test an address</strong></div><div class="card-body small">
+<form method="get" class="d-flex flex-wrap gap-2"><input class="form-control form-control-sm w-auto" name="test_ip" value="{{ request.GET.test_ip }}" placeholder="198.51.100.7" aria-label="Address to test">
+<select class="form-select form-select-sm w-auto" name="test_connection" aria-label="Connection"><option value="">(no connection: discovery)</option>{% for c in connections %}<option value="{{ c.pk }}" {% if request.GET.test_connection == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.remote_display_name|default:c.remote_app_type }}</option>{% endfor %}</select>
+<button class="btn btn-sm btn-outline-primary">Test</button></form>
+{% if test_error %}<div class="text-danger mt-2">{{ test_error }}</div>{% endif %}
+{% if test_result %}<div class="mt-2" data-connect-test-result="{{ test_result.allowed|yesno:'allowed,refused' }}">{{ test_result.ip }}: {% if test_result.allowed %}<span class="text-success">allowed</span>{% elif test_result.lenient %}<span class="text-warning">refused after the observe period ({{ test_result.detail }})</span>{% else %}<span class="text-danger">refused</span> — {{ test_result.detail }}{% endif %}</div>{% endif %}
+</div></div>
+<p class="small text-muted">Server-side recovery if you locked yourself out: <code>manage.py connect_source_rules list|add|remove|enforce</code>.</p>
+{% endblock %}

@@ -1,0 +1,15 @@
+{# Approved destination (Quick Connect B2): what the host name resolved to, and the addresses to approve. #}
+<div class="card mb-3" data-connect-destination><div class="card-header"><strong>Destination</strong> — where Clientst0r will reach {{ dest_name|default:"the other application" }}</div><div class="card-body small">
+  {% if destination %}
+  <p class="mb-1"><code>{{ destination.host }}:{{ destination.port }}</code> resolves to:
+    {% for a in destination.addresses %}<code class="me-1">{{ a }}</code>{% empty %}<span class="text-muted">nothing</span>{% endfor %}</p>
+  {% if destination.cert_names %}<p class="mb-1">Certificate names: {% for n in destination.cert_names %}<code class="me-1">{{ n }}</code>{% endfor %}</p>{% endif %}
+  {% if destination.spki %}<p class="mb-1">Certificate key (SPKI SHA-256): <code>{{ destination.spki }}</code></p>{% endif %}
+  {% if destination.error %}<div class="alert alert-warning py-1 mb-1">{{ destination.error }}</div>{% endif %}
+  {% endif %}
+  <label class="form-label mt-2" for="destination_addresses">Approved addresses</label>
+  <input class="form-control" id="destination_addresses" name="destination_addresses" maxlength="600" value="{{ destination_addresses|default:'' }}" placeholder="198.51.100.20">
+  <div class="form-text">Clientst0r connects only to these addresses (exact IPs, or a range up to /24 for IPv4 or /48 for IPv6). If the name later resolves anywhere else, nothing is sent and the connection is blocked until you approve the new address. A private address also needs "internal address" under Advanced.</div>
+  <label class="form-label mt-2" for="spki_pin">Pin the certificate key (optional)</label>
+  <input class="form-control font-monospace" id="spki_pin" name="spki_pin" maxlength="60" value="" placeholder="base64 SPKI SHA-256">
+</div></div>

@@ -18,6 +18,11 @@ from tech_access.protected import ProtectedChangeError, applier
 def _apply_app_connection(change, reviewer):
     from .models import Connection, PairingRequest
     from . import identity, pairing
+    if change.payload.get('connect_change'):
+        # A staged Connect network change (source rules or an approved
+        # destination) that widens access: connect/source_policy.py.
+        from . import source_policy
+        return source_policy.apply_protected(change, reviewer)
     if identity.kill_switch_engaged():
         raise ProtectedChangeError('Connected applications are stopped by the emergency kill switch. Release it '
                                    'before approving this change.')

@@ -31,6 +31,7 @@ The other application shows a code too. Approve only if the two are identical â€
   Clientst0r has not contacted <code>{{ conn.base_url }}</code> yet. Look it up to see what Clientst0r may ask of it in return (uses the Advanced settings below for an internal address or a private CA).
   <div class="mt-2"><button class="btn btn-sm btn-outline-secondary" name="op" value="lookup" formnovalidate data-connect-lookup>Look up the other application</button></div>
 </div></div>{% endif %}
+{% include "connect/_destination.html" %}
 {% include "connect/_advanced.html" %}
 <button class="btn btn-primary" name="op" value="approve">Approve</button>
 <button class="btn btn-outline-danger" name="op" value="reject" formnovalidate>Reject</button>

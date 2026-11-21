@@ -16,6 +16,12 @@ from django.utils import timezone
 SURFACE_API = 'api'
 SURFACE_WEBHOOK = 'webhook'
 SURFACES = ((SURFACE_API, 'Inbound API'), (SURFACE_WEBHOOK, 'Inbound webhooks'))
+# Agit8or Connect endpoints have their own default-deny source policy
+# (connect/source_policy.py, rules in connect.SourceRule). The REST API mode,
+# limits and rules never apply to them; refusals are logged here with this
+# surface.
+SURFACE_CONNECT = 'connect'
+DECISION_SURFACES = SURFACES + ((SURFACE_CONNECT, 'Agit8or Connect'),)
 
 
 def normalize_network(value):
@@ -31,6 +37,48 @@ def normalize_network(value):
         return str(ipaddress.ip_network(text, strict=False))
     except ValueError:
         raise ValidationError(f'"{text[:64]}" is not an IPv4 or IPv6 address or CIDR range.')
+
+
+def _unmapped(net):
+    """::ffff:192.0.2.0/120 -> 192.0.2.0/24, so a mapped spelling cannot
+    sidestep the IPv4 size limits or the private-address checks."""
+    if net.version == 6 and net.prefixlen >= 96 and net.network_address.ipv4_mapped is not None:
+        return ipaddress.ip_network(f'{net.network_address.ipv4_mapped}/{net.prefixlen - 96}')
+    return net
+
+
+def network_is_private(net) -> bool:
+    """True when any part of ``net`` is not a public unicast address
+    (RFC1918, CGNAT, ULA, loopback, link-local, documentation, ...)."""
+    from core.safe_http import _BLOCKED_NETWORKS, is_public_ip
+    net = _unmapped(ipaddress.ip_network(net, strict=False) if isinstance(net, str) else net)
+    if not (is_public_ip(net.network_address) and is_public_ip(net.broadcast_address)):
+        return True
+    return any(net.version == b.version and net.overlaps(b) for b in _BLOCKED_NETWORKS)
+
+
+def normalize_limited_network(value, *, min_prefix, private_ok=False, private_exact=False, label='entry'):
+    """Shared validation for allowlist entries that must never mean "any
+    address" (Connect source rules, Connect approved destinations).
+
+    Returns (canonical network text, is_private). Refuses /0, any prefix
+    shorter than ``min_prefix[version]``, and private / loopback /
+    link-local networks unless ``private_ok`` (the administrator ticked
+    "this is a private address"); with ``private_exact`` a private entry
+    must also be a single address. IPv4-mapped IPv6 is folded to IPv4."""
+    net = _unmapped(ipaddress.ip_network(normalize_network(value)))
+    if net.prefixlen == 0:
+        raise ValidationError(f'{net} would allow every address. Enter specific addresses or ranges.')
+    if net.prefixlen < min_prefix[net.version]:
+        raise ValidationError(f'{net} is too wide for a {label}: use /{min_prefix[net.version]} or narrower '
+                              f'for IPv{net.version}.')
+    private = network_is_private(net)
+    if private and not private_ok:
+        raise ValidationError(f'{net} is a private, loopback or link-local address. Tick "private address" to '
+                              'confirm it, if you really mean it.')
+    if private and private_exact and net.prefixlen != net.max_prefixlen:
+        raise ValidationError(f'{net} is a private range. Private entries must be single addresses.')
+    return str(net), private
 
 
 class ApiAccessSettings(models.Model):
@@ -211,7 +259,7 @@ class ApiAccessDecision(models.Model):
     last_seen_at = models.DateTimeField(default=timezone.now)
     count = models.PositiveIntegerField(default=1)
     source_ip = models.GenericIPAddressField(null=True, blank=True, db_index=True)
-    surface = models.CharField(max_length=10, choices=SURFACES)
+    surface = models.CharField(max_length=10, choices=DECISION_SURFACES)
     endpoint_group = models.CharField(max_length=40, blank=True, default='')
     integration = models.CharField(max_length=40, blank=True, default='')
     method = models.CharField(max_length=10, blank=True, default='')

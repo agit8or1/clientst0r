@@ -8,11 +8,14 @@ The SDK never opens a socket except through a Transport:
 when that module is importable (agit8or_connect.adapters.safe_http), else
 MinimalGuardedTransport, which:
 
-  * accepts https only (http only for loopback when allow_loopback_http),
-  * resolves the host ONCE, refuses if ANY address is not allowed (metadata
-    and non-unicast always; private/loopback/link-local unless the operator
-    explicitly allowed private networks), and connects to the validated IP
-    literal so DNS cannot rebind between check and connect,
+  * accepts https only,
+  * resolves the host ONCE, refuses if ANY address is not allowed, and
+    connects to the validated IP literal so DNS cannot rebind between check
+    and connect. Loopback, link-local, unspecified, metadata and
+    non-unicast addresses are ALWAYS refused (PROTOCOL.md §4); private
+    ranges (RFC1918, CGNAT, IPv6 ULA) only when the operator explicitly
+    allowed private networks for the connection. (``allow_loopback_http``
+    is accepted for compatibility and no longer permits anything.)
   * verifies TLS (system store or a configured private CA bundle; minimum
     TLS 1.2; hostname checked) — there is no switch to turn it off,
   * never follows redirects, ignores proxies, caps the body and the time.
@@ -56,18 +59,32 @@ class Transport(Protocol):
                 body: Optional[bytes] = None) -> Response: ...
 
 
+# Private ranges reachable only with allow_private (and never anything else
+# that is not public).
+_PRIVATE_OK = tuple(ipaddress.ip_network(n) for n in (
+    '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', 'fc00::/7'))
+_NAT64 = ipaddress.ip_network('64:ff9b::/96')
+
+
 def ip_allowed(ip: str, allow_private: bool) -> bool:
     try:
         addr = ipaddress.ip_address(ip)
     except ValueError:
         return False
-    if addr.version == 6 and addr.ipv4_mapped is not None:
-        addr = addr.ipv4_mapped
-    if any(addr in n for n in _ALWAYS_BLOCKED):
+    if addr.version == 6:
+        if addr.scope_id:
+            return False
+        if addr.ipv4_mapped is not None:
+            addr = addr.ipv4_mapped
+        elif addr in _NAT64:
+            addr = ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+    if any(addr.version == n.version and addr in n for n in _ALWAYS_BLOCKED):
         return False
+    if addr.is_loopback or addr.is_link_local or addr.is_unspecified or addr.is_multicast:
+        return False   # always, whatever allow_private says
     if addr.is_global and not (addr.is_private or addr.is_reserved or addr.is_multicast):
         return True
-    return bool(allow_private)
+    return bool(allow_private) and any(addr.version == n.version and addr in n for n in _PRIVATE_OK)
 
 
 class MinimalGuardedTransport:
@@ -110,8 +127,6 @@ class MinimalGuardedTransport:
             raise ConnectError(BLOCKED_DESTINATION, 'URL must have a host and no credentials', 400)
         if p.scheme == 'https':
             port = p.port or 443
-        elif p.scheme == 'http' and self.allow_loopback_http and host in ('127.0.0.1', '::1', 'localhost'):
-            port = p.port or 80
         else:
             raise ConnectError(BLOCKED_DESTINATION, 'only https is allowed', 400)
         ips = self._resolve(host, port)

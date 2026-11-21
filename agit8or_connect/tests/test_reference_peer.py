@@ -219,6 +219,13 @@ class Transport(unittest.TestCase):
             self.assertFalse(ip_allowed(ip, False), ip)
         self.assertTrue(ip_allowed('10.0.0.5', True))
         self.assertFalse(ip_allowed('169.254.169.254', True))
+        # Loopback, link-local, unspecified and metadata stay refused even
+        # with private networks allowed; only RFC1918, CGNAT and ULA open up.
+        for ip in ('127.0.0.1', '::1', '169.254.1.1', 'fe80::1', '0.0.0.0', '::', '::ffff:127.0.0.1',
+                   'fd00:ec2::254', '100.100.100.200', '224.0.0.1', '64:ff9b::7f00:1'):
+            self.assertFalse(ip_allowed(ip, True), ip)
+        for ip in ('10.0.0.5', '172.16.1.1', '192.168.1.1', '100.64.0.1', 'fd12:3456::1'):
+            self.assertTrue(ip_allowed(ip, True), ip)
         self.assertTrue(ip_allowed('93.184.216.34', False))
 
     def test_dns_rebinding_and_scheme(self):

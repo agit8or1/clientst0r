@@ -33,21 +33,62 @@ What is **not** done or not proven yet. Keep this list current. Don't describe a
   pure-memory path without any file descriptor would need a different TLS client. The outbound mTLS handshake
   is covered by a local test server (`connect/tests/test_increment_a.py::MtlsKeyNeverOnDisk`), not yet by a
   real peer.
-- **Outbound destinations are not pinned yet.** Connect builds its own destination policy (port 443 or the
-  explicit port of the connection's address; private ranges only with the connection's private-network
-  setting; loopback, link-local and metadata always refused, whatever `ALLOW_PRIVATE_IP_INTEGRATIONS` says),
-  but DNS is still resolved per request and a changed address is not detected (QC-05, planned increment B2).
-- **Connect has no network allowlist of its own yet.** Its endpoints follow the general REST API access policy
-  (QC-01, planned increment B1).
+- **Outbound destinations are pinned** (increment B2, QC-05). Every connection reaches the other application only
+  at its approved destination (Connected Applications → connection → Destination): host, port, approved addresses
+  (exact IPs, or ranges up to IPv4 /24 and IPv6 /48), trust anchor (system CAs, or only the connection's private
+  CA), optional SPKI pins, expected installation id. Every address the name resolves to, and the connected peer,
+  must be in the approved set, otherwise nothing is sent; loopback, link-local and metadata addresses can never
+  be approved, private ones only explicitly. A certificate that does not name the host (or the IP of an
+  IP-literal destination) is refused. A changed address, an SPKI mismatch or a certificate name mismatch moves
+  an active connection to **Security Blocked** with the evidence; it does not retry. An administrator approves
+  the new address (a staged change; a second administrator for a private address or a range) and the
+  connection is active again only after a retest passes. Limits:
+  - the pairing preview resolves the name and makes one TLS handshake (no HTTP request) before anything is
+    approved; discovery during pairing is pinned to the addresses just shown;
+  - a peer behind a CDN or round-robin DNS needs its whole range approved (at most /24 or /48), or it will be
+    blocked whenever DNS rotates to an unlisted address;
+  - connections that existed before B2 get a staged destination from their address with **no approved IP**:
+    they send nothing (events stay queued, not counted as attempts) until an administrator approves the
+    addresses;
+  - SPKI pins are compared after the handshake, so a pin mismatch is detected before any request bytes, but the
+    TLS handshake itself happened;
+  - the reference transport in the SDK (`MinimalGuardedTransport`) has no approved-destination store; it now
+    always refuses loopback, link-local, unspecified and metadata addresses and opens only RFC1918, CGNAT and
+    ULA ranges when private networks are allowed (`allow_loopback_http` no longer permits anything).
+- **Connect endpoints are default-deny by source address** (increment B1, QC-01). Once
+  `AGIT8OR_CONNECT_ENABLED` is on, every Connect endpoint (discovery, health, pairing, token, JWKS, events,
+  capabilities, test, customers) refuses every source address with `403 source_not_authorised` until an
+  administrator allows it, at **both** the installation layer and the layer of the connection the request is for.
+  A valid token never skips this. Rules are managed under Connected Applications → Network (staged, previewed,
+  widening needs a second administrator; rollback only narrows) and from the server with
+  `manage.py connect_source_rules`. The REST API access policy no longer applies to Connect. Limits:
+  - the address is only as trustworthy as the trusted-proxy configuration (`TRUSTED_PROXY_CIDRS` and the managed
+    proxies); behind a CDN the CDN must be listed as a trusted proxy;
+  - `source_not_authorised` is a new local error code; v1 peers treat it as an opaque refusal (no wire change);
+  - two installations behind one NAT address are told apart only by their keys (the binding check after
+    authentication refuses a request whose key holder is not the connection the address matched);
+  - an invitation code and an outbound pairing need the other application's exact source address; ranges can be
+    added afterwards as a reviewed change. The pairing address becomes the connection's rule when the pairing is
+    approved by the same administrator (no second administrator for that step);
+  - match counters are written at most once a minute per worker.
+- **Observe period for connections that existed before B1.** The migration lists the connections that were active
+  or suspended at upgrade time and starts a **14-day observe period** only if there are any (no production
+  installation had one). During it, authenticated requests of those connections from unlisted addresses are let
+  through and the address is recorded on the connection ("Approve observed address", a reviewed change); new
+  pairings and other connections are enforced. It cannot be extended, the Network page shows the end date, an
+  administrator can end it early (**Enforce now**), and start and end are in the audit chain. Installations that
+  had no Connect connection enforce from the start.
 - **Connections show Connected as soon as both sides approve**, before a connection test (QC-07, planned).
 - **Rate limits use the Django cache.** With the default local-memory cache they are per gunicorn worker. The
-  brute-force limit on pairing codes is durable (database) and does not depend on it.
+  buckets are keyed by source address and connection, and only allowlisted sources reach them (QC-13 is bounded
+  by the allowlist, not fixed). The brute-force limit on pairing codes is durable (database).
 - **Unauthenticated refusals are aggregated.** A token request for no or an unknown connection, and a wrong
   pairing code, are counted in the API access refusal log (one row per source and reason per minute, endpoint
   group `connect_api`) and summarised into the Connect audit chain as at most one `refusals.summary` record per
   minute (by the `connect_deliver_events` task). The chain therefore shows totals for those, not each request.
   Refusals for a known connection, and the lock-out of open invitations, are still recorded one by one.
-- **A wrong code still counts against every open invitation** (QC-02, planned increment B1).
+- **Wrong pairing codes** count only against the invitations whose address the request came from; strangers
+  cannot reach the pairing endpoint at all (QC-02, contained by B1).
 - **Event delivery is scheduled** (every minute through `connect_deliver_events`), apart from the connection
   test and disconnect notices, which are sent immediately.
 - **QR scanning** is not implemented on Clientst0r's side (it only shows a QR). The SDKs parse the QR payload.

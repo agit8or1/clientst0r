@@ -14,7 +14,13 @@ ALLOW_PRIVATE_IP_INTEGRATIONS opt-in:
   * RFC1918 / CGNAT / ULA addresses only with ``allow_private`` (the
     per-connection "private network" setting);
   * port 443 only, plus the ports passed in ``allowed_ports`` (the explicit
-    port of the connection's base URL).
+    port of the connection's base URL);
+  * with ``pinned`` (approved destination addresses / ranges), EVERY address
+    the host resolves to and the connected peer must be inside it, or the
+    request fails with ``destination_changed`` before any byte is sent;
+  * with ``spki_pins``, the leaf certificate's SPKI SHA-256 must match one of
+    them (``spki_mismatch``); a certificate that does not name the host or IP
+    gives ``certificate_name_mismatch``.
 
 TLS material never touches the disk in plaintext. The CA bundle is loaded
 from memory (``cadata``). The mTLS client certificate and key are handed to
@@ -35,7 +41,8 @@ import time
 from typing import Iterable, Optional
 from urllib.parse import urlsplit
 
-from ..errors import BLOCKED_DESTINATION, ConnectError, TOO_LARGE, TRANSPORT
+from ..errors import (BLOCKED_DESTINATION, CERT_NAME_MISMATCH, DESTINATION_CHANGED, SPKI_MISMATCH, ConnectError,
+                      TOO_LARGE, TRANSPORT)
 from ..http import DEFAULT_MAX_BYTES, DEFAULT_TIMEOUT, Response
 
 DEFAULT_PORT = 443
@@ -150,7 +157,8 @@ class SafeHttpTransport:
     def __init__(self, *, allow_private: bool = False, ca_pem: Optional[str] = None,
                  max_bytes: int = DEFAULT_MAX_BYTES, timeout: float = DEFAULT_TIMEOUT,
                  client_cert_pem: Optional[str] = None, client_key_pem: Optional[str] = None,
-                 allowed_ports: Optional[Iterable[int]] = None, allow_loopback_http: bool = False, **_ignored):
+                 allowed_ports: Optional[Iterable[int]] = None, allow_loopback_http: bool = False,
+                 pinned: Optional[Iterable] = None, spki_pins: Optional[Iterable[str]] = None, **_ignored):
         self.allow_private = allow_private
         self.ca_pem = ca_pem
         self.max_bytes = max_bytes
@@ -158,13 +166,17 @@ class SafeHttpTransport:
         self.client_cert_pem = client_cert_pem
         self.client_key_pem = client_key_pem
         self.allowed_ports = frozenset(int(p) for p in (allowed_ports or ())) | {DEFAULT_PORT}
+        import ipaddress
+        self.pinned = (frozenset(ipaddress.ip_network(str(n), strict=False) for n in pinned)
+                       if pinned is not None else None)
+        self.spki_pins = frozenset(str(p) for p in spki_pins) if spki_pins else None
 
     def _policy(self):
         # Built here, never from configured_service_policy(): the site-wide
         # private-IP opt-in must not widen what Connect may reach (QC-04).
         from core.safe_http import OutboundPolicy
         return OutboundPolicy(allow_lan=bool(self.allow_private), allow_local=False,
-                              allowed_ports=self.allowed_ports)
+                              allowed_ports=self.allowed_ports, pinned=self.pinned, spki_pins=self.spki_pins)
 
     def ssl_context(self, files: _SecretFiles) -> ssl.SSLContext:
         """Verification against the system bundle, or ONLY the private CA;
@@ -240,8 +252,23 @@ class SafeHttpTransport:
         except ConnectError:
             raise
         except BlockedDestinationError as e:
+            from core.safe_http import DestinationChangedError, SpkiMismatchError
+            cause = e.__cause__
+            if isinstance(cause, DestinationChangedError):
+                err = ConnectError(DESTINATION_CHANGED, 'the destination resolves to an address outside the '
+                                                        'approved set; nothing was sent', 502)
+                err.evidence = {'addresses': list(cause.addresses)}
+                raise err from e
+            if isinstance(cause, SpkiMismatchError):
+                err = ConnectError(SPKI_MISMATCH, 'the certificate key does not match the pinned key', 502)
+                err.evidence = {'spki': cause.digest}
+                raise err from e
             raise ConnectError(BLOCKED_DESTINATION, 'destination not allowed for this connection', 502) from e
         except requests.exceptions.SSLError as e:
+            text = str(e).lower()
+            if 'mismatch' in text or "doesn't match" in text or 'not valid for' in text:
+                raise ConnectError(CERT_NAME_MISMATCH, 'the certificate does not name this host or IP address',
+                                   502) from e
             raise ConnectError(TRANSPORT, 'TLS verification failed (check the certificate or the private CA '
                                           'bundle for this connection)', 502) from e
         except requests.RequestException as e:

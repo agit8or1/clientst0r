@@ -4,7 +4,7 @@ Every inbound API and webhook route is listed here. A request whose path
 matches none of these is web traffic and is left to the site firewall.
 Longer prefixes are listed first; the first match wins.
 """
-from .models import SURFACE_API, SURFACE_WEBHOOK
+from .models import SURFACE_API, SURFACE_CONNECT, SURFACE_WEBHOOK
 
 # key -> (label, surface)
 ENDPOINT_GROUPS = {
@@ -12,7 +12,8 @@ ENDPOINT_GROUPS = {
     'graphql': ('GraphQL API', SURFACE_API),
     'mobile_api': ('Mobile app API', SURFACE_API),
     'integration_api': ('Rem0te integration API', SURFACE_API),
-    'connect_api': ('Agit8or Connect API', SURFACE_API),
+    # Own surface: the REST API mode and rules never apply (connect/source_policy.py).
+    'connect_api': ('Agit8or Connect API', SURFACE_CONNECT),
     'security_webhook': ('Security vendor webhooks', SURFACE_WEBHOOK),
     'siem_webhook': ('SIEM webhooks', SURFACE_WEBHOOK),
     'distributor_webhook': ('Distributor webhooks', SURFACE_WEBHOOK),
@@ -69,3 +70,13 @@ def classify(path):
         if path.startswith(prefix):
             return Route(group, integration)
     return None
+
+
+def rule_target_groups():
+    """Endpoint groups an API access rule may target (Connect has its own
+    allowlist under Connected Applications → Network)."""
+    return {k: v for k, v in ENDPOINT_GROUPS.items() if v[1] != SURFACE_CONNECT}
+
+
+def rule_target_integrations():
+    return {k: v for k, v in INTEGRATIONS.items() if k != 'agit8or_connect'}

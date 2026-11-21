@@ -62,6 +62,19 @@ as discovery. Rules that are easy to get wrong:
 11. Warn, and require a second administrator, when an inbound request claims the installation id of a peer that
     is already connected.
 12. Don't write a permanent audit record for every unauthenticated refusal: count them and summarise.
+13. Refuse every source address by default on all Connect endpoints, before authentication (discovery, health and
+    pairing included), with an installation-wide list and a per-connection list that must both allow, deny
+    winning. Read the client address only through your trusted-proxy logic; give private addresses no special
+    trust. After authentication, check that the connection the credentials prove is the one whose rule matched
+    the address. Answer `403` with code `source_not_authorised`.
+14. Ask for the other application's source address with an invitation code (and when you start a pairing), and
+    let only that address use the code.
+15. Store an approved destination per connection (host, port, approved addresses, trust anchor, optional SPKI
+    pin, expected installation id) and pin every outbound request to it: check every resolved address and the
+    connected address against the approved set, verify the certificate against the host (or the IP for an
+    IP-literal destination), never follow redirects or use proxies. On a changed address or key, send nothing,
+    block the connection and show the evidence; resume only after an administrator approves the new address and
+    a retest passes. Never treat loopback, link-local or metadata addresses as approvable.
 
 ## 4. Pairing UI checklist
 

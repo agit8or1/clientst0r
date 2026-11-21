@@ -34,8 +34,13 @@
   {% empty %}<span class="text-muted">No customers.</span>{% endfor %}</div>
   <label class="form-label" for="pairing_secret">Pairing code from {{ app.name }}</label>
   <input class="form-control font-monospace w-auto" id="pairing_secret" name="pairing_secret" autocomplete="off" required maxlength="20" placeholder="XXXXX-XXXXX">
+  <label class="form-label mt-3" for="peer_sources">Address {{ app.name }} connects to this Clientst0r from</label>
+  <input class="form-control w-auto" id="peer_sources" name="peer_sources" required maxlength="300" value="{{ peer_sources|default:'' }}" placeholder="203.0.113.10">
+  <div class="form-text">Its egress address as this server sees it (one or more, comma separated). Connect refuses every other source; ask its administrator, never guess from a browser address.</div>
+  <label class="small"><input type="checkbox" name="private_sources"> The address is private (LAN or VPN)</label>
   <input type="hidden" name="url" value="{{ url }}">
 </div></div>
+{% include "connect/_destination.html" %}
 <button class="btn btn-primary" name="op" value="pair">Pair</button>
 {% endif %}
 <a class="btn btn-link" href="{% url 'connect:index' %}">Cancel</a>

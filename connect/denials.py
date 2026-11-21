@@ -55,7 +55,7 @@ def _ip(value):
 
 def note(reason: str, *, source_ip: str = '', path: str = '', method: str = 'POST', detail: str = ''):
     """Count one refusal on the folded row for (source, reason) this minute."""
-    from api_access.models import SURFACE_API, ApiAccessDecision
+    from api_access.models import SURFACE_CONNECT, ApiAccessDecision
     now = timezone.now()
     ip = _ip(source_ip)
     key = f'connect:deny:{ip or "-"}:{reason}'
@@ -72,7 +72,7 @@ def note(reason: str, *, source_ip: str = '', path: str = '', method: str = 'POS
             ApiAccessDecision.objects.filter(pk=row.pk).update(count=F('count') + 1, last_seen_at=now)
         else:
             row = ApiAccessDecision.objects.create(
-                created_at=now, last_seen_at=now, source_ip=ip, surface=SURFACE_API, endpoint_group=GROUP,
+                created_at=now, last_seen_at=now, source_ip=ip, surface=SURFACE_CONNECT, endpoint_group=GROUP,
                 integration=INTEGRATION, method=(method or '')[:10], path=(path or '')[:255], reason=reason[:40],
                 detail=(detail or '')[:255])
         cache.set(key, row.pk, FOLD_SECONDS)

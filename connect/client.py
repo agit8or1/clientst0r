@@ -1,7 +1,9 @@
 """Calling the other app: token (private_key_jwt + DPoP) and API calls."""
 from __future__ import annotations
 
+import contextlib
 import json
+import threading
 import time
 from typing import Optional
 from urllib.parse import urlencode
@@ -15,6 +17,25 @@ from agit8or_connect.scopes import parse_scope_string
 from . import catalog, identity, store, transport
 
 _cache = {}   # (connection id, kid) -> (token, expires_at); in-process only
+_retest = threading.local()
+
+
+@contextlib.contextmanager
+def retesting(conn):
+    """Inside this block a Security Blocked connection may be called, for
+    the retest after an administrator approved a new destination (B2)."""
+    prev = getattr(_retest, 'pk', None)
+    _retest.pk = str(conn.pk)
+    try:
+        yield
+    finally:
+        _retest.pk = prev
+
+
+def usable_state(conn, state) -> bool:
+    from .models import Connection
+    return state == Connection.ACTIVE or (state == Connection.SECURITY_BLOCKED
+                                          and getattr(_retest, 'pk', None) == str(conn.pk))
 
 
 def require_active(conn):
@@ -23,7 +44,7 @@ def require_active(conn):
     at once, whatever this process cached (QC-14)."""
     from .models import Connection
     state = Connection.objects.filter(pk=conn.pk).values_list('state', flat=True).first()
-    if state != Connection.ACTIVE:
+    if not usable_state(conn, state):
         clear_cache(conn)
         raise ConnectError('connection_inactive', f'the connection is {state or "gone"}, not active', 409)
 

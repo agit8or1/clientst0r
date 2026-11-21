@@ -256,7 +256,7 @@ class ClassifyTests(TestCase):
             '/api/v2/graphql/': ('graphql', '', 'api'),
             '/api/mobile/v1/tickets/': ('mobile_api', '', 'api'),
             '/api/integration/v1/events': ('integration_api', 'rem0te', 'api'),
-            '/connect/v1/token': ('connect_api', 'agit8or_connect', 'api'),
+            '/connect/v1/token': ('connect_api', 'agit8or_connect', 'connect'),
             '/security/siem/webhook/abc/': ('siem_webhook', 'siem', 'webhook'),
             '/security/webhook/abc/': ('security_webhook', 'security_vendor', 'webhook'),
             '/payments/webhooks/stripe/3/': ('payment_webhook', 'stripe', 'webhook'),

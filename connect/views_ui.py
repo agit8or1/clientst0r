@@ -6,7 +6,11 @@ Administration → Integrations → Connected Applications.
   invite           inbound: invitation code + QR for the other app to enter
   request_review   inbound: compare the code, approve permissions, select customers
   detail           status, approve (outbound), customers, test, keys, activity,
-                   rotate, suspend / resume, disconnect, revoke
+                   rotate, suspend / resume, disconnect, revoke, Network section
+                   (this connection's source rules, observed sources, refusals)
+  network          installation-level source allowlist, staged changes, test
+                   an address, observe period (Quick Connect B1)
+  change           approve / reject / roll back one staged network change
 
 GET needs view_app_connections, POST manage_app_connections (MSP staff
 only). Every page 404s while AGIT8OR_CONNECT_ENABLED is off. No page ever
@@ -103,11 +107,16 @@ def connect_app(request, app_type):
     if request.method != 'POST':
         return render(request, 'connect/wizard.html', ctx)
     adv = _advanced(request)
-    ctx.update(adv)
+    ctx.update(adv, peer_sources=request.POST.get('peer_sources', '')[:300])
     op = request.POST.get('op')
     try:
+        pv = pairing.preview_destination(request.POST.get('url', ''), allow_private=adv['allow_private'],
+                                         ca_pem=adv['ca_pem'])
+        ctx.update(destination=pv, dest_name=app['name'],
+                   destination_addresses=request.POST.get('destination_addresses', '')[:600]
+                   or ', '.join(pv.addresses))
         info = pairing.discover(request.POST.get('url', ''), allow_private=adv['allow_private'],
-                                ca_pem=adv['ca_pem'])
+                                ca_pem=adv['ca_pem'], addresses=pv.addresses)
         if app_type != 'other' and info.app_type != app_type:
             raise pairing.PairingFailed(f'That address is a "{info.app_type}" application, not {app["name"]}.')
         ctx.update(step=2, info=info, groups=_grouped(info.catalog), defaults=info.catalog.default_set(),
@@ -118,7 +127,11 @@ def connect_app(request, app_type):
             conn = pairing.start_outbound(info, request.POST.get('pairing_secret', ''), requested_scopes=scopes,
                                           organizations=orgs, user=request.user,
                                           allow_private=adv['allow_private'], ca_pem=adv['ca_pem'],
-                                          rotation_interval_days=adv['rotation_days'])
+                                          rotation_interval_days=adv['rotation_days'],
+                                          peer_sources=request.POST.get('peer_sources', ''),
+                                          private_sources=request.POST.get('private_sources') == 'on',
+                                          destination_addresses=request.POST.get('destination_addresses', ''),
+                                          spki_pin=(request.POST.get('spki_pin') or '').strip()[:60])
             messages.success(request, 'Pairing request sent. Compare the code below with the one the other '
                                       'application shows, then ask its administrator to approve.')
             return redirect('connect:detail', pk=conn.pk)
@@ -142,10 +155,14 @@ def invite(request):
         return render(request, 'connect/invite.html', ctx)
     if request.method == 'POST':
         try:
-            inv, code = pairing.create_invitation(request.user, label=request.POST.get('label', ''))
+            inv, code = pairing.create_invitation(request.user, label=request.POST.get('label', ''),
+                                                  peer_sources=request.POST.get('peer_sources', ''),
+                                                  private_sources=request.POST.get('private_sources') == 'on')
         except pairing.PairingFailed as e:
             messages.error(request, e.message)
             return redirect('connect:index')
+        ctx['sources'] = [{'network': r.network, 'installation_ok': _installation_allows(r.network)}
+                          for r in inv.source_rules.all()]
         base = identity.configured_public_url()
         ctx.update(invitation=inv, code=code, discovery_url=base,
                    qr=_qr_svg(sdk_pairing.qr_payload(base, code, identity.installation_id())))
@@ -200,8 +217,13 @@ def request_review(request, pk):
                     raise pairing.PairingFailed(pairing.FRIENDLY['kill_switch'], 'kill_switch')
                 conn.allow_private_network = request.POST.get('allow_private') == 'on'
                 conn.tls_ca_bundle = (request.POST.get('ca_pem') or '').strip()[:20000]
+                pv = pairing.preview_destination(conn.base_url, allow_private=conn.allow_private_network,
+                                                 ca_pem=conn.tls_ca_bundle)
+                request.session[f'connect_dest_preview_{preq.pk}'] = {
+                    'host': pv.host, 'port': pv.port, 'addresses': pv.addresses, 'cert_names': pv.cert_names,
+                    'spki': pv.spki, 'error': pv.error}
                 try:
-                    pairing.refresh_remote_discovery(conn)
+                    pairing.refresh_remote_discovery(conn, addresses=pv.addresses)
                 except ConnectError as e:
                     raise pairing.PairingFailed('Clientst0r could not look up the other application: '
                                                 + pairing.friendly(e), e.code) from e
@@ -219,7 +241,9 @@ def request_review(request, pk):
                 preq, scopes=request.POST.getlist('scopes'), grants=_parse_grants(request, request.POST.getlist('scopes')),
                 requested_scopes=request.POST.getlist('requested_scopes'), user=request.user, request=request,
                 allow_private=request.POST.get('allow_private') == 'on',
-                ca_pem=(request.POST.get('ca_pem') or '').strip()[:20000])
+                ca_pem=(request.POST.get('ca_pem') or '').strip()[:20000],
+                destination_addresses=request.POST.get('destination_addresses', ''),
+                spki_pin=(request.POST.get('spki_pin') or '').strip()[:60])
             if change is not None:
                 messages.warning(request, 'This approval needs a second administrator (high-risk permissions, '
                                           'or an installation id that is already connected here). Confirm the '
@@ -234,6 +258,11 @@ def request_review(request, pk):
     # application" button posts op=lookup.
     if conn.remote_catalog:
         ctx['remote_groups'] = _grouped(pairing.catalog_for(conn))
+    pv = request.session.get(f'connect_dest_preview_{preq.pk}')
+    if pv:
+        ctx.update(destination=pv, destination_addresses=request.POST.get('destination_addresses', '')[:600]
+                   or ', '.join(pv.get('addresses', [])))
+    ctx['dest_name'] = conn.remote_display_name or conn.remote_app_type
     return render(request, 'connect/request_review.html', ctx)
 
 
@@ -242,6 +271,10 @@ def detail(request, pk):
     from .models import Connection, ConnectAuditEvent
     conn = get_object_or_404(Connection, pk=pk)
     if request.method == 'POST':
+        if request.POST.get('op', '') in ('propose_rule', 'propose_remove', 'approve_observed',
+                                          'propose_destination'):
+            _network_post(request, conn)
+            return redirect('connect:detail', pk=conn.pk)
         return _detail_post(request, conn)
     cat = pairing.catalog_for(conn)
     activity = ConnectAuditEvent.objects.filter(connection_id=str(conn.pk))[:30]
@@ -253,7 +286,7 @@ def detail(request, pk):
         approve_groups=_grouped(catalog.CATALOG, [s for s in conn.peer_requested_scopes if catalog.CATALOG.get(s)]),
         organizations=_orgs(request), remote_grants=_with_org_pk(conn.remote_tenant_grants),
         step={Connection.AWAITING_REMOTE: 3, Connection.AWAITING_LOCAL: 4, Connection.AWAITING_SECOND: 4,
-              Connection.ACTIVE: 7}.get(conn.state, 0))
+              Connection.ACTIVE: 7}.get(conn.state, 0), **_network_ctx(conn), **_destination_ctx(conn))
     return render(request, 'connect/detail.html', ctx)
 
 
@@ -281,6 +314,12 @@ def _detail_post(request, conn):
             report = lifecycle.test_connection(conn, request.user)
             (messages.success if report['ok'] else messages.warning)(
                 request, 'All checks passed.' if report['ok'] else 'Some checks failed — see the report below.')
+        elif op == 'retest':
+            from . import destinations
+            ok = destinations.retest(conn, request.user)
+            (messages.success if ok else messages.warning)(
+                request, 'Retest passed; the connection is active again.' if ok else
+                'Still blocked: approve the new address first, and every check must pass.')
         elif op == 'rotate':
             ok = lifecycle.rotate(conn, request.user)
             (messages.success if ok else messages.warning)(
@@ -329,3 +368,181 @@ def kill_switch(request):
         messages.warning(request, f'Kill switch engaged: {n} connection(s) suspended, every Connect API call '
                                   'is refused.')
     return redirect('connect:index')
+
+
+# --- Network: source rules (Quick Connect B1) ------------------------------------------
+
+def _installation_allows(network) -> bool:
+    from . import source_policy
+    return source_policy.installation_allows(network)
+
+
+def _reauth(request):
+    """Inline re-authentication for approving network changes."""
+    password = request.POST.get('password', '')
+    if password:
+        from tech_access.protected import reauthenticate
+        error = reauthenticate(request, password, request.POST.get('otp', ''))
+        if error:
+            raise _Refused(error)
+
+
+class _Refused(Exception):
+    pass
+
+
+def _entry_from_post(request, layer, connection=None):
+    from datetime import timedelta
+    from django.utils import timezone
+    hours = request.POST.get('expires_hours', '').strip()
+    expires = None
+    if hours:
+        try:
+            expires = timezone.now() + timedelta(hours=max(1, min(24 * 90, int(hours))))
+        except ValueError:
+            raise _Refused('Expiry must be a number of hours.')
+    return {'layer': layer, 'connection': str(connection.pk) if connection else '',
+            'network': request.POST.get('network', ''), 'action': request.POST.get('action', 'allow'),
+            'private': request.POST.get('private') == 'on', 'purpose': 'all', 'expires_at': expires,
+            'description': request.POST.get('description', '')}
+
+
+def _network_post(request, connection=None):
+    """Shared POST handling for the Network page and a connection's Network
+    section. Returns None (caller redirects)."""
+    from django.core.exceptions import ValidationError
+    from .models import SourceRule
+    from . import source_policy
+    op = request.POST.get('op', '')
+    layer = SourceRule.CONNECTION if connection is not None else SourceRule.INSTALLATION
+    try:
+        if op == 'propose_rule':
+            change = source_policy.propose(add=[_entry_from_post(request, layer, connection)], user=request.user,
+                                           connection=connection, note=request.POST.get('description', ''))
+            messages.info(request, f'Change #{change.pk} staged. Review the preview below and approve it.')
+        elif op == 'propose_remove':
+            rule = get_object_or_404(SourceRule, pk=request.POST.get('rule'), layer=layer,
+                                     connection=connection, status__in=(SourceRule.ACTIVE, SourceRule.TEMPORARY))
+            change = source_policy.propose(remove=[rule.pk], user=request.user, connection=connection)
+            messages.info(request, f'Change #{change.pk} staged (removes {rule.network}).')
+        elif op == 'approve_observed' and connection is not None:
+            obs = get_object_or_404(SourceRule, pk=request.POST.get('rule'), connection=connection,
+                                    status=SourceRule.OBSERVED)
+            add = [{'layer': SourceRule.CONNECTION, 'connection': str(connection.pk), 'network': obs.network,
+                    'private': request.POST.get('private') == 'on', 'description': 'Approved observed address'}]
+            if not _installation_allows(obs.network):
+                add.append({'layer': SourceRule.INSTALLATION, 'network': obs.network,
+                            'private': request.POST.get('private') == 'on',
+                            'description': f'Observed for {connection.remote_display_name or connection.pk}'})
+            change = source_policy.propose(add=add, user=request.user, connection=connection,
+                                           note='Approve observed address')
+            messages.info(request, f'Change #{change.pk} staged. It widens access, so a second administrator '
+                                   'approves it.')
+        elif op == 'propose_destination' and connection is not None:
+            from . import destinations
+            change = destinations.propose_change(connection, request.POST.get('destination_addresses', ''),
+                                                 request.user,
+                                                 private=request.POST.get('private_destination') == 'on')
+            messages.info(request, f'Destination change #{change.pk} staged. Review it below and approve it'
+                                   + (' (a second administrator approves a private address or a range).'
+                                      if change.widening else '.'))
+        elif op == 'enforce' and connection is None:
+            _reauth(request)
+            from tech_access.protected import has_fresh_auth
+            if not has_fresh_auth(request):
+                raise _Refused('Re-enter your password to end the observe period.')
+            source_policy.enforce_now(request.user)
+            messages.warning(request, 'Source rules are enforced now for every connection.')
+        else:
+            raise Http404
+    except ValidationError as e:
+        messages.error(request, ' '.join(e.messages))
+    except (_Refused, source_policy.ChangeRefused) as e:
+        messages.error(request, str(e) if isinstance(e, _Refused) else e.message)
+    return None
+
+
+def _destination_ctx(conn):
+    from . import destinations
+    d = destinations.get(conn)
+    ev = conn.security_block_detail or {}
+    return {'dest': d, 'block_message': destinations.message(conn.security_block_code, conn, ev)
+            if conn.security_block_code else '',
+            'suggested_addresses': ', '.join(ev.get('addresses', [])) if conn.state == conn.SECURITY_BLOCKED
+            else ', '.join(d.nets if d else [])}
+
+
+def _network_ctx(connection=None):
+    from .models import ConnectChange, SourceRule
+    from . import source_policy
+    rules = SourceRule.objects.filter(connection=connection) if connection is not None else \
+        SourceRule.objects.filter(layer=SourceRule.INSTALLATION)
+    changes = ConnectChange.objects.filter(connection=connection) if connection is not None else \
+        ConnectChange.objects.filter(connection__isnull=True)
+    return {'source_rules': rules.filter(status__in=(SourceRule.ACTIVE, SourceRule.TEMPORARY)).order_by(
+                'action', 'network'),
+            'observed': rules.filter(status=SourceRule.OBSERVED).order_by('-last_matched_at'),
+            'staged_changes': changes.filter(status__in=(ConnectChange.STAGED, ConnectChange.AWAITING_SECOND)),
+            'applied_changes': changes.filter(status__in=(ConnectChange.APPLIED, ConnectChange.ROLLED_BACK))[:10],
+            'refusals': source_policy.recent_refusals(connection),
+            'observe': source_policy.observe_status()}
+
+
+@page()
+def network(request):
+    from . import source_policy
+    if request.method == 'POST':
+        _network_post(request)
+        return redirect('connect:network')
+    ctx = _ctx(request, **_network_ctx())
+    ip = request.GET.get('test_ip', '').strip()
+    if ip:
+        from django.core.exceptions import ValidationError
+        try:
+            ctx['test_result'] = source_policy.test_address(ip, request.GET.get('test_connection', ''))
+        except ValidationError as e:
+            ctx['test_error'] = ' '.join(e.messages)
+        except source_policy.PolicyUnavailable:
+            ctx['test_error'] = 'The policy could not be loaded.'
+    from .models import Connection
+    ctx['connections'] = Connection.objects.exclude(state__in=(Connection.REVOKED, Connection.FAILED))
+    return render(request, 'connect/network.html', ctx)
+
+
+@page(manage=True)
+@require_POST
+def change(request, pk):
+    from .models import ConnectChange
+    from . import source_policy
+    ch = get_object_or_404(ConnectChange, pk=pk)
+    back = redirect('connect:detail', pk=ch.connection_id) if ch.connection_id else redirect('connect:network')
+    op = request.POST.get('op')
+    try:
+        _reauth(request)
+        if ch.kind == ConnectChange.DESTINATION:
+            from . import destinations
+            mod = destinations
+        else:
+            mod = source_policy
+        if op == 'approve':
+            pc = mod.approve(ch, request)
+            if pc is not None:
+                messages.warning(request, 'This change widens access: confirm the protected change, then a second '
+                                          'administrator approves it.')
+                return redirect('tech_access:change_detail', pk=pc.pk)
+            messages.success(request, f'Change #{ch.pk} applied.')
+            if ch.kind == ConnectChange.DESTINATION and ch.connection_id:
+                from . import destinations
+                if destinations.retest(ch.connection, request.user):
+                    messages.success(request, 'Retest passed: the connection is active again.')
+        elif op == 'reject':
+            mod.reject(ch, request.user)
+            messages.info(request, f'Change #{ch.pk} rejected.')
+        elif op == 'rollback' and mod is source_policy:
+            rb = source_policy.rollback(ch, request)
+            messages.info(request, f'Rolled back (change #{rb.pk}). Rollback only ever narrows access.')
+        else:
+            raise Http404
+    except (_Refused, source_policy.ChangeRefused) as e:
+        messages.error(request, str(e) if isinstance(e, _Refused) else e.message)
+    return back

@@ -1,15 +1,15 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .groups import ENDPOINT_GROUPS, INTEGRATIONS
+from .groups import rule_target_groups, rule_target_integrations
 from .models import ApiAccessRule, ApiAccessSettings, normalize_network
 
 
 def target_choices():
     return [
         ('', '—'),
-        ('Integrations', [(k, v) for k, v in INTEGRATIONS.items()]),
-        ('Endpoint groups', [(k, label) for k, (label, _s) in ENDPOINT_GROUPS.items()]),
+        ('Integrations', [(k, v) for k, v in rule_target_integrations().items()]),
+        ('Endpoint groups', [(k, label) for k, (label, _s) in rule_target_groups().items()]),
     ]
 
 
@@ -52,9 +52,10 @@ class RuleForm(forms.ModelForm):
         data = super().clean()
         scope = data.get('scope')
         target = data.get('target') or ''
-        if scope == ApiAccessRule.SCOPE_INTEGRATION and target not in INTEGRATIONS:
-            self.add_error('target', 'Choose an integration.')
-        if scope == ApiAccessRule.SCOPE_ENDPOINT_GROUP and target not in ENDPOINT_GROUPS:
+        if scope == ApiAccessRule.SCOPE_INTEGRATION and target not in rule_target_integrations():
+            self.add_error('target', 'Choose an integration. Agit8or Connect has its own allowlist under '
+                                     'Connected Applications → Network.')
+        if scope == ApiAccessRule.SCOPE_ENDPOINT_GROUP and target not in rule_target_groups():
             self.add_error('target', 'Choose an endpoint group.')
         if scope == ApiAccessRule.SCOPE_CUSTOMER and not data.get('organization'):
             self.add_error('organization', 'Choose a customer.')
@@ -89,7 +90,7 @@ class LimitsForm(forms.Form):
 class TestAddressForm(forms.Form):
     ip = forms.CharField(label='Source address', max_length=64)
     group = forms.ChoiceField(label='Endpoint group',
-                              choices=[(k, label) for k, (label, _s) in ENDPOINT_GROUPS.items()])
+                              choices=[(k, label) for k, (label, _s) in rule_target_groups().items()])
     api_key = forms.ModelChoiceField(queryset=None, required=False, label='API key (optional)')
 
     def __init__(self, *args, **kwargs):

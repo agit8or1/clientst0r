@@ -67,6 +67,8 @@ def revoke(conn, user=None, reason='revoked'):
         conn.tenant_grants.filter(active=True).update(active=False, revoked_at=now, revoked_by=user)
         conn.outbound_events.filter(status=OutboundEvent.QUEUED).update(status=OutboundEvent.CANCELLED)
         retire_keys(conn)
+        from . import source_policy
+        source_policy.remove_connection_rules(conn, reason)
     client.clear_cache(conn)
     audit_log.record('connection.revoked', 'ok', connection=conn, user=user, app=conn.remote_installation_id,
                      detail={'reason': reason})
@@ -192,7 +194,7 @@ def test_connection(conn, user=None) -> dict:
         checks.append({'name': name, 'ok': bool(ok), 'message': message})
         return ok
 
-    if conn.state != Connection.ACTIVE:
+    if not client.usable_state(conn, conn.state):
         check('State', False, f'The connection is {conn.get_state_display().lower()}.')
     else:
         try:

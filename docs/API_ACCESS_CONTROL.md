@@ -20,7 +20,7 @@ Every request whose path belongs to one of these endpoint groups:
 | GraphQL API | `/api/v2/graphql/` | API | — |
 | Mobile app API | `/api/mobile/v1/` | API | — |
 | Rem0te integration API | `/api/integration/v1/` | API | Rem0te |
-| Agit8or Connect API | `/connect/v1/`, `/.well-known/agit8or-connect` | API | Agit8or Connect |
+| Agit8or Connect API | `/connect/v1/`, `/.well-known/agit8or-connect` | Connect (own policy, see below) | Agit8or Connect |
 | Security vendor webhooks | `/security/webhook/` | Webhook | Security vendor connections |
 | SIEM webhooks | `/security/siem/webhook/` | Webhook | SIEM endpoints |
 | Distributor webhooks | `/integrations/distributors/webhooks/` | Webhook | Distributors |
@@ -29,6 +29,28 @@ Every request whose path belongs to one of these endpoint groups:
 | Emergency restart webhook | `/core/emergency-restart/` | Webhook | — |
 
 New API or webhook routes are added to `api_access/groups.py`; a test fails if a group has no route.
+
+### Agit8or Connect has its own source policy
+
+The Agit8or Connect endpoints are classified as their own surface (`connect`). The REST API mode, limits and
+rules above **never** apply to them, whatever the mode (an API rule that targets the Connect endpoint group or
+integration is inert, and the rule form no longer offers them). Instead Connect enforces a **default-deny**
+allowlist of its own, managed under **Settings → Integrations → Connected Applications → Network**
+(`connect/source_policy.py`, rules in `connect.SourceRule`):
+
+- two layers, both required: an installation-wide list, and a list per connection; a deny in either wins; an
+  empty list refuses everything;
+- evaluated in the same middleware, before any authentication, by the same engine (`api_access.policy.evaluate`,
+  allowlist-with-deny-exceptions), with the client address read through the same trusted-proxy resolver;
+- no `0.0.0.0/0` or `::/0`, no IPv4 range wider than /16 or IPv6 range wider than /32, private / loopback /
+  link-local sources only as single addresses an administrator flagged; no exemption for private addresses
+  (the site firewall's LAN exemption runs later and does not apply);
+- changes are staged with an impact preview and applied atomically with a policy version (widening needs a
+  second administrator); the rollback window on this page never touches them, and a Connect rollback only
+  narrows;
+- refusals are logged in **Refused requests** with the surface *Agit8or Connect*.
+
+Recovery from the server: `manage.py connect_source_rules list|add|remove|enforce`.
 
 ## Rules
 

@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from . import policy as P
 from .groups import classify
-from .models import ApiAccessDecision
+from .models import SURFACE_CONNECT, ApiAccessDecision
 
 logger = logging.getLogger('api_access')
 
@@ -145,6 +145,12 @@ class ApiAccessMiddleware:
         if route is None:
             return self.get_response(request)
         request.api_access_route = route
+        if route.surface == SURFACE_CONNECT:
+            # Agit8or Connect: its own default-deny source policy, never the
+            # REST API mode or rules (connect/source_policy.py, DESIGN §5).
+            from connect import source_policy
+            refusal = source_policy.middleware_check(request, route)
+            return refusal if refusal is not None else self.get_response(request)
         ctx = context_for(request, route)
         decision = P.decide(ctx, P.STAGE_NETWORK)
         if decision.allowed:

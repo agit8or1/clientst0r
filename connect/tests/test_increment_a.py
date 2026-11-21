@@ -59,16 +59,13 @@ class _StubSession:
         return SimpleNamespace(status_code=200, headers={}, iter_content=lambda n: iter([b'{}']), close=lambda: None)
 
 
-def _conn(base_url, private=False):
-    return SimpleNamespace(base_url=base_url, allow_private_network=private, tls_ca_bundle='', tls_client_cert='',
-                           client_key_pem=lambda: '')
-
-
 # --- QC-04 ---------------------------------------------------------------------------
 
 @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=True)
 class OutboundPolicyIgnoresSiteOptIn(SimpleTestCase):
-    """The site-wide private-IP opt-in never widens what Connect may reach."""
+    """The site-wide private-IP opt-in never widens what Connect may reach.
+    (Since increment B2 a connection's transport is also pinned to its
+    approved destination; these tests check the policy layer under it.)"""
 
     def refused(self, t, url):
         calls = []
@@ -88,21 +85,21 @@ class OutboundPolicyIgnoresSiteOptIn(SimpleTestCase):
         for url in ('https://127.0.0.1/', 'https://[::1]/', 'https://169.254.1.1/', 'https://10.0.0.5:8443/',
                     'https://10.0.0.5/', 'https://localhost/'):
             from connect import transport
-            self.refused(transport.for_connection(_conn(url)), url)
+            self.refused(transport.for_destination(url), url)
 
     def test_private_network_on(self):
         from connect import transport
         for url in ('https://127.0.0.1/', 'https://169.254.1.1/', 'https://[::1]/', 'https://localhost/',
                     'https://169.254.169.254/latest/meta-data'):
-            self.refused(transport.for_connection(_conn(url, private=True)), url)
-        self.allowed(transport.for_connection(_conn('https://10.0.0.5:443/', private=True)),
+            self.refused(transport.for_destination(url, allow_private=True), url)
+        self.allowed(transport.for_destination('https://10.0.0.5:443/', allow_private=True),
                      'https://10.0.0.5:443/.well-known/agit8or-connect')
-        self.allowed(transport.for_connection(_conn('https://10.0.0.5/', private=True)), 'https://10.0.0.5/x')
+        self.allowed(transport.for_destination('https://10.0.0.5/', allow_private=True), 'https://10.0.0.5/x')
 
     def test_connect_time_guard_refuses_loopback_with_private_on(self):
         from core import safe_http
         from connect import transport
-        policy = transport.for_connection(_conn('https://peer.example/', private=True))._policy()
+        policy = transport.for_destination('https://peer.example/', allow_private=True)._policy()
         self.assertFalse(policy.allow_local)
         for ip in ('127.0.0.1', '169.254.1.1', '::1', 'fe80::1'):
             self.assertFalse(safe_http.is_allowed_ip(ip, policy), ip)
@@ -110,13 +107,13 @@ class OutboundPolicyIgnoresSiteOptIn(SimpleTestCase):
 
     def test_ports(self):
         from connect import transport
-        t = transport.for_connection(_conn('https://peer.example:8443/'))
+        t = transport.for_destination('https://peer.example:8443/')
         self.assertEqual(t._policy().allowed_ports, frozenset({443, 8443}))
         self.refused(t, 'https://peer.example:9443/connect/v1/token')
         self.refused(t, 'https://peer.example:80/connect/v1/token')
         self.allowed(t, 'https://peer.example:8443/connect/v1/token')
         self.allowed(t, 'https://peer.example/connect/v1/token')
-        plain = transport.for_connection(_conn('https://peer.example/'))
+        plain = transport.for_destination('https://peer.example/')
         self.assertEqual(plain._policy().allowed_ports, frozenset({443}))
         self.refused(plain, 'https://peer.example:8443/')
         self.assertEqual(transport.for_settings(base_url='https://peer.example:7443')._policy().allowed_ports,
@@ -339,12 +336,12 @@ class KillSwitchBlocksApprovals(ConnectTestCase):
     def test_inbound_approval_refused(self):
         from connect import lifecycle, pairing
         from connect.models import Connection, PairingRequest
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=self.SCOPES)
         preq = PairingRequest.objects.get(pk=pconn.request_id)
         lifecycle.engage_kill_switch(self.admin)
         with self.assertRaises(pairing.PairingFailed) as e:
-            pairing.approve_inbound(preq, scopes=self.SCOPES, grants=[], user=self.admin)
+            pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=self.SCOPES, grants=[], user=self.admin)
         self.assertEqual(e.exception.code, 'kill_switch')
         with self.assertRaises(pairing.PairingFailed):
             pairing.finalize_inbound(preq, self.SCOPES, [], [], self.admin)
@@ -358,8 +355,8 @@ class KillSwitchBlocksApprovals(ConnectTestCase):
         from connect import lifecycle, pairing
         from connect.models import Connection
         code = self.peer.create_invitation()
-        conn = pairing.start_outbound(pairing.discover(self.peer.base), code, requested_scopes=self.PEER_SCOPES,
-                                      organizations=[self.org_a], user=self.admin)
+        conn = pairing.start_outbound(pairing.discover(self.peer.base), code, destination_addresses=['93.184.216.40'], requested_scopes=self.PEER_SCOPES,
+                                      organizations=[self.org_a], user=self.admin, peer_sources=[self.peer_ip])
         self.peer.approve(conn.pairing_request_id, scopes=self.PEER_SCOPES, tenant_grants=[],
                           requested_scopes=self.SCOPES)
         self.assertEqual(pairing.poll(conn), 'approved')
@@ -382,11 +379,11 @@ class KillSwitchBlocksApprovals(ConnectTestCase):
         from tech_access.models import ProtectedChange
         cat = Catalog(list(catalog.CATALOG.scopes) + [Scope('lab_actions:execute', 'Lab action', 'high_risk')])
         with mock.patch.object(catalog, 'CATALOG', cat):
-            _, code = pairing.create_invitation(self.admin)
+            _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
             pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read',
                                                                                'lab_actions:execute'])
             preq = PairingRequest.objects.get(pk=pconn.request_id)
-            change = pairing.approve_inbound(preq, scopes=['customers:read', 'lab_actions:execute'],
+            change = pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=['customers:read', 'lab_actions:execute'],
                                              grants=[], user=self.admin)
             protected.confirm(change, _Req(self.admin))
             lifecycle.engage_kill_switch(self.admin)
@@ -439,16 +436,16 @@ class PublicUrlRequired(ConnectTestCase):
             self.assertIn('data-connect-not-configured', page, path)
             self.assertIn('AGIT8OR_CONNECT_PUBLIC_URL', page, path)
         before = len(self.net.log)
-        _post(self.ui, UI + 'invite/', {'label': 'x'})
+        _post(self.ui, UI + 'invite/', {'peer_sources': '93.184.216.34', 'label': 'x'})
         code = self.peer.create_invitation()
-        r = _post(self.ui, UI + 'new/rem0te/', {'url': self.peer.base, 'op': 'pair', 'pairing_secret': code,
+        r = _post(self.ui, UI + 'new/rem0te/', {'url': self.peer.base, 'op': 'pair', 'destination_addresses': '93.184.216.40', 'peer_sources': '93.184.216.34', 'pairing_secret': code,
                                                'scopes': ['customers:read']})
         self.assertIn('data-connect-not-configured', r.content.decode())
         self.assertEqual(PairingInvitation.objects.count(), 0)
         self.assertEqual(Connection.objects.count(), 0)
         self.assertEqual(len(self.net.log), before)     # nothing was sent
         with self.assertRaises(pairing.PairingFailed):
-            pairing.create_invitation(self.admin)
+            pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         with self.assertRaises(ConnectError) as e:
             identity.public_base()
         self.assertEqual(e.exception.code, 'not_configured')
@@ -505,7 +502,7 @@ class ReviewPageGetIsSafe(ConnectTestCase):
     def test_get_makes_no_outbound_request_and_lookup_is_a_post(self):
         from connect import pairing
         from connect.models import PairingRequest
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         preq = PairingRequest.objects.get(pk=pconn.request_id)
         made = []
@@ -533,7 +530,7 @@ class ReviewPageGetIsSafe(ConnectTestCase):
         from connect.models import PairingRequest
         from django.contrib.auth.models import User
         from django.test import Client
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         nobody = User.objects.create_user('nobody', 'n@example.test', 'pw-Nobody-1!x')
         c = Client()
@@ -554,13 +551,13 @@ class DuplicateInstallationId(ConnectTestCase):
         rogue = ReferencePeer('https://rogue.test', self.net, app_type='rem0te', display_name='Rem0te lab')
         rogue.installation_id = self.peer.installation_id
         rogue.app['installation_id'] = self.peer.installation_id
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = rogue.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         preq = PairingRequest.objects.get(pk=pconn.request_id)
         page = _get(self.ui, UI + f'requests/{preq.pk}/').content.decode()
         self.assertIn('data-connect-duplicate', page)
         self.assertIn('already connected here', page)
-        change = pairing.approve_inbound(preq, scopes=['customers:read'], grants=[], user=self.admin)
+        change = pairing.approve_inbound(preq, destination_addresses=['93.184.216.40'], scopes=['customers:read'], grants=[], user=self.admin)
         self.assertIsInstance(change, ProtectedChange)
         self.assertEqual(change.kind, 'app_connection')
         self.assertIn(str(genuine.pk), change.payload['duplicate_of'])
@@ -580,11 +577,11 @@ class DuplicateInstallationId(ConnectTestCase):
         self.pair_inbound()
         rogue = ReferencePeer('https://rogue.test', self.net)
         rogue.installation_id = rogue.app['installation_id'] = self.peer.installation_id
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = rogue.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         from django.urls import reverse
         from tech_access.models import ProtectedChange
-        r = _post(self.ui, UI + f'requests/{pconn.request_id}/', {'op': 'approve', 'scopes': ['customers:read']})
+        r = _post(self.ui, UI + f'requests/{pconn.request_id}/', {'op': 'approve', 'destination_addresses': '93.184.216.40', 'scopes': ['customers:read']})
         self.assertEqual(r.status_code, 302)
         change = ProtectedChange.objects.get(kind='app_connection')
         self.assertEqual(r['Location'], reverse('tech_access:change_detail', kwargs={'pk': change.pk}))
@@ -594,11 +591,11 @@ class DuplicateInstallationId(ConnectTestCase):
         from connect.models import PairingRequest
         self.pair_inbound()
         other = ReferencePeer('https://other.test', self.net)
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = other.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         page = _get(self.ui, UI + f'requests/{pconn.request_id}/').content.decode()
         self.assertNotIn('data-connect-duplicate', page)
-        self.assertIsNone(pairing.approve_inbound(PairingRequest.objects.get(pk=pconn.request_id),
+        self.assertIsNone(pairing.approve_inbound(PairingRequest.objects.get(pk=pconn.request_id), destination_addresses=['93.184.216.40'],
                                                   scopes=['customers:read'], grants=[], user=self.admin))
 
 
@@ -618,19 +615,22 @@ class UnauthenticatedRefusalsAreFolded(ConnectTestCase):
             for _ in range(500):
                 r = self.net.request('POST', f'{CS_BASE}/connect/v1/token',
                                      {'Content-Type': 'application/x-www-form-urlencoded'}, body)
-                self.assertEqual(r.status, 401)
+                # Increment B1: an unknown client_id names no connection, so the
+                # source policy refuses it before authentication (403).
+                self.assertEqual(r.status, 403)
         self.assertEqual(ConnectAuditEvent.objects.count(), start)       # nothing written per request
         rows = ApiAccessDecision.objects.filter(endpoint_group='connect_api', integration='agit8or_connect')
         self.assertEqual(rows.count(), 1)
         self.assertEqual(rows.get().count, 500)
-        self.assertEqual(rows.get().reason, 'connect_token_invalid_client')
+        self.assertEqual(rows.get().reason, 'connect_source_connection')
+        self.assertEqual(rows.get().surface, 'connect')
         self.assertIsNone(denials.summarise())          # the minute is still open
         later = timezone.now() + datetime.timedelta(minutes=2)
         ev = denials.summarise(now=later)
         self.assertIsNotNone(ev)
         self.assertEqual(ev.operation, 'refusals.summary')
         self.assertEqual(ev.detail['total'], 500)
-        self.assertIn('connect_token_invalid_client=500', ev.detail['counts'])
+        self.assertIn('connect_source_connection=500', ev.detail['counts'])
         self.assertIsNone(denials.summarise(now=later))                     # at most one per minute
         self.assertIsNone(denials.summarise(now=later + datetime.timedelta(minutes=5)))   # nothing new
         self.assertEqual(ConnectAuditEvent.objects.count(), start + 1)
@@ -641,7 +641,7 @@ class UnauthenticatedRefusalsAreFolded(ConnectTestCase):
         from connect import pairing
         from connect.models import ConnectAuditEvent
         from api_access.models import ApiAccessDecision
-        pairing.create_invitation(self.admin)
+        pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         for i in range(6):
             with self.assertRaises(ConnectError):
                 self.peer.start_pairing(CS_BASE, '00000-0000' + str(i), requested_scopes=['customers:read'])

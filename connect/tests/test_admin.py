@@ -39,7 +39,7 @@ class AdminPages(ConnectTestCase):
         self.assertIn(self.peer.installation_id, html)
         self.assertIn('Advanced settings', html)
         code = self.peer.create_invitation()
-        r = _post(self.ui, UI + 'new/rem0te/', {'url': self.peer.base, 'op': 'pair', 'pairing_secret': code,
+        r = _post(self.ui, UI + 'new/rem0te/', {'url': self.peer.base, 'op': 'pair', 'destination_addresses': '93.184.216.40', 'peer_sources': '93.184.216.34', 'pairing_secret': code,
                                                'scopes': ['customers:read'], 'orgs': [str(self.org_a.pk)]})
         self.assertEqual(r.status_code, 302, r.content[:500])
         conn = Connection.objects.get()
@@ -66,7 +66,7 @@ class AdminPages(ConnectTestCase):
         other = ReferencePeer('https://office.test', self.net, app_type='office-unbound')
         r = _post(self.ui, UI + 'new/rem0te/', {'url': other.base, 'op': 'verify'})
         self.assertIn('not Rem0te', r.content.decode())
-        r = _post(self.ui, UI + 'new/rem0te/', {'url': self.peer.base, 'op': 'pair', 'pairing_secret': '00000-00000',
+        r = _post(self.ui, UI + 'new/rem0te/', {'url': self.peer.base, 'op': 'pair', 'destination_addresses': '93.184.216.40', 'peer_sources': '93.184.216.34', 'pairing_secret': '00000-00000',
                                                'scopes': ['customers:read']})
         self.assertEqual(r.status_code, 200)
         self.assertIn('did not accept the pairing code', r.content.decode())
@@ -77,7 +77,7 @@ class AdminPages(ConnectTestCase):
 
     def test_invite_shows_code_once_with_qr(self):
         from connect.models import PairingInvitation
-        r = _post(self.ui, UI + 'invite/', {'label': 'lab'})
+        r = _post(self.ui, UI + 'invite/', {'peer_sources': '93.184.216.34', 'label': 'lab'})
         html = r.content.decode()
         self.assertIn('<svg', html)
         inv = PairingInvitation.objects.get()
@@ -88,7 +88,7 @@ class AdminPages(ConnectTestCase):
     def test_inbound_review_approve_through_ui(self):
         from connect import pairing
         from connect.models import Connection, PairingRequest
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read', 'connection:read'],
                                         proposed_tenants=[{'id': 'cust-1', 'label': 'Acme Customer'}])
         preq = PairingRequest.objects.get(pk=pconn.request_id)
@@ -96,7 +96,7 @@ class AdminPages(ConnectTestCase):
         self.assertIn(pconn.sas, page)
         self.assertIn('Acme Customer', page)
         r = _post(self.ui, UI + f'requests/{preq.pk}/', {
-            'op': 'approve', 'scopes': ['customers:read', 'connection:read'], 'grant_rows': '2',
+            'op': 'approve', 'destination_addresses': '93.184.216.40', 'scopes': ['customers:read', 'connection:read'], 'grant_rows': '2',
             'org_0': str(self.org_a.pk), 'tenant_0': 'cust-1', 'scope_0': ['customers:read', 'tickets:write'],
             'requested_scopes': ['customers:read']})
         self.assertEqual(r.status_code, 302, r.content[:800])
@@ -122,7 +122,7 @@ class AdminPages(ConnectTestCase):
     def test_reject_inbound(self):
         from connect import pairing
         from connect.models import PairingRequest
-        _, code = pairing.create_invitation(self.admin)
+        _, code = pairing.create_invitation(self.admin, peer_sources=[self.peer_ip])
         pconn = self.peer.start_pairing(CS_BASE, code, requested_scopes=['customers:read'])
         _post(self.ui, UI + f'requests/{pconn.request_id}/', {'op': 'reject'})
         self.assertEqual(PairingRequest.objects.get(pk=pconn.request_id).status, PairingRequest.REJECTED)
@@ -149,7 +149,7 @@ class Permissions(ConnectTestCase):
         self.assertEqual(_get(v, UI).status_code, 200)
         self.assertNotIn('Emergency kill switch', _get(v, UI).content.decode())
         self.assertEqual(_post(v, UI + 'kill-switch/', {}).status_code, 403)
-        self.assertEqual(_post(v, UI + 'invite/', {}).status_code, 403)
+        self.assertEqual(_post(v, UI + 'invite/', {'peer_sources': '93.184.216.34', }).status_code, 403)
         n = Client()
         n.force_login(self.nobody)
         self.assertEqual(_get(n, UI).status_code, 403)

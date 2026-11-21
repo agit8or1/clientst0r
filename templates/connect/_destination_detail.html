@@ -1,0 +1,22 @@
+{# Connection detail: approved destination, Security Blocked evidence, address change. #}
+<div class="card mb-3" data-connect-destination-card><div class="card-header"><strong>Destination</strong></div><div class="card-body small">
+{% if conn.state == 'security_blocked' %}
+  <div class="alert alert-danger" data-connect-security-blocked><strong>Security Blocked ({{ conn.security_block_code }}) since {{ conn.security_block_at|date:"Y-m-d H:i" }}.</strong> {{ block_message }}
+  {% if conn.security_block_detail.addresses %}<br>Seen: {% for a in conn.security_block_detail.addresses %}<code class="me-1">{{ a }}</code>{% endfor %}{% endif %}
+  {% if conn.security_block_detail.spki %}<br>Presented key: <code>{{ conn.security_block_detail.spki }}</code>{% endif %}</div>
+{% endif %}
+{% if dest %}
+  <p class="mb-1"><code>{{ dest.host }}:{{ dest.port }}</code> · {{ dest.get_trust_display }} · version {{ dest.version }} · {{ dest.get_status_display }}</p>
+  <p class="mb-1">Approved addresses: {% for e in dest.addresses %}<code class="me-1">{{ e.net }}</code>{% if e.private %}<span class="badge bg-secondary me-1">private</span>{% endif %}{% empty %}<span class="text-danger" data-connect-destination-unapproved>none — nothing is sent until an address is approved</span>{% endfor %}</p>
+  {% if dest.spki_pins %}<p class="mb-1">Pinned keys: {% for p in dest.spki_pins %}<code class="me-1">{{ p }}</code>{% endfor %}</p>{% endif %}
+{% else %}<p class="text-muted mb-1">No destination recorded.</p>{% endif %}
+{% if can_manage and conn.state != 'revoked' and conn.state != 'failed' %}
+<form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="op" value="propose_destination">
+  <label class="form-label" for="dest-addr">{% if conn.state == 'security_blocked' %}Approve new address{% else %}Change approved addresses{% endif %}</label>
+  <input class="form-control" id="dest-addr" name="destination_addresses" required maxlength="600" value="{{ suggested_addresses|default:'' }}">
+  <label class="small"><input type="checkbox" name="private_destination"> Private address (LAN or VPN)</label>
+  <div class="form-text">Staged as a change below; approving needs your password, and a second administrator for a private address or a range. {% if conn.state == 'security_blocked' %}After approval Clientst0r retests the connection; it is unblocked only when every check passes.{% endif %}</div>
+  <button class="btn btn-sm btn-outline-primary mt-1">{% if conn.state == 'security_blocked' %}Approve new address{% else %}Stage change{% endif %}</button>
+</form>
+{% endif %}
+</div></div>

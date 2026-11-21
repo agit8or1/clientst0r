@@ -21,6 +21,7 @@
 <a class="btn btn-sm btn-primary" href="{% url 'connect:request_review' p.pk %}">Review</a></li>{% endfor %}</ul></div>
 {% endif %}
 
+<p class="small"><a href="{% url 'connect:network' %}"><i class="fas fa-network-wired"></i> Network</a> — which source addresses may reach the Connect endpoints (default deny).</p>
 <h2 class="h5">Connections</h2>
 <table class="table table-sm align-middle">
 <thead><tr><th>Application</th><th>Status</th><th>Customers</th><th>Last contact</th><th>Next key rotation</th><th></th></tr></thead>
@@ -42,9 +43,11 @@
 
 <h2 class="h5 mt-4">Let another application connect to this Clientst0r</h2>
 <p class="small text-muted">Create a one-time code (valid 10 minutes, five wrong tries lock it) and enter it in the other application together with this Clientst0r's address.</p>
-<form method="post" action="{% url 'connect:invite' %}" class="d-flex gap-2 mb-2">{% csrf_token %}
-<input class="form-control form-control-sm w-auto" name="label" placeholder="Label (optional)" maxlength="200" aria-label="Invitation label">
-<button class="btn btn-sm btn-primary">Create invitation code</button></form>
+<form method="post" action="{% url 'connect:invite' %}" class="row g-2 mb-2 small">{% csrf_token %}
+<div class="col-md-3"><input class="form-control form-control-sm" name="label" placeholder="Label (optional)" maxlength="200" aria-label="Invitation label"></div>
+<div class="col-md-5"><input class="form-control form-control-sm" name="peer_sources" required placeholder="The other application's address, e.g. 203.0.113.10" aria-label="The other application's source address"></div>
+<div class="col-md-4"><button class="btn btn-sm btn-primary">Create invitation code</button></div>
+<div class="col-12"><label><input type="checkbox" name="private_sources"> The address is private (LAN or VPN)</label> <span class="text-muted">— only this address can use the code; it also needs to be allowed under <a href="{% url 'connect:network' %}">Network</a>.</span></div></form>
 {% if invitations %}<table class="table table-sm small"><thead><tr><th>Created</th><th>Label</th><th>Status</th><th>Wrong tries</th></tr></thead><tbody>
 {% for i in invitations %}<tr><td>{{ i.created_at|date:"Y-m-d H:i" }}</td><td>{{ i.label }}</td><td>{{ i.status }}</td><td>{{ i.attempts }}</td></tr>{% endfor %}</tbody></table>{% endif %}
 {% endif %}

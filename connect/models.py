@@ -34,6 +34,13 @@ class InstallationIdentity(models.Model):
     kill_switch_at = models.DateTimeField(null=True, blank=True)
     kill_switch_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                        related_name='+')
+    # Source policy (DESIGN.md §5.5): bumped inside every SourceRule change, so
+    # each worker reloads its compiled rules on the next request.
+    connect_policy_version = models.PositiveBigIntegerField(default=1)
+    # Observe period for connections that existed before source rules shipped
+    # (DESIGN.md §13.2). Set only by the migration; never extended.
+    source_observe_until = models.DateTimeField(null=True, blank=True)
+    source_observe_connections = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = 'connect_installation'
@@ -51,6 +58,7 @@ class Connection(models.Model):
     SUSPENDED = 'suspended'
     REVOKED = 'revoked'
     FAILED = 'failed'
+    SECURITY_BLOCKED = 'security_blocked'
     STATES = [
         (PENDING_PAIRING, 'Pairing'),
         (AWAITING_REMOTE, 'Waiting for the other application to approve'),
@@ -60,6 +68,7 @@ class Connection(models.Model):
         (SUSPENDED, 'Suspended'),
         (REVOKED, 'Disconnected'),
         (FAILED, 'Pairing failed'),
+        (SECURITY_BLOCKED, 'Security Blocked'),
     ]
     OUTBOUND, INBOUND = 'outbound', 'inbound'
 
@@ -115,6 +124,14 @@ class Connection(models.Model):
     failure_count = models.PositiveIntegerField(default=0)
     auth_failure_count = models.PositiveIntegerField(default=0)
     last_test = models.JSONField(default=dict, blank=True)
+    # Source address of the last authenticated request (inbound binding check).
+    last_source_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_source_at = models.DateTimeField(null=True, blank=True)
+    # Security Blocked evidence (DESIGN.md §2.1, §7.3): never cleared, only
+    # superseded by a later block; copied to the audit chain.
+    security_block_code = models.CharField(max_length=40, blank=True)
+    security_block_at = models.DateTimeField(null=True, blank=True)
+    security_block_detail = models.JSONField(default=dict, blank=True)
 
     # Rotation.
     rotation_interval_days = models.PositiveIntegerField(default=90)
@@ -404,3 +421,141 @@ class ConnectAuditEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise AppendOnlyError('The Connect audit log is append-only.')
+
+
+class ConnectChange(models.Model):
+    """A staged change to Connect network policy (DESIGN.md §11): proposed with
+    a server-side preview, approved (a second administrator through
+    tech_access when it widens access), then applied in one transaction that
+    bumps InstallationIdentity.connect_policy_version."""
+    SOURCE_RULES, DESTINATION = 'source_rules', 'destination'
+    KINDS = [(SOURCE_RULES, 'Source rules'), (DESTINATION, 'Approved destination')]
+    STAGED, AWAITING_SECOND, APPLIED, REJECTED, EXPIRED, ROLLED_BACK = (
+        'staged', 'awaiting_second', 'applied', 'rejected', 'expired', 'rolled_back')
+    STATUSES = [(STAGED, 'Staged'), (AWAITING_SECOND, 'Waiting for a second administrator'), (APPLIED, 'Applied'),
+                (REJECTED, 'Rejected'), (EXPIRED, 'Expired'), (ROLLED_BACK, 'Rolled back')]
+
+    connection = models.ForeignKey(Connection, on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='network_changes')
+    kind = models.CharField(max_length=20, choices=KINDS, default=SOURCE_RULES)
+    payload = models.JSONField(default=dict, blank=True)
+    preview = models.JSONField(default=dict, blank=True)
+    widening = models.BooleanField(default=False)
+    fingerprint = models.CharField(max_length=64, blank=True)
+    base_version = models.PositiveBigIntegerField(default=0)
+    status = models.CharField(max_length=20, choices=STATUSES, default=STAGED, db_index=True)
+    note = models.CharField(max_length=300, blank=True)
+    proposed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+')
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+')
+    protected_change_id = models.PositiveIntegerField(null=True, blank=True)
+    rollback_of = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'connect_changes'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.get_kind_display()} change #{self.pk} ({self.status})'
+
+
+class SourceRule(models.Model):
+    """One source-address rule for the Connect endpoints (DESIGN.md §5).
+
+    Two layers: ``installation`` (one list for every Connect request) and
+    ``connection`` (per connection; a pairing rule may first hang off an
+    invitation and is linked to the connection the request creates). A
+    request passes only if both layers allow it; a deny in either wins.
+    Only ``temporary`` and ``active`` rows are ever evaluated; ``observed``
+    rows record sources seen during the observe period and grant nothing."""
+    INSTALLATION, CONNECTION = 'installation', 'connection'
+    LAYERS = [(INSTALLATION, 'Installation'), (CONNECTION, 'Connection')]
+    ALLOW, DENY = 'allow', 'deny'
+    ACTIONS = [(ALLOW, 'Allow'), (DENY, 'Deny')]
+    STAGED, TEMPORARY, ACTIVE, REMOVED, OBSERVED = 'staged', 'temporary', 'active', 'removed', 'observed'
+    STATUSES = [(STAGED, 'Staged'), (TEMPORARY, 'Temporary'), (ACTIVE, 'Active'), (REMOVED, 'Removed'),
+                (OBSERVED, 'Observed (not allowed)')]
+    PAIRING, DISCOVERY, ALL = 'pairing', 'discovery', 'all'
+    PURPOSES = [(PAIRING, 'Pairing only'), (DISCOVERY, 'Discovery only'), (ALL, 'Every Connect endpoint')]
+
+    layer = models.CharField(max_length=15, choices=LAYERS)
+    connection = models.ForeignKey(Connection, on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='source_rules')
+    invitation = models.ForeignKey(PairingInvitation, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='source_rules')
+    network = models.CharField(max_length=64)
+    private = models.BooleanField(default=False, help_text='The administrator confirmed this is a private, '
+                                                           'loopback or link-local address.')
+    action = models.CharField(max_length=5, choices=ACTIONS, default=ALLOW)
+    status = models.CharField(max_length=10, choices=STATUSES, default=STAGED, db_index=True)
+    purpose = models.CharField(max_length=10, choices=PURPOSES, default=ALL)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    description = models.CharField(max_length=200, blank=True)
+    change = models.ForeignKey(ConnectChange, on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='rules')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+    observed_first_at = models.DateTimeField(null=True, blank=True)
+    match_count = models.PositiveBigIntegerField(default=0)
+    last_matched_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'connect_source_rules'
+        ordering = ['layer', 'action', 'network']
+        indexes = [models.Index(fields=['status', 'layer'])]
+
+    def __str__(self):
+        return f'{self.get_action_display()} {self.network} ({self.layer}, {self.status})'
+
+    @property
+    def is_expired(self):
+        return bool(self.expires_at and self.expires_at <= timezone.now())
+
+
+class ApprovedDestination(models.Model):
+    """Where this connection may reach the other application (DESIGN.md §2.2,
+    §7): host, port, approved addresses (each ``{net, private, approved_by,
+    approved_at}``), trust anchor, optional SPKI pins, expected identity.
+    The transport is pinned to it (connect/destinations.py)."""
+    STAGED, ACTIVE = 'staged', 'active'
+    SYSTEM, PRIVATE_CA = 'system', 'private_ca'
+
+    connection = models.OneToOneField(Connection, on_delete=models.CASCADE, related_name='destination')
+    host = models.CharField(max_length=253)
+    port = models.PositiveIntegerField(default=443)
+    addresses = models.JSONField(default=list, blank=True)
+    trust = models.CharField(max_length=12, choices=[(SYSTEM, 'System CAs'), (PRIVATE_CA, 'Private CA only')],
+                             default=SYSTEM)
+    ca_bundle = models.TextField(blank=True)
+    spki_pins = models.JSONField(default=list, blank=True, help_text='base64 SHA-256 of the leaf SPKI')
+    expected_installation_id = models.CharField(max_length=128, blank=True)
+    expected_cert_names = models.JSONField(default=list, blank=True)
+    status = models.CharField(max_length=10, choices=[(STAGED, 'Staged'), (ACTIVE, 'Active')], default=STAGED)
+    version = models.PositiveIntegerField(default=1)
+    observed = models.JSONField(default=dict, blank=True, help_text='Last refused address / key, as evidence.')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'connect_destinations'
+
+    def __str__(self):
+        return f'{self.host}:{self.port} ({len(self.addresses or [])} address(es), {self.status})'
+
+    def pinned(self):
+        import ipaddress
+        return frozenset(ipaddress.ip_network(e['net']) for e in self.addresses or [])
+
+    @property
+    def has_private(self):
+        return any(e.get('private') for e in self.addresses or [])
+
+    @property
+    def nets(self):
+        return [e['net'] for e in self.addresses or []]

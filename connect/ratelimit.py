@@ -29,6 +29,15 @@ def hit(bucket: str, key: str = '') -> bool:
     return n <= limit
 
 
+def request_key(request) -> str:
+    """Source address plus the connection the request names (set by the
+    source policy in the middleware)."""
+    src = getattr(request, 'connect_source', None)
+    if src is not None and src.ip is not None:
+        return src.rate_key
+    return f'{client_ip(request)}:-'
+
+
 def client_ip(request) -> str:
     """The client address, read through the trusted-proxy resolver.
 

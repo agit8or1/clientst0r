@@ -114,6 +114,44 @@ class BlockedDestinationError(UnsafeURLError, requests.exceptions.ConnectionErro
         requests.exceptions.ConnectionError.__init__(self, *args, request=request, response=response)
 
 
+class DestinationChangedError(UnsafeURLError):
+    """A resolved or connected address is outside the approved (pinned) set."""
+
+    def __init__(self, message, addresses=()):
+        super().__init__(message)
+        self.addresses = list(addresses)
+
+
+class SpkiMismatchError(UnsafeURLError):
+    """The server's certificate key is not one of the pinned SPKI digests."""
+
+    def __init__(self, message, digest=''):
+        super().__init__(message)
+        self.digest = digest
+
+
+def _in_pinned(value, pinned) -> bool:
+    try:
+        ip = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    if ip.version == 6 and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return any(ip.version == net.version and ip in net for net in pinned)
+
+
+def spki_sha256(der_cert: bytes) -> str:
+    """base64(SHA-256(SubjectPublicKeyInfo)) of a DER certificate."""
+    import base64
+    import hashlib
+    from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
+    cert = x509.load_der_x509_certificate(der_cert)
+    spki = cert.public_key().public_bytes(serialization.Encoding.DER,
+                                          serialization.PublicFormat.SubjectPublicKeyInfo)
+    return base64.b64encode(hashlib.sha256(spki).digest()).decode()
+
+
 class FetchError(Exception):
     """The fetch failed (timeout, connection, status, size, content). Message is for logs only."""
 
@@ -127,11 +165,21 @@ class OutboundPolicy:
                     non-public range (the ALLOW_PRIVATE_IP_INTEGRATIONS opt-in).
     allowed_ports:  None means any port.
 
+    pinned:         None (default: every other caller) or a frozenset of
+                    ip_network objects. When set, EVERY resolved address and
+                    the connected peer must lie inside it, on top of the
+                    checks above (approved destinations, Agit8or Connect).
+    spki_pins:      None or a frozenset of base64 SHA-256 digests of the
+                    leaf certificate's SubjectPublicKeyInfo; checked after
+                    the TLS handshake (HTTPS only).
+
     Metadata endpoints and non-unicast addresses are refused regardless.
     """
     allow_lan: bool = False
     allow_local: bool = False
     allowed_ports: Optional[frozenset] = ALLOWED_PORTS
+    pinned: Optional[frozenset] = None
+    spki_pins: Optional[frozenset] = None
 
 
 PUBLIC_WEB = OutboundPolicy()
@@ -317,6 +365,12 @@ class _GuardedConnectionMixin:
             addresses = resolve_public_addresses(self._dns_host, self.port, policy)
         except socket.gaierror as e:
             raise NameResolutionError(self.host, self, e) from e
+        if policy.pinned is not None:
+            outside = [ip for ip in addresses if not _in_pinned(ip, policy.pinned)]
+            if outside:
+                # Refused before any byte is sent: DNS now points elsewhere.
+                raise DestinationChangedError(f'{self.host} resolves to an address outside the approved set',
+                                              addresses)
 
         sock, last_error = None, None
         for ip in addresses:
@@ -345,6 +399,9 @@ class _GuardedConnectionMixin:
         if peer not in addresses or not is_allowed_ip(peer, policy):
             sock.close()
             raise UnsafeURLError('Connected peer is not an allowed address')
+        if policy.pinned is not None and not _in_pinned(peer, policy.pinned):
+            sock.close()
+            raise DestinationChangedError('Connected peer is outside the approved set', [peer])
         return sock
 
 
@@ -353,7 +410,17 @@ class _GuardedHTTPConnection(_GuardedConnectionMixin, HTTPConnection):
 
 
 class _GuardedHTTPSConnection(_GuardedConnectionMixin, HTTPSConnection):
-    pass
+    def connect(self):
+        super().connect()
+        pins = self._policy.spki_pins
+        if pins:
+            try:
+                digest = spki_sha256(self.sock.getpeercert(binary_form=True))
+            except Exception:
+                digest = ''
+            if digest not in pins:
+                self.sock.close()
+                raise SpkiMismatchError('Server certificate key does not match the pinned key', digest)
 
 
 class _GuardedHTTPConnectionPool(HTTPConnectionPool):
@@ -393,6 +460,8 @@ class GuardedHTTPAdapter(HTTPAdapter):
         except BlockedDestinationError:
             raise
         except UnsafeURLError as e:
+            # Raised from e: callers that pin (Agit8or Connect) read the cause
+            # (DestinationChangedError / SpkiMismatchError) for evidence.
             # Raised inside urllib3, outside its OSError handling, so it was
             # neither retried nor wrapped. Re-raise as a requests error here.
             raise BlockedDestinationError(str(e), request=request) from e

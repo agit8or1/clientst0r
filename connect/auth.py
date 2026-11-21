@@ -100,6 +100,8 @@ def token_request(request):
 
         claims, kid = sdk_tokens.verify_client_assertion(form['client_assertion'], key_for, client_id=str(conn.pk),
                                                          token_endpoint=endpoint, replay=store.replay_store)
+        from . import source_policy
+        source_policy.bind(request, conn)   # step 11: the key holder must be the connection the source matched
         jkt, _ = sdk_tokens.verify_dpop_proof(request.headers.get('DPoP', ''), method='POST', url=endpoint,
                                               replay=store.replay_store, allowed_jkts=[kid])
         requested = parse_scope_string(form.get('scope', '')) or list(conn.inbound_scopes)
@@ -108,6 +110,8 @@ def token_request(request):
         token, tclaims = sdk_tokens.issue_access_token(priv, issuer=identity.installation_id(), client_id=str(conn.pk),
                                                        scopes=granted, jkt=jkt)
     except ConnectError as e:
+        if e.code == 'source_not_authorised':
+            return 403, {'error': e.code, 'error_description': e.message}, {'Cache-Control': 'no-store'}
         if conn is not None:
             _note_auth_failure(conn, e.code)
             audit_log.record('token.issue', e.code, connection=conn, app=conn.remote_installation_id, scopes=[])
@@ -155,6 +159,8 @@ def authenticate(request, *, require_scope=None) -> Authenticated:
         raise ConnectError('invalid_token', 'connection is not active', 401)
     if conn.tokens_not_before and datetime.fromtimestamp(claims['iat'], tz=dt_tz.utc) < conn.tokens_not_before:
         raise ConnectError('invalid_token', 'token issued before the connection was re-keyed', 401)
+    from . import source_policy
+    source_policy.bind(request, conn)   # step 11 (DESIGN §5.3)
     scopes = sorted(set(claims['scopes']) & set(conn.inbound_scopes))
     if require_scope and require_scope not in scopes:
         raise ConnectError('insufficient_scope', f'requires {require_scope}', 403)

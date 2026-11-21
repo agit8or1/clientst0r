@@ -4,7 +4,7 @@
 {% block content %}
 <p><a href="{% url 'connect:index' %}">&larr; Connected Applications</a></p>
 <h1 class="h3">{{ identity.display_name }} <i class="fas fa-arrows-left-right"></i> {{ conn.remote_display_name|default:conn.remote_app_type }}
-  <span class="badge {% if conn.state == 'active' %}bg-success{% elif conn.state == 'revoked' or conn.state == 'failed' %}bg-secondary{% elif conn.state == 'suspended' %}bg-danger{% else %}bg-warning text-dark{% endif %}" data-connect-state="{{ conn.state }}">{% if conn.state == 'active' %}CONNECTED{% else %}{{ conn.get_state_display }}{% endif %}</span></h1>
+  <span class="badge {% if conn.state == 'active' %}bg-success{% elif conn.state == 'revoked' or conn.state == 'failed' %}bg-secondary{% elif conn.state == 'suspended' or conn.state == 'security_blocked' %}bg-danger{% else %}bg-warning text-dark{% endif %}" data-connect-state="{{ conn.state }}">{% if conn.state == 'active' %}CONNECTED{% else %}{{ conn.get_state_display }}{% endif %}</span></h1>
 {% if step %}{% include "connect/_steps.html" %}{% endif %}
 {% if conn.last_error and conn.state != 'active' %}<div class="alert alert-warning">{{ conn.last_error }}</div>{% endif %}
 
@@ -63,11 +63,17 @@ The other application's administrator sees a code for this request. It must be i
 <button class="btn btn-sm btn-outline-primary" name="op" value="rotate">Rotate key now</button>
 <button class="btn btn-sm btn-outline-warning" name="op" value="suspend">Suspend</button>{% endif %}
 {% if conn.state == 'suspended' %}<button class="btn btn-sm btn-outline-success" name="op" value="resume">Resume</button>{% endif %}
+{% if conn.state == 'security_blocked' %}<button class="btn btn-sm btn-outline-primary" name="op" value="retest" data-connect-retest>Retest</button>{% endif %}
 {% if conn.state != 'revoked' %}<button class="btn btn-sm btn-outline-danger" name="op" value="disconnect" data-confirm="Disconnect? The other application is told, credentials are destroyed. Customer records and history are kept.">Disconnect</button>
 <button class="btn btn-sm btn-danger" name="op" value="revoke" data-confirm="Revoke immediately without contacting the other application?">Revoke now</button>{% endif %}
 </form></div></div>{% endif %}
 </div></div>
 
+{% include "connect/_destination_detail.html" %}
+<div class="card mb-3"><div class="card-header"><strong>Network</strong> — source addresses allowed for this connection</div><div class="card-body">
+<p class="small text-muted">Requests for this connection must come from one of these addresses and pass the installation layer (<a href="{% url 'connect:network' %}">Network</a>). Last authenticated source: <code>{{ conn.last_source_ip|default:"—" }}</code>{% if conn.last_source_at %} at {{ conn.last_source_at|date:"Y-m-d H:i" }}{% endif %}. Unexpected sources are refused and listed below, never added automatically.</p>
+{% include "connect/_network_section.html" with layer_label="for this connection" %}
+</div></div>
 <div class="card mb-3"><div class="card-header"><strong>Recent activity</strong></div>
 <table class="table table-sm small mb-0"><thead><tr><th>When</th><th>Operation</th><th>Result</th><th>By</th><th>Customer</th><th>Scopes</th></tr></thead><tbody>
 {% for a in activity %}<tr><td>{{ a.at|date:"Y-m-d H:i:s" }}</td><td>{{ a.operation }}</td><td>{{ a.result }}</td><td>{{ a.actor|truncatechars:40 }}</td><td>{{ a.tenant }}</td><td>{{ a.scopes|join:" " }}</td></tr>

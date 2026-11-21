@@ -57,8 +57,11 @@ def enqueue(conn, event_type: str, data: dict, *, grant=None, correlation_id=Non
 def deliver(ev, now=None) -> bool:
     from .models import Connection, DeliveryAttempt, OutboundEvent
     conn = ev.connection
-    if conn.state != Connection.ACTIVE or identity.kill_switch_engaged():
+    from . import client, destinations
+    if not client.usable_state(conn, conn.state) or identity.kill_switch_engaged():
         return False
+    if not destinations.ready(conn):
+        return False     # no approved destination: nothing sent, the attempt is not counted
     body = webhooks.body_of(ev.envelope)
     started = time.monotonic()
     code, ok, err = None, False, ''
@@ -129,6 +132,8 @@ def receive(request) -> tuple:
             ring = store.remote_keyring(conn)
     eid, _ = webhooks.verify(dict(request.headers), body, ring, sender=conn.remote_installation_id,
                              receiver=identity.installation_id(), connection_id=str(conn.pk))
+    from . import source_policy
+    source_policy.bind(request, conn)   # step 11: signer == connection the source matched
     try:
         env = webhooks.validate_envelope(json.loads(body), event_id=eid, sender=conn.remote_installation_id,
                                          receiver=identity.installation_id())

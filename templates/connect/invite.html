@@ -13,6 +13,7 @@
 </div></div></div>
 <div class="col-md-6"><div class="card mb-3"><div class="card-body text-center"><div style="max-width:16rem;margin:auto" aria-label="QR code with the address and pairing code">{{ qr|safe }}</div>
 <p class="small text-muted mt-2">The other application's pairing screen can read this instead of typing.</p></div></div></div></div>
+<p class="small">Accepted only from: {% for s in sources %}<code>{{ s.network }}</code>{% if not s.installation_ok %} <span class="text-danger" data-connect-source-warning>(not allowed by the installation layer yet — add it under <a href="{% url 'connect:network' %}">Network</a>, or the request is refused)</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}. The address becomes this connection's source rule when you approve the request.</p>
 <p>When the other application submits the code, its request appears under <a href="{% url 'connect:index' %}">Waiting for approval here</a>. Nothing is connected until you approve.</p>
 {% else %}<p>Create a code from <a href="{% url 'connect:index' %}">Connected Applications</a>.</p>{% endif %}
 {% endblock %}
