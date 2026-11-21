@@ -136,7 +136,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 6 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
 | 7 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 8 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
-| 9 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.16 health states, 79.17 automatic reconnection, 79.18 diagnostics (Quick Connect increment D) | Rem0te contract |
+| 9 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.19 and 79.20 remaining parts: shared event layer, muting, ticket per incident, diagnostics history and redacted export (Quick Connect increment E) | Rem0te contract |
 
 <!-- /generated:next -->
 
@@ -247,7 +247,7 @@ unchanged. Click a feature for its details.
 | 56 | [Ticket AI Assist and RMM handoff](#phase-56) | — | 🔵 In progress | 57; Rem0te ticket-rmm-v1 | Remaining Rem0te-side items move with 63.11–63.16 |
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
-| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.16 health states, 79.17 automatic reconnection, 79.18 diagnostics (Quick Connect increment D) |
+| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.19 and 79.20 remaining parts: shared event layer, muting, ticket per incident, diagnostics history and redacted export (Quick Connect increment E) |
 | 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.3 bounded ingestion; 82.6 permission keys; first consumers |
 | 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
 | 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
@@ -2761,9 +2761,9 @@ Depends on Phases 72, 73 and 74.
 <a id="phase-79"></a>
 
 ## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
-<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.16 health states, 79.17 automatic reconnection, 79.18 diagnostics (Quick Connect increment D)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
+<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.19 and 79.20 remaining parts: shared event layer, muting, ticket per incident, diagnostics history and redacted export (Quick Connect increment E)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
 **Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** Rem0te contract  
-**Next:** 79.16 health states, 79.17 automatic reconnection, 79.18 diagnostics (Quick Connect increment D)  
+**Next:** 79.19 and 79.20 remaining parts: shared event layer, muting, ticket per incident, diagnostics history and redacted export (Quick Connect increment E)  
 **Blocked:** 79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel — *unblocks when:* Decision on one Rem0te channel; Rem0te Stage 8
 
 <details markdown="1">
@@ -2797,11 +2797,11 @@ events with each other, starting with Clientst0r and Rem0te. It runs alongside t
 - **79.13 Two-sided authorization** *(shipped v3.17.750)* — each side approves permissions, customers and the other side's source address independently; the reverse direction is its own approval; elevated permissions and widening network changes need a second administrator.
 - **79.14 Staged configuration changes** *(shipped — network changes v3.17.746, permission and customer changes v3.17.750)* — network and permission changes are staged with a preview of who gains or loses access, approved, and committed atomically; rollback only ever narrows access; changes reach every worker through a policy version.
 - **79.15 Certificate verification and pinning** *(shipped v3.17.746)* — certificates are always verified, an IP address is accepted only when the certificate names it, a private CA can be set per connection, and an optional public-key pin is available; a failure blocks the connection.
-- **79.16 Connection health states** *(planned)* — Pending Setup, Awaiting Approval, Awaiting Network Authorization, Testing, Connected, Degraded, Offline, Security Blocked, Suspended and Revoked, from separate transport, TLS, authentication, authorization and operational checks every 60 seconds with jitter and hysteresis; "Connected" only after every test passed.
-- **79.17 Automatic reconnection** *(planned)* — backoff from 10 seconds to 15 minutes with jitter and a circuit breaker, restart-safe on the scheduler; never after a revocation, suspension, identity or certificate change, unauthorised address or other security failure, and the evidence of a security failure is kept.
-- **79.18 Event queue recovery** *(planned)* — events wait while a peer is offline instead of being used up by retries, drain in order on recovery, expire by age, and can be requeued from the failed list.
-- **79.19 Connection alerts** *(planned)* — status changes go through the shared event layer and existing notification channels, with deduplication, rate limits, muting and recovery notices; an optional ticket per incident, never one per check.
-- **79.20 Connection diagnostics** *(planned)* — fifteen independent checks from DNS to reverse connectivity, each with a result, explanation, next step, error code and time, a run history, and a redacted export.
+- **79.16 Connection health states** *(shipped v3.17.752)* — Pending Setup, Awaiting Approval, Awaiting Network Authorization, Testing, Connected, Degraded, Offline, Security Blocked, Suspended and Revoked, from separate transport, TLS, authentication, authorization and operational checks every 60 seconds with jitter and hysteresis; "Connected" only after every test passed.
+- **79.17 Automatic reconnection** *(shipped v3.17.752 — the delay ladder uses ±20% jitter so waits never fall near zero)* — backoff from 10 seconds to 15 minutes with jitter and a circuit breaker, restart-safe on the scheduler; never after a revocation, suspension, identity or certificate change, unauthorised address or other security failure, and the evidence of a security failure is kept.
+- **79.18 Event queue recovery** *(shipped v3.17.752)* — events wait while a peer is offline instead of being used up by retries, drain in order on recovery, expire by age, and can be requeued from the failed list.
+- **79.19 Connection alerts** *(partial — email, system warnings and the bell with deduplication and recovery notices shipped v3.17.752; the shared event layer, muting and a ticket per incident follow)* — status changes go through the shared event layer and existing notification channels, with deduplication, rate limits, muting and recovery notices; an optional ticket per incident, never one per check.
+- **79.20 Connection diagnostics** *(partial — fifteen checks with result, next step, code and time, and a stored run history shipped v3.17.752; the history view and redacted export follow)* — fifteen independent checks from DNS to reverse connectivity, each with a result, explanation, next step, error code and time, a run history, and a redacted export.
 - **79.21 Public Agit8or Connect standard** *(planned)* — a public repository with the specification, OpenAPI, message schemas, test vectors, conformance tests, a reference peer, examples and an integration guide; this repository keeps a pinned copy.
 - **79.22 SDK updates for protocol revision 1.1** *(partial — specification, OpenAPI, test vectors and Python/TypeScript SDK support shipped v3.17.747; publishing in the public repository is 79.21)* — Python and TypeScript support for the optional bootstrap, source-binding and diagnostics extensions with new test vectors; version 1 messages and vectors unchanged, so version 1 peers keep working.
 - **79.23 Independent interoperability testing** *(planned)* — Clientst0r and the reference peer connect over real HTTPS on one host, covering both pairing flows, address and certificate changes, outages and recovery, without changes to host firewalls, DNS or proxies.

@@ -27,7 +27,7 @@
 <thead><tr><th>Application</th><th>Status</th><th>Customers</th><th>Last contact</th><th>Next key rotation</th><th></th></tr></thead>
 <tbody>{% for c in connections %}
 <tr><td>{{ c.remote_display_name|default:c.remote_app_type }} <span class="text-muted small">{{ c.remote_app_type }}</span></td>
-<td><span class="badge {% if c.state == 'active' %}bg-success{% elif c.state == 'revoked' %}bg-secondary{% elif c.state == 'suspended' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ c.get_state_display }}</span></td>
+<td><span class="badge bg-{{ c.display.severity }}{% if c.display.severity == 'warning' or c.display.severity == 'info' %} text-dark{% endif %}" data-connect-status="{{ c.display.key }}">{{ c.display.label }}</span>{% if c.state == 'active' and c.next_check_at %} <span class="small text-muted" title="Next health check">next check {{ c.next_check_at|date:"H:i:s" }}</span>{% endif %}</td>
 <td>{{ c.tenant_grants.count }}</td><td>{{ c.last_success_at|date:"Y-m-d H:i"|default:"—" }}</td><td>{{ c.next_rotation_at|date:"Y-m-d"|default:"—" }}</td>
 <td><a href="{% url 'connect:detail' c.pk %}">Open</a></td></tr>
 {% empty %}<tr><td colspan="6" class="text-muted">No connected applications yet.</td></tr>{% endfor %}</tbody></table>

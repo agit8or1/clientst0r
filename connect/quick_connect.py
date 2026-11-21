@@ -75,10 +75,11 @@ from . import audit_log, catalog, identity, store, transport
 
 logger = logging.getLogger('connect')
 
-# What Clientst0r implements of 1.1 in this release (qc-diagnostics/1, the
-# probe, comes with the diagnostics increment). Advertised in discovery and
-# signed into the invitation and the accept.
-OUR_EXTENSIONS = {qc.EXT_BOOTSTRAP: (1,), qc.EXT_SOURCE_BINDING: (1,)}
+# What Clientst0r implements of 1.1: qc-bootstrap, qc-source-binding and
+# (increment D) qc-diagnostics, the probe (views_api.qc_probe). Advertised in
+# discovery only while Quick Connect is on, and signed into the invitation
+# and the accept.
+OUR_EXTENSIONS = {qc.EXT_BOOTSTRAP: (1,), qc.EXT_SOURCE_BINDING: (1,), qc.EXT_DIAGNOSTICS: (1,)}
 ATTEMPT_TTL = timedelta(minutes=30)
 SESSION_KEY = 'connect_qc_attempts'
 REVIEW_LIMIT_USER = 10        # invitation reviews per administrator per hour (DESIGN §6.4 item 8)

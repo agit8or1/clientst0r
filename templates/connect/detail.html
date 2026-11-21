@@ -4,9 +4,10 @@
 {% block content %}
 <p><a href="{% url 'connect:index' %}">&larr; Connected Applications</a></p>
 <h1 class="h3">{{ identity.display_name }} <i class="fas fa-arrows-left-right"></i> {{ conn.remote_display_name|default:conn.remote_app_type }}
-  <span class="badge {% if conn.state == 'active' %}bg-success{% elif conn.state == 'revoked' or conn.state == 'failed' %}bg-secondary{% elif conn.state == 'suspended' or conn.state == 'security_blocked' %}bg-danger{% else %}bg-warning text-dark{% endif %}" data-connect-state="{{ conn.state }}">{% if conn.state == 'active' %}CONNECTED{% else %}{{ conn.get_state_display }}{% endif %}</span></h1>
+  <span class="badge bg-{{ display.severity }}{% if display.severity == 'warning' or display.severity == 'info' %} text-dark{% endif %}" data-connect-state="{{ conn.state }}" data-connect-status="{{ display.key }}">{% if display.key == 'connected' %}CONNECTED{% else %}{{ display.label }}{% endif %}</span></h1>
 {% if step %}{% include "connect/_steps.html" %}{% endif %}
-{% if conn.last_error and conn.state != 'active' %}<div class="alert alert-warning">{{ conn.last_error }}</div>{% endif %}
+{% if conn.last_error and display.key != 'connected' %}<div class="alert alert-warning">{{ conn.last_error }}</div>{% endif %}
+{% include "connect/_health.html" %}
 
 {% if qc_grant %}<div class="card mb-3" data-qc-attempt><div class="card-header"><strong>Quick Connect</strong></div><div class="card-body small">
   <div>Address approved for this request: {% for e in qc_grant.egress %}<code class="me-1">{{ e.net }}</code>{% endfor %}(temporary, until {{ qc_grant.rule_expires_at|date:"H:i" }})</div>
@@ -95,7 +96,8 @@ The other application's administrator sees a code for this request. It must be i
 <button class="btn btn-sm btn-outline-primary" name="op" value="rotate">Rotate key now</button>
 <button class="btn btn-sm btn-outline-warning" name="op" value="suspend">Suspend</button>{% endif %}
 {% if conn.state == 'suspended' %}<button class="btn btn-sm btn-outline-success" name="op" value="resume">Resume</button>{% endif %}
-{% if conn.state == 'security_blocked' %}<button class="btn btn-sm btn-outline-primary" name="op" value="retest" data-connect-retest>Retest</button>{% endif %}
+{% if conn.state == 'security_blocked' %}<input type="password" class="form-control form-control-sm w-auto" name="password" autocomplete="current-password" placeholder="Your password (to retest)" aria-label="Your password, to retest"><button class="btn btn-sm btn-outline-primary" name="op" value="retest" data-connect-retest>Retest</button>{% endif %}
+{% if conn.state != 'revoked' and conn.state != 'failed' and conn.state != 'pending_pairing' %}<button class="btn btn-sm btn-outline-secondary" name="op" value="diagnose" data-connect-diagnose>Run diagnostics</button>{% endif %}
 {% if conn.state != 'revoked' %}<button class="btn btn-sm btn-outline-danger" name="op" value="disconnect" data-confirm="Disconnect? The other application is told, credentials are destroyed. Customer records and history are kept.">Disconnect</button>
 <button class="btn btn-sm btn-danger" name="op" value="revoke" data-confirm="Revoke immediately without contacting the other application?">Revoke now</button>{% endif %}
 </form></div></div>{% endif %}
@@ -110,7 +112,10 @@ The other application's administrator sees a code for this request. It must be i
 <table class="table table-sm small mb-0"><thead><tr><th>When</th><th>Operation</th><th>Result</th><th>By</th><th>Customer</th><th>Scopes</th></tr></thead><tbody>
 {% for a in activity %}<tr><td>{{ a.at|date:"Y-m-d H:i:s" }}</td><td>{{ a.operation }}</td><td>{{ a.result }}</td><td>{{ a.actor|truncatechars:40 }}</td><td>{{ a.tenant }}</td><td>{{ a.scopes|join:" " }}</td></tr>
 {% empty %}<tr><td colspan="6" class="text-muted">No activity yet.</td></tr>{% endfor %}</tbody></table></div>
-<div class="row"><div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Events sent</strong></div>
+{% if dead_letters %}<div class="card mb-3 border-warning" data-connect-dead-letters><div class="card-header"><strong>Failed events</strong> — not delivered; requeue keeps the event id, so the other application still deduplicates</div>
+<table class="table table-sm small mb-0"><tbody>{% for e in dead_letters %}<tr><td>{{ e.created_at|date:"m-d H:i" }}</td><td>{{ e.event_type }}</td><td>{{ e.attempts }} tries</td><td>{{ e.last_error|truncatechars:60 }}</td>
+<td>{% if can_manage and conn.state != 'revoked' %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="event" value="{{ e.pk }}"><button class="btn btn-sm btn-outline-primary" name="op" value="requeue">Requeue</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<div class="row"><div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Events sent</strong>{% if queued_count %} <span class="badge bg-secondary">{{ queued_count }} queued</span>{% endif %}{% if conn.state == 'revoked' and cancelled_count %} <span class="badge bg-secondary">{{ cancelled_count }} cancelled by the revocation (kept)</span>{% endif %}</div>
 <table class="table table-sm small mb-0"><tbody>{% for e in deliveries %}<tr><td>{{ e.created_at|date:"m-d H:i" }}</td><td>{{ e.event_type }}</td><td>{{ e.get_status_display }}</td><td>{{ e.attempts }} tries</td><td>{{ e.last_error|truncatechars:40 }}</td></tr>{% empty %}<tr><td class="text-muted">None.</td></tr>{% endfor %}</tbody></table></div></div>
 <div class="col-md-6"><div class="card mb-3"><div class="card-header"><strong>Events received</strong></div>
 <table class="table table-sm small mb-0"><tbody>{% for e in inbound %}<tr><td>{{ e.received_at|date:"m-d H:i" }}</td><td>{{ e.event_type }}</td><td>{{ e.status }}</td></tr>{% empty %}<tr><td class="text-muted">None.</td></tr>{% endfor %}</tbody></table></div></div></div>

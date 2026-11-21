@@ -1320,6 +1320,9 @@ class ScheduledTask(models.Model):
         # Both do nothing unless AGIT8OR_CONNECT_ENABLED and a connection exists.
         ('connect_deliver_events', 'Connected Applications: Event Delivery'),
         ('connect_rotate_keys', 'Connected Applications: Key Rotation'),
+        # Health checks, automatic reconnection with backoff, ordered event
+        # queue drain (Quick Connect increment D). Does nothing unless Connect is on.
+        ('connect_monitor', 'Connected Applications: Health Monitor'),
         # Customer health score: nightly snapshot per client.
         ('compute_health_scores', 'Customer Health Score Snapshots'),
         # Pricing Advisor: nightly profitability facts and detectors (never changes prices).
@@ -1937,6 +1940,17 @@ class ScheduledTask(models.Model):
             'task_type': 'connect_deliver_events',
             'description': 'Deliver queued signed events to connected applications, retrying with '
                            'exponential backoff; give up into the failed list after 12 attempts',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless Agit8or Connect is on and a connection is
+            # active or being tested. Loops for at most 50 seconds per run so
+            # the 10 s / 30 s reconnection steps happen inside one minute.
+            'task_type': 'connect_monitor',
+            'description': 'Check connected applications (network, certificate, authentication, permissions), '
+                           'reconnect after outages with backoff from 10 seconds to 15 minutes, never after a '
+                           'security failure, and deliver queued events in order once a peer is back',
             'interval_minutes': 1,
             'enabled': True,
         },

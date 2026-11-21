@@ -33,6 +33,23 @@ def retesting(conn):
         _retest.pk = prev
 
 
+def diagnosing(conn) -> bool:
+    """True inside a diagnostics run for ``conn`` (connect/diagnostics.py):
+    a security failure is reported there, not acted on, because
+    diagnostics never change a connection (the monitor acts on it)."""
+    return conn is not None and getattr(_retest, 'diag', None) == str(getattr(conn, 'pk', conn))
+
+
+@contextlib.contextmanager
+def diagnostics_run(conn):
+    prev = getattr(_retest, 'diag', None)
+    _retest.diag = str(conn.pk)
+    try:
+        yield
+    finally:
+        _retest.diag = prev
+
+
 def usable_state(conn, state) -> bool:
     from .models import Connection
     return state == Connection.ACTIVE or (state in (Connection.SECURITY_BLOCKED, Connection.TESTING)
@@ -77,11 +94,24 @@ def get_token(conn, scopes=(), *, key_row=None, use_cache=True) -> dict:
     except ValueError:
         data = {}
     if r.status != 200 or data.get('token_type') != 'DPoP' or not data.get('access_token'):
-        code = data.get('error') if isinstance(data.get('error'), str) else f'http_{r.status}'
+        err = data.get('error')
+        if isinstance(err, dict) and isinstance(err.get('code'), str):   # v1 error body (source policy refusal)
+            err = err['code']
+        code = err if isinstance(err, str) and err else f'http_{r.status}'
         raise ConnectError(code[:40], str(data.get('error_description') or 'token request refused')[:200],
                            r.status or 502)
     granted = parse_scope_string(str(data.get('scope') or ''))
     if not scopes and sorted(granted) != sorted(conn.outbound_scopes or []):
+        from .models import Connection
+        missing = sorted(set(conn.outbound_scopes or []) - set(granted))
+        if missing and conn.state == Connection.ACTIVE:
+            # DESIGN §7.3 scope_withdrawn: a committed permission is gone. Never
+            # narrowed silently; Security Blocked until an administrator retests.
+            if not diagnosing(conn):
+                from . import destinations
+                destinations.security_block(conn, 'scope_withdrawn', {'missing_scopes': missing})
+            raise ConnectError('scope_withdrawn', 'the other application granted fewer permissions than were '
+                                                  'committed: ' + ', '.join(missing), 403)
         conn.outbound_scopes = granted
         conn.save(update_fields=['outbound_scopes', 'updated_at'])
     _cache[ck] = (data['access_token'], time.time() + int(data.get('expires_in') or 60), data.get('scope', ''))
@@ -100,7 +130,8 @@ def call(conn, method: str, url: str, *, tenant_org=None, body: Optional[bytes] 
     r = transport.for_connection(conn).request(method, url, headers=headers, body=body)
     from .models import Connection
     if 200 <= r.status < 300:
-        Connection.objects.filter(pk=conn.pk).update(last_success_at=timezone.now())
+        now = timezone.now()
+        Connection.objects.filter(pk=conn.pk).update(last_success_at=now, last_outbound_ok_at=now)
     return r
 
 

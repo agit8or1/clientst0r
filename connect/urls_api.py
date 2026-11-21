@@ -19,4 +19,5 @@ urlpatterns = [
     path('connect/v1/events', v.events_inbound, name='events'),
     # Protocol 1.1 (Quick Connect): 404 unless Quick Connect is also on.
     path('connect/v1/qc/exchange', v.qc_exchange, name='qc_exchange'),
+    path('connect/v1/qc/probe', v.qc_probe, name='qc_probe'),
 ]

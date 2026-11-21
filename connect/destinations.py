@@ -59,6 +59,22 @@ MESSAGES = {
                      'was sent. Confirm the new certificate with its administrator before changing the pin.',
     'certificate_name_mismatch': 'The certificate presented at {host} does not name that host (or IP address). '
                                  'Nothing was sent.',
+    'certificate_invalid': 'The other application\'s certificate is no longer valid (expired, not trusted, or '
+                           'issued for another name). Nothing was sent. Check it with its administrator, then '
+                           'retest.',
+    'blocked_destination': '{host} now resolves to an address Agit8or Connect never connects to. Nothing was sent.',
+    'identity_changed': 'The other application\'s address now leads to a different installation. Nothing was '
+                        'sent. Find out why with its administrator before retesting.',
+    'invalid_signature': 'A response from the other application had a signature that did not verify.',
+    'peer_revoked': 'The other application no longer accepts this connection (it was revoked or removed there). '
+                    'Check with its administrator; pair again if it was ended on purpose.',
+    'key_revoked': 'The other application refused this installation\'s key. Check with its administrator.',
+    'source_not_authorised': 'The other application refused this server\'s source address: this installation\'s '
+                             'egress may have changed. Update it under Network and ask the other administrator to '
+                             'approve it, then retest.',
+    'scope_withdrawn': 'The other application now grants fewer permissions than were committed ({missing}). '
+                       'Review the change with its administrator, then retest.',
+    'binding_mismatch': 'A request for this connection came from an address bound to another connection.',
     UNAPPROVED: 'No destination address is approved for this connection yet. Open the connection, check the '
                 'addresses its host name resolves to, and approve them.',
 }
@@ -132,6 +148,8 @@ class Preview:
     # dns_nxdomain, tcp_refused, tcp_timeout, tls_handshake,
     # certificate_invalid, certificate_name_mismatch.
     code: str = ''
+    # Certificate expiry (ISO 8601), for diagnostics step 5.
+    not_after: str = ''
 
 
 def host_port(url: str):
@@ -173,6 +191,8 @@ def probe(url: str, *, allow_private=False, ca_pem='', timeout=5.0) -> Preview:
         pv.spki = spki_sha256(der)
         from cryptography import x509
         cert = x509.load_der_x509_certificate(der)
+        expiry = getattr(cert, 'not_valid_after_utc', None) or cert.not_valid_after
+        pv.not_after = expiry.isoformat()
         try:
             san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
             pv.cert_names = [str(n) for n in san.get_values_for_type(x509.DNSName)] + \
@@ -230,31 +250,57 @@ def message(code, conn=None, evidence=None) -> str:
     ev = evidence or {}
     return MESSAGES.get(code, code).format(host=getattr(d, 'host', '') or ev.get('host', ''),
                                            seen=', '.join(ev.get('addresses', [])) or '?',
-                                           approved=', '.join(e['net'] for e in (d.addresses if d else [])) or '—')
+                                           approved=', '.join(e['net'] for e in (d.addresses if d else [])) or '—',
+                                           missing=', '.join(ev.get('missing_scopes', [])) or '?')
+
+
+EVIDENCE_KEYS = ('addresses', 'spki', 'host', 'cert_names', 'observed_installation', 'missing_scopes',
+                 'observed_source', 'route')
+
+
+def committed(conn) -> bool:
+    """The connection was active before (its destination was activated by
+    commit_connection); a new pairing under test is not."""
+    from .models import ApprovedDestination
+    return ApprovedDestination.objects.filter(connection_id=conn.pk, status=ApprovedDestination.ACTIVE).exists()
 
 
 def security_block(conn, code, evidence=None, user=None):
-    """Active (or suspended) -> security_blocked at once, evidence kept. No
-    automatic retry: nothing calls the peer while blocked."""
+    """Active, suspended, or a previously committed connection under retest
+    -> security_blocked at once, evidence kept (DESIGN.md §7.3). No
+    automatic retry: the monitor never selects it, nothing calls the peer
+    while blocked, and only an administrator's retest (through testing and
+    the commit gate) brings it back. Inside a diagnostics run nothing is
+    changed (diagnostics are read-only; the monitor finds it)."""
     from .models import ApprovedDestination, Connection
     from . import audit_log, client
-    ev = {k: v for k, v in (evidence or {}).items() if k in ('addresses', 'spki', 'host', 'cert_names')}
+    if client.diagnosing(conn):
+        return False
+    ev = {k: v for k, v in (evidence or {}).items() if k in EVIDENCE_KEYS}
     d = get(conn)
     if d is not None:
         ev.setdefault('host', d.host)
         ev['approved'] = [e['net'] for e in d.addresses]
         ev['destination_version'] = d.version
-        ApprovedDestination.objects.filter(pk=d.pk).update(observed={**ev, 'code': code,
-                                                                     'at': timezone.now().isoformat()})
-    blocked = Connection.objects.filter(pk=conn.pk, state__in=(Connection.ACTIVE, Connection.SUSPENDED)).update(
-        state=Connection.SECURITY_BLOCKED, security_block_code=code[:40], security_block_at=timezone.now(),
-        security_block_detail=ev, last_error=message(code, conn, ev)[:500], last_failure_at=timezone.now())
+    states = [Connection.ACTIVE, Connection.SUSPENDED]
+    if committed(conn):
+        states.append(Connection.TESTING)
+    now = timezone.now()
+    blocked = Connection.objects.filter(pk=conn.pk, state__in=states).update(
+        state=Connection.SECURITY_BLOCKED, security_block_code=code[:40], security_block_at=now,
+        security_block_detail=ev, last_error=message(code, conn, ev)[:500], last_failure_at=now,
+        next_check_at=None, circuit=Connection.CIRCUIT_CLOSED, retest_until=None)
     if blocked:
+        if d is not None:
+            ApprovedDestination.objects.filter(pk=d.pk).update(observed={**ev, 'code': code, 'at': now.isoformat()})
         conn.state = Connection.SECURITY_BLOCKED
+        conn.security_block_code = code[:40]
         client.clear_cache(conn)
         audit_log.record('connection.security_blocked', code, connection=conn, user=user,
                          app=conn.remote_installation_id, detail={k: v for k, v in ev.items()
                                                                   if k != 'cert_names'})
+        from . import alerts
+        alerts.observe(conn, code=code, user=user)
     return bool(blocked)
 
 
@@ -376,27 +422,8 @@ def reject(change, user):
 
 
 def retest(conn, user=None) -> bool:
-    """Security Blocked -> active only when an address was approved after the
-    block AND the connection test passes. The block evidence is kept."""
-    from .models import Connection
-    from . import audit_log, client, lifecycle
-    conn.refresh_from_db()
-    if conn.state != Connection.SECURITY_BLOCKED:
-        return False
-    d = get(conn)
-    since = int((conn.security_block_detail or {}).get('destination_version') or 0)
-    if d is None or d.version <= since:
-        return False
-    with client.retesting(conn):
-        report = lifecycle.test_connection(conn, user)
-    if not report['ok']:
-        audit_log.record('connection.retest', 'failed', connection=conn, user=user)
-        return False
-    Connection.objects.filter(pk=conn.pk, state=Connection.SECURITY_BLOCKED).update(
-        state=Connection.ACTIVE, last_error='')
-    conn.state = Connection.ACTIVE
-    audit_log.record('connection.unblocked', 'ok', connection=conn, user=user,
-                     detail={'block_code': conn.security_block_code, 'destination_version': d.version})
-    return True
-
-
+    """Security Blocked -> testing -> active only when an address was
+    approved after the block AND the commit-gate test passes (increment D:
+    through ``testing``, never straight to active). The evidence is kept."""
+    from . import health
+    return health.admin_retest(conn, user)

@@ -78,7 +78,7 @@ PAIRING_ROUTES = frozenset({'pairing_submit', 'pairing_status'})
 # Quick Connect exchange (PROTOCOL-1.1.md §5.6, §7.2): only the temporary
 # pairing rule of the attempt whose one-time code the request carries.
 QC_EXCHANGE_ROUTE = 'qc_exchange'
-TOKEN_ROUTES = frozenset({'capabilities', 'test', 'customers', 'customer_current'})
+TOKEN_ROUTES = frozenset({'capabilities', 'test', 'customers', 'customer_current', 'qc_probe'})
 
 
 class PolicyUnavailable(Exception):

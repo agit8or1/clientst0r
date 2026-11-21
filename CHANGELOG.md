@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.752] - 2026-11-21
+
+Agit8or Connect: connection health, automatic reconnection and diagnostics (Quick Connect increment D). These
+changes apply only where an administrator has enabled Agit8or Connect.
+
+### Added
+
+- **Connection health (roadmap 79.16)**
+  - **Statuses:** active connections show **Connected**, **Degraded** or **Offline**, alongside the setup and approval
+    statuses. **Connected** appears only when the connection is healthy.
+  - **When the status changes:** two failed checks make a connection Degraded, and three network failures make it
+    Offline.
+  - **Recovery:** a connection is Connected again after two passing checks.
+- **Automatic reconnection (79.17)**
+  - **Retry delays:** a new scheduled task, **Agit8or Connect Monitor**, retries after network problems at 10 s, 30 s,
+    1, 2, 5 and 10 minutes, then every 15 minutes, each about ±20%. Healthy connections are checked every minute.
+  - **After a restart** the monitor carries on where it left off.
+  - **Security problems never retry:** a certificate or key mismatch, identity change, invalid signature,
+    revocation, changed destination, unauthorised address or withdrawn scope moves the connection to **Security
+    Blocked**, with the evidence, until an administrator retests it.
+  - **Retest and resume:** both go through a full connection test before the connection is live again. Retest asks
+    for your password.
+  - **Connections waiting in Testing** are retested automatically for two hours.
+- **Event queue recovery (79.18)**
+  - **While a peer is offline,** its events wait instead of using up their retries.
+  - **On recovery** they are delivered oldest first.
+  - **Old events:** after 7 days (`AGIT8OR_CONNECT_EVENT_MAX_AGE_DAYS`) they move to the failed list, where they can be
+    requeued.
+- **Alerts (79.19, in part):** Degraded, Offline and Security Blocked raise an email, a system warning and a bell
+  notification. You get at most one per connection and status every 30 minutes, then a single recovery notice. They
+  never carry tokens, keys or customer data.
+- **Diagnostics (79.20, in part)**
+  - **What it checks:** **Run diagnostics** checks fifteen steps, from DNS, destination, TCP, TLS and certificate
+    expiry through discovery, identity, source address, token and clock, permissions, customer mapping, a test call,
+    a signed test event and reverse reachability. Each step has a result and a next step.
+  - **What it never does:** it never changes the connection or sends customer data.
+  - **Limits:** it needs **Manage connected applications** and allows 6 runs per 10 minutes per connection.
+  - **Peer probe:** the Quick Connect diagnostics probe is served when Quick Connect is on.
+
+### Changed
+
+- **Missing permissions:** a connection whose committed permissions are no longer granted is now blocked instead of
+  silently narrowed.
+
+### Notes
+
+- **New migrations:** `connect.0006_d_health_monitor` and `core.0120_scheduledtask_connect_monitor`.
+- **Compatibility:** version 1 messages and test vectors are unchanged. Active connections, including the Rem0te
+  link, reconnect after network failures and stay blocked after security failures.
+
 ## [3.17.751] - 2026-11-21
 
 Time & Charges, Add Item and the billing summary on tickets. Phase 101 is complete.

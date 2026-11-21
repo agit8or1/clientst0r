@@ -342,6 +342,12 @@ Receiver rules:
 Sender rules: a durable queue; exponential backoff with jitter (30 s base, 1 h cap); dead letter after 12
 attempts; nothing is sent while suspended or while the kill switch is on.
 
+These are local sender rules and never appear on the wire. Clientst0r's revision (editorial, no version change):
+only attempts that reached the receiver count towards the 12; while the receiver is unreachable (connection
+Offline, circuit open) events wait without spending attempts; events also become dead letters by age (default 7
+days); the queue drains in creation order once the receiver is back; an administrator can requeue a dead letter
+with its original `id`, which the receiver still deduplicates.
+
 ## 10. Health and test
 
 - `GET {health}`: unauthenticated `{status, protocol, installation_id, time}`. With a DPoP token it also returns the connection state.

@@ -217,3 +217,34 @@ def qc_exchange(request):
     if not isinstance(token, str) or not token:
         raise ConnectError('invalid_request', 'exchange must be a compact JWS')
     return _json(202, quick_connect.receive_exchange(request, token, request.headers.get('DPoP', '')))
+
+
+@endpoint(['POST'])
+def qc_probe(request):
+    """qc-diagnostics/1 (PROTOCOL-1.1.md §8): the caller's address as this
+    installation sees it, for the other side's diagnostics. Served (and
+    advertised in discovery) only while Quick Connect is on. A v1 DPoP
+    access token of the connection, any granted scope; a connection in
+    testing may call it (it is part of the connection test). The source
+    layer already admitted the request, and authenticate() binds it to the
+    connection whose rules matched. Information only: nothing is recorded
+    or allowed because of a probe."""
+    from agit8or_connect import quick_connect as qc
+    from django.utils import timezone
+    from . import quick_connect
+    if not quick_connect.available():
+        raise Http404
+    a = auth.authenticate(request, testing_ok=True)
+    data = _body(request)
+    nonce = data.get('nonce')
+    if nonce is not None and (not isinstance(nonce, str) or not 16 <= len(nonce) <= 128 or
+                              not all(c.isalnum() or c in '-_' for c in nonce)):
+        raise ConnectError('invalid_request', 'nonce malformed')
+    src = getattr(request, 'connect_source', None)
+    ip = getattr(src, 'ip', None) or ratelimit.client_ip(request)
+    check = 'ok' if src is not None and str(a.connection.pk) in src.matched else 'not_enforced'
+    reached = a.connection.last_outbound_ok_at
+    import time
+    return _json(200, qc.build_probe_response(
+        observed_source=str(ip), server_time=int(time.time()), connection_state=a.connection.state,
+        source_check=check, peer_reached_at=int(reached.timestamp()) if reached else None, nonce=nonce))

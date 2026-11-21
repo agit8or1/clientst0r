@@ -34,24 +34,44 @@ def retire_keys(conn):
 
 def suspend(conn, user=None, reason='manual'):
     from .models import Connection
-    if conn.state not in (Connection.ACTIVE,):
+    from . import destinations
+    if conn.state not in (Connection.ACTIVE,) and not (conn.state == Connection.TESTING and
+                                                       destinations.committed(conn)):
         return conn
     conn.state, conn.suspended_reason, conn.tokens_not_before = Connection.SUSPENDED, reason[:40], timezone.now()
+    conn.next_check_at, conn.retest_until = None, None
     conn.save()
     client.clear_cache(conn)
     audit_log.record('connection.suspended', 'ok', connection=conn, user=user, detail={'reason': reason})
+    from . import alerts
+    alerts.observe(conn, code=reason, user=user)
     return conn
 
 
 def resume(conn, user=None):
+    """Suspended -> testing -> active only through the commit gate (DESIGN
+    §4.1, increment D): the connection test runs now; if the other
+    application cannot be reached yet it stays in testing and the monitor
+    retests it with backoff. Returns the connection."""
     from .models import Connection
+    from . import activation, health
     if conn.state != Connection.SUSPENDED:
         return conn
     if identity.kill_switch_engaged():
         raise ConnectError('kill_switch', 'release the kill switch first', 409)
-    conn.state, conn.suspended_reason = Connection.ACTIVE, ''
-    conn.save()
-    audit_log.record('connection.resumed', 'ok', connection=conn, user=user)
+    now = timezone.now()
+    if not Connection.objects.filter(pk=conn.pk, state=Connection.SUSPENDED).update(
+            state=Connection.TESTING, suspended_reason='', updated_at=now):
+        conn.refresh_from_db()
+        return conn
+    health.arm_retests(conn.pk, now)
+    conn.refresh_from_db()
+    audit_log.record('connection.resumed', 'testing', connection=conn, user=user)
+    try:
+        activation.run_commit_test(conn, user)
+    except activation.ActivationRefused:
+        pass
+    conn.refresh_from_db()
     return conn
 
 
@@ -69,9 +89,12 @@ def revoke(conn, user=None, reason='revoked'):
         retire_keys(conn)
         from . import source_policy
         source_policy.remove_connection_rules(conn, reason)
+        Connection.objects.filter(pk=conn.pk).update(next_check_at=None, retest_until=None)
     client.clear_cache(conn)
     audit_log.record('connection.revoked', 'ok', connection=conn, user=user, app=conn.remote_installation_id,
                      detail={'reason': reason})
+    from . import alerts
+    alerts.observe(conn, code=reason, user=user)
     return conn
 
 
@@ -82,7 +105,7 @@ def disconnect(conn, user=None):
     if conn.state == Connection.ACTIVE and not identity.kill_switch_engaged():
         try:
             ev = events.enqueue(conn, 'connect.connection.revoked', {'reason': 'disconnected'})
-            notified = events.deliver(ev)
+            notified = events.deliver(ev, force=True)
         except ConnectError:
             notified = False
     revoke(conn, user, reason='disconnected')
@@ -112,10 +135,14 @@ def engage_kill_switch(user=None) -> int:
         n += 1
     # A connection under test keeps no test window open (C3): its approval
     # stays, the window re-opens on a retest after the release.
-    from . import activation
+    from . import activation, destinations
     for conn in Connection.objects.filter(state=Connection.TESTING):
-        activation.back_to_awaiting_network(conn, 'kill_switch', user,
-                                            message=activation.FRIENDLY['kill_switch'])
+        if destinations.committed(conn):
+            suspend(conn, user, reason='kill_switch')     # a resumed / retested connection
+            n += 1
+        else:
+            activation.back_to_awaiting_network(conn, 'kill_switch', user,
+                                                message=activation.FRIENDLY['kill_switch'])
     client.clear_cache()
     audit_log.record('kill_switch.engaged', 'ok', user=user, detail={'suspended': n})
     return n
@@ -264,6 +291,11 @@ def _source_check(conn, check, peer_refused):
                                           purpose__in=(SR.ALL, SR.DISCOVERY))
              if not r.expires_at or r.expires_at > now]
     if not rules:
+        compiled = source_policy.current()
+        if compiled.observing() and str(conn.pk) in compiled.observe_connections:
+            check('Source address', True, 'Observe period: this connection existed before source rules; its '
+                  'sources are recorded under Network until enforcement starts.', id='source')
+            return
         check('Source address', False, 'No approved address of the other application is allowed here for this '
                                        'connection.', id='source', code='source_not_authorised_here',
               next_action='Approve the other application\'s address for this connection.')
@@ -399,9 +431,13 @@ def test_connection(conn, user=None, *, full=False) -> dict:
         if not one_way:
             try:
                 ev = events.enqueue(conn, 'connect.test', {'requested_by': 'connection test'})
-                ok = events.deliver(ev)
+                ok = events.deliver(ev, force=True)
+                if not ok and full and ev.status == ev.QUEUED:
+                    # A retest sends its own test event; this one is not kept for retry.
+                    type(ev).objects.filter(pk=ev.pk).update(status=ev.CANCELLED)
                 check('Event delivery and webhook signature', ok, 'A signed test event was accepted.' if ok else
-                      f'The test event was not accepted ({ev.last_error or "no answer"}); it stays queued for retry.',
+                      f'The test event was not accepted ({ev.last_error or "no answer"})' +
+                      ('.' if full else '; it stays queued for retry.'),
                       id='event', code='event_rejected')
             except ConnectError as e:
                 check('Event delivery and webhook signature', False, e.message, id='event', code=e.code)

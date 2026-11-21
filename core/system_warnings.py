@@ -66,6 +66,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_audit_chain())
     warnings.extend(_warnings_from_offhost_backup())
     warnings.extend(_warnings_from_prepaid_balances())
+    warnings.extend(_warnings_from_connect())
 
     # Filter by min severity, then sort.
     filtered = [w for w in warnings if SEVERITY_RANK.get(w['severity'], 9) <= threshold]
@@ -427,6 +428,16 @@ def worst_severity(warnings):
         if best is None or rank < best[0]:
             best = (rank, w['severity'])
     return best[1] if best else None
+
+
+def _warnings_from_connect():
+    """Connected applications that are Security Blocked, Offline or
+    Degraded (Agit8or Connect; silent while Connect is off)."""
+    try:
+        from connect.alerts import system_warnings
+        return system_warnings()
+    except Exception:
+        return []
 
 
 def _warnings_from_api_access():

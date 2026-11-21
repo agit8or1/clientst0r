@@ -421,7 +421,7 @@ class V1CodeFlow(ConnectTestCase):
         r = self.peer.call(pconn.id, 'GET', f'{CS_BASE}/connect/v1/customers/current', tenant='cust-1')
         self.assertEqual(json.loads(r.body)['name'], 'Acme Customer')
         lifecycle.suspend(conn, self.admin)
-        lifecycle.resume(conn, self.admin)       # unchanged in C3 (the monitor increment D adds the retest)
+        lifecycle.resume(conn, self.admin)       # D: through testing and the commit gate, which passes here
         conn.refresh_from_db()
         self.assertEqual(conn.state, Connection.ACTIVE)
         # Tokens issued in the same second as the suspension stay refused

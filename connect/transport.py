@@ -64,6 +64,7 @@ class _Watched:
             return self.inner.request(method, url, headers=headers, body=body)
         except ConnectError as e:
             if e.code in destinations.SECURITY_CODES:
+                # A no-op inside a diagnostics run (read-only); the monitor acts.
                 destinations.security_block(self.connection, e.code, getattr(e, 'evidence', None))
             raise
 

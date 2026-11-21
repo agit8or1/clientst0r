@@ -372,7 +372,8 @@ class Webhooks(ConnectTestCase):
         self.net.down.add('https://rmm.test:443')
         self.assertEqual(events.deliver_due()['retry'], 1)
         ev.refresh_from_db()
-        self.assertEqual((ev.status, ev.attempts), (OutboundEvent.QUEUED, 1))
+        # Increment D (QC-06): an attempt that never reached the peer is not counted.
+        self.assertEqual((ev.status, ev.attempts), (OutboundEvent.QUEUED, 0))
         self.assertGreater(ev.next_attempt_at.timestamp(), time.time())
         self.net.down.clear()
         OutboundEvent.objects.filter(pk=ev.pk).update(next_attempt_at=ev.created_at)
@@ -382,10 +383,13 @@ class Webhooks(ConnectTestCase):
                          ['alert.raised'])
 
     def test_dead_letter_after_max_attempts(self):
+        from agit8or_connect.http import Response
         from connect import events
         from connect.models import OutboundEvent
         ev = events.enqueue(self.conn, 'alert.raised', {}, grant=self.conn.tenant_grants.get())
-        self.net.down.add('https://rmm.test:443')
+        # Twelve attempts that REACHED the peer (it answers 503) dead-letter the
+        # event; a peer that cannot be reached at all never uses them up (D).
+        self.net.register('https://rmm.test', lambda m, u, h, b: Response(503, {}, b'{}'))
         OutboundEvent.objects.filter(pk=ev.pk).update(attempts=webhooks.MAX_ATTEMPTS - 1)
         events.deliver_due()
         ev.refresh_from_db()

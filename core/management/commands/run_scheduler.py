@@ -77,6 +77,7 @@ COMMAND_TASKS = {
     'run_autopay': ('run_autopay', []),
     'connect_deliver_events': ('connect_deliver_events', []),
     'connect_rotate_keys': ('connect_rotate_keys', []),
+    'connect_monitor': ('connect_monitor', []),
     'compute_health_scores': ('compute_health_scores', []),
     'psa_ticket_reminders': ('psa_ticket_reminders', []),
     # Phase 94.3 / SR-17: does nothing until set up in Settings -> Off-host Backups.

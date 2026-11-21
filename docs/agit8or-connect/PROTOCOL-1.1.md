@@ -2,8 +2,8 @@
 
 Status: **draft.** Clientst0r implements `qc-bootstrap/1` and `qc-source-binding/1` in both roles (increment C2 of
 [`docs/plans/quick-connect/INCREMENTS.md`](../plans/quick-connect/INCREMENTS.md), `connect/quick_connect.py`), off by
-default behind `AGIT8OR_CONNECT_ENABLED` and the installation's Quick Connect switch. It does not serve
-`qc-diagnostics/1` (`qc_probe`) yet and does not advertise it. The reference SDKs implement
+default behind `AGIT8OR_CONNECT_ENABLED` and the installation's Quick Connect switch, and serves and advertises
+`qc-diagnostics/1` (`qc_probe`) under the same switch since increment D. The reference SDKs implement
 every message: `agit8or_connect/quick_connect.py` (Python) and the "Protocol revision 1.1" section of
 `sdk/typescript/agit8or-connect/src/index.ts`. Byte-exact examples: `test-vectors/qc-*.json`. HTTP surface:
 the `1.1` tag in [`openapi.yaml`](openapi.yaml).

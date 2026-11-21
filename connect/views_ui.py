@@ -6,7 +6,8 @@ Administration → Integrations → Connected Applications.
   invite           inbound: invitation code + QR for the other app to enter
   request_review   inbound: compare the code, approve permissions, select customers
   detail           status, approve (outbound), customers, test, keys, activity,
-                   rotate, suspend / resume, disconnect, revoke, Network section
+                   rotate, suspend / resume (through testing), disconnect, revoke,
+                   health and diagnostics, failed events (requeue), Network section
                    (this connection's source rules, observed sources, refusals);
                    network authorization (approve the other application's
                    address), the commit-gate test, staged permission changes (C3)
@@ -81,7 +82,10 @@ def _orgs(request):
 @page()
 def index(request):
     from .models import Connection, PairingInvitation, PairingRequest
-    conns = Connection.objects.exclude(state=Connection.FAILED).order_by('remote_display_name')
+    from . import status
+    conns = list(Connection.objects.exclude(state=Connection.FAILED).order_by('remote_display_name'))
+    for c in conns:
+        c.display = status.display(c)
     return render(request, 'connect/index.html', _ctx(
         request, applications=catalog.APPLICATIONS, connections=conns,
         failed=Connection.objects.filter(state=Connection.FAILED)[:10],
@@ -301,8 +305,24 @@ def detail(request, pk):
         step={Connection.AWAITING_REMOTE: 3, Connection.AWAITING_LOCAL: 4, Connection.AWAITING_SECOND: 4,
               Connection.AWAITING_NETWORK: 6, Connection.TESTING: 7,
               Connection.ACTIVE: 8}.get(conn.state, 0), **_network_ctx(conn), **_destination_ctx(conn),
-        **_activation_ctx(conn))
+        **_activation_ctx(conn), **_health_ctx(conn))
     return render(request, 'connect/detail.html', ctx)
+
+
+def _health_ctx(conn):
+    """Displayed status, health dimensions, schedule and diagnostics (D)."""
+    from .models import OutboundEvent
+    from . import health, status
+    runs = list(conn.diagnostic_runs.all()[:2])
+    dims = conn.health_dims or {}
+    return {'display': status.display(conn),
+            'dims': [{'id': d, 'label': {'transport': 'Network', 'tls': 'TLS and certificate',
+                                         'authenticated': 'Authentication', 'authorised': 'Authorisation',
+                                         'operational': 'Events'}[d], **(dims.get(d) or {})} for d in health.DIMS],
+            'diag_latest': runs[0] if runs else None, 'diag_previous': runs[1] if len(runs) > 1 else None,
+            'dead_letters': conn.outbound_events.filter(status=OutboundEvent.DEAD).order_by('-next_attempt_at')[:20],
+            'queued_count': conn.outbound_events.filter(status=OutboundEvent.QUEUED).count(),
+            'cancelled_count': conn.outbound_events.filter(status=OutboundEvent.CANCELLED).count()}
 
 
 def _activation_ctx(conn):
@@ -385,11 +405,40 @@ def _detail_post(request, conn):
             (messages.success if report['ok'] else messages.warning)(
                 request, 'All checks passed.' if report['ok'] else 'Some checks failed — see the report below.')
         elif op == 'retest':
+            from tech_access.protected import has_fresh_auth
             from . import destinations
+            try:
+                _reauth(request)
+            except _Refused as e:
+                messages.error(request, str(e))
+                return back
+            if not has_fresh_auth(request):
+                messages.error(request, 'Re-enter your password to retest a Security Blocked connection.')
+                return back
             ok = destinations.retest(conn, request.user)
+            conn.refresh_from_db()
             (messages.success if ok else messages.warning)(
                 request, 'Retest passed; the connection is active again.' if ok else
-                'Still blocked: approve the new address first, and every check must pass.')
+                ('Still testing: the connection becomes active only when every check passes; it is retested '
+                 'automatically for a while.' if conn.state == conn.TESTING else
+                 'Still blocked: approve the new address first (for an address or certificate change), and every '
+                 'check must pass.'))
+        elif op == 'diagnose':
+            from . import diagnostics
+            try:
+                row = diagnostics.run(conn, request.user)
+            except diagnostics.DiagnosticsRefused as e:
+                messages.error(request, e.message)
+                return back
+            (messages.success if row.result == 'pass' else messages.warning)(
+                request, 'Diagnostics passed.' if row.result == 'pass' else
+                'Diagnostics found a problem — see the steps below.')
+        elif op == 'requeue':
+            from .models import OutboundEvent
+            from . import events
+            ev = get_object_or_404(OutboundEvent, pk=request.POST.get('event'), connection=conn)
+            events.requeue(ev, request.user)
+            messages.info(request, 'Requeued with the same event id; it is delivered in order with the rest.')
         elif op == 'rotate':
             ok = lifecycle.rotate(conn, request.user)
             (messages.success if ok else messages.warning)(
@@ -400,7 +449,12 @@ def _detail_post(request, conn):
             messages.info(request, 'Suspended. Nothing is exchanged until you resume it.')
         elif op == 'resume':
             lifecycle.resume(conn, request.user)
-            messages.success(request, 'Resumed.')
+            conn.refresh_from_db()
+            if conn.state == conn.ACTIVE:
+                messages.success(request, 'Resumed: every check passed and the connection is active again.')
+            else:
+                messages.warning(request, 'Resuming: the connection test has not passed yet, so it stays in '
+                                          'Testing and is retested automatically. See the last test below.')
         elif op == 'disconnect':
             notified = lifecycle.disconnect(conn, request.user)
             messages.info(request, 'Disconnected. Customer records and history are kept.' +

@@ -307,6 +307,8 @@ def maybe_start_testing(conn, user=None) -> bool:
         Connection.objects.filter(pk=conn.pk).update(state=Connection.TESTING, last_error='',
                                                      updated_at=timezone.now())
         source_policy._bump()
+        from . import health
+        health.arm_retests(conn.pk)    # the monitor retests while the other side finishes (D)
     conn.state, conn.last_error = Connection.TESTING, ''
     audit_log.record('connection.testing', 'ok', connection=conn, user=user, app=conn.remote_installation_id,
                      detail={'test_rules': n, 'until': until.isoformat()})
@@ -390,6 +392,25 @@ def _after_failure(conn, report, user):
     text = f'Connection test failed at "{first["name"]}": {first["message"]}'
     if first.get('next_action'):
         text += ' ' + first['next_action']
+    from . import destinations, health
+    if destinations.committed(conn):
+        # A connection that was active before (resume, retest after a block):
+        # a security failure blocks it again with new evidence; anything else
+        # keeps it in testing and the monitor retests with backoff. Its
+        # committed rules stay as they are (nothing re-opened, nothing removed).
+        def security_code(c):
+            code = c.get('code') or ''
+            if c.get('id') == 'token' and code in health.PEER_REVOKED_CODES:
+                return 'peer_revoked'
+            return code if (code in IDENTITY_CODES or health.classify(code) == 'security') else ''
+        sec = next((security_code(c) for c in failed if security_code(c)), '')
+        if sec:
+            destinations.security_block(conn, sec, {}, user=user)
+            return
+        from .models import Connection
+        Connection.objects.filter(pk=conn.pk).update(last_error=text[:500], last_failure_at=timezone.now())
+        conn.last_error = text[:500]
+        return
     if first.get('code') in IDENTITY_CODES:
         from . import quick_connect
         quick_connect.rollback_attempt(conn, 'identity_changed', user)
@@ -427,13 +448,19 @@ def commit_connection(conn, run_id: str, user=None):
                                                                             applied_at=now)
         removed = SR.objects.filter(connection=locked, status=SR.TEMPORARY, purpose__in=(SR.PAIRING, SR.POLL)
                                     ).update(status=SR.REMOVED, removed_at=now)
+        first_commit = not destinations.committed(locked)
         destinations.activate(locked)
         locked.state, locked.last_error = Connection.ACTIVE, ''
-        locked.next_rotation_at = now + timedelta(days=locked.rotation_interval_days or 90)
+        if first_commit or not locked.next_rotation_at:
+            locked.next_rotation_at = now + timedelta(days=locked.rotation_interval_days or 90)
+        from . import health
+        health.on_commit_fields(locked, now)      # Connected; first health check one interval out (D)
         locked.save()
         source_policy._bump()
     conn.refresh_from_db()
     client.clear_cache(conn)
+    from . import alerts
+    alerts.observe(conn, user=user)
     audit_log.record('connection.committed', 'ok', connection=conn, user=user, app=conn.remote_installation_id,
                      scopes=conn.inbound_scopes,
                      detail={'run_id': run_id, 'sources': activated, 'pairing_rules_removed': removed,

@@ -535,13 +535,16 @@ class OffSwitchesAndFallback(QcTestCase):
         doc = identity.document()
         self.assertNotIn('extensions', doc)
         self.assertNotIn('qc_exchange', doc['endpoints'])
+        self.assertNotIn('qc_probe', doc['endpoints'])
 
     def test_discovery_advertises_only_what_is_served(self):
         from connect import identity
         doc = identity.document()
         self.assertEqual(doc['versions'], ['1'])
-        self.assertEqual(doc['extensions'], {'qc-bootstrap': 1, 'qc-source-binding': 1})
+        # Increment D serves the qc-diagnostics probe, so it is advertised too.
+        self.assertEqual(doc['extensions'], {'qc-bootstrap': 1, 'qc-diagnostics': 1, 'qc-source-binding': 1})
         self.assertEqual(doc['endpoints']['qc_authorize'], CS_BASE + AUTHORIZE)
+        self.assertEqual(doc['endpoints']['qc_probe'], CS_BASE + qc.PROBE_PATH)
         self.assertEqual(qc.pairing_flow(qc.negotiate_extensions(
             qc.advertised_extensions(doc, CS_BASE + sdk_discovery.WELL_KNOWN))), qc.BOOTSTRAP_ID)
 

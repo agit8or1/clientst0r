@@ -1,16 +1,21 @@
 """Deliver queued Agit8or Connect events (scheduled task connect_deliver_events).
 
+Kept for compatibility: the connect_monitor task (increment D) runs the same
+ordered drain and upkeep every minute, and this command still works on its
+own. Both claim each event with a compare-and-set, so running both never
+sends an event twice in one pass.
+
     manage.py connect_deliver_events [--limit N]
 """
 from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = ('Deliver queued signed events to connected applications (retry with backoff, dead letter) and '
-            'summarise unauthenticated refusals into the audit chain')
+    help = ('Deliver queued signed events to connected applications in order (dead letter by age or permanent '
+            'refusal) and summarise unauthenticated refusals into the audit chain')
 
     def add_arguments(self, parser):
-        parser.add_argument('--limit', type=int, default=100)
+        parser.add_argument('--limit', type=int, default=50)
 
     def handle(self, *args, **opts):
         from connect import events, identity
@@ -20,7 +25,8 @@ class Command(BaseCommand):
         c = events.deliver_due(limit=opts['limit'])
         self.stdout.write(f"delivered {c['delivered']}, retry later {c['retry']}, dead letter {c['dead']}")
         from connect import quick_connect
-        reaped = quick_connect.reap()   # Quick Connect attempts past their deadline (moves to the monitor in D)
+        events.expire_aged()
+        reaped = quick_connect.reap()   # Quick Connect attempts past their deadline (also in connect_monitor)
         if reaped:
             self.stdout.write(f'rolled back {reaped} expired Quick Connect attempt(s)')
         from connect import denials

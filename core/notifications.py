@@ -16,6 +16,8 @@ so a number never points at a page the user cannot open:
   on tickets they can still open; listed on My Work);
 * unread contract notifications (contracts.views.dashboard: MSP staff with
   contracts_view; only contracts the user may see);
+* connected applications that are Security Blocked, Offline or Degraded
+  (connect.alerts.bell_count: Connect on, view_app_connections);
 * a newer release found by the scheduled update check (superusers).
 
 Counts are cached per user and customer for a minute, so a page costs one
@@ -98,6 +100,11 @@ def _ticket_reminders(user, ctx):
     return reminders_for(user, _scoped_ticket_qs(request)).filter(fired_at__isnull=False).count()
 
 
+def _connected_apps(user, ctx):
+    from connect.alerts import bell_count
+    return bell_count(user, ctx)
+
+
 # key, label, icon, url name, counter
 SOURCES = (
     ('psa_approvals', _('Approvals waiting for a decision'), 'fa-circle-check', 'psa:approval_list',
@@ -107,6 +114,8 @@ SOURCES = (
     ('secure_notes', _('Unread secure notes'), 'fa-lock', 'core:secure_note_inbox', _secure_notes),
     ('ticket_reminders', _('Ticket reminders due'), 'fa-clock', 'psa:my_work', _ticket_reminders),
     ('contracts', _('Contract notifications'), 'fa-file-signature', 'contracts:dashboard', _contracts),
+    ('connected_apps', _('Connected applications needing attention'), 'fa-link', 'connect:index',
+     _connected_apps),
 )
 
 

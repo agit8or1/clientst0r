@@ -1,0 +1,19 @@
+{% comment %}Health, schedule and diagnostics of one connection (Quick Connect increment D). Sanitised data only: no token, key, assertion or signature is ever stored in these fields.{% endcomment %}
+{% if conn.state == 'active' or conn.state == 'testing' or conn.state == 'security_blocked' or conn.state == 'suspended' %}
+<div class="card mb-3" data-connect-health><div class="card-header"><strong>Health</strong> — {{ display.label }}</div><div class="card-body small">
+{% if conn.state == 'active' %}
+<div class="d-flex flex-wrap gap-3 mb-2">{% for d in dims %}<span data-connect-dim="{{ d.id }}">{% if d.ok %}<i class="fas fa-check text-success"></i>{% elif d.ok is False %}<i class="fas fa-xmark text-danger"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %} {{ d.label }}{% if d.code %} <code>{{ d.code }}</code>{% endif %}</span>{% endfor %}</div>
+<div>Last check: {{ conn.last_check_at|date:"Y-m-d H:i:s"|default:"not yet" }} · next check: {{ conn.next_check_at|date:"Y-m-d H:i:s"|default:"—" }}{% if conn.consecutive_fail %} · {{ conn.consecutive_fail }} failure(s) in a row, retry step {{ conn.retry_step }}{% endif %} · circuit {{ conn.get_circuit_display|lower }}</div>
+{% if display.key == 'offline' %}<div class="text-muted">The other application cannot be reached. Clientst0r retries with increasing waits (10 seconds up to every 15 minutes); events wait and are delivered in order when it is back.</div>{% endif %}
+{% elif conn.state == 'testing' %}
+<div>Becomes active only when every check passes.{% if conn.retest_until and conn.next_check_at %} Retested automatically until {{ conn.retest_until|date:"H:i" }} (next {{ conn.next_check_at|date:"H:i:s" }}).{% else %} Run the connection test again when the other side is ready.{% endif %}</div>
+{% elif conn.state == 'security_blocked' %}
+<div data-connect-block-evidence>Blocked {{ conn.security_block_at|date:"Y-m-d H:i" }} — <code>{{ conn.security_block_code }}</code>. It never reconnects by itself: confirm the change with the other administrator{% if conn.security_block_code == 'destination_changed' or conn.security_block_code == 'spki_mismatch' or conn.security_block_code == 'certificate_name_mismatch' %}, approve the new address or certificate under Network{% endif %}, then retest (the connection test must pass before it is active again).</div>
+{% if conn.security_block_detail %}<div class="text-muted">Evidence: {% for k, v in conn.security_block_detail.items %}{{ k }}={{ v }}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+{% elif conn.state == 'suspended' %}
+<div>Suspended{% if conn.suspended_reason %} ({{ conn.suspended_reason }}){% endif %}: no checks and no calls. Resume runs the connection test first.</div>
+{% endif %}
+</div></div>
+{% endif %}
+{% if diag_latest %}<div class="card mb-3" data-connect-diagnostics><div class="card-header"><strong>Diagnostics</strong> {{ diag_latest.started_at|date:"Y-m-d H:i:s" }} — {% if diag_latest.result == 'pass' %}<span class="text-success">passed</span>{% else %}<span class="text-danger">problem found</span>{% endif %}{% if diag_previous %} <span class="small text-muted">(previous run {{ diag_previous.started_at|date:"Y-m-d H:i" }}: {{ diag_previous.result }})</span>{% endif %}</div>
+<ul class="list-group list-group-flush small">{% for c in diag_latest.steps %}<li class="list-group-item" data-diag-step="{{ c.id }}" data-status="{{ c.status }}">{% if c.status == 'skipped' or c.status == 'not_tested' %}<i class="fas fa-minus text-muted"></i>{% elif c.status == 'pass' %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-xmark text-danger"></i>{% endif %} {{ c.n }}. <strong>{{ c.name }}</strong> — {{ c.explanation }}{% if c.code %} <code>{{ c.code }}</code>{% endif %}{% if c.next_action %}<div class="text-muted">{{ c.next_action }}</div>{% endif %}</li>{% endfor %}</ul></div>{% endif %}

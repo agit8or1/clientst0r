@@ -296,7 +296,12 @@ class SecurityBlocked(ConnectTestCase):
         ch = destinations.propose_change(self.conn, ['93.184.216.77'], self.admin)
         self.assertFalse(ch.widening)
         self.assertIsNone(destinations.approve(ch, _Req(self.admin)))
-        self.assertTrue(destinations.retest(self.conn, self.admin))
+        # D: the retest is the full commit-gate test (DNS included), so the
+        # name now resolves to the approved new address.
+        host = destinations.host_port(self.conn.base_url)
+        with mock.patch('connect.transport.probe', lambda url, **kw: destinations.Preview(
+                host=host[0], port=host[1], addresses=['93.184.216.77'], cert_names=[host[0]])):
+            self.assertTrue(destinations.retest(self.conn, self.admin))
         self.conn.refresh_from_db()
         self.assertEqual(self.conn.state, Connection.ACTIVE)
         self.assertEqual(self.conn.security_block_code, 'destination_changed')   # evidence kept

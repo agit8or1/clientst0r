@@ -148,6 +148,35 @@ class Connection(models.Model):
     security_block_at = models.DateTimeField(null=True, blank=True)
     security_block_detail = models.JSONField(default=dict, blank=True)
 
+    # Health while active and the monitor's durable schedule (Quick Connect
+    # increment D; DESIGN.md §2.1, §4.2, §8). One displayed status comes from
+    # connect.status.display(); these fields only feed it.
+    HEALTH_CONNECTED, HEALTH_DEGRADED, HEALTH_OFFLINE = 'connected', 'degraded', 'offline'
+    CIRCUIT_CLOSED, CIRCUIT_OPEN, CIRCUIT_HALF_OPEN = 'closed', 'open', 'half_open'
+    health = models.CharField(max_length=10, blank=True, choices=[
+        (HEALTH_CONNECTED, 'Connected'), (HEALTH_DEGRADED, 'Degraded'), (HEALTH_OFFLINE, 'Offline')])
+    health_dims = models.JSONField(default=dict, blank=True,
+                                   help_text='{transport, tls, authenticated, authorised, operational} -> '
+                                             '{ok, since, last_ok, last_fail, code}')
+    consecutive_ok = models.PositiveSmallIntegerField(default=0)
+    consecutive_fail = models.PositiveSmallIntegerField(default=0)
+    next_check_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_check_at = models.DateTimeField(null=True, blank=True)
+    retry_step = models.PositiveSmallIntegerField(default=0, help_text='Index into the backoff ladder.')
+    circuit = models.CharField(max_length=10, default=CIRCUIT_CLOSED, choices=[
+        (CIRCUIT_CLOSED, 'Closed'), (CIRCUIT_OPEN, 'Open'), (CIRCUIT_HALF_OPEN, 'Half open')])
+    monitor_interval_s = models.PositiveSmallIntegerField(default=60)
+    # A connection in testing is retested automatically until this time
+    # (the other side may not have finished its own approval yet).
+    retest_until = models.DateTimeField(null=True, blank=True)
+    # Last authorised call this installation completed TO the other
+    # application (qc_probe peer_reached_at, diagnostics step 15).
+    last_outbound_ok_at = models.DateTimeField(null=True, blank=True)
+    # Last displayed status seen (connect.status.display key), and the
+    # problem status an alert was sent for (cleared by the recovery notice).
+    status_key = models.CharField(max_length=30, blank=True)
+    alerted_status = models.CharField(max_length=30, blank=True)
+
     # Rotation.
     rotation_interval_days = models.PositiveIntegerField(default=90)
     rotation_overlap_hours = models.PositiveIntegerField(default=24)
@@ -346,6 +375,9 @@ class OutboundEvent(models.Model):
     last_error = models.CharField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
+    # Requeued from the failed list by an administrator (same id, so the
+    # receiver still deduplicates); the age limit counts from here.
+    requeued_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'connect_outbound_events'
@@ -686,3 +718,30 @@ class QuickConnectGrant(models.Model):
     class Meta:
         db_table = 'connect_qc_grants'
         ordering = ['-created_at']
+
+
+class DiagnosticRun(models.Model):
+    """One run of the fifteen connection diagnostics (DESIGN.md §2.2, §9;
+    connect/diagnostics.py). ``steps`` holds sanitised results only:
+    addresses, certificate names / expiry / SPKI hash, HTTP status, protocol
+    and counts. Never a token, assertion, proof, code, signature or key."""
+    MANUAL, WIZARD, MONITOR, RETEST = 'manual', 'wizard', 'monitor', 'retest'
+    TRIGGERS = [(MANUAL, 'Run by an administrator'), (WIZARD, 'Quick Connect wizard'),
+                (MONITOR, 'Monitor'), (RETEST, 'Retest')]
+    PASS, FAIL = 'pass', 'fail'
+
+    connection = models.ForeignKey(Connection, on_delete=models.CASCADE, related_name='diagnostic_runs')
+    trigger = models.CharField(max_length=10, choices=TRIGGERS, default=MANUAL)
+    started_at = models.DateTimeField(default=timezone.now, db_index=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    steps = models.JSONField(default=list, blank=True)
+    result = models.CharField(max_length=10, blank=True)
+    run_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='+')
+
+    class Meta:
+        db_table = 'connect_diagnostic_runs'
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f'Diagnostics {self.started_at:%Y-%m-%d %H:%M} ({self.result or "running"})'
