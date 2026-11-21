@@ -55,7 +55,8 @@ fi
 [ -f "$DEMO_DIR/demo.sqlite3" ] || { echo "no demo database in $DEMO_DIR; run with --rebuild" >&2; exit 2; }
 
 LOG="$DEMO_DIR/runserver.log"
-AXES_COOLOFF_TIME=1 AXES_FAILURE_LIMIT=5 setsid "$PYTHON" manage.py runserver "127.0.0.1:$DEMO_PORT" \
+AXES_COOLOFF_TIME=1 AXES_FAILURE_LIMIT=5 AGIT8OR_CONNECT_ENABLED=True \
+  AGIT8OR_CONNECT_PUBLIC_URL=https://desk.beaconmanaged.example setsid "$PYTHON" manage.py runserver "127.0.0.1:$DEMO_PORT" \
   --settings=demo_settings --noreload >"$LOG" 2>&1 &
 SERVER=$!
 trap 'kill -- -"$SERVER" 2>/dev/null || kill "$SERVER" 2>/dev/null || true' EXIT

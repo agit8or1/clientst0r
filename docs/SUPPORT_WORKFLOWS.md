@@ -80,3 +80,22 @@ Every save, from either view, is checked as a whole. If anything is wrong (an un
 A run is marked **Confirmed by monitoring** only when the alert recovers in monitoring within the workflow's window. If the alert had already recovered when the run started, the run says so. The RMM reporting that a job succeeded is recorded, but it doesn't count as the fix. If the window passes without recovery, the run becomes **Not confirmed by monitoring**, and the technician can try another action or record manual steps.
 
 Notes the workflow adds to the ticket are internal. A workflow never sends a customer message and never closes a ticket.
+
+## Customer follow-up and confirm-or-close
+
+Tickets that are waiting on the customer (a status that pauses the SLA, other than waiting on a vendor) can be
+followed up automatically. **Off by default**: nothing is emailed until you switch it on.
+
+- **Where:** Service Desk settings (PSA settings) → *Customer follow-up and confirm-or-close*, with editable
+  messages ([screenshot](images/github/psa-followup-settings-light.png)).
+- **What happens:** a follow-up email to the requester after the first number of days, an optional second
+  reminder, and, after a further silence, the ticket is closed with the reason on the timeline, a closure notice
+  to the customer and an audit log entry. A customer reply, or a new waiting period, restarts the clock.
+- **Defaults:** first follow-up after 3 days, second reminder 2 days later, close after 7 days in total (0 means
+  no second reminder or never close). Optionally count weekdays only.
+- **Per customer:** follow the install-wide setting, always follow up, or never follow up (Per-customer PSA
+  settings).
+- **Per ticket:** the ticket page shows the next follow-up and close dates
+  ([screenshot](images/github/ticket-followup-light.png)); staff can pause and resume follow-up.
+- **Never contacted:** staff requesters, people who turned off email notifications, customers opted out of the
+  PSA. Each reminder is sent once per waiting period, even if the scheduler runs twice.

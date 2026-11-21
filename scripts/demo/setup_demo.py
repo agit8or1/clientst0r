@@ -86,7 +86,10 @@ call_command('seed_module_samples', **seed_demo.MODULE_SAMPLE_OPTIONS)
 for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fields,
              seed_demo.seed_secure_link, seed_demo.seed_ticket_ai, seed_demo.seed_superuser_approval,
              seed_demo.seed_rmm_fixture, seed_demo.seed_rmm_pairing,
-             seed_demo.seed_navigation, seed_demo.seed_operations):
+             seed_demo.seed_navigation, seed_demo.seed_operations,
+             seed_demo.seed_access_groups, seed_demo.seed_billing_queue, seed_demo.seed_viewed_tracking,
+             seed_demo.seed_contract_esign, seed_demo.seed_followup, seed_demo.seed_offhost_backups,
+             seed_demo.seed_connected_apps):
     print(step.__name__)
     step()
 # Derived data: the app's own commands project the seeded rows into the pages

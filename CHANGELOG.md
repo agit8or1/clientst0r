@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.762] - 2026-11-21
+
+### Changed
+
+- **Documentation and screenshots brought up to date with v3.17.761.**
+  - **New guides:** Billing and contracts (`docs/BILLING.md`), which covers ticket Time & Charges, the prepaid-hours
+    ledger, Ready for Billing, consolidated invoices, Settings → Billing, sample contracts, contract terms,
+    e-signature and viewed tracking; and Connected Applications (`docs/CONNECTED_APPLICATIONS.md`), an early release
+    that hasn't been independently reviewed.
+  - **Updated guides:** customer follow-up in the support workflows guide; the System Updates channels and status in
+    the upgrade guide; off-host backups and access groups.
+  - **README and FEATURES:** updated to v3.17.761.
+  - **Screenshots:** all 121 retaken from the demo instance, which contains only invented data, including 14 new
+    ones for the pages added since the last capture.
+
 ## [3.17.761] - 2026-11-21
 
 ### Added

@@ -63,6 +63,19 @@ testing build), its branch and commit and whether the checkout has local
 edits, the channel select, the latest official release, the latest testing
 build, the update status and *Check now*.
 
+### What the page calls each build, and the status while updating
+
+A commit that is a signed release is shown as that release ("v3.17.756 · Official release") on either channel,
+in the installed line, the update notice and the banners. Only a commit that is not a release is called a
+testing build, with how many commits it is past the last release. The page explains the selected channel:
+*Official release* installs signed releases only and is recommended for production; *Preview / testing*
+installs the newest commit on `main`, including unreleased changes. Saving the channel never installs anything.
+
+While an update runs the page shows one status: "Updating to vX", the current stage and a checklist of stages,
+and it reloads itself when the update finishes; the "Update available" banners are hidden until then. If your
+sign-in expired the page says "You've been signed out - sign in again" instead of looking stuck. See the
+[screenshot](images/github/system-updates-light.png).
+
 ### Signature status
 
 | Shown as | Meaning | Installable |

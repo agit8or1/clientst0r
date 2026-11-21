@@ -1948,13 +1948,237 @@ def seed_operations():
           '5 subscriptions, 1 wallboard, 3 API rules, 1 trusted proxy')
 
 
+# --- 3.17.742-761 screens ---------------------------------------------------
+# Billing queue, prepaid ledger, contract e-signature, viewed tracking,
+# customer follow-up, access groups, off-host backups and Connected
+# Applications. Everything uses the app's own services where one exists and
+# invented .example hosts; nothing contacts anything.
+
+def seed_access_groups():
+    """Members for the built-in access groups, so the list shows who holds what."""
+    from tech_access.models import TechnicianGroup
+    plan = {'L1 Tech': ['demo.sam.okafor', 'demo.priya.raman'], 'L2 Tech': ['demo.ipatel', 'demo.mokafor'],
+            'L3 Tech': ['demo.tech', 'demo.lchen'], 'Managers': ['demo.alindqvist'], 'Owners': ['demo.admin'],
+            'Billing': ['demo.dwhitfield'], 'Sales': ['demo.hannah.price']}
+    for name, names in plan.items():
+        grp = TechnicianGroup.objects.filter(name=name).first()
+        if grp:
+            for u in User.objects.filter(username__in=names):
+                try:
+                    grp.members.add(u)
+                except Exception:  # customer-type demo users are refused: groups hold MSP staff only
+                    pass
+    print('  access groups: members added')
+
+
+def seed_billing_queue():
+    """Ready for Billing: three customers with tickets sent to billing, account
+    charges (one held, one adjustment), a next fee due; then one consolidated
+    draft for Northwind built through the app's own service."""
+    from psa import models as pm
+    from psa.billing import queue as bq
+    nwl, hpc, rdg = org('Northwind Logistics'), org('Harbor Point Credit Union'), org('Ridgeline Dental Group')
+    msp, tech = org('Beacon Managed IT'), user('demo.tech')
+    pm.Ticket.objects.filter(pk__in=[3, 10, 11]).update(billing_status='ready', billing_status_at=now,
+                                                         billing_status_by=tech)
+
+    def charge(client, desc, amount, **kw):
+        c, _ = pm.Charge.objects.get_or_create(
+            organization=msp, client_org=client, description=desc,
+            defaults=dict(amount=Decimal(str(amount)), charge_date=today - timedelta(days=2), created_by=tech, **kw))
+        return c
+    held = charge(hpc, 'Hardware tokens (10) for branch staff', 420.00)
+    charge(hpc, 'Domain renewal — harborpoint.example', 18.00)
+    charge(rdg, 'Imaging sensor cable (replacement)', 64.50)
+    n1 = charge(nwl, 'Label printer ribbon and tape (warehouse)', 36.00)
+    n2 = charge(nwl, 'Wi-Fi survey licence (month)', 79.00)
+    bq.decide(hpc, [f'charge:{held.pk}'], 'hold', actor=tech, reason='Waiting for the purchase order number',
+              hold_until=today + timedelta(days=10))
+    bq.add_adjustment(rdg, actor=tech, description='Goodwill credit for the missed appointment', amount=Decimal('50'),
+                      is_credit=True, reason='Technician was 90 minutes late', msp_org=msp)
+    # Harbor Point's managed agreement is due today, so the picker offers its fee.
+    pm.Contract.objects.filter(client_org=hpc, name__startswith='Harbor Point').update(next_billing_date=today)
+    # Northwind: ticket 9's billable work and two charges, as one consolidated draft.
+    pm.Ticket.objects.filter(pk=9).update(billing_status='ready', billing_status_at=now, billing_status_by=tech)
+    if not pm.Invoice.objects.filter(client_org=nwl, status='draft').exists():
+        inv, notes = bq.draft_consolidated_from_queue(nwl, actor=tech, msp_org=msp, ticket_ids=[9],
+                                                      include_charges=True)
+        print('  consolidated draft:', inv.pk if inv else None, notes)
+    print('  billing queue seeded')
+
+
+def seed_viewed_tracking():
+    """Quote and invoice links the customer has opened (first/last view, count)."""
+    from psa.models import Invoice, Quote
+    Quote.objects.filter(title__startswith='Warehouse Wi-Fi').update(
+        first_viewed_at=now - timedelta(days=2, hours=3), last_viewed_at=now - timedelta(hours=5), view_count=4)
+    inv = Invoice.objects.filter(status='sent').first()
+    if inv:
+        Invoice.objects.filter(pk=inv.pk).update(first_viewed_at=now - timedelta(days=1, hours=6),
+                                                 last_viewed_at=now - timedelta(days=1), view_count=2)
+    print('  viewed tracking set')
+
+
+def seed_contract_esign():
+    """A 12-month managed-services contract sent for e-signature and viewed by
+    the customer, built with the contracts app's own services."""
+    from contracts import services as cs
+    from contracts.models import ContractDocument, ContractSigner, ContractTemplate
+    nwl, tech = org('Northwind Logistics'), user('demo.tech')
+    if ContractDocument.objects.filter(organization=nwl, title__startswith='Managed Services Agreement').exists():
+        return
+    tpl = ContractTemplate.objects.filter(is_sample=True, sample_key__icontains='12').first() \
+        or ContractTemplate.objects.filter(is_sample=True).first()
+    c = cs.create_contract(nwl, tech, template=None, title='Managed Services Agreement — 12 months', kind='msa')
+    sections = [
+        {'title': 'Services', 'type': 'text', 'body': '<p>Beacon Managed IT provides monitoring, patching, help desk '
+         'and a named technician for Northwind Logistics, as listed in the schedule.</p>'},
+        {'title': 'Term and notice', 'type': 'text', 'body': '<p>The agreement runs for twelve months from the '
+         'effective date and renews for a further twelve months unless either party gives 60 days\' notice.</p>'},
+        {'title': 'Signatures', 'type': 'signatures', 'body': ''}]
+    cs.save_draft(c, {
+        'sections': sections, 'term_type': 'annual', 'duration_months': 12, 'notice_period_days': 60,
+        'auto_renew': True, 'billing_frequency': 'monthly', 'effective_date': today + timedelta(days=14),
+        'line_items': [{'description': 'Managed services — 45 users, 62 devices', 'kind': 'recurring',
+                        'quantity': '1', 'unit_price': '2450.00', 'taxable': False}],
+        'signers': [{'role': ContractSigner.CLIENT, 'name': 'Dana Whitaker', 'email': 'dana.whitaker@northwind.example',
+                     'title': 'Operations Director', 'order': 1}]}, tech)
+    c.refresh_from_db()
+    cs.submit(c, tech)
+    c.refresh_from_db()
+    if c.status == ContractDocument.PENDING_APPROVAL:
+        cs.decide(c, user('demo.admin'), approve=True, content_hash=c.current_version.content_hash)
+        c.refresh_from_db()
+    cs.send(c, tech, email=False)
+    ContractDocument.objects.filter(pk=c.pk).update(
+        status=ContractDocument.VIEWED, first_viewed_at=now - timedelta(days=1, hours=2),
+        last_viewed_at=now - timedelta(hours=4), view_count=3)
+    from contracts.models import ContractInvitation
+    ContractInvitation.objects.filter(contract=c).update(
+        first_viewed_at=now - timedelta(days=1, hours=2), last_viewed_at=now - timedelta(hours=4),
+        view_count=3, verified_view_count=0)
+    print('  contract awaiting signature:', c.reference)
+
+
+def seed_followup():
+    """Customer follow-up switched on (the demo shows the settings and a ticket
+    that is waiting on the customer, with its next follow-up and close dates)."""
+    from psa.models import FollowUpPolicy, Ticket
+    pol = FollowUpPolicy.objects.first() or FollowUpPolicy()
+    pol.enabled = True
+    pol.save()
+    from psa.models import TicketStatus
+    waiting = TicketStatus.objects.filter(name='Waiting on Client').first()
+    if waiting:
+        # PSA-2026-000013: waiting on the customer for four days, so the first follow-up is due.
+        Ticket.objects.filter(pk=13).update(status=waiting, sla_paused_at=now - timedelta(days=4),
+                                            followup_wait_since=now - timedelta(days=4))
+    print('  follow-up policy on; ticket 13 waiting on the customer')
+
+
+def seed_offhost_backups():
+    """An off-host backup destination (SFTP, invented host) with a few runs.
+    No key material: the fingerprints are invented placeholders."""
+    from core.models import OffhostBackupConfig, OffhostBackupRun
+    admin = user('demo.admin')
+    OffhostBackupConfig.objects.exclude(pk=1).delete()
+    cfg = OffhostBackupConfig.get()
+    cfg.enabled, cfg.destination_type = True, 'sftp'
+    cfg.sftp_host, cfg.sftp_port, cfg.sftp_username = 'backup01.beaconmanaged.example', 22, 'clientst0r-backup'
+    cfg.sftp_path = '/srv/backups/clientst0r'
+    cfg.host_key_type = 'ssh-ed25519'
+    cfg.host_key = 'AAAAC3NzaC1lZDI1NTE5AAAAIDemoHostKeyOnlyNotARealKeyxxxxxxxxxxxxxxxx'
+    cfg.host_key_fingerprint = 'SHA256:Zk3J1q0DemoFingerprintOnlyNotRealxxxxxxxxxx'
+    cfg.host_key_approved_at, cfg.host_key_approved_by = now - timedelta(days=20), admin
+    cfg.sftp_password = 'demo-placeholder-not-a-password'  # sealed; invented, the host does not exist
+    cfg.backup_key = 'demo-placeholder-backup-key-not-real'
+    cfg.backup_key_fingerprint = 'DEMO-4F2A-9C11-77B0'
+    cfg.backup_key_created_at = now - timedelta(days=20)
+    cfg.backup_key_acknowledged_at, cfg.backup_key_acknowledged_by = now - timedelta(days=20), admin
+    cfg.last_backup_at = cfg.last_success_at = now - timedelta(hours=7)
+    cfg.last_backup_status, cfg.last_success_name = 'success', 'clientst0r-20261121T020000Z.tar.gz.enc'
+    cfg.last_verify_at = cfg.last_verified_ok_at = now - timedelta(days=3)
+    cfg.last_verify_status = 'success'
+    cfg.last_verified_name = 'clientst0r-20261118T020000Z.tar.gz.enc'
+    cfg.last_verify_detail = 'Hash, manifest and database integrity check passed.'
+    cfg.save()
+    if not OffhostBackupRun.objects.exists():
+        rows = []
+        for d in range(6, -1, -1):
+            rows.append(('backup', 'scheduler', 'success', now - timedelta(days=d, hours=-2 + 0),
+                         f'clientst0r-2026112{1 - d if d < 2 else 0}T020000Z.tar.gz.enc', 'Uploaded 38.4 MB; retention kept 11 archives.'))
+        for r in OffhostBackupRun.objects.none():
+            pass
+        for kind, trig, status, at, name, detail in rows:
+            run = OffhostBackupRun.objects.create(kind=kind, trigger=trig, status=status, remote_name=name,
+                                                  size_bytes=40_265_318, finished_at=at, detail=detail,
+                                                  destination='sftp://backup01.beaconmanaged.example/srv/backups/clientst0r')
+            OffhostBackupRun.objects.filter(pk=run.pk).update(started_at=at - timedelta(minutes=4))
+        v = OffhostBackupRun.objects.create(kind='verify', trigger='scheduler', status='success',
+                                            remote_name='clientst0r-20261118T020000Z.tar.gz.enc', finished_at=now - timedelta(days=3),
+                                            detail='Hash, manifest and database integrity check passed.')
+        OffhostBackupRun.objects.filter(pk=v.pk).update(started_at=now - timedelta(days=3, minutes=6))
+    print('  off-host backups seeded')
+
+
+def seed_connected_apps():
+    """Two Agit8or Connect connections for the Connected Applications pages:
+    a healthy Rem0te link and a degraded second application with an incident.
+    Rows only: invented .example addresses, no keys, nothing is ever contacted."""
+    from connect.models import Connection, ConnectIncident, DiagnosticRun, TenantGrant
+    from connect.diagnostics import STEPS
+    nwl, rdg = org('Northwind Logistics'), org('Ridgeline Dental Group')
+    specs = [
+        ('11111111-1111-4111-8111-111111111111', 'rem0te', 'Rem0te', 'https://remote.beaconmanaged.example',
+         Connection.HEALTH_CONNECTED, ['connection:read', 'customers:read', 'events:publish'],
+         [nwl, rdg]),
+        ('22222222-2222-4222-8222-222222222222', 'other', 'Service wallboard feed', 'https://wallboard.beaconmanaged.example',
+         Connection.HEALTH_DEGRADED, ['connection:read', 'events:publish'], [nwl]),
+    ]
+    for pk, app, name, url, health, scopes, orgs in specs:
+        conn, _ = Connection.objects.get_or_create(pk=pk, defaults=dict(
+            direction=Connection.OUTBOUND, state=Connection.ACTIVE, remote_app_type=app, remote_display_name=name,
+            remote_installation_id=f'demo-{app}-installation', remote_app_version='1.4.0', base_url=url,
+            inbound_scopes=scopes, outbound_scopes=scopes))
+        Connection.objects.filter(pk=conn.pk).update(
+            health=health, last_success_at=now - timedelta(minutes=1 if health == Connection.HEALTH_CONNECTED else 40),
+            last_check_at=now - timedelta(seconds=40), remote_protocol_version='1.1',
+            consecutive_fail=0 if health == Connection.HEALTH_CONNECTED else 2, retry_step=0 if health == Connection.HEALTH_CONNECTED else 1,
+            last_error='' if health == Connection.HEALTH_CONNECTED else 'The other application did not answer the last two checks.')
+        for o in orgs:
+            TenantGrant.objects.get_or_create(connection=conn, organization=o, defaults=dict(
+                remote_tenant_id=f'tenant-{o.pk}', remote_tenant_label=o.name, scopes=scopes))
+        if not conn.diagnostic_runs.exists():
+            fail = health != Connection.HEALTH_CONNECTED
+            steps = []
+            for n, sid, label in STEPS:
+                bad = fail and sid in ('tcp', 'tls')
+                skipped = fail and n > 3 and n < 15
+                steps.append({'n': n, 'id': sid, 'name': label,
+                              'status': 'fail' if bad else ('skipped' if skipped and sid != 'tls' else 'pass'),
+                              'code': 'timeout' if bad else '',
+                              'explanation': ('Connection timed out after 10 s.' if bad else ('Not run: an earlier step failed.' if skipped else f'{label}: OK.')),
+                              'next_action': 'Check that the other application is running and reachable.' if bad else '',
+                              'at': now.isoformat(), 'duration_ms': 40 + n * 7, 'data': {}})
+            DiagnosticRun.objects.create(connection=conn, trigger='manual', started_at=now - timedelta(minutes=12),
+                                         finished_at=now - timedelta(minutes=12) + timedelta(seconds=3), steps=steps,
+                                         result='fail' if fail else 'pass', run_by=user('demo.admin'))
+        if health != Connection.HEALTH_CONNECTED and not conn.incidents.exists():
+            ConnectIncident.objects.create(connection=conn, status='degraded', worst_status='degraded',
+                                           code='timeout', opened_at=now - timedelta(minutes=35), updated_at=now)
+    print('  connected apps seeded')
+
+
+
 def main():
     steps = [seed_showcase, seed_presentation, seed_asset_detail, seed_commercial,
              rename_msp_tenant, seed_project_work, seed_visual, seed_dispatch,
              seed_my_work, seed_document_lifecycle, seed_readiness, seed_portal_request,
              seed_scheduler_history, seed_rack_artwork, seed_named_approvers,
              seed_readiness_custom_fields, seed_secure_link, seed_ticket_ai, seed_superuser_approval,
-             seed_rmm_fixture, seed_rmm_pairing, seed_navigation, seed_operations]
+             seed_rmm_fixture, seed_rmm_pairing, seed_navigation, seed_operations,
+             seed_access_groups, seed_billing_queue, seed_viewed_tracking, seed_contract_esign,
+             seed_followup, seed_offhost_backups, seed_connected_apps]
     only = set(sys.argv[1:])
     for step in steps:
         if only and step.__name__ not in only:

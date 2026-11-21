@@ -1,6 +1,6 @@
 # ClientSt0r — screenshot gallery
 
-107 views of the running application — 55 in the light theme (Default Blue), 52 in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+121 views of the running application — 65 in the light theme (Default Blue), 56 in Professional Dark, the default theme. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -14,10 +14,10 @@ All organizations, people, hostnames, addresses and credentials below are invent
 - [Overview and dashboards](#overview-and-dashboards) — 8 views
 - [Visual insights and monitoring](#visual-insights-and-monitoring) — 19 views
 - [Hardware and cabling](#hardware-and-cabling) — 16 views
-- [Everyday workflows](#everyday-workflows) — 21 views
+- [Everyday workflows](#everyday-workflows) — 22 views
 - [Tickets and the paired RMM](#tickets-and-the-paired-rmm) — 6 views
-- [Management and configuration](#management-and-configuration) — 5 views
-- [Access and administration](#access-and-administration) — 6 views
+- [Management and configuration](#management-and-configuration) — 10 views
+- [Access and administration](#access-and-administration) — 14 views
 - [Operations and monitoring](#operations-and-monitoring) — 4 views
 - [Business operations](#business-operations) — 5 views
 - [Security and client data protection](#security-and-client-data-protection) — 10 views
@@ -620,6 +620,14 @@ A change carries its implementation, rollback and impact plans, its window, and 
 
 Recurring incidents get a problem record of their own, from investigating to known error to resolved, with the tickets linked to it.
 
+### A ticket waiting on the customer
+
+**Light theme**
+
+[![Ticket page in light theme with status Waiting on Client and a follow-up card showing the next follow-up and close dates with a pause button](images/github/ticket-followup-light.png)](images/github/ticket-followup-light.png)
+
+The ticket shows when the next follow-up and the automatic close are due, and staff can pause follow-up on this ticket. A customer reply restarts the clock.
+
 ---
 
 ## Tickets and the paired RMM
@@ -720,6 +728,46 @@ For each customer a request type is offered to, staff pick which of that custome
 
 Opportunities by stage, each with its customer, value, probability and owner, and a weighted total per column. Drag a card to move it to another stage.
 
+### Ready for Billing
+
+**Professional Dark theme**
+
+[![Billing Review in the Professional Dark theme with the Ready for Billing queue: customers with tickets, lines, account charges, a held charge, an adjustment, selection boxes and buttons to create drafts or one consolidated draft](images/github/billing-ready-dark.png)](images/github/billing-ready-dark.png)
+
+Per customer, the exact lines each ticket sent to billing would invoice, plus unbilled account charges, adjustments and finished milestones. Approve, hold (with a reason and a date) or exclude lines, then create drafts. Nothing is sent from here.
+
+### A consolidated draft invoice
+
+**Light theme**
+
+[![A draft invoice for Northwind Logistics with lines labelled by ticket, followed by account charges, each tagged with its origin](images/github/invoice-consolidated-light.png)](images/github/invoice-consolidated-light.png)
+
+One draft per customer holds the selected tickets' lines in ticket order, then the account charges. Each line stays linked to the time entry or charge it bills, so nothing is billed twice. The draft opens for review; sending is a separate step.
+
+### Prepaid-hour ledger
+
+**Professional Dark theme**
+
+[![Prepaid-hour ledger page in dark theme for a block-hours contract with block balances and a table of postings](images/github/contract-ledger-dark.png)](images/github/contract-ledger-dark.png)
+
+Each contract with prepaid hours keeps a ledger that is never edited: purchases, use, overage, expiry and reversals. Only approved time uses hours, earliest-expiring block first. Manual adjustments need a reason and billing permission.
+
+### Sample contract library
+
+**Light theme**
+
+[![Contract template library in light theme with a not-legal-advice notice and twelve sample agreements, each with a Use this sample button](images/github/contract-library-light.png)](images/github/contract-library-light.png)
+
+Twelve starter agreements (managed services at 1, 12 and 36 months, prepaid hours, project SOW, break-fix, master services agreement). Use this sample makes your own editable copy. Samples are starting points, not legal advice.
+
+### Contract awaiting e-signature
+
+**Light theme**
+
+[![Contract detail in light theme: status Viewed, annual term with a 60 day notice period, signer waiting, and view tracking with first view, last view and view count](images/github/contract-awaiting-signature-light.png)](images/github/contract-awaiting-signature-light.png)
+
+A 12-month agreement is sent for the customer's e-signature and does not take effect, convert or bill until it is signed. The page shows the term, notice period, Sent, Viewed and Signed steps and how many times the customer opened the link.
+
 ---
 
 ## Access and administration
@@ -773,6 +821,70 @@ Administration opens the settings center: one compact card per category — Gene
 [![Customer Portal settings in light theme with sections for the portal address and effective URL, branding fields and colour pickers, layout and theme choices, portal feature switches and per-customer portal switches](images/github/portal-settings-light.png)](images/github/portal-settings-light.png)
 
 One page for the customer portal: its address and sign-in, branding (name, logo, accent colour, sign-in background, welcome message, support contacts), layout and default theme, the portal features, and which customers have a portal at all.
+
+### Access groups
+
+**Light theme**
+
+[![Access groups list in light theme: ten default groups such as L1 Tech, L2 Tech, L3 Tech, Managers, Sales and Owners with their role, customer scope and members](images/github/access-groups-light.png)](images/github/access-groups-light.png)
+
+Named groups of MSP staff (L1, L2 and L3 Tech, Managers, Sales, Owners and more), each with one internal role and a customer scope. Members hold the role in addition to their own access; a group never removes anything.
+
+### Off-host backups
+
+**Light theme**
+
+[![Off-host Backups settings in light theme: an SFTP destination with an approved host key, the backup key fingerprint, last backup and last restore verification both successful, and a run history table](images/github/offhost-backups-light.png)](images/github/offhost-backups-light.png)
+
+Encrypted copies of the database and uploads go to an SFTP server or a mounted directory on another host, on a schedule, with a weekly restore check of the newest archive. Superusers only; off until a destination is set up.
+
+### System Updates
+
+**Light theme**
+
+[![System Updates page in light theme showing the installed version, the update channel choice with an explanation of Official release and Preview, and update history](images/github/system-updates-light.png)](images/github/system-updates-light.png)
+
+One status for the installed build, with the selected channel explained: Official release installs signed releases only and is recommended for production; Preview installs the newest commit on main, including unreleased changes.
+
+### Settings → Billing
+
+**Light theme**
+
+[![Settings Billing page in light theme listing invoice approval threshold, agreement usage approval percentage, late fee terms, automatic accounting push, quote approval threshold, default tax rate and currency, and the month-to-month e-signature exemption](images/github/settings-billing-light.png)](images/github/settings-billing-light.png)
+
+The billing thresholds in one place: invoice and quote approval, agreement-usage approval, late fees, the default tax rate and currency, and whether month-to-month contracts need an e-signature. Each value shows which level it comes from; every change is audit-logged.
+
+### Customer follow-up settings
+
+**Light theme**
+
+[![PSA settings in light theme with the Customer follow-up and confirm-or-close section: enable switch, days for first follow-up, second reminder and close, and editable messages](images/github/psa-followup-settings-light.png)](images/github/psa-followup-settings-light.png)
+
+Off by default. When on, a ticket waiting on the customer gets a follow-up email after a set number of days, an optional second reminder, and is then closed with the reason recorded. Messages are editable and each customer can follow, always use or never use it.
+
+### Connected Applications
+
+**Professional Dark theme**
+
+[![Connected Applications in dark theme listing a Rem0te connection as Connected and a second application as Degraded, with network and Quick Connect actions](images/github/connected-apps-dark.png)](images/github/connected-apps-dark.png)
+
+Agit8or Connect pairs Clientst0r with other applications. Off by default. Each connection shows its own status (Connected, Degraded, Offline, Security Blocked), the customers granted to it and its permissions. Still in early release and not independently reviewed.
+
+### A connection
+
+**Light theme**
+
+[![Connection detail in light theme for a Connected application with permissions, granted customers and health](images/github/connected-app-detail-light.png)](images/github/connected-app-detail-light.png)
+
+Permissions, customers, approved addresses, health, alerts and mute, and the actions to retest, suspend or revoke.
+
+### Connection diagnostics
+
+**Professional Dark theme**
+
+[![Diagnostics page in dark theme with fifteen steps for a degraded connection, TCP and TLS failing with the suggested next action](images/github/connected-app-diagnostics-dark.png)](images/github/connected-app-diagnostics-dark.png)
+
+Fifteen checks from DNS and TLS to a signed test event, each with its result and a next step. Diagnostics never change the connection and never send customer data. Runs can be exported with secrets removed.
 
 ---
 

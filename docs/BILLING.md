@@ -1,0 +1,118 @@
+# Billing, prepaid hours and contracts
+
+How time and charges on a ticket become invoices, and how agreements and contracts are signed.
+This page describes what the application does as of v3.17.761. Everything here needs the native
+service desk (`psa_enabled`) and MSP staff access; customers and portal users never see internal time,
+item, cost or billing fields.
+
+Screenshots: [Ready for Billing](images/github/billing-ready-dark.png) ·
+[consolidated draft](images/github/invoice-consolidated-light.png) ·
+[prepaid-hour ledger](images/github/contract-ledger-dark.png) ·
+[Settings → Billing](images/github/settings-billing-light.png) ·
+[sample contract library](images/github/contract-library-light.png) ·
+[contract awaiting signature](images/github/contract-awaiting-signature-light.png).
+
+## The path from work to invoice
+
+1. **Log time and add items on the ticket (Time & Charges).** The timer and manual time ask for a
+   classification (billable, covered, non-billable, warranty, goodwill, awaiting classification), a work type
+   (standard, remote, onsite, travel) and a role. People with **Manage charges** can choose which agreement a
+   time entry uses, from the agreements valid for that customer and date. Each entry shows actual and rounded
+   time, covered and charged hours, rate, estimate and status.
+2. **Add Item** puts a catalog item (priced for the customer), stock, or a one-off line (parts, hardware,
+   licenses, travel, shipping, services) on the ticket. Credits need **Manage charges**; a price below the
+   catalog minimum needs discount approval. Cost and margin are visible only with the internal-cost
+   permission and are left out of the data, not just hidden. Stock is reserved when added, deducted once when
+   marked used, and released when removed.
+3. **Read the billing summary.** It shows the agreement, prepaid hours now and after approval, labor, items,
+   fees, the unbilled total before tax and anything that blocks clean billing. **Review charges** shows the
+   exact invoice lines. **Send to billing** marks the ticket for invoicing; it never creates an invoice.
+   Closing a ticket that still has unbilled work flags it **Needs billing review**.
+4. **Review in Billing Review → Ready for Billing** (Business → Billing → Billing Review), described below.
+5. **Create drafts.** Nothing is sent automatically. A sent invoice is changed only by a credit note.
+
+What bills nothing: non-billable, warranty and goodwill time. Left off the invoice with a warning: time
+awaiting classification, stock that is reserved but not yet used, and time with no rate anywhere (never billed
+at 0). Approved time is corrected only through the existing correction page; time or items already invoiced
+cannot be changed from the ticket.
+
+## Ready for Billing
+
+A section of **Billing Review**. Per customer it lists the exact lines each ticket sent to billing would
+invoice, plus unbilled account charges, adjustments and completed project milestones.
+
+| Action | What it does | Needs |
+|---|---|---|
+| Approve | Marks lines reviewed; creates nothing | Manage charges |
+| Hold | Keeps lines off every invoice, with a reason and an optional until-date; the hold lapses on its own | Manage charges |
+| Exclude | Keeps lines off every invoice until included again, with a reason | Manage charges |
+| Add adjustment | A charge or credit with a reason; source records are never edited | Manage charges |
+| Create draft invoices for selected | One draft per ticket; nothing is sent | Send invoices |
+| Create one consolidated draft for selected | See below | Send invoices |
+
+Viewing the queue needs **View invoices**. All permissions are checked for that customer, and every action is
+written to the audit log with its reason. Held and excluded work is never billed by any invoicing path.
+
+### Consolidated invoices
+
+Select several tickets for one customer and choose **Create one consolidated draft for selected**. The draft
+contains the tickets' lines in ticket order (each labelled with its ticket), then the customer's account
+charges, then, if you pick it, the agreement fee for the current period. The picker says why an agreement
+cannot be billed now (paused, ending, not due yet, already invoiced, needs e-signature, and so on). Each line
+stays linked to the time entry, charge or agreement it bills. Everything runs under a per-customer lock, so a
+double click or retry never bills anything twice, and the agreement period is claimed so recurring billing will
+not bill it again. The draft opens for review.
+
+Voiding an invoice releases its ticket time and account charges to be billed again.
+
+## Prepaid-hour ledger
+
+Each contract with prepaid or rollover hours keeps a ledger of postings that cannot be edited or deleted:
+purchases, use, overage, expiry, reversals and manual adjustments. Open it from the contract page
+(**Prepaid-hour ledger**).
+
+- Only **approved** time uses hours. Draft and pending time uses nothing; rejecting or returning approved
+  time gives its hours back; approving twice never deducts twice.
+- Blocks are used earliest expiry first. Unused hours expire 45 days after a block ends.
+- Retainers billed monthly, quarterly or yearly get a fresh allowance each cycle.
+- A low balance raises a system warning. Contract options: billing priority, allow negative balance, low
+  balance warning threshold.
+- When two agreements tie for a time entry, nothing is used until someone with billing permission chooses.
+- Manual adjustments and extra blocks need **Manage charges** for that customer and a reason, and are audited.
+- Remaining hours on the contract list, the ticket banner and the mobile app read the ledger.
+- Time-and-materials time worked after the upgrade is priced from rate cards (minimum time, billing
+  increments, trip fees once per onsite day, holiday rates). After-hours and weekend rates are not applied
+  automatically yet. Existing invoices are never repriced.
+
+Before relying on it, run `manage.py billing_preview` to compare old and new ticket invoices per customer;
+`manage.py prepaid_ledger_reconcile --dry-run` compares each block with the old counter.
+
+## Settings → Billing
+
+**Settings → General → Billing** (superusers and staff who can approve invoices). One page for: invoice
+approval threshold, agreement-usage approval percentage, late fee percentage and days overdue, automatic
+accounting push for recurring invoices, quote approval threshold, default tax rate and default currency, and
+whether month-to-month contracts are exempt from the e-signature rule (exempt by default).
+
+Approval thresholds and late-fee terms can be overridden per customer and per contract; the page shows each
+value and the level it comes from. Every change is validated and audit-logged. The invoice approval threshold
+applies to draft invoices only; a sent invoice is never put back on hold. A late fee is added as a separate
+account charge and never edits the invoice.
+
+## Contracts: samples, terms and e-signature
+
+- **Sample library** (Business → Contracts → Templates). Twelve starter agreements: managed services
+  (month-to-month, 12-month, 36-month), prepaid block hours, a project statement of work, break-fix / time and
+  materials, and a master services agreement with a service schedule. **Use this sample** makes your own
+  editable copy. Samples are starting points, **not legal advice**, and contain review notes that block sending
+  until you replace them. Updates never overwrite a sample you edited.
+- **Terms.** Contracts and billing contracts carry a term (month-to-month, annual, multi-year or a custom fixed
+  term) and a notice period. Existing contracts were given the term their dates imply and bill as before.
+- **E-signature before it takes effect.** Every quote, and every contract that is not month-to-month, needs the
+  customer's e-signature before it can be accepted, converted, activated or billed. Staff cannot mark it
+  accepted for the customer. Changing the signed terms needs a new signature.
+- **Viewed tracking.** Quote, invoice and contract links record first view, last view and view count. Quote and
+  invoice pages show Sent → Viewed → Signed / Accepted / Paid, and lists show a Viewed badge. The first view
+  writes an audit entry, fires a `quote.viewed`, `invoice.viewed` or `contract.viewed` webhook and emails the
+  person who created the document. Staff previews, email security scanners and bots are not counted. Invoice
+  emails include a link to view the invoice in the customer portal.

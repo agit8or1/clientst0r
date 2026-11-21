@@ -1,6 +1,6 @@
 # ClientSt0r Features
 
-What ClientSt0r does as of **v3.17.734**, by area, with what each feature needs and where it stops.
+What ClientSt0r does as of **v3.17.761**, by area, with what each feature needs and where it stops.
 See the [README](README.md) for install steps, [docs/screenshots.md](docs/screenshots.md) for the
 visual tour, and the [roadmap](docs/ROADMAP.md) for planned work.
 
@@ -77,6 +77,7 @@ third-party PSA sync in [category 17](#17-api-integrations-and-administration).
 | Problems, changes with CAB, approvals inbox | Available | `psa_enabled` | Approvals inbox covers quote chains; other flows have their own review | — |
 | Workflow rules (created, updated, status, comment, SLA threshold) | Limited | Service Desk → Workflows | No loop guard between chained rules; charges and chaining only in raw JSON | — |
 | Process templates (runbooks with stages and sign-off, attached to a ticket) | Limited | `workflows_enabled` | Deleting a stage while editing deletes its sign-offs on existing runs | — |
+| Customer follow-up and confirm-or-close: follow-up email, optional second reminder, then automatic close with a recorded reason; per-customer override, pause per ticket | Available | PSA settings → Customer follow-up and confirm-or-close | **Off by default**; never contacts staff, people with email notifications off, or customers opted out of the PSA | [SUPPORT_WORKFLOWS.md](docs/SUPPORT_WORKFLOWS.md#customer-follow-up-and-confirm-or-close) |
 | One-click support workflows (twelve built-ins) | Available | `psa_enabled` | Remediation steps only where the paired RMM advertises them | [SUPPORT_WORKFLOWS.md](docs/SUPPORT_WORKFLOWS.md) |
 | Ticket routing (Off / Suggest / Automatic rules, test, history); not AI | Limited | Off by default; Service Desk → routing | One MSP-wide business-hours definition | [TICKET_ROUTING.md](docs/TICKET_ROUTING.md) |
 | Recurring tickets, CSAT, announcements, voting, escalation | Available | Scheduler; portal switches | | — |
@@ -198,7 +199,14 @@ ClientSt0r or by AI.
 |---|---|---|---|---|
 | Billing contracts: block hours, retainer, managed, per-incident; rollover, renewals, SLA overrides | Available | `psa_enabled` | Quote → contract conversion planned (Phase 70) | — |
 | Invoices: from tickets, client charges or projects; recurring invoices; aging; late fees (off by default); approval gate | Limited | Scheduler | Recurring client charges store a recurrence but no job creates the next one | — |
-| Contract documents with digital signing: build, approve, send, sign link with optional e-mail code, countersign, evidence PDF and certificate | Limited | Business → Contracts | Starter templates are sample wording, not reviewed legal text (Phase 65 in progress) | — |
+| Ticket Time & Charges: time classification, work type, role, agreement choice, per-entry breakdown; Add Item (catalog, stock, one-off, credits); billing summary with Send to billing | Available | `psa_enabled`; Manage charges for agreement choice and credits | Cost and margin only with the internal-cost permission; sending to billing never creates an invoice | [BILLING.md](docs/BILLING.md) |
+| Prepaid-hour ledger: immutable postings, earliest-expiry-first, only approved time uses hours, retainer cycles, audited adjustments | Available | Contract → Prepaid-hour ledger | After-hours and weekend rates are not set automatically | [BILLING.md](docs/BILLING.md#prepaid-hour-ledger) |
+| Ready for Billing queue on Billing Review: approve, hold, exclude, adjust, draft invoices | Available | Business → Billing → Billing Review | Creates drafts only; nothing is sent | [BILLING.md](docs/BILLING.md#ready-for-billing) |
+| Consolidated invoices: one draft per customer from selected tickets, account charges and the agreement fee | Available | Billing Review → Ready for Billing | Draft only; sent invoices change by credit note | [BILLING.md](docs/BILLING.md#consolidated-invoices) |
+| Settings → Billing: approval thresholds, late fees, default tax and currency, month-to-month e-signature exemption, with per-customer and per-contract overrides | Available | Settings → General → Billing | Superusers and staff who can approve invoices | [BILLING.md](docs/BILLING.md#settings--billing) |
+| Contract documents with digital signing: build, approve, send, sign link with optional e-mail code, countersign, evidence PDF and certificate; term and notice period; e-signature required before a non-month-to-month contract takes effect or bills | Available | Business → Contracts | The twelve sample agreements are starting points, not legal advice | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
+| Sample contract library (twelve starters) | Available | Business → Contracts → Templates → Use this sample | Not legal advice; review notes block sending until replaced | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
+| Viewed tracking for quote, invoice and contract links (first view, last view, count, webhook, email to creator) | Available | Automatic | Staff previews, email scanners and bots are not counted | [BILLING.md](docs/BILLING.md#contracts-samples-terms-and-e-signature) |
 | Price book, service plans, labor rate cards, cost rates | Limited | Django admin | Admin-managed; picking items in quote/invoice editors planned | — |
 | Accounting: QuickBooks Online, Xero (customer sync, duplicate-safe invoice push, payment status pull) | Limited | Settings → Integrations → Accounting | Payments, credit memos, refunds and voids are not pushed; FreshBooks, Wave, Zoho Books and Sage are listed but not implemented | — |
 | Payments: Stripe (card/ACH), GoCardless; portal payment, saved methods, autopay, refunds | Limited | Service Desk → Billing → Payments | Not yet verified with live or sandbox keys; payments are not posted to accounting | [PAYMENTS.md](docs/PAYMENTS.md) |
@@ -209,7 +217,7 @@ ClientSt0r or by AI.
 
 | Feature | Status | Configuration | Limitations | Docs |
 |---|---|---|---|---|
-| Quotes: line items, tax, PDF, email, approval chains, no-login e-signature | Available | `psa_enabled` | | — |
+| Quotes: line items, tax, PDF, email, approval chains, no-login e-signature (required before a quote can be accepted or converted), Viewed status | Available | `psa_enabled` | Staff cannot accept on the customer's behalf | — |
 | CRM: leads, opportunities, campaigns, commissions, quote from opportunity | Available | `crm_enabled` (off by default) | | — |
 | Procurement, vendors, purchase orders | Available | `psa_enabled`; MSP staff | | — |
 | Distributors: Ingram Micro Xvantage, Pax8, TD Synnex (catalog, price, availability, webhooks) | Limited | Settings → Integrations → Distributors | No ordering from the UI; D&H, ScanSource, QBS and Westcoast are listed but not implemented | — |
@@ -272,6 +280,7 @@ policy, an enabled model profile and a technician access assignment at that cust
 | OIDC sign-in | Limited | Settings → Security → Single sign-on (OIDC); off by default | Not yet verified against a live identity provider | [OIDC_SSO.md](docs/OIDC_SSO.md) |
 | SAML, passkeys | Planned | | | [ROADMAP.md](docs/ROADMAP.md) |
 | Roles: built-in and custom, about a hundred switches; View passwords/documents/assets/files/monitors/integrations enforced per customer | Available | Settings → Users & Access → Roles | Vault export permission not implemented | [ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md) |
+| Access groups: named groups of MSP staff (L1/L2/L3 Tech, Managers, Sales, Sales Managers, Owners, Administrators, Billing, Auditors by default) with one role and a customer scope; members hold it in addition to their own access | Available | Settings → Users & Access → Access groups | Staff only; a group never removes access or grants superuser or an RMM tier | [ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md#access-groups) |
 | Technician Access: L1/L2/L3 presets per technician or group per customer, expiry, denies, "why" page, protected changes needing a second administrator | Available | Settings → Security → Technician Access | | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Superuser Approval (second administrator approves superuser grants) | Available | Settings → Security → Superuser Approval; 2+ administrators | Off by default | [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md) |
 | Security Features: per-customer check of which protections are in effect | Available | Settings → Security → Security Features | | [CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md) |
@@ -292,11 +301,12 @@ policy, an enabled model profile and a technician access assignment at that cust
 | Third-party PSA sync: ConnectWise Manage, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow; RangerMSP and Alga PSA (newly added) | Available / Limited | Settings → Integrations; `psa_sync` task (off by default) | Companies, contacts, tickets only; no projects/agreements or field mapping | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
 | Microsoft 365 tenant connection | Limited | Settings → Integrations | Read-only inventory with manual sync; not yet verified against a real tenant | [INTEGRATION_SETUP_GUIDE.md](docs/INTEGRATION_SETUP_GUIDE.md) |
 | SMS: Twilio, Plivo, Vonage, Telnyx | Available | Settings → Communications → SMS Provider | AWS SNS and Sinch are listed but not implemented | — |
-| Agit8or Connect (app-to-app pairing, signed tokens and events) | Limited | `AGIT8OR_CONNECT_ENABLED=True` (off) | Incoming events are stored; acting on them is planned | [agit8or-connect/](docs/agit8or-connect/) |
+| Agit8or Connect / Quick Connect (app-to-app pairing, default-deny source and destination addresses, health, automatic reconnection, incidents, diagnostics) | Limited | `AGIT8OR_CONNECT_ENABLED=True` (off); Settings → Integrations → Connected Applications | Early release, not independently reviewed; incoming events are stored, acting on them is planned | [CONNECTED_APPLICATIONS.md](docs/CONNECTED_APPLICATIONS.md) |
 | Built-in scheduler (no crontab, Redis or Celery) | Available | Settings → Automation → Task Scheduler | | — |
 | Feature toggles and Optional Modules page | Limited | Settings → Modules | Install-wide, not per customer; some switches only hide menus | — |
-| Web updates: Official or Preview channel, pinned commit, signed tag check, preflight, verified pre-upgrade backup, resume/repair, restore points | Available | Settings → System → System Updates | Rollback is a manual restore command on the server | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
-| Backup and restore commands (`manage.py backup`, `restore`) | Limited | CLI | No web restore; not scheduled by default | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
+| Web updates: Official or Preview channel (explained on the page), pinned commit, signed tag check, preflight, verified pre-upgrade backup, one status and stage checklist while updating, resume/repair, restore points | Available | Settings → System → System Updates | Rollback is a manual restore command on the server | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
+| Off-host backups: encrypted (AES-256-GCM, separate backup key) database and uploads to SFTP or a mounted directory, retention, weekly restore verification, warnings | Available | Settings → Maintenance → Off-host Backups (superusers); off until set up | No S3 client; use SFTP or mount the bucket. `.env` keys are never in the archive | [BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) |
+| Backup and restore commands (`manage.py backup`, `restore`) | Limited | CLI | No web restore; not scheduled by default; on SQLite never copy `db.sqlite3` while running | [UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) |
 | Install: Docker Compose (app, scheduler, MariaDB; profiles proxy, cache, ai-gateway) or `install.sh` (MariaDB, Gunicorn on :8000, systemd) | Available | `.env` | `install.sh` does not install Nginx or TLS and creates `admin` / `ChangeMe123!` (change at first login); single server only | [docker.md](docs/docker.md), [INSTALL.md](INSTALL.md) |
 | Health endpoint `/health/`, system status page | Available | None | | — |
 | Maintenance mode, log rotation | Planned | | Configure logrotate yourself | — |

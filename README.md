@@ -85,6 +85,16 @@ Regenerate it, or the screenshots, with [`scripts/demo/`](scripts/demo/README.md
 </tr>
 <tr>
 <td width="50%" valign="top">
+<a href="docs/images/github/billing-ready-dark.png"><img src="docs/images/github/billing-ready-dark.png" alt="Billing Review in the Professional Dark theme with the Ready for Billing queue: tickets sent to billing with their time lines, account charges with one on hold, an adjustment, and buttons to create drafts or one consolidated draft"></a>
+<b>Ready for Billing</b> · Dark<br>Review what each ticket would invoice, hold or exclude lines, then draft; nothing is sent.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/contract-awaiting-signature-light.png"><img src="docs/images/github/contract-awaiting-signature-light.png" alt="A 12-month contract sent for e-signature with status Viewed, its term and notice period, the signer, and how many times the customer opened the link"></a>
+<b>E-signature before it takes effect</b> · Light<br>Sent, Viewed and Signed, with the customer's view count.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 <a href="docs/images/github/business-overview-dark.png"><img src="docs/images/github/business-overview-dark.png" alt="Business Overview in the Professional Dark theme: filters for dates, customer, service line and location above cards for MRR and ARR, invoiced revenue, gross margin, customer profitability, growth and churn, and contract renewals, each with its data source and completeness"></a>
 <b>Business Overview</b> · Dark<br>Revenue, margin and renewals, each card naming its source.
 </td>
@@ -118,13 +128,13 @@ Full list with status, configuration and limitations: **[FEATURES.md](FEATURES.m
 - **Assets and network:** assets with custom types and fields, a hardware catalog with panel artwork, ports, cables, racks, IPAM and VLANs, network config backups, network controller sync.
 - **Monitoring and security:** website, SSL and WAN monitors, status pages, backup monitoring, security alerts from webhooks and SIEM endpoints, incidents, a shared event list.
 - **RMM:** device, alert and software sync from six RMM products (Rem0te included), a device workspace, and alert-to-ticket with a paired RMM.
-- **Business:** contracts, quotes with e-signature, invoices, contract documents with signing, CRM, procurement, licensing, accounting push, profitability and Business Overview.
+- **Business:** contracts with sample agreements and e-signature, quotes with e-signature, a ready-for-billing queue, consolidated invoices, prepaid hours, contract documents with signing, CRM, procurement, licensing, accounting push, profitability and Business Overview.
 - **Reports:** profitability and SLA reports, custom dashboards, wallboards, scheduled reports, client health score, pricing advisor.
 - **Administration:** a searchable settings center, roles with about a hundred permission switches, SSO, a REST API with scoped keys, outbound webhooks, a built-in scheduler, web updates.
 
 ## What's new
 
-Since the last documentation refresh (v3.17.683), releases through **v3.17.719** added:
+Since the last documentation refresh (v3.17.683), releases through **v3.17.761** added:
 
 - **Navigation.** Ten sidebar sections (Dashboard, My Work, Service Desk, Clients, Assets & Network, Business, Knowledge & Vault, Security & Monitoring, Reports, and Administration at the foot) that collapse to an icon rail with flyouts. **Ctrl+K** opens Go to; the sidebar has a **Jump to** filter; any page can be starred into **Favorites**, and **Recent** lists what you opened last.
 - **AI (OPTIONAL AI).** Off by default, gated by `psa_ai_enabled` and a per-customer AI policy. Ticket AI uses model profiles for Anthropic, OpenAI or a local Ollama model; documentation AI also supports Moonshot and MiniMax. Secrets are redacted from the evidence sent, and vault data, attachments and internal notes are never sent. Ticket *Analyze* and *Compare models* run through a paired RMM; reply drafts, triage and suggested actions do not need one.
@@ -134,6 +144,14 @@ Since the last documentation refresh (v3.17.683), releases through **v3.17.719**
 - **Security alerts and events.** Generic JSON vendor webhooks and SIEM webhook endpoints (CEF, JSON, Syslog format over HTTPS), incidents, and a shared **Events** list that copies security, RMM, Rem0te, backup and website-monitor alerts into one place with ingestion health and retention per source and per customer.
 - **API security.** API Access Control (IP/CIDR allow and deny rules for the API and webhooks), a rollback window that undoes risky changes, webhook signatures with timestamps and replay protection, API key expiry and rotation, mutual TLS per API key, and trusted proxies set in Settings.
 - **Business tools.** Business Overview, backup monitoring (Proxmox Backup Server, restic, Borg, Kopia), client health scores, software licensing, the pricing advisor and the customer onboarding wizard. Payments (Stripe, GoCardless), sales tax (Avalara, TaxJar) and OIDC sign-in are in the code but not yet verified against live services; see [FEATURES.md](FEATURES.md).
+
+- **Billing.** Time & Charges and Add Item on tickets, a prepaid-hour ledger, a **Ready for Billing** queue and consolidated invoices on Billing Review, and **Settings → Billing**. See [docs/BILLING.md](docs/BILLING.md).
+- **Contracts.** Twelve sample agreements (starting points, not legal advice), terms and notice periods, e-signature required before a quote or a non-month-to-month contract takes effect, and Viewed tracking on quote, invoice and contract links.
+- **Customer follow-up (off by default).** Follow-up emails to customers on waiting tickets, then confirm-or-close with the reason recorded.
+- **Access groups and backups.** L1/L2/L3 Tech, Manager, Sales, Owner and other groups of staff with a role and customer scope ([docs](docs/ROLES_AND_ACCESS.md#access-groups)); encrypted **off-host backups** to SFTP or a mounted directory with weekly restore verification ([docs](docs/BACKUP_AND_RESTORE.md)).
+- **System Updates.** Builds are named the same way everywhere, the channel is explained on the page, and one status shows while an update runs.
+- **Faster pages.** Cached permission decisions, vendored front-end libraries (no outside hosts on first visit) and SQLite in WAL mode.
+- **Connected Applications (early release, off by default).** Agit8or Connect with Quick Connect pairing, default-deny addresses, health, incidents and diagnostics. Not independently reviewed; see [docs/CONNECTED_APPLICATIONS.md](docs/CONNECTED_APPLICATIONS.md).
 
 Release-by-release detail: [CHANGELOG.md](CHANGELOG.md).
 
@@ -313,6 +331,9 @@ Known limitations (audit log deletable by superusers, with each deletion recorde
 | [API access control](docs/API_ACCESS_CONTROL.md) | Address rules, webhook signatures, mutual TLS |
 | [API](docs/API_V2_GRAPHQL.md) | REST and GraphQL endpoints |
 | [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, ticket AI, RMM pairing |
+| [Billing and contracts](docs/BILLING.md) | Time & Charges, prepaid hours, Ready for Billing, consolidated invoices, contract e-signature |
+| [Backups](docs/BACKUP_AND_RESTORE.md) | Off-host encrypted backups and restore verification |
+| [Connected Applications](docs/CONNECTED_APPLICATIONS.md) | Agit8or Connect and Quick Connect (early release) |
 | [Technician access](docs/TECHNICIAN_ACCESS.md) | Per-customer L1/L2/L3 presets, protected changes |
 | [Hardware inventory](docs/HARDWARE_INVENTORY.md) | Device catalog, panel artwork, ports, cables, racks |
 | [Security policy](SECURITY.md) | Supported versions, reporting |

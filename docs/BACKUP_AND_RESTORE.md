@@ -13,6 +13,8 @@ Client St0r makes three kinds of backup:
 
 Only the off-host backup survives losing the host. Set it up on every production install.
 
+![Off-host Backups settings: an SFTP destination with an approved host key, the backup key fingerprint, and a successful backup and restore verification](images/github/offhost-backups-light.png)
+
 ## What is in an off-host archive
 
 Each archive is one file, `clientst0r-offhost-YYYYMMDDTHHMMSSZ.csbk`. Decrypted, it is a `tar.gz` that
