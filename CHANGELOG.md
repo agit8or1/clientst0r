@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.755] - 2026-11-21
+
+### Fixed
+
+- **Business Overview tiles stay inside their cards and line up.**
+  - A chart or long figure could push a card's content past its right edge, and footers wrapped differently from
+    card to card. Every card and slot is now held to its column.
+  - The footer is one line in every card: the "As of" date on the left (the full time on hover) and **View
+    records** on the right.
+  - Checked at widths from 768 to 1920 pixels.
+
 ## [3.17.754] - 2026-11-21
 
 Agit8or Connect: incidents, muting, diagnostics history and export, and audit anchoring (Quick Connect increment E).

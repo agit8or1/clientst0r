@@ -22,8 +22,16 @@
    filter chips, source, date). With subgrid each slot takes the height of the
    tallest card in its row, so titles, figures, charts, lists and footers line
    up across the row whatever a card contains. */
+/* Grid and flex children default to min-width:auto, so a chart canvas or a long
+   figure could push a card wider than its column; keep every card and slot
+   inside its track. */
+.bo-grid > .bo-card { min-width: 0; }
+.bo-card > * { min-width: 0; }
+.bo-chart canvas { max-width: 100%; }
+.bo-value, .bo-break .bo-num { overflow-wrap: anywhere; }
 @supports (grid-template-rows: subgrid) {
-  .bo-card { display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 0; min-height: 0; }
+  .bo-card { display: grid; grid-row: span 8; grid-template-rows: subgrid; grid-template-columns: minmax(0, 1fr);
+             row-gap: 0; min-height: 0; }
   .bo-grid { row-gap: .75rem; }
 }
 .bo-slot-chart:empty, .bo-slot-list:empty { min-height: 0; }
@@ -52,7 +60,10 @@
 [data-bs-theme="dark"] .bo-incomplete { color: #fab219; }
 .bo-state { font-size: .82rem; color: var(--bo-muted); margin-top: .6rem; }
 .bo-notes { font-size: .75rem; color: var(--bo-muted); margin: .2rem 0 0; padding-left: 1rem; }
-.bo-foot-row { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.bo-foot-row { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: nowrap; align-items: baseline; }
+/* One line in every card: the date gives way (ellipsis, full text in its title), the link never wraps. */
+.bo-foot-row > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bo-foot-row > a, .bo-foot-row > :last-child:not(:first-child) { flex-shrink: 0; white-space: nowrap; }
 .bo-chips { display: flex; gap: .25rem; flex-wrap: wrap; }
 .bo-chip { border: 1px solid var(--bo-border); border-radius: .25rem; padding: 0 .3rem; font-size: .66rem; }
 .bo-chip-off { opacity: .45; text-decoration: line-through; }
@@ -151,10 +162,10 @@
     if (text !== undefined) e.textContent = text;
     return e;
   }
-  function asOf(s) {
+  function asOf(s, dateOnly) {
     if (!s) return '';
     var d = new Date(s.length <= 10 ? s + 'T00:00:00' : s);
-    return 'As of ' + (s.length <= 10 ? d.toLocaleDateString() : d.toLocaleString());
+    return 'As of ' + (s.length <= 10 || dateOnly ? d.toLocaleDateString() : d.toLocaleString());
   }
 
   function drawChart(card, data) {
@@ -239,7 +250,9 @@
       list.appendChild(ul);
     }
     if (data.source) card.querySelector('[data-source]').textContent = 'Source: ' + data.source;
-    card.querySelector('[data-asof]').textContent = asOf(data.as_of);
+    const asofEl = card.querySelector('[data-asof]');
+    asofEl.textContent = asOf(data.as_of, true);
+    asofEl.title = asOf(data.as_of);
     var link = card.querySelector('[data-records]');
     if (data.drilldown_url) { link.href = data.drilldown_url; }
     link.textContent = 'View ' + data.row_count + ' record' + (data.row_count === 1 ? '' : 's') + ' →';
