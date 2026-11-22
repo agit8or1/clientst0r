@@ -126,7 +126,7 @@ def settings_billing(request):
         effective = list(cfg.resolve(customer, contract, ss=ss).values())
         row = BillingSettingOverride.objects.filter(
             scope_key=f'contract:{contract.pk}' if contract else f'customer:{customer.pk}').first()
-        current = {k: cfg.display(k, getattr(row, k)) for k in cfg.OVERRIDABLE} if row else {}
+        current = {k: cfg.form_value(k, getattr(row, k)) for k in cfg.OVERRIDABLE} if row else {}
         if row:
             current['note'] = row.note
     overrides = BillingSettingOverride.objects.select_related('client_org', 'contract')

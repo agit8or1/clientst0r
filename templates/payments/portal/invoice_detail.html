@@ -10,20 +10,9 @@
 <p class="text-muted small mb-3">{{ invoice.title }} · dated {{ invoice.invoice_date|date:"Y-m-d" }}{% if invoice.due_date %} · due {{ invoice.due_date|date:"Y-m-d" }}{% endif %}</p>
 {% if invoice.description %}<p>{{ invoice.description|linebreaksbr }}</p>{% endif %}
 
-<div class="card mb-3"><div class="table-responsive"><table class="table table-sm mb-0">
-    <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
-    <tbody>{% for li in lines %}
-    <tr><td>{{ li.description }}</td><td class="text-end">{{ li.quantity }}</td><td class="text-end">{{ li.unit_price|floatformat:2 }}</td><td class="text-end">{{ li.line_total|floatformat:2 }}</td></tr>
-    {% endfor %}</tbody>
-    <tfoot>
-        <tr><td colspan="3" class="text-end">Subtotal</td><td class="text-end">{{ invoice.subtotal|floatformat:2 }}</td></tr>
-        <tr><td colspan="3" class="text-end">Tax</td><td class="text-end">{{ invoice.tax_amount|floatformat:2 }}</td></tr>
-        <tr><td colspan="3" class="text-end"><strong>Total</strong></td><td class="text-end"><strong>{{ invoice.total|floatformat:2 }} {{ invoice.currency }}</strong></td></tr>
-        <tr><td colspan="3" class="text-end">Paid</td><td class="text-end">{{ invoice.amount_paid|floatformat:2 }}</td></tr>
-        {% if invoice.credited_amount %}<tr><td colspan="3" class="text-end">Credited</td><td class="text-end">{{ invoice.credited_amount|floatformat:2 }}</td></tr>{% endif %}
-        <tr><td colspan="3" class="text-end"><strong>Balance due</strong></td><td class="text-end"><strong>{{ invoice.net_balance_due|floatformat:2 }} {{ invoice.currency }}</strong></td></tr>
-    </tfoot>
-</table></div></div>
+<div class="card mb-3"><div class="card-body pb-0">{% include "psa/_invoice_brand.html" with part="head" %}</div>
+{% include "psa/_invoice_lines.html" with show_source=False totals="full" %}
+<div class="card-body pt-0">{% include "psa/_invoice_brand.html" with part="foot" %}</div></div>
 
 {% if processing %}
 <div class="alert alert-info">A payment for this invoice is processing. Bank payments can take a few days to clear.</div>

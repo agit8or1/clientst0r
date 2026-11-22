@@ -711,6 +711,24 @@ class PortalBillingTests(PaymentsBase):
         draft = self.make_invoice(self.acme, Decimal('5.00'), status='draft')
         self.assertEqual(_login(self.alice).get(reverse('portal:billing_invoice', args=[draft.pk])).status_code, 404)
 
+    def test_portal_invoice_layout_branding_and_boundary(self):
+        """Phase 102.5: the portal renders the invoice's stored layout, the MSP footer escaped,
+        and never another customer's invoice or ticket subjects."""
+        from core.models import SystemSetting
+        from psa.models import InvoiceLineItem
+        ss = SystemSetting.get_settings()
+        ss.invoice_footer_text = 'Pay <b>now</b>'
+        ss.save()
+        Invoice.objects.filter(pk=self.inv_a.pk).update(presentation='monthly')
+        r = _login(self.alice).get(reverse('portal:billing_invoice', args=[self.inv_a.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '<th>Category</th>', html=False)
+        self.assertContains(r, 'Pay &lt;b&gt;now&lt;/b&gt;')
+        self.assertNotContains(r, 'Pay <b>now</b>')
+        self.assertEqual(_login(self.alice).get(reverse('portal:billing_invoice', args=[self.inv_b.pk])).status_code, 404)
+        self.assertEqual(InvoiceLineItem.objects.filter(invoice=self.inv_a).count(),
+                         len(r.context['present']['lines']))
+
     def test_invoice_detail_hides_internal_fields(self):
         li = self.inv_a.line_items.first()
         li.gl_account_code = 'GL-SECRET-4000'

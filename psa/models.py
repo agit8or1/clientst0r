@@ -4993,6 +4993,16 @@ class Invoice(models.Model):
     due_date = models.DateField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
 
+    # Phase 102.5: how this invoice is laid out (psa.billing.presentation).
+    # Blank on a draft = follow the customer / contract / install default as
+    # it stands; frozen to the resolved value when the invoice leaves draft,
+    # so a sent invoice always renders the same way. Rendering only: never
+    # changes lines, tax or totals.
+    presentation = models.CharField(
+        max_length=20, blank=True, default='',
+        choices=[('', 'Default'), ('itemized', 'Itemized'), ('by_ticket', 'Grouped by ticket'),
+                 ('monthly', 'Monthly summary'), ('service_report', 'Summary + service report')])
+
     # Money
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=4, default=0)
@@ -5220,6 +5230,13 @@ class Invoice(models.Model):
         return None
 
     def save(self, *args, **kwargs):
+        if self.status != 'draft' and not self.presentation:
+            # Leaving draft freezes the layout the invoice would render with.
+            from psa.billing.presentation import resolve_layout
+            self.presentation = resolve_layout(self)
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'presentation' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['presentation']
         key = self.compute_contract_period_key()
         if key != self.contract_period_key:
             self.contract_period_key = key
@@ -5931,6 +5948,9 @@ class BillingSettingOverride(models.Model):
     late_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True,
                                        help_text='Blank inherits. 0 = no late fee.')
     late_fee_min_days_overdue = models.PositiveIntegerField(null=True, blank=True, help_text='Blank inherits.')
+    # Phase 102.5: the invoice layout for this customer / contract. Blank inherits.
+    invoice_presentation = models.CharField(max_length=20, null=True, blank=True,
+                                            help_text='Blank inherits the invoice layout.')
     note = models.CharField(max_length=300, blank=True, default='')
     updated_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                    null=True, blank=True, related_name='+')
@@ -5938,7 +5958,7 @@ class BillingSettingOverride(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     FIELDS = ('invoice_approval_threshold_total', 'invoice_approval_overage_pct', 'late_fee_pct',
-              'late_fee_min_days_overdue')
+              'late_fee_min_days_overdue', 'invoice_presentation')
 
     class Meta:
         db_table = 'psa_billing_setting_overrides'

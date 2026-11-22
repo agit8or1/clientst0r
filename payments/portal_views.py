@@ -92,8 +92,10 @@ def invoice_detail(request, pk):
     connection = services.connection_for_invoice(invoice)
     due = services.amount_due(invoice)
     processing = PaymentAttempt.objects.filter(invoice=invoice, status='processing').exists()
+    from psa.billing import presentation
     return render(request, 'payments/portal/invoice_detail.html', {
         'invoice': invoice, 'lines': invoice.line_items.all(), 'due': due,
+        'present': presentation.build(invoice, detail=True), 'brand': presentation.branding(invoice),
         'payments': invoice.payments.all().order_by('-paid_on', '-pk'),
         'can_pay': bool(connection) and due > 0 and not processing
         and services.settings_for(connection).portal_payments_enabled,
