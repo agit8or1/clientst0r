@@ -136,7 +136,7 @@ Approved, in priority order, not started (or started only in parts already liste
 | 6 | 111 — [Identity lifecycle and access reviews](#phase-111) | P1 | 🔵 In progress | 111.1 passkeys; 111.3 one-action offboarding | 57, 64, 80 |
 | 7 | 74 — [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands | 63, 82; St0r API (74.7) |
 | 8 | 106 — [Device management (MDM) integrations](#phase-106) | P2 | ⬜ Planned | 106.1 provider connections | 64, 74.9, 82, 92 |
-| 9 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.21 public Agit8or Connect repository (needs the owner to create agit8or1/agit8or-connect); then interoperability tests between two installations and the security review (Quick Connect increments F, G, H) | Rem0te contract |
+| 9 | 79 — [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | 79.26 suspended is not revoked; 79.23 reference-peer and TypeScript runs; then 79.24 security review | Rem0te contract |
 
 <!-- /generated:next -->
 
@@ -247,7 +247,7 @@ unchanged. Click a feature for its details.
 | 56 | [Ticket AI Assist and RMM handoff](#phase-56) | — | 🔵 In progress | 57; Rem0te ticket-rmm-v1 | Remaining Rem0te-side items move with 63.11–63.16 |
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
-| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.21 public Agit8or Connect repository (needs the owner to create agit8or1/agit8or-connect); then interoperability tests between two installations and the security review (Quick Connect increments F, G, H) |
+| 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.26 suspended is not revoked; 79.23 reference-peer and TypeScript runs; then 79.24 security review |
 | 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.3 bounded ingestion; 82.6 permission keys; first consumers |
 | 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
 | 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
@@ -2777,9 +2777,9 @@ Depends on Phases 72, 73 and 74.
 <a id="phase-79"></a>
 
 ## Phase 79 — Agit8or Connect: secure application-to-application integration **(XL · integrations)** [in progress]
-<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.21 public Agit8or Connect repository (needs the owner to create agit8or1/agit8or-connect); then interoperability tests between two installations and the security review (Quick Connect increments F, G, H)" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
+<!-- phase: ws=D view=next order=10 deps="Rem0te contract" next="79.26 suspended is not revoked; 79.23 reference-peer and TypeScript runs; then 79.24 security review" blocker="79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel" unblock="Decision on one Rem0te channel; Rem0te Stage 8" -->
 **Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** Rem0te contract  
-**Next:** 79.21 public Agit8or Connect repository (needs the owner to create agit8or1/agit8or-connect); then interoperability tests between two installations and the security review (Quick Connect increments F, G, H)  
+**Next:** 79.26 suspended is not revoked; 79.23 reference-peer and TypeScript runs; then 79.24 security review  
 **Blocked:** 79.6 is Rem0te work; 79.7 would duplicate Phase 63 over a second channel — *unblocks when:* Decision on one Rem0te channel; Rem0te Stage 8
 
 <details markdown="1">
@@ -2818,11 +2818,18 @@ events with each other, starting with Clientst0r and Rem0te. It runs alongside t
 - **79.18 Event queue recovery** *(shipped v3.17.752)* — events wait while a peer is offline instead of being used up by retries, drain in order on recovery, expire by age, and can be requeued from the failed list.
 - **79.19 Connection alerts** *(shipped — email, system warnings and the bell v3.17.752; event layer, webhook, muting and a ticket per incident v3.17.754)* — status changes go through the shared event layer and existing notification channels, with deduplication, rate limits, muting and recovery notices; an optional ticket per incident, never one per check.
 - **79.20 Connection diagnostics** *(shipped — fifteen checks v3.17.752; history tab, redacted export, diagnostics in the activation gate and a full run every 15 minutes v3.17.754)* — fifteen independent checks from DNS to reverse connectivity, each with a result, explanation, next step, error code and time, a run history, and a redacted export.
-- **79.21 Public Agit8or Connect standard** *(planned)* — a public repository with the specification, OpenAPI, message schemas, test vectors, conformance tests, a reference peer, examples and an integration guide; this repository keeps a pinned copy.
+- **79.21 Public Agit8or Connect standard** *(partial — public repository published at github.com/agit8or1/agit8or-connect on 2026-11-21 with its hardening work merged; pinning Clientst0r to a released version of it is still to do)* — a public repository with the specification, OpenAPI, message schemas, test vectors, conformance tests, a reference peer, examples and an integration guide; this repository keeps a pinned copy.
 - **79.22 SDK updates for protocol revision 1.1** *(partial — specification, OpenAPI, test vectors and Python/TypeScript SDK support shipped v3.17.747; publishing in the public repository is 79.21)* — Python and TypeScript support for the optional bootstrap, source-binding and diagnostics extensions with new test vectors; version 1 messages and vectors unchanged, so version 1 peers keep working.
-- **79.23 Independent interoperability testing** *(planned)* — Clientst0r and the reference peer connect over real HTTPS on one host, covering both pairing flows, address and certificate changes, outages and recovery, without changes to host firewalls, DNS or proxies.
+- **79.23 Independent interoperability testing** *(partial — Clientst0r↔Clientst0r on one host over real HTTPS with a per-run test CA shipped v3.17.763, 31 of 32 steps passing; reference-peer and TypeScript runs against an installation still planned)* — Clientst0r and the reference peer connect over real HTTPS on one host, covering both pairing flows, address and certificate changes, outages and recovery, without changes to host firewalls, DNS or proxies.
 - **79.24 Security review of Quick Connect** *(planned)* — an independent review, an updated threat model and limitations, and owner sign-off before Quick Connect is offered on production installations.
 - **79.25 Quick Connect wizard** *(shipped — wizard v3.17.748, connection test before Connected v3.17.750; automatic retests follow with 79.16–79.18)* — enter a host name or address (HTTPS on 443 by default), check the network and certificate, authorise in the other application, compare the code, choose permissions and customers, allow the other side's address, watch the tests, and only then see Connected.
+- **79.26 Suspended is not revoked** *(planned)* — a suspended connection answers with its own protocol error, so
+  suspend → resume and a kill-switch release recover without pairing again (today the other side treats suspension
+  as revocation and blocks the pair; found by the 79.23 harness).
+- **79.27 Accurate reason after a revoke** *(planned)* — the other side shows "revoked by the peer" rather than
+  "source not authorised" once a connection is revoked.
+- **79.28 Administrator-approved initiator port** *(planned)* — let a Quick Connect responder accept an initiator on
+  an approved port other than 443.
 
 **Sizing:** **XL** — protocol and Clientst0r side first, then the Rem0te side, then integration features.
 

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.763] - 2026-11-22
+
+### Added
+
+- **Agit8or Connect interoperability harness** (roadmap 79.23, partial). `scripts/connect_interop/run.py` starts two
+  separate Clientst0r installations on this host. Each has its own database and keys, is served over real HTTPS
+  with a test certificate authority made for that run, and certificate checks are never switched off.
+
+  The harness drives the whole Quick Connect flow through the real pages and background jobs:
+  - default-deny addresses;
+  - pairing with re-authentication and a second administrator;
+  - matching codes on both sides;
+  - test before going live, and API calls and signed events both ways;
+  - replay, unknown-customer and unknown-address refusals;
+  - an outage with automatic reconnection;
+  - certificate and address changes that block the connection until an administrator approves;
+  - the kill switch and revocation.
+
+  The first run passed 31 of 32 steps; the evidence is in `docs/plans/quick-connect/evidence/`. The failing step
+  found a protocol issue: suspending and resuming a connection makes the other side treat it as revoked, so the
+  pair has to be connected again. That is now roadmap 79.26.
+
+  This is local testing on one machine, not an independent review. Agit8or Connect stays off by default.
+
 ## [3.17.762] - 2026-11-21
 
 ### Changed

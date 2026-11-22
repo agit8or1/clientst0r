@@ -1,0 +1,1593 @@
+{
+ "label": "local real-network (127.0.0.1, test CA)",
+ "not": [
+  "production",
+  "an independent review",
+  "two different hosts",
+  "real DNS"
+ ],
+ "started": "2026-11-22T00:27:23.622+00:00",
+ "ended": "2026-11-22T00:32:53.006+00:00",
+ "summary": {
+  "steps": 32,
+  "passed": 31,
+  "failed": 1,
+  "skipped": 0
+ },
+ "environment": {
+  "code": "14675a7a74c2bdcfa74d2b7497148e67412d3997",
+  "installations": {
+   "a": {
+    "public_url": "https://a.interop.test",
+    "simulated_address": "10.231.0.1",
+    "loopback_source": "127.0.0.11",
+    "workers": 3
+   },
+   "b": {
+    "public_url": "https://b.interop.test",
+    "simulated_address": "10.231.0.2",
+    "loopback_source": "127.0.0.12",
+    "workers": 2
+   }
+  },
+  "address_simulation": "netshim: *.interop.test -> simulated 10.231.0.0/16 addresses dialled on 127.0.0.1; inbound loopback source aliases translated to the sender's simulated address (TLS, HTTP, workers and every Connect check are real)",
+  "tls": "per-run test-only CA, trusted only via each connection's private CA and the driver's verify= path; verification never disabled"
+ },
+ "steps": [
+  {
+   "id": "S01",
+   "title": "Per-run test CA and certificates (127.0.0.1 listeners; trusted only explicitly)",
+   "started": "2026-11-22T00:27:23.622+00:00",
+   "result": "pass",
+   "detail": {
+    "ca_sha256": "a552700f0a2bc171d07b6632c0750f003a3bddf739cedf07e2120b6744a2f58d",
+    "system_trust_store_modified": false
+   },
+   "ended": "2026-11-22T00:27:23.647+00:00",
+   "seconds": 0.02
+  },
+  {
+   "id": "S02",
+   "title": "Two throwaway installations: separate SQLite databases, media, logs, runtime and secrets",
+   "started": "2026-11-22T00:27:23.647+00:00",
+   "result": "pass",
+   "detail": {
+    "installations": {
+     "a": {
+      "dir": "/tmp/claude-1000/-home-administrator/e095e03f-f6b0-4599-bf39-fa202e31db0c/scratchpad/qc/clientst0r-interop-1mpavhbl/a",
+      "public_url": "https://a.interop.test",
+      "simulated_address": "10.231.0.1",
+      "loopback_source": "127.0.0.11",
+      "workers": 3,
+      "listen": "127.0.0.1:33295"
+     },
+     "b": {
+      "dir": "/tmp/claude-1000/-home-administrator/e095e03f-f6b0-4599-bf39-fa202e31db0c/scratchpad/qc/clientst0r-interop-1mpavhbl/b",
+      "public_url": "https://b.interop.test",
+      "simulated_address": "10.231.0.2",
+      "loopback_source": "127.0.0.12",
+      "workers": 2,
+      "listen": "127.0.0.1:37817"
+     }
+    }
+   },
+   "ended": "2026-11-22T00:27:23.788+00:00",
+   "seconds": 0.14
+  },
+  {
+   "id": "S03",
+   "title": "Seed administrators (password + confirmed TOTP device) and customers",
+   "started": "2026-11-22T00:27:23.788+00:00",
+   "result": "pass",
+   "detail": {
+    "identities": {
+     "a": "deaa4095-b01c-4ebf-8073-36fb38edff8d",
+     "b": "52cfb74c-91c4-4d91-a953-67c4fa46bb13"
+    },
+    "customers": {
+     "a": [
+      {
+       "pk": 1,
+       "name": "Acme (A)"
+      },
+      {
+       "pk": 2,
+       "name": "Globex (A)"
+      }
+     ],
+     "b": [
+      {
+       "pk": 1,
+       "name": "Acme (B)"
+      },
+      {
+       "pk": 2,
+       "name": "Globex (B)"
+      }
+     ]
+    }
+   },
+   "ended": "2026-11-22T00:27:29.232+00:00",
+   "seconds": 5.44
+  },
+  {
+   "id": "F01",
+   "title": "Connect off by default: discovery and the admin pages answer 404 on both installations",
+   "started": "2026-11-22T00:27:29.232+00:00",
+   "result": "pass",
+   "detail": {
+    "a_discovery": 404,
+    "b_discovery": 404
+   },
+   "ended": "2026-11-22T00:27:39.100+00:00",
+   "seconds": 9.87
+  },
+  {
+   "id": "F02",
+   "title": "Sign in four administrators (password + TOTP second factor) over HTTPS",
+   "started": "2026-11-22T00:27:39.100+00:00",
+   "result": "pass",
+   "detail": {
+    "sessions": [
+     "a/admin1",
+     "a/admin2",
+     "b/admin1",
+     "b/admin2"
+    ]
+   },
+   "ended": "2026-11-22T00:27:58.337+00:00",
+   "seconds": 19.24
+  },
+  {
+   "id": "F03",
+   "title": "Default deny: with Connect on and no rule, discovery refuses the other installation's address (403 before any authentication)",
+   "started": "2026-11-22T00:27:58.337+00:00",
+   "result": "pass",
+   "detail": {
+    "a_from_b": {
+     "status": 403,
+     "body": "{\"error\": {\"code\": \"source_not_authorised\", \"message\": \"This source address is not authorised for Agit8or Connect.\"}}"
+    },
+    "b_from_a": {
+     "status": 403,
+     "body": "{\"error\": {\"code\": \"source_not_authorised\", \"message\": \"This source address is not authorised for Agit8or Connect.\"}}"
+    }
+   },
+   "ended": "2026-11-22T00:27:58.451+00:00",
+   "seconds": 0.11
+  },
+  {
+   "id": "N01",
+   "title": "Each side declares its egress address and turns Quick Connect on (fresh re-authentication required)",
+   "started": "2026-11-22T00:27:58.452+00:00",
+   "result": "pass",
+   "detail": {
+    "a": {
+     "qc_enabled": true,
+     "egress": [
+      {
+       "net": "10.231.0.1/32",
+       "note": ""
+      }
+     ]
+    },
+    "b": {
+     "qc_enabled": true,
+     "egress": [
+      {
+       "net": "10.231.0.2/32",
+       "note": ""
+      }
+     ]
+    }
+   },
+   "ended": "2026-11-22T00:28:01.330+00:00",
+   "seconds": 2.88
+  },
+  {
+   "id": "N02",
+   "title": "Each side allows the other installation's address at the installation layer (staged change, private address flagged; widening -> second administrator)",
+   "started": "2026-11-22T00:28:01.330+00:00",
+   "result": "pass",
+   "detail": {
+    "a": {
+     "approve_status": 302,
+     "protected_change": 1,
+     "self_approval_refused": true,
+     "protected_status": "applied",
+     "change_status": "applied"
+    },
+    "a_installation_rules": [
+     {
+      "network": "10.231.0.2/32",
+      "private": 1,
+      "status": "active",
+      "layer": "installation"
+     }
+    ],
+    "b": {
+     "approve_status": 302,
+     "protected_change": 1,
+     "self_approval_refused": true,
+     "protected_status": "applied",
+     "change_status": "applied"
+    },
+    "b_installation_rules": [
+     {
+      "network": "10.231.0.1/32",
+      "private": 1,
+      "status": "active",
+      "layer": "installation"
+     }
+    ]
+   },
+   "ended": "2026-11-22T00:29:01.628+00:00",
+   "seconds": 60.3
+  },
+  {
+   "id": "Q01",
+   "title": "A: Quick Connect wizard \u2014 address, DNS + TLS preview with the per-connection test CA, single-use signed invitation",
+   "started": "2026-11-22T00:29:01.628+00:00",
+   "result": "pass",
+   "detail": {
+    "attempt": "/settings/integrations/connected-apps/quick-connect/94a6b9eb-4a98-4eca-b441-9691ead1af37/",
+    "authorize_link": "https://b.interop.test/agit8or-connect/qc-authorize?invitation=eyJhbGciOiJFZERTQSIsImp3ayI6eyJhbGciOiJFZERTQSIsImNydiI6I\u2026"
+   },
+   "ended": "2026-11-22T00:29:02.272+00:00",
+   "seconds": 0.64
+  },
+  {
+   "id": "Q02",
+   "title": "B: the administrator reviews the invitation in B's own admin UI; approve needs a fresh re-authentication; then approves temporary access for A's declared egress",
+   "started": "2026-11-22T00:29:02.272+00:00",
+   "result": "pass",
+   "detail": {
+    "approve_without_reauth": 200,
+    "temporary_rules_on_b": [
+     {
+      "network": "10.231.0.1/32",
+      "purpose": "pairing",
+      "status": "temporary",
+      "expires_at": "2026-11-22 00:44:31.204691"
+     }
+    ],
+    "invitation_reuse": {
+     "status": 400,
+     "error": [
+      "invitation_used"
+     ]
+    }
+   },
+   "ended": "2026-11-22T00:29:31.395+00:00",
+   "seconds": 29.12
+  },
+  {
+   "id": "Q03",
+   "title": "A: callback in the initiator's browser session; A approves B's declared egress; the exchange (PKCE + DPoP) goes A -> B over HTTPS",
+   "started": "2026-11-22T00:29:31.395+00:00",
+   "result": "pass",
+   "detail": {
+    "a": {
+     "state": "awaiting_remote_approval",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "b": {
+     "state": "awaiting_local_approval",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "sas_a": "4038-4995"
+   },
+   "ended": "2026-11-22T00:29:32.044+00:00",
+   "seconds": 0.65
+  },
+  {
+   "id": "Q04",
+   "title": "SAS: both administrators see the same comparison code",
+   "started": "2026-11-22T00:29:32.045+00:00",
+   "result": "pass",
+   "detail": {
+    "sas_a": "4038-4995",
+    "sas_b": "4038-4995"
+   },
+   "ended": "2026-11-22T00:29:32.256+00:00",
+   "seconds": 0.21
+  },
+  {
+   "id": "Q05",
+   "title": "B: looks up A, approves the permissions A may use and which customer maps to A's customer (scope grants)",
+   "started": "2026-11-22T00:29:32.256+00:00",
+   "result": "pass",
+   "detail": {
+    "approve": {
+     "status": 302,
+     "location": "/settings/integrations/connected-apps/6d93c2b6-681d-45d3-a10e-900e7d4c0ef9/"
+    },
+    "b": {
+     "state": "awaiting_network",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    }
+   },
+   "ended": "2026-11-22T00:29:32.715+00:00",
+   "seconds": 0.46
+  },
+  {
+   "id": "Q06",
+   "title": "A: learns the approval (poll), approves what B may do and the customer mapping",
+   "started": "2026-11-22T00:29:32.715+00:00",
+   "result": "pass",
+   "detail": {
+    "after_poll": {
+     "state": "awaiting_local_approval",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "a": {
+     "state": "awaiting_network",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    }
+   },
+   "ended": "2026-11-22T00:29:33.491+00:00",
+   "seconds": 0.78
+  },
+  {
+   "id": "Q07",
+   "title": "Both: approve the other side's source address for this connection only (default deny; password + TOTP), private address flagged explicitly",
+   "started": "2026-11-22T00:29:33.491+00:00",
+   "result": "pass",
+   "detail": {
+    "a": {
+     "state": "testing",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "Connection test failed at \"Connectivity and identity\": the other application refused this source",
+     "next_check_at": "2026-11-22 00:29:44.576205",
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "a_rules": [
+     {
+      "network": "10.231.0.2/32",
+      "private": 1,
+      "purpose": "pairing",
+      "status": "temporary",
+      "layer": "connection"
+     },
+     {
+      "network": "10.231.0.2/32",
+      "private": 1,
+      "purpose": "all",
+      "status": "temporary",
+      "layer": "connection"
+     }
+    ],
+    "b": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:31:01.663299",
+     "last_check_at": "2026-11-22 00:30:01.110128",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "b_rules": [
+     {
+      "network": "10.231.0.1/32",
+      "private": 1,
+      "purpose": "poll",
+      "status": "removed",
+      "layer": "connection"
+     },
+     {
+      "network": "10.231.0.1/32",
+      "private": 1,
+      "purpose": "all",
+      "status": "active",
+      "layer": "connection"
+     }
+    ]
+   },
+   "ended": "2026-11-22T00:30:01.514+00:00",
+   "seconds": 28.02
+  },
+  {
+   "id": "Q08",
+   "title": "Test before live: each side's commit test (connection test + diagnostics incl. reverse connectivity) until both are Connected",
+   "started": "2026-11-22T00:30:01.514+00:00",
+   "result": "pass",
+   "detail": {
+    "runs": [
+     {
+      "side": "a",
+      "attempt": 0,
+      "state": "active",
+      "last_error": "",
+      "messages": [
+       "Every check passed. The connection is active."
+      ]
+     }
+    ],
+    "a": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:30:59.036121",
+     "last_check_at": "2026-11-22 00:30:02.317503",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "a_last_test": {
+     "ok": true,
+     "failed": []
+    },
+    "b": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:31:01.663299",
+     "last_check_at": "2026-11-22 00:30:01.110128",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "b_last_test": {
+     "ok": true,
+     "failed": []
+    }
+   },
+   "ended": "2026-11-22T00:30:03.041+00:00",
+   "seconds": 1.53
+  },
+  {
+   "id": "L01",
+   "title": "Authenticated API calls in both directions (private_key_jwt + DPoP token, tenant-scoped resource)",
+   "started": "2026-11-22T00:30:03.042+00:00",
+   "result": "pass",
+   "detail": {
+    "a_to_b": {
+     "customers_current": {
+      "status": 200,
+      "body": {
+       "tenant": "org-1",
+       "name": "Acme (B)"
+      }
+     },
+     "customers": {
+      "status": 200,
+      "body": {
+       "tenants": [
+        {
+         "tenant": "org-1",
+         "name": "Acme (B)",
+         "scopes": [
+          "customers:read",
+          "events:publish"
+         ]
+        }
+       ]
+      }
+     }
+    },
+    "b_to_a": {
+     "customers_current": {
+      "status": 200,
+      "body": {
+       "tenant": "org-1",
+       "name": "Acme (A)"
+      }
+     },
+     "customers": {
+      "status": 200,
+      "body": {
+       "tenants": [
+        {
+         "tenant": "org-1",
+         "name": "Acme (A)",
+         "scopes": [
+          "customers:read",
+          "events:publish"
+         ]
+        }
+       ]
+      }
+     }
+    }
+   },
+   "ended": "2026-11-22T00:30:07.666+00:00",
+   "seconds": 4.62
+  },
+  {
+   "id": "L02",
+   "title": "Signed events delivered A -> B and B -> A through the queue (delivery command), stored against the mapped customer",
+   "started": "2026-11-22T00:30:07.666+00:00",
+   "result": "pass",
+   "detail": {
+    "a_to_b": {
+     "queued": {
+      "event_ids": [
+       "b88c9821-6840-4f33-a3d6-dff6b92cf698",
+       "068818c9-7f6a-4b94-abf2-2454d73a339c"
+      ]
+     },
+     "delivery": "delivered 2, retry later 0, dead letter 0\nsummarised 1 refused request(s) into the audit chain",
+     "received": [
+      {
+       "event_id": "8b682dd0-660d-478a-9539-de44d74798fa",
+       "event_type": "connect.test",
+       "status": "accepted",
+       "customer": null
+      },
+      {
+       "event_id": "ee70fe98-92d6-41c5-b209-3e8b81b7c12a",
+       "event_type": "connect.test",
+       "status": "accepted",
+       "customer": null
+      },
+      {
+       "event_id": "b88c9821-6840-4f33-a3d6-dff6b92cf698",
+       "event_type": "alert.raised",
+       "status": "accepted",
+       "customer": "Acme (B)"
+      },
+      {
+       "event_id": "068818c9-7f6a-4b94-abf2-2454d73a339c",
+       "event_type": "alert.raised",
+       "status": "accepted",
+       "customer": "Acme (B)"
+      }
+     ]
+    },
+    "b_to_a": {
+     "queued": {
+      "event_ids": [
+       "3f5e9788-5f03-4215-8571-4c51497ceb4b",
+       "4e52adac-703b-47be-b7b3-0773b2650a85"
+      ]
+     },
+     "delivery": "delivered 2, retry later 0, dead letter 0\nsummarised 5 refused request(s) into the audit chain",
+     "received": [
+      {
+       "event_id": "4ff70879-56d0-471d-907e-55f3921bb437",
+       "event_type": "connect.test",
+       "status": "accepted",
+       "customer": null
+      },
+      {
+       "event_id": "8ea5aa77-46bb-4677-b771-95b9409ebacd",
+       "event_type": "connect.test",
+       "status": "accepted",
+       "customer": null
+      },
+      {
+       "event_id": "3f5e9788-5f03-4215-8571-4c51497ceb4b",
+       "event_type": "alert.raised",
+       "status": "accepted",
+       "customer": "Acme (A)"
+      },
+      {
+       "event_id": "4e52adac-703b-47be-b7b3-0773b2650a85",
+       "event_type": "alert.raised",
+       "status": "accepted",
+       "customer": "Acme (A)"
+      }
+     ]
+    }
+   },
+   "ended": "2026-11-22T00:30:22.706+00:00",
+   "seconds": 15.04
+  },
+  {
+   "id": "L03",
+   "title": "Health check (monitor command): every dimension passes, health Connected",
+   "started": "2026-11-22T00:30:22.706+00:00",
+   "result": "pass",
+   "detail": {
+    "a": {
+     "before": [
+      {
+       "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+       "scheduled_delay_s": 56.718618,
+       "next_check_at": "2026-11-22T00:30:59.036121+00:00"
+      }
+     ],
+     "after": [
+      {
+       "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+       "state": "active",
+       "health": "connected",
+       "circuit": "closed",
+       "retry_step": 0,
+       "consecutive_fail": 0,
+       "consecutive_ok": 1,
+       "security_block_code": "",
+       "last_error": "",
+       "next_check_at": "2026-11-22T00:31:20.708391+00:00",
+       "scheduled_delay_s": 54.788136
+      }
+     ],
+     "output": "checked 1 connection(s) in 1 pass(es), delivered 0 event(s), errors 0\n"
+    },
+    "a_dims": {
+     "transport": {
+      "since": "2026-11-22T00:30:25.920255+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:25.920255+00:00"
+     },
+     "tls": {
+      "since": "2026-11-22T00:30:25.920255+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:25.920255+00:00"
+     },
+     "authenticated": {
+      "since": "2026-11-22T00:30:25.920255+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:25.920255+00:00"
+     },
+     "authorised": {
+      "since": "2026-11-22T00:30:25.920255+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:25.920255+00:00"
+     },
+     "operational": {
+      "since": "2026-11-22T00:30:25.920255+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:25.920255+00:00"
+     }
+    },
+    "b": {
+     "before": [
+      {
+       "id": "6d93c2b6-681d-45d3-a10e-900e7d4c0ef9",
+       "scheduled_delay_s": 60.553171,
+       "next_check_at": "2026-11-22T00:31:01.663299+00:00"
+      }
+     ],
+     "after": [
+      {
+       "id": "6d93c2b6-681d-45d3-a10e-900e7d4c0ef9",
+       "state": "active",
+       "health": "connected",
+       "circuit": "closed",
+       "retry_step": 0,
+       "consecutive_fail": 0,
+       "consecutive_ok": 1,
+       "security_block_code": "",
+       "last_error": "",
+       "next_check_at": "2026-11-22T00:31:38.220528+00:00",
+       "scheduled_delay_s": 65.268225
+      }
+     ],
+     "output": "checked 1 connection(s) in 1 pass(es), delivered 0 event(s), errors 0\n"
+    },
+    "b_dims": {
+     "transport": {
+      "since": "2026-11-22T00:30:32.952303+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:32.952303+00:00"
+     },
+     "tls": {
+      "since": "2026-11-22T00:30:32.952303+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:32.952303+00:00"
+     },
+     "authenticated": {
+      "since": "2026-11-22T00:30:32.952303+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:32.952303+00:00"
+     },
+     "authorised": {
+      "since": "2026-11-22T00:30:32.952303+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:32.952303+00:00"
+     },
+     "operational": {
+      "since": "2026-11-22T00:30:32.952303+00:00",
+      "ok": true,
+      "code": "",
+      "last_ok": "2026-11-22T00:30:32.952303+00:00"
+     }
+    }
+   },
+   "ended": "2026-11-22T00:30:34.196+00:00",
+   "seconds": 11.49
+  },
+  {
+   "id": "L04",
+   "title": "Replay: the same signed request (same DPoP proof) sent twice \u2014 the second is refused",
+   "started": "2026-11-22T00:30:34.197+00:00",
+   "result": "pass",
+   "detail": {
+    "first": {
+     "status": 200,
+     "body": {
+      "tenant": "org-1",
+      "name": "Acme (B)"
+     }
+    },
+    "replayed": {
+     "status": 401,
+     "body": {
+      "error": {
+       "code": "replayed",
+       "message": "DPoP proof already used",
+       "correlation_id": "ef77ef20-5670-4b2a-b915-e0ae7f530cf8"
+      }
+     }
+    }
+   },
+   "ended": "2026-11-22T00:30:41.198+00:00",
+   "seconds": 7.0
+  },
+  {
+   "id": "L05",
+   "title": "Cross-tenant: a customer of A's that this connection was never granted, and a tenant id that exists nowhere, are refused without data",
+   "started": "2026-11-22T00:30:41.199+00:00",
+   "result": "pass",
+   "detail": {
+    "ungranted": {
+     "status": 403,
+     "body": {
+      "error": {
+       "code": "tenant_not_granted",
+       "message": "tenant not granted to this connection",
+       "correlation_id": "c2e9b526-be43-4fda-84b0-0b832e84c0fb"
+      }
+     }
+    },
+    "peer_side_id": {
+     "status": 403,
+     "body": {
+      "error": {
+       "code": "tenant_not_granted",
+       "message": "tenant not granted to this connection",
+       "correlation_id": "19e5bad0-fd7d-4b6c-a423-f1f152718774"
+      }
+     }
+    }
+   },
+   "ended": "2026-11-22T00:30:41.199+00:00",
+   "seconds": 0.0
+  },
+  {
+   "id": "L06",
+   "title": "Source policy: an address not in any rule is refused before authentication; the connection's own address is admitted",
+   "started": "2026-11-22T00:30:41.199+00:00",
+   "result": "pass",
+   "detail": {
+    "rogue": {
+     "source": "10.231.0.13",
+     "status": 403,
+     "body": "{\"error\": {\"code\": \"source_not_authorised\", \"message\": \"This source address is not authorised for Agit8or Connect.\"}}"
+    },
+    "peer": {
+     "source": "10.231.0.1",
+     "status": 200
+    },
+    "rogue_rule_rows": []
+   },
+   "ended": "2026-11-22T00:30:41.401+00:00",
+   "seconds": 0.2
+  },
+  {
+   "id": "O01",
+   "title": "Availability failure: B stopped -> A Degraded, then Offline with the backoff ladder (10 s, 30 s, 60 s \u2026 \u00b120 %); events queued meanwhile wait instead of being used up",
+   "started": "2026-11-22T00:30:41.402+00:00",
+   "result": "pass",
+   "detail": {
+    "passes": [
+     {
+      "pass": 0,
+      "before": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "scheduled_delay_s": 54.788136,
+        "next_check_at": "2026-11-22T00:31:20.708391+00:00"
+       }
+      ],
+      "after": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "state": "active",
+        "health": "connected",
+        "circuit": "closed",
+        "retry_step": 1,
+        "consecutive_fail": 1,
+        "consecutive_ok": 0,
+        "security_block_code": "",
+        "last_error": "The connection to port 443 was refused.",
+        "next_check_at": "2026-11-22T00:30:52.903342+00:00",
+        "scheduled_delay_s": 8.364199
+       }
+      ]
+     },
+     {
+      "pass": 1,
+      "before": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "scheduled_delay_s": 8.364199,
+        "next_check_at": "2026-11-22T00:30:52.903342+00:00"
+       }
+      ],
+      "after": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "state": "active",
+        "health": "degraded",
+        "circuit": "closed",
+        "retry_step": 2,
+        "consecutive_fail": 2,
+        "consecutive_ok": 0,
+        "security_block_code": "",
+        "last_error": "The connection to port 443 was refused.",
+        "next_check_at": "2026-11-22T00:31:20.248384+00:00",
+        "scheduled_delay_s": 33.350043
+       }
+      ]
+     },
+     {
+      "pass": 2,
+      "before": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "scheduled_delay_s": 33.350043,
+        "next_check_at": "2026-11-22T00:31:20.248384+00:00"
+       }
+      ],
+      "after": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "state": "active",
+        "health": "offline",
+        "circuit": "open",
+        "retry_step": 3,
+        "consecutive_fail": 3,
+        "consecutive_ok": 0,
+        "security_block_code": "",
+        "last_error": "The connection to port 443 was refused.",
+        "next_check_at": "2026-11-22T00:31:52.797259+00:00",
+        "scheduled_delay_s": 63.454774
+       }
+      ]
+     }
+    ],
+    "a": {
+     "state": "active",
+     "health": "offline",
+     "circuit": "open",
+     "retry_step": 3,
+     "security_block_code": "",
+     "last_error": "The connection to port 443 was refused.",
+     "next_check_at": "2026-11-22 00:31:52.797259",
+     "last_check_at": "2026-11-22 00:30:49.342485",
+     "consecutive_fail": 3,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "scheduled_delays_s": [
+     8.364199,
+     33.350043,
+     63.454774
+    ],
+    "queued_while_offline": [
+     {
+      "status": "queued",
+      "attempts": 0,
+      "last_error": ""
+     },
+     {
+      "status": "queued",
+      "attempts": 0,
+      "last_error": ""
+     },
+     {
+      "status": "queued",
+      "attempts": 0,
+      "last_error": ""
+     }
+    ]
+   },
+   "ended": "2026-11-22T00:30:57.356+00:00",
+   "seconds": 15.95
+  },
+  {
+   "id": "O02",
+   "title": "Recovery: B restarted -> A's half-open probe and a second pass -> Connected without an administrator; the queue drains in order",
+   "started": "2026-11-22T00:30:57.356+00:00",
+   "result": "pass",
+   "detail": {
+    "passes": [
+     {
+      "pass": 0,
+      "after": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "state": "active",
+        "health": "offline",
+        "circuit": "closed",
+        "retry_step": 0,
+        "consecutive_fail": 0,
+        "consecutive_ok": 1,
+        "security_block_code": "",
+        "last_error": "",
+        "next_check_at": "2026-11-22T00:31:11.850158+00:00",
+        "scheduled_delay_s": 8.697378
+       }
+      ]
+     },
+     {
+      "pass": 1,
+      "after": [
+       {
+        "id": "94a6b9eb-4a98-4eca-b441-9691ead1af37",
+        "state": "active",
+        "health": "connected",
+        "circuit": "closed",
+        "retry_step": 0,
+        "consecutive_fail": 0,
+        "consecutive_ok": 2,
+        "security_block_code": "",
+        "last_error": "",
+        "next_check_at": "2026-11-22T00:32:05.029989+00:00",
+        "scheduled_delay_s": 59.18023
+       }
+      ]
+     }
+    ],
+    "a": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:32:05.029989",
+     "last_check_at": "2026-11-22 00:31:05.849759",
+     "consecutive_fail": 0,
+     "consecutive_ok": 2,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "received_order": [
+     "O01-0",
+     "O01-1",
+     "O01-2"
+    ]
+   },
+   "ended": "2026-11-22T00:31:13.031+00:00",
+   "seconds": 15.67
+  },
+  {
+   "id": "X01",
+   "title": "Security failure: B now presents a certificate from another CA -> A Security Blocked at once with evidence, and NO automatic reconnect",
+   "started": "2026-11-22T00:31:13.031+00:00",
+   "result": "pass",
+   "detail": {
+    "after_check": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "certificate_invalid",
+     "last_error": "The other application's certificate is no longer valid (expired, not trusted, or issued for another name). Nothing was sent. Check it with its administrator, then retest.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:31:05.849759",
+     "consecutive_fail": 0,
+     "consecutive_ok": 2,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "evidence": "{\"host\": \"b.interop.test\", \"cert_names\": [], \"approved\": [\"10.231.0.2/32\"], \"destination_version\": 1}",
+    "block_code": "certificate_invalid",
+    "after_cert_restored_and_monitor": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "certificate_invalid",
+     "last_error": "The other application's certificate is no longer valid (expired, not trusted, or issued for another name). Nothing was sent. Check it with its administrator, then retest.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:31:05.849759",
+     "consecutive_fail": 0,
+     "consecutive_ok": 2,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    }
+   },
+   "ended": "2026-11-22T00:31:30.461+00:00",
+   "seconds": 17.43
+  },
+  {
+   "id": "X02",
+   "title": "Administrator retest (password + TOTP) after the certificate is right again -> active",
+   "started": "2026-11-22T00:31:30.461+00:00",
+   "result": "pass",
+   "detail": {
+    "a": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "certificate_invalid",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:32:39.067322",
+     "last_check_at": "2026-11-22 00:31:33.283980",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "messages": [
+     "Retest passed; the connection is active again."
+    ]
+   },
+   "ended": "2026-11-22T00:31:33.669+00:00",
+   "seconds": 3.21
+  },
+  {
+   "id": "X03",
+   "title": "Address change: B's name now resolves to another address -> A Security Blocked (destination_changed), nothing sent; restored -> still blocked until the retest",
+   "started": "2026-11-22T00:31:33.669+00:00",
+   "result": "pass",
+   "detail": {
+    "after_move": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "destination_changed",
+     "last_error": "The other application's address changed: b.interop.test now resolves to 10.231.0.22 (approved: 10.231.0.2/32). Nothing was sent. Check with its administrator, then approve the new address under Network and retest.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:31:33.283980",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "evidence": "{\"addresses\": [\"10.231.0.22\"], \"host\": \"b.interop.test\", \"cert_names\": [\"b.interop.test\", \"127.0.0.1\"], \"approved\": [\"10.231.0.2/32\"], \"destination_version\": 1}",
+    "retest_without_approval": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "destination_changed",
+     "last_error": "The other application's address changed: b.interop.test now resolves to 10.231.0.22 (approved: 10.231.0.2/32). Nothing was sent. Check with its administrator, then approve the new address under Network and retest.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:31:33.283980",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "retest_messages": [
+     "Still blocked: approve the new address first (for an address or certificate change), and every check must pass.",
+     "The other application's address changed: b.interop.test now resolves to 10.231.0.22 (approved: 10.231.0.2/32). Nothing was sent. Check with its administrator, then approve the new address under Network and retest.",
+     "Security Blocked (destination_changed) since 2026-11-21 19:31. The other application's address changed: b.interop.test now resolves to 10.231.0.22 (approved: 10.231.0.2/32). Nothing was sent. Check with its administrator, then approve the new address under Network and retest. Seen: 10.231.0.22"
+    ],
+    "destination_change": {
+     "approve_status": 302,
+     "change_status": "applied"
+    },
+    "after_approval_and_retest": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "destination_changed",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:32:58.821104",
+     "last_check_at": "2026-11-22 00:32:01.055241",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    }
+   },
+   "ended": "2026-11-22T00:32:01.156+00:00",
+   "seconds": 27.49
+  },
+  {
+   "id": "C01",
+   "title": "Kill switch on B: Connect API calls to B answer 503 kill_switch (an availability failure for A, never a security block) and B's connection is suspended; released and resumed -> active on both sides",
+   "started": "2026-11-22T00:32:01.156+00:00",
+   "result": "pass",
+   "detail": {
+    "b_state": {
+     "state": "suspended",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:30:32.952303",
+     "consecutive_fail": 0,
+     "consecutive_ok": 1,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "discovery_at_b": {
+     "status": 200,
+     "stopped": false
+    },
+    "a_calls_b": {
+     "refused_locally": "kill_switch",
+     "status": 503,
+     "state": "active",
+     "security_block_code": "destination_changed"
+    },
+    "a_check_during_kill_switch": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 1,
+     "security_block_code": "destination_changed",
+     "last_error": "connected applications are stopped",
+     "next_check_at": "2026-11-22 00:32:16.547780",
+     "last_check_at": "2026-11-22 00:32:05.713584",
+     "consecutive_fail": 1,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "b_after_resume": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:33:08.003857",
+     "last_check_at": "2026-11-22 00:32:07.038147",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "a_after": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "destination_changed",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:33:03.205864",
+     "last_check_at": "2026-11-22 00:32:09.118006",
+     "consecutive_fail": 0,
+     "consecutive_ok": 1,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    }
+   },
+   "ended": "2026-11-22T00:32:12.202+00:00",
+   "seconds": 11.05
+  },
+  {
+   "id": "C02",
+   "title": "Suspend on A, then resume: A sends nothing while suspended; after resume both sides should be Connected again",
+   "started": "2026-11-22T00:32:12.202+00:00",
+   "result": "fail",
+   "detail": {
+    "a_after_suspend": {
+     "state": "suspended",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "destination_changed",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:09.118006",
+     "consecutive_fail": 0,
+     "consecutive_ok": 1,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "a_calls_b": {
+     "refused_locally": "connection_inactive",
+     "status": 409,
+     "state": "suspended",
+     "security_block_code": "destination_changed"
+    },
+    "b_calls_a": {
+     "refused_locally": "invalid_client",
+     "status": 401,
+     "state": "active",
+     "security_block_code": ""
+    },
+    "b_after_its_check": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "peer_revoked",
+     "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:07.038147",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "a_after_resume": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "peer_revoked",
+     "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:09.118006",
+     "consecutive_fail": 0,
+     "consecutive_ok": 1,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "b_retest": {
+     "row": {
+      "state": "security_blocked",
+      "health": "connected",
+      "circuit": "closed",
+      "retry_step": 0,
+      "security_block_code": "peer_revoked",
+      "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+      "next_check_at": null,
+      "last_check_at": "2026-11-22 00:32:07.038147",
+      "consecutive_fail": 0,
+      "consecutive_ok": 0,
+      "sas": "4038-4995",
+      "direction": "inbound",
+      "qc_revision": "1.1"
+     },
+     "messages": [
+      "Kill switch engaged: 1 connection(s) suspended, every Connect API call is refused.",
+      "Kill switch released. Resume each connection you want back.",
+      "Resumed: every check passed and the connection is active again."
+     ]
+    },
+    "a_retest": {
+     "row": {
+      "state": "security_blocked",
+      "health": "connected",
+      "circuit": "closed",
+      "retry_step": 0,
+      "security_block_code": "peer_revoked",
+      "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+      "next_check_at": null,
+      "last_check_at": "2026-11-22 00:32:09.118006",
+      "consecutive_fail": 0,
+      "consecutive_ok": 1,
+      "sas": "4038-4995",
+      "direction": "outbound",
+      "qc_revision": "1.1"
+     },
+     "messages": [
+      "Change #3 applied.",
+      "Retest passed: the connection is active again.",
+      "Suspended. Nothing is exchanged until you resume it."
+     ]
+    },
+    "a_final": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "peer_revoked",
+     "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:09.118006",
+     "consecutive_fail": 0,
+     "consecutive_ok": 1,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "b_final": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "peer_revoked",
+     "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:07.038147",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "finding": "FINDING (protocol): a suspended connection answers the token endpoint with invalid_client, the code a revoked one uses, so the other side is Security Blocked with peer_revoked. On resume, A's commit test is refused by the blocked B (its token endpoint serves only active or testing connections) and A is blocked with peer_revoked too; each side's retest is refused by the other's blocked state, so the pair cannot recover without pairing again. Fixing it needs a distinct protocol error for a suspended connection (or a protocol rule for retests), so it is reported, not changed."
+   },
+   "ended": "2026-11-22T00:32:31.235+00:00",
+   "seconds": 19.03,
+   "error": "AssertionError: both sides Connected after resume {\"a\": {\"state\": \"security_blocked\", \"health\": \"connected\", \"circuit\": \"closed\", \"retry_step\": 0, \"security_block_code\": \"peer_revoked\", \"last_error\": \"The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.\", \"next_check_at\": null, \"last_check_at\": \"2026-11-22 00:32:09.118006\", \"consecutive_fail\": 0, \"consecutive_ok\": 1, \"sas\": \"4038-4995\", \"direction\": \"outbound\", \"qc_revision\": \"1.1\"}, \"b\": {\"state\": \"security_blocked\", \"health\": \"connected\", \"circuit\": \"closed\", \"retry_step\": 0, \"security_block_code\": \"peer_revoked\", \"last_error\": \"The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.\", \"next_check_at\": null, \"last_check_at\": \"2026-11-22 00:32:07.038147\", \"consecutive_fail\": 0, \"consecutive_ok\": 0, \"sas\": \"4038-4995\", \"direction\": \"inbound\", \"qc_revision\": \"1.1\"}}",
+   "traceback": "Traceback (most recent call last):\n  File \"/home/administrator/.wt-qc-g/scripts/connect_interop/scenario.py\", line 639, in lifecycle_controls\n    check(ra['state'] == 'active' and rb['state'] == 'active', 'both sides Connected after resume',\n  File \"/home/administrator/.wt-qc-g/scripts/connect_interop/run.py\", line 113, in check\n    raise AssertionError(msg + (f' {json.dumps(ctx, default=str)[:1500]}' if ctx else ''))\nAssertionError: both sides Connected after resume {\"a\": {\"state\": \"security_blocked\", \"health\": \"connected\", \"circuit\": \"closed\", \"retry_step\": 0, \"security_block_code\": \"peer_revoked\", \"last_error\": \"The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.\", \"next_check_at\": null, \"last_check_at\": \"2026-11-22 00:32:09.118006\", \"consecutive_fail\": 0, \"consecutive_ok\": 1, \"sas\": \"4038-4995\", \"direction\": \"outbound\", \"qc_revision\": \"1.1\"}, \"b\": {\"state\": \"security_blocked\", \"health\": \"connected\", \"circuit\": \"closed\", \"retry_step\": 0, \"security_block_code\": \"peer_revoked\", \"last_error\": \"The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.\", \"next_check_at\": null, \"last_check_at\": \"2026-11-22 00:32:07.038147\", \"consecutive_fail\": 0, \"consecutive_ok\": 0, \"sas\": \"4038-4995\", \"direction\": \"inbound\", \"qc_revision\": \"1.1\"}}\n"
+  },
+  {
+   "id": "V01",
+   "title": "Protocol 1 code flow, the other direction: the Quick Connect pair is revoked on both sides; A issues a single-use pairing code bound to B's address; B pairs with it",
+   "started": "2026-11-22T00:32:31.238+00:00",
+   "result": "pass",
+   "detail": {
+    "qc_a_after_revoke": {
+     "state": "revoked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "peer_revoked",
+     "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:09.118006",
+     "consecutive_fail": 0,
+     "consecutive_ok": 1,
+     "sas": "4038-4995",
+     "direction": "outbound",
+     "qc_revision": "1.1"
+    },
+    "qc_b_after_revoke": {
+     "state": "revoked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "peer_revoked",
+     "last_error": "The other application no longer accepts this connection (it was revoked or removed there). Check with its administrator; pair again if it was ended on purpose.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:07.038147",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "4038-4995",
+     "direction": "inbound",
+     "qc_revision": "1.1"
+    },
+    "a": {
+     "state": "awaiting_local_approval",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "8208-9335",
+     "direction": "inbound",
+     "qc_revision": ""
+    },
+    "b": {
+     "state": "awaiting_remote_approval",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": null,
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "8208-9335",
+     "direction": "outbound",
+     "qc_revision": ""
+    },
+    "code_reuse": {
+     "status": 200,
+     "messages": [
+      "Revoked immediately. Customer records and history are kept.",
+      "Pairing request sent. Compare the code below with the one the other application shows, then ask its administrator to approve.",
+      "This Clientst0r already has a connection to that installation. Disconnect it first to pair again."
+     ]
+    }
+   },
+   "ended": "2026-11-22T00:32:32.794+00:00",
+   "seconds": 1.56
+  },
+  {
+   "id": "V02",
+   "title": "Code flow: A approves (scopes, customer), B approves its side, both commit tests pass -> active; API call both ways",
+   "started": "2026-11-22T00:32:32.794+00:00",
+   "result": "pass",
+   "detail": {
+    "a_after_approve": {
+     "state": "testing",
+     "health": "",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:32:44.546118",
+     "last_check_at": null,
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "8208-9335",
+     "direction": "inbound",
+     "qc_revision": ""
+    },
+    "a": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:33:37.860281",
+     "last_check_at": "2026-11-22 00:32:35.009807",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "8208-9335",
+     "direction": "inbound",
+     "qc_revision": ""
+    },
+    "b": {
+     "state": "active",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "",
+     "last_error": "",
+     "next_check_at": "2026-11-22 00:33:35.576486",
+     "last_check_at": "2026-11-22 00:32:34.180109",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "8208-9335",
+     "direction": "outbound",
+     "qc_revision": ""
+    },
+    "a_api": {
+     "status": 200,
+     "body": {
+      "tenant": "org-1",
+      "name": "Acme (B)"
+     }
+    },
+    "b_api": {
+     "status": 200,
+     "body": {
+      "tenant": "org-1",
+      "name": "Acme (A)"
+     }
+    }
+   },
+   "ended": "2026-11-22T00:32:40.748+00:00",
+   "seconds": 7.95
+  },
+  {
+   "id": "V03",
+   "title": "Revoke on B: B's keys are destroyed; A's next check -> Security Blocked and no automatic reconnect; A sends nothing",
+   "started": "2026-11-22T00:32:40.748+00:00",
+   "result": "pass",
+   "detail": {
+    "b_keys": [
+     {
+      "state": "retired",
+      "private_key_wiped": true
+     }
+    ],
+    "a_after_check": {
+     "state": "security_blocked",
+     "health": "connected",
+     "circuit": "closed",
+     "retry_step": 0,
+     "security_block_code": "source_not_authorised",
+     "last_error": "The other application refused this server's source address: this installation's egress may have changed. Update it under Network and ask the other administrator to approve it, then retest.",
+     "next_check_at": null,
+     "last_check_at": "2026-11-22 00:32:35.009807",
+     "consecutive_fail": 0,
+     "consecutive_ok": 0,
+     "sas": "8208-9335",
+     "direction": "inbound",
+     "qc_revision": ""
+    },
+    "observation": "Revoking removes the connection's source rules on B, so A's next request is refused by B's source layer before authentication and A shows source_not_authorised (\"your egress may have changed\") rather than peer_revoked. The block and the no-reconnect rule hold; only the reason shown to A's administrator is misleading.",
+    "a_calls_b": {
+     "refused_locally": "connection_inactive",
+     "status": 409,
+     "state": "security_blocked",
+     "security_block_code": "source_not_authorised"
+    }
+   },
+   "ended": "2026-11-22T00:32:49.431+00:00",
+   "seconds": 8.68
+  }
+ ]
+}
