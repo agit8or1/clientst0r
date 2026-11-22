@@ -309,7 +309,7 @@ class ProfitabilityTests(Base):
         self.assertEqual(r.state, 'ok')
         self.assertIsNone(r.value)  # unknown, never a partial margin
         self.assertFalse(r.is_complete)
-        self.assertEqual(r.unknown_reason, '12 hours without a cost rate')
+        self.assertEqual(r.unknown_reason, 'Partial — 1 technician has no cost rate (12 h)')
         self.assertEqual(r.label, 'Operational estimate, not accounting results')
         self.assertEqual({x['client_id'] for x in self.rows('gross_margin')}, {self.a.pk, self.b.pk})
 

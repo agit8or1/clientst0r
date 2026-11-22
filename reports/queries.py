@@ -179,152 +179,89 @@ def hours_minutes_by_project(start_date, end_date, organization=None):
 
 
 # ---- Revenue ---------------------------------------------------------------
+#
+# Every revenue figure here is billed revenue as defined once in
+# `reports.financials`: issued invoices (no drafts, no void) by invoice date,
+# excluding tax, net of credit notes. Phase 102.7 replaced three definitions
+# (invoice totals including tax; invoices plus the contract's unbilled bundle;
+# contract terms) with this one.
 
 def revenue_by_client(start_date, end_date, organization=None):
     """
-    Sum of invoice line totals issued in the period, grouped by client.
-    Counts only `sent / partial / paid` invoices (excludes draft + void).
+    Billed revenue per client (`reports.financials.billed_rows`).
 
-    Returns: list of {'client_id', 'client_name', 'invoiced',
-    'paid', 'outstanding'} dicts.
+    Returns: list of {'client_id', 'client_name', 'invoiced', 'invoiced_gross',
+    'tax', 'paid', 'outstanding', 'invoices'} dicts. `invoiced` is billed
+    revenue (excluding tax, net of credit notes); `invoiced_gross`, `paid`
+    and `outstanding` are the same invoices' totals including tax, amount
+    paid and remaining balance — receivables, not revenue.
     """
-    from psa.models import Invoice
-    qs = Invoice.objects.filter(
-        invoice_date__gte=start_date,
-        invoice_date__lte=end_date,
-        status__in=['sent', 'partial', 'paid', 'overdue'],
-    ).select_related('client_org')
-    if organization is not None:  # scoped by customer
-        qs = scope_to_organizations(qs, 'client_org', organization)
-
-    out = {}
-    for inv in qs:
-        client = inv.client_org or inv.organization
-        if not client:
-            continue
-        row = out.setdefault(client.id, {
-            'client_id': client.id, 'client_name': client.name,
-            'invoiced': Decimal('0'), 'paid': Decimal('0'),
+    from .financials import billed_rows
+    out = []
+    for key, r in billed_rows(start_date, end_date, organization, by='client').items():
+        out.append({
+            **r.base,
+            'invoiced': float(r.billed),
+            'invoiced_gross': float(r.gross),
+            'tax': float(r.tax),
+            'paid': float(r.paid),
+            'outstanding': float(r.gross - r.paid),
+            'invoices': r.invoices,
         })
-        row['invoiced'] += (inv.total or Decimal('0'))
-        row['paid'] += (inv.amount_paid or Decimal('0'))
-
-    for r in out.values():
-        r['outstanding'] = r['invoiced'] - r['paid']
-        # Cast to floats so JSON export works without Decimal serializer
-        r['invoiced'] = float(r['invoiced'])
-        r['paid'] = float(r['paid'])
-        r['outstanding'] = float(r['outstanding'])
-    return sorted(out.values(), key=lambda r: r['invoiced'], reverse=True)
+    return sorted(out, key=lambda r: r['invoiced'], reverse=True)
 
 
 def revenue_by_contract(start_date, end_date, organization=None):
     """
-    Revenue attributed to each Contract active in the window. Two
-    components are summed:
-      1. The contract's `bundled_subtotal()` — recurring per-period bundle.
-      2. Invoiced amounts (status in sent/partial/paid/overdue) where
-         `Invoice.source_contract` points at this contract.
+    Billed revenue per contract: issued invoices whose `source_contract` is
+    the contract (credit memos count against the contract of the invoice
+    they credit). The contract's bundle is reported as `bundled` for
+    reference only — what the bundle is billed at reaches revenue when it is
+    invoiced, never twice.
 
     Returns: list of {'contract_id', 'contract_name', 'client_id',
-    'client_name', 'invoiced', 'bundled', 'revenue'} dicts.
+    'client_name', 'invoiced', 'bundled', 'revenue'} dicts, for contracts
+    active in the window or billed in it.
     """
-    from psa.models import Contract, Invoice
+    from psa.models import Contract
+    from .financials import billed_rows
 
-    contract_qs = Contract.objects.select_related('client_org')
-    if organization is not None:
-        contract_qs = scope_to_organizations(contract_qs, 'client_org', organization)
-    # We only care about contracts active during the window
+    billed = billed_rows(start_date, end_date, organization, by='contract')
+    contract_qs = Contract.objects.select_related('client_org').prefetch_related('bundle_items')
+    contract_qs = scope_to_organizations(contract_qs, 'client_org', organization)
     contract_qs = contract_qs.filter(
-        Q(end_date__isnull=True) | Q(end_date__gte=start_date),
-        start_date__lte=end_date,
-    )
+        (Q(end_date__isnull=True) | Q(end_date__gte=start_date)) & Q(start_date__lte=end_date)
+        | Q(pk__in=list(billed)))
 
-    out = {}
+    out = []
     for c in contract_qs:
-        out[c.id] = {
+        r = billed.get(c.id)
+        revenue = float(r.billed) if r else 0.0
+        out.append({
             'contract_id': c.id,
             'contract_name': c.name,
             'client_id': c.client_org_id,
             'client_name': c.client_org.name if c.client_org else '',
-            'invoiced': Decimal('0'),
-            'bundled': c.bundled_subtotal(),
-            'revenue': Decimal('0'),
-        }
-
-    inv_qs = Invoice.objects.filter(
-        invoice_date__gte=start_date,
-        invoice_date__lte=end_date,
-        status__in=['sent', 'partial', 'paid', 'overdue'],
-        source_contract__isnull=False,
-    )
-    if organization is not None:
-        inv_qs = scope_to_organizations(inv_qs, 'client_org', organization)
-    for inv in inv_qs:
-        cid = inv.source_contract_id
-        if cid not in out:
-            # Contract not in active window — still attribute its revenue
-            c = inv.source_contract
-            out[cid] = {
-                'contract_id': c.id,
-                'contract_name': c.name,
-                'client_id': c.client_org_id,
-                'client_name': c.client_org.name if c.client_org else '',
-                'invoiced': Decimal('0'),
-                'bundled': c.bundled_subtotal(),
-                'revenue': Decimal('0'),
-            }
-        out[cid]['invoiced'] += (inv.total or Decimal('0'))
-
-    for r in out.values():
-        r['revenue'] = r['invoiced'] + r['bundled']
-        r['invoiced'] = float(r['invoiced'])
-        r['bundled'] = float(r['bundled'])
-        r['revenue'] = float(r['revenue'])
-    return sorted(out.values(), key=lambda r: r['revenue'], reverse=True)
+            'invoiced': revenue,
+            'bundled': float(c.bundled_subtotal()),
+            'revenue': revenue,
+        })
+    return sorted(out, key=lambda r: r['revenue'], reverse=True)
 
 
 def revenue_by_project(start_date, end_date, organization=None):
     """
-    Revenue per `psa.Project`. Approximated as the sum of invoiced amounts
-    on tickets attached to the project — i.e., where
-    `Invoice.source_ticket.project_id == project.id`.
+    Billed revenue per `psa.Project`: issued invoices generated from the
+    project (`Invoice.project`) or from a ticket on it
+    (`Invoice.source_ticket.project`).
 
     Returns: list of {'project_id', 'project_name', 'client_id',
     'client_name', 'revenue'} dicts.
     """
-    from psa.models import Invoice
-
-    qs = Invoice.objects.filter(
-        invoice_date__gte=start_date,
-        invoice_date__lte=end_date,
-        status__in=['sent', 'partial', 'paid', 'overdue'],
-        source_ticket__project__isnull=False,
-    ).select_related('source_ticket__project',
-                     'source_ticket__project__client_org',
-                     'source_ticket__organization')
-    if organization is not None:
-        qs = scope_to_organizations(qs, 'client_org', organization)
-
-    out = {}
-    for inv in qs:
-        ticket = inv.source_ticket
-        project = ticket.project if ticket else None
-        if not project:
-            continue
-        client = project.client_org or ticket.organization
-        row = out.setdefault(project.id, {
-            'project_id': project.id,
-            'project_name': project.name,
-            'client_id': client.id if client else None,
-            'client_name': client.name if client else '',
-            'revenue': Decimal('0'),
-        })
-        row['revenue'] += (inv.total or Decimal('0'))
-
-    for r in out.values():
-        r['revenue'] = float(r['revenue'])
-    return sorted(out.values(), key=lambda r: r['revenue'], reverse=True)
+    from .financials import billed_rows
+    out = [{**r.base, 'revenue': float(r.billed)}
+           for r in billed_rows(start_date, end_date, organization, by='project').values()]
+    return sorted(out, key=lambda r: r['revenue'], reverse=True)
 
 
 # ---- Cost ------------------------------------------------------------------
@@ -456,80 +393,39 @@ def cost_estimate_by_project(start_date, end_date, organization=None):
 
 
 # ---- Profitability ---------------------------------------------------------
+#
+# Billed revenue − direct cost (labour, items, expenses, costed invoice lines),
+# from `reports.financials.profitability`. Margin is None while any cost is
+# unknown; rows carry `partial_reasons` for the label.
 
-_EMPTY_COST = {'hours': 0.0, 'cost': 0.0, 'unknown_cost_hours': 0.0,
-               'unknown_cost_entries': 0, 'cost_complete': True}
-
-
-def _profit_row(base, revenue, c):
-    from .costing import margin_fields
-    cost = c.get('cost', 0.0)
-    row = dict(base)
-    row.update({
-        'revenue': revenue,
-        'cost': cost,
-        'hours': c.get('hours', 0.0),
-        'unknown_cost_hours': c.get('unknown_cost_hours', 0.0),
-        'unknown_cost_entries': c.get('unknown_cost_entries', 0),
-    })
-    row.update(margin_fields(revenue, cost, cost_complete=c.get('cost_complete', True)))
-    return row
+def _profit_rows(start_date, end_date, organization, by):
+    from .financials import profitability
+    rows = list(profitability(start_date, end_date, organization, by=by).values())
+    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
 
 
 def profitability_by_client(start_date, end_date, organization=None):
     """
-    Combine invoiced revenue + labour cost into per-client rows.
+    Billed revenue and direct cost per client.
     Returns: list of {'client_id', 'client_name', 'revenue', 'cost',
-    'margin', 'margin_pct', 'hours', 'unknown_cost_hours',
-    'unknown_cost_entries', 'is_complete'} dicts, sorted by revenue desc.
-    `margin` / `margin_pct` are None when any hour lacks a cost rate.
+    'labour_cost', 'item_cost', 'expense_cost', 'line_cost', 'margin',
+    'margin_pct', 'hours', 'unknown_cost_hours', 'unknown_cost_entries',
+    'unknown_item_count', 'is_complete', 'partial', 'partial_reasons'} dicts,
+    sorted by revenue desc. `margin` / `margin_pct` are None when any cost
+    is unknown.
     """
-    rev = {r['client_id']: r for r in revenue_by_client(start_date, end_date, organization)}
-    cost = {r['client_id']: r for r in cost_estimate_by_client(start_date, end_date, organization)}
-    rows = []
-    for cid in set(rev) | set(cost):
-        r = rev.get(cid, {})
-        c = cost.get(cid, _EMPTY_COST)
-        rows.append(_profit_row({
-            'client_id': cid,
-            'client_name': r.get('client_name') or c.get('client_name') or '?',
-        }, r.get('invoiced', 0.0), c))
-    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
+    return _profit_rows(start_date, end_date, organization, 'client')
 
 
 def profitability_by_contract(start_date, end_date, organization=None):
     """Per-contract profitability. Same shape as `profitability_by_client`
-    but pivoted on Contract."""
-    rev = {r['contract_id']: r for r in revenue_by_contract(start_date, end_date, organization)}
-    cost = {r['contract_id']: r for r in cost_estimate_by_contract(start_date, end_date, organization)}
-    rows = []
-    for cid in set(rev) | set(cost):
-        r = rev.get(cid, {})
-        c = cost.get(cid, _EMPTY_COST)
-        rows.append(_profit_row({
-            'contract_id': cid,
-            'contract_name': r.get('contract_name') or c.get('contract_name') or '?',
-            'client_id': r.get('client_id') or c.get('client_id'),
-            'client_name': r.get('client_name') or c.get('client_name') or '',
-        }, r.get('revenue', 0.0), c))
-    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
+    plus contract fields; revenue is invoices billed from the contract."""
+    return _profit_rows(start_date, end_date, organization, 'contract')
 
 
 def profitability_by_project(start_date, end_date, organization=None):
     """Per-project profitability. Same shape pivoted on Project."""
-    rev = {r['project_id']: r for r in revenue_by_project(start_date, end_date, organization)}
-    cost = {r['project_id']: r for r in cost_estimate_by_project(start_date, end_date, organization)}
-    rows = []
-    for pid in set(rev) | set(cost):
-        r = rev.get(pid, {})
-        c = cost.get(pid, _EMPTY_COST)
-        rows.append(_profit_row({
-            'project_id': pid,
-            'project_name': r.get('project_name') or c.get('project_name') or '?',
-            'client_id': r.get('client_id') or c.get('client_id'),
-            'client_name': r.get('client_name') or c.get('client_name') or '',
-        }, r.get('revenue', 0.0), c))
-    return sorted(rows, key=lambda r: r['revenue'], reverse=True)
+    return _profit_rows(start_date, end_date, organization, 'project')
 
 
 def available_hours(user, start_date, end_date):
@@ -626,7 +522,9 @@ def technician_utilization(start_date, end_date, organization=None, users=None):
 
 def profitability_by_tech(start_date, end_date, organization=None):
     """
-    Per-tech profitability and utilization.
+    Per-tech labour profitability and utilization. Revenue here is
+    attributed labour revenue (hours × bill rate), not billed revenue —
+    see `reports.financials`.
 
     Cost: each entry × the tech's cost rate on the day of the work.
     Attributed revenue: each billable entry × its bill rate (entry snapshot,
@@ -677,6 +575,7 @@ def profitability_by_tech(start_date, end_date, organization=None):
             'unknown_bill_entries': rv['unknown_bill_entries'],
             'cost_complete': c['cost_complete'],
             'revenue_complete': rv['revenue_complete'],
+            'unknown_rate_technicians': [] if tally.cost_complete else [uid],
             'utilization_pct': util.get(uid, {}).get('utilization_pct'),
             'utilization_basis': util.get(uid, {}).get('basis'),
         }
@@ -1104,11 +1003,12 @@ def sla_trend_by_client(start_date, end_date, organization=None, top_n=10):
 def margin_analytics_by_service_line(start_date, end_date, organization=None,
                                      dimension='ticket_type'):
     """
-    Margin grouped by 'service line' — either Ticket.ticket_type,
+    Labour margin grouped by 'service line' — either Ticket.ticket_type,
     Ticket.closure_category, or Ticket.queue. Useful for seeing which
     buckets of work are profitable vs. which are loss leaders.
 
-    Per TicketTimeEntry (rates from `reports.costing`):
+    Per TicketTimeEntry (rates from `reports.costing`); `revenue` is
+    attributed labour revenue, not billed revenue (`reports.financials`):
       revenue = billable hours × the entry's bill rate (snapshot, else the
                 covering contract's hourly / overage rate);
       cost    = hours (billable or not — unbilled work still costs) × the
@@ -1644,7 +1544,8 @@ def contract_churn(start_date, end_date, organization=None):
 
 def revenue_by_service_line(start_date, end_date, organization=None):
     """
-    Invoiced revenue (sent / partial / paid / overdue) by service line:
+    Billed revenue (`reports.financials`: issued, excluding tax, net of
+    credit notes) by service line:
     the contract type of the invoice's source contract, "Projects" for
     project invoices, "Ticket work" for ticket invoices, and "Unattributed"
     for anything else. `unattributed` is reported so a large share of
@@ -1653,15 +1554,14 @@ def revenue_by_service_line(start_date, end_date, organization=None):
     Returns: {'rows': [{'key', 'label', 'invoices', 'revenue'}],
     'total', 'unattributed', 'is_complete'}.
     """
-    from psa.models import Contract, Invoice
+    from psa.models import Contract
+    from .financials import attributed_invoice, invoice_revenue, issued_invoices
     labels = dict(Contract.CONTRACT_TYPES)
-    qs = Invoice.objects.filter(
-        invoice_date__gte=start_date, invoice_date__lte=end_date,
-        status__in=['sent', 'partial', 'paid', 'overdue'],
-    ).select_related('source_contract')
-    qs = scope_to_organizations(qs, 'client_org', organization)
+    qs = issued_invoices(start_date, end_date, organization).select_related(
+        'source_contract', 'credits_invoice__source_contract')
     out = {}
-    for inv in qs:
+    for inv_doc in qs:
+        inv = attributed_invoice(inv_doc)   # a credit memo counts under what it credits
         if inv.source_contract_id:
             key = inv.source_contract.contract_type
             label = labels.get(key, key)
@@ -1674,7 +1574,7 @@ def revenue_by_service_line(start_date, end_date, organization=None):
         row = out.setdefault(key, {'key': key, 'label': label, 'invoices': 0,
                                    'revenue': Decimal('0')})
         row['invoices'] += 1
-        row['revenue'] += inv.total or Decimal('0')
+        row['revenue'] += invoice_revenue(inv_doc)
     rows = sorted(({**r, 'revenue': float(r['revenue'])} for r in out.values()),
                   key=lambda r: -r['revenue'])
     unattributed = out.get('unattributed', {}).get('revenue', Decimal('0'))

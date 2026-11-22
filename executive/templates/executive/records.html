@@ -16,7 +16,7 @@
   {% if result.state != 'ok' %}
     <div class="alert alert-secondary">{{ result.reason }}</div>
   {% else %}
-    {% if not result.is_complete %}<div class="alert alert-warning py-2 small">Incomplete: {{ result.unknown_reason }}</div>{% endif %}
+    {% if not result.is_complete %}<div class="alert alert-warning py-2 small">{% if result.unknown_reason|slice:":7" == "Partial" %}{{ result.unknown_reason }}{% else %}Incomplete: {{ result.unknown_reason }}{% endif %}</div>{% endif %}
     {% if ignored %}<p class="small text-muted">This metric ignores the {{ ignored|join:", "|lower }} filter{{ ignored|pluralize }} you set.</p>{% endif %}
     <p class="small">{{ table|length }} record{{ table|length|pluralize }}{% if capped %} (first {{ limit }} shown){% endif %}.</p>
     <div class="table-responsive">

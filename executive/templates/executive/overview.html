@@ -237,11 +237,13 @@
       card.querySelector('[data-records]').classList.add('d-none');
       return;
     }
+    // Financial figures with an unknown cost say "Partial — <reasons>" (reports.financials).
+    var partial = (data.unknown_reason || '').indexOf('Partial') === 0;
     if (data.is_complete) { badge.textContent = 'Complete'; badge.className = 'bo-badge bo-badge-ok'; }
-    else { badge.textContent = 'Incomplete'; badge.className = 'bo-badge bo-badge-inc'; }
+    else { badge.textContent = partial ? 'Partial' : 'Incomplete'; badge.className = 'bo-badge bo-badge-inc'; }
     body.appendChild(el('div', 'bo-value' + (data.value === null ? ' bo-none' : ''), fmt(data.value, data.unit)));
     body.appendChild(el('div', 'bo-secondary', data.secondary || ''));
-    if (!data.is_complete && data.unknown_reason) body.appendChild(el('div', 'bo-incomplete', 'Incomplete: ' + data.unknown_reason));
+    if (!data.is_complete && data.unknown_reason) body.appendChild(el('div', 'bo-incomplete', partial ? data.unknown_reason : 'Incomplete: ' + data.unknown_reason));
     var charted = drawChart(card, data);
     breakdownList(card, data, charted);
     if (data.notes && data.notes.length) {

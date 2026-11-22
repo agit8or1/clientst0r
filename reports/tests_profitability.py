@@ -714,4 +714,4 @@ class ViewProfitabilityPermissionTests(_Fixture):
         r = _client(self.profit).get(reverse('reports:psa_profitability_by_client'), {'format': 'csv'})
         body = r.content.decode()
         self.assertIn('Operational profitability estimate', body.splitlines()[0])
-        self.assertIn('incomplete', body)
+        self.assertIn('Partial — 1 technician has no cost rate (2 h)', body)

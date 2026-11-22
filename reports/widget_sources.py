@@ -183,7 +183,7 @@ def revenue_this_period(params):
     total = sum(r['invoiced'] for r in rows)
     return {
         'value': f'${total:,.0f}',
-        'subtitle': f'Revenue invoiced (last {days}d)',
+        'subtitle': f'Billed revenue, excl. tax (last {days}d)',
         'icon': 'fa-dollar-sign',
         'color': 'success',
     }
@@ -297,7 +297,7 @@ def top_clients_by_revenue(params):
     start, end = _last_n_days(days)
     rows = _scoped_rows(revenue_by_client(start, end), params)[:limit]
     return {
-        'columns': ['Client', 'Invoiced', 'Outstanding'],
+        'columns': ['Client', 'Billed (excl. tax)', 'Outstanding (incl. tax)'],
         'rows': [
             [r['client_name'], f'${r["invoiced"]:,.2f}', f'${r["outstanding"]:,.2f}']
             for r in rows
@@ -348,17 +348,15 @@ def my_assigned_tickets(params):
 
 def revenue_trend_30d(params):
     """30-day revenue trend. Category-aware (daily / weekly / cumulative)."""
-    from psa.models import Invoice
+    from reports.financials import invoice_revenue, issued_invoices
     today = date.today()
     days = [today - timedelta(days=i) for i in range(29, -1, -1)]
     by_day = {d: 0.0 for d in days}
-    invs = _scoped(Invoice.objects.filter(
-        invoice_date__gte=days[0], invoice_date__lte=today,
-        status__in=['sent', 'partial', 'paid', 'overdue'],
-    ), params, 'client_org_id')
+    # Billed revenue (reports.financials): issued, excluding tax, net of credit notes.
+    invs = _scoped(issued_invoices(days[0], today), params, 'client_org_id')
     for inv in invs:
         if inv.invoice_date in by_day:
-            by_day[inv.invoice_date] += float(inv.total or 0)
+            by_day[inv.invoice_date] += float(invoice_revenue(inv))
 
     cat = (params or {}).get('category') or 'daily'
     if cat == 'weekly':
@@ -372,7 +370,7 @@ def revenue_trend_30d(params):
                 continue
             buckets.append(round(sum(by_day[d] for d in window), 2))
             labels.append(window[-1].strftime('%m/%d'))
-        return {'labels': labels, 'series': [{'name': 'Invoiced (weekly)', 'data': buckets}]}
+        return {'labels': labels, 'series': [{'name': 'Billed (weekly)', 'data': buckets}]}
     if cat == 'cumulative':
         running = 0.0
         cum = []
@@ -381,11 +379,11 @@ def revenue_trend_30d(params):
             cum.append(round(running, 2))
         return {
             'labels': [d.strftime('%m/%d') for d in days],
-            'series': [{'name': 'Invoiced (running total)', 'data': cum}],
+            'series': [{'name': 'Billed (running total)', 'data': cum}],
         }
     # daily — original behavior
     labels = [d.strftime('%m/%d') for d in days]
-    series = [{'name': 'Invoiced', 'data': [round(by_day[d], 2) for d in days]}]
+    series = [{'name': 'Billed', 'data': [round(by_day[d], 2) for d in days]}]
     return {'labels': labels, 'series': series}
 
 

@@ -403,8 +403,8 @@ PROFIT_WINDOW_DAYS = 90
 
 
 @signal('commercial', 'profitability', 'Profitability margin (90 days)', weight=2, requires='profitability',
-        description='Client margin from the profitability report. Needs view_profitability; unknown when any '
-                    'labour hour lacks a cost rate or there is no revenue.')
+        description='Client margin (billed revenue less direct cost) from the profitability report. Needs '
+                    'view_profitability; unknown when any cost is unknown or there is no revenue.')
 def profitability(ctx: Context):
     src = 'Profitability report'
     from reports import queries
@@ -412,11 +412,12 @@ def profitability(ctx: Context):
     rows = [r for r in queries.profitability_by_client(start, ctx.today, ctx.client)
             if r.get('client_id') == ctx.client.pk]
     if not rows:
-        return unknown('No invoiced revenue or labour cost in the last 90 days.', src)
+        return unknown('No billed revenue or direct cost in the last 90 days.', src)
     row = rows[0]
     if not row.get('is_complete'):
-        return unknown(f'{row.get("unknown_cost_entries", 0)} time entr(ies) have no cost rate, so margin is '
-                       'not scored.', src, as_of=ctx.today)
+        reasons = '; '.join(row.get('partial_reasons') or ()) or \
+            f'{row.get("unknown_cost_entries", 0)} time entr(ies) have no cost rate'
+        return unknown(f'Partial cost — {reasons} — so margin is not scored.', src, as_of=ctx.today)
     margin = row.get('margin_pct')
     if margin is None:
         return unknown('There is no revenue in the period, so margin is not defined.', src, as_of=ctx.today)

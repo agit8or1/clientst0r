@@ -3,9 +3,11 @@
 Every provider reads an existing source and reuses the calculation the
 reports already make (one source of truth):
 
-  reports.queries   recurring_revenue / mrr_trend (MRR, ARR), contract_churn,
+  reports.financials  billed / collected / recognized revenue, direct cost,
+                    gross profit and margin — the one set of definitions
+  reports.queries   recurring_revenue / mrr_trend (contracted MRR, ARR), contract_churn,
                     _contracts_running_on (active customers), revenue_by_client
-                    and revenue_by_service_line (invoiced revenue),
+                    and revenue_by_service_line (billed revenue),
                     profitability_by_client + reports.costing.summarize (margin),
                     contracts_expiring, unbilled_time, utilization_summary,
                     sla_trend_by_priority
@@ -35,8 +37,9 @@ from django.db.models import F, Q
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
-from reports import queries
+from reports import financials, queries
 from reports.costing import summarize
+from reports.financials import attributed_invoice, invoice_revenue
 
 from .metrics import (
     ALL_FILTERS, F_CUSTOMER, F_DATE, F_LOCATION, F_SERVICE_LINE, Collected, Column,
@@ -44,8 +47,8 @@ from .metrics import (
 )
 
 ZERO = Decimal('0')
-# Issued invoices, the set the revenue reports count (reports.queries.revenue_by_client).
-REVENUE_STATUSES = ('sent', 'partial', 'paid', 'overdue')
+# Issued invoices, the set billed revenue counts (reports.financials).
+REVENUE_STATUSES = financials.ISSUED_STATUSES
 PROFITABILITY_LABEL = 'Operational estimate, not accounting results'
 
 
@@ -83,13 +86,13 @@ class PsaProvider(MetricProvider):
 
 class MrrArr(PsaProvider):
     key = 'mrr_arr'
-    title = 'MRR & ARR'
+    title = 'Contracted MRR & ARR'
     section = 'Revenue'
     icon = 'fa-arrows-rotate'
     unit = 'currency'
     chart = 'line'
     order = 10
-    source = ('Billing contracts: recurring amount normalized to a month '
+    source = ('Contracted, not billed: billing contracts\' recurring amount normalized to a month '
               '(reports.queries.recurring_revenue, mrr_trend)')
     supported_filters = (F_DATE, F_CUSTOMER)
     columns = (Column('label', 'Contract'), Column('client_name', 'Customer'),
@@ -128,18 +131,19 @@ class MrrArr(PsaProvider):
 
 class RevenueTrend(PsaProvider):
     key = 'revenue_trend'
-    title = 'Invoiced revenue'
+    title = 'Billed revenue'
     section = 'Revenue'
     icon = 'fa-file-invoice-dollar'
     unit = 'currency'
     chart = 'bar'
     order = 20
-    source = ('Issued invoices (sent, partially paid, paid, overdue) by invoice date '
-              '(reports.queries.revenue_by_client / revenue_by_service_line)')
+    source = ('Billed revenue: issued invoices (sent, partially paid, paid, overdue) by invoice date, '
+              'excluding tax, net of credit notes (reports.financials)')
     supported_filters = (F_DATE, F_CUSTOMER, F_SERVICE_LINE)
     columns = (Column('label', 'Invoice'), Column('client_name', 'Customer'),
                Column('invoice_date', 'Date', 'date'), Column('status', 'Status'),
-               Column('service_line', 'Service line'), Column('total', 'Total', 'currency'))
+               Column('service_line', 'Service line'), Column('revenue', 'Billed (excl. tax)', 'currency'),
+               Column('total', 'Total incl. tax', 'currency'))
 
     @staticmethod
     def _total(start, end, org, service_line):
@@ -161,14 +165,20 @@ class RevenueTrend(PsaProvider):
                                     status__in=REVENUE_STATUSES)
         qs = limit_to(qs, 'client_org', ids)
         if filters.service_line:
-            qs = qs.filter(source_contract__contract_type=filters.service_line)
+            # A credit memo counts under the service line of what it credits.
+            qs = qs.filter(Q(source_contract__contract_type=filters.service_line)
+                           | Q(is_credit_memo=True,
+                               credits_invoice__source_contract__contract_type=filters.service_line))
         labels = dict(Contract.CONTRACT_TYPES)
         rows = []
-        for inv in qs.select_related('client_org', 'source_contract').order_by('invoice_date', 'pk'):
-            sl = inv.source_contract.contract_type if inv.source_contract_id else ''
+        for inv in qs.select_related('client_org', 'source_contract',
+                                     'credits_invoice__source_contract').order_by('invoice_date', 'pk'):
+            src = attributed_invoice(inv)
+            sl = src.source_contract.contract_type if src.source_contract_id else ''
             rows.append({'id': inv.pk, 'label': inv.invoice_number or f'#{inv.pk}',
                          'client_name': inv.client_org.name, 'invoice_date': inv.invoice_date,
                          'status': inv.status, 'service_line': labels.get(sl, ''),
+                         'revenue': invoice_revenue(inv),
                          'total': _money(inv.total), 'url': _url('psa:invoice_detail', inv.pk)})
         notes, breakdown = [], []
         if not filters.service_line:
@@ -177,6 +187,14 @@ class RevenueTrend(PsaProvider):
                          for r in lines['rows']]
             if lines['unattributed']:
                 notes.append(f"{lines['unattributed']:,.2f} of revenue is not attributed to a service line.")
+        if not filters.service_line:
+            collected = financials.collected_revenue(filters.start, filters.end, org)
+            recognized = financials.recognized_revenue(filters.start, filters.end, org)
+            breakdown += [{'label': 'Collected (excl. tax)', 'value': _money(collected.amount),
+                           'unit': 'currency', 'group': 'Other definitions'},
+                          {'label': 'Recognized', 'value': _money(recognized.amount),
+                           'unit': 'currency', 'group': 'Other definitions'}]
+            notes += collected.reasons + recognized.notes
         return Collected(value=total, rows=rows, trend=trend, breakdown=breakdown, notes=notes,
                          secondary=f'{len(rows)} invoices')
 
@@ -189,8 +207,8 @@ class _Profitability(PsaProvider):
     section = 'Profitability'
     label = PROFITABILITY_LABEL
     permission = 'view_profitability'
-    source = ('Invoiced revenue less labour cost at each technician\'s cost rate '
-              '(reports.queries.profitability_by_client, reports.costing)')
+    source = ('Billed revenue (excluding tax, net of credit notes) less direct cost: labour at each '
+              'technician\'s cost rate, ticket items at unit cost and ticket expenses (reports.financials)')
     supported_filters = (F_DATE, F_CUSTOMER)
 
     def _rows(self, scope, filters, start=None, end=None):
@@ -204,12 +222,9 @@ class _Profitability(PsaProvider):
 
 
 def _unknown_reason(summary):
-    parts = []
-    if summary.get('unknown_cost_hours'):
-        parts.append(f"{summary['unknown_cost_hours']:g} hours without a cost rate")
-    if summary.get('unknown_bill_hours'):
-        parts.append(f"{summary['unknown_bill_hours']:g} hours without a bill rate")
-    return '; '.join(parts)
+    """The 'Partial — …' reason for a margin card (reports.costing.summarize)."""
+    reasons = summary.get('partial_reasons') or ()
+    return ('Partial — ' + '; '.join(reasons)) if reasons else ''
 
 
 class GrossMargin(_Profitability):
@@ -219,8 +234,8 @@ class GrossMargin(_Profitability):
     unit = 'percent'
     chart = 'line'
     order = 30
-    columns = (Column('label', 'Customer'), Column('revenue', 'Revenue', 'currency'),
-               Column('cost', 'Labour cost (known)', 'currency'), Column('margin', 'Margin', 'currency'),
+    columns = (Column('label', 'Customer'), Column('revenue', 'Billed revenue', 'currency'),
+               Column('cost', 'Direct cost (known)', 'currency'), Column('margin', 'Gross profit', 'currency'),
                Column('margin_pct', 'Margin %', 'percent'),
                Column('unknown_cost_hours', 'Hours without cost rate', 'hours'))
 
@@ -233,11 +248,11 @@ class GrossMargin(_Profitability):
                           'value': summarize(self._rows(scope, filters, m_start, m_end))['blended_margin_pct']})
         return Collected(
             value=s['blended_margin_pct'], rows=self._rows_out(rows), trend=trend,
-            breakdown=[{'label': 'Revenue', 'value': s['total_revenue'], 'unit': 'currency'},
-                       {'label': 'Labour cost (known)', 'value': s['total_cost'], 'unit': 'currency'},
-                       {'label': 'Margin', 'value': s['total_margin'], 'unit': 'currency'}],
+            breakdown=[{'label': 'Billed revenue', 'value': s['total_revenue'], 'unit': 'currency'},
+                       {'label': 'Direct cost (known)', 'value': s['total_cost'], 'unit': 'currency'},
+                       {'label': 'Gross profit', 'value': s['total_margin'], 'unit': 'currency'}],
             is_complete=s['is_complete'], unknown_reason=_unknown_reason(s),
-            secondary='' if s['total_revenue'] else 'No invoiced revenue in this period.',
+            secondary='' if s['total_revenue'] else 'No billed revenue in this period.',
         )
 
 

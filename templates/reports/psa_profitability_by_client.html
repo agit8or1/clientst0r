@@ -61,7 +61,7 @@
         <div class="col-md-3 mb-2">
             <div class="card border-primary h-100">
                 <div class="card-body">
-                    <h6 class="text-muted mb-1">Revenue</h6>
+                    <h6 class="text-muted mb-1" title="Issued invoices, excluding tax, net of credit notes">Billed revenue</h6>
                     <h3 class="mb-0">${{ total_revenue|floatformat:2 }}</h3>
                 </div>
             </div>
@@ -69,15 +69,15 @@
         <div class="col-md-3 mb-2">
             <div class="card border-warning h-100">
                 <div class="card-body">
-                    <h6 class="text-muted mb-1">Cost</h6>
-                    <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>{% if summary.unknown_cost_entries %}<small class="text-warning">known part only · {{ summary.unknown_cost_hours|floatformat:2 }} h without a cost rate</small>{% endif %}
+                    <h6 class="text-muted mb-1" title="Labour at cost rate, ticket items at unit cost, ticket expenses">Direct cost</h6>
+                    <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>{% if summary.partial %}<small class="text-warning" data-partial-cost>Partial — {{ summary.partial_reasons|join:"; " }}</small>{% endif %}
                 </div>
             </div>
         </div>
         <div class="col-md-3 mb-2">
             <div class="card border-success h-100">
                 <div class="card-body">
-                    <h6 class="text-muted mb-1">Margin</h6>
+                    <h6 class="text-muted mb-1" title="Billed revenue minus direct cost">Gross profit</h6>
                     <h3 class="mb-0">{% if total_margin is None %}<span class="text-muted fs-6">Unknown — {% if summary.unknown_cost_hours %}{{ summary.unknown_cost_hours|floatformat:2 }} hours without a cost rate{% else %}{{ summary.unknown_bill_hours|floatformat:2 }} hours without a bill rate{% endif %}</span>{% else %}${{ total_margin|floatformat:2 }}{% endif %}</h3>
                 </div>
             </div>
@@ -101,9 +101,9 @@
                     <tr>
                         <th class="sortable" data-sort="client_name">Client</th>
                         <th class="text-end sortable" data-sort="hours">Hours</th>
-                        <th class="text-end sortable" data-sort="revenue">Revenue</th>
-                        <th class="text-end sortable" data-sort="cost">Cost</th>
-                        <th class="text-end sortable" data-sort="margin">Margin</th>
+                        <th class="text-end sortable" data-sort="revenue">Billed revenue</th>
+                        <th class="text-end sortable" data-sort="cost">Direct cost</th>
+                        <th class="text-end sortable" data-sort="margin">Gross profit</th>
                         <th class="text-end sortable" data-sort="margin_pct">Margin %</th>
                         <th></th>
                     </tr>
@@ -114,7 +114,7 @@
                         <td>{{ r.client_name }}</td>
                         <td class="text-end">{{ r.hours|floatformat:2 }}</td>
                         <td class="text-end">${{ r.revenue|floatformat:2 }}</td>
-                        <td class="text-end">${{ r.cost|floatformat:2 }}{% if r.unknown_cost_entries %}<br><small class="text-warning">+ {{ r.unknown_cost_hours|floatformat:2 }} h without a cost rate</small>{% endif %}</td>
+                        <td class="text-end">${{ r.cost|floatformat:2 }}{% if r.partial %}<br><small class="text-warning">Partial — {{ r.partial_reasons|join:"; " }}</small>{% endif %}</td>
                         <td class="text-end">{% include "reports/_margin_cell.html" %}</td>
                         <td class="text-end">
                             {% include "reports/_margin_pct_cell.html" %}

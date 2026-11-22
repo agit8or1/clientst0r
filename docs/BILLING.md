@@ -116,3 +116,37 @@ account charge and never edits the invoice.
   writes an audit entry, fires a `quote.viewed`, `invoice.viewed` or `contract.viewed` webhook and emails the
   person who created the document. Staff previews, email security scanners and bots are not counted. Invoice
   emails include a link to view the invoice in the customer portal.
+
+## Financial definitions
+
+Every report, Business Overview card, dashboard widget, export and API that shows revenue, cost, profit or
+margin uses one set of definitions, computed in one place (`reports/financials.py`). The same customer and period
+give the same figure everywhere. Report pages that show these figures have a **Definitions** panel; nothing here
+changes an invoice or a stored amount.
+
+| Figure | Definition |
+|---|---|
+| **Billed revenue** | Issued invoices (sent, partially paid, paid, overdue — not drafts, not void) dated in the period by **invoice date**, **excluding tax**, **net of credit notes**. An issued credit note reduces billed revenue on its own date and counts under the contract, project and service line of the invoice it credits. |
+| **Collected revenue** | Payments received in the period by **payment date**, **net of refunds** (a refund or lost dispute is a negative payment). The tax share of each payment is removed in proportion to its invoice: amount × (total − tax) ÷ total. Payments on a void invoice, or on an invoice with tax but a zero total, still count and mark the figure **partial**. |
+| **Recognized revenue** | Billed revenue spread over its service period. Contract-period invoices (billing period start plus the contract's monthly, quarterly or yearly frequency) are spread pro rata by day; every other invoice is recognized on its invoice date, because invoice lines carry no service period. A straight-line approximation, not accounting-system revenue recognition. |
+| **Direct cost** | By the date of the work: labour (every time entry, billable or not, at the technician's cost rate on that day — never an assumed rate), ticket items at unit cost × quantity, ticket expenses at their amount, and lines on issued invoices that carry a unit cost (lines billing time or a ticket item are not counted twice). Credits to the customer are not costs. Purchase orders, licences and overheads are not included. |
+| **Gross profit** | Billed revenue − direct cost for the same customer and period. |
+| **Margin** | Gross profit ÷ billed revenue; none when billed revenue is zero. |
+
+**Partial figures.** An hour without a cost rate or an item without a unit cost makes direct cost **partial**: the
+cost shown is the known part, gross profit and margin show as unknown, and the page says why — for example
+"Partial — 2 technicians have no cost rate (6.5 h)". Set technician cost rates on the Tech Cost Rates page (`/resourcing/cost-rates/`) and
+unit costs on items to complete them.
+
+**Figures that are deliberately something else**, and named so:
+
+- **Contracted MRR / ARR** — contracts' recurring amounts normalized to a month; a commitment, not revenue.
+- **Attributed labour revenue** (profitability by technician, margin analytics, effective rate by technician) —
+  billable hours × the entry's bill rate; a measure of labour value, not what was invoiced.
+- **Contract-terms estimate** (contract page) — revenue from the contract's terms over its window, shown next to
+  the billed revenue from the contract's invoices.
+- **Receivables** (aging, balances, billing reconciliation) — what customers owe, including tax. Billing
+  reconciliation counts issued invoices only.
+- **Ticket billing estimate** (ticket Charges tab) — what the ticket's unbilled work would bill at.
+
+Amounts are summed as stored; an install that invoices in several currencies sees them added together.

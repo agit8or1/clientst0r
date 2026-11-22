@@ -16,7 +16,7 @@
         <div>
             <h2 class="mb-0"><i class="fas fa-layer-group me-2"></i>Margin Analytics by Service Line</h2>
             <small class="text-muted">
-                Revenue: billable hours at each entry's bill rate (its rate snapshot, else the covering contract's hourly rate).
+                Revenue here is attributed labour revenue, not billed revenue: billable hours at each entry's bill rate (its rate snapshot, else the covering contract's hourly rate).
                 Cost: all hours at the technician's cost rate on the day of the work. Hours without a rate are counted, never priced at a default.
             </small>
         </div>
@@ -64,19 +64,19 @@
     <div class="row mb-3">
         <div class="col-md-3 mb-2">
             <div class="card border-success h-100"><div class="card-body">
-                <h6 class="text-muted mb-1">Total Revenue</h6>
+                <h6 class="text-muted mb-1" title="Billable hours × bill rate; not billed revenue">Attributed labour revenue</h6>
                 <h3 class="mb-0">${{ total_revenue|floatformat:2 }}</h3>{% if summary.unknown_bill_entries %}<small class="text-warning">known part only · {{ summary.unknown_bill_hours|floatformat:2 }} h without a bill rate</small>{% endif %}
             </div></div>
         </div>
         <div class="col-md-3 mb-2">
             <div class="card border-warning h-100"><div class="card-body">
-                <h6 class="text-muted mb-1">Total Cost</h6>
+                <h6 class="text-muted mb-1">Labour cost</h6>
                 <h3 class="mb-0">${{ total_cost|floatformat:2 }}</h3>{% if summary.unknown_cost_entries %}<small class="text-warning">known part only · {{ summary.unknown_cost_hours|floatformat:2 }} h without a cost rate</small>{% endif %}
             </div></div>
         </div>
         <div class="col-md-3 mb-2">
             <div class="card border-primary h-100"><div class="card-body">
-                <h6 class="text-muted mb-1">Total Margin</h6>
+                <h6 class="text-muted mb-1">Labour margin</h6>
                 <h3 class="mb-0">{% if total_margin is None %}<span class="text-muted fs-6">Unknown — {% if summary.unknown_cost_hours %}{{ summary.unknown_cost_hours|floatformat:2 }} hours without a cost rate{% else %}{{ summary.unknown_bill_hours|floatformat:2 }} hours without a bill rate{% endif %}</span>{% else %}${{ total_margin|floatformat:2 }}{% endif %}</h3>
             </div></div>
         </div>
@@ -121,8 +121,8 @@
                     <th class="sortable">{{ dimension|title }}</th>
                     <th class="text-end sortable">Tickets</th>
                     <th class="text-end sortable">Hours</th>
-                    <th class="text-end sortable">Revenue</th>
-                    <th class="text-end sortable">Cost</th>
+                    <th class="text-end sortable" title="Billable hours × bill rate">Attributed revenue</th>
+                    <th class="text-end sortable">Labour cost</th>
                     <th class="text-end sortable">Margin</th>
                     <th class="text-end sortable">Margin %</th>
                 </tr>

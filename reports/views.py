@@ -1024,13 +1024,24 @@ def _fmt_pct(v):
 
 
 def _margin_csv(r):
-    """CSV margin cells: blank margin + an 'Unknown' note when incomplete."""
+    """CSV margin cells: blank margin + a 'Partial — reasons' status when the
+    cost is not fully known."""
     if r.get('margin') is None:
-        return ['', '', 'incomplete']
+        return ['', '', _partial_status(r)]
     return [_fmt_money(r['margin']), _fmt_pct(r['margin_pct']), '']
 
 
+def _partial_status(r):
+    reasons = r.get('partial_reasons') or []
+    return ('Partial — ' + '; '.join(reasons)) if reasons else 'incomplete'
+
+
 PROFITABILITY_LABEL = 'Operational profitability estimate — not your accounting P&L'
+
+
+def _financial_definitions():
+    from .financials import DEFINITIONS
+    return DEFINITIONS
 
 
 def _profitability_context(rows, start_date, end_date, revenue_key='revenue', **extra):
@@ -1041,6 +1052,10 @@ def _profitability_context(rows, start_date, end_date, revenue_key='revenue', **
         'end_date': end_date,
         'summary': summarize(rows, revenue_key=revenue_key),
         'profitability_label': PROFITABILITY_LABEL,
+        'financial_definitions': _financial_definitions(),
+        # 'billed': revenue is billed revenue and cost is direct cost;
+        # 'attributed': revenue is hours x bill rate and cost is labour only.
+        'revenue_basis': 'attributed' if revenue_key == 'attributed_revenue' else 'billed',
     }
     ctx.update(ctx['summary'])
     ctx.update(extra)
@@ -1076,7 +1091,7 @@ def _csv_response(filename, header, rows, totals_row=None, label=None):
 
 def _totals_margin(summary):
     if summary['total_margin'] is None:
-        return ['', '', 'incomplete']
+        return ['', '', _partial_status(summary)]
     return [_fmt_money(summary['total_margin']), _fmt_pct(summary['blended_margin_pct']), '']
 
 
@@ -1100,7 +1115,7 @@ def psa_profitability_by_client(request):
         s = ctx['summary']
         return _csv_response(
             f'profitability-by-client-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Client', 'Hours', 'Revenue', 'Cost (known)', 'Margin', 'Margin %', 'Status',
+            ['Client', 'Hours', 'Billed revenue (excl. tax)', 'Direct cost (known)', 'Margin', 'Margin %', 'Status',
              'Hours without cost rate'],
             [[r['client_name'], f"{r['hours']:.2f}", _fmt_money(r['revenue']),
               _fmt_money(r['cost']), *_margin_csv(r), f"{r['unknown_cost_hours']:.2f}"]
@@ -1162,7 +1177,7 @@ def psa_profitability_by_contract(request):
         s = ctx['summary']
         return _csv_response(
             f'profitability-by-contract-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Contract', 'Client', 'Hours', 'Revenue', 'Cost (known)', 'Margin', 'Margin %',
+            ['Contract', 'Client', 'Hours', 'Billed revenue (excl. tax)', 'Direct cost (known)', 'Margin', 'Margin %',
              'Status', 'Hours without cost rate'],
             [[r['contract_name'], r['client_name'], f"{r['hours']:.2f}",
               _fmt_money(r['revenue']), _fmt_money(r['cost']), *_margin_csv(r),
@@ -1189,7 +1204,7 @@ def psa_profitability_by_project(request):
         s = ctx['summary']
         return _csv_response(
             f'profitability-by-project-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Project', 'Client', 'Hours', 'Revenue', 'Cost (known)', 'Margin', 'Margin %',
+            ['Project', 'Client', 'Hours', 'Billed revenue (excl. tax)', 'Direct cost (known)', 'Margin', 'Margin %',
              'Status', 'Hours without cost rate'],
             [[r['project_name'], r['client_name'], f"{r['hours']:.2f}",
               _fmt_money(r['revenue']), _fmt_money(r['cost']), *_margin_csv(r),
@@ -1276,7 +1291,7 @@ def psa_effective_hourly_rate(request):
             )
         return _csv_response(
             f'effective-rate-by-client-{start_date.isoformat()}-{end_date.isoformat()}.csv',
-            ['Client', 'Revenue', 'Billable Hours', 'Non-billable Hours',
+            ['Client', 'Billed Revenue (excl. tax)', 'Billable Hours', 'Non-billable Hours',
              'Effective Rate ($/hr)', 'Utilization Ratio'],
             [[
                 r['client_name'],
@@ -1294,6 +1309,8 @@ def psa_effective_hourly_rate(request):
         'tech_rows': tech_rows,
         'summary': tech_summary,
         'profitability_label': PROFITABILITY_LABEL,
+        'financial_definitions': _financial_definitions(),
+        'revenue_basis': 'attributed' if tab == 'tech' else 'billed',
         'start_date': start_date,
         'end_date': end_date,
         'avg_rate': avg_rate,
@@ -1507,7 +1524,7 @@ def psa_margin_analytics(request):
         return _csv_response(
             f'margin-analytics-{dimension}-{start_date.isoformat()}-{end_date.isoformat()}.csv',
             [dimension.replace('_', ' ').title(), 'Tickets', 'Hours',
-             'Revenue (known)', 'Cost (known)', 'Margin', 'Margin %', 'Status',
+             'Attributed labour revenue (known)', 'Labour cost (known)', 'Margin', 'Margin %', 'Status',
              'Hours without cost rate', 'Billable hours without bill rate'],
             [[
                 r['label'], r['tickets'], f"{r['hours']:.2f}",
@@ -1526,8 +1543,8 @@ def psa_margin_analytics(request):
     chart_payload = {
         'labels': [r['label'] for r in rows],
         'series': [
-            {'name': 'Revenue', 'data': [r['revenue'] for r in rows]},
-            {'name': 'Cost', 'data': [r['cost'] for r in rows]},
+            {'name': 'Attributed labour revenue', 'data': [r['revenue'] for r in rows]},
+            {'name': 'Labour cost', 'data': [r['cost'] for r in rows]},
         ],
     }
 
@@ -1546,6 +1563,8 @@ def psa_margin_analytics(request):
         'chart_payload': jsonable(chart_payload),
         'summary': summary,
         'profitability_label': PROFITABILITY_LABEL,
+        'financial_definitions': _financial_definitions(),
+        'revenue_basis': 'attributed',
         **summary,
     })
 
@@ -1729,7 +1748,7 @@ def exec_scorecard(request):
     metrics = msp_metrics(today, organization=scope, window_days=30)
 
     kpis = [
-        {'label': 'Revenue (30d)', 'value': f'${rev_30:,.0f}',
+        {'label': 'Billed revenue (30d)', 'value': f'${rev_30:,.0f}',
          'trend_pct': round(rev_trend_pct, 1), 'icon': 'fa-dollar-sign'},
         {'label': 'Billable Hours', 'value': f'{total_billable_hrs:,.0f}h',
          'trend_pct': None, 'icon': 'fa-clock'},
@@ -1804,13 +1823,10 @@ def exec_scorecard(request):
     # 30d daily revenue + ticket counts for the dual-line chart
     days = [start_30 + timedelta(days=i) for i in range(30)]
     rev_by_day = {d: 0.0 for d in days}
-    from .queries import scope_to_organizations
-    for inv in scope_to_organizations(Invoice.objects.filter(
-        invoice_date__gte=start_30, invoice_date__lte=today,
-        status__in=['sent', 'partial', 'paid', 'overdue'],
-    ), 'client_org', scope):
+    from .financials import invoice_revenue, issued_invoices
+    for inv in issued_invoices(start_30, today, scope):   # billed revenue, as the KPI above
         if inv.invoice_date in rev_by_day:
-            rev_by_day[inv.invoice_date] += float(inv.total or 0)
+            rev_by_day[inv.invoice_date] += float(invoice_revenue(inv))
     tix_by_day = {d: 0 for d in days}
     for t in Ticket.objects.filter(
         created_at__date__gte=start_30, created_at__date__lte=today,
@@ -3292,9 +3308,12 @@ def billing_reconciliation_report(request):
         days = 90
     cutoff = date.today() - timedelta(days=days)
 
+    # Issued invoices only (reports.financials.ISSUED_STATUSES): a draft has
+    # not been billed, so it is neither invoiced nor outstanding. Amounts here
+    # are receivables — totals including tax — not billed revenue.
+    from .financials import ISSUED_STATUSES
     qs = (Invoice.objects.select_related('client_org')
-          .filter(invoice_date__gte=cutoff)
-          .exclude(status='void'))
+          .filter(invoice_date__gte=cutoff, status__in=ISSUED_STATUSES))
 
     is_staff = (request.user.is_superuser
                 or getattr(request, 'is_staff_user', False))
@@ -3350,7 +3369,7 @@ def billing_reconciliation_report(request):
         resp = _HR(content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename="billing-reconciliation.csv"'
         w = csv_safe.writer(resp)
-        w.writerow(['Client', 'Invoices', 'Invoiced', 'Paid', 'Outstanding',
+        w.writerow(['Client', 'Invoices', 'Invoiced (incl. tax)', 'Paid', 'Outstanding',
                     'Collection %'])
         for r in rows:
             w.writerow([r['name'], r['invoice_count'],

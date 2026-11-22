@@ -15,7 +15,7 @@
     </a>
 </div>
 
-<p class="text-muted">Per-client invoiced-vs-paid summary over the last {{ days }} days. Catches drift between what we billed and what landed in the bank.</p>
+<p class="text-muted">Per-client invoiced-vs-paid summary over the last {{ days }} days for issued invoices (drafts and void are left out). Amounts include tax — this is what customers owe, not billed revenue. Catches drift between what we billed and what landed in the bank.</p>
 
 <form method="get" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3">
@@ -39,7 +39,7 @@
     <div class="col-md-3">
         <div class="card border-secondary">
             <div class="card-body py-2">
-                <div class="text-muted small text-uppercase">Invoiced</div>
+                <div class="text-muted small text-uppercase">Invoiced (incl. tax)</div>
                 <div class="fs-4 fw-bold">${{ totals.invoiced|floatformat:2 }}</div>
             </div>
         </div>
@@ -69,7 +69,7 @@
             <tr>
                 <th>Client</th>
                 <th class="text-end">Invoices</th>
-                <th class="text-end">Invoiced</th>
+                <th class="text-end">Invoiced (incl. tax)</th>
                 <th class="text-end">Paid</th>
                 <th class="text-end">Outstanding</th>
                 <th class="text-end">Collection %</th>
