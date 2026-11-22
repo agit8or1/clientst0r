@@ -1989,6 +1989,44 @@ class IntegrationSyncHealth(models.Model):
     corrective_action = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Monitoring health contract 1.0.0 (events/source_health.py, docs/standards/
+    # MONITORING_HEALTH_STANDARD.md). Four independent fields; the label shown
+    # to people is derived, never stored.
+    health = models.CharField(max_length=10, default='unknown',
+                              choices=[(v, v) for v in ('healthy', 'degraded', 'failed', 'unknown')])
+    collection_outcome = models.CharField(max_length=15, default='not_attempted',
+                                          choices=[(v, v) for v in ('success', 'partial', 'failed',
+                                                                    'not_attempted')])
+    alert_status = models.CharField(max_length=15, default='unknown',
+                                    choices=[(v, v) for v in ('no_alerts', 'active_alerts', 'unknown')])
+    failure_reason = models.CharField(max_length=30, blank=True, default='')
+    completeness = models.CharField(max_length=12, default='unverified')
+    verification = models.CharField(max_length=20, blank=True, default='',
+                                    help_text='How an empty window was verified (probe_passed, connection_test, ...)')
+    window_start = models.DateTimeField(null=True, blank=True)
+    window_end = models.DateTimeField(null=True, blank=True)
+    window_end_complete = models.DateTimeField(null=True, blank=True,
+                                               help_text='End of the last completely collected window (the cursor)')
+    retrieved_count = models.PositiveIntegerField(default=0)
+    processed_count = models.PositiveIntegerField(default=0)
+    committed_count = models.PositiveIntegerField(default=0)
+    rejected_count = models.PositiveIntegerField(default=0)
+    newest_event_at = models.DateTimeField(null=True, blank=True)
+    newest_event_basis = models.CharField(max_length=24, blank=True, default='unknown')
+    duration_ms = models.PositiveIntegerField(default=0)
+    consecutive_failures = models.PositiveIntegerField(default=0)
+    stale_after_minutes = models.PositiveIntegerField(null=True, blank=True,
+                                                      help_text='Freshness threshold; empty = the source default')
+    critical = models.BooleanField(default=True, help_text='Notify technicians when this source fails')
+    next_attempt_at = models.DateTimeField(null=True, blank=True, help_text='Retry backoff: not before this time')
+    display_state = models.CharField(max_length=24, blank=True, default='',
+                                     help_text='Last derived display state, for transition tracking')
+    state_changed_at = models.DateTimeField(null=True, blank=True)
+    alerted_state = models.CharField(max_length=24, blank=True, default='',
+                                     help_text='Failure state technicians were told about (deduplication)')
+    last_collection_id = models.CharField(max_length=80, blank=True, default='',
+                                          help_text='Idempotency key of the last recorded attempt')
+
     class Meta:
         db_table = 'integration_sync_health'
         # One row per (connection, kind): a connection's sync and its RMM

@@ -51,7 +51,7 @@ class ProxmoxBackupServerProvider(BaseBackupProvider):
     def _headers(self):
         token = (self.connection.get_credentials() or {}).get('api_token', '')
         if not token:
-            raise ProviderError('No API token configured.')
+            raise ProviderError('No API token configured.', 'configuration_error')
         return {'Authorization': f'PBSAPIToken={token}', 'Accept': 'application/json'}
 
     def _policy(self) -> OutboundPolicy:
@@ -67,29 +67,34 @@ class ProxmoxBackupServerProvider(BaseBackupProvider):
     def _get(self, path, params=None):
         base = (self.connection.base_url or '').rstrip('/')
         if not base:
-            raise ProviderError('No base URL configured.')
+            raise ProviderError('No base URL configured.', 'configuration_error')
         policy = self._policy()
         try:
             validate_url(f'{base}/api2/json{path}', policy)
         except UnsafeURLError as exc:
-            raise ProviderError(_refusal(exc)) from exc
+            raise ProviderError(_refusal(exc), 'configuration_error') from exc
         session = guard_session(requests.Session(), policy)
         session.trust_env = False
         try:
             resp = session.get(f'{base}/api2/json{path}', headers=self._headers(), params=params,
                                timeout=TIMEOUT, verify=self.connection.verify_tls)
         except UnsafeURLError as exc:
-            raise ProviderError(_refusal(exc)) from exc
+            raise ProviderError(_refusal(exc), 'configuration_error') from exc
         except requests.RequestException as exc:
-            raise ProviderError(f'Cannot reach {base}: {exc.__class__.__name__}') from exc
+            raise ProviderError(f'Cannot reach {base}: {exc.__class__.__name__}',
+                                'timeout' if 'Timeout' in exc.__class__.__name__ else 'endpoint_unavailable') from exc
         if resp.status_code in (401, 403):
-            raise ProviderError(f'PBS refused the API token (HTTP {resp.status_code}).')
+            raise ProviderError(f'PBS refused the API token (HTTP {resp.status_code}).',
+                                'authentication_failure' if resp.status_code == 401 else 'permission_denied')
         if resp.status_code != 200:
-            raise ProviderError(f'PBS returned HTTP {resp.status_code} for {path}.')
+            from events.source_health import classify_status
+            raise ProviderError(f'PBS returned HTTP {resp.status_code} for {path}.',
+                                classify_status(resp.status_code) or 'invalid_response',
+                                retry_after=resp.headers.get('Retry-After'))
         try:
             return resp.json().get('data')
         except ValueError as exc:
-            raise ProviderError('PBS returned a response that is not JSON.') from exc
+            raise ProviderError('PBS returned a response that is not JSON.', 'invalid_response') from exc
 
     def test_connection(self):
         try:

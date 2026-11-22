@@ -16,9 +16,13 @@ class ProviderError(Exception):
     Messages are written by the providers themselves (never exception text),
     so they are safe to show; callers read ``public_message``."""
 
-    def __init__(self, message='The backup provider call failed.'):
+    def __init__(self, message='The backup provider call failed.', health_reason='', retry_after=None):
         super().__init__(message)
         self.public_message = str(message)[:1000]
+        # Monitoring health contract reason (events.source_health.REASON_VALUES);
+        # empty = classified from the message.
+        self.health_reason = health_reason
+        self.retry_after = retry_after
 
 
 @dataclass

@@ -123,6 +123,7 @@ def poll_connection(connection, now=None):
     except ProviderError as exc:
         connection.last_poll_status, connection.last_poll_error = 'error', exc.public_message
         connection.save(update_fields=['last_poll_attempt_at', 'last_poll_status', 'last_poll_error'])
+        _record_health(connection, now, error=exc, diagnostic=exc.public_message)
         return {'ok': False, 'message': exc.public_message, 'runs': 0}
     except Exception as exc:  # a provider bug must not stop the other connections
         logger.exception('backup poll failed for connection %s', connection.pk)
@@ -131,8 +132,11 @@ def poll_connection(connection, now=None):
         connection.last_poll_status, connection.last_poll_error = (
             'error', f'Unexpected error while polling ({exc.__class__.__name__}). See the server log.')
         connection.save(update_fields=['last_poll_attempt_at', 'last_poll_status', 'last_poll_error'])
+        _record_health(connection, now, error=exc, diagnostic=connection.last_poll_error)
         return {'ok': False, 'message': connection.last_poll_error, 'runs': 0}
 
+    since_window = since
+    rejected = 0
     with transaction.atomic():
         for r in repos:
             record_repository(connection, r.external_id, r.name, r.total_bytes, r.used_bytes, r.available,
@@ -151,4 +155,27 @@ def poll_connection(connection, now=None):
         connection.last_poll_status, connection.last_poll_error = 'ok', ''
         connection.save(update_fields=['last_poll_attempt_at', 'last_poll_at', 'last_poll_status',
                                        'last_poll_error'])
+    _record_health(connection, now, window_start=since_window, retrieved=len(runs), committed=len(runs) - rejected,
+                   rejected=rejected, times=[r.finished_at or r.started_at for r in runs])
     return {'ok': True, 'message': 'ok', 'runs': created}
+
+
+def _record_health(connection, now, *, error=None, diagnostic='', window_start=None, retrieved=0, committed=0,
+                   rejected=0, times=()):
+    """The poll as a monitoring collection (roadmap 82.7). Listing the
+    repositories and jobs in the same poll is the bounded probe that makes an
+    empty run window a verified quiet one. Run times are validated, never
+    taken from list order."""
+    try:
+        from events import source_health as sh
+        from events.source_health_store import record_collection
+        from .models import BackupAlert
+        open_alerts = None if error else BackupAlert.objects.filter(
+            connection=connection, status__in=('open', 'acknowledged')).count()
+        record_collection(connection, 'backup', sh.CollectionResult(
+            attempted_at=now, window_start=window_start, window_end=now, retrieved=retrieved, processed=retrieved,
+            committed=committed, rejected=rejected, error=error, diagnostic=diagnostic,
+            verification='' if error else sh.V_PROBE, event_times=list(times), open_alerts=open_alerts,
+            duration_ms=int((timezone.now() - now).total_seconds() * 1000)))
+    except Exception:
+        logger.exception('could not record backup source health for %s', connection.pk)

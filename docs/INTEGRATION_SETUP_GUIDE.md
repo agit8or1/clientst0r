@@ -492,6 +492,23 @@ Rem0te details.
 
 ---
 
+## Monitoring health (is the integration really collecting?)
+
+Security connectors, RMM connections and polled backup connections record whether each collection actually
+worked, separately from what it found. **Security & Monitoring → Events → Monitoring reliability** lists every
+monitoring source per customer with its state — Healthy / quiet, Healthy / alerts, Degraded, Permission denied,
+Source unavailable, Ingestion failed, Stale or Unknown — the last successful collection and the record counts.
+
+- *Zero alerts is not the same as healthy.* A source shows Healthy / quiet only when an empty result was verified
+  (a bounded check that the API really could have returned data). A webhook-only source cannot prove a quiet
+  period and shows Unknown until something arrives.
+- *Failures are retried, never switched off.* Waits grow after each failure (and follow the provider's
+  Retry-After); technicians get one e-mail when a critical source fails persistently or goes stale, and one when
+  it recovers.
+- *Building a connector?* Follow the [Monitoring Health Standard](standards/MONITORING_HEALTH_STANDARD.md):
+  raise on HTTP, permission and malformed-response errors, and implement the empty-window probe for your
+  provider.
+
 ## Troubleshooting
 
 ### Common Issues

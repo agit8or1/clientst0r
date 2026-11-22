@@ -248,7 +248,7 @@ unchanged. Click a feature for its details.
 | 63 | [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 52, 56, 57; Rem0te contract | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item |
 | 74 | [Backup monitoring, backup management and endpoint health](#phase-74) | P1 | 🔵 In progress | 63, 82; St0r API (74.7) | 74.8 Comet read-only provider; 74.9 overview; 74.7 when the St0r API lands |
 | 79 | [Agit8or Connect: secure application-to-application integration](#phase-79) | — | 🔵 In progress | Rem0te contract | 79.21 public Agit8or Connect repository (needs the owner to create agit8or1/agit8or-connect); then interoperability tests between two installations and the security review (Quick Connect increments F, G, H) |
-| 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.3 bounded ingestion; 82.6 permission keys; first consumers |
+| 82 | [Shared operational event and alert foundation](#phase-82) | — | 🔵 In progress | 81 | 82.13 health reports over Connect; 82.3 per-connection rate limits; first consumers |
 | 84 | [Security connector framework and vendor integrations](#phase-84) | P3\* | ⬜ Planned | 81, 82 | 84.1 connector SDK; vendor batches |
 | 85 | [Operations Center, alert triage and correlation](#phase-85) | P3\* | ⬜ Planned | 82, 84 | 85.1 Operations Center |
 | 86 | [SOAR Lite: approval-driven security automation](#phase-86) | P3\* | ⬜ Planned | 85, 51.20; Rem0te contract | 86.1 builder on the Phase 91 engine |
@@ -2874,9 +2874,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 8
 <a id="phase-82"></a>
 
 ## Phase 82 — Shared operational event and alert foundation **(L · monitoring)** [in progress]
-<!-- phase: ws=D view=later deps=81 next="82.3 bounded ingestion; 82.6 permission keys; first consumers" -->
+<!-- phase: ws=D view=later deps=81 next="82.13 health reports over Connect; 82.3 per-connection rate limits; first consumers" -->
 **Status:** 🔵 In progress · **Priority:** — · **Workstream:** D. RMM & Platform Integrations · **Depends on:** 81  
-**Next:** 82.3 bounded ingestion; 82.6 permission keys; first consumers
+**Next:** 82.13 health reports over Connect; 82.3 per-connection rate limits; first consumers
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -2902,6 +2902,53 @@ read.
   technician, Security Analyst, Security Administrator), all editable; module switches for ingestion,
   correlation, automation and AI analysis.
 
+**Monitoring health and reliability** — added 2026-11-21 from community feedback (GitHub Discussion
+[#161](https://github.com/agit8or1/clientst0r/discussions/161), credit: **Dijar Vrella**). A dashboard that
+shows "0 alerts" might be a quiet, healthy customer — or a collector that could not read the source at all
+(expired credentials, a removed API permission, an unreachable endpoint, events that could not be stored). Zero
+alerts is not evidence of health unless collection is verified, so a failed, stale or unverified source is never
+presented as healthy. These items implement the
+[Monitoring Health Standard 1.0.0](https://github.com/agit8or1/clientst0r/blob/main/docs/standards/MONITORING_HEALTH_STANDARD.md),
+the shared contract for Clientst0r and later MSPZero products.
+
+- **82.7 Source-health telemetry** *(shipped v3.17.NNN)* — four independent fields per monitoring source
+  (operational health, collection outcome, alert status, failure reason) plus last attempt, last success,
+  query window, records retrieved / processed / committed / rejected, newest verified event time, duration,
+  consecutive failures, completeness, freshness threshold and a redacted diagnostic; stored on the existing
+  integration health record and written by polled security connectors, RMM sync and polled backup connections.
+- **82.8 Empty-window verification and failure classification** *(shipped v3.17.NNN)* — an HTTP error,
+  refused permission or malformed response is never an empty result; an empty window is healthy / quiet only
+  after a bounded, read-only probe or an authenticated connection test in the same attempt, otherwise
+  unverified; the newest event comes from validated timestamps (never the first record unless the provider
+  documents ordering) or is unknown; the collection cursor moves only after a complete window.
+- **82.9 Monitoring reliability view and dashboard status** *(shipped v3.17.NNN)* — Security & Monitoring →
+  Events → Monitoring reliability: per-customer roll-up with drill-down to each source (icon, text and tooltip,
+  last successful collection), a tenant-scoped JSON feed (schema 1.0.0); the Security Overview says whether
+  alert collection is verified; the Business Overview security and backup cards are marked incomplete while a
+  source behind them is not verified; the customer security digest sends "all clear" only when monitoring is
+  verified. Shared RMM connections count against every customer whose devices they serve.
+- **82.10 Recovery and alerting** *(shipped v3.17.NNN)* — exponential backoff with jitter that honours
+  Retry-After, transient failures Degraded until they persist, per-source freshness thresholds evaluated every
+  minute, one technician e-mail when a critical source fails persistently or goes stale and one on recovery,
+  system warnings while it lasts, every state change in the audit log; nothing is disabled or suppressed
+  automatically.
+- **82.11 AI visibility safeguards** **OPTIONAL AI** *(shipped v3.17.NNN for incident summaries)* — health is
+  decided by deterministic code; AI incident summaries receive the source-health facts (no credentials, errors
+  or event content) and any summary for a customer whose monitoring is not verified leads with the
+  deterministic visibility statement, e.g. "Zero threats detected in the successfully monitored sources.
+  Monitoring is not verified for Microsoft Defender (source unavailable), so overall security status cannot be
+  verified." Phase 90 must use the same context and guard.
+- **82.12 Monitoring Health Standard and conformance tests** *(shipped v3.17.NNN — standard 1.0.0, JSON
+  Schema, example payloads, validator and conformance cases C1–C13 and C15; C14 waits for 82.13)* —
+  acceptance tests A–J from Discussion #161 (verified quiet window, missing permission, failed ingestion,
+  endpoint unavailable, stale, unordered results, partial ingestion, AI reporting, tenant isolation, recovery).
+- **82.13 Health reports from other products** *(planned — needs a new Connect event type)* — products such as
+  Rem0te report schema 1.0.0 records over Agit8or Connect (`events:publish`, granted customers only); a product
+  that stops reporting shows stale. Specified in the standard, section 11.
+- **82.14 Security vendor probes** *(planned — with the Phase 84 connectors)* — each real vendor connector
+  implements its provider-specific bounded probe; until then vendor connections without an API adapter are
+  push-only and shown as unverified when quiet.
+
 **Sizing:** **L** — envelope and links first, then queueing, retention and health.
 
 </details>
@@ -2924,6 +2971,11 @@ widget sources) into large-screen operations displays.
 - **83.1 Presentation mode** *(planned)* — dedicated dark display theme, viewport-fitted grid that scales from
   1080p to 4K without page scrolling, adjustable density, stale-data indicators and labelled sample data
   where real data is missing.
+  Acceptance (82.9, Monitoring Health Standard §7): every monitoring widget distinguishes zero verified alerts,
+  actual alerts, permission failure, source unavailable, collection failure, ingestion failure, stale and
+  unknown with an icon and text, never colour alone, and shows the last successful collection; monitoring
+  health is a separate element from security alert severity; a customer with a failed critical source never
+  shows as fully healthy.
 - **83.2 Preset boards** *(planned)* — Service Desk, Technician, NOC, SOC, Executive (financial permissions
   enforced), MSP Operations and a customer-scoped board. Early presets use data that exists today; security
   and NOC widgets fill in as Phases 82 and 84 land.
@@ -2968,6 +3020,10 @@ vendor's test environment.
 
 - **84.1 Connector SDK** *(planned)* — polling with checkpoints, pagination, rate-limit handling, backoff,
   retries, duplicate suppression, token-expiry warnings, credential rotation, health checks and diagnostics.
+  Acceptance: every connector records Monitoring Health Standard 1.0.0 telemetry through the shared contract
+  (82.7) — raises on HTTP / permission / malformed responses, implements its provider-specific bounded
+  empty-window probe or declares it unsupported, declares whether its API guarantees ordering — and passes the
+  conformance cases C1–C13 against a recorded fixture of the real API.
 - **84.2 Generic receivers** *(planned)* — signed webhook receiver with replay protection (Phase 81) and a
   TLS syslog collector for CEF, LEEF and JSON, run as its own service and off by default.
 - **84.3 Connection administration** *(partial — honest capability labels shipped v3.17.723: vendors without a working API adapter are marked webhook only, their test and sync say "not implemented", and the scheduled poller skips them; the rest planned — extends Vendor Connections)* — vendor picker, credentials
@@ -3071,6 +3127,8 @@ Extends on-call shifts, alert policies and maintenance windows to every alert so
   after-hours policies and escalation steps.
 - **87.3 Storm protection** *(planned)* — grouping, likely-root-cause summaries and suppression during wide
   outages and maintenance.
+  Acceptance: monitoring-source failures route through the same rules; suppression never hides a persistent
+  monitoring failure (82.10).
 
 **Sizing:** **M**.
 
@@ -3117,7 +3175,8 @@ Extends the customer health score (Phase 78) and scheduled reports.
 - **89.1 Security posture scorecard** *(planned)* — MFA, endpoint protection, encryption, patching,
   unsupported systems, backups, vulnerabilities, identity and firewall findings and monitoring coverage; each
   item shows its source, check time, deductions and remediation, and missing data stays missing. Optional
-  framework mappings; a score is never presented as a certification.
+  framework mappings; a score is never presented as a certification. Monitoring coverage uses the
+  source-health roll-up (82.9): an unverified or stale source is missing data, never a pass.
 - **89.2 Customer review reports** *(planned)* — monthly service review, executive summary, service desk and
   SLA, security posture and incidents, endpoint, patch and backup health, availability, productivity,
   recurring problems and recommendations; MSP and customer branding, scheduling, email, PDF and CSV,
@@ -3149,6 +3208,9 @@ Extends the AI gateway (Phase 56), gated by `psa_ai_enabled` and the per-custome
 - **90.3 Guardrails** *(planned)* — no autonomous or destructive actions, no secrets in prompts, no
   cross-customer data, content from tickets, logs and events treated as data, redacted activity logs,
   budgets, rate limits and timeouts.
+- **90.4 Monitoring visibility** *(planned — reuses 82.11)* — every analysis receives the deterministic
+  source-health context and identifies material visibility gaps; a model can never report an environment as
+  healthy because a collector returned zero alerts (conformance case C15).
 
 **Sizing:** **L**.
 

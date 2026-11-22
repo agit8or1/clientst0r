@@ -145,3 +145,23 @@ administrator tightens a policy; recovery is a server-side management command, n
 
 Each phase ships in release-sized slices with tests, a changelog entry and a roadmap annotation; vendor
 connectors ship in batches as each one is verified.
+
+## 10. Monitoring health: zero alerts is not healthy (added 2026-11-21)
+
+Community feedback on Phase 82 (GitHub Discussion #161, Dijar Vrella) pointed out that a single "0 alerts"
+counter cannot tell a quiet customer from a collector that could not read its source. Every NOC/SOC surface
+follows the [Monitoring Health Standard 1.0.0](../standards/MONITORING_HEALTH_STANDARD.md):
+
+- **One contract, no new framework.** `events/source_health.py` (pure, deterministic) decides health from a
+  collection result; `events/source_health_store.py` writes it onto the existing
+  `integrations.IntegrationSyncHealth` row of the connection (new contract fields, migration
+  `integrations 0044`), sweeps freshness from `events_tick`, notifies and rolls up per customer.
+- **Writers today:** `SecurityProvider.sync()` (all polled security connectors), `RMMSync`, backup
+  `poll_connection()`. **Derived (no storage):** website monitors, webhook-only security connections and SIEM
+  endpoints (push only: never "quiet"), the shared event pipeline (82.5).
+- **Readers today:** Monitoring reliability page and JSON feed (`/security/events/sources/`, `sources.json`,
+  `events_view`, customer-scoped), Security Overview alert card, Business Overview security and backup cards
+  (`is_complete`), customer security digest (all-clear only when verified), AI incident summaries (context and
+  output guard), system warnings.
+- **Next readers:** wallboards (83.1 acceptance), connector SDK (84.1), on-call routing (87), posture scorecards
+  (89.1), AI Operations Analyst (90.4), and reports from other products over Connect (82.13).

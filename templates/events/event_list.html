@@ -3,9 +3,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h2 class="mb-0"><i class="fas fa-stream me-2"></i>Events</h2>
+  <div class="d-flex gap-2">
+  <a href="{% url 'events:source_health' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-satellite-dish me-1"></i>Monitoring reliability
+  </a>
   <a href="{% url 'events:health' %}" class="btn btn-outline-secondary btn-sm">
     <i class="fas fa-heart-pulse me-1"></i>Ingestion health{% if health_problems %} <span class="badge bg-danger">{{ health_problems }}</span>{% endif %}
   </a>
+  </div>
 </div>
 <p class="text-muted small">Alerts from every monitored source in one list: security vendors and SIEM, RMM, Rem0te, backups and website monitors. Each source page stays the place to act on its alerts.</p>
 
