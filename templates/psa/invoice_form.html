@@ -63,6 +63,14 @@
                 <label class="form-label">Due date</label>
                 <input type="date" name="due_date" class="form-control form-control-sm" value="{{ item.due_date|date:'Y-m-d'|default:'' }}"{% if locked %} disabled{% endif %}>
             </div>
+            <div class="col-md-3">
+                <label class="form-label" for="inv-presentation">Layout</label>
+                <select name="presentation" id="inv-presentation" class="form-select form-select-sm"{% if locked %} disabled{% endif %}>
+                    <option value="">Default for this customer</option>
+                    {% for k, lab in presentation_choices %}<option value="{{ k }}"{% if item.presentation == k %} selected{% endif %}>{{ lab }}</option>{% endfor %}
+                </select>
+                <div class="form-text">How the customer sees it; amounts never change. Fixed once sent.</div>
+            </div>
             <div class="col-md-2">
                 <label class="form-label">Currency</label>
                 <input type="text" name="currency" class="form-control form-control-sm" maxlength="8" value="{{ default_currency|default:'USD' }}"{% if locked %} disabled{% endif %}>

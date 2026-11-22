@@ -25,6 +25,23 @@
                 <label class="form-check-label" for="f-{{ s.key }}"><strong>{{ s.label }}</strong>
                     <small class="text-muted d-block">{{ s.help }}</small></label>
             </div>
+            {% elif s.kind == 'choice' %}
+            <div class="row g-2 align-items-center mb-2">
+                <div class="col-md-4"><label class="form-label mb-0" for="f-{{ s.key }}"><strong>{{ s.label }}</strong>
+                    {% if s.overridable %}<span class="badge text-bg-light border">per customer / contract</span>{% endif %}</label></div>
+                <div class="col-md-3"><select class="form-select form-select-sm" id="f-{{ s.key }}" name="{{ s.key }}"
+                        {% if not can_edit_global %}disabled{% endif %}>
+                    {% for k, lab in s.choices %}<option value="{{ k }}"{% if k == row.stored or k == row.value %} selected{% endif %}>{{ lab }}</option>{% endfor %}
+                </select></div>
+                <div class="col-md-5"><small class="text-muted">{{ s.help }}</small></div>
+            </div>
+            {% elif s.kind == 'text' %}
+            <div class="mb-2">
+                <label class="form-label mb-0" for="f-{{ s.key }}"><strong>{{ s.label }}</strong></label>
+                <textarea class="form-control form-control-sm" id="f-{{ s.key }}" name="{{ s.key }}" rows="3" maxlength="{{ s.maximum }}"
+                    {% if not can_edit_global %}readonly{% endif %}>{% if row.value is not None %}{{ row.value }}{% else %}{{ row.stored }}{% endif %}</textarea>
+                <small class="text-muted">{{ s.help }}</small>
+            </div>
             {% else %}
             <div class="row g-2 align-items-center mb-2">
                 <div class="col-md-4"><label class="form-label mb-0" for="f-{{ s.key }}"><strong>{{ s.label }}</strong>
@@ -96,8 +113,12 @@
             {% if contract %}<input type="hidden" name="contract" value="{{ contract.pk }}">{% endif %}
             {% for s, v in override_fields %}
             <div class="col-md-3"><label class="form-label small mb-0" for="o-{{ s.key }}">{{ s.label }}{% if s.unit %} ({{ s.unit }}){% endif %}</label>
-                <input type="text" inputmode="decimal" class="form-control form-control-sm" id="o-{{ s.key }}" name="{{ s.key }}" maxlength="16"
-                       value="{{ v }}" placeholder="inherit"></div>
+                {% if s.kind == 'choice' %}<select class="form-select form-select-sm" id="o-{{ s.key }}" name="{{ s.key }}">
+                    <option value="">Inherit</option>
+                    {% for k, lab in s.choices %}<option value="{{ k }}"{% if k == v %} selected{% endif %}>{{ lab }}</option>{% endfor %}
+                </select>
+                {% else %}<input type="text" inputmode="decimal" class="form-control form-control-sm" id="o-{{ s.key }}" name="{{ s.key }}" maxlength="16"
+                       value="{{ v }}" placeholder="inherit">{% endif %}</div>
             {% endfor %}
             <div class="col-md-9"><label class="form-label small mb-0" for="o-note">Note (why)</label>
                 <input type="text" class="form-control form-control-sm" id="o-note" name="note" maxlength="300" value="{{ current.note|default:'' }}"></div>

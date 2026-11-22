@@ -5705,10 +5705,13 @@ def invoice_detail(request, pk):
     item = get_object_or_404(_invoices_for_customer(request, qs), pk=pk)
     _require_invoice_view(request, item)
     from . import doc_views
+    from .billing import presentation
     from .visibility import is_msp_staff
     return render(request, 'psa/invoice_detail.html', {
         'item': item,
         'line_items': item.line_items.all(),
+        'present': presentation.build(item, detail=True),
+        'brand': presentation.branding(item),
         'payments': item.payments.all(),
         'doc_progress': doc_views.progress(item, 'invoice') if is_msp_staff(request.user) else None,
     })
@@ -5889,6 +5892,7 @@ def invoice_form(request, pk=None):
     from .models import Invoice, InvoiceLineItem
     from core.models import Organization, SystemSetting
     from datetime import date as _date
+    from .billing.presentation import LAYOUTS
     # Creating or editing an invoice needs `billing_send_invoices` (there is
     # no separate invoice-edit flag) for its customer; customer users reach
     # only their own customers' invoices.
@@ -5927,6 +5931,7 @@ def invoice_form(request, pk=None):
             'line_items': item.line_items.all() if item else [],
             'default_tax_rate': default_tax_rate,
             'default_currency': default_currency,
+            'presentation_choices': LAYOUTS,
             'selected_client_org_id': selected_org_id if selected_org_id is not None
                                        else (item.organization_id if item else (org.pk if org else None)),
         })
@@ -5997,6 +6002,8 @@ def invoice_form(request, pk=None):
         item.currency = (f.text('currency', default_currency) or default_currency)[:8]
         item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'), maximum=Decimal('1'))
         item.notes = f.text('notes', item.notes or '')
+        from .billing.presentation import LAYOUT_KEYS
+        item.presentation = f.choice('presentation', item.presentation or '', ('',) + LAYOUT_KEYS)
         total_before = item.total if pk else None
         item.save()
 
@@ -6601,7 +6608,7 @@ def invoice_pdf(request, pk):
     invoice = get_object_or_404(_invoices_for_customer(request, qs.select_related('client_org', 'organization')),
                                 pk=pk)
     _require_invoice_view(request, invoice)
-    pdf_bytes = render_invoice_pdf(invoice)
+    pdf_bytes = render_invoice_pdf(invoice, detail=request.GET.get('detail') == '1')
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     disposition = 'attachment' if request.GET.get('download') else 'inline'
     resp['Content-Disposition'] = f'{disposition}; filename="{invoice.invoice_number}.pdf"'

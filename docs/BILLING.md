@@ -109,6 +109,30 @@ value and the level it comes from. Every change is validated and audit-logged. T
 applies to draft invoices only; a sent invoice is never put back on hold. A late fee is added as a separate
 account charge and never edits the invoice.
 
+### Invoice layout and branding
+
+The same page sets the **invoice layout** and the **invoice footer text**. The layout changes how an invoice's
+lines are presented, never the lines, tax or totals:
+
+| Layout | What the customer sees |
+|---|---|
+| Itemized (default) | Every line, as before. |
+| Grouped by ticket | Lines under a heading per ticket (number, subject, subtotal); lines without a ticket under *Other charges*. |
+| Monthly summary | One row per category (labour, items and expenses, fees, agreement fee, account charges, other) with totals. *PDF with detail* adds the itemized lines as an appendix. |
+| Summary + service report | The monthly summary plus the tickets worked: number, subject, dates, hours, technicians and resolution summary. |
+
+The layout can be overridden per customer and per contract, and chosen on a draft invoice; the invoice's own
+choice wins, then the contract, then the customer, then Settings → Billing. When an invoice leaves draft, the
+layout it would render with is stored on it, so a sent invoice always looks the same, even if the defaults change
+later. The staff view, the customer portal and the PDF use the same layout.
+
+The service report is written for the customer: it never shows ticket comments, time-entry notes or anything
+marked internal, and a ticket the customer may not see is listed by number and hours only.
+
+Invoices carry your letterhead: the name, address, phone, e-mail and logo of your organization, falling back to
+the company name and logo under Settings → General (Whitelabeling / Branding), and the footer text (payment instructions, thanks,
+registration numbers) at the foot of each invoice. Footer text is plain text.
+
 ## Contracts: samples, terms and e-signature
 
 - **Sample library** (Business → Contracts → Templates). Twelve starter agreements: managed services

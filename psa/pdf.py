@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import logging
+from xml.sax.saxutils import escape as _esc
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -121,9 +122,9 @@ def _header_block(org, brand_name: str, kicker: str) -> Table:
             logo_cell = img
         except Exception as exc:
             logger.warning('logo render failed: %s', exc)
-            logo_cell = Paragraph(f'<b>{brand_name}</b>', styles['title'])
+            logo_cell = Paragraph(f'<b>{_esc(brand_name)}</b>', styles['title'])
     else:
-        logo_cell = Paragraph(f'<b>{brand_name}</b>', styles['title'])
+        logo_cell = Paragraph(f'<b>{_esc(brand_name)}</b>', styles['title'])
 
     right_block = Paragraph(kicker, styles['kicker'])
     t = Table([[logo_cell, right_block]], colWidths=[3.5 * inch, 3.8 * inch])
@@ -155,7 +156,7 @@ def _addr_block(org) -> str:
         addr_lines.append(org.phone)
     if getattr(org, 'email', ''):
         addr_lines.append(org.email)
-    return '<br/>'.join([p for p in [parts[0]] + addr_lines if p])
+    return '<br/>'.join([_esc(p) for p in [parts[0]] + addr_lines if p])
 
 
 def _line_items_table(line_items, currency: str = 'USD') -> Table:
@@ -168,7 +169,7 @@ def _line_items_table(line_items, currency: str = 'USD') -> Table:
     ]]
     for li in line_items:
         rows.append([
-            Paragraph(li.description or '', styles['normal']),
+            Paragraph(_esc(li.description or ''), styles['normal']),
             Paragraph(f'{li.quantity}', styles['right']),
             Paragraph(f'{li.unit_price:,.2f}', styles['right']),
             Paragraph(f'{li.line_total:,.2f}', styles['right']),
@@ -302,16 +303,105 @@ def render_quote_pdf(quote, *, sign_url: str = '') -> bytes:
     return buf.getvalue()
 
 
-def render_invoice_pdf(invoice) -> bytes:
-    """Render an Invoice to PDF bytes."""
+def _grid(header, rows, widths, *, span_rows=(), bold_rows=()):
+    """A simple table for the invoice layouts. `rows` are lists of Paragraph /
+    str cells; `span_rows` indexes (into rows) get one spanning cell."""
+    styles = _styles()
+    data = [[Paragraph(f'<font color="white"><b>{_esc(h)}</b></font>',
+                       styles['right'] if right else styles['normal']) for h, right in header]] + rows
+    t = Table(data, colWidths=widths, repeatRows=1)
+    cmds = [
+        ('BACKGROUND', (0, 0), (-1, 0), BRAND_PRIMARY),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8), ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LINEBELOW', (0, 1), (-1, -1), 0.25, colors.HexColor('#e3e7ea')),
+    ]
+    for r in span_rows:
+        cmds += [('SPAN', (0, r + 1), (-1, r + 1)), ('BACKGROUND', (0, r + 1), (-1, r + 1), colors.HexColor('#eef1f4'))]
+    t.setStyle(TableStyle(cmds))
+    return t
+
+
+def _p(text, style='normal'):
+    return Paragraph(_esc(str(text)), _styles()[style])
+
+
+def _layout_flowables(model, currency):
+    """The line section of an invoice in its layout (psa.billing.presentation)."""
+    layout = model['layout']
+    st = _styles()
+    out: List[Any] = []
+    if layout == 'itemized':
+        class _L:  # adapt the plain dicts to _line_items_table
+            def __init__(self, d):
+                self.description, self.quantity = d['description'], d['quantity']
+                self.unit_price, self.line_total = d['unit_price'], d['line_total']
+        return [_line_items_table([_L(d) for d in model['lines']], currency=currency)]
+    hdr = [('Description', False), ('Qty', True), ('Unit price', True), ('Amount', True)]
+    w = [3.6 * inch, 0.7 * inch, 1.3 * inch, 1.4 * inch]
+    if layout == 'by_ticket':
+        rows, spans = [], []
+        for g in model['groups']:
+            spans.append(len(rows))
+            head = g['heading'] + (f" — {g['subject']}" if g['subject'] else '')
+            rows.append([_p(head, 'normal'), '', '', ''])
+            for ln in g['lines']:
+                rows.append([_p(ln['description']), Paragraph(_esc(str(ln['quantity'])), st['right']),
+                             Paragraph(f"{ln['unit_price']:,.2f}", st['right']),
+                             Paragraph(f"{ln['line_total']:,.2f}", st['right'])])
+            rows.append(['', '', Paragraph(f"<i>Subtotal — {_esc(g['heading'])}</i>", st['small']),
+                         Paragraph(f"<b>{g['subtotal']:,.2f}</b>", st['right'])])
+        if not rows:
+            rows.append([Paragraph('<i>No items</i>', st['small']), '', '', ''])
+        return [_grid(hdr, rows, w, span_rows=spans)]
+    rows = [[_p(c['label']), Paragraph(str(c['count']), st['right']), Paragraph(f"{c['amount']:,.2f}", st['right'])]
+            for c in model['categories']] or [[Paragraph('<i>No items</i>', st['small']), '', '']]
+    out.append(_grid([('Category', False), ('Lines', True), ('Amount', True)], rows,
+                     [4.6 * inch, 0.9 * inch, 1.5 * inch]))
+    if layout == 'service_report':
+        out += [Spacer(1, 14), Paragraph('<b>Service report</b>', st['h2'])]
+        rows = []
+        for r in model['report']:
+            first, last = r['first'], r['last']
+            dates = (f'{first:%Y-%m-%d}' + (f' – {last:%Y-%m-%d}' if last and last.date() != first.date() else '')
+                     ) if first else f"{r['opened']:%Y-%m-%d}"
+            subj = _esc(r['subject'])
+            if r['resolution']:
+                subj += f"<br/><font size=8 color='#7f8c8d'><b>Resolution:</b> {_esc(r['resolution'])}</font>"
+            rows.append([_p(r['number']), Paragraph(subj, st['normal']), _p(dates, 'small'),
+                         Paragraph(f"{r['hours']}", st['right']), _p(r['technician_names'] or '—', 'small')])
+        rows = rows or [[Paragraph('<i>No tickets</i>', st['small']), '', '', '', '']]
+        out.append(_grid([('Ticket', False), ('Subject', False), ('Dates', False), ('Hours', True),
+                          ('Technicians', False)], rows,
+                         [1.1 * inch, 2.7 * inch, 1.3 * inch, 0.5 * inch, 1.4 * inch]))
+    if model.get('detail') and model['lines']:
+        from reportlab.platypus import PageBreak
+        out += [PageBreak(), Paragraph('<b>Appendix: itemized detail</b>', st['h2'])]
+        rows = [[_p(d['description']), Paragraph(_esc(str(d['quantity'])), st['right']),
+                 Paragraph(f"{d['unit_price']:,.2f}", st['right']), Paragraph(f"{d['line_total']:,.2f}", st['right'])]
+                for d in model['lines']]
+        out.append(_grid(hdr, rows, w))
+    return out
+
+
+def render_invoice_pdf(invoice, *, layout=None, detail: bool = False) -> bytes:
+    """Render an Invoice to PDF bytes in its layout (the stored per-invoice
+    choice unless `layout` is given), branded with the MSP's name, logo,
+    address, contact and the Settings → Billing footer text. `detail` adds
+    the itemized appendix to the summary layouts."""
+    from psa.billing import presentation
     styles = _styles()
     msp = invoice.organization
     client = invoice.client_org
-    brand_name = getattr(msp, 'name', '') or 'Invoice'
+    brand = presentation.branding(invoice)
+    brand_name = brand['name'] or 'Invoice'
+    model = presentation.build(invoice, layout, detail=detail)
 
     buf = io.BytesIO()
     kicker_lines = [f'<font size=18 color="#2c3e50"><b>INVOICE</b></font>',
-                    f'<font size=10>{invoice.invoice_number}</font>',
+                    f'<font size=10>{_esc(invoice.invoice_number)}</font>',
                     f'<font size=8 color="#7f8c8d">Date: {invoice.invoice_date:%Y-%m-%d}']
     if invoice.due_date:
         kicker_lines.append(f'Due: {invoice.due_date:%Y-%m-%d}')
@@ -337,28 +427,31 @@ def render_invoice_pdf(invoice) -> bytes:
              Paragraph(_addr_block(client), styles['normal'])],
         ], colWidths=[3.6 * inch, 3.7 * inch]),
         Spacer(1, 14),
-        Paragraph(f'<b>{invoice.title}</b>', styles['h2']),
+        Paragraph(f'<b>{_esc(invoice.title)}</b>', styles['h2']),
     ]
     if invoice.description:
-        story += [Paragraph(invoice.description.replace('\n', '<br/>'), styles['normal']),
+        story += [Paragraph(_esc(invoice.description).replace('\n', '<br/>'), styles['normal']),
                   Spacer(1, 8)]
 
-    story += [
-        Spacer(1, 4),
-        _line_items_table(invoice.line_items.all(), currency=invoice.currency),
-        Spacer(1, 8),
-        _totals_table(
-            invoice.subtotal, invoice.tax_amount, invoice.total,
-            currency=invoice.currency,
-            amount_paid=invoice.amount_paid, balance=invoice.balance,
-        ),
-    ]
+    story += [Spacer(1, 4)]
+    lay = _layout_flowables(model, invoice.currency)
+    # Totals follow the first table; any report / appendix follows the totals.
+    story += [lay[0], Spacer(1, 8),
+              _totals_table(
+                  invoice.subtotal, invoice.tax_amount, invoice.total,
+                  currency=invoice.currency,
+                  amount_paid=invoice.amount_paid, balance=invoice.balance,
+              )]
+    if len(lay) > 1:
+        story += [Spacer(1, 14)] + lay[1:]
     if invoice.notes:
         story += [
             Spacer(1, 12),
             Paragraph('<b>Notes</b>', styles['h2']),
-            Paragraph(invoice.notes.replace('\n', '<br/>'), styles['normal']),
+            Paragraph(_esc(invoice.notes).replace('\n', '<br/>'), styles['normal']),
         ]
+    if brand['footer']:
+        story += [Spacer(1, 14), Paragraph(_esc(brand['footer']).replace('\n', '<br/>'), styles['small'])]
     if invoice.status == 'paid':
         story += [Spacer(1, 14), Paragraph(
             '<font color="#27ae60" size=14><b>✓ PAID</b></font>', styles['normal'])]

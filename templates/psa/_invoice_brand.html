@@ -1,0 +1,14 @@
+{% comment %}MSP letterhead (part="head") or footer text (part="foot"). Context: brand, part. Auto-escaped; the logo URL is
+   the app's own media URL.{% endcomment %}
+{% if part == 'head' %}
+<div class="d-flex flex-wrap align-items-start gap-3 mb-3 invoice-letterhead">
+    {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="{{ brand.name }}" style="max-height:60px;max-width:200px">{% endif %}
+    <div class="small">
+        <div class="fw-bold">{{ brand.name }}</div>
+        {% for l in brand.address %}<div>{{ l }}</div>{% endfor %}
+        {% for l in brand.contact %}<div>{{ l }}</div>{% endfor %}
+    </div>
+</div>
+{% elif brand.footer %}
+<div class="small text-muted border-top pt-2 mt-3 invoice-footer-text">{{ brand.footer|linebreaksbr }}</div>
+{% endif %}

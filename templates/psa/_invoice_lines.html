@@ -1,0 +1,56 @@
+{% comment %}Phase 102.5: the invoice lines in the invoice's layout (psa.billing.presentation.build). Context:
+   invoice, present, show_source (bool), totals ('' | 'basic' | 'full'). Everything is auto-escaped.{% endcomment %}
+<div class="table-responsive">
+{% if present.layout == 'itemized' %}
+<table class="table table-sm mb-0">
+    <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
+    <tbody>{% for li in present.lines %}
+        <tr><td>{{ li.description }}{% if show_source and li.source != 'manual' %} <small class="badge text-bg-secondary">{{ li.source_label }}</small>{% endif %}</td>
+            <td class="text-end">{{ li.quantity }}</td><td class="text-end">{{ li.unit_price|floatformat:2 }}</td><td class="text-end">{{ li.line_total|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-center text-muted">No line items.</td></tr>{% endfor %}</tbody>
+    {% if totals %}<tfoot>{% include "psa/_invoice_totals_rows.html" with span=3 %}</tfoot>{% endif %}
+</table>
+{% elif present.layout == 'by_ticket' %}
+<table class="table table-sm mb-0">
+    <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
+    {% for g in present.groups %}
+    <tbody>
+        <tr class="table-light"><th colspan="4" scope="colgroup">{{ g.heading }}{% if g.subject %} — {{ g.subject }}{% endif %}</th></tr>
+        {% for li in g.lines %}
+        <tr><td>{{ li.description }}</td><td class="text-end">{{ li.quantity }}</td><td class="text-end">{{ li.unit_price|floatformat:2 }}</td><td class="text-end">{{ li.line_total|floatformat:2 }}</td></tr>
+        {% endfor %}
+        <tr><td colspan="3" class="text-end small text-muted">Subtotal — {{ g.heading }}</td><td class="text-end"><strong>{{ g.subtotal|floatformat:2 }}</strong></td></tr>
+    </tbody>
+    {% empty %}<tbody><tr><td colspan="4" class="text-center text-muted">No line items.</td></tr></tbody>{% endfor %}
+    {% if totals %}<tfoot>{% include "psa/_invoice_totals_rows.html" with span=3 %}</tfoot>{% endif %}
+</table>
+{% else %}
+<table class="table table-sm mb-0">
+    <thead><tr><th>Category</th><th class="text-end">Lines</th><th class="text-end">Amount</th></tr></thead>
+    <tbody>{% for c in present.categories %}
+        <tr><td>{{ c.label }}</td><td class="text-end">{{ c.count }}</td><td class="text-end">{{ c.amount|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td colspan="3" class="text-center text-muted">No line items.</td></tr>{% endfor %}</tbody>
+    {% if totals %}<tfoot>{% include "psa/_invoice_totals_rows.html" with span=2 %}</tfoot>{% endif %}
+</table>
+{% if present.layout == 'service_report' %}
+<h6 class="mt-3 px-2">Service report</h6>
+<table class="table table-sm mb-0">
+    <thead><tr><th>Ticket</th><th>Subject</th><th>Dates</th><th class="text-end">Hours</th><th>Technicians</th></tr></thead>
+    <tbody>{% for r in present.report %}
+        <tr><td>{{ r.number }}</td><td>{{ r.subject }}{% if r.resolution %}<div class="small text-muted"><strong>Resolution:</strong> {{ r.resolution|linebreaksbr }}</div>{% endif %}</td>
+            <td class="small">{% if r.first %}{{ r.first|date:"Y-m-d" }}{% if r.last and r.last|date:"Y-m-d" != r.first|date:"Y-m-d" %} – {{ r.last|date:"Y-m-d" }}{% endif %}{% else %}{{ r.opened|date:"Y-m-d" }}{% endif %}</td>
+            <td class="text-end">{{ r.hours }}</td><td class="small">{{ r.technician_names|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted">No tickets on this invoice.</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+{% if present.detail and present.lines %}
+<details class="mt-3 px-2 pb-2"><summary class="small">Appendix: itemized detail</summary>
+<table class="table table-sm mb-0 mt-2">
+    <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
+    <tbody>{% for li in present.lines %}
+        <tr><td>{{ li.description }}</td><td class="text-end">{{ li.quantity }}</td><td class="text-end">{{ li.unit_price|floatformat:2 }}</td><td class="text-end">{{ li.line_total|floatformat:2 }}</td></tr>
+    {% endfor %}</tbody>
+</table></details>
+{% endif %}
+{% endif %}
+</div>

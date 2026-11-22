@@ -51,6 +51,7 @@ class Spec:
     overridable: bool = False
     maximum: Decimal | int | None = None
     unit: str = ''
+    choices: tuple = ()
 
 
 SPECS = (
@@ -75,6 +76,18 @@ SPECS = (
     Spec('late_fee_min_days_overdue', 'Days overdue before a late fee',
          'Days past the due date before the late fee is charged. 0 turns late fees off.', 'int',
          'Late fees', True, 3650, 'days'),
+    Spec('invoice_presentation', 'Invoice layout',
+         'How invoices are laid out for the customer: itemized (every line), grouped by ticket, a monthly '
+         'summary by category, or a summary with a service report of the tickets worked. Only the layout '
+         'changes, never the lines, tax or totals. A draft invoice can pick its own; an invoice that has been '
+         'sent keeps the layout it had.', 'choice', 'Invoice presentation', True, None, '',
+         (('itemized', 'Itemized'), ('by_ticket', 'Grouped by ticket'), ('monthly', 'Monthly summary'),
+          ('service_report', 'Summary + service report'))),
+    Spec('invoice_footer_text', 'Invoice footer / payment instructions',
+         'Printed at the foot of every invoice (PDF, screen and customer portal): payment instructions, bank '
+         'details, thanks. Plain text, up to 1000 characters. The company name, logo, address and contact come '
+         'from the MSP organization and Settings → General branding.', 'text', 'Invoice presentation', False,
+         1000),
     Spec('psa_auto_push_recurring_invoices', 'Push recurring invoices to accounting automatically',
          'The recurring-invoice job pushes each new agreement invoice to the connected accounting system. '
          'Invoices held for approval are never pushed until approved.', 'bool', 'Accounting'),
@@ -117,10 +130,18 @@ def parse(key, raw, *, allow_blank=False):
     text = '' if raw is None else str(raw).strip()
     if spec.kind == 'bool':
         return text in ('1', 'on', 'true', 'yes')
+    if spec.kind == 'text':
+        if len(text) > spec.maximum:
+            raise SettingError(f'{spec.label}: at most {spec.maximum} characters.')
+        return text
+    if spec.kind == 'choice' and text and text not in dict(spec.choices):
+        raise SettingError(f'{spec.label}: choose one of the listed layouts.')
     if text == '':
         if allow_blank:
             return None
         raise SettingError(f'{spec.label}: a value is required.')
+    if spec.kind == 'choice':
+        return text
     if spec.kind == 'currency':
         code = text.upper()
         if not re.fullmatch(r'[A-Z]{3}', code):
@@ -155,9 +176,19 @@ def display(key, value):
         return ''
     if spec.kind == 'bool':
         return 'On' if value else 'Off'
+    if spec.kind == 'choice':
+        return dict(spec.choices).get(value, str(value))
     if spec.kind == 'tax_rate':
         return f'{(Decimal(str(value)) * 100).quantize(Decimal("0.01"))}'
     return str(value)
+
+
+def form_value(key, value):
+    """A stored value as a form control holds it: the raw key for a choice
+    (a select needs it), else what `display` shows."""
+    if BY_KEY[key].kind == 'choice':
+        return '' if value is None else value
+    return display(key, value)
 
 
 def audit_value(value):

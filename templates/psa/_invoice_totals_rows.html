@@ -1,0 +1,9 @@
+{# Totals rows shared by the invoice layouts. Context: invoice, span (columns before the amount). #}
+<tr><td colspan="{{ span }}" class="text-end">Subtotal</td><td class="text-end">{{ invoice.subtotal|floatformat:2 }}</td></tr>
+<tr><td colspan="{{ span }}" class="text-end">Tax</td><td class="text-end">{{ invoice.tax_amount|floatformat:2 }}</td></tr>
+<tr><td colspan="{{ span }}" class="text-end"><strong>Total</strong></td><td class="text-end"><strong>{{ invoice.total|floatformat:2 }} {{ invoice.currency }}</strong></td></tr>
+{% if totals == 'full' %}
+<tr><td colspan="{{ span }}" class="text-end">Paid</td><td class="text-end">{{ invoice.amount_paid|floatformat:2 }}</td></tr>
+{% if invoice.credited_amount %}<tr><td colspan="{{ span }}" class="text-end">Credited</td><td class="text-end">{{ invoice.credited_amount|floatformat:2 }}</td></tr>{% endif %}
+<tr><td colspan="{{ span }}" class="text-end"><strong>Balance due</strong></td><td class="text-end"><strong>{{ invoice.net_balance_due|floatformat:2 }} {{ invoice.currency }}</strong></td></tr>
+{% endif %}

@@ -1103,6 +1103,16 @@ class SystemSetting(models.Model):
         max_length=8, default='USD',
         help_text='Default currency for new invoices (ISO 4217 code).',
     )
+    # Phase 102.5: how invoices are laid out unless the customer, contract or
+    # invoice says otherwise, and the text printed at the foot of every
+    # invoice (payment instructions, thanks, registration numbers).
+    invoice_presentation = models.CharField(
+        max_length=20, default='itemized',
+        choices=[('itemized', 'Itemized'), ('by_ticket', 'Grouped by ticket'),
+                 ('monthly', 'Monthly summary'), ('service_report', 'Summary + service report')],
+        help_text='Default invoice layout.')
+    invoice_footer_text = models.TextField(
+        blank=True, default='', help_text='Printed at the foot of invoices (payment instructions, etc.). Plain text.')
 
     # PSA AI Assist (Workstream 10) — admin-controlled at top level
     # API keys / provider / model selection live on the existing

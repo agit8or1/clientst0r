@@ -128,7 +128,7 @@ Approved, in priority order, not started (or started only in parts already liste
 
 | # | Phase | Priority | Status | Next step | Depends on |
 |---|---|---|---|---|---|
-| 1 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | 🔵 In progress | 102.5 invoice presentation; 102.6 recurring billing gaps; 102.7 one set of financial definitions | 15, 36, 75, 92, 101 |
+| 1 | 102 — [Ready for Billing queue and invoice integrity](#phase-102) | P0 | 🔵 In progress | 102.6 recurring billing gaps; 102.7 one set of financial definitions | 15, 36, 75, 92, 101 |
 | 2 | 70 — [Contracts, recurring billing and quote conversion](#phase-70) | P0 | 🔵 In progress | 70.1 quote to contract, 70.2 quote to invoice | 65, 68, 69 |
 | 3 | 63 — [RMM integration and technician workspace](#phase-63) | P0 | 🔵 In progress | 63.17 contract hygiene now; 63.11–63.16 as Rem0te ships each item | 52, 56, 57; Rem0te contract |
 | 4 | 91 — [Workflow automation safety](#phase-91) | P1 | 🔵 In progress | 91.6–91.9; approval or cap on charge amounts (91.4) | 14 |
@@ -191,7 +191,7 @@ unchanged. Click a feature for its details.
 | 71 | [Accounting sync completion](#phase-71) | — | 🔵 In progress | 44 | 71.4–71.8 accounting completion; 71.11 sandbox verification |
 | 72 | [Payment processing and sales tax](#phase-72) | — | 🔵 In progress | 71 | Provider verification; payment posting to accounting |
 | 92 | [Verified usage and recurring billing](#phase-92) | — | ⬜ Planned | 70; Rem0te counts (92.4) | 92.1 recurring charge generation |
-| 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | 🔵 In progress | 15, 36, 75, 92, 101 | 102.5 invoice presentation; 102.6 recurring billing gaps; 102.7 one set of financial definitions |
+| 102 | [Ready for Billing queue and invoice integrity](#phase-102) | P0 | 🔵 In progress | 15, 36, 75, 92, 101 | 102.6 recurring billing gaps; 102.7 one set of financial definitions |
 | 104 | [Customer approvals, deposits, change orders and portal billing](#phase-104) | P1 | ⬜ Planned | 72, 101, 103 | 104.1 out-of-scope approval |
 
 <details markdown="1">
@@ -3577,9 +3577,9 @@ Full description, sub-items and release history: [ROADMAP_HISTORY.md — Phase 1
 <a id="phase-102"></a>
 
 ## Phase 102 — Ready for Billing queue and invoice integrity **(L · P0 · billing)** [in progress]
-<!-- phase: ws=B stage=1 view=next order=2 deps="15, 36, 75, 92, 101" next="102.5 invoice presentation; 102.6 recurring billing gaps; 102.7 one set of financial definitions" -->
+<!-- phase: ws=B stage=1 view=next order=2 deps="15, 36, 75, 92, 101" next="102.6 recurring billing gaps; 102.7 one set of financial definitions" -->
 **Status:** 🔵 In progress · **Priority:** P0 · **Workstream:** B. Billing & Financial Management · **Depends on:** 15, 36, 75, 92, 101  
-**Next:** 102.5 invoice presentation; 102.6 recurring billing gaps; 102.7 one set of financial definitions
+**Next:** 102.6 recurring billing gaps; 102.7 one set of financial definitions
 
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
@@ -3594,8 +3594,9 @@ Priority P0 (§D, §E). Extends Phase 36 pre-invoice approval and the existing i
   charges, milestones and customer-approved work across tickets; review, approve, hold, exclude, adjust.
 - **102.4 Consolidated invoices** *(partial — tickets, account charges and the agreement fee on one draft shipped v3.17.757; project milestones stay on the project page)* — several tickets, charges and the contract fee on one invoice;
   every line keeps its source; retries never double bill; finalized invoices corrected only by credit notes.
-- **102.5 Invoice presentation** *(planned)* — itemized, grouped by ticket, monthly summary or summary with a
-  service report; MSP branding.
+- **102.5 Invoice presentation** *(shipped v3.17.767)* — itemized, grouped by ticket, monthly summary or summary with a
+  service report; MSP branding. Default in Settings → Billing, overridable per customer, contract and draft invoice;
+  frozen when the invoice leaves draft; the same layout on the staff page, portal and PDF.
 - **102.6 Recurring billing gaps** *(planned)* — billing in arrears, failed-billing alerts, an in-app dry run
   before automatic billing is switched on (extends Phase 15 and 92).
 - **102.7 One set of financial definitions** *(planned)* — billed, collected and recognized revenue, direct cost,

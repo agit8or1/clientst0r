@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.767] - 2026-11-23
+
+### Added
+- **Invoice layouts** (Phase 102.5): itemized (the default, unchanged), grouped by ticket, monthly summary,
+  and summary with a service report of the tickets worked. Set the default in Settings → General → Billing,
+  override it per customer or per contract, or choose it on a draft invoice. A layout only changes how lines
+  are presented, never the lines, tax or totals, and an invoice keeps its layout once it leaves draft. The
+  staff page, the customer portal and the PDF show the same layout; *PDF with detail* adds the itemized lines
+  to a summary.
+- The service report shows only what the customer may see: no comments, time-entry notes or internal items,
+  and tickets hidden from the customer appear by number and hours only.
+- **Invoice letterhead and footer**: your organization's name, address, contact details and logo (falling
+  back to the Whitelabeling / Branding section of Settings → General), and footer text for payment instructions, set in Settings → Billing.
+- docs/BILLING.md: *Invoice layout and branding*.
+
 ## [3.17.766] - 2026-11-23
 
 ### Added

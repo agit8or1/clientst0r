@@ -158,25 +158,12 @@ Re-push anyway?">
     </div>
     <div class="col-md-8">
         <div class="card mb-3">
-            <div class="card-header"><strong>Line items</strong></div>
-            <table class="table table-sm mb-0">
-                <thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th class="text-end">Line total</th></tr></thead>
-                <tbody>
-                    {% for li in line_items %}
-                    <tr>
-                        <td>
-                            {{ li.description }}
-                            {% if li.source != 'manual' %}<small class="badge text-bg-secondary">{{ li.get_source_display }}</small>{% endif %}
-                        </td>
-                        <td>{{ li.quantity }}</td>
-                        <td>{{ li.unit_price }}</td>
-                        <td class="text-end">{{ li.line_total }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4" class="text-center text-muted">No line items.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="card-header d-flex justify-content-between align-items-center"><strong>Line items</strong>
+                <span class="small text-muted">Layout: {{ present.layout_label }}{% if not item.presentation %} (default){% endif %}
+                    · <a href="{% url 'psa:invoice_pdf' item.pk %}?detail=1" target="_blank">PDF with detail</a></span></div>
+            <div class="card-body pb-0">{% include "psa/_invoice_brand.html" with part="head" %}</div>
+            {% include "psa/_invoice_lines.html" with invoice=item show_source=True totals="" %}
+            <div class="card-body pt-0">{% include "psa/_invoice_brand.html" with part="foot" %}</div>
         </div>
 
         <div class="card">
