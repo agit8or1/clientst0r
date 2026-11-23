@@ -668,6 +668,10 @@ class UserProfile(BaseModel):
         related_name='+',
         help_text='Default organization to load on login'
     )
+    # When this user last switched to Global View. Compared with their most
+    # recent RecentClient row so a new session opens where they left off
+    # (last client or Global View). Set by core.client_switcher.
+    last_global_view_at = models.DateTimeField(null=True, blank=True)
 
     # UI Preferences
     tooltips_enabled = models.BooleanField(
@@ -866,7 +870,14 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    """Save profile when user is saved."""
+    """Save profile when user is saved.
+
+    Not for a partial save (update_fields, e.g. update_last_login at sign-in):
+    the profile cached on that User object may be older than the row, and a
+    full save would write those old values back over newer ones.
+    """
+    if kwargs.get('update_fields'):
+        return
     if hasattr(instance, 'profile'):
         instance.profile.save()
 

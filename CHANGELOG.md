@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.765] - 2026-11-23
+
+### Changed
+- A new sign-in opens where you left off: the last client you worked in, or
+  Global View if you were in Global View more recently. Global View is only chosen for superusers and staff with
+  access to every client; everyone else keeps opening their last client.
+  A default organization set in My Profile still takes priority.
+
+### Fixed
+- Signing in no longer writes an older copy of your profile back over newer
+  changes (the last-login update saved the whole profile as it was cached).
+
 ## [3.17.764] - 2026-11-23
 
 ### Fixed

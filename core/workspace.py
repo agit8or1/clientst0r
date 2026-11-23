@@ -400,7 +400,9 @@ def context_trail(request):
 def context_return(request):
     """Go back to where an open-in-context jump started, in that customer."""
     trail = request.session.pop(TRAIL_KEY, None) or {}
-    from core.client_switcher import authorized_organizations, has_all_client_access
+    from core.client_switcher import (
+        authorized_organizations, has_all_client_access, record_global_view,
+    )
     from core.org_handoff import switch_session_org
     org_id = trail.get('from_org_id')
     if org_id:
@@ -412,6 +414,7 @@ def context_return(request):
         request.session.pop('current_organization_id', None)
         request.session['global_view_mode'] = True
         request.session.modified = True
+        record_global_view(request.user)
         messages.info(request, 'Back in Global View.')
     dest = _safe_next(request, trail.get('path')) or reverse('core:dashboard')
     return redirect(dest)

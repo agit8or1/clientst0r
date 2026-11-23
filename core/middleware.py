@@ -85,6 +85,7 @@ class CurrentOrganizationMiddleware:
                 # into an arbitrary first client and make them pick again.
                 # Access is re-checked here, exactly like the session value.
                 recent_org = None
+                recent_at = None
                 if not preferred_org and not global_view_mode:
                     from .models import RecentClient
                     for rc in (RecentClient.objects.filter(user=request.user, organization__is_active=True)
@@ -94,7 +95,24 @@ class CurrentOrganizationMiddleware:
                                 hasattr(request.user, 'memberships') and request.user.memberships.filter(
                                     organization=rc.organization, is_active=True).exists()):
                             recent_org = rc.organization
+                            recent_at = rc.switched_at
                             break
+
+                # A new session opens where the user left off: if they were in
+                # Global View more recently than in any client, open Global
+                # View instead of a client. With no history at all the usual
+                # first-client choice below stands. Only for users Global View
+                # is open to: superusers and staff with access to every client.
+                if (not preferred_org and not global_view_mode
+                        and (request.user.is_superuser or request.is_staff_user)):
+                    last_global = getattr(profile, 'last_global_view_at', None) if profile is not None else None
+                    if last_global is not None and (recent_org is None or last_global > recent_at):
+                        from accounts.permission_utils import staff_client_org_ids
+                        if request.user.is_superuser or staff_client_org_ids(request.user) is None:
+                            recent_org = None
+                            global_view_mode = True
+                            request.session['global_view_mode'] = True
+                            request.session.modified = True
 
                 if preferred_org and not global_view_mode:
                     request.current_organization = preferred_org

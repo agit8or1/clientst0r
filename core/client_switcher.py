@@ -81,6 +81,20 @@ def can_view_client_list(user):
     return user.is_superuser or organization_list_queryset(user).exists()
 
 
+def record_global_view(user):
+    """Note that `user` just switched to Global View (for the next sign-in)."""
+    if not user.is_authenticated:
+        return
+    from accounts.models import UserProfile
+    now = timezone.now()
+    UserProfile.objects.filter(user=user).update(last_global_view_at=now)
+    # Keep a profile already loaded on this User in step, so a later full
+    # save of it in this request doesn't write the old value back.
+    cached = getattr(user, '_state', None) and user._state.fields_cache.get('profile')
+    if cached is not None:
+        cached.last_global_view_at = now
+
+
 def record_recent_client(user, organization):
     """Note that `user` just switched to `organization`."""
     if not user.is_authenticated or organization is None:

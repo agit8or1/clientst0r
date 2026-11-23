@@ -109,6 +109,8 @@ def switch_to_global_view(request):
         del request.session['current_organization_id']
     request.session['global_view_mode'] = True
     request.session.modified = True
+    from core.client_switcher import record_global_view
+    record_global_view(request.user)
 
     messages.success(request, "Switched to Global View")
 
