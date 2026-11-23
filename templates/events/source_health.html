@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Monitoring Reliability{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'events:list' %}">Events</a></li>
+  {% if customer %}<li class="breadcrumb-item"><a href="{% url 'events:source_health' %}">Monitoring reliability</a></li><li class="breadcrumb-item active">{{ customer_name }}</li>{% else %}<li class="breadcrumb-item active">Monitoring reliability</li>{% endif %}
+</ol></nav>
+<h2><i class="fas fa-satellite-dish me-2"></i>Monitoring reliability{% if customer_name %}: {{ customer_name }}{% endif %}</h2>
+<p class="text-muted small mb-2">Whether each monitoring source is actually collecting, kept separate from what it found. Zero alerts counts as quiet only when the collection was verified; a source that failed, went stale or cannot be verified is shown as such, never as healthy. <a href="{% url 'events:source_health_json' %}{% if customer %}?customer={{ customer }}{% endif %}">JSON (schema 1.0.0)</a></p>
+<div class="alert {% if overall.verified %}alert-success{% else %}alert-warning{% endif %} py-2" role="status">
+  <i class="fas {% if overall.verified %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %} me-1" aria-hidden="true"></i>{{ statement }}
+</div>
+<details class="mb-3 small"><summary>What the states mean</summary>
+  <ul class="list-unstyled mt-2 mb-0">{% for key, label, badge, icon in legend %}<li class="mb-1"><span class="badge bg-{{ badge }}{% if badge == 'warning' %} text-dark{% endif %}"><i class="fas {{ icon }} me-1" aria-hidden="true"></i>{{ label }}</span></li>{% endfor %}</ul>
+  <p class="mt-2 mb-0">Monitoring health is separate from alert severity: a source can be healthy with critical alerts, or broken with none.</p>
+</details>
+
+{% if not customer %}
+<div class="card mb-3"><div class="card-header py-2"><h6 class="mb-0">By customer</h6></div><div class="table-responsive">
+  <table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Customer</th><th>Monitoring</th><th>Alerts</th><th>Sources</th><th>Not verified</th></tr></thead>
+    <tbody>
+    {% for org_id, name, s, recs in customers %}
+      <tr>
+        <td><a href="?customer={{ org_id }}">{{ name }}</a></td>
+        <td>{% if s.verified %}<span class="badge bg-success" title="Every critical source verified"><i class="fas fa-circle-check me-1" aria-hidden="true"></i>Verified</span>{% elif s.worst %}{% include "events/_source_state.html" with d=s.worst %}{% endif %}</td>
+        <td>{% if s.alert_status == 'active_alerts' %}<span class="badge bg-info text-dark"><i class="fas fa-bell me-1" aria-hidden="true"></i>Alerts found</span>{% elif s.alert_status == 'no_alerts' %}<span class="badge bg-light text-dark border">No alerts (verified)</span>{% else %}<span class="badge bg-secondary" title="Cannot say there are no alerts while a critical source is not verified"><i class="fas fa-circle-question me-1" aria-hidden="true"></i>Unknown</span>{% endif %}</td>
+        <td>{{ s.total }}</td>
+        <td>{% if s.critical_gaps %}{{ s.critical_gaps|length }}{% else %}—{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-muted">No monitoring source reports health for the customers you can see.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header py-2"><h6 class="mb-0">Sources</h6></div><div class="table-responsive">
+  <table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Source</th><th>Type</th>{% if not customer %}<th>Customers</th>{% endif %}<th>Monitoring</th><th>Last successful collection</th><th>Last attempt</th><th>Records (retrieved / stored / rejected)</th><th>Newest event</th><th>Failures</th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td>{{ r.name|default:"—" }}</td>
+        <td class="small">{{ r.kind_label }}</td>
+        {% if not customer %}<td class="small">{{ r.customer_names|join:", "|default:"MSP-wide" }}</td>{% endif %}
+        <td>{% include "events/_source_state.html" with d=r.display %}{% if r.diagnostic %}<div class="small text-muted text-break">{{ r.diagnostic|truncatechars:160 }}</div>{% endif %}</td>
+        <td class="small">{{ r.last_success_at|date:"Y-m-d H:i"|default:"never" }}{% if r.freshness == 'stale' and r.last_success_at %} <span class="text-warning">(older than {{ r.stale_after_minutes|default:"120" }} min)</span>{% endif %}</td>
+        <td class="small">{{ r.attempted_at|date:"Y-m-d H:i"|default:"—" }}</td>
+        <td class="small">{% if r.kind == 'monitor' or r.kind == 'push' or r.kind == 'pipeline' %}—{% else %}{{ r.retrieved|default:"0" }} / {{ r.committed|default:"0" }} / {{ r.rejected|default:"0" }}{% endif %}</td>
+        <td class="small">{% if r.newest_event_at %}{{ r.newest_event_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted" title="Not known: no trustworthy timestamp">unknown</span>{% endif %}</td>
+        <td>{{ r.consecutive_failures|default:"0" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="9" class="text-muted">No monitoring sources.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+<p class="small text-muted">Collections that fail are retried with increasing waits (and the provider's Retry-After), never switched off. Technicians are e-mailed once when a critical source fails persistently or goes stale, and once when it recovers.</p>
+{% endblock %}

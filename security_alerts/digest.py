@@ -119,6 +119,33 @@ def render_all_clear(org, *, brand, unsubscribe):
     return subject, '\n'.join(lines)
 
 
+def render_unverified(org, *, brand, unsubscribe):
+    """Sent instead of the all-clear when a monitoring source for the
+    customer is not verified (roadmap 82.9): no unresolved alerts were found,
+    but that cannot be called "all clear"."""
+    lines = [
+        f'There are no unresolved security alerts for {org.name} in the monitoring sources that were '
+        'verified this week.',
+        '',
+        'At least one monitoring source could not be verified (it failed, is stale or cannot confirm a '
+        f'quiet period), so this is not an all-clear. Your {brand} team has been notified and is checking it.',
+        '',
+        'You receive this because you opted in to the weekly security alert digest.',
+        f'Stop these e-mails: {unsubscribe}',
+    ]
+    subject = f'[{brand}] Weekly security alert digest \u2014 {org.name}: monitoring not fully verified'
+    return subject, '\n'.join(lines)
+
+
+def _monitoring_verified(org):
+    try:
+        from events.source_health_store import summary_for
+        s = summary_for({org.pk}, kinds=('security', 'push'))
+    except Exception:
+        return False
+    return s['verified']
+
+
 def recipient_still_eligible(sub):
     """Rechecked at send time, not only at opt-in: a subscriber tied to a user
     account gets the digest only while that account is active and still
@@ -186,10 +213,13 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
         customer = org_subs[0].organization
         rows = digest_rows(customer)
         out['customers'] += 1
+        verified = True
         if not rows:
             out['empty'] += 1
             if customer.pk not in all_clear_orgs:
                 continue
+            # "All clear" only when collection is verified (82.9).
+            verified = _monitoring_verified(customer)
         for sub in org_subs:
             if not recipient_still_eligible(sub):
                 out.setdefault('ineligible', 0)
@@ -201,8 +231,11 @@ def send_digests(*, org=None, dry_run=False, force=False, now=None, connection=N
             unsub = unsubscribe_url(sub, base)
             if rows:
                 subject, body = render_digest(customer, rows, brand=brand, unsubscribe=unsub)
-            else:
+            elif verified:
                 subject, body = render_all_clear(customer, brand=brand, unsubscribe=unsub)
+            else:
+                subject, body = render_unverified(customer, brand=brand, unsubscribe=unsub)
+                out['unverified'] = out.get('unverified', 0) + 1
             if dry_run:
                 out['sent'] += 1
                 if not rows:

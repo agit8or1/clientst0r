@@ -253,3 +253,84 @@ def _audit(request, event, description, extra=None):
                  object_type='OperationalEvent' if event else 'EventSettings',
                  object_id=event.pk if event else 1, object_repr=(str(event) if event else 'Event ingestion')[:200],
                  description=description, extra_data=extra or {})
+
+
+# --- monitoring reliability (82.9) -----------------------------------------------------------
+
+def _scoped_source_health(user, customer=None):
+    """(records, org_names, all_scope). Only customers where the user holds
+    events_view; MSP-wide sources (the event pipeline, sources with no
+    customer) only for users who see every customer."""
+    from core.models import Organization
+    from . import source_health_store as store
+    allowed = orgs_with_perm(user, VIEW_PERM)
+    all_scope = allowed is None
+    org_ids = None if all_scope else set(allowed)
+    if customer is not None:
+        if not all_scope and customer not in org_ids:
+            raise PermissionDenied('You cannot view this customer.')
+        org_ids = {customer}
+    records = store.gather(org_ids, include_msp_wide=all_scope and customer is None)
+    if not all_scope or customer is not None:
+        # Never show another customer's id in a shared source's customer list.
+        visible = org_ids
+        for r in records:
+            r['customers'] = r['customers'] & visible
+    ids = set().union(*[r['customers'] for r in records]) if records else set()
+    names = dict(Organization.objects.filter(pk__in=ids).values_list('pk', 'name'))
+    return records, names, all_scope
+
+
+@login_required
+@require_perm(VIEW_PERM)
+def source_health(request):
+    from . import source_health as sh
+    from . import source_health_store as store
+    raw = request.GET.get('customer', '')
+    customer = int(raw) if raw.isdigit() else None
+    records, names, all_scope = _scoped_source_health(request.user, customer)
+    for r in records:
+        r['display'] = sh.display(r)
+        r['kind_label'] = store.KIND_LABELS.get(r['kind'], r['kind'])
+        r['customer_names'] = sorted(names.get(o, '') for o in r['customers'])
+    rows = store.by_customer(records, names)
+    msp_wide = [r for r in records if not r['customers']]
+    overall = sh.summarize(records)
+    return render(request, 'events/source_health.html', {
+        'customers': rows, 'msp_wide': msp_wide, 'overall': overall,
+        'statement': sh.visibility_statement(overall), 'customer': customer,
+        'customer_name': names.get(customer, '') if customer else '',
+        'records': sorted(records, key=lambda r: (-r['display'].rank, r.get('name') or '')),
+        'legend': [(k, v[0], v[1], v[2]) for k, v in sh.DISPLAY.items()],
+        'all_scope': all_scope,
+    })
+
+
+@login_required
+@require_perm(VIEW_PERM)
+def source_health_json(request):
+    """Machine-readable source health, schema 1.0.0, tenant-scoped."""
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from . import source_health as sh
+    raw = request.GET.get('customer', '')
+    customer = int(raw) if raw.isdigit() else None
+    records, _names, _all = _scoped_source_health(request.user, customer)
+    out = []
+    for r in records:
+        tenants = sorted(r['customers']) or [None]
+        for t in tenants:
+            out.append(sh.to_contract(r, tenant_id=t, source_id=r['source_id'], source_type=r['kind']))
+    by_tenant = {}
+    for p in out:
+        by_tenant.setdefault(p['tenant_id'], []).append(p)
+    summaries = []
+    for t, payloads in by_tenant.items():
+        recs = [r for r in records if (t is None and not r['customers']) or (t is not None and int(t) in r['customers'])]
+        s = sh.summarize(recs)
+        summaries.append({'tenant_id': t, 'monitoring_verified': s['verified'], 'alert_status': s['alert_status'],
+                          'sources': s['total'], 'unverified_sources': len(s['gaps']),
+                          'visibility_statement': sh.visibility_statement(s)})
+    return JsonResponse({'schema_version': sh.SCHEMA_VERSION, 'product_id': sh.PRODUCT_ID,
+                         'generated_at': timezone.now().isoformat().replace('+00:00', 'Z'),
+                         'tenants': summaries, 'sources': out})

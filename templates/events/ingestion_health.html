@@ -6,6 +6,7 @@
   <li class="breadcrumb-item active">Ingestion health</li>
 </ol></nav>
 <h2><i class="fas fa-heart-pulse me-2"></i>Event ingestion</h2>
+<p class="small mb-1">Whether each monitoring source is collecting: <a href="{% url 'events:source_health' %}">Monitoring reliability</a>.</p>
 <p class="text-muted small">The scheduler copies each source's alerts into the shared event layer every minute, with a time limit per run so a failing source cannot slow anything else. {{ event_count }} events stored, {{ live_count }} open or acknowledged.</p>
 {% if not settings.ingestion_enabled %}<div class="alert alert-warning">Ingestion is switched off. Source pages keep working; this layer stops updating.</div>{% endif %}
 

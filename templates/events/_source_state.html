@@ -1,0 +1,2 @@
+{# One monitoring-health state: icon + text + tooltip, never colour alone. Needs `d` (events.source_health.Display). #}
+<span class="badge bg-{{ d.badge }}{% if d.badge == 'warning' %} text-dark{% endif %}" title="{{ d.tooltip }}" data-state="{{ d.key }}"><i class="fas {{ d.icon }} me-1" aria-hidden="true"></i>{{ d.label }}</span>

@@ -757,6 +757,21 @@ class CriticalIssues(PsaProvider):
 
 # -- risk / operations -----------------------------------------------------------
 
+def _monitoring_verified(customer_ids, kinds):
+    """(is_complete, reason) from the monitoring health contract (roadmap
+    82.9): an alert count is only complete when every critical source behind
+    it was verified within its freshness threshold."""
+    try:
+        from events import source_health as sh
+        from events.source_health_store import summary_for
+        summary = summary_for(None if customer_ids is None else set(customer_ids), kinds=kinds)
+    except Exception:
+        return True, ''
+    if summary['total'] == 0 or summary['verified']:
+        return True, ''
+    return False, sh.visibility_statement(summary)
+
+
 class SecurityIssues(MetricProvider):
     key = 'security_issues'
     title = 'Security alerts'
@@ -793,9 +808,11 @@ class SecurityIssues(MetricProvider):
             rows.append({'id': a.pk, 'label': a.title, 'client_name': cust.name,
                          'severity': labels.get(a.severity, a.severity), 'status': a.status,
                          'seen': a.seen_at, 'url': _url('security_alerts:alert_detail', a.pk)})
+        complete, reason = _monitoring_verified(ids, ('security', 'push'))
         return Collected(value=len(rows), rows=rows,
                          breakdown=[{'label': labels.get(k, k), 'value': v} for k, v in counts.items()],
-                         secondary=f"{counts['critical'] + counts['high']} high or critical")
+                         secondary=f"{counts['critical'] + counts['high']} high or critical",
+                         is_complete=complete, unknown_reason=reason)
 
 
 class BackupFailures(MetricProvider):
@@ -844,8 +861,10 @@ class BackupFailures(MetricProvider):
                          'severity': getattr(a, 'severity', ''), 'last_seen': getattr(a, 'last_seen_at', None),
                          'url': (_url('backup_monitoring:job_detail', job_id) if job_id
                                  else _url('backup_monitoring:alert_list'))})
+        complete, reason = _monitoring_verified(ids, ('backup',))
         return Collected(value=len(rows), rows=rows,
-                         breakdown=[{'label': k, 'value': v} for k, v in kinds.items()])
+                         breakdown=[{'label': k, 'value': v} for k, v in kinds.items()],
+                         is_complete=complete, unknown_reason=reason)
 
 
 class ProcurementStatus(PsaProvider):

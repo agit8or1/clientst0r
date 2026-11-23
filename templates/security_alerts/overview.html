@@ -32,6 +32,7 @@
             {% include "security_alerts/_so_stat.html" with label="High" value=alerts.counts.high href=alerts.links.high tone="warn" %}
             {% include "security_alerts/_so_stat.html" with label="Unacknowledged" value=alerts.counts.unacked href=alerts.links.unacked tone="warn" %}
         </div>
+        {% if alerts.collection %}<p class="so-note{% if not alerts.collection.summary.verified %} so-note--warn{% endif %}" data-so-collection="{% if alerts.collection.summary.verified %}verified{% else %}unverified{% endif %}"><i class="fas {% if alerts.collection.summary.verified %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}" aria-hidden="true"></i> <strong>Collection {% if alerts.collection.summary.verified %}verified{% else %}not verified{% endif %}:</strong> {{ alerts.collection.statement }}{% if alerts.collection.link %} <a href="{{ alerts.collection.link }}">Monitoring reliability</a>{% endif %}</p>{% endif %}
         <p class="so-note">Active = new or acknowledged. {{ alerts.counts.last_24h }} alert{{ alerts.counts.last_24h|pluralize }} received in the last 24 hours. The Critical and High lists show every status.</p>
         <div class="so-sub">Alert sources</div>
         {% include "security_alerts/_so_health.html" with health=alerts.sources empty="alerts arrive through SIEM endpoints only." %}

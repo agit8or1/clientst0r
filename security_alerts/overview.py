@@ -114,6 +114,21 @@ def _health(conns, now):
 # Widgets
 # ---------------------------------------------------------------------------
 
+def _collection_health(orgs, now, link):
+    """Whether the alert sources are verified to be collecting (monitoring
+    health contract, roadmap 82.9): a zero next to an unverified source is
+    not "no threats". Kept separate from the alert severities."""
+    from events import source_health as sh
+    from events.source_health_store import summary_for
+    try:
+        ids = {o.pk for o in orgs}
+        summary = summary_for(ids, kinds=('security', 'push'), now=now)
+    except Exception:
+        return None
+    return {'summary': summary, 'statement': sh.visibility_statement(summary),
+            'worst': summary['worst'], 'link': link('events:source_health')}
+
+
 def _alerts_widget(orgs, link, now):
     from .models import SecurityAlert, SecurityVendorConnection, SIEMWebhookEndpoint
 
@@ -144,6 +159,7 @@ def _alerts_widget(orgs, link, now):
     return {
         'state': '' if configured else NOT_CONFIGURED,
         'counts': c,
+        'collection': _collection_health(orgs, now, link),
         'unsigned': unsigned,
         'sources': _health(vendors, now),
         'siem': siem,
