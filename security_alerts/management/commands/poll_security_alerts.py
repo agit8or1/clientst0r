@@ -30,6 +30,13 @@ class Command(BaseCommand):
                 next_due = conn.last_sync_at + timedelta(minutes=conn.poll_interval_minutes)
                 if next_due > now:
                     continue
+            # Retry backoff and the provider's Retry-After (monitoring health
+            # contract, roadmap 82.10): a failing source waits, it is not
+            # hammered and it is not switched off.
+            from events.source_health_store import due
+            if not opts['connection_id'] and not due(conn, 'security', now):
+                self.stdout.write(f'  [wait] {conn.name}: retry backoff after a failed collection')
+                continue
             # Only a working API adapter polls; a stub (supports_polling =
             # False) is skipped so its connection never shows a false "OK".
             from security_alerts.capabilities import api_adapter

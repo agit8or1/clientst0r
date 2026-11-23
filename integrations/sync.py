@@ -76,14 +76,44 @@ def _health_kind(connection):
     return 'rmm' if isinstance(connection, RMMConnection) else 'psa'
 
 
-def _record_health(connection, status, stats, error, when):
-    """Standard health row (integrations.health) next to the legacy fields."""
+def _record_health(connection, status, stats, error, when, exc=None):
+    """Standard health row (integrations.health) next to the legacy fields,
+    plus the monitoring health contract for RMM connections (82.7)."""
     from . import health
     counts = health.stats_counts(stats)
     health.record_sync(connection, _health_kind(connection), status=status,
                        created=counts['created'], updated=counts['updated'],
                        failed=counts['failed'], error=error,
                        update_connection=False, when=when)
+    if _health_kind(connection) == 'rmm':
+        _record_rmm_collection(connection, stats, error, when, exc)
+
+
+def _record_rmm_collection(connection, stats, error, when, exc):
+    """RMM sync as a monitoring collection. The sync runs an authenticated
+    connection test before it lists anything, so an empty alert list from a
+    run that got through is a verified quiet window."""
+    try:
+        from events import source_health as sh
+        from events.source_health_store import record_collection
+        from . import health
+        counts = health.stats_counts(stats)
+        committed = counts['created'] + counts['updated']
+        open_alerts = None
+        if exc is None:
+            open_alerts = RMMAlert.objects.filter(connection=connection, status__in=('active', 'acknowledged'),
+                                                  resolved_at__isnull=True).count()
+        result = sh.CollectionResult(
+            attempted_at=when, window_start=None, window_end=when,
+            retrieved=committed + counts['failed'], processed=committed + counts['failed'],
+            committed=committed, rejected=counts['failed'], error=exc,
+            verification=sh.V_CONNECTION_TEST if exc is None else '',
+            open_alerts=open_alerts,
+            duration_ms=int((timezone.now() - when).total_seconds() * 1000),
+            diagnostic=error or '')
+        record_collection(connection, 'rmm', result, legacy_status=False)
+    except Exception:
+        logger.exception('could not record RMM source health for %s', connection)
 
 
 def record_sync_failure(connection, exc, stats, sync_start):
@@ -94,7 +124,7 @@ def record_sync_failure(connection, exc, stats, sync_start):
     connection.last_sync_status = 'error'
     connection.last_error = error_msg[:500]
     connection.save()
-    _record_health(connection, 'error', stats, error_msg, sync_start)
+    _record_health(connection, 'error', stats, error_msg, sync_start, exc=exc)
     return error_msg
 
 

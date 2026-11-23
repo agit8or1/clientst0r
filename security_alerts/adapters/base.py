@@ -14,43 +14,118 @@ from security_alerts.siem import _bucket_severity
 
 
 class SecurityProvider(IntegrationProvider):
-    """Abstract base — Phase 9 vendor adapter."""
+    """Abstract base — Phase 9 vendor adapter.
+
+    Monitoring health contract (roadmap 82.8, docs/standards/
+    MONITORING_HEALTH_STANDARD.md §5):
+
+    * ``poll_alerts`` must RAISE on an HTTP error, a refused permission or a
+      malformed response. Returning ``[]`` means "the query succeeded and the
+      window is empty", nothing else. Set ``health_reason`` on the exception
+      (or let ``events.source_health.classify_exception`` read the HTTP
+      status and Retry-After) — never swallow it.
+    * ``supports_empty_window_probe`` + ``probe_empty_window()``: when a
+      window comes back empty, a bounded, read-only, tenant-scoped probe
+      (one record, no filter beyond the tenant) confirms the query really
+      could have returned data. A failed or forbidden probe fails the read.
+      Without a probe an empty window is recorded as unverified, never as
+      healthy / quiet.
+    * ``ordering_guaranteed``: True only if the vendor documents newest-first
+      ordering; otherwise the newest event is the maximum validated
+      ``occurred_at``, or unknown.
+    """
+
+    supports_empty_window_probe = False
+    ordering_guaranteed = False
 
     @abstractmethod
     def poll_alerts(self, connection, since=None):
         """Return a list of dicts: [{external_id, severity, title,
         description, asset_hint, raw_payload, occurred_at}, ...]"""
 
+    def probe_empty_window(self, connection, window_start, window_end):
+        """Bounded verification probe for an empty window. Return True when
+        the source answered (it could have returned data); raise on any
+        failure. Read-only, at most one small request."""
+        raise NotImplementedError
+
     def sync(self, connection):
-        """Default sync: poll + persist normalized alerts."""
-        from security_alerts.models import SecurityAlert
+        """Poll + persist normalized alerts, and record the collection
+        against the monitoring health contract."""
+        import time
         from django.utils import timezone
+        from events import source_health as sh
+        from events.source_health_store import cursor, record_collection
+
+        started = timezone.now()
+        clock = time.monotonic()
+        # The window starts where the last *complete* collection ended; a
+        # failed or partial attempt never advances it, so nothing in its
+        # window is skipped. Legacy fallback: last_sync_at after an ok run.
+        since = cursor(connection, 'security')
+        if since is None and connection.last_sync_status == 'ok':
+            since = connection.last_sync_at
+
+        def finish(result, ok_status, error_text):
+            result.duration_ms = int((time.monotonic() - clock) * 1000)
+            record_collection(connection, 'security', result, legacy_status=True)
+            connection.last_sync_at = started
+            connection.last_sync_status = ok_status
+            connection.last_error = error_text[:1000]
+            connection.save(update_fields=['last_sync_status', 'last_error', 'last_sync_at'])
 
         try:
-            since = connection.last_sync_at
             alerts = self.poll_alerts(connection, since=since)
+            if alerts is None or not isinstance(alerts, (list, tuple)):
+                raise _InvalidResponse('The adapter returned no alert list.')
         except Exception as exc:
-            connection.last_sync_status = 'error'
-            connection.last_error = str(exc)[:1000]
-            connection.last_sync_at = timezone.now()
-            connection.save(update_fields=['last_sync_status', 'last_error', 'last_sync_at'])
-            return {'ok': False, 'records_imported': 0, 'errors': [str(exc)]}
+            from integrations.health import redact_for
+            message = redact_for(connection, exc)
+            finish(sh.CollectionResult(attempted_at=started, window_start=since, window_end=started, error=exc,
+                                       diagnostic=message), 'error', message)
+            return {'ok': False, 'records_imported': 0, 'errors': [message]}
 
-        imported = 0
+        verification = ''
+        if not alerts:
+            if self.supports_empty_window_probe:
+                try:
+                    if not self.probe_empty_window(connection, since, started):
+                        raise _InvalidResponse('The verification probe did not confirm the window.')
+                    verification = sh.V_PROBE
+                except Exception as exc:
+                    from integrations.health import redact_for
+                    message = redact_for(connection, exc)
+                    finish(sh.CollectionResult(attempted_at=started, window_start=since, window_end=started,
+                                               error=exc, diagnostic=f'Empty window, probe failed: {message}'),
+                           'error', message)
+                    return {'ok': False, 'records_imported': 0, 'errors': [message]}
+            else:
+                verification = sh.V_NOT_SUPPORTED
+
+        imported, committed, rejected, errors = 0, 0, 0, []
+        from security_alerts.ingest import upsert_alert
         for a in alerts:
-            from security_alerts.ingest import upsert_alert
-            obj, created = upsert_alert(
-                {'connection': connection, 'external_id': a.get('external_id', '')},
-                {
-                    'organization': connection.organization,
-                    'client_org': connection.client_org,
-                    'severity': _bucket_severity(a.get('severity')),
-                    'title': (a.get('title') or '')[:300],
-                    'description': a.get('description', ''),
-                    'asset_hint': (a.get('asset_hint') or '')[:200],
-                    'raw_payload': a.get('raw_payload', {}),
-                },
-            )
+            try:
+                if not isinstance(a, dict):
+                    raise _InvalidResponse('alert is not an object')
+                obj, created = upsert_alert(
+                    {'connection': connection, 'external_id': a.get('external_id', '')},
+                    {
+                        'organization': connection.organization,
+                        'client_org': connection.client_org,
+                        'severity': _bucket_severity(a.get('severity')),
+                        'title': (a.get('title') or '')[:300],
+                        'description': a.get('description', ''),
+                        'asset_hint': (a.get('asset_hint') or '')[:200],
+                        'raw_payload': a.get('raw_payload', {}),
+                    },
+                )
+            except Exception as exc:
+                rejected += 1
+                if len(errors) < 5:
+                    errors.append(f'{type(exc).__name__}')
+                continue
+            committed += 1
             if created:
                 imported += 1
                 # Auto-ticket evaluation
@@ -62,11 +137,24 @@ class SecurityProvider(IntegrationProvider):
                 except Exception:
                     pass
 
-        connection.last_sync_at = timezone.now()
-        connection.last_sync_status = 'ok'
-        connection.last_error = ''
-        connection.save(update_fields=['last_sync_at', 'last_sync_status', 'last_error'])
-        return {'ok': True, 'records_imported': imported, 'errors': []}
+        from security_alerts.models import SecurityAlert
+        open_alerts = SecurityAlert.objects.filter(connection=connection, status__in=('new', 'acknowledged')).count()
+        result = sh.CollectionResult(
+            attempted_at=started, window_start=since, window_end=started, retrieved=len(alerts),
+            processed=len(alerts), committed=committed, rejected=rejected, verification=verification,
+            event_times=[a.get('occurred_at') for a in alerts if isinstance(a, dict)],
+            ordering_guaranteed=self.ordering_guaranteed, open_alerts=open_alerts,
+            diagnostic=(f'{rejected} of {len(alerts)} alerts could not be stored ({", ".join(errors)})'
+                        if rejected else ''))
+        if rejected:
+            finish(result, 'partial' if committed else 'error', result.diagnostic)
+        else:
+            finish(result, 'ok', '')
+        return {'ok': not rejected, 'records_imported': imported, 'errors': [result.diagnostic] if rejected else []}
+
+
+class _InvalidResponse(ValueError):
+    health_reason = 'invalid_response'
 
 
 # SR-08: an alert matching an open auto-ticket for the same customer, asset
