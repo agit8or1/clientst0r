@@ -176,7 +176,10 @@ def azure_callback(request):
 
     user, err = resolve_sso_user(identity, config, request)
     if user is None:
-        messages.error(request, MESSAGES.get(err, "Authentication failed. Please contact your administrator."))
+        text = MESSAGES.get(err, "Authentication failed. Please contact your administrator.")
+        if err == 'no_account' and identity.email:
+            text = f'{text} You signed in as {identity.email}.'
+        messages.error(request, text)
         return redirect('two_factor:login')
 
     login(request, user, backend='accounts.azure_auth.AzureADBackend')

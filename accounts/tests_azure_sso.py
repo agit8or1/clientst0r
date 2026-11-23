@@ -16,6 +16,7 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.conf import settings as django_settings
 from django.contrib.auth.models import User
+from django.contrib.messages import get_messages
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -47,13 +48,15 @@ def _oid():
     return str(uuid.uuid4())
 
 
-def _token(oid, tid=TENANT, nonce=nonce_claim(NONCE), aud=CLIENT_ID, key=_KEY, email='alice@example.com', **over):
+def _token(oid, tid=TENANT, nonce=nonce_claim(NONCE), aud=CLIENT_ID, key=_KEY, email='alice@example.com', email_claim=None, **over):
     now = int(time.time())
     claims = {
         'iss': f'https://login.microsoftonline.com/{tid}/v2.0', 'aud': aud, 'tid': tid, 'oid': oid,
         'sub': 'pairwise-sub', 'nonce': nonce, 'iat': now, 'nbf': now, 'exp': now + 3600,
         'preferred_username': email, 'name': 'Alice Example',
     }
+    if email_claim is not None:
+        claims['email'] = email_claim
     claims.update(over)
     claims = {k: v for k, v in claims.items() if v is not None}
     return jwt.encode(claims, key, algorithm='RS256', headers={'kid': 'test-kid'})
@@ -170,6 +173,32 @@ class AccountMatchingTests(TestCase):
                                                 success=False).exists())
         resolve_sso_user(_identity(self.oid), self.config)  # retry: still one request
         self.assertEqual(AzureADLinkRequest.objects.filter(user=victim).count(), 1)
+
+    def test_mailbox_address_differing_from_sign_in_name_is_recognised(self):
+        # Issue #224: the account holds the mailbox address while the sign-in
+        # name (UPN) is different. It must lead to a link request, not "no account".
+        bob = User.objects.create_user('bob', 'bob@contoso.com', 'pw')
+        with patch.object(azure_auth, '_jwks_client', return_value=_jwks()):
+            identity = verify_id_token(
+                _token(self.oid, email='bob@contoso.onmicrosoft.com', email_claim='Bob@Contoso.com'),
+                load_azure_config(), NONCE)
+        self.assertEqual(identity.addresses, ('bob@contoso.com', 'bob@contoso.onmicrosoft.com'))
+        user, err = resolve_sso_user(identity, self.config)
+        self.assertEqual((user, err), (None, 'link_required'))
+        self.assertTrue(AzureADLinkRequest.objects.filter(user=bob, object_id=self.oid).exists())
+        self.assertEqual(UserProfile.objects.get(user=bob).azure_ad_oid, '')
+
+    def test_sign_in_name_matches_when_no_email_claim(self):
+        carol = User.objects.create_user('carol', 'carol@example.com', 'pw')
+        user, err = resolve_sso_user(_identity(self.oid, email='carol@example.com'), self.config)
+        self.assertEqual((user, err), (None, 'link_required'))
+        self.assertTrue(AzureADLinkRequest.objects.filter(user=carol).exists())
+
+    def test_no_account_records_the_addresses_for_the_administrator(self):
+        user, err = resolve_sso_user(_identity(self.oid, email='nobody@example.com'), self.config)
+        self.assertEqual((user, err), (None, 'no_account'))
+        entry = AuditLog.objects.get(extra_data__event='azure_sso_no_account')
+        self.assertEqual(entry.extra_data['claimed_addresses'], ['nobody@example.com'])
 
     def test_superuser_email_match_is_never_linked(self):
         admin = User.objects.create_superuser('root', 'alice@example.com', 'pw')
@@ -296,6 +325,18 @@ class SignInFlowTests(TestCase):
         r = self._callback(flow)
         self.assertRedirects(r, reverse('two_factor:login'), fetch_redirect_response=False)
         self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_email_scope_is_requested(self):
+        self._start()
+        scopes = self.app.initiate_auth_code_flow.call_args[0][0]
+        self.assertIn('email', scopes)
+
+    def test_no_account_message_names_the_microsoft_address(self):
+        _, flow = self._start()
+        r = self._callback(flow, email='stranger@example.com')
+        self.assertRedirects(r, reverse('two_factor:login'), fetch_redirect_response=False)
+        msgs = [str(m) for m in get_messages(r.wsgi_request)]
+        self.assertTrue(any('You signed in as stranger@example.com' in m for m in msgs), msgs)
 
     def test_wrong_state_or_reused_flow_is_refused(self):
         _link(User.objects.create_user('alice', 'a@example.com', 'pw'), self.oid)

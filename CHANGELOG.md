@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.764] - 2026-11-23
+
+### Fixed
+- Microsoft sign-in (Azure AD / Entra ID): people whose Microsoft sign-in name
+  differs from their mailbox address were told "No account here is linked"
+  instead of being offered the link step (issue #224). Sign-in now asks
+  Microsoft for the mailbox address (the *email* permission) and looks for an
+  account using the mailbox address or the sign-in name. A match still never
+  signs anyone in by itself: it records a link request an administrator
+  confirms, or the person links from My Profile after signing in with their
+  password.
+- The "No account here is linked" message now names the Microsoft address
+  the person signed in with and says what an administrator needs to do; the
+  audit entry records every address Microsoft sent.
+- docs/AZURE_SSO_SETUP.md: the *email* permission, how matching works, and the
+  steps for an account that can't sign in after the v3.17.688 change.
+
 ## [3.17.763] - 2026-11-22
 
 ### Added

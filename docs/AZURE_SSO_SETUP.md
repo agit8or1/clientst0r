@@ -43,6 +43,10 @@ After registration, note the following values (you'll need them later):
    - Click **Add a permission**
    - Select **Microsoft Graph** → **Delegated permissions**
    - Add **User.Read**
+   - From v3.17.764 sign-in also asks for the OpenID **email** permission
+     (Microsoft Graph → Delegated → *email*) so the sign-in carries the
+     mailbox address. Add it and grant consent if your tenant requires admin
+     consent for new permissions.
 4. Click **Grant admin consent** (if you have admin rights)
 
 ### 5. Configure Client St0r
@@ -129,7 +133,9 @@ An existing account is linked to Microsoft sign-in in one of two ways:
    security event is logged, and a *link request* appears on that user's page
    (Settings → Users). A superuser may approve it after confirming with the
    person, by entering their own password (and code). Nobody can approve a
-   request for their own account.
+   request for their own account. The account matches if its e-mail address
+   is the person's Microsoft mailbox address *or* their Microsoft sign-in name
+   (UPN); these are often different.
 
 Users and administrators can unlink from the same places.
 
@@ -197,7 +203,15 @@ user enters their ClientSt0r authenticator code (v3.17.660).
 ### "Authentication failed" Error
 
 - "already uses this e-mail address, but it is not linked": link the account (see *Linking an existing account*)
-- "No account here is linked": create the user and have them link, or enable auto-create
+- "No account here is linked … You signed in as *address*": no account here is linked to that
+  Microsoft identity and no account uses that address. In **Settings → Users**, set the person's
+  e-mail address to the one shown (or create the account with it), have them sign in with
+  Microsoft once more, then approve the link request on their user page. The audit log entry
+  `azure_sso_no_account` lists every address Microsoft sent. Upgrading to v3.17.688 or later
+  also turned *Auto-create users* off; turn it back on only if you want unknown Microsoft
+  accounts to get new, access-less accounts.
+- A superuser locked out of every sign-in method can reset their password on the server:
+  `python manage.py changepassword <username>`, then link from My Profile
 - "Sign-in from this Microsoft organization is not allowed": the token's tenant is not the configured one or in the allowlist
 - Review audit logs (`azure_sso_*` events) for more details
 

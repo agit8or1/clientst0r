@@ -1384,7 +1384,9 @@ are built on top of them.
   re-authenticating, or by an administrator confirming a recorded request;
   only the configured (or allow-listed) tenants are accepted; the flow uses
   PKCE and a nonce; auto-create is off by default and creates accounts with no
-  access.
+  access. An unlinked sign-in is matched to an account for a link request by
+  the mailbox address or the sign-in name (UPN), which often differ
+  *(shipped v3.17.764)*.
 - **Scheduled UniFi asset sync places and types devices correctly**
   *(shipped v3.17.664)* — the scheduled `sync_network_assets` run and the manual
   Import to Assets page share one implementation

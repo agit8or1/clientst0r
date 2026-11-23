@@ -37,6 +37,8 @@ from django.contrib.auth.backends import ModelBackend
 from django.db import transaction
 from django.utils import timezone
 
+from django.db.models import Q
+
 from accounts.models import AzureADLinkRequest, UserProfile
 from audit.models import AuditLog
 from core.models import SystemSetting
@@ -45,7 +47,9 @@ logger = logging.getLogger('accounts')
 User = get_user_model()
 
 AUTHORITY_HOST = 'https://login.microsoftonline.com'
-SCOPES = ['User.Read']  # MSAL adds openid/profile/offline_access itself
+# MSAL adds openid/profile/offline_access itself. 'email' makes the ID token
+# carry the mailbox address, which often differs from the sign-in name (UPN).
+SCOPES = ['User.Read', 'email']
 GUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 TENANT_NAME_RE = re.compile(r'^[a-z0-9][a-z0-9.-]{0,252}$')
 MULTI_TENANT_AUTHORITIES = {'common', 'organizations', 'consumers'}
@@ -65,7 +69,8 @@ MESSAGES = {
     'tenant_mismatch': 'This Microsoft account is not the one linked to your account here.',
     'tenant_not_allowed': 'Sign-in from this Microsoft organization is not allowed.',
     'no_account': ('No account here is linked to this Microsoft account. Ask an '
-                   'administrator for access.'),
+                   'administrator to give an account here your Microsoft e-mail address; '
+                   'after your next Microsoft sign-in they can confirm the link.'),
     'inactive': 'This account is disabled.',
     'ambiguous': 'This Microsoft account is linked to more than one account here. Contact an administrator.',
     'invalid_token': 'Microsoft sign-in could not be verified. Please try again.',
@@ -94,6 +99,9 @@ class AzureIdentity:
     given_name: str
     family_name: str
     _token: object = None
+    # Every address the token names (email, preferred_username, upn), lower-case,
+    # primary first. Used only to find an account to *ask* about linking.
+    addresses: tuple = ()
 
     def __post_init__(self):
         if self._token is not _VERIFIED:
@@ -255,9 +263,15 @@ def verify_id_token(id_token, config, flow_nonce):
         v = claims.get(name)
         return v.strip()[:limit] if isinstance(v, str) else ''
 
+    addresses = []
+    for claim in ('email', 'preferred_username', 'upn'):
+        v = _s(claim, 254).lower()
+        if v and '@' in v and v not in addresses:
+            addresses.append(v)
     return AzureIdentity(
         tid=tid, oid=oid,
-        email=(_s('email', 254) or _s('preferred_username', 254)).lower(),
+        email=addresses[0] if addresses else '',
+        addresses=tuple(addresses),
         name=_s('name', 255),
         given_name=_s('given_name', 150),
         family_name=_s('family_name', 150),
@@ -335,8 +349,11 @@ def resolve_sso_user(identity, config, request=None):
         return user, None
 
     # Not linked. An e-mail match never links: refuse and record it.
-    if identity.email:
-        matches = list(User.objects.filter(email__iexact=identity.email)[:2])
+    if identity.addresses:
+        q = Q()
+        for addr in identity.addresses:
+            q |= Q(email__iexact=addr)
+        matches = list(User.objects.filter(q).distinct()[:2])
         if matches:
             target = matches[0] if len(matches) == 1 else None
             if target is not None:
@@ -349,7 +366,8 @@ def resolve_sso_user(identity, config, request=None):
 
     if not config.get('auto_create', False):
         _security_event('azure_sso_no_account', 'No account is linked to this Microsoft identity',
-                        identity=identity, request=request)
+                        identity=identity, request=request,
+                        claimed_addresses=list(identity.addresses))
         return None, 'no_account'
 
     return _create_sso_user(identity), None
