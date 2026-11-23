@@ -15,6 +15,17 @@ class Command(BaseCommand):
         parser.add_argument('--budget', type=int, default=40, help='Seconds this run may spend')
 
     def handle(self, *args, **opts):
+        # Monitoring source freshness (82.10): a collector that stopped
+        # running writes nothing, so only this sweep sees it go stale. It
+        # runs even with event ingestion switched off.
+        from events.source_health_store import sweep
+        try:
+            changed = sweep()
+        except Exception as exc:  # noqa: BLE001 - never stop the projection
+            self.stderr.write(f'Source health sweep failed: {type(exc).__name__}')
+            changed = 0
+        if changed:
+            self.stdout.write(f'Monitoring source health: {changed} state change(s).')
         summary = projection.run(budget_seconds=opts['budget'])
         if summary.get('disabled'):
             self.stdout.write('Event ingestion is switched off.')
