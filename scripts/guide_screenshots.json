@@ -1,0 +1,304 @@
+{
+  "_comment": [
+    "Annotated screenshots for the guides (docs/*.md, read in the app under Client St0r Docs).",
+    "Each entry's annotate list draws numbered callouts; its note is the legend the guide prints",
+    "under the image, in the same order. Capture against the isolated demo instance with:",
+    "  DEMO_DIR=/var/tmp/clientst0r-demo DJANGO_SETTINGS_MODULE=demo_settings PYTHONPATH=scripts/demo:. \\",
+    "    python scripts/capture_screenshots.py --manifest scripts/guide_screenshots.json --out docs/images/guides",
+    "Selectors are Playwright selectors, so :has-text() and :text-is() work."
+  ],
+  "defaults": {
+    "user": "demo.tech",
+    "organization": "Northwind Logistics",
+    "width": 1440,
+    "height": 1000,
+    "scale": 2
+  },
+  "screenshots": [
+    {
+      "name": "guide-dashboard",
+      "guide": "docs/GETTING_STARTED.md",
+      "route": "/core/dashboard/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Client St0r Docs link",
+      "annotate": [
+        {
+          "selector": "#appNavList",
+          "note": "The sidebar: nine work sections. Only the current one is open; type in Jump to to filter every page you may open."
+        },
+        {
+          "selector": "#cmdkOpen",
+          "note": "Go to (Ctrl+K): open any page, setting or record by name."
+        },
+        {
+          "selector": "#orgDropdown",
+          "note": "The client switcher: the customer you are working for. Pages show that customer's records. Superusers can also choose Global View."
+        },
+        {
+          "selector": "#dash-w-my_queue",
+          "note": "Your ticket queue, with SLA due times."
+        },
+        {
+          "selector": "#dash-customize-btn",
+          "note": "Customize: choose and arrange the dashboard panels."
+        },
+        {
+          "selector": ".app-nav__docs",
+          "note": "Client St0r Docs: these guides, searchable, in the app."
+        }
+      ],
+      "caption": "The dashboard, sidebar and top bar."
+    },
+    {
+      "name": "guide-docs-viewer",
+      "guide": "docs/GETTING_STARTED.md",
+      "route": "/core/docs/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "Client St0r Docs: the search box, guide categories, a screenshot count badge and the sidebar link",
+      "annotate": [
+        {
+          "selector": "main form[role=search]",
+          "note": "Search every guide. Results list the matching sections with your words highlighted, and open the guide at that section."
+        },
+        {
+          "selector": ".guide-card >> nth=0",
+          "note": "Guides by subject."
+        },
+        {
+          "selector": ".guide-card .badge >> nth=0",
+          "note": "The number of screenshots in a guide."
+        },
+        {
+          "selector": ".app-nav__docs",
+          "note": "Open the docs from any page, at the foot of the sidebar (also linked in the page footer)."
+        }
+      ],
+      "caption": "Client St0r Docs in the app."
+    },
+    {
+      "name": "guide-ticket",
+      "guide": "docs/GETTING_STARTED.md",
+      "route": "/psa/t/PSA-2026-000001/",
+      "theme": "light",
+      "max_h": 2050,
+      "alt": "A ticket with numbered callouts on the next step, the conversation, the reply composer and the devices panel",
+      "annotate": [
+        {
+          "selector": "#ticketNextStep",
+          "note": "Next step: what the ticket is waiting for (here, a reply to the customer)."
+        },
+        {
+          "selector": "#conversation",
+          "note": "The conversation: the request, replies, internal notes (marked STAFF ONLY) and status changes, oldest first."
+        },
+        {
+          "selector": "#composer",
+          "note": "Reply or add an internal note. Pick a canned response, attach files, copy people in (Cc)."
+        },
+        {
+          "selector": "#ticket-rmm-panel",
+          "note": "Devices on this ticket, with RMM tools when an RMM is paired."
+        }
+      ],
+      "caption": "Working a ticket."
+    },
+    {
+      "name": "guide-client-overview",
+      "guide": "docs/ORGANIZATIONS.md",
+      "route": "/accounts/organizations/2/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "A customer's workspace with numbered callouts on the customer bar, quick actions, key figures, open tickets and open invoices",
+      "annotate": [
+        {
+          "selector": "#cw-context",
+          "note": "The customer you are viewing, with links back to all clients and to Global View."
+        },
+        {
+          "selector": "a.btn:has-text(\"Create ticket\")",
+          "note": "Quick actions for this customer: ticket, contact, asset, project, document, quote."
+        },
+        {
+          "selector": "#cw-kpis",
+          "note": "Key figures: open tickets, SLA at risk, managed assets and more."
+        },
+        {
+          "selector": "#cw-tickets",
+          "note": "Open tickets, with SLA breaches and those at risk."
+        },
+        {
+          "selector": "#cw-invoices",
+          "note": "Open invoices and the balance owed."
+        }
+      ],
+      "caption": "A customer's workspace (Clients → the customer)."
+    },
+    {
+      "name": "guide-billing-ready",
+      "guide": "docs/BILLING.md",
+      "route": "/psa/billing-review/",
+      "theme": "light",
+      "max_h": 1800,
+      "alt": "Agreement billing review with numbered callouts on the month, tickets for billing, a customer's ready lines, Approve and the consolidated draft button",
+      "annotate": [
+        {
+          "selector": "main .btn:has-text(\"November 2026\")",
+          "note": "The billing month. Step back or forward a month."
+        },
+        {
+          "selector": "#tickets-for-billing",
+          "note": "Tickets for billing: tickets whose time and items are waiting to be billed."
+        },
+        {
+          "selector": "#ready-4",
+          "note": "Ready for billing, per customer: the exact lines an invoice would carry, with amounts ready and on hold."
+        },
+        {
+          "selector": "#ready-4 button:has-text(\"Approve\") >> nth=0",
+          "note": "Approve, hold or exclude lines before invoicing."
+        },
+        {
+          "selector": "button:has-text(\"Create one consolidated draft for selected\")",
+          "note": "Create draft invoices: one per ticket, or one consolidated draft per customer."
+        }
+      ],
+      "caption": "Business → Billing → Billing Review."
+    },
+    {
+      "name": "guide-system-updates",
+      "guide": "docs/AUTO_UPDATE.md",
+      "route": "/core/settings/updates/",
+      "theme": "light",
+      "max_h": 1600,
+      "alt": "System Updates with numbered callouts on the installed version, the update channel, the update status, available versions and backups",
+      "annotate": [
+        {
+          "selector": "#updSummary",
+          "note": "The version installed, and the release it came from."
+        },
+        {
+          "selector": "#updChannel",
+          "note": "Update channel: Official release (recommended) or Preview / testing."
+        },
+        {
+          "selector": "#updStatus",
+          "note": "Whether a newer release is available. Check now asks GitHub straight away; Apply installs it."
+        },
+        {
+          "selector": "#updVersions",
+          "note": "Available versions, each with its release notes."
+        },
+        {
+          "selector": "#preUpgradeBackups",
+          "note": "The backup taken before every update, and rollback."
+        }
+      ],
+      "text_replace": [
+        [
+          "dev/[\\w./-]+ @ ",
+          "main @ "
+        ],
+        [
+          "^modified$",
+          ""
+        ],
+        [
+          "^, $",
+          ""
+        ]
+      ],
+      "caption": "Administration → System → System Updates."
+    },
+    {
+      "name": "guide-offhost-backups",
+      "guide": "docs/BACKUP_AND_RESTORE.md",
+      "route": "/core/settings/maintenance/offhost-backups/",
+      "theme": "light",
+      "max_h": 2400,
+      "alt": "Off-host Backups with numbered callouts on the status, Back up now, the encryption key, the destination and the schedule",
+      "annotate": [
+        {
+          "selector": ".card:has(h5:text-is(\"Status\"))",
+          "note": "Status: last backup, last verification, and anything that needs attention."
+        },
+        {
+          "selector": "button:has-text(\"Back up now\")",
+          "note": "Back up now, or verify the newest archive now."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"1. Backup encryption key\"))",
+          "note": "Step 1, the backup key. Store it somewhere that is not this server before you rely on backups."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"2. Destination\"))",
+          "note": "Step 2, where archives go: an SFTP server (approve its host key) or a mounted directory."
+        },
+        {
+          "selector": ".card:has(h5:text-is(\"3. Schedule and retention\"))",
+          "note": "Step 3, how often to back up and verify, and how many archives to keep."
+        }
+      ],
+      "caption": "Administration → Maintenance → Off-host Backups."
+    },
+    {
+      "name": "guide-roles",
+      "guide": "docs/ROLES_AND_ACCESS.md",
+      "route": "/accounts/roles/",
+      "theme": "light",
+      "max_h": 1150,
+      "alt": "Roles with numbered callouts on the built-in roles, Create custom role, Compare, Why does someone have access, and Access groups",
+      "annotate": [
+        {
+          "selector": ".card-header:has(h5:text-is(\"Built-in roles\"))",
+          "note": "Built-in roles. Assign one to a person, or copy it as the start of a custom role."
+        },
+        {
+          "selector": "a.btn:has-text(\"Create custom role\")",
+          "note": "Create a custom role with exactly the permissions you choose."
+        },
+        {
+          "selector": "a.btn:has-text(\"Compare\")",
+          "note": "Compare roles side by side."
+        },
+        {
+          "selector": "a.btn:has-text(\"Why does someone have access?\")",
+          "note": "Why does someone have access? Pick a person and a permission to see which role grants it."
+        },
+        {
+          "selector": "a.btn:has-text(\"Access groups\")",
+          "note": "Access groups: limit which customers a group of technicians can see."
+        }
+      ],
+      "caption": "Administration → Users & Access → Roles."
+    },
+    {
+      "name": "guide-connected-apps",
+      "guide": "docs/CONNECTED_APPLICATIONS.md",
+      "route": "/settings/integrations/connected-apps/",
+      "theme": "light",
+      "max_h": 1600,
+      "alt": "Connected Applications with numbered callouts on the connections list, Connect, Create invitation code and the emergency kill switch",
+      "annotate": [
+        {
+          "selector": "h2:text-is(\"Connections\")",
+          "note": "Connections: the applications paired with this installation, and their health."
+        },
+        {
+          "selector": "main a.btn:has-text(\"Connect\") >> nth=0",
+          "note": "Connect an application: start pairing from this side."
+        },
+        {
+          "selector": "button:has-text(\"Create invitation code\")",
+          "note": "Or create an invitation code for the other application to use."
+        },
+        {
+          "selector": "button:has-text(\"Emergency kill switch\")",
+          "note": "Emergency kill switch: stop every connection at once."
+        }
+      ],
+      "caption": "Administration → Integrations → Connected Applications."
+    }
+  ]
+}

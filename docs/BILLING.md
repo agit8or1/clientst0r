@@ -12,6 +12,16 @@ Screenshots: [Ready for Billing](images/github/billing-ready-dark.png) ·
 [sample contract library](images/github/contract-library-light.png) ·
 [contract awaiting signature](images/github/contract-awaiting-signature-light.png).
 
+<!-- guide-figure: guide-billing-ready -->
+![Agreement billing review with numbered callouts on the month, tickets for billing, a customer's ready lines, Approve and the consolidated draft button](images/guides/guide-billing-ready.png "Business → Billing → Billing Review.")
+
+1. The billing month. Step back or forward a month.
+2. Tickets for billing: tickets whose time and items are waiting to be billed.
+3. Ready for billing, per customer: the exact lines an invoice would carry, with amounts ready and on hold.
+4. Approve, hold or exclude lines before invoicing.
+5. Create draft invoices: one per ticket, or one consolidated draft per customer.
+<!-- /guide-figure -->
+
 ## The path from work to invoice
 
 1. **Log time and add items on the ticket (Time & Charges).** The timer and manual time ask for a

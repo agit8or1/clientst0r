@@ -3,6 +3,7 @@ Core URL configuration
 """
 from django.urls import path
 from . import views
+from . import guides_views
 from . import search_views
 from . import favorites_views
 from . import securenotes_views
@@ -56,6 +57,10 @@ urlpatterns = [
     path('documentation/', views.documentation, name='documentation'),
     path('about/', views.about, name='about'),
     path('roadmap/', views.roadmap, name='roadmap'),
+    # Client St0r Docs: docs/*.md read in the app (core/guides.py).
+    path('docs/', guides_views.guides_index, name='guides'),
+    path('docs/assets/<path:path>', guides_views.guide_asset, name='guide_asset'),
+    path('docs/<slug:slug>/', guides_views.guide_detail, name='guide'),
     path('roadmap.json', views.roadmap_status_json, name='roadmap_status_json'),
     path('free-consult/', views.free_consult, name='free_consult'),
     path('free-consult/requests/', views.consult_requests, name='consult_requests'),

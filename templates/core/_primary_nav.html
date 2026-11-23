@@ -72,6 +72,9 @@ Behaviour lives in static/js/app_nav.js:
     </nav>
     {% endwith %}{% endif %}
     <div class="app-nav__foot small">
+        <a class="btn btn-link btn-sm p-0 app-nav__help app-nav__docs{% if request.resolver_match.view_name == 'core:guides' or request.resolver_match.view_name == 'core:guide' %} active{% endif %}" href="{% url 'core:guides' %}" data-tip="{% trans 'Client St0r Docs' %}"{% if request.resolver_match.view_name == 'core:guides' %} aria-current="page"{% endif %}>
+            <i class="fas fa-book-open" aria-hidden="true"></i><span class="app-nav__text"> {% trans "Client St0r Docs" %}</span>
+        </a>
         <button type="button" class="btn btn-link btn-sm p-0 app-nav__help" data-shortcut-help aria-keyshortcuts="Shift+?" data-tip="{% trans 'Keyboard shortcuts' %}">
             <i class="fas fa-keyboard" aria-hidden="true"></i><span class="app-nav__text"> {% trans "Keyboard shortcuts" %} <kbd>?</kbd></span>
         </button>

@@ -11,6 +11,15 @@ Screenshots: [Connected Applications](images/github/connected-apps-dark.png) ·
 [a connection](images/github/connected-app-detail-light.png) ·
 [diagnostics](images/github/connected-app-diagnostics-dark.png).
 
+<!-- guide-figure: guide-connected-apps -->
+![Connected Applications with numbered callouts on the connections list, Connect, Create invitation code and the emergency kill switch](images/guides/guide-connected-apps.png "Administration → Integrations → Connected Applications.")
+
+1. Connections: the applications paired with this installation, and their health.
+2. Connect an application: start pairing from this side.
+3. Or create an invitation code for the other application to use.
+4. Emergency kill switch: stop every connection at once.
+<!-- /guide-figure -->
+
 ## Turning it on
 
 Set `AGIT8OR_CONNECT_ENABLED=True` and `AGIT8OR_CONNECT_PUBLIC_URL` (an https address in canonical form, for

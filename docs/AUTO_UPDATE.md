@@ -8,6 +8,16 @@ releases to a live system unattended is a decision you should make deliberately.
 **Apply** button in **Settings → System → System Updates** (`/core/settings/updates/`) runs exactly the same
 update steps on demand, and is the recommended way to update.
 
+<!-- guide-figure: guide-system-updates -->
+![System Updates with numbered callouts on the installed version, the update channel, the update status, available versions and backups](images/guides/guide-system-updates.png "Administration → System → System Updates.")
+
+1. The version installed, and the release it came from.
+2. Update channel: Official release (recommended) or Preview / testing.
+3. Whether a newer release is available. Check now asks GitHub straight away; Apply installs it.
+4. Available versions, each with its release notes.
+5. The backup taken before every update, and rollback.
+<!-- /guide-figure -->
+
 ## What an update does
 
 `scripts/auto_update.sh` is a thin wrapper. It downloads

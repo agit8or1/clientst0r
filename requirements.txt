@@ -38,6 +38,7 @@ defusedxml>=0.7.1,<0.8  # XML inside uploaded Office files (document import, pre
 openpyxl>=3.1,<4.0  # .xlsx reading for spreadsheet imports (inventory, assets, contacts)
 PyMuPDF>=1.24,<2  # PDF text extraction for document import + AI review (issue #140)
 markdown>=3.8.1,<4.0  # Updated to 3.8.1+ to fix uncaught-exception DoS
+markdown-it-py>=3.0,<5  # CommonMark renderer for the in-app Client St0r Docs (core/guides.py)
 bleach>=6.4.0,<7  # 6.4.0+ fixes formaction URI-scheme sanitization bypass + Unicode>U+00A0 URI-scheme bypass (was 6.1.*)
 tinycss2>=1.2,<2  # required by bleach.css_sanitizer for #127 progress-bar widths
 pytz==2024.1

@@ -112,6 +112,26 @@ Manifest entries (`scripts/screenshot_manifest.json`) can also:
   and `"local_storage"` for per-viewer preferences read on load, such as
   `{"appnav.rail": "1"}` for the icon rail.
 
+- draw **numbered callouts** with `"annotate": [{"selector": …, "note": …}]`
+  (Playwright selectors, so `:has-text()` works). The capture fails if a target
+  is missing or falls outside the cropped image;
+- rewrite visible text with `"text_replace": [[regex, replacement], …]`, e.g. the
+  demo checkout's branch name on the version line.
+
+### Annotated screenshots in the guides
+
+`scripts/guide_screenshots.json` holds the annotated captures the guides embed
+(in `docs/images/guides/`). Each guide marks a spot with
+`<!-- guide-figure: NAME -->` … `<!-- /guide-figure -->`, and
+`scripts/guide_figures.py` fills it with the image and a numbered legend taken
+from the manifest's notes, so the numbers on the image and in the text always
+match. `core.tests.test_guides` fails when a block is out of date.
+
+```bash
+python scripts/capture_screenshots.py --manifest scripts/guide_screenshots.json --out docs/images/guides
+python scripts/guide_figures.py
+```
+
 Absolute links a page prints with the capture address (`http://127.0.0.1:<port>`)
 are shown with the demo's documented host, `https://desk.beaconmanaged.example`.
 

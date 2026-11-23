@@ -27,7 +27,12 @@ to that element, full width; ``"tight": true`` crops to its width too),
 page loads, e.g. ``{"appnav.rail": "1"}`` for the icon rail),
 ``keep_open`` (an action opened a menu on purpose: keep focus, allow it to
 stay open) and ``viewport_only`` (photograph the window as is, no crop). ``"user": ""``
-captures signed out. ``"system_settings": {field: value}`` sets SystemSetting
+captures signed out. ``annotate`` draws numbered callouts on the capture: a list of
+``{"selector": css, "note": text}`` (optionally ``"label"`` to override the
+number, ``"pad"`` around the outline). The outline and badge are an overlay
+added just before the screenshot; the page itself is not changed. The notes
+are the legend the guide prints under the image. ``text_replace`` is ``[[regex, replacement], ...]`` applied to the page's
+visible text before capture. ``"system_settings": {field: value}`` sets SystemSetting
 fields for the entries that share it (one pass each) and restores the old
 values afterwards.
 
@@ -108,6 +113,14 @@ REPLACE_ORIGIN_JS = """(shown) => {
     document.querySelectorAll('input, textarea').forEach(el => {
         if (el.value && el.value.includes(origin)) el.value = el.value.split(origin).join(shown);
     });
+}"""
+
+TEXT_REPLACE_JS = """(pairs) => {
+    const res = pairs.map(([p, r]) => [new RegExp(p, 'g'), r]);
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) nodes.push(n);
+    nodes.forEach(n => { let v = n.nodeValue; res.forEach(([re, r]) => { v = v.replace(re, r); }); n.nodeValue = v; });
 }"""
 
 CONTENT_HEIGHT_JS = """() => {
@@ -229,6 +242,69 @@ def load_ready(page, url: str, failed: list[str], attempts: int = 3) -> None:
     raise RuntimeError('page did not render correctly: ' + '; '.join(problems[:4]))
 
 
+ANNOTATE_JS = r"""(boxes) => {
+    const old = document.getElementById('cs-annotations');
+    if (old) old.remove();
+    const layer = document.createElement('div');
+    layer.id = 'cs-annotations';
+    layer.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none';
+    boxes.forEach((b) => {
+        const box = document.createElement('div');
+        box.style.cssText = `position:absolute;left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px;` +
+            'border:3px solid #e11d48;border-radius:8px;' +
+            'box-shadow:0 0 0 2px rgba(255,255,255,.85),0 0 14px rgba(225,29,72,.45)';
+        const badge = document.createElement('div');
+        badge.textContent = b.label;
+        const bx = Math.max(2, Math.min(b.x - 13, document.documentElement.scrollWidth - 32));
+        const by = Math.max(2, b.y - 13);
+        badge.style.cssText = `position:absolute;left:${bx}px;top:${by}px;min-width:26px;height:26px;` +
+            'padding:0 6px;border-radius:13px;background:#e11d48;color:#fff;' +
+            'font:700 15px/26px system-ui,sans-serif;text-align:center;' +
+            'box-shadow:0 0 0 2px #fff,0 2px 6px rgba(0,0,0,.35)';
+        layer.appendChild(box);
+        layer.appendChild(badge);
+    });
+    document.body.appendChild(layer);
+}"""
+
+
+def annotate(page, entry, clip=None) -> None:
+    """Draw the entry's numbered callouts; fail if a target is missing.
+
+    Targets are Playwright selectors (CSS, ``:has-text()``, ``text=``), so a
+    button without an id can still be pointed at.
+    """
+    items = entry.get('annotate') or []
+    if not items:
+        return
+    scroll = page.evaluate('() => [window.scrollX, window.scrollY]')
+    boxes, missing = [], []
+    for i, it in enumerate(items):
+        loc = page.locator(it['selector']).first
+        try:
+            r = loc.bounding_box(timeout=3000)
+        except Exception:
+            r = None
+        if not r or r['width'] < 2 or r['height'] < 2:
+            missing.append(it['selector'])
+            continue
+        pad = it.get('pad', 4)
+        boxes.append({'x': r['x'] + scroll[0] - pad, 'y': r['y'] + scroll[1] - pad,
+                      'w': r['width'] + 2 * pad, 'h': r['height'] + 2 * pad,
+                      'label': str(it.get('label') or i + 1)})
+    if missing:
+        raise RuntimeError('annotation target(s) not found: ' + ', '.join(missing))
+    if clip is not None:
+        # A callout outside the captured area would leave a gap in the legend.
+        outside = [b['label'] for b in boxes
+                   if b['y'] + b['h'] > clip['y'] + clip['height'] + 8 or b['y'] < clip['y'] - 8
+                   or b['x'] + b['w'] > clip['x'] + clip['width'] + 8]
+        if outside:
+            raise RuntimeError('annotation(s) outside the capture: ' + ', '.join(outside))
+    page.evaluate(ANNOTATE_JS, boxes)
+    page.wait_for_timeout(150)
+
+
 def capture(entry, page, base, out_dir, failed=None, defaults=None) -> pathlib.Path:
     url = base + entry['route']
     failed = [] if failed is None else failed
@@ -283,6 +359,10 @@ def capture(entry, page, base, out_dir, failed=None, defaults=None) -> pathlib.P
         page.evaluate('() => document.activeElement && document.activeElement.blur()')
 
     page.evaluate(REPLACE_ORIGIN_JS, DISPLAY_ORIGIN)
+    if entry.get('text_replace'):
+        # [[regex, replacement], ...] over visible text, e.g. to drop the
+        # demo checkout's branch name from the version line.
+        page.evaluate(TEXT_REPLACE_JS, entry['text_replace'])
 
     for text in entry.get('wait_for_text', []):
         try:
@@ -308,6 +388,7 @@ def capture(entry, page, base, out_dir, failed=None, defaults=None) -> pathlib.P
     if entry.get('viewport_only'):
         # Exactly the window as a person sees it (an open menu, the palette,
         # a phone layout): no resize, which would close an open flyout.
+        annotate(page, entry)
         page.screenshot(path=str(path))
         return path
 
@@ -327,6 +408,7 @@ def capture(entry, page, base, out_dir, failed=None, defaults=None) -> pathlib.P
             # A narrow card (e.g. a side column): crop to it horizontally too.
             left = max(0, box['x'] - pad)
             clip_w = min(width - left, box['width'] + 2 * pad)
+        annotate(page, entry, {'x': left, 'y': top, 'width': clip_w, 'height': height})
         page.screenshot(path=str(path), full_page=True,
                         clip={'x': left, 'y': top, 'width': clip_w, 'height': height})
         return path
@@ -335,6 +417,7 @@ def capture(entry, page, base, out_dir, failed=None, defaults=None) -> pathlib.P
     height = max(entry.get('min_h', 640), min(height, entry.get('max_h', 1400)))
     page.set_viewport_size({'width': width, 'height': height})
     page.wait_for_timeout(600)
+    annotate(page, entry, {'x': 0, 'y': 0, 'width': width, 'height': height})
 
     page.screenshot(path=str(path),
                     clip={'x': 0, 'y': 0, 'width': width, 'height': height})

@@ -14,6 +14,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 
 ## Using it
 
+* [Getting started: finding your way](GETTING_STARTED.md) — the dashboard, a customer's workspace, a ticket, and these docs, with annotated screenshots
 * [Feature list](../FEATURES.md)
 * [Screenshots](screenshots.md)
 * [Billing, prepaid hours and contracts](BILLING.md) — Time & Charges, Ready for Billing, consolidated invoices, Settings → Billing, contract e-signature

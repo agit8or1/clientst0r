@@ -20,6 +20,21 @@
     </div>
 </form>
 
+{% if q and guide_results %}
+<section class="mb-4" aria-labelledby="guideHitsH">
+    <h3 class="h6 text-muted text-uppercase" id="guideHitsH"><i class="fas fa-book-open" aria-hidden="true"></i> In the Client St0r Docs</h3>
+    <div class="list-group">
+        {% for r in guide_results %}
+        <a href="{{ r.url }}" class="list-group-item list-group-item-action">
+            <strong>{{ r.heading_hl|safe }}</strong> <small class="text-muted">· {{ r.guide }}</small>
+            {% if r.snippet %}<br><small class="text-muted">{{ r.snippet|safe }}</small>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    <a href="{% url 'core:guides' %}?q={{ q|urlencode }}" class="small d-inline-block mt-1">All results in the docs</a>
+</section>
+{% endif %}
+
 {% if q %}
     {% if results %}
     <p class="text-muted mb-3">{{ results|length }} result{{ results|length|pluralize }} for <strong>"{{ q }}"</strong></p>

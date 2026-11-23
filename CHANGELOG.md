@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.766] - 2026-11-23
+
+### Added
+- **Client St0r Docs in the app** (`/core/docs/`): the guides in `docs/` (getting started, billing,
+  roles and access, backups, updates, integrations, installing and more) read inside the application,
+  with their screenshots, a table of contents and links between guides. They are the same Markdown files
+  GitHub shows, so the copy in the app always matches the installed version. Open them from the foot of
+  the sidebar, the page footer, or Help → Client St0r Docs.
+- **Search across the guides.** Every word must match; results open the guide at the matching section
+  with the words highlighted. The Help search lists matching guide sections too.
+- **Getting started guide** (`docs/GETTING_STARTED.md`): the dashboard and navigation, choosing a
+  customer, a customer's workspace, working a ticket, and the docs themselves.
+- **Annotated screenshots**: numbered callouts with a matching legend in Getting started, Organizations,
+  Billing, Roles and access, Auto-update, Backing up and restoring, and Connected Applications.
+  `scripts/capture_screenshots.py` gained `annotate` (callouts on Playwright selectors; the capture fails
+  if a target is missing or outside the image) and `text_replace`; `scripts/guide_figures.py` writes each
+  figure and its legend from `scripts/guide_screenshots.json`, and a test fails when they drift apart.
+
+### Changed
+- `markdown-it-py` is now a direct requirement (it was already installed as a dependency); the guides use
+  it so lists, code blocks and heading anchors render as they do on GitHub.
+
 ## [3.17.765] - 2026-11-23
 
 ### Changed

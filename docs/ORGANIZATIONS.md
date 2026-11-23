@@ -29,6 +29,19 @@ Client St0r uses a **multi-tenant architecture** where all data is isolated by *
 
 ---
 
+
+Each customer has its own workspace:
+
+<!-- guide-figure: guide-client-overview -->
+![A customer's workspace with numbered callouts on the customer bar, quick actions, key figures, open tickets and open invoices](images/guides/guide-client-overview.png "A customer's workspace (Clients → the customer).")
+
+1. The customer you are viewing, with links back to all clients and to Global View.
+2. Quick actions for this customer: ticket, contact, asset, project, document, quote.
+3. Key figures: open tickets, SLA at risk, managed assets and more.
+4. Open tickets, with SLA breaches and those at risk.
+5. Open invoices and the balance owed.
+<!-- /guide-figure -->
+
 ## Multi-Tenancy Model
 
 ### Data Isolation

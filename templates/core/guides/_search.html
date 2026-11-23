@@ -1,0 +1,8 @@
+<form action="{% url 'core:guides' %}" method="get" class="mb-4" role="search">
+    <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-search" aria-hidden="true"></i></span>
+        <input type="search" name="q" value="{{ q|default:'' }}" class="form-control"
+               placeholder="Search the Client St0r Docs…" aria-label="Search the Client St0r Docs" autocomplete="off">
+        <button class="btn btn-outline-secondary" type="submit">Search</button>
+    </div>
+</form>

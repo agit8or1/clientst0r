@@ -980,6 +980,8 @@ SECTIONS = (
     )),
     Section('account_help', 'account', _('Help'), tabs=(
         Tab(_('Documentation & Help'), 'core:help_index', 'fa-book'),
+        Tab(_('Client St0r Docs'), 'core:guides', 'fa-book-open', also=('core:guide',),
+            keywords='documentation guides manual search'),
         Tab(_('Platform Documentation'), 'core:documentation', 'fa-book-open'),
         Tab(_('About'), 'core:about', 'fa-info-circle'),
         Tab(_('Roadmap'), 'core:roadmap', 'fa-map'),

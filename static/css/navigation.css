@@ -219,6 +219,8 @@
 .app-nav__foot { flex: 0 0 auto; padding: 4px 14px 8px; }
 .app-nav__foot .btn-link { color: var(--appnav-muted) !important; text-decoration: none; font-size: .78rem; }
 .app-nav__foot .btn-link:hover { color: var(--appnav-strong) !important; }
+.app-nav__foot .btn-link { display: block; margin: 2px 0; text-align: left; }
+.app-nav__foot .btn-link.active { color: var(--appnav-strong) !important; }
 .app-nav kbd { font-size: .68rem; padding: 1px 4px; background: var(--appnav-bg-raised); color: var(--appnav-text); }
 
 /* Keyboard focus is always visible in the sidebar and the bars around it. */

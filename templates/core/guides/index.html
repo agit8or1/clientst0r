@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Client St0r Docs{% endblock %}
+{% block extra_css %}{% include "core/guides/_style.html" %}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-baseline justify-content-between mb-3 gap-2">
+    <h1 class="h3 mb-0"><i class="fas fa-book-open me-2" aria-hidden="true"></i>Client St0r Docs</h1>
+    <a href="{% url 'core:help_index' %}" class="small">Quick help topics</a>
+</div>
+<p class="text-muted">Guides for using, administering and running Client St0r, with screenshots of the
+    application. They are the same pages as the documentation on GitHub, so they always match the version
+    installed here.</p>
+{% include "core/guides/_search.html" %}
+
+{% if results is not None %}
+<section class="guide-results" aria-labelledby="results-h">
+    <h2 class="h5" id="results-h">{{ results|length }} result{{ results|length|pluralize }} for “{{ q }}”</h2>
+    {% if results %}
+    <ol class="list-unstyled">
+        {% for r in results %}
+        <li class="mb-3">
+            <a href="{{ r.url }}" class="fw-semibold">{{ r.heading_hl|safe }}</a>
+            <div class="small text-muted">{{ r.guide }} · {{ r.category }}</div>
+            {% if r.snippet %}<div class="small">{{ r.snippet|safe }}</div>{% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p class="text-muted">Nothing matched every word. Try fewer or different words.</p>
+    {% endif %}
+    <hr>
+</section>
+{% endif %}
+
+<div class="row g-3">
+    {% for category, items in categories %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 guide-card">
+            <div class="card-header fw-semibold">{{ category }}</div>
+            <ul class="list-group list-group-flush">
+                {% for item in items %}
+                <li class="list-group-item">
+                    <a href="{% url 'core:guide' item.guide.slug %}">{{ item.title }}</a>
+                    {% if item.images %}<span class="badge text-bg-secondary ms-1" title="{{ item.images }} screenshot{{ item.images|pluralize }}"><i class="fas fa-image" aria-hidden="true"></i> {{ item.images }}</span>{% endif %}
+                    {% if item.guide.summary %}<div class="small text-muted">{{ item.guide.summary }}</div>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

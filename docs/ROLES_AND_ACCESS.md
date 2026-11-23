@@ -3,6 +3,16 @@
 How Client St0r decides who may do what, for MSP staff and for customer users. Everything here is enforced on the
 server; hiding a button is never the check.
 
+<!-- guide-figure: guide-roles -->
+![Roles with numbered callouts on the built-in roles, Create custom role, Compare, Why does someone have access, and Access groups](images/guides/guide-roles.png "Administration → Users & Access → Roles.")
+
+1. Built-in roles. Assign one to a person, or copy it as the start of a custom role.
+2. Create a custom role with exactly the permissions you choose.
+3. Compare roles side by side.
+4. Why does someone have access? Pick a person and a permission to see which role grants it.
+5. Access groups: limit which customers a group of technicians can see.
+<!-- /guide-figure -->
+
 ## Concepts
 
 - **Permission**: one named capability, such as `tickets_edit` or `contracts_countersign`. Every permission is listed

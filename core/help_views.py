@@ -234,9 +234,12 @@ def help_search(request):
                     'text_hl': _highlight(entry['text'], q),
                     'section_hl': _highlight(entry['section'], q),
                 })
+    from core import guides
     return render(request, 'core/help/search_results.html', {
         'q': q,
         'results': results,
+        # The same words in the guides (Client St0r Docs).
+        'guide_results': guides.search(q, limit=8) if q else [],
         'title': 'Help Search',
     })
 

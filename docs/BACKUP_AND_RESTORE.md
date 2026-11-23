@@ -13,7 +13,15 @@ Client St0r makes three kinds of backup:
 
 Only the off-host backup survives losing the host. Set it up on every production install.
 
-![Off-host Backups settings: an SFTP destination with an approved host key, the backup key fingerprint, and a successful backup and restore verification](images/github/offhost-backups-light.png)
+<!-- guide-figure: guide-offhost-backups -->
+![Off-host Backups with numbered callouts on the status, Back up now, the encryption key, the destination and the schedule](images/guides/guide-offhost-backups.png "Administration → Maintenance → Off-host Backups.")
+
+1. Status: last backup, last verification, and anything that needs attention.
+2. Back up now, or verify the newest archive now.
+3. Step 1, the backup key. Store it somewhere that is not this server before you rely on backups.
+4. Step 2, where archives go: an SFTP server (approve its host key) or a mounted directory.
+5. Step 3, how often to back up and verify, and how many archives to keep.
+<!-- /guide-figure -->
 
 ## What is in an off-host archive
 
