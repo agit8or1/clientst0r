@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ data.title }} — Client St0r Docs{% endblock %}
+{% block title %}{{ data.title }} — Clientst0r Docs{% endblock %}
 {% block extra_css %}{% include "core/guides/_style.html" %}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'core:guides' %}"><i class="fas fa-book-open" aria-hidden="true"></i> Client St0r Docs</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:guides' %}"><i class="fas fa-book-open" aria-hidden="true"></i> Clientst0r Docs</a></li>
         <li class="breadcrumb-item">{{ guide.category }}</li>
         <li class="breadcrumb-item active" aria-current="page">{{ data.title }}</li>
     </ol>

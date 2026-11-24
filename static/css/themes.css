@@ -64,9 +64,16 @@
     --surface: #ffffff;
     --surface-hover: #f8f9fa;
     --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --text-muted: #adb5bd;
+    /* Secondary and muted text clear 4.5:1 on white, the #f8f9fa page grounds
+       and the #f0f1f3 badge tint (Bootstrap's #6c757d / #adb5bd did not). */
+    --text-secondary: #5c636a;
+    --text-muted: #626a72;
     --border-color: #dee2e6;
+    /* Status ink: text and icons in status colours on light grounds. */
+    --success-ink: #146c43;
+    --warning-ink: #664d03;
+    --danger-ink: #b02a37;
+    --info-ink: #055160;
     --sidebar-bg: #0d6efd;
     --sidebar-text: #ffffff;
     --sidebar-hover: #0b5ed7;
@@ -685,11 +692,11 @@ small, .small {
     color: var(--text-secondary) !important;
 }
 
-a:not(.btn):not(.nav-link):not(.dropdown-item) {
+a:not(.btn):not(.nav-link):not(.dropdown-item):not(.badge) {
     color: var(--link-color, var(--primary-color)) !important;
 }
 
-a:not(.btn):not(.nav-link):not(.dropdown-item):hover {
+a:not(.btn):not(.nav-link):not(.dropdown-item):not(.badge):hover {
     color: var(--link-hover, var(--primary-hover)) !important;
 }
 
@@ -1456,3 +1463,96 @@ tr.low-stock-row > td {
     background: rgba(37, 99, 235, 0.45);
     color: #fff;
 }
+
+/* ========================================
+   READABLE COMPONENT TEXT
+   Bootstrap components whose text fell under 4.5:1 once the themes recoloured
+   their grounds. scripts/contrast_check.py measures the rendered pages.
+   ======================================== */
+
+/* Pill and plain navs inside a page are not the sidebar: the global .nav-link
+   colour above is the sidebar's (white on the Default theme). */
+main .nav-pills .nav-link:not(.active),
+main .nav:not(.nav-tabs):not(.navbar-nav) > .nav-item > .nav-link:not(.active) {
+    color: var(--link-color, var(--primary-color)) !important;
+}
+main .nav-pills .nav-link.active { color: #fff !important; }
+
+
+/* Light fills take dark text. */
+.badge.bg-info, .badge.bg-warning { color: #000 !important; }
+
+/* Default (light) theme: info, warning and success are fill colours too light
+   for text on white; text and outline buttons use the darker ink. */
+[data-theme="default"] main .text-info    { color: var(--info-ink) !important; }
+[data-theme="default"] main .text-warning { color: var(--warning-ink) !important; }
+[data-theme="default"] main .text-success { color: var(--success-ink) !important; }
+[data-theme="default"] .btn-outline-info    { --bs-btn-color: var(--info-ink); --bs-btn-hover-color: #000; --bs-btn-active-color: #000; }
+[data-theme="default"] .btn-outline-warning { --bs-btn-color: var(--warning-ink); --bs-btn-hover-color: #000; --bs-btn-active-color: #000; }
+[data-theme="default"] .btn-outline-success { --bs-btn-color: var(--success-ink); }
+
+/* Dark themes: outline buttons in the ink colours (the fills are tuned for
+   white text on top, not for text on the dark page); "dark" outlines become
+   light ones. */
+[data-theme="professional"] .btn-outline-primary {
+    --bs-btn-color: var(--link-color); --bs-btn-border-color: var(--primary-color);
+    --bs-btn-hover-color: #fff; --bs-btn-hover-bg: var(--primary-color); --bs-btn-hover-border-color: var(--primary-color);
+    --bs-btn-active-color: #fff; --bs-btn-active-bg: var(--primary-color); --bs-btn-active-border-color: var(--primary-color);
+}
+[data-theme="professional"] .btn-outline-danger {
+    --bs-btn-color: var(--danger-ink); --bs-btn-border-color: var(--danger-color);
+    --bs-btn-hover-color: #fff; --bs-btn-hover-bg: var(--danger-color); --bs-btn-hover-border-color: var(--danger-color);
+    --bs-btn-active-color: #fff; --bs-btn-active-bg: var(--danger-color);
+}
+[data-theme="professional"] .btn-outline-success { --bs-btn-color: var(--success-ink); --bs-btn-hover-color: #fff; }
+[data-theme="professional"] .btn-outline-info    { --bs-btn-color: var(--info-ink); --bs-btn-hover-color: #fff; }
+[data-theme="professional"] .btn-outline-warning { --bs-btn-color: var(--warning-ink); --bs-btn-hover-color: #000; }
+[data-theme="professional"] .btn-check:checked + .btn-outline-primary,
+[data-theme="professional"] .btn-outline-primary.active { color: #fff !important; background-color: var(--primary-color) !important; }
+[data-theme="professional"] .btn-outline-dark,
+[data-theme="dark"] .btn-outline-dark,
+[data-theme="dracula"] .btn-outline-dark,
+[data-theme="monokai"] .btn-outline-dark {
+    --bs-btn-color: var(--text-primary); --bs-btn-border-color: var(--border-strong, var(--border-color));
+    --bs-btn-hover-color: var(--text-primary); --bs-btn-hover-bg: var(--surface-hover); --bs-btn-hover-border-color: var(--text-secondary);
+    --bs-btn-active-color: var(--text-primary); --bs-btn-active-bg: var(--surface-hover);
+}
+
+/* Default (light) theme: primary/secondary outline and link buttons, danger
+   text and coloured table rows. */
+[data-theme="default"] .btn-outline-primary,
+[data-theme="default"] .btn-link { --bs-btn-color: var(--link-color); }
+[data-theme="default"] .btn-outline-secondary { --bs-btn-color: var(--text-secondary); }
+[data-theme="default"] main .text-danger { color: var(--danger-ink) !important; }
+
+/* Dark theme: tinted table rows keep a dark ground (Bootstrap's are light
+   pink / yellow / green, which left light text unreadable). */
+[data-theme="professional"] .table-danger  { --bs-table-bg: var(--bs-danger-bg-subtle);  --bs-table-color: var(--text-primary); --bs-table-striped-bg: var(--bs-danger-bg-subtle); --bs-table-hover-bg: var(--surface-hover); --bs-table-striped-color: var(--text-primary); --bs-table-hover-color: var(--text-primary); }
+[data-theme="professional"] .table-warning { --bs-table-bg: var(--bs-warning-bg-subtle); --bs-table-color: var(--text-primary); --bs-table-striped-bg: var(--bs-warning-bg-subtle); --bs-table-hover-bg: var(--surface-hover); --bs-table-striped-color: var(--text-primary); --bs-table-hover-color: var(--text-primary); }
+[data-theme="professional"] .table-success { --bs-table-bg: var(--bs-success-bg-subtle); --bs-table-color: var(--text-primary); --bs-table-striped-bg: var(--bs-success-bg-subtle); --bs-table-hover-bg: var(--surface-hover); --bs-table-striped-color: var(--text-primary); --bs-table-hover-color: var(--text-primary); }
+[data-theme="professional"] .table-info    { --bs-table-bg: var(--bs-info-bg-subtle);    --bs-table-color: var(--text-primary); --bs-table-striped-bg: var(--bs-info-bg-subtle); --bs-table-hover-bg: var(--surface-hover); --bs-table-striped-color: var(--text-primary); --bs-table-hover-color: var(--text-primary); }
+[data-theme="professional"] .btn-outline-secondary {
+    --bs-btn-active-bg: var(--primary-color); --bs-btn-active-color: #fff; --bs-btn-active-border-color: var(--primary-color);
+}
+
+/* Solid alerts (every theme but Professional Dark, whose alerts are tinted and
+   carry their own text colour): small print, muted text, status-coloured text
+   and links take the alert's text colour instead of a grey or colour meant for
+   the page. `html body` outranks the theme rules above. */
+html body .alert-success small, html body .alert-success .small, html body .alert-success .text-muted, html body .alert-success .text-secondary,
+html body .alert-danger small, html body .alert-danger .small, html body .alert-danger .text-muted, html body .alert-danger .text-secondary,
+html body .alert-danger .text-warning, html body .alert-danger .text-info, html body .alert-danger .text-success,
+html body .alert-warning small, html body .alert-warning .small, html body .alert-warning .text-muted, html body .alert-warning .text-secondary,
+html body .alert-info small, html body .alert-info .small, html body .alert-info .text-muted, html body .alert-info .text-secondary {
+    color: inherit !important;
+}
+html body .alert-success a:not(.btn):not(.badge):not(.nav-link):not(.dropdown-item), html body .alert-danger a:not(.btn):not(.badge):not(.nav-link):not(.dropdown-item),
+html body .alert-warning a:not(.btn):not(.badge):not(.nav-link):not(.dropdown-item), html body .alert-info a:not(.btn):not(.badge):not(.nav-link):not(.dropdown-item) {
+    color: inherit !important;
+    text-decoration: underline;
+}
+html:not([data-theme="professional"]) body .alert-info,
+html:not([data-theme="professional"]) body .alert-info.small { color: #052c36 !important; }
+html:not([data-theme="professional"]) body .alert-warning.small { color: #000 !important; }
+html:not([data-theme="professional"]) body .alert-success.small,
+html:not([data-theme="professional"]) body .alert-danger.small { color: #fff !important; }

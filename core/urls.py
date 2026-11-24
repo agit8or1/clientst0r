@@ -57,7 +57,7 @@ urlpatterns = [
     path('documentation/', views.documentation, name='documentation'),
     path('about/', views.about, name='about'),
     path('roadmap/', views.roadmap, name='roadmap'),
-    # Client St0r Docs: docs/*.md read in the app (core/guides.py).
+    # Clientst0r Docs: docs/*.md read in the app (core/guides.py).
     path('docs/', guides_views.guides_index, name='guides'),
     path('docs/assets/<path:path>', guides_views.guide_asset, name='guide_asset'),
     path('docs/<slug:slug>/', guides_views.guide_detail, name='guide'),

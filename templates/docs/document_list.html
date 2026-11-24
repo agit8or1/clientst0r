@@ -275,7 +275,7 @@
                             </td>
                             <td>
                                 {% for tag in doc.tags.all %}
-                                <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                                <span class="badge" style="{{ tag.badge_style }}">{{ tag.name }}</span>
                                 {% endfor %}
                             </td>
                             <td><time datetime="{{ doc.updated_at|date:'c' }}" title="{{ doc.updated_at }}">{{ doc.updated_at|date:"j M Y" }}</time></td>

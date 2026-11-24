@@ -1,4 +1,4 @@
-"""Client St0r Docs: the guide index, a guide, its images, and search."""
+"""Clientst0r Docs: the guide index, a guide, its images, and search."""
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
 from django.shortcuts import render

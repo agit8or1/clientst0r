@@ -238,7 +238,7 @@ def help_search(request):
     return render(request, 'core/help/search_results.html', {
         'q': q,
         'results': results,
-        # The same words in the guides (Client St0r Docs).
+        # The same words in the guides (Clientst0r Docs).
         'guide_results': guides.search(q, limit=8) if q else [],
         'title': 'Help Search',
     })

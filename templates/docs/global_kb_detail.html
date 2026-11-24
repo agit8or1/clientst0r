@@ -62,7 +62,7 @@
                     <dt>Tags:</dt>
                     <dd>
                         {% for tag in document.tags.all %}
-                        <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                        <span class="badge" style="{{ tag.badge_style }}">{{ tag.name }}</span>
                         {% empty %}—{% endfor %}
                     </dd>
 

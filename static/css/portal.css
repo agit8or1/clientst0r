@@ -75,6 +75,17 @@ body.portal-body {
     --bs-link-hover-color: var(--portal-accent);
     --bs-card-bg: var(--portal-surface);
     --bs-tertiary-bg: var(--portal-surface-2);
+    /* The staff-theme names that shared components (the ticket conversation,
+       ticket_conversation.css) read; without them they fall back to light
+       colours, dark text on the dark portal. */
+    --card-bg: var(--portal-surface);
+    --background-alt: var(--portal-surface-2);
+    --text-primary: var(--portal-text);
+    --text-secondary: var(--portal-muted);
+    --text-muted: var(--portal-muted);
+    --border-color: var(--portal-border);
+    --primary-color: var(--portal-accent);
+    --primary-light: color-mix(in srgb, var(--portal-accent) 14%, var(--portal-surface));
 }
 
 .portal-body a:not(.btn) { color: var(--portal-accent); }
@@ -495,3 +506,8 @@ body.portal-body {
 @media (prefers-reduced-motion: no-preference) {
     .portal-nav a, .portal-body .btn { transition: background-color 0.15s ease, color 0.15s ease; }
 }
+
+/* Light status fills take dark text; secondary outlines in the portal's muted ink. */
+.portal-body .badge.bg-info, .portal-body .badge.bg-warning { color: #000; }
+.portal-body .btn-outline-secondary { --bs-btn-color: var(--portal-muted); --bs-btn-border-color: var(--portal-border);
+    --bs-btn-hover-color: var(--portal-text); --bs-btn-hover-bg: var(--portal-surface-2); --bs-btn-hover-border-color: var(--portal-muted); }

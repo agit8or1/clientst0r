@@ -7,14 +7,14 @@ the application against a demo database; the customers and people in it are inve
 ## The dashboard and navigation
 
 <!-- guide-figure: guide-dashboard -->
-![The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Client St0r Docs link](images/guides/guide-dashboard.png "The dashboard, sidebar and top bar.")
+![The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Clientst0r Docs link](images/guides/guide-dashboard.png "The dashboard, sidebar and top bar.")
 
 1. The sidebar: nine work sections. Only the current one is open; type in Jump to to filter every page you may open.
 2. Go to (Ctrl+K): open any page, setting or record by name.
 3. The client switcher: the customer you are working for. Pages show that customer's records. Superusers can also choose Global View.
 4. Your ticket queue, with SLA due times.
 5. Customize: choose and arrange the dashboard panels.
-6. Client St0r Docs: these guides, searchable, in the app.
+6. Clientst0r Docs: these guides, searchable, in the app.
 <!-- /guide-figure -->
 
 - **Sections.** The sidebar holds Dashboard, My Work, Service Desk, Clients, Assets & Network, Business,
@@ -70,10 +70,10 @@ open the same lists filtered to this customer. More about customers, members and
 - **Alerts.** A ticket raised from a monitoring alert can open a [support workflow](SUPPORT_WORKFLOWS.md):
   evidence, likely causes, a fix and a check that it worked.
 
-## Finding help: Client St0r Docs
+## Finding help: Clientst0r Docs
 
 <!-- guide-figure: guide-docs-viewer -->
-![Client St0r Docs: the search box, guide categories, a screenshot count badge and the sidebar link](images/guides/guide-docs-viewer.png "Client St0r Docs in the app.")
+![Clientst0r Docs: the search box, guide categories, a screenshot count badge and the sidebar link](images/guides/guide-docs-viewer.png "Clientst0r Docs in the app.")
 
 1. Search every guide. Results list the matching sections with your words highlighted, and open the guide at that section.
 2. Guides by subject.

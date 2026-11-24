@@ -1,6 +1,8 @@
 """
 Core models - Organization and Tags
 """
+import re
+
 from django.db import models
 from vault.secret_fields import EncryptedTextField, EncryptedJSONField, SealedTextField
 
@@ -403,8 +405,22 @@ class SupportRating(models.Model):
     def badge_style(self):
         """Inline style for the orange level which Bootstrap doesn't have natively."""
         if self.rating == 4:
-            return 'background-color:#fd7e14;color:#fff;'
+            return 'background-color:#fd7e14;color:#000;'
         return ''
+
+
+_HEX_COLOUR = re.compile(r'^#[0-9a-fA-F]{6}$')
+
+
+def badge_style_for(colour, fallback='#6c757d'):
+    """`background-color:<colour>;color:<#000 or #fff>` for a user-chosen hex
+    colour; anything that is not #rrggbb uses the fallback."""
+    colour = colour if isinstance(colour, str) and _HEX_COLOUR.match(colour) else fallback
+    r, g, b = (int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)]
+    lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+    text = '#000' if (lum + 0.05) / 0.05 >= 1.05 / (lum + 0.05) else '#fff'
+    return f'background-color:{colour};color:{text};'
 
 
 class Tag(models.Model):
@@ -424,6 +440,12 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def badge_style(self):
+        """Inline style for the tag's badge: its colour, with black or white
+        text, whichever contrasts more (white on orange or yellow does not read)."""
+        return badge_style_for(self.color)
 
     def save(self, *args, **kwargs):
         if not self.slug:

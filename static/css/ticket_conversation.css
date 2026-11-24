@@ -302,7 +302,8 @@
     font-size: .875em;
 }
 .tc-secure .fa-envelope-circle-check { margin-right: .25rem; }
-.tc-secure--expired, .tc-secure--withdrawn { opacity: .75; }
+/* Spent links read as secondary through colour, not opacity (faded muted text fell under 4.5:1). */
+.tc-secure--expired, .tc-secure--withdrawn { color: var(--tc-meta); border-style: dashed; }
 
 /* Drop zone over the composer (roadmap 52.20) */
 .tc-dropzone { position: relative; border: 2px dashed transparent; border-radius: 8px; padding: 2px; transition: border-color .12s, background-color .12s; }

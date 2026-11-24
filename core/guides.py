@@ -1,4 +1,4 @@
-"""Client St0r Docs: the guides in docs/*.md, read in the app.
+"""Clientst0r Docs: the guides in docs/*.md, read in the app.
 
 The Markdown files in the repository stay the single source (they are also
 what GitHub shows). This module lists the user-facing ones, renders them with

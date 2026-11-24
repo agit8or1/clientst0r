@@ -1024,7 +1024,7 @@ main .ui-actions .btn.btn-outline-danger {
     color: #b02a37 !important;
 }
 [data-bs-theme="dark"] main table td .btn.btn-outline-danger,
-[data-bs-theme="dark"] main .ui-actions .btn.btn-outline-danger { color: #ff8f99; }
+[data-bs-theme="dark"] main .ui-actions .btn.btn-outline-danger { color: #ff8f99 !important; }
 
 /* Money and quantity columns. Header cells matching these names are right
    aligned with the figures beneath them and set in tabular numerals so digits

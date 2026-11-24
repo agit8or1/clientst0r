@@ -63,5 +63,5 @@ class ThemeLinkContrastTests(SimpleTestCase):
 
     def test_link_rules_use_the_link_colour(self):
         css = THEMES_CSS.read_text()
-        rule = re.search(r'a:not\(\.btn\):not\(\.nav-link\):not\(\.dropdown-item\) \{(.*?)\}', css, re.S).group(1)
+        rule = re.search(r'a:not\(\.btn\):not\(\.nav-link\):not\(\.dropdown-item\):not\(\.badge\) \{(.*?)\}', css, re.S).group(1)
         self.assertIn('var(--link-color, var(--primary-color))', rule)

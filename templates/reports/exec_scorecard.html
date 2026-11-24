@@ -2,14 +2,18 @@
 {% block title %}Executive Scorecard{% endblock %}
 {% block extra_css %}
 <style>
-.es-kpi-card { border: 1px solid rgba(0,0,0,.075); border-radius: .75rem; padding: 1rem 1.25rem; background: #fff; height: 100%; }
-.es-kpi-icon { font-size: 1.4rem; opacity: .55; }
-.es-kpi-value { font-size: 2.2rem; font-weight: 700; line-height: 1.1; }
-.es-kpi-label { font-size: .85rem; color: #6c757d; text-transform: uppercase; letter-spacing: .03em; }
-.es-trend-up { color: #198754; font-weight: 600; }
-.es-trend-down { color: #dc3545; font-weight: 600; }
-.es-trend-flat { color: #6c757d; font-weight: 500; }
+.es-kpi-card { border: 1px solid var(--border-color, var(--bs-border-color)); border-radius: .75rem; padding: 1rem 1.25rem;
+               background: var(--card-bg, var(--bs-body-bg)); color: var(--text-primary, var(--bs-body-color)); height: 100%; }
+.es-kpi-icon { font-size: 1.4rem; color: var(--text-secondary, var(--bs-secondary-color)); }
+.es-kpi-value { font-size: 2.2rem; font-weight: 700; line-height: 1.1; color: var(--text-primary, var(--bs-body-color)); }
+.es-kpi-label { font-size: .85rem; color: var(--text-secondary, var(--bs-secondary-color)); text-transform: uppercase; letter-spacing: .03em; }
+.es-trend-up { color: var(--success-ink, #146c43); font-weight: 600; }
+.es-trend-down { color: var(--danger-ink, #b02a37); font-weight: 600; }
+.es-trend-flat { color: var(--text-secondary, var(--bs-secondary-color)); font-weight: 500; }
 .es-section-h { font-size: 1.05rem; font-weight: 600; margin-bottom: .5rem; }
+/* Charts fill a fixed-height box; without one a responsive chart grows on every resize. */
+.es-chart { position: relative; height: 220px; }
+.es-chart--pie { height: 260px; }
 @media print {
   .es-noprint, nav, .navbar, .footer, header, .breadcrumb { display: none !important; }
   body { background: white !important; }
@@ -62,11 +66,11 @@
 
   {# ---- Mid section: dual-axis line chart ---- #}
   <div class="card mb-4">
-    <div class="card-header bg-white">
+    <div class="card-header">
       <span class="es-section-h" title="Issued invoices, excluding tax, net of credit notes">Billed Revenue &amp; Tickets &mdash; Last 30 Days</span>
     </div>
     <div class="card-body">
-      <canvas id="esTrendChart" height="100"></canvas>
+      <div class="es-chart"><canvas id="esTrendChart" aria-label="Revenue and tickets opened per day" role="img"></canvas></div>
     </div>
   </div>
 
@@ -74,10 +78,10 @@
   <div class="row g-3">
     <div class="col-12 col-lg-4">
       <div class="card h-100">
-        <div class="card-header bg-white"><span class="es-section-h">Top 5 Clients by Billed Revenue</span></div>
+        <div class="card-header"><span class="es-section-h">Top 5 Clients by Billed Revenue</span></div>
         <div class="card-body p-0">
           <table class="table mb-0 table-sm">
-            <thead class="table-light">
+            <thead>
               <tr><th>Client</th><th class="text-end">Invoiced</th></tr>
             </thead>
             <tbody>
@@ -97,10 +101,10 @@
 
     <div class="col-12 col-lg-4">
       <div class="card h-100">
-        <div class="card-header bg-white"><span class="es-section-h">Top 5 Techs by Billable Hours</span></div>
+        <div class="card-header"><span class="es-section-h">Top 5 Techs by Billable Hours</span></div>
         <div class="card-body p-0">
           <table class="table mb-0 table-sm">
-            <thead class="table-light">
+            <thead>
               <tr><th>Tech</th><th class="text-end">Billable hrs</th></tr>
             </thead>
             <tbody>
@@ -120,7 +124,7 @@
 
     <div class="col-12 col-lg-4">
       <div class="card h-100">
-        <div class="card-header bg-white"><span class="es-section-h">Margin by Service Line</span></div>
+        <div class="card-header"><span class="es-section-h">Margin by Service Line</span></div>
         <div class="card-body">
           {% if not can_see_margin %}
             <p class="text-muted text-center mb-0 small">Margins need the <code>view_profitability</code> permission.</p>
@@ -132,7 +136,7 @@
               <a href="{% url 'resourcing:tech_cost_rate_list' %}">Set cost rates</a></p>
           {% endif %}
           {% if pie_data %}
-            <canvas id="esMarginPie" height="220"></canvas>
+            <div class="es-chart es-chart--pie"><canvas id="esMarginPie" aria-label="Margin by service line" role="img"></canvas></div>
           {% else %}
             <p class="text-muted text-center mb-0">No fully-costed margin data in window.</p>
           {% endif %}
@@ -150,6 +154,14 @@
 (function() {
   const chartData = JSON.parse(document.getElementById('es-chart-data').textContent);
   const pieData = JSON.parse(document.getElementById('es-pie-data').textContent);
+  // Axis labels, ticks and legends in the theme's text colours.
+  if (window.Chart) {
+    const css = getComputedStyle(document.documentElement);
+    const ink = (css.getPropertyValue('--text-secondary') || '').trim();
+    const grid = (css.getPropertyValue('--border-color') || '').trim();
+    if (ink) Chart.defaults.color = ink;
+    if (grid) Chart.defaults.borderColor = grid;
+  }
 
   const trendCtx = document.getElementById('esTrendChart');
   if (trendCtx && window.Chart) {

@@ -21,9 +21,9 @@ IT documentation and assets, a password vault, monitoring, a customer portal and
 | Latest release | ![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release) — see the [changelog](../CHANGELOG.md) |
 | Last roadmap audit | 2026-11-20 |
 | Active stage | Stage 1 — core completion (P0) |
-| Phases | **108** in total |
+| Phases | **109** in total |
 | ✅ Complete | 52 (of which 2 marked for verification) |
-| 🔵 In progress | 28 |
+| 🔵 In progress | 29 |
 | 🟡 Partial | 4 |
 | ⬜ Planned | 23 |
 | 🔴 Blocked | 0 (plus blocked items inside other phases — see [Blockers](#blockers)) |
@@ -115,6 +115,7 @@ Work being implemented now or approved as the next P0 task.
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
+| 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.1 coverage checks; 112.2 Service Desk and My Work guides | 67 |
 
 <!-- /generated:now -->
 
@@ -361,6 +362,7 @@ unchanged. Click a feature for its details.
 | 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.2 first-install detection; 96.3–96.4 assistant |
+| 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.1 coverage checks; 112.2 Service Desk and My Work guides |
 
 <details markdown="1">
 <summary>4 completed phases</summary>
@@ -465,7 +467,7 @@ Planned and partly built phases not in NOW or NEXT, by workstream:
 | 4 | Sales and documentation: CRM discovery, estimator, quotes, documentation, discovery staging | P3 | [97](#phase-97), [98](#phase-98), [103](#phase-103), [104](#phase-104), [107](#phase-107), [108](#phase-108) |
 | 5 | Reporting and customer portal | P3 | [75](#phase-75), [77](#phase-77), [78](#phase-78), [89](#phase-89), [110](#phase-110) |
 | 6 | Advanced integrations and optional AI | P3 | [83](#phase-83), [84](#phase-84), [85](#phase-85), [86](#phase-86), [87](#phase-87), [88](#phase-88), [90](#phase-90), [99](#phase-99), [105](#phase-105), [109](#phase-109) |
-| 7 | Polish, regression coverage, documentation, completion checklist | — | [59](#phase-59), [67](#phase-67) |
+| 7 | Polish, regression coverage, documentation, completion checklist | — | [59](#phase-59), [67](#phase-67), [112](#phase-112) |
 | 8 | Rem0te functional expansion (separate backlog) | after Stage 7 | [Rem0te backlog](plans/platform-program/REM0TE_FEATURE_EXPANSION_ROADMAP.md) |
 
 <!-- /generated:stages -->
@@ -2431,7 +2433,16 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   and count badges no longer show a near-white bar in dark themes.
 - **67.25 Faster page loads** *(shipped v3.17.745)* — the sidebar's permission decisions are kept per worker and dropped the moment any access changes; system settings are read once per request; reloading a page no longer writes to the database; Font Awesome, DataTables, Select2, Leaflet and jQuery are served from the app; SQLite installs run in WAL mode with a busy timeout, and every backup and restore goes through SQLite's backup API. Server render time roughly halved (about 55–115 ms per page on the production dataset). Second pass *(shipped v3.17.758)*: the sidebar and settings header HTML is reused when unchanged, the customer tree, memberships and ticket priorities are read once per request, ticket billing lines read prepaid postings and agreements once, and per-page query ceilings are tested — 20–50% less server time per page and 40–60% fewer queries for technicians. The sign-in activity stamp is saved at most once a minute instead of on every page *(shipped v3.17.759)*.
 - **67.26 Sign-in opens where you left off** *(shipped v3.17.765)* — a new session opens the last client you worked in, or Global View when that was more recent (superusers and staff with every client only); a default organization in My Profile still wins. Signing in no longer writes a stale cached profile back.
-- **67.27 Client St0r Docs in the app** *(shipped v3.17.766)* — the guides in `docs/` read in the application with screenshots, a table of contents and search (also in Help search); linked from the sidebar foot and the page footer. New Getting started guide; annotated screenshots with numbered legends generated from a capture manifest so they cannot drift.
+- **67.27 Clientst0r Docs in the app** *(shipped v3.17.766)* — the guides in `docs/` read in the application with screenshots, a table of contents and search (also in Help search); linked from the sidebar foot and the page footer. New Getting started guide; annotated screenshots with numbered legends generated from a capture manifest so they cannot drift.
+- **67.28 Readable text in the light and dark themes** *(shipped v3.17.770)* — Executive Scorecard cards, headers
+  and charts follow the theme (the cards were white in dark mode) and the margin chart keeps its size; the
+  scorecard has its own Reports menu entry and every report opened from Reports Home keeps it selected; muted
+  text, info / warning / success text, outline buttons, badges, solid alerts, tinted table rows, in-page pill
+  menus and user-coloured tags clear WCAG AA in both themes; the customer portal's ticket conversation reads in
+  dark mode. `scripts/contrast_check.py` measures every page of the screenshot manifests in both themes.
+- **67.29 One product name: Clientst0r** *(planned)* — the guides, page titles, footer, e-mails and settings
+  use "Clientst0r"; protocol identifiers other systems depend on (HTTP headers, user agents, Agit8or Connect
+  fields, translation keys) are listed and changed only with a compatibility path.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then
 validation across roles and viewports.
@@ -3925,6 +3936,49 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
   gives them that access, removing them revokes it; enforced on the server, audit-logged, owner-level groups
   managed only by owner-level staff. Built-in roles get plain names and the older roles fold under "Legacy roles";
   nobody's existing access changes.
+
+</details>
+
+<a id="phase-112"></a>
+
+## Phase 112 — Complete user documentation with annotated screenshots **(L · P1 · docs)** [in progress]
+<!-- phase: ws=I stage=7 view=now order=3 deps=67 next="112.1 coverage checks; 112.2 Service Desk and My Work guides" -->
+**Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
+**Next:** 112.1 coverage checks; 112.2 Service Desk and My Work guides
+
+
+Every area of the application has a guide in Clientst0r Docs, and every guide carries at least one
+annotated screenshot (numbered callouts matched by a numbered list) captured from the demo instance with
+`scripts/capture_screenshots.py`. Extends 67.27 (shipped v3.17.766).
+
+<details markdown="1">
+<summary>Details, completed work and acceptance criteria</summary>
+
+- **112.1 Coverage checks** *(planned)* — a test maps every navigation section to the guide that documents it
+  and fails for a guide without an annotated figure; the list of guides and sections still waiting shrinks with
+  each release and may never grow.
+- **112.2 Service Desk and My Work** *(planned)* — tickets, queues, dispatch board, shifts, scheduling,
+  projects, service management (problems, changes), workflows.
+- **112.3 Clients, assets and network** *(planned)* — customers and onboarding, assets, hardware and ports,
+  network diagrams, infrastructure, backup monitoring, IPAM, inventory, vehicles.
+- **112.4 Business** *(planned)* — CRM, contracts, licensing, quotes, invoices, billing review, procurement,
+  vendors, pulse checks, client health.
+- **112.5 Knowledge and vault** *(planned)* — documents, knowledge base, diagrams, review and publishing,
+  documentation readiness, password vault, personal vault, secure notes.
+- **112.6 Security and monitoring** *(planned)* — security alerts, incidents, events, monitoring reliability,
+  website and WAN monitors, expirations, status pages, configuration backups.
+- **112.7 Reports** *(planned)* — reports home, executive scorecard, dashboards, analytics, wallboards,
+  generated and scheduled reports, profitability reports, pricing advisor.
+- **112.8 Administration** *(planned)* — every settings category: general, users and access, security,
+  integrations, AI configuration (**OPTIONAL AI**), automation, communications, modules, system, maintenance.
+- **112.9 Your account and the customer portal** *(planned)* — profile, two-factor, work details, apps and
+  downloads; the portal as a customer sees it.
+- **112.10 Existing guides** *(planned)* — the 35 guides without a figure gain annotated screenshots; guides
+  describing removed or renamed screens are corrected.
+
+  Acceptance: every navigation section is documented by a guide; every guide in Clientst0r Docs has an
+  annotated figure; `scripts/guide_figures.py --check` and the coverage test pass; screenshots are captured
+  against the demo data only.
 
 </details>
 

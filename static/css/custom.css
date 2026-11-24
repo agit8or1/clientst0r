@@ -591,7 +591,8 @@ div.card > div.card-header:first-child {
 
 .btn-outline-primary {
     border: 2px solid var(--primary-blue);
-    color: var(--primary-blue);
+    /* Through Bootstrap's variable, so a theme can set a readable text colour. */
+    --bs-btn-color: var(--primary-blue);
     background-color: transparent;
 }
 
@@ -1434,6 +1435,14 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
     color: #000 !important;
 }
 
+/* Default (light) theme: muted text from the theme's palette, which clears
+   4.5:1 on white and the light grey grounds (#6c757d did not on #f8f9fa). */
+[data-bs-theme="light"][data-theme="default"],
+[data-theme="default"]:not([data-bs-theme="dark"]) {
+    --gray-500: var(--text-muted);
+    --gray-600: #495057;
+}
+
 /* Professional Dark (v3.17.677): the dark-mode greys above are a generic
    charcoal; this theme reads them from its own palette so the legacy rules
    that use --gray-* (cards, forms, footer, empty states) match the rest. */
@@ -1577,7 +1586,7 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 }
 
 .pagination .page-link {
-    color: #6c757d;
+    color: var(--text-secondary, #5c636a);
 }
 
 .pagination .page-link:hover {

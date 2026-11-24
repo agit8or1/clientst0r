@@ -1,4 +1,4 @@
-"""Client St0r Docs: docs/*.md read in the app (core/guides.py)."""
+"""Clientst0r Docs: docs/*.md read in the app (core/guides.py)."""
 import subprocess
 import sys
 from pathlib import Path
@@ -117,7 +117,7 @@ class GuideViewTests(TestCase):
     def test_help_search_includes_guides(self):
         r = self.client.get(reverse('core:help_search'), {'q': 'prepaid'})
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'In the Client St0r Docs')
+        self.assertContains(r, 'In the Clientst0r Docs')
 
     def test_sidebar_foot_links_to_the_docs(self):
         r = self.client.get(reverse('core:dashboard'))

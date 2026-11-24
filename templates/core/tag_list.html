@@ -29,7 +29,7 @@
                     {% for tag in tags %}
                     <tr>
                         <td>
-                            <span class="badge" style="background-color: {{ tag.color }}; color: white;">
+                            <span class="badge" style="{{ tag.badge_style }}">
                                 {{ tag.name }}
                             </span>
                         </td>

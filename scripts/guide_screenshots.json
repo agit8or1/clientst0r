@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Annotated screenshots for the guides (docs/*.md, read in the app under Client St0r Docs).",
+    "Annotated screenshots for the guides (docs/*.md, read in the app under Clientst0r Docs).",
     "Each entry's annotate list draws numbered callouts; its note is the legend the guide prints",
     "under the image, in the same order. Capture against the isolated demo instance with:",
     "  DEMO_DIR=/var/tmp/clientst0r-demo DJANGO_SETTINGS_MODULE=demo_settings PYTHONPATH=scripts/demo:. \\",
@@ -21,7 +21,7 @@
       "route": "/core/dashboard/",
       "theme": "light",
       "max_h": 1000,
-      "alt": "The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Client St0r Docs link",
+      "alt": "The dashboard with numbered callouts on the sidebar, Go to, the client switcher, the ticket queue, Customize and the Clientst0r Docs link",
       "annotate": [
         {
           "selector": "#appNavList",
@@ -45,7 +45,7 @@
         },
         {
           "selector": ".app-nav__docs",
-          "note": "Client St0r Docs: these guides, searchable, in the app."
+          "note": "Clientst0r Docs: these guides, searchable, in the app."
         }
       ],
       "caption": "The dashboard, sidebar and top bar."
@@ -56,7 +56,7 @@
       "route": "/core/docs/",
       "theme": "light",
       "max_h": 1100,
-      "alt": "Client St0r Docs: the search box, guide categories, a screenshot count badge and the sidebar link",
+      "alt": "Clientst0r Docs: the search box, guide categories, a screenshot count badge and the sidebar link",
       "annotate": [
         {
           "selector": "main form[role=search]",
@@ -75,7 +75,7 @@
           "note": "Open the docs from any page, at the foot of the sidebar (also linked in the page footer)."
         }
       ],
-      "caption": "Client St0r Docs in the app."
+      "caption": "Clientst0r Docs in the app."
     },
     {
       "name": "guide-ticket",

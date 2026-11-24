@@ -283,7 +283,7 @@
                         <h6 class="text-muted text-uppercase small mb-2"><i class="fas fa-tags me-1"></i>Tags</h6>
                         <div>
                             {% for tag in asset.tags.all %}
-                            <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                            <span class="badge" style="{{ tag.badge_style }}">{{ tag.name }}</span>
                             {% endfor %}
                         </div>
                         {% endif %}

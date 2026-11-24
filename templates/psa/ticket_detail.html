@@ -44,11 +44,11 @@
             <code class="small">{{ ticket.ticket_number }}</code>
             {% if is_msp_staff %}
             {# The client workspace (opens in this client's context); return_to keeps a "Back to" link to this ticket (core.return_to). #}
-            <a class="badge rounded-pill text-decoration-none" data-ticket-client href="{% url 'accounts:organization_detail' ticket.organization.id %}?return_to={{ request.path|urlencode }}" title="Open {{ ticket.organization.name }}'s client workspace" style="background:hsl({% widthratio ticket.organization.id 1 47 %}, 55%, 42%); color: white;">
+            <a class="badge rounded-pill text-decoration-none" data-ticket-client href="{% url 'accounts:organization_detail' ticket.organization.id %}?return_to={{ request.path|urlencode }}" title="Open {{ ticket.organization.name }}'s client workspace" style="background:hsl({% widthratio ticket.organization.id 1 47 %}, 55%, 28%); color: white;">
                 <i class="fas fa-building me-1" aria-hidden="true"></i>{{ ticket.organization.name }}
             </a>
             {% else %}
-            <span class="badge rounded-pill" style="background:hsl({% widthratio ticket.organization.id 1 47 %}, 55%, 42%); color: white;">
+            <span class="badge rounded-pill" style="background:hsl({% widthratio ticket.organization.id 1 47 %}, 55%, 28%); color: white;">
                 <i class="fas fa-building me-1"></i>{{ ticket.organization.name }}
             </span>
             {% endif %}
