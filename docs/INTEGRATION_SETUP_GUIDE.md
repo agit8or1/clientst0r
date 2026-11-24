@@ -495,7 +495,7 @@ Rem0te details.
 ## Monitoring health (is the integration really collecting?)
 
 Security connectors, RMM connections and polled backup connections record whether each collection actually
-worked, separately from what it found. **Security & Monitoring → Events → Monitoring reliability** lists every
+worked, separately from what it found. **Security & Monitoring → Monitoring reliability** lists every
 monitoring source per customer with its state — Healthy / quiet, Healthy / alerts, Degraded, Permission denied,
 Source unavailable, Ingestion failed, Stale or Unknown — the last successful collection and the record counts.
 

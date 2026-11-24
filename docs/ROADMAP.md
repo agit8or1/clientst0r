@@ -2922,34 +2922,34 @@ presented as healthy. These items implement the
 [Monitoring Health Standard 1.0.0](https://github.com/agit8or1/clientst0r/blob/main/docs/standards/MONITORING_HEALTH_STANDARD.md),
 the shared contract for Clientst0r and later MSPZero products.
 
-- **82.7 Source-health telemetry** *(shipped v3.17.NNN)* — four independent fields per monitoring source
+- **82.7 Source-health telemetry** *(shipped v3.17.769)* — four independent fields per monitoring source
   (operational health, collection outcome, alert status, failure reason) plus last attempt, last success,
   query window, records retrieved / processed / committed / rejected, newest verified event time, duration,
   consecutive failures, completeness, freshness threshold and a redacted diagnostic; stored on the existing
   integration health record and written by polled security connectors, RMM sync and polled backup connections.
-- **82.8 Empty-window verification and failure classification** *(shipped v3.17.NNN)* — an HTTP error,
+- **82.8 Empty-window verification and failure classification** *(shipped v3.17.769)* — an HTTP error,
   refused permission or malformed response is never an empty result; an empty window is healthy / quiet only
   after a bounded, read-only probe or an authenticated connection test in the same attempt, otherwise
   unverified; the newest event comes from validated timestamps (never the first record unless the provider
   documents ordering) or is unknown; the collection cursor moves only after a complete window.
-- **82.9 Monitoring reliability view and dashboard status** *(shipped v3.17.NNN)* — Security & Monitoring →
-  Events → Monitoring reliability: per-customer roll-up with drill-down to each source (icon, text and tooltip,
+- **82.9 Monitoring reliability view and dashboard status** *(shipped v3.17.769)* — Security & Monitoring →
+  Monitoring reliability (also linked from Events): per-customer roll-up with drill-down to each source (icon, text and tooltip,
   last successful collection), a tenant-scoped JSON feed (schema 1.0.0); the Security Overview says whether
   alert collection is verified; the Business Overview security and backup cards are marked incomplete while a
   source behind them is not verified; the customer security digest sends "all clear" only when monitoring is
   verified. Shared RMM connections count against every customer whose devices they serve.
-- **82.10 Recovery and alerting** *(shipped v3.17.NNN)* — exponential backoff with jitter that honours
+- **82.10 Recovery and alerting** *(shipped v3.17.769)* — exponential backoff with jitter that honours
   Retry-After, transient failures Degraded until they persist, per-source freshness thresholds evaluated every
   minute, one technician e-mail when a critical source fails persistently or goes stale and one on recovery,
   system warnings while it lasts, every state change in the audit log; nothing is disabled or suppressed
   automatically.
-- **82.11 AI visibility safeguards** **OPTIONAL AI** *(shipped v3.17.NNN for incident summaries)* — health is
+- **82.11 AI visibility safeguards** **OPTIONAL AI** *(shipped v3.17.769 for incident summaries)* — health is
   decided by deterministic code; AI incident summaries receive the source-health facts (no credentials, errors
   or event content) and any summary for a customer whose monitoring is not verified leads with the
   deterministic visibility statement, e.g. "Zero threats detected in the successfully monitored sources.
   Monitoring is not verified for Microsoft Defender (source unavailable), so overall security status cannot be
   verified." Phase 90 must use the same context and guard.
-- **82.12 Monitoring Health Standard and conformance tests** *(shipped v3.17.NNN — standard 1.0.0, JSON
+- **82.12 Monitoring Health Standard and conformance tests** *(shipped v3.17.769 — standard 1.0.0, JSON
   Schema, example payloads, validator and conformance cases C1–C13 and C15; C14 waits for 82.13)* —
   acceptance tests A–J from Discussion #161 (verified quiet window, missing permission, failed ingestion,
   endpoint unavailable, stale, unordered results, partial ingestion, AI reporting, tenant isolation, recovery).

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.769] - 2026-11-24
+
+### Added
+- **Monitoring reliability: zero alerts is no longer read as healthy** (Phase 82.7–82.12, from GitHub Discussion
+  #161). Every polled monitoring source records whether collection actually worked, separately from what it
+  found: operational health, collection outcome, alert status and the failure reason, with the last attempt,
+  last success, query window, records retrieved / processed / committed / rejected, newest verified event time
+  and consecutive failures. Written by polled security connectors, RMM sync and polled backup connections.
+- **Verified quiet windows.** An HTTP error, refused permission or malformed response is a failed read, never an
+  empty result. An empty window counts as healthy and quiet only after a bounded, read-only probe or connection
+  test in the same attempt; otherwise it shows as unverified. The newest event time comes from validated
+  timestamps, never from whichever record the API returned first; the collection cursor moves only after a
+  complete window.
+- **Security & Monitoring → Monitoring reliability**: per-customer roll-up with drill-down to each source
+  (icon, text and tooltip, last successful collection) and a tenant-scoped JSON feed. The Security Overview
+  says whether alert collection is verified; the Business Overview security and backup cards are marked
+  incomplete while a source behind them is not verified; the customer security digest sends "all clear" only
+  when monitoring is verified, and says "monitoring not fully verified" otherwise.
+- **Recovery and alerting**: backoff with jitter that honours Retry-After, per-source freshness thresholds
+  checked every minute, one technician e-mail when a critical source fails persistently or goes stale and one
+  on recovery, system warnings while it lasts, and every state change in the audit log. Nothing is disabled or
+  suppressed automatically.
+- **OPTIONAL AI**: incident summaries receive the source-health facts (no credentials, errors or event content);
+  a summary for a customer whose monitoring is not verified leads with a fixed statement that overall security
+  status cannot be verified.
+- **Monitoring Health Standard 1.0.0** (docs/standards/MONITORING_HEALTH_STANDARD.md) with a JSON Schema,
+  example payloads and conformance tests, including acceptance tests A–J from the discussion.
+
+### Planned next
+- 82.13 health reports from other products over Agit8or Connect; 82.14 provider-specific probes in each vendor
+  connector. Until then, vendor connections without an API adapter are push-only and show as unverified when
+  quiet.
+
 ## [3.17.768] - 2026-11-23
 
 ### Changed
