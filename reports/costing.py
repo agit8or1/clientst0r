@@ -131,7 +131,11 @@ class RateBook:
             return direct
         ticket = getattr(entry, 'ticket', None)
         client_id = getattr(ticket, 'organization_id', None) if ticket is not None else None
-        on_date = entry_date(entry)
+        return self.contract_for_client_on(client_id, entry_date(entry))
+
+    def contract_for_client_on(self, client_id, on_date):
+        """The client's non-draft contract whose window covers `on_date` (an
+        active one preferred), or None."""
         if not client_id or on_date is None:
             return None
         covering = [c for c in self._contracts_for(client_id)
@@ -262,13 +266,24 @@ def margin_fields(revenue, cost, cost_complete=True, revenue_complete=True):
 
 
 def summarize(rows, revenue_key='revenue'):
-    """Totals across report rows produced by the profitability queries."""
+    """Totals across report rows produced by the profitability queries.
+
+    Cost is partial when any row has an hour without a cost rate or an item
+    without a cost (`reports.financials`); `partial_reasons` lists why, for
+    the "Partial" label.
+    """
+    from .financials import cost_reasons
     total_revenue = sum((r.get(revenue_key) or 0.0) for r in rows)
     total_cost = sum((r.get('cost') or 0.0) for r in rows)
     unknown_cost_hours = sum((r.get('unknown_cost_hours') or 0.0) for r in rows)
     unknown_cost_entries = sum((r.get('unknown_cost_entries') or 0) for r in rows)
     unknown_bill_hours = sum((r.get('unknown_bill_hours') or 0.0) for r in rows)
     unknown_bill_entries = sum((r.get('unknown_bill_entries') or 0) for r in rows)
+    unknown_item_count = sum((r.get('unknown_item_count') or 0) for r in rows)
+    no_tech = sum((r.get('entries_without_technician') or 0) for r in rows)
+    techs = set()
+    for r in rows:
+        techs.update(r.get('unknown_rate_technicians') or ())
     out = {
         'total_revenue': round(total_revenue, 2),
         'total_cost': round(total_cost, 2),
@@ -276,11 +291,17 @@ def summarize(rows, revenue_key='revenue'):
         'unknown_cost_entries': unknown_cost_entries,
         'unknown_bill_hours': round(unknown_bill_hours, 2),
         'unknown_bill_entries': unknown_bill_entries,
+        'unknown_item_count': unknown_item_count,
+        'unknown_rate_technician_count': len(techs),
     }
+    cost_complete = unknown_cost_entries == 0 and unknown_item_count == 0
     m = margin_fields(total_revenue, total_cost,
-                      cost_complete=unknown_cost_entries == 0,
+                      cost_complete=cost_complete,
                       revenue_complete=unknown_bill_entries == 0)
     out['total_margin'] = m['margin']
     out['blended_margin_pct'] = m['margin_pct']
     out['is_complete'] = m['is_complete']
+    out['partial'] = not m['is_complete']
+    out['partial_reasons'] = cost_reasons(len(techs), unknown_cost_hours, no_tech,
+                                          unknown_item_count, unknown_bill_hours)
     return out

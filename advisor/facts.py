@@ -183,19 +183,21 @@ class CustomerFacts:
             from reports.queries import revenue_by_client
             rows = revenue_by_client(self.window.start, self.window.end, self.client)
             value = sum((Decimal(str(r['invoiced'])) for r in rows if r['client_id'] == self.client.pk), ZERO)
+            from reports.financials import invoice_revenue
             invs = (Invoice.objects.filter(client_org=self.client, invoice_date__gte=self.window.start,
                                            invoice_date__lte=self.window.end,
                                            status__in=LIVE_INVOICE_STATUSES).order_by('invoice_date'))
-            records = [{'label': f'{i.invoice_number} {i.invoice_date:%Y-%m-%d} {i.currency} {i.total}',
+            records = [{'label': f'{i.invoice_number} {i.invoice_date:%Y-%m-%d} {i.currency} '
+                                 f'{invoice_revenue(i)} excl. tax',
                         'model': 'psa.Invoice', 'id': i.pk, 'url': url('psa:invoice_detail', i.pk)}
                        for i in invs[:RECORD_LIMIT]]
             drafts = Invoice.objects.filter(client_org=self.client, invoice_date__gte=self.window.start,
                                             invoice_date__lte=self.window.end, status='draft').count()
-            note = 'Invoice totals dated in the window (sent, partly paid, paid, overdue), as in the ' \
-                   'profitability report.'
+            note = 'Billed revenue: issued invoices dated in the window, excluding tax, net of credit ' \
+                   'notes (reports.financials), as in the profitability report.'
             if drafts:
                 note += f' {drafts} draft invoice(s) in the window are not counted.'
-            return Fact('revenue', 'Revenue (invoiced)', 'money', q2(value), 'verified',
+            return Fact('revenue', 'Billed revenue', 'money', q2(value), 'verified',
                         source='reports.queries.revenue_by_client', records=records, note=note)
         return self._memo('revenue', build)
 
@@ -404,6 +406,7 @@ class CustomerFacts:
         revenue, expected recurring revenue, effective rate."""
         def build():
             from psa.models import Invoice
+            from reports.financials import invoice_revenue
             from reports.queries import cost_estimate_by_contract
             costs = {r['contract_id']: r for r in cost_estimate_by_contract(
                 self.window.start, self.window.end, self.client)}
@@ -414,7 +417,7 @@ class CustomerFacts:
                 invs = list(Invoice.objects.filter(source_contract=c, invoice_date__gte=self.window.start,
                                                    invoice_date__lte=self.window.end,
                                                    status__in=LIVE_INVOICE_STATUSES))
-                invoiced = sum((i.total or ZERO for i in invs), ZERO)
+                invoiced = sum((invoice_revenue(i) for i in invs), ZERO)
                 monthly = inputs.monthly_amount(c)
                 expected = q2(monthly * self.window.months) if monthly is not None else None
                 if invs:
@@ -429,7 +432,7 @@ class CustomerFacts:
                     'contract': c, 'hours': hours, 'cost': cost, 'cost_known_part': q2(cr['cost']),
                     'cost_complete': bool(cr['cost_complete']), 'unknown_cost_hours': q2(cr['unknown_cost_hours']),
                     'revenue': revenue, 'revenue_basis': basis, 'monthly': monthly,
-                    'invoice_records': [{'label': f'{i.invoice_number} {i.total}', 'model': 'psa.Invoice',
+                    'invoice_records': [{'label': f'{i.invoice_number} {invoice_revenue(i)}', 'model': 'psa.Invoice',
                                          'id': i.pk, 'url': url('psa:invoice_detail', i.pk)} for i in invs],
                     'effective_rate': q2(revenue / hours) if hours else None,
                     'cost_rate': q2(cost / hours) if (cost is not None and hours) else None,

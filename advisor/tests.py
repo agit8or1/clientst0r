@@ -1,6 +1,6 @@
 """Pricing Advisor (Phase 76) tests: detectors, recommendation math, drafts,
 OPTIONAL AI narrative validation, permissions and tenant isolation."""
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from unittest import mock
 
@@ -314,6 +314,11 @@ class PricingDependentDetectorTests(AdvisorBase):
         item.cost = Decimal('12')
         item.save()
         self.assertTrue(PriceChangeHistory.objects.filter(price_book_item=item, field='cost').exists())
+        # The run is pinned to TODAY; date the change inside its window, not at
+        # the wall-clock time the test happens to run.
+        at = lambda days: timezone.make_aware(datetime.combine(TODAY - timedelta(days=days), time(12)))
+        PriceChangeHistory.objects.filter(price_book_item=item).update(changed_at=at(10))
+        PriceChangeHistory.objects.filter(price_book_item=item, field='cost').update(changed_at=at(5))
         self.run_advisor()
         f = self.open_findings('cost_increase_not_passed_through').get()
         rec = f.recommendations.get()
@@ -324,6 +329,9 @@ class PricingDependentDetectorTests(AdvisorBase):
         item.cost = Decimal('12')
         item.default_price = Decimal('24')
         item.save()
+        from pricing.models import PriceChangeHistory
+        PriceChangeHistory.objects.filter(price_book_item=item).update(
+            changed_at=timezone.make_aware(datetime.combine(TODAY - timedelta(days=5), time(12))))
         self.run_advisor()
         self.assertFalse(self.open_findings('cost_increase_not_passed_through').exists())
 

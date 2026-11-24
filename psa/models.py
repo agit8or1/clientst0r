@@ -3114,7 +3114,9 @@ class Contract(models.Model):
 
     def profitability_snapshot(self):
         """
-        Operational profitability estimate for the contract window.
+        Operational profitability estimate for the contract window, from
+        the contract's terms ("contract-terms estimate"; not billed revenue,
+        which is `billed_revenue` here — see reports.financials).
 
         Revenue = bundled subtotal + allowance hours × hourly_rate + overage
         hours × overage_rate (approximated from the contract's terms, not
@@ -3161,6 +3163,15 @@ class Contract(models.Model):
         }
         out.update(margin_fields(out['revenue'], out['cost'],
                                  cost_complete=tally.cost_complete))
+        # Phase 102.7: what was actually billed from the contract over its
+        # window, under the one billed-revenue definition (reports.financials),
+        # so the terms estimate above is never read as revenue.
+        from datetime import date as _date
+        from reports.financials import contract_billed
+        since = self.start_date or _date(2000, 1, 1)
+        until = max(self.end_date or timezone.localdate(), timezone.localdate())
+        out['billed_revenue'] = float(contract_billed(self, since, until))
+        out['billed_since'] = self.start_date
         return out
 
 

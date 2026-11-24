@@ -1,24 +1,48 @@
-{% comment %}Shared notice for every page that shows labour cost or margin.
+{% comment %}Shared notice for every page that shows cost or margin.
 Context: `summary` (reports.costing.summarize output or a dict with
 unknown_cost_hours / unknown_cost_entries / unknown_bill_hours /
-unknown_bill_entries / is_complete).{% endcomment %}
+unknown_bill_entries / unknown_item_count / partial_reasons / is_complete),
+`revenue_basis` ('billed' — billed revenue and direct cost, the default — or
+'attributed' — hours × bill rate and labour cost), `financial_definitions`
+(reports.financials.DEFINITIONS).{% endcomment %}
 <div class="alert {% if summary and not summary.is_complete %}alert-warning{% else %}alert-light border{% endif %} py-2 mb-3" role="note" data-profitability-notice>
     <div class="small fw-semibold">
         <i class="fas fa-circle-info me-1"></i>Operational profitability estimate — not your accounting P&amp;L
-        {% if summary and not summary.is_complete %}<span class="badge bg-warning text-dark ms-2" data-incomplete-badge>Incomplete</span>{% endif %}
+        {% if summary and not summary.is_complete %}<span class="badge bg-warning text-dark ms-2" data-incomplete-badge data-partial-badge>Partial{% if summary.partial_reasons %} — {{ summary.partial_reasons|join:"; " }}{% endif %}</span>{% endif %}
     </div>
     <div class="small text-muted">
-        Cost is each time entry at the technician's loaded cost rate on the day of the work; nothing is costed at an assumed rate.
+        {% if revenue_basis == 'attributed' %}
+        Revenue here is <strong>attributed labour revenue</strong> (billable hours × the bill rate), not billed revenue; cost is each time entry at the technician's loaded cost rate on the day of the work.
+        {% else %}
+        Revenue is <strong>billed revenue</strong> (issued invoices, excluding tax, net of credit notes); cost is <strong>direct cost</strong> — labour at each technician's cost rate on the day of the work, ticket items at unit cost, and ticket expenses.
+        {% endif %}
+        Nothing is costed at an assumed rate.
     </div>
     {% if summary and not summary.is_complete %}
     <div class="small mt-1">
         {% if summary.unknown_cost_entries %}
         <strong>{{ summary.unknown_cost_hours|floatformat:2 }} hours</strong> ({{ summary.unknown_cost_entries }} time entr{{ summary.unknown_cost_entries|pluralize:"y,ies" }}) have no cost rate, so cost totals are partial and margin is shown as unknown.
         {% endif %}
+        {% if summary.unknown_item_count %}
+        <strong>{{ summary.unknown_item_count }} item{{ summary.unknown_item_count|pluralize }}</strong> have no unit cost, so cost totals are partial and margin is shown as unknown.
+        {% endif %}
         {% if summary.unknown_bill_entries %}
         <strong>{{ summary.unknown_bill_hours|floatformat:2 }} billable hours</strong> have no bill rate (no rate snapshot and no contract hourly rate), so attributed revenue is partial.
         {% endif %}
         <a href="{% url 'resourcing:tech_cost_rate_list' %}" class="alert-link">Set technician cost rates</a> to complete these figures.
     </div>
+    {% endif %}
+    {% if financial_definitions %}
+    <details class="small mt-1" data-financial-definitions>
+        <summary class="text-muted">Definitions</summary>
+        <dl class="row mb-0 mt-1">
+            {% for term, meaning in financial_definitions %}
+            <dt class="col-sm-3 fw-semibold">{{ term }}</dt><dd class="col-sm-9 mb-1">{{ meaning }}</dd>
+            {% endfor %}
+            {% if revenue_basis == 'attributed' %}
+            <dt class="col-sm-3 fw-semibold">Attributed labour revenue</dt><dd class="col-sm-9 mb-1">Billable hours × the entry's bill rate (snapshot, else the contract's hourly or overage rate). A measure of labour value, not what was invoiced.</dd>
+            {% endif %}
+        </dl>
+    </details>
     {% endif %}
 </div>

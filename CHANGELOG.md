@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.768] - 2026-11-23
+
+### Changed
+- **One set of financial definitions** (Phase 102.7). Billed, collected and recognized revenue, direct cost,
+  gross profit and margin are defined once (`reports/financials.py`) and used by every report, Business
+  Overview card, dashboard widget and CSV export, so the same customer and period give the same figure
+  everywhere. The definitions are in docs/BILLING.md (*Financial definitions*) and in a **Definitions** panel on
+  the report pages.
+- **Revenue now excludes tax.** Reports that showed revenue including tax (revenue and profitability by
+  client, contract and project, revenue by service line, effective hourly rate by client, Business Overview,
+  dashboard revenue widgets) now show billed revenue excluding tax and net of credit notes. The gross amount
+  and tax are still listed next to it, and receivables (aging, balances, reconciliation) still include tax.
+- **Revenue by contract counts invoices, not contract terms.** Unbilled bundle amounts are no longer added
+  to contract revenue; they are shown for reference. The contract page shows the billed revenue from the
+  contract's invoices next to the contract-terms estimate.
+- **Direct cost includes ticket items and expenses** as well as labour, plus invoice lines sold at a recorded
+  unit cost. Missing technician cost rates or item costs mark a figure **partial** with the reason (for
+  example "1 technician has no cost rate (0.83 h)"), and gross profit and margin then show as unknown
+  instead of a number that overstates profit.
+- Figures that measure something else are named so: contracted MRR / ARR, attributed labour revenue
+  (profitability by technician, margin analytics), the contract-terms estimate, and receivables.
+
 ## [3.17.767] - 2026-11-23
 
 ### Added

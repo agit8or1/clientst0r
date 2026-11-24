@@ -129,14 +129,14 @@
 {% if snapshot %}
 <div class="card mt-3" data-profitability-snapshot>
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
-        <strong><i class="fas fa-chart-line me-1"></i>Profitability snapshot
-            {% if not snapshot.is_complete %}<span class="badge bg-warning text-dark ms-1" data-incomplete-badge>Incomplete</span>{% endif %}</strong>
+        <strong><i class="fas fa-chart-line me-1"></i>Contract-terms estimate
+            {% if not snapshot.is_complete %}<span class="badge bg-warning text-dark ms-1" data-incomplete-badge>Partial — {{ snapshot.unknown_cost_hours|floatformat:2 }} h without a cost rate</span>{% endif %}</strong>
         <small class="text-muted">Operational profitability estimate — not your accounting P&amp;L</small>
     </div>
     <div class="card-body">
         <div class="row g-3 text-center">
             <div class="col-md-3">
-                <div class="text-muted small">Revenue (from contract terms)</div>
+                <div class="text-muted small" title="Bundle plus allowance and overage hours at the contract's rates — an estimate from the terms, not billed revenue">Contract-terms revenue (estimate)</div>
                 <div class="h4 mb-0">${{ snapshot.revenue|floatformat:2 }}</div>
             </div>
             <div class="col-md-3">
@@ -167,6 +167,9 @@
         <div class="row g-2 mt-2 small text-muted">
             <div class="col-md-6">Hours used: <strong>{{ snapshot.hours_used|floatformat:2 }}</strong></div>
             <div class="col-md-6">Overage hours: <strong>{{ snapshot.overage_hours|floatformat:2 }}</strong></div>
+            {% if snapshot.billed_revenue is not None %}
+            <div class="col-md-12" data-contract-billed-revenue>Billed revenue from this contract's invoices (issued, excluding tax, net of credit notes){% if snapshot.billed_since %} since {{ snapshot.billed_since|date:"Y-m-d" }}{% endif %}: <strong>${{ snapshot.billed_revenue|floatformat:2 }}</strong></div>
+            {% endif %}
         </div>
         <div class="small text-muted mt-2">
             Cost is each qualifying time entry at the technician's loaded cost rate on the day of the work.
