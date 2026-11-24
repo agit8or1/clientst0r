@@ -90,8 +90,9 @@ class Fixture(TestCase):
 # ---------------------------------------------------------------- providers
 
 class FakeResp:
-    def __init__(self, data=None, status=200):
+    def __init__(self, data=None, status=200, headers=None):
         self._data, self.status_code = data, status
+        self.headers = headers or {}
 
     def json(self):
         return {'data': self._data}

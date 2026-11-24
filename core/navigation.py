@@ -1412,6 +1412,11 @@ PRIMARY = (
         # staff-only /security/ prefix and events_view, scoped per customer.
         Entry(_('Events'), url_name='events:list', icon='fa-stream', gate=_all(_msp_staff, _perm('events_view')),
               keywords='events alerts all sources normalized ingestion health backup rmm rem0te website down'),
+        # Monitoring Health Standard (Phase 82.9): is each source actually read?
+        Entry(_('Monitoring reliability'), url_name='events:source_health', icon='fa-heart-pulse',
+              gate=_all(_msp_staff, _perm('events_view')),
+              keywords='monitoring health source health collection verified stale unverified failed connector '
+                       'permission quiet zero alerts reliability'),
         Entry(_('Security Alerts'), section='mod_security', icon='fa-triangle-exclamation',
               keywords='edr siem vendor connections auto-ticket rules digest'),
         Entry(_('Security Incidents'), section='mod_security_ops', icon='fa-fire',

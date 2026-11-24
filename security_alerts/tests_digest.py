@@ -198,7 +198,10 @@ class DigestAllClearTests(TestCase):
 
     def test_on_sends_a_short_all_clear_to_opted_in_contacts_only(self):
         self._enable()
-        out = self._send()
+        # "All clear" needs verified monitoring (82.9; events.tests_source_health
+        # covers the unverified wording).
+        with mock.patch('security_alerts.digest._monitoring_verified', return_value=True):
+            out = self._send()
         self.assertEqual((out['sent'], out['all_clear']), (1, 1))
         self.assertEqual(len(mail.outbox), 1)
         msg = mail.outbox[0]
