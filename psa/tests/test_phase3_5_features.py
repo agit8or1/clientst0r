@@ -1215,6 +1215,9 @@ class TimesheetApprovalTests(TestCase):
         self.assertEqual(len(ctx['entries']), 3)
         # 2:30 + 3:00 + 4:15 = 9h45m = 585 min
         self.assertEqual(ctx['total_minutes'], 585)
+        # The summary cards show the minutes, not "True min".
+        self.assertContains(r, '585 min')
+        self.assertNotContains(r, 'True min')
 
     def test_submit_creates_pending_submission_and_attaches_entries(self):
         from psa.models import TimesheetSubmission, TicketTimeEntry

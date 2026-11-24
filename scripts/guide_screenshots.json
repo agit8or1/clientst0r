@@ -299,6 +299,590 @@
         }
       ],
       "caption": "Administration → Integrations → Connected Applications."
+    },
+    {
+      "name": "guide-my-queue",
+      "guide": "docs/MY_WORK.md",
+      "route": "/psa/my-work/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "My Work → My Queue with numbered callouts on the My Work tabs, the Mine / All customers switch, running timers, tickets near SLA breach, my open tickets and unacknowledged alerts",
+      "annotate": [
+        {
+          "selector": "nav.section-tabs",
+          "note": "The My Work tabs: your queue, tasks, timesheet, schedule, leave and more. You see only the tabs your role allows."
+        },
+        {
+          "selector": "#mw-scope .btn-group",
+          "note": "Mine shows the customers you work for; All customers widens the waiting queues, devices and alerts to every customer you can reach."
+        },
+        {
+          "selector": "#mw-timers",
+          "note": "Timers you left running, with Stop."
+        },
+        {
+          "selector": "#mw-sla",
+          "note": "Tickets due within two hours or already breached. Work it opens the ticket."
+        },
+        {
+          "selector": "#mw-open .card-header",
+          "note": "Your open tickets, soonest SLA first. View all opens the same list in Tickets."
+        },
+        {
+          "selector": "#mw-alerts",
+          "note": "Unacknowledged RMM and security alerts at your customers, each with Review or Open device."
+        }
+      ],
+      "caption": "My Work → My Queue."
+    },
+    {
+      "name": "guide-timesheet-approvals",
+      "guide": "docs/MY_WORK.md",
+      "route": "/psa/timesheet-approvals/",
+      "theme": "light",
+      "max_h": 1200,
+      "alt": "Timesheet Approvals with numbered callouts on the filters, bulk approve and reject, a pending week, the payroll CSV link and recent decisions",
+      "annotate": [
+        {
+          "selector": "#timesheetFilters",
+          "note": "Filter by technician, and the recent decisions by approved or rejected."
+        },
+        {
+          "selector": ".card.bg-light:has(#bulk-select-all)",
+          "note": "Tick weeks, add an optional note, then Approve selected or Reject selected."
+        },
+        {
+          "selector": ".card.border-warning >> nth=0",
+          "note": "A submitted week: the technician, the week, entry and minute totals and their comment. Open it to send single entries back."
+        },
+        {
+          "selector": "a:has-text(\"Payroll CSV\")",
+          "note": "Payroll CSV: approved weeks for the last 30 days, one row per technician and week."
+        },
+        {
+          "selector": "h5:text-is(\"Recent decisions\")",
+          "note": "The last 50 decisions, with who decided and their notes."
+        }
+      ],
+      "caption": "My Work → Timesheet Approvals."
+    },
+    {
+      "name": "guide-my-leave",
+      "guide": "docs/MY_WORK.md",
+      "user": "demo.mokafor",
+      "route": "/resourcing/leave/",
+      "theme": "light",
+      "max_h": 900,
+      "alt": "My Leave with numbered callouts on Request Leave, the pending requests with Cancel, upcoming approved leave and past requests",
+      "annotate": [
+        {
+          "selector": "a.btn:has-text(\"Request Leave\")",
+          "note": "Request Leave: type, dates, half day and a note for the approver."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Pending\"))",
+          "note": "Requests waiting for a decision. Cancel withdraws one."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Upcoming Approved\"))",
+          "note": "Approved leave that has not ended yet."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Past Requests\"))",
+          "note": "Everything else: past, denied and cancelled requests."
+        }
+      ],
+      "caption": "My Work → My Leave."
+    },
+    {
+      "name": "guide-my-resources",
+      "guide": "docs/MY_WORK.md",
+      "user": "demo.ipatel",
+      "route": "/resourcing/me/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "My Resources with numbered callouts on skills, certifications, leave this year, billable target and working hours",
+      "annotate": [
+        {
+          "selector": ".card:has(h5:has-text(\"Skills\"))",
+          "note": "Your skills, with proficiency and years of experience."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Certifications\"))",
+          "note": "Certifications with issuer and expiry. SOON marks one that expires within 60 days."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Leave (this year)\"))",
+          "note": "This year's leave: approved and pending requests and days used."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Billable Target\"))",
+          "note": "Your weekly billable-hours target, and your loaded cost rate (MSP staff only)."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Working Hours\"))",
+          "note": "The days and hours you work. Dispatch and routing use them when you have no shift."
+        }
+      ],
+      "caption": "My Work → My Resources."
+    },
+    {
+      "name": "guide-shift-schedule",
+      "guide": "docs/MY_WORK.md",
+      "route": "/resourcing/shifts/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Shift Schedule with numbered callouts on the week navigation, the team filter, the week grid and pending leave, and the form for adding a weekly shift",
+      "annotate": [
+        {
+          "selector": "nav.section-tabs",
+          "note": "Shifts & Locations: Shift Schedule, Location Sharing and Timeclock. Configure holds shift templates and dispatch location settings."
+        },
+        {
+          "selector": "a.btn:has-text(\"Previous\")",
+          "note": "Step a week back or forward, or return to this week."
+        },
+        {
+          "selector": "form:has(select[name=team])",
+          "note": "People who can see the team choose all technicians or one team."
+        },
+        {
+          "selector": "table.shift-grid",
+          "note": "One row per technician: shifts, approved and pending leave, and holidays. A shift that clashes with leave is marked in red."
+        },
+        {
+          "selector": ".card:has(strong:text-is(\"Add to the weekly schedule\"))",
+          "note": "Shift managers add a shift template to a technician or team on chosen weekdays. Until a template exists, it asks you to create one first."
+        }
+      ],
+      "caption": "Service Desk → Shifts & Locations → Shift Schedule."
+    },
+    {
+      "name": "guide-scheduled-tasks",
+      "guide": "docs/MY_WORK.md",
+      "route": "/scheduling/tasks/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "Scheduled Tasks with numbered callouts on the Scheduling tabs, New Task, the filters, an overdue task and a recurring task",
+      "annotate": [
+        {
+          "selector": "nav.section-tabs",
+          "note": "Scheduling: All Tasks, My Tasks and Calendar."
+        },
+        {
+          "selector": "a.btn:has-text(\"New Task\")",
+          "note": "New Task: title, priority, due date, recurrence, who signs off and when to warn."
+        },
+        {
+          "selector": ".card:has(h5:has-text(\"Filters\"))",
+          "note": "Filter by status and priority, or jump to your tasks or overdue ones."
+        },
+        {
+          "selector": "tbody tr >> nth=0",
+          "note": "An overdue task: past its due date and not yet completed."
+        },
+        {
+          "selector": "tbody tr >> nth=1",
+          "note": "A recurring task. When it is completed, the next occurrence is created."
+        }
+      ],
+      "caption": "Service Desk → Scheduling → All Tasks."
+    },
+    {
+      "name": "guide-ticket-list",
+      "guide": "docs/TICKETS.md",
+      "route": "/psa/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "The ticket list with numbered callouts on the view tabs, the filter bar, a ticket subject, the Next column and the New ticket button",
+      "annotate": [
+        {
+          "selector": ".section-tabs__list",
+          "note": "Views of the same list: All Tickets, Overview, My Queue, Unassigned, SLA, Escalated, and under More, Approvals (and AI Inbox when AI is on)."
+        },
+        {
+          "selector": ".tw-filter-bar",
+          "note": "Filters: search, client, status, priority, category, queue, assignee, request type, age, SLA and sort. They are in the address, so a filtered list can be bookmarked."
+        },
+        {
+          "selector": "td.ticket-subject >> nth=0",
+          "note": "The subject opens the ticket; the ticket number sits under it."
+        },
+        {
+          "selector": "thead th:has-text(\"Next\")",
+          "note": "Next: whose move it is. Reply when the customer spoke last, waiting when you did."
+        },
+        {
+          "selector": ".ui-page-head__actions a:has-text(\"New ticket\")",
+          "note": "New ticket."
+        }
+      ],
+      "caption": "Service Desk → Tickets → All Tickets."
+    },
+    {
+      "name": "guide-ticket-unassigned",
+      "guide": "docs/TICKETS.md",
+      "route": "/psa/?view=unassigned",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The Unassigned view with numbered callouts on the SLA column, the assignment picker and the Dispatch Board link",
+      "annotate": [
+        {
+          "selector": "thead th:has-text(\"SLA\")",
+          "note": "SLA state and time left (or overdue by). The list reads soonest deadline first."
+        },
+        {
+          "selector": "td .tw-assign >> nth=0",
+          "note": "Assign the ticket from the list. Shown only where you may assign it."
+        },
+        {
+          "selector": ".ui-page-head__actions a:has-text(\"Dispatch Board\")",
+          "note": "Open the Dispatch Board to plan the week instead."
+        }
+      ],
+      "caption": "Service Desk → Tickets → Unassigned."
+    },
+    {
+      "name": "guide-ticket-work",
+      "guide": "docs/TICKETS.md",
+      "route": "/psa/t/PSA-2026-000001/",
+      "theme": "light",
+      "max_h": 1560,
+      "alt": "A ticket's header and side column with numbered callouts on the priority, status, queue and assignee badges, the SLA badge, Watch, Actions, the closeout checklist and the Details card",
+      "annotate": [
+        {
+          "selector": "span.badge.bg-secondary:has-text(\"P2\")",
+          "note": "Priority, then status, queue and assignee."
+        },
+        {
+          "selector": "span.badge:has-text(\"SLA\")",
+          "note": "SLA state: on track, warning, breached (response or resolution) or paused."
+        },
+        {
+          "selector": "button:has-text(\"Watch\")",
+          "note": "Watch: get emails about new activity."
+        },
+        {
+          "selector": "button.dropdown-toggle:has-text(\"Actions\")",
+          "note": "Actions: assign to me or a technician, change status, close with a resolution."
+        },
+        {
+          "selector": "#closeout-checklist",
+          "note": "Closeout checklist: steps marked required must be ticked before the ticket can close; sign-off."
+        },
+        {
+          "selector": ".card:has(.card-header:has-text(\"Details\"))",
+          "note": "Details: type, source, impact, urgency, contact, site and asset."
+        }
+      ],
+      "caption": "A ticket: header and side column."
+    },
+    {
+      "name": "guide-ticket-time",
+      "guide": "docs/TICKETS.md",
+      "route": "/psa/t/PSA-2026-000001/",
+      "theme": "light",
+      "selector": "#time-charges",
+      "tight": true,
+      "max_h": 1400,
+      "alt": "The Time and Charges card on a ticket with numbered callouts on the totals, the running timer, the time entry form and the logged entries",
+      "annotate": [
+        {
+          "selector": "#time-charges .card-header small",
+          "note": "Total and billable minutes on this ticket."
+        },
+        {
+          "selector": "#time-charges form:has-text(\"Stop\")",
+          "note": "A running timer: add a note, then Stop & log."
+        },
+        {
+          "selector": "#timeEntryForm",
+          "note": "Log time by hand, or Start timer: minutes, classification, work type, role and notes."
+        },
+        {
+          "selector": "#time-charges table >> nth=0 >> th >> nth=0",
+          "note": "Logged entries, with classification and agreement."
+        }
+      ],
+      "caption": "Time & Charges on a ticket."
+    },
+    {
+      "name": "guide-dispatch-board",
+      "guide": "docs/TICKETS.md",
+      "route": "/psa/dispatch/",
+      "theme": "light",
+      "max_h": 1200,
+      "alt": "The Dispatch Board with numbered callouts on the Unassigned queue link, the Overdue panel, the Unassigned row, a technician row, the Other column and an assignment picker",
+      "annotate": [
+        {
+          "selector": "a[data-unassigned-link]",
+          "note": "Open unassigned tickets for the selected client, in the ticket list."
+        },
+        {
+          "selector": ".alert-danger:has-text(\"Overdue\")",
+          "note": "Overdue: open tickets whose due date has passed."
+        },
+        {
+          "selector": "tr[data-tech=\"unassigned\"] td.dispatch-row-label",
+          "note": "Unassigned tickets, by due day."
+        },
+        {
+          "selector": "tbody tr:nth-child(2) td.dispatch-row-label",
+          "note": "One row per technician; the envelope means they are emailed on assignment."
+        },
+        {
+          "selector": "thead th:has-text(\"Other\")",
+          "note": "Other: no due date, or due outside the 7 days shown."
+        },
+        {
+          "selector": ".dispatch-card .tw-assign >> nth=0",
+          "note": "Assign from the card, or drag the card to a technician's row. The bulb lists suggested technicians."
+        }
+      ],
+      "caption": "Service Desk → Dispatch Board."
+    },
+    {
+      "name": "guide-project",
+      "guide": "docs/TICKETS.md",
+      "route": "/psa/projects/1/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "A project with numbered callouts on the project facts, Ready to bill, Profitability, Budget, the task tools, a task's Ticket button and the project's tickets",
+      "annotate": [
+        {
+          "selector": ".col-md-4 .card >> nth=0",
+          "note": "Client, owner, dates, estimated hours, billable. Edit changes them."
+        },
+        {
+          "selector": ".card:has(strong:has-text(\"Ready to bill\"))",
+          "note": "Ready to bill: what is waiting, and Create draft invoice (nothing is sent)."
+        },
+        {
+          "selector": ".card:has(strong:has-text(\"Profitability\"))",
+          "note": "Profitability: revenue, labour cost and margin. Only staff allowed to see profitability."
+        },
+        {
+          "selector": ".card:has(strong:has-text(\"Budget\"))",
+          "note": "Budget: hours and amount used against the budget."
+        },
+        {
+          "selector": "button:has-text(\"Apply template\")",
+          "note": "Timeline, and Apply template: copy a template's tasks onto the project."
+        },
+        {
+          "selector": "button:has-text(\"Ticket\") >> nth=3",
+          "note": "→ Ticket: make a task a ticket so time can be logged on it. Set assignee and status per task."
+        },
+        {
+          "selector": ".card:has(strong:has-text(\"Tickets in this project\"))",
+          "note": "Tickets in this project."
+        }
+      ],
+      "caption": "Service Desk → Projects → a project."
+    },
+    {
+      "name": "guide-service-catalog",
+      "guide": "docs/SERVICE_MANAGEMENT.md",
+      "route": "/psa/catalog/",
+      "theme": "light",
+      "max_h": 1100,
+      "alt": "The service catalog with numbered callouts on the tile and list switch, a catalog tile, its Edit button, Portal request types and forms, and New Catalog Item",
+      "annotate": [
+        {
+          "selector": "main .btn-group[aria-label='View mode']",
+          "note": "Show the catalog as tiles or as a table. The page remembers your choice."
+        },
+        {
+          "selector": "main .row.g-3 .card >> nth=0",
+          "note": "A catalog item. Click it to open a new ticket already filled in from this item; the badges show its default priority, queue and type."
+        },
+        {
+          "selector": "main .row.g-3 .card a.btn:has-text('Edit') >> nth=0",
+          "note": "Edit the item (MSP staff only)."
+        },
+        {
+          "selector": "main a.btn:has-text('Portal request types')",
+          "note": "Portal request types and forms: what customers can request in the portal."
+        },
+        {
+          "selector": "main a.btn:has-text('New Catalog Item')",
+          "note": "Add a catalog item."
+        }
+      ],
+      "caption": "Service Desk → Service Management → Service Catalog."
+    },
+    {
+      "name": "guide-change-requests",
+      "guide": "docs/SERVICE_MANAGEMENT.md",
+      "route": "/psa/changes/",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The change request list with numbered callouts on the status and risk filters, a change's ticket number, its risk and status, and the CAB columns",
+      "annotate": [
+        {
+          "selector": "main select[name=status]",
+          "note": "Filter by where the change is: draft, pending CAB approval, approved, implementing, verified and so on."
+        },
+        {
+          "selector": "main select[name=risk]",
+          "note": "Filter by risk: low, medium, high or emergency."
+        },
+        {
+          "selector": "main tbody tr >> nth=0",
+          "note": "One change. The number opens its change record; the ticket itself is a normal ticket of type Change."
+        },
+        {
+          "selector": "main th:text-is('Required CAB')",
+          "note": "Required CAB: how many approvers the change needs. Votes: how many have voted so far."
+        }
+      ],
+      "caption": "Service Desk → Service Management → Change Requests."
+    },
+    {
+      "name": "guide-change-request",
+      "guide": "docs/SERVICE_MANAGEMENT.md",
+      "route": "/psa/t/PSA-2026-000025/change/",
+      "theme": "light",
+      "max_h": 1500,
+      "alt": "A change record with numbered callouts on its risk and status, the plans, the schedule, the CAB approval table and the actions",
+      "annotate": [
+        {
+          "selector": "main .text-end:has(.badge:has-text('risk'))",
+          "note": "The change's risk and where it stands."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:text-is('Plans'))",
+          "note": "Implementation plan, rollback plan and impact assessment."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:text-is('Schedule'))",
+          "note": "The planned window and, once work starts, the actual start and end."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:text-is('CAB Approval'))",
+          "note": "Each required approver and their vote. All must approve, and none reject, before work can begin."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:text-is('Actions'))",
+          "note": "The next step: submit to CAB, begin implementation, or record the outcome."
+        }
+      ],
+      "caption": "A change record (Change Requests → a change)."
+    },
+    {
+      "name": "guide-problem",
+      "guide": "docs/SERVICE_MANAGEMENT.md",
+      "route": "/psa/problems/1/",
+      "theme": "light",
+      "max_h": 2400,
+      "alt": "A problem record with numbered callouts on the root-cause analysis, related tickets, investigation notes and the status pipeline",
+      "annotate": [
+        {
+          "selector": "main .card:has(.card-header strong:text-is('Root-Cause Analysis'))",
+          "note": "Symptoms, root cause, workaround and permanent fix."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:has-text('Related tickets'))",
+          "note": "The incidents that share this cause. Link another by its ticket number."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:has-text('Investigation Notes'))",
+          "note": "What was learned and when. Mark a note as a breakthrough to make it stand out."
+        },
+        {
+          "selector": "main .card:has(.card-header strong:text-is('Status Pipeline'))",
+          "note": "Move the problem on. Known error needs a root cause and workaround; resolved needs a root cause and permanent fix."
+        }
+      ],
+      "caption": "A problem record (Problems → a problem)."
+    },
+    {
+      "name": "guide-runbooks",
+      "guide": "docs/WORKFLOWS.md",
+      "route": "/processes/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1000,
+      "alt": "The runbook list with numbered callouts on the run-as-ticket note, the filters, a runbook and New Workflow",
+      "annotate": [
+        {
+          "selector": "main .alert-info",
+          "note": "Running a runbook opens a ticket that carries its checklist."
+        },
+        {
+          "selector": "main form[method=get]",
+          "note": "Search by title or description, or filter by category."
+        },
+        {
+          "selector": "#processesTable tbody tr >> nth=0",
+          "note": "A runbook: its category, number of stages, tags, and whether it belongs to this customer (Org) or to every customer (Global)."
+        },
+        {
+          "selector": "main a.btn:has-text('New Workflow')",
+          "note": "Write a new runbook for the selected customer."
+        }
+      ],
+      "caption": "Service Desk → Workflows → Runbooks."
+    },
+    {
+      "name": "guide-runbook",
+      "guide": "docs/WORKFLOWS.md",
+      "route": "/processes/new-server-deployment/",
+      "organization": "Beacon Managed IT",
+      "theme": "light",
+      "max_h": 1800,
+      "alt": "A runbook with numbered callouts on Launch Workflow, Edit, the flowchart button and the stages",
+      "annotate": [
+        {
+          "selector": "main a.btn:has-text('Launch Workflow')",
+          "note": "Launch Workflow: pick the customer and assignee; a ticket opens with this checklist."
+        },
+        {
+          "selector": "main a.btn:has-text('Edit')",
+          "note": "Edit or delete the runbook (not offered on global runbooks)."
+        },
+        {
+          "selector": "#generateDiagramBtn, #regenerateDiagramBtn",
+          "note": "Draw a flowchart of the stages as a diagram."
+        },
+        {
+          "selector": "main .card:has(h6:has-text('Process Stages'))",
+          "note": "The stages, in order. A stage can link a document, password, secure note or asset and can require confirmation."
+        }
+      ],
+      "caption": "A runbook (Runbooks → a runbook)."
+    },
+    {
+      "name": "guide-support-workflows-manage",
+      "guide": "docs/SUPPORT_WORKFLOWS.md",
+      "route": "/psa/workflows/manage/",
+      "theme": "light",
+      "max_h": 1300,
+      "alt": "The support workflow list with numbered callouts on New workflow, a built-in workflow, its alert categories and actions, and Edit and Turn off",
+      "annotate": [
+        {
+          "selector": "main a.btn:has-text('New workflow')",
+          "note": "Write a workflow of your own."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=0",
+          "note": "A workflow, marked built-in, customised or off."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=1",
+          "note": "The alert categories it is offered for."
+        },
+        {
+          "selector": "main tbody tr:has-text('Service stopped') >> td >> nth=2",
+          "note": "The Rem0te catalog action a workflow may offer; most offer manual steps only."
+        },
+        {
+          "selector": "main tbody tr >> nth=0 >> td >> nth=3",
+          "note": "Edit it, turn it off or on, or Reset a customised built-in."
+        }
+      ],
+      "caption": "Service Desk → Workflows → Support Workflows."
     }
   ]
 }

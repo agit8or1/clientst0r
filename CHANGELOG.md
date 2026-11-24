@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.773] - 2026-11-24
+
+### Added
+- **Guides for Service Desk and My Work, with annotated screenshots** (Clientst0r Docs → Everyday work):
+  - *My Work*: your queue, tasks, timesheet and approvals, schedule, leave, resources and billable target;
+    shifts, location sharing, the timeclock and scheduled tasks.
+  - *Tickets*: the ticket list and its views, working a ticket, time and charges, SLA, the Dispatch Board,
+    Routing Triage, the load heatmap and projects.
+  - *Service Management*: the service catalog, catalog changes, change requests and CAB approval, problems,
+    releases, approvals and the service-desk knowledge base.
+  - *Workflows*: runbooks and their dashboard, workflow templates and suggested rules.
+  - *Support Workflows* gains a screenshot of the workflow list.
+- **Documentation coverage check.** Every sidebar section is mapped to the guide that explains it, and every
+  guide to its annotated screenshot; a test keeps the list of sections and guides still waiting from growing.
+  Today 21 of 54 sections have a guide and 12 of 46 guides have screenshots.
+
+### Fixed
+- **My Timesheet showed "True min"** in the Total time and Billable cards instead of the minutes.
+- The Support Workflows guide was listed as "Tickets from first contact to close"; it now says what it covers.
+
 ## [3.17.772] - 2026-11-24
 
 ### Changed

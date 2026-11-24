@@ -30,6 +30,18 @@ Open them from a ticket that has a monitoring alert (**Support workflows** on th
 
 You can turn any workflow off, edit it (your copy replaces the built-in, keeping its slug), or **Reset** it to the built-in. Runs already started keep the version they started with.
 
+The Support Workflows list shows each workflow with these controls. The numbers in the screenshot match the list under it; it is a capture against a demo database.
+
+<!-- guide-figure: guide-support-workflows-manage -->
+![The support workflow list with numbered callouts on New workflow, a built-in workflow, its alert categories and actions, and Edit and Turn off](images/guides/guide-support-workflows-manage.png "Service Desk → Workflows → Support Workflows.")
+
+1. Write a workflow of your own.
+2. A workflow, marked built-in, customised or off.
+3. The alert categories it is offered for.
+4. The Rem0te catalog action a workflow may offer; most offer manual steps only.
+5. Edit it, turn it off or on, or Reset a customised built-in.
+<!-- /guide-figure -->
+
 ## Editing a workflow
 
 The editor has these sections:

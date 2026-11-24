@@ -115,7 +115,7 @@ Work being implemented now or approved as the next P0 task.
 |---|---|---|---|---|---|
 | 1 | 94 — [Evidence integrity and routine backups](#phase-94) | P0\* | 🔵 In progress | External append-only audit shipping (94.1); protected-change approval for audit pruning (94.2); S3 destination (94.3) | — |
 | 2 | 51 — [Reliability and customer-boundary hardening](#phase-51) | P0\* | 🔵 In progress | Per-customer integration ownership (remaining part of the platform-integrations item) | — |
-| 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.1 coverage checks; 112.2 Service Desk and My Work guides | 67 |
+| 3 | 112 — [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 112.3 Clients, assets and network guides; 112.4 Business | 67 |
 
 <!-- /generated:now -->
 
@@ -362,7 +362,7 @@ unchanged. Click a feature for its details.
 | 59 | [Verified installs and upgrades](#phase-59) | — | 🔵 In progress | updater, root helper | 59.7 LTS channel |
 | 67 | [Interface, navigation and dashboard redesign](#phase-67) | — | 🔵 In progress | 64 | 67.8 validation and 67.16 follow-ups |
 | 96 | [First-install setup wizard and interactive onboarding](#phase-96) | P0 | 🔵 In progress | 59, 64, 67 | 96.2 first-install detection; 96.3–96.4 assistant |
-| 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.1 coverage checks; 112.2 Service Desk and My Work guides |
+| 112 | [Complete user documentation with annotated screenshots](#phase-112) | P1 | 🔵 In progress | 67 | 112.3 Clients, assets and network guides; 112.4 Business |
 
 <details markdown="1">
 <summary>4 completed phases</summary>
@@ -3945,9 +3945,9 @@ Today: read-only tenant inventory with manual sync, not verified against a real 
 <a id="phase-112"></a>
 
 ## Phase 112 — Complete user documentation with annotated screenshots **(L · P1 · docs)** [in progress]
-<!-- phase: ws=I stage=7 view=now order=3 deps=67 next="112.1 coverage checks; 112.2 Service Desk and My Work guides" -->
+<!-- phase: ws=I stage=7 view=now order=3 deps=67 next="112.3 Clients, assets and network guides; 112.4 Business" -->
 **Status:** 🔵 In progress · **Priority:** P1 · **Workstream:** I. Deployment, Updates & Reliability · **Depends on:** 67  
-**Next:** 112.1 coverage checks; 112.2 Service Desk and My Work guides
+**Next:** 112.3 Clients, assets and network guides; 112.4 Business
 
 
 Every area of the application has a guide in Clientst0r Docs, and every guide carries at least one
@@ -3957,11 +3957,15 @@ annotated screenshot (numbered callouts matched by a numbered list) captured fro
 <details markdown="1">
 <summary>Details, completed work and acceptance criteria</summary>
 
-- **112.1 Coverage checks** *(planned)* — a test maps every navigation section to the guide that documents it
+- **112.1 Coverage checks** *(shipped v3.17.773)* — a test maps every navigation section to the guide that documents it
   and fails for a guide without an annotated figure; the list of guides and sections still waiting shrinks with
-  each release and may never grow.
-- **112.2 Service Desk and My Work** *(planned)* — tickets, queues, dispatch board, shifts, scheduling,
-  projects, service management (problems, changes), workflows.
+  each release and may never grow. `core/guide_coverage.py` holds the map and both waiting lists;
+  `core.tests.test_guide_coverage` enforces them.
+- **112.2 Service Desk and My Work** *(shipped v3.17.773)* — new guides My Work, Tickets (with dispatch and
+  projects), Service Management and Workflows, with 19 annotated screenshots; Support Workflows gains its
+  figure. Pages the demo database has nothing to show on (AI Inbox, Routing Triage, Catalog Changes, Workflow
+  Dashboard, Templates, Suggestions, Location Sharing, Timeclock, My Billable Target, My Timesheet) are
+  described without a figure until the demo data covers them.
 - **112.3 Clients, assets and network** *(planned)* — customers and onboarding, assets, hardware and ports,
   network diagrams, infrastructure, backup monitoring, IPAM, inventory, vehicles.
 - **112.4 Business** *(planned)* — CRM, contracts, licensing, quotes, invoices, billing review, procurement,
