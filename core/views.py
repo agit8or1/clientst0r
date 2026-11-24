@@ -808,12 +808,19 @@ def root_helper_install(request):
 
 @login_required
 @user_passes_test(is_superuser)
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def check_updates_now(request):
     """
     Force check for updates (bypass cache).
     Staff-only access.
+
+    Only the page's POST checks. A GET lands here when a sign-in sends the
+    browser back to this address (the session ran out before "Check now" was
+    clicked) or the address is reloaded; it goes to the Updates page instead
+    of an error, without checking.
     """
+    if request.method != 'POST':
+        return redirect('core:system_updates')
     updater = UpdateService()
     update_info = updater.check_for_updates(force_refresh=True)
 

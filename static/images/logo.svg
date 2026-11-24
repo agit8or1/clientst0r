@@ -1,71 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" width="280" height="70">
-  <!-- Modern geometric icon representing storage/documentation -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 64" width="230" height="64">
+  <!-- Clientst0r wordmark: icon, one-line name, tagline -->
+  <title>Clientst0r</title>
   <defs>
     <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#2563eb"/>
     </linearGradient>
     <linearGradient id="zeroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
     </linearGradient>
   </defs>
-
-  <!-- Icon - Stylized storage/document icon -->
-  <g transform="translate(8, 10)">
-    <!-- Base shape - modern hexagonal storage concept -->
+  <g transform="translate(-12, 4)">
     <path d="M 25 5 L 45 5 L 50 15 L 50 40 L 45 50 L 25 50 L 20 40 L 20 15 Z"
-          fill="url(#iconGradient)"
-          stroke="#2563eb"
-          stroke-width="2"
-          stroke-linejoin="round"/>
-
-    <!-- Inner detail lines suggesting layers/documents -->
+          fill="url(#iconGradient)" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
     <line x1="25" y1="18" x2="45" y2="18" stroke="white" stroke-width="2" opacity="0.6"/>
     <line x1="25" y1="27" x2="45" y2="27" stroke="white" stroke-width="2" opacity="0.6"/>
     <line x1="25" y1="36" x2="45" y2="36" stroke="white" stroke-width="2" opacity="0.6"/>
-
-    <!-- Accent circle in center -->
     <circle cx="35" cy="27" r="6" fill="white" opacity="0.3"/>
   </g>
-
-  <!-- Brand text "Client" -->
-  <text x="75" y="33"
-        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
-        font-size="26"
-        font-weight="600"
-        fill="#1e293b"
-        letter-spacing="-0.5">Client</text>
-
-  <!-- Brand text "St" -->
-  <text x="75" y="53"
-        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
-        font-size="26"
-        font-weight="600"
-        fill="#1e293b"
-        letter-spacing="-0.5">St</text>
-
-  <!-- Stylized "0" (zero) with gradient -->
-  <text x="99" y="53"
-        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
-        font-size="28"
-        font-weight="700"
-        fill="url(#zeroGradient)"
-        letter-spacing="-0.5">0</text>
-
-  <!-- Brand text "r" -->
-  <text x="115" y="53"
-        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
-        font-size="26"
-        font-weight="600"
-        fill="#1e293b"
-        letter-spacing="-0.5">r</text>
-
-  <!-- Tagline with updated styling -->
-  <text x="75" y="63"
-        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
-        font-size="10"
-        font-weight="400"
-        fill="#64748b"
-        letter-spacing="0.5">IT DOCUMENTATION PLATFORM</text>
+  <text x="50" y="37" font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif" font-size="30" font-weight="600"
+        fill="#1e293b" letter-spacing="-0.5">Clientst<tspan font-weight="700" fill="url(#zeroGradient)">0</tspan>r</text>
+  <text x="51" y="54" font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif" font-size="9.5" font-weight="400"
+        fill="#64748b" letter-spacing="0.6">IT DOCUMENTATION PLATFORM</text>
 </svg>

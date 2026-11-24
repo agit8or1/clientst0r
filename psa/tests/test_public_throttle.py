@@ -5,6 +5,8 @@ token exists."""
 import re
 from decimal import Decimal
 
+from unittest import mock
+
 from django.core import mail
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
@@ -19,10 +21,20 @@ from .test_quote_signature_binding import PNG
 IP_A, IP_B = '203.0.113.10', '203.0.113.11'
 
 
+def _pin_rate_window(test):
+    """django-ratelimit counts in clock-aligned windows; a burst that crosses a
+    window boundary starts counting again and the test flakes on a busy
+    machine. Pin every request to one window."""
+    patcher = mock.patch('django_ratelimit.core._get_window', lambda value, period: 4102444800)
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class QuoteSignThrottleTests(TestCase):
     def setUp(self):
         cache.clear()
+        _pin_rate_window(self)
         _enable_psa_global()
         _setup_seed()
         self.msp = Organization.objects.create(name='MSP', slug='msp-t')
@@ -94,6 +106,7 @@ class QuoteSignThrottleTests(TestCase):
 class CSATThrottleTests(TestCase):
     def setUp(self):
         cache.clear()
+        _pin_rate_window(self)
         mail.outbox = []
         _setup_seed()
         s = SystemSetting.get_settings()

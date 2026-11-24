@@ -2444,7 +2444,7 @@ Hiding a link stays presentation only; every page keeps its own server-side chec
   settings, translations and help text say "Clientst0r"; an install still on the shipped site name or e-mail
   sender name takes the new spelling, a name the administrator chose is kept. Kept as they were: outgoing
   user-agent strings (receivers may filter on them), code identifiers such as the LDAP backend's class path
-  (stored in signed-in sessions), the logo artwork and the release history. Screenshots in the guides and the
+  (stored in signed-in sessions) and the release history. The logo spells the name on one line *(shipped v3.17.772)*. Screenshots in the guides and the
   gallery are retaken as Phase 112 reaches each area.
 
 **Sizing:** **L** — navigation and settings, dashboard, visual system, then

@@ -180,6 +180,14 @@ class ReleaseLabellingTests(_PageBase):
         self.assertEqual(tone, 'ok')
         self.assertTrue(line.startswith('Up to date — v3.17.694.'), line)
 
+    def test_opening_the_check_address_goes_to_the_updates_page(self):
+        """Signing in after the session ran out sends the browser back to the
+        check address with a GET; that shows the Updates page, not a 405."""
+        with mock.patch('core.views.UpdateService') as service:
+            r = self.client.get(reverse('core:check_updates_now'))
+        self.assertRedirects(r, reverse('core:system_updates'), fetch_redirect_response=False)
+        service.assert_not_called()
+
     def test_check_now_flash_names_the_release(self):
         self.gh = MainAt(DEFAULT_RELEASES + [RELEASE_694], main_sha=commit_of('v3.17.694'))
         r = self.run_patched(lambda: self.client.post(reverse('core:check_updates_now'), follow=True))

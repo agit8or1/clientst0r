@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.772] - 2026-11-24
+
+### Changed
+- **The logo spells "Clientst0r" on one line.** The wordmark used to break into "Client" over "St0r" with the
+  tagline running into it; it now reads as one name with the blue 0, and the tagline sits clear underneath. Same
+  icon and colours, in both the light and dark versions.
+- The browser-tab icon is the Clientst0r icon instead of the letters "CS".
+- The offline cache is renewed, so browsers pick up the new logo straight away.
+
+### Fixed
+- **Updates page: no "405 Method Not Allowed" after signing in again.** When the session had run out, "Check
+  now" sent you to the sign-in page, which then returned the browser to the check address; that address only
+  accepted the button and answered with an error. Opening it now shows the Updates page (click "Check now" again
+  to check).
+- A rate-limit test could fail on a busy machine when its burst of requests crossed a one-minute counting
+  window; it now pins the window.
+
 ## [3.17.771] - 2026-11-24
 
 ### Changed

@@ -60,3 +60,13 @@ class DefaultNameMigrationTests(TestCase):
     def test_new_installs_default_to_the_new_name(self):
         self.assertEqual(SystemSetting._meta.get_field('site_name').default, 'Clientst0r')
         self.assertEqual(SystemSetting._meta.get_field('smtp_from_name').default, 'Clientst0r')
+
+
+class LogoTests(SimpleTestCase):
+
+    def test_logos_spell_the_name_on_one_line(self):
+        for name in ('logo.svg', 'logo-light.svg'):
+            svg = (ROOT / 'static' / 'images' / name).read_text()
+            self.assertIn('>Clientst<tspan', svg, name)
+            self.assertNotIn('>Client</text>', svg, name)
+            self.assertIn('<title>Clientst0r</title>', svg, name)
