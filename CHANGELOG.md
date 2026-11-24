@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.770] - 2026-11-24
+
+### Fixed
+- **Executive Scorecard in the dark theme.** The figure cards were white with light text and the section headers
+  were forced white; they now follow the theme. The margin chart no longer grows on every resize (it reached
+  several thousand pixels), and chart labels use the theme's text colour.
+- **Executive Scorecard in the menu.** It has its own entry under Reports, and every report opened from Reports
+  Home keeps Reports Home selected in the sidebar and the Reports tabs, so no report page shows a menu with
+  nothing selected. Security Response Analytics moves from the Reports tabs to a Reports Home button (its menu
+  home stays Security & Monitoring → Security Incidents).
+- **Text contrast across the application** (WCAG AA, 4.5:1). A sweep of every page in both themes found about
+  580 pieces of text under the minimum; the remaining ones are disabled controls, which the standard exempts:
+  - light theme: secondary and muted text, info / warning / success text, outline buttons, page numbers;
+  - solid alerts: small print, muted text and links inside them take the alert's text colour;
+  - in-page pill menus (Backup Monitoring and others) were white on white;
+  - badges: info and warning fills take dark text; badge links no longer take the link colour; customer
+    tags pick black or white text for their colour (white on orange did not read);
+  - dark theme: outline buttons, "dark" outline buttons on the Reports page, red buttons in tables, tinted
+    table rows (light pink rows with light text), selected toggle buttons;
+  - customer portal in dark mode: the ticket conversation showed dark text on a dark card.
+
+### Changed
+- **Clientst0r Docs** is the name of the in-app documentation (was "Client St0r Docs").
+
+### Added
+- `scripts/contrast_check.py` measures text contrast on every page of the screenshot manifests in the light
+  and dark themes against the demo instance.
+- Roadmap: Phase 112 — documentation for every area of the application, each guide with annotated
+  screenshots (in progress); 67.29 — one product name, Clientst0r (planned).
+
 ## [3.17.769] - 2026-11-24
 
 ### Added
