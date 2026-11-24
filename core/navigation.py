@@ -831,9 +831,6 @@ SECTIONS = (
         Tab(_('Report History'), 'reports:generated_list', 'fa-history'),
         Tab(_('Software Compliance'), 'reports:software_compliance_report', 'fa-scale-balanced',
             gate=_msp_wide('assets_view', legacy='staff')),
-        # Its home is Security & Monitoring → Security Incidents.
-        Tab(_('Security Response Analytics'), 'reports:security_alert_mtta', 'fa-stopwatch',
-            gate=_all(_psa, _msp_wide('reports_view_sla')), link_only=True),
         # Phase 76: profitability findings and pricing recommendations.
         Tab(_('Pricing Advisor'), 'advisor:finding_list', 'fa-scale-balanced',
             gate=_view_check(_check_advisor), keywords='profitability margin pricing advisor underpriced renewal'),
